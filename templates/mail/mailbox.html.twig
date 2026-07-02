@@ -1,0 +1,16 @@
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block message_list %}
+    {% if messages is empty %}
+        <li class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
+            No messages in this mailbox
+        </li>
+    {% else %}
+        {% for message in messages %}
+            {% include '_partials/_message_row.html.twig' with {
+                message: message,
+                mailbox: mailbox.name
+            } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

@@ -1,5 +1,9 @@
 twig:
     file_name_pattern: '*.twig'
+    form_themes:
+        - '_partials/modal_form_theme.html.twig'
+    globals:
+        accounts: '@App\Twig\AccountsGlobal'
 
 when@test:
     twig:

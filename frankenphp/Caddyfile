@@ -1,0 +1,32 @@
+{
+        {$CADDY_GLOBAL_OPTIONS}
+        frankenphp {
+                {$FRANKENPHP_CONFIG}
+        }
+}
+{$CADDY_EXTRA_CONFIG}
+{$SERVER_NAME:localhost} {
+        log {
+                format filter {
+                        wrap console
+                        fields {
+                                uri query {
+                                        replace authorization REDACTED
+                                }
+                        }
+                }
+        }
+
+        root public/
+
+        encode zstd br gzip
+
+        # Mercure hub — proxy to the mercure container
+        handle /.well-known/mercure* {
+                reverse_proxy mercure:80
+        }
+
+        php_server {
+                try_files {path} index.php
+        }
+}

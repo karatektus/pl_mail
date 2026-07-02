@@ -1,0 +1,51 @@
+{% extends '_layout/app.html.twig' %}
+
+{% set selectedMessage = selectedMessage|default(null) %}
+
+{% block body %}
+    <div class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
+        <div class="flex h-full p-3 gap-3">
+
+            {# Sidebar — solid, opaque, its own card #}
+            {% include '_partials/_sidebar.html.twig' %}
+
+            {# Right column: glass topbar + glass content, stacked #}
+            <div class="flex flex-col flex-1 gap-3 overflow-hidden">
+
+                {% include '_partials/_topbar.html.twig' %}
+
+                <div
+                    class="flex flex-1 overflow-hidden relative rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/30"
+                >
+                    {# List pane #}
+                    <div
+                        id="message-list"
+                        data-mailbox-id="{{ mailbox is defined ? [mailbox.id]|json_encode : mailboxIds|json_encode}}"
+                        data-mail-pane-target="list"
+                        class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
+                    >
+                        {% block inbox_tabs %}{% endblock %}
+
+                        <ul class="flex-1 overflow-y-auto divide-y divide-gray-100/70 dark:divide-gray-800/70">
+                            {% block message_list %}{% endblock %}
+                        </ul>
+                    </div>
+
+                    {# Reading pane #}
+                    <div
+                        data-mail-pane-target="reading"
+                        class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
+                    >
+                        {% block reading_pane %}
+                            {% if selectedMessage is not null %}
+                                {% include 'mail/_message_content.html.twig' with { message: selectedMessage } %}
+                            {% endif %}
+                        {% endblock %}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+{% endblock %}

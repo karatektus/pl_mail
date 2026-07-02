@@ -1,0 +1,29 @@
+{# mail/inbox.html.twig #}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block inbox_tabs %}
+    <div class="border-b border-gray-200 dark:border-gray-800 px-1">
+        <nav class="flex text-sm">
+            <button class="px-4 py-3 font-medium text-blue-600 border-b-2 border-blue-600 -mb-px">Primary</button>
+            <button class="px-4 py-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px">Promotions</button>
+            <button class="px-4 py-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px">Updates</button>
+            <button class="px-4 py-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px">Social</button>
+        </nav>
+    </div>
+
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
+            No messages in this mailbox
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {% include '_partials/_thread_row.html.twig' with {
+                thread: thread,
+            } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}
+
+{% block message_list %}
+    {# loop over messages here #}
+{% endblock %}

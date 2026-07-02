@@ -1,0 +1,82 @@
+{#
+templates/_partials/_modal_form.html.twig
+
+Wrap any form rendered inside the modal turbo-frame with this partial.
+Turbo extracts only the <turbo-frame id="modal"> fragment; the rest of
+the page layout is ignored, so extending app.html.twig is optional.
+
+Parameters:
+  title        (string)   – modal heading
+  form         (FormView) – Symfony form view
+  submit_label (string)   – submit button text, defaults to "Save"
+  cancel_label (string)   – cancel button text, defaults to "Cancel"
+  danger       (bool)     – red submit button for destructive actions
+#}
+{% set submit_label = submit_label ?? 'Save' %}
+{% set cancel_label = cancel_label ?? 'Cancel' %}
+{% set danger       = danger ?? false %}
+
+<turbo-frame id="modal">
+    <template data-modal-frame-title>{{ title ?? '' }}</template>
+
+    {{ form_start(form, {
+        attr: {
+            'data-turbo-frame': 'modal',
+            class: 'flex flex-col min-h-0',
+        }
+    }) }}
+
+    {# ── Body ── #}
+    <div class="px-5 py-5 space-y-4 overflow-y-auto">
+
+        {# Global form errors #}
+        {% if form.vars.errors|length %}
+            <div
+                role="alert"
+                class="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/70 px-3.5 py-3 text-sm text-red-700 dark:text-red-300"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                     class="size-4 mt-0.5 shrink-0 text-red-500 dark:text-red-400" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
+                </svg>
+                <div class="space-y-0.5">
+                    {% for error in form.vars.errors %}
+                        <p class="leading-snug">{{ error.message }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {{ form_widget(form) }}
+
+    </div>
+
+    {# ── Footer ── #}
+    <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-zinc-200 dark:border-zinc-700/60 bg-zinc-50/80 dark:bg-zinc-800/40 rounded-b-xl shrink-0">
+        <button
+            type="button"
+            data-action="click->modal#close"
+            class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+               text-zinc-600 dark:text-zinc-300
+               bg-white dark:bg-zinc-800
+               border border-zinc-300 dark:border-zinc-600/80
+               hover:bg-zinc-50 dark:hover:bg-zinc-700
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
+               transition-colors duration-100"
+        >{{ cancel_label }}</button>
+
+        <button
+            type="submit"
+            class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
+               transition-colors duration-100
+               {% if danger %}
+                 bg-red-600 hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-500
+               {% else %}
+                 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-blue-500
+               {% endif %}"
+        >{{ submit_label }}</button>
+    </div>
+
+    {{ form_end(form) }}
+</turbo-frame>

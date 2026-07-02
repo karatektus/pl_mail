@@ -1,0 +1,129 @@
+{# mail/_thread_content.html.twig #}
+
+<div class="flex items-center gap-2 px-4 py-2 border-b border-gray-200/60 dark:border-white/10">
+    <button
+        type="button"
+        data-action="click->mail-pane#close"
+        class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+    >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+    </button>
+    <span class="text-sm text-gray-400 dark:text-gray-600 truncate">{{ thread.subject ?: '(no subject)' }}</span>
+</div>
+
+<div class="flex-1 overflow-y-auto">
+    <div class="max-w-3xl mx-auto px-6 py-6">
+        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-8">
+            {{ thread.subject ?: '(no subject)' }}
+        </h1>
+
+        <div class="space-y-6">
+            {% for message in thread.messages|reverse %}
+                {% set isLatest  = loop.first %}
+                {% set isRead    = message.seenAt is not null %}
+                {% set isExpanded = isLatest or not isRead %}
+
+                <div class="relative">
+
+                {# Thread connection line #}
+                {% if not loop.last %}
+                    <div class="absolute left-[19px] top-4 bottom-[-24px] w-0.5 bg-gray-200 dark:bg-gray-800 -z-0"></div>
+                {% endif %}
+
+                <div class="flex items-start gap-3 relative z-10">
+
+                {# Avatar #}
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                    {{ message.fromName|slice(0,1) ?: message.fromAddress|slice(0,1)|upper }}
+                </div>
+
+                {# Bubble #}
+            <div
+                class="flex-1 min-w-0"
+                data-controller="thread-message"
+                data-thread-message-expanded-value="{{ isExpanded ? 'true' : 'false' }}"
+            >
+                {# Header row #}
+                <div
+                    class="flex items-baseline justify-between mb-1 {{ not isLatest ? 'cursor-pointer' : '' }}"
+                    {{ not isLatest ? 'data-action="click->thread-message#toggle"' : '' }}
+                >
+                    <div class="flex items-baseline gap-2">
+                                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                        {{ message.fromName ?: message.fromAddress }}
+                                    </span>
+                        <span class="text-xs text-gray-400 dark:text-gray-600">
+                                        {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
+                                    </span>
+                    </div>
+
+                    {% if not isLatest %}
+                        <button
+                            type="button"
+                            data-action="click->thread-message#toggle:stop"
+                            data-thread-message-target="toggleBtn"
+                            class="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                        >
+                            <svg
+                                data-thread-message-target="chevron"
+                                class="w-4 h-4 transition-transform duration-150 {{ isExpanded ? 'rotate-180' : '' }}"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    {% endif %}
+                </div>
+
+                {# Snippet — collapsed #}
+                <div
+                    data-thread-message-target="snippet"
+                    data-action="click->thread-message#toggle"
+                    class="text-xs text-gray-500 dark:text-gray-400 truncate py-1 cursor-pointer {{ isExpanded ? 'hidden' : '' }}"
+                >
+                    {{ message.bodyText|striptags|slice(0, 150) }}…
+                </div>
+
+                {# Body — expanded #}
+                <div
+                    data-thread-message-target="body"
+                    class="{{ isExpanded ? '' : 'hidden' }}"
+                >
+                    <div class="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                        {% if message.bodyHtml %}
+                            <iframe
+                                data-thread-message-target="iframe"
+                                srcdoc="{{ message.bodyHtml|e('html_attr') }}"
+                                sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                                class="w-full border-0"
+                                style="min-height: 200px;"
+                            ></iframe>
+                        {% else %}
+                            <pre class="whitespace-pre-wrap font-sans">{{ message.bodyText }}</pre>
+                        {% endif %}
+                    </div>
+
+                    {% if message.hasAttachments %}
+                        <div class="mt-3 p-3 border border-gray-100 dark:border-gray-800 rounded-lg bg-gray-50/50 dark:bg-gray-800/50">
+                            <p class="text-xs font-medium text-gray-400 mb-2">Attachments</p>
+                            <div class="flex gap-2">
+                                {# TODO: iterate message.parts filtered by disposition = attachment #}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="flex gap-4 mt-4 pt-2 border-t border-gray-100 dark:border-gray-800/50">
+                        <button class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Reply</button>
+                        <button class="text-xs font-medium text-gray-500 hover:underline">Forward</button>
+                    </div>
+                </div>
+
+                </div>{# /bubble #}
+                </div>{# /flex items-start #}
+                </div>{# /relative #}
+            {% endfor %}
+        </div>
+    </div>
+</div>

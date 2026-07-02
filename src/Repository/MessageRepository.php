@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Repository;
+
+use App\Entity\Account;
+use App\Entity\Mailbox;
+use App\Entity\Message;
+use App\Entity\MessageThread;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+
+
+class MessageRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Message::class);
+    }
+
+    public function findSyncedUids(Mailbox $mailbox): array
+    {
+        return $this->createQueryBuilder('m')
+            ->select('m.imapUid')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    public function findByMailboxOrderedByReceivedDate(Mailbox $mailbox): array
+    {
+        return $this->createQueryBuilder('m')
+            ->where('m.mailbox = :mailbox')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('m.receivedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOneByMessageIdsForAccount(array $messageIds, Account $account): ?Message
+    {
+        if (count($messageIds) === 0) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('message')
+            ->innerJoin('message.mailbox', 'mailbox')
+            ->where('mailbox.account = :account')
+            ->andWhere('message.messageId IN (:messageIds)')
+            ->setParameter('account', $account)
+            ->setParameter('messageIds', $messageIds)
+            ->orderBy('message.receivedAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function existsWithFromAddressInThread(string $fromAddress, MessageThread $thread): bool
+    {
+        $result = $this->createQueryBuilder('m')
+            ->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere('LOWER(m.fromAddress) = :fromAddress')
+            ->setParameter('thread', $thread)
+            ->setParameter('fromAddress', mb_strtolower($fromAddress))
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result !== null;
+    }
+}

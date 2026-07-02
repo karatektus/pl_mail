@@ -1,0 +1,15 @@
+<turbo-frame id="account-folders-{{ account.id }}">
+    <nav class="pl-3 space-y-0.5">
+        {% for mailbox in mailboxes %}
+<a
+            data-account-expand-target="link"
+            href="{{ path('app_mail_account_mailbox', { account: account.id, mailbox: mailbox.name }) }}"
+            data-turbo-frame="_top"
+            data-turbo-prefetch="false"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+            {{ mailbox.name }}
+            </a>
+        {% endfor %}
+    </nav>
+</turbo-frame>

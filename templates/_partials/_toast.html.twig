@@ -1,0 +1,21 @@
+{# _toast.html.twig #}
+{% set colors = {
+    success: 'bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900',
+    error:   'bg-red-600 text-white',
+    info:    'bg-blue-600 text-white',
+} %}
+
+<div
+    data-controller="toast"
+    data-toast-duration-value="4000"
+    role="status"
+    class="flex items-center gap-2.5 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium
+         transition-all duration-300 {{ colors[type ?? 'success'] }}"
+>
+    {{ message }}
+    <button data-action="click->toast#dismiss" class="ml-1 opacity-60 hover:opacity-100 transition-opacity" aria-label="Dismiss">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3.5">
+            <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"/>
+        </svg>
+    </button>
+</div>

@@ -1,0 +1,12 @@
+{# mail/thread.html.twig #}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block message_list %}{% endblock %}
+{% block inbox_tabs %}{% endblock %}
+{% block pane_open %}true{% endblock %}
+{% block list_hidden %}hidden{% endblock %}
+{% block reading_hidden %}{% endblock %}
+
+{% block reading_pane %}
+    {% include 'mail/_thread_content.html.twig' with { thread: thread } %}
+{% endblock %}
