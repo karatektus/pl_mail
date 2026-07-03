@@ -33,23 +33,25 @@ final class MailController extends AbstractController
         $tab  = MessageTab::Primary;
         $page = max(1, (int) $request->query->get('page', 1));
 
-        // Handle tab switching
         $tabParam = $request->query->get('tab');
         if ($tabParam !== null) {
             $tab = MessageTab::from($tabParam);
         }
 
         $mailboxIds = $this->mailboxRepository->getIdsOfActiveInboxMailboxesForUser($user);
-        $threads = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
-        $total   = $this->threadRepository->countForUnifiedInbox($user, $tab);
+        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
+        $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
+        $tabCounts  = $this->threadRepository->countUnreadByTabForUnifiedInbox($user);
 
         return $this->render('mail/inbox.html.twig', [
-            'threads'  => $threads,
+            'threads'    => $threads,
             'mailboxIds' => $mailboxIds,
-            'tab'      => $tab,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
+            'tab'        => $tab,
+            'tabs'       => MessageTab::cases(),
+            'tabCounts'  => $tabCounts,
+            'page'       => $page,
+            'total'      => $total,
+            'per_page'   => 50,
         ]);
     }
 

@@ -1,0 +1,10 @@
+{% if thread.snoozed %}
+    <turbo-stream action="remove" target="thread_{{ thread.id }}">
+    </turbo-stream>
+{% else %}
+    <turbo-stream action="replace" target="thread_{{ thread.id }}">
+        <template>
+            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+        </template>
+    </turbo-stream>
+{% endif %}

@@ -13,7 +13,11 @@
     <span class="text-sm text-gray-400 dark:text-gray-600 truncate">{{ thread.subject ?: '(no subject)' }}</span>
 </div>
 
-<div class="flex-1 overflow-y-auto">
+<div class="flex-1 overflow-y-auto"
+     data-controller="thread-read"
+     data-thread-read-id-value="{{ thread.id }}"
+     data-thread-read-delay-value="0"
+>
     <div class="max-w-3xl mx-auto px-6 py-6">
         <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-8">
             {{ thread.subject ?: '(no subject)' }}

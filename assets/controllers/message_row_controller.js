@@ -1,49 +1,68 @@
 import { Controller } from "@hotwired/stimulus";
 
-// Handles per-row interactions in the message list: checkbox, star toggle,
-// and hover quick-actions (archive, delete, snooze, mark read/unread).
-//
-// All action methods currently only stop the click from bubbling up to the
-// row's navigation link. None of them call the backend yet — that wiring
-// lands once the corresponding routes exist (star is closest, since
-// Message.starredAt already exists in the schema).
 export default class extends Controller {
     static values = { id: Number };
 
-    // Prevent the checkbox/star/hover-action click from also triggering
-    // the row's <a data-action="click->mail-pane#open">.
     stop(event) {
         event.stopPropagation();
     }
 
     toggleSelect(event) {
         event.stopPropagation();
-        // TODO: track selected message ids for bulk actions (archive, delete, etc.)
+        // TODO: bulk selection
     }
 
-    toggleStar(event) {
+    async toggleStar(event) {
         event.stopPropagation();
-        // TODO: POST/PATCH to a "star" endpoint, then toggle the icon's
-        // filled state and color locally for instant feedback.
+        await this.#post(this.#url("star"));
     }
 
-    archive(event) {
+    async archive(event) {
         event.stopPropagation();
-        // TODO: wire up once an "archive" concept/mailbox exists.
+        await this.#post(this.#url("archive"));
     }
 
-    delete(event) {
+    async delete(event) {
         event.stopPropagation();
-        // TODO: wire up once trash semantics are implemented.
+        await this.#post(this.#url("delete"));
     }
 
-    snooze(event) {
+    async snooze(event, until = null) {
         event.stopPropagation();
-        // TODO: wire up once snooze is implemented.
+        // Call el.dispatchEvent or pass `until` from a date picker before calling.
+        // e.g. this.snooze(event, "2026-07-10T08:00:00Z")
+        await this.#post(this.#url("snooze"), { until });
     }
 
-    markRead(event) {
+    async markRead(event, read = true) {
         event.stopPropagation();
-        // TODO: wire up once a "mark as read/unread" endpoint exists.
+        await this.#post(this.#url("read"), { read });
+    }
+
+    // ---------------------------------------------------------------- private
+
+    #url(action) {
+        return `/thread/${this.idValue}/status/${action}`;
+    }
+
+    async #post(url, body = {}) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            console.error(`Thread status update failed: ${url}`, response.status);
+            return;
+        }
+
+        // Turbo handles the stream response automatically when the
+        // Content-Type is text/vnd.turbo-stream.html.
+        const html = await response.text();
+        Turbo.renderStreamMessage(html);
     }
 }

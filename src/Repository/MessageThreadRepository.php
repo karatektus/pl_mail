@@ -69,4 +69,35 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    public function countUnreadByTabForUnifiedInbox(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('t.tab AS tab', 'COUNT(DISTINCT t.id) AS unreadCount')
+            ->join('t.account', 'a')
+            ->join('t.mailboxes', 'm')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.specialUse = :inbox')
+            ->andWhere('t.unreadCount > 0')
+            ->groupBy('t.tab')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', '\\Inbox')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $tabValue = $row['tab'];
+
+            if ($tabValue instanceof MessageTab) {
+                $tabValue = $tabValue->value;
+            }
+
+            $counts[$tabValue] = (int) $row['unreadCount'];
+        }
+
+        return $counts;
+    }
 }

@@ -63,6 +63,12 @@ class MessageThread
     #[ORM\Column(length: 255)]
     private ?string $normalizedSubject = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $archivedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $snoozedUntil = null;
+
     public function __construct()
     {
         $this->messages = new ArrayCollection();
@@ -246,5 +252,37 @@ class MessageThread
         $this->normalizedSubject = $normalizedSubject;
 
         return $this;
+    }
+
+    public function getArchivedAt(): ?\DateTimeImmutable
+    {
+        return $this->archivedAt;
+    }
+
+    public function setArchivedAt(?\DateTimeImmutable $archivedAt): static
+    {
+        $this->archivedAt = $archivedAt;
+        return $this;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function getSnoozedUntil(): ?\DateTimeImmutable
+    {
+        return $this->snoozedUntil;
+    }
+
+    public function setSnoozedUntil(?\DateTimeImmutable $snoozedUntil): static
+    {
+        $this->snoozedUntil = $snoozedUntil;
+        return $this;
+    }
+
+    public function isSnoozed(): bool
+    {
+        return $this->snoozedUntil !== null && $this->snoozedUntil > new \DateTimeImmutable();
     }
 }

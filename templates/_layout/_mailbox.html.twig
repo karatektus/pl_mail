@@ -20,15 +20,17 @@
                     {# List pane #}
                     <div
                         id="message-list"
-                        data-mailbox-id="{{ mailbox is defined ? [mailbox.id]|json_encode : mailboxIds|json_encode}}"
+                        data-mailbox-id="{{ mailbox is defined ? [mailbox.id]|json_encode : mailboxIds is defined ? mailboxIds|json_encode : []|json_encode }}"
                         data-mail-pane-target="list"
                         class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
-                        {% block inbox_tabs %}{% endblock %}
+                        <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
+                            {% block inbox_tabs %}{% endblock %}
 
-                        <ul class="flex-1 overflow-y-auto divide-y divide-gray-100/70 dark:divide-gray-800/70">
-                            {% block message_list %}{% endblock %}
-                        </ul>
+                            <ul class="flex-1 overflow-y-auto divide-y divide-gray-100/70 dark:divide-gray-800/70">
+                                {% block message_list %}{% endblock %}
+                            </ul>
+                        </turbo-frame>
                     </div>
 
                     {# Reading pane #}

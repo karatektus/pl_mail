@@ -1,0 +1,5 @@
+<turbo-stream action="replace" target="thread_{{ thread.id }}">
+    <template>
+        {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+    </template>
+</turbo-stream>

@@ -7,7 +7,7 @@
         </li>
     {% else %}
         {% for message in messages %}
-            {% include '_partials/_message_row.html.twig' with {
+            {% include '_partials/_thread_row.html.twig' with {
                 message: message,
                 mailbox: mailbox.name
             } %}
