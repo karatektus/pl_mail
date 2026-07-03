@@ -62,25 +62,47 @@ class MessageSyncer
 
     private function processBatch($batch, int $mailboxId, int $accountId): void
     {
-        $mailbox = $this->mailboxRepository->find($mailboxId);
-        $maxUid  = 0;
+        $mailbox  = $this->mailboxRepository->find($mailboxId);
+        $messages = [];
+        $maxUid   = 0;
 
+        // Pass 1 — persist all messages without threading
         foreach ($batch as $imapMessage) {
             try {
-                $this->persistMessage($imapMessage, $mailbox, $accountId);
+                $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
+                $this->em->persist($message);
+                $messages[] = $message;
 
                 if ($imapMessage->getUid() > $maxUid) {
                     $maxUid = $imapMessage->getUid();
                 }
             } catch (\Throwable $e) {
-                $this->logger->error('Failed to sync message', [
+                $this->logger->error('Failed to build message', [
                     'uid'   => $imapMessage->getUid(),
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        // Update lastSeenUid so next sync only fetches newer messages
+        // Flush so all messages are now queryable by the threader
+        $this->em->flush();
+
+        // Pass 2 — assign threads now that all messages exist in DB
+        foreach ($messages as $message) {
+            try {
+                $this->messageThreader->assignThread(
+                    $message,
+                    $mailbox->getAccount(),
+                    $mailbox,
+                );
+            } catch (\Throwable $e) {
+                $this->logger->error('Failed to assign thread', [
+                    'messageId' => $message->getId(),
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+        }
+
         if ($maxUid > 0) {
             $mailbox->setLastSeenUid($maxUid);
         }
@@ -88,19 +110,20 @@ class MessageSyncer
         $this->em->flush();
     }
 
-    private function persistMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): void
+    private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message();
         $message->setMailbox($mailbox);
         $message->setImapUid($imapMessage->getUid());
         $message->setMessageId((string) $imapMessage->getMessageId());
-        $message->setSubject((string) $imapMessage->getSubject() ?: '(no subject)');
+        $message->setSubject($this->decodeMimeHeader((string) $imapMessage->getSubject()));
+
 
         // From
         $from = $imapMessage->getFrom()->first();
         if ($from !== null) {
             $message->setFromAddress($from->mail ?? '');
-            $message->setFromName($from->personal ?? '');
+            $message->setFromName($this->decodeMimeHeader((string) $imapMessage->getFrom()->first()->personal));
         }
 
         // Recipients
@@ -143,12 +166,11 @@ class MessageSyncer
 
         $message->setSyncedAt(new \DateTimeImmutable());
 
-        $this->messageThreader->assignThread($message, $mailbox->getAccount(), $mailbox);
-        $this->em->persist($message);
-
         foreach ($attachments as $attachment) {
             $this->persistAttachment($attachment, $message, $accountId);
         }
+
+        return $message;
     }
 
     private function persistAttachment($attachment, Message $message, int $accountId): void
@@ -192,5 +214,16 @@ class MessageSyncer
         }
 
         return $result;
+    }
+
+    private function decodeMimeHeader(string $value): string
+    {
+        $decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+
+        if ($decoded === false) {
+            return $value;
+        }
+
+        return $decoded;
     }
 }
