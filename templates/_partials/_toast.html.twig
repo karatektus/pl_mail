@@ -13,9 +13,7 @@
          transition-all duration-300 {{ colors[type ?? 'success'] }}"
 >
     {{ message }}
-    <button data-action="click->toast#dismiss" class="ml-1 opacity-60 hover:opacity-100 transition-opacity" aria-label="Dismiss">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3.5">
-            <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"/>
-        </svg>
+    <button data-action="click->toast#dismiss" class="ml-1 opacity-60 hover:opacity-100 transition-opacity" aria-label="{{ 'toast.dismiss'|trans }}">
+        <i class="fa-solid fa-xmark text-[14px]" aria-hidden="true"></i>
     </button>
 </div>

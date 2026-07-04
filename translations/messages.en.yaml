@@ -1,0 +1,130 @@
+app:
+    name: Mail
+
+login:
+    page_title: Sign in
+    tagline: Sign in to your account
+    form:
+        email: Email address
+        password: Password
+        forgot_password: Forgot password?
+        submit: Sign in
+    register:
+        prompt: Don't have an account?
+        link: Create one
+        coming_soon: Registration coming soon.
+
+header:
+    search:
+        placeholder: Search mail…
+    theme:
+        toggle: Toggle dark mode
+    user_menu:
+        label: User menu for %email%
+        signed_in_as: Signed in as
+        settings: Settings
+        sign_out: Sign out
+
+sidebar:
+    compose: Compose
+    nav:
+        inbox: Inbox
+        starred: Starred
+        sent: Sent
+        drafts: Drafts
+        trash: Trash
+    accounts:
+        heading: Accounts
+        add: Add account
+        toggle: Toggle account folders
+        loading: Loading…
+        none: No accounts yet
+
+tabs:
+    primary: Primary
+    promotions: Promotions
+    updates: Updates
+    social: Social
+
+inbox:
+    empty: No messages in this tab.
+
+starred:
+    heading: Starred
+    empty: No starred messages.
+
+sent:
+    heading: Sent
+    empty: No sent messages.
+
+drafts:
+    heading: Drafts
+    empty: No drafts.
+
+trash:
+    heading: Trash
+    empty: No deleted messages.
+
+thread_row:
+    no_subject: (no subject)
+    message_count: "({ count })"
+    star: Star this message
+    unstar: Unstar this message
+    actions:
+        archive: Archive
+        delete: Delete
+        snooze: Snooze
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+
+message:
+    back: Back
+    attachments: Attachments
+
+thread:
+    no_subject: (no subject)
+
+message_list:
+    empty: No messages in this mailbox.
+
+account:
+    add_title: Add account
+    added: Account added successfully
+    tabs:
+        imap: IMAP / SMTP
+        oauth: OAuth
+    form:
+        email: Email address
+        username: Username
+        password: Password
+        port: Port
+        encryption: Encryption
+        imap:
+            heading: Incoming — IMAP
+            host: Host
+        smtp:
+            heading: Outgoing — SMTP
+            host: Host
+    oauth:
+        info: Sign in with your provider — no password stored.
+        google: Continue with Google
+        microsoft: Continue with Microsoft
+        wip: OAuth support is in progress. Gmail and Outlook will be supported first.
+
+modal:
+    close: Close
+    loading: Loading…
+
+form:
+    submit: Save
+    cancel: Cancel
+
+toast:
+    dismiss: Dismiss
+
+mailbox:
+    not_found: Mailbox not found.
+
+errors:
+    access_denied: You do not have access to this resource.
+    not_found: The requested resource could not be found.

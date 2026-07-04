@@ -8,6 +8,7 @@ use App\Entity\MessagePart;
 use App\Entity\Mailbox;
 use App\Repository\MessageRepository;
 use App\Repository\MailboxRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Client;
@@ -23,6 +24,7 @@ class MessageSyncer
         private readonly EntityManagerInterface  $em,
         private readonly LoggerInterface         $logger,
         private readonly MessageThreader         $messageThreader,
+        private readonly MessageRepository       $messageRepository,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -56,7 +58,9 @@ class MessageSyncer
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
-        $mailbox->setSyncedAt(new \DateTimeImmutable());
+        $mailbox->setSyncedAt(new DateTimeImmutable());
+        $mailbox->setUnreadMessages($this->messageRepository->countUnseenForMailbox($mailbox));
+        $mailbox->setTotalMessages($this->messageRepository->countTotalForMailbox($mailbox));
         $this->em->flush();
     }
 
@@ -133,8 +137,8 @@ class MessageSyncer
 
         // Dates
         $date = $imapMessage->getDate()->toDate();
-        $message->setSentAt(\DateTimeImmutable::createFromInterface($date));
-        $message->setReceivedAt(\DateTimeImmutable::createFromInterface($date));
+        $message->setSentAt(DateTimeImmutable::createFromInterface($date));
+        $message->setReceivedAt(DateTimeImmutable::createFromInterface($date));
 
         // Flags
         $flags     = $imapMessage->getFlags()->toArray();
@@ -142,7 +146,7 @@ class MessageSyncer
         $message->setFlags($flagNames);
 
         if (in_array('Seen', $flagNames, true) || in_array('\\Seen', $flagNames, true)) {
-            $message->setSeenAt(new \DateTimeImmutable());
+            $message->setSeenAt(new DateTimeImmutable());
         }
 
         // Threading headers
@@ -164,7 +168,7 @@ class MessageSyncer
         $attachments = $imapMessage->getAttachments();
         $message->setHasAttachments($attachments->isNotEmpty());
 
-        $message->setSyncedAt(new \DateTimeImmutable());
+        $message->setSyncedAt(new DateTimeImmutable());
 
         foreach ($attachments as $attachment) {
             $this->persistAttachment($attachment, $message, $accountId);

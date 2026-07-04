@@ -4,6 +4,7 @@ twig:
         - '_layout/form/modal_form_theme.html.twig'
     globals:
         accounts: '@App\Twig\AccountsGlobal'
+        sidebarCounts: '@App\Twig\SidebarCounts'
 
 when@test:
     twig:

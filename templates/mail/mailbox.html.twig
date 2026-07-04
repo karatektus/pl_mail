@@ -3,7 +3,7 @@
 {% block message_list %}
     {% if messages is empty %}
         <li class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
-            No messages in this mailbox
+            {{ 'message_list.empty'|trans }}
         </li>
     {% else %}
         {% for message in messages %}

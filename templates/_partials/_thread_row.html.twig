@@ -3,21 +3,19 @@
 
 {% if isThread %}
     {% set unread = item.unreadCount > 0 %}
-    {% set subject = item.subject ?: '(no subject)' %}
+    {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
     {% set date = item.lastMessageAt %}
     {% set count = item.messageCount %}
 
-    {# Ideally these would eventually be denormalized onto MessageThread #}
     {% set latest = item.messages|last %}
     {% set sender = latest ? (latest.fromName ?: latest.fromAddress) : '' %}
     {% set snippet = latest ? latest.bodyText|striptags|slice(0, 100) : '' %}
 
-    {#    {% set href = path('app_mail_thread', { id: item.id }) %} #}
     {% set rowId = item.id %}
 {% else %}
     {% set unread = item.seenAt is null %}
-    {% set subject = item.subject ?: '(no subject)' %}
+    {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
@@ -27,6 +25,7 @@
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
 {% endif %}
+
 <li
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
@@ -34,7 +33,7 @@
     data-message-row-id-value="{{ rowId }}"
 >
     {# Full-row clickable overlay #}
-<a
+    <a
     href="{{ isThread ? path('app_mail_thread', { id: item.id }) : href }}"
     data-action="click->mail-pane#open"
     class="pointer-events-auto absolute inset-0 z-0"
@@ -59,11 +58,9 @@
             type="button"
             data-action="click->message-row#toggleStar"
             class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
-            aria-label="{{ starred ? 'Unstar' : 'Star' }} this message"
+            aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
         >
-            <svg class="w-[18px] h-[18px]" fill="{{ starred ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.6" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.95a1 1 0 00.95.69h4.155c.969 0 1.371 1.24.588 1.81l-3.363 2.44a1 1 0 00-.364 1.118l1.285 3.95c.3.921-.755 1.688-1.539 1.118l-3.363-2.44a1 1 0 00-1.176 0l-3.363 2.44c-.783.57-1.838-.197-1.539-1.118l1.285-3.95a1 1 0 00-.363-1.118l-3.364-2.44c-.782-.57-.38-1.81.588-1.81h4.155a1 1 0 00.951-.69l1.285-3.95z"/>
-            </svg>
+            <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-[18px]"></i>
         </button>
 
         {# Content — switches between mobile (2-row) and desktop (1-row) #}
@@ -92,7 +89,7 @@
                 <span class="{{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-700 dark:text-gray-300' }}">
                     {{ subject }}
                     {% if count > 1 %}
-                        <span class="ml-1 text-xs font-medium text-gray-500 dark:text-gray-400">({{ count }})</span>
+                        <span class="ml-1 text-xs font-medium text-gray-500 dark:text-gray-400">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                     {% endif %}
                 </span>
                 <span class="text-gray-400 dark:text-gray-600"> — {{ snippet }}</span>
@@ -114,35 +111,32 @@
             </span>
 
             <div class="absolute inset-0 flex items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
-                <button type="button" data-action="click->message-row#archive" title="Archive"
+                <button type="button" data-action="click->message-row#archive"
+                        aria-label="{{ 'thread_row.actions.archive'|trans }}"
+                        title="{{ 'thread_row.actions.archive'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 01-2-2V5a1 1 0 011-1h16a1 1 0 011 1v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8M10 12h4"/>
-                    </svg>
+                    <i class="fa-solid fa-box-archive w-4 h-4" aria-hidden="true"></i>
                 </button>
-                <button type="button" data-action="click->message-row#delete" title="Delete"
+                <button type="button" data-action="click->message-row#delete"
+                        aria-label="{{ 'thread_row.actions.delete'|trans }}"
+                        title="{{ 'thread_row.actions.delete'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
+                    <i class="fa-solid fa-trash w-4 h-4" aria-hidden="true"></i>
                 </button>
-                <button type="button" data-action="click->message-row#snooze" title="Snooze"
+                <button type="button" data-action="click->message-row#snooze"
+                        aria-label="{{ 'thread_row.actions.snooze'|trans }}"
+                        title="{{ 'thread_row.actions.snooze'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                    <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
                 </button>
-                <button type="button" data-action="click->message-row#markRead" title="{{ unread ? 'Mark as read' : 'Mark as unread' }}"
+                <button type="button" data-action="click->message-row#markRead"
+                        aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
+                        title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     {% if unread %}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
+                        <i class="fa-solid fa-envelope w-4 h-4" aria-hidden="true"></i>
                     {% else %}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                            <circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/>
-                        </svg>
+                        <i class="fa-solid fa-envelope-open w-4 h-4" aria-hidden="true"></i>
                     {% endif %}
                 </button>
             </div>

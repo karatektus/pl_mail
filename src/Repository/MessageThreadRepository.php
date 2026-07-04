@@ -100,4 +100,107 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         return $counts;
     }
+
+    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
+    {
+        $offset = ($page - 1) * $perPage;
+
+        return $this->createQueryBuilder('t')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.starredAt IS NOT NULL')
+            ->setParameter('user', $user)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countForStarred(UserInterface $user): int
+    {
+        return $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.starredAt IS NOT NULL')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function findForSpecialUse(UserInterface $user, string $specialUse, int $page = 1, int $perPage = 50): array
+    {
+        $offset = ($page - 1) * $perPage;
+
+        return $this->createQueryBuilder('t')
+            ->join('t.account', 'a')
+            ->join('t.mailboxes', 'm')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.specialUse = :specialUse')
+            ->setParameter('user', $user)
+            ->setParameter('specialUse', $specialUse)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->distinct()
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countForSpecialUse(UserInterface $user, string $specialUse): int
+    {
+        return $this->createQueryBuilder('t')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.account', 'a')
+            ->join('t.mailboxes', 'm')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.specialUse = :specialUse')
+            ->setParameter('user', $user)
+            ->setParameter('specialUse', $specialUse)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countUnreadPerSpecialUse(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('m.specialUse AS specialUse', 'COUNT(DISTINCT t.id) AS unreadCount')
+            ->join('t.account', 'a')
+            ->join('t.mailboxes', 'm')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.unreadCount > 0')
+            ->andWhere('m.specialUse IS NOT NULL')
+            ->groupBy('m.specialUse')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[$row['specialUse']] = (int) $row['unreadCount'];
+        }
+
+        return $counts;
+    }
+
+    public function countUnreadForStarred(UserInterface $user): int
+    {
+        return $this->createQueryBuilder('t')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.starredAt IS NOT NULL')
+            ->andWhere('t.unreadCount > 0')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

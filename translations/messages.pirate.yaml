@@ -1,0 +1,130 @@
+app:
+    name: Cap'n's Mail
+
+login:
+    page_title: Board the Ship
+    tagline: Prove yer worth, sailor
+    form:
+        email: Carrier Pigeon Address
+        password: Secret Passphrase
+        forgot_password: Lost yer passphrase, landlubber?
+        submit: Set Sail
+    register:
+        prompt: No berth on this vessel yet?
+        link: Claim yer spot
+        coming_soon: New crew recruitment openin' soon.
+
+header:
+    search:
+        placeholder: Scour the seven seas…
+    theme:
+        toggle: Swap day watch fer night watch
+    user_menu:
+        label: Crew manifest fer %email%
+        signed_in_as: Sailin' as
+        settings: Ship's Log
+        sign_out: Abandon Ship
+
+sidebar:
+    compose: Scrawl a Message
+    nav:
+        inbox: The Crow's Nest
+        starred: Buried Treasure
+        sent: Cast Overboard
+        drafts: Unfinished Charts
+        trash: Davy Jones' Locker
+    accounts:
+        heading: Vessels
+        add: Commandeer a Vessel
+        toggle: Show vessel holds
+        loading: Holdin' fer the tide…
+        none: No vessels in the fleet yet
+
+tabs:
+    primary: Main Deck
+    promotions: Merchants' Wares
+    updates: Crow's Nest Reports
+    social: The Tavern
+
+inbox:
+    empty: Calm seas — no messages in these waters.
+
+starred:
+    heading: Buried Treasure
+    empty: No treasure marked on the map.
+
+sent:
+    heading: Cast Overboard
+    empty: Nothin' thrown overboard yet.
+
+drafts:
+    heading: Unfinished Charts
+    empty: No unfinished charts.
+
+trash:
+    heading: Davy Jones' Locker
+    empty: The locker be empty. Blimey!
+
+thread_row:
+    no_subject: (no markings on the scroll)
+    message_count: "({ count })"
+    star: Mark as treasure
+    unstar: Remove the treasure mark
+    actions:
+        archive: Stow in the hold
+        delete: Feed to the sharks
+        snooze: Let it drift
+        mark_read: Mark as seen
+        mark_unread: Mark as unseen
+
+message:
+    back: Retreat
+    attachments: Cargo
+
+thread:
+    no_subject: (no markings on the scroll)
+
+message_list:
+    empty: These waters be empty, cap'n.
+
+account:
+    add_title: Commandeer a Vessel
+    added: Vessel successfully commandeered, cap'n!
+    tabs:
+        imap: The Crow's Nest (IMAP)
+        oauth: Magic Tokens (OAuth)
+    form:
+        email: Carrier Pigeon Address
+        username: Sailor's Name
+        password: Secret Passphrase
+        port: Port o' Call
+        encryption: Secret Code
+        imap:
+            heading: Incomin' — Crow's Nest
+            host: Port o' Call
+        smtp:
+            heading: Outgoin' — Cannons
+            host: Port o' Call
+    oauth:
+        info: Board via yer provider — no passphrase stored in the hold.
+        google: Sail with Google's Fleet
+        microsoft: Sail with Microsoft's Armada
+        wip: Magic token support be in the works. Gmail and Outlook ships dock first.
+
+modal:
+    close: Batten the Hatches
+    loading: Holdin' fer the tide…
+
+form:
+    submit: Mark the Map
+    cancel: Abandon Course
+
+toast:
+    dismiss: Walk the Plank
+
+mailbox:
+    not_found: That vessel don't exist in these waters.
+
+errors:
+    access_denied: Ye be not welcome in these waters, landlubber.
+    not_found: That treasure don't exist on any map we've got.

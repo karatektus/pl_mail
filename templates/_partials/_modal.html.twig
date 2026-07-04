@@ -1,14 +1,6 @@
 {#
 templates/_partials/_modal.html.twig
-
-Global modal shell. Include once in app.html.twig (inside <body>, before </body>).
-
-The <turbo-frame id="modal"> is the load target. Any controller action that
-wants to open a form just sets frame.src to the form URL; Turbo fetches the
-page and renders the matching <turbo-frame id="modal"> from the response.
-
-The modal is hidden by default (via the `hidden` attribute). The Stimulus
-modal controller removes/adds `hidden` on open/close.
+...
 #}
 
 {# ── Backdrop + dialog wrapper ─────────────────────────────────────────────── #}
@@ -53,11 +45,10 @@ modal controller removes/adds `hidden` on open/close.
                 {# Filled dynamically by the Stimulus controller or by the loaded frame #}
             </h2>
 
-            {# Close ×  #}
             <button
                 type="button"
                 data-action="click->modal#close"
-                aria-label="Close"
+                aria-label="{{ 'modal.close'|trans }}"
                 class="
           -mr-1 rounded-lg p-1.5
           text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200
@@ -65,10 +56,7 @@ modal controller removes/adds `hidden` on open/close.
           transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
         "
             >
-                {# × icon (heroicons x-mark, inline) #}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5" aria-hidden="true">
-                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/>
-                </svg>
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
         </div>
 
@@ -78,23 +66,13 @@ modal controller removes/adds `hidden` on open/close.
             class="flex-1 overflow-y-auto"
             loading="lazy"
         >
-            {#
-            When Turbo fetches a URL, it looks for a <turbo-frame id="modal">
-            in the response and swaps only that fragment in here.
-
-            Spinner shown while the frame is loading (visibility toggled by Turbo
-            via the [busy] attribute on the frame element).
-            #}
             <div
                 data-modal-loading
                 class="flex items-center justify-center h-32 text-zinc-400 dark:text-zinc-500"
                 aria-live="polite"
-                aria-label="Loading…"
+                aria-label="{{ 'modal.loading'|trans }}"
             >
-                <svg class="animate-spin size-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl" aria-hidden="true"></i>
             </div>
         </turbo-frame>
 

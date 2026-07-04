@@ -70,4 +70,25 @@ class MessageRepository extends ServiceEntityRepository
 
         return $result !== null;
     }
+
+    public function countUnseenForMailbox(Mailbox $mailbox): int
+    {
+        return $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.seenAt IS NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countTotalForMailbox(Mailbox $mailbox): int
+    {
+        return $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.mailbox = :mailbox')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

@@ -56,27 +56,67 @@ final class MailController extends AbstractController
     }
 
     #[Route('/starred', name: 'starred')]
-    public function starred():Response
+    public function starred(Request $request): Response
     {
-        return $this->render('mail/starred.html.twig', []);
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForStarred($user, $page);
+        $total   = $this->threadRepository->countForStarred($user);
+
+        return $this->render('mail/starred.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
     }
 
     #[Route('/sent', name: 'sent')]
-    public function sent():Response
+    public function sent(Request $request): Response
     {
-        return $this->render('mail/sent.html.twig', []);
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForSpecialUse($user, '\\Sent', $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, '\\Sent');
+
+        return $this->render('mail/sent.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
     }
 
     #[Route('/drafts', name: 'drafts')]
-    public function drafts():Response
+    public function drafts(Request $request): Response
     {
-        return $this->render('mail/drafts.html.twig', []);
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForSpecialUse($user, '\\Drafts', $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, '\\Drafts');
+
+        return $this->render('mail/drafts.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
     }
 
     #[Route('/trash', name: 'trash')]
-    public function trash():Response
+    public function trash(Request $request): Response
     {
-        return $this->render('mail/trash.html.twig', []);
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForSpecialUse($user, '\\Trash', $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, '\\Trash');
+
+        return $this->render('mail/trash.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
     }
 
     #[Route('/account/{account}/folders', name: 'account_folders')]

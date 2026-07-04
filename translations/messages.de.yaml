@@ -1,0 +1,130 @@
+app:
+    name: Mail
+
+login:
+    page_title: Anmelden
+    tagline: Melden Sie sich bei Ihrem Konto an
+    form:
+        email: E-Mail-Adresse
+        password: Passwort
+        forgot_password: Passwort vergessen?
+        submit: Anmelden
+    register:
+        prompt: Noch kein Konto?
+        link: Jetzt registrieren
+        coming_soon: Registrierung demnächst verfügbar.
+
+header:
+    search:
+        placeholder: E-Mails durchsuchen…
+    theme:
+        toggle: Dunkelmodus umschalten
+    user_menu:
+        label: Benutzermenü für %email%
+        signed_in_as: Angemeldet als
+        settings: Einstellungen
+        sign_out: Abmelden
+
+sidebar:
+    compose: Verfassen
+    nav:
+        inbox: Posteingang
+        starred: Markiert
+        sent: Gesendet
+        drafts: Entwürfe
+        trash: Papierkorb
+    accounts:
+        heading: Konten
+        add: Konto hinzufügen
+        toggle: Kontoordner umschalten
+        loading: Wird geladen…
+        none: Noch keine Konten
+
+tabs:
+    primary: Hauptordner
+    promotions: Werbung
+    updates: Benachrichtigungen
+    social: Soziale Netzwerke
+
+inbox:
+    empty: Keine Nachrichten in diesem Reiter.
+
+starred:
+    heading: Markiert
+    empty: Keine markierten Nachrichten.
+
+sent:
+    heading: Gesendet
+    empty: Keine gesendeten Nachrichten.
+
+drafts:
+    heading: Entwürfe
+    empty: Keine Entwürfe.
+
+trash:
+    heading: Papierkorb
+    empty: Keine gelöschten Nachrichten.
+
+thread_row:
+    no_subject: (kein Betreff)
+    message_count: "({ count })"
+    star: Nachricht markieren
+    unstar: Markierung entfernen
+    actions:
+        archive: Archivieren
+        delete: Löschen
+        snooze: Schlummern
+        mark_read: Als gelesen markieren
+        mark_unread: Als ungelesen markieren
+
+message:
+    back: Zurück
+    attachments: Anhänge
+
+thread:
+    no_subject: (kein Betreff)
+
+message_list:
+    empty: Keine Nachrichten in diesem Postfach.
+
+account:
+    add_title: Konto hinzufügen
+    added: Konto erfolgreich hinzugefügt
+    tabs:
+        imap: IMAP / SMTP
+        oauth: OAuth
+    form:
+        email: E-Mail-Adresse
+        username: Benutzername
+        password: Passwort
+        port: Port
+        encryption: Verschlüsselung
+        imap:
+            heading: Eingehend — IMAP
+            host: Host
+        smtp:
+            heading: Ausgehend — SMTP
+            host: Host
+    oauth:
+        info: Anmelden über Ihren Anbieter — kein Passwort gespeichert.
+        google: Mit Google fortfahren
+        microsoft: Mit Microsoft fortfahren
+        wip: OAuth-Unterstützung ist in Arbeit. Gmail und Outlook werden zuerst unterstützt.
+
+modal:
+    close: Schließen
+    loading: Wird geladen…
+
+form:
+    submit: Speichern
+    cancel: Abbrechen
+
+toast:
+    dismiss: Schließen
+
+mailbox:
+    not_found: Postfach nicht gefunden.
+
+errors:
+    access_denied: Sie haben keinen Zugriff auf diese Ressource.
+    not_found: Die angeforderte Ressource konnte nicht gefunden werden.

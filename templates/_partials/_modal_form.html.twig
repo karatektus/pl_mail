@@ -1,19 +1,5 @@
-{#
-templates/_partials/_modal_form.html.twig
-
-Wrap any form rendered inside the modal turbo-frame with this partial.
-Turbo extracts only the <turbo-frame id="modal"> fragment; the rest of
-the page layout is ignored, so extending app.html.twig is optional.
-
-Parameters:
-  title        (string)   – modal heading
-  form         (FormView) – Symfony form view
-  submit_label (string)   – submit button text, defaults to "Save"
-  cancel_label (string)   – cancel button text, defaults to "Cancel"
-  danger       (bool)     – red submit button for destructive actions
-#}
-{% set submit_label = submit_label ?? 'Save' %}
-{% set cancel_label = cancel_label ?? 'Cancel' %}
+{% set submit_label = submit_label ?? 'form.submit'|trans %}
+{% set cancel_label = cancel_label ?? 'form.cancel'|trans %}
 {% set danger       = danger ?? false %}
 
 <turbo-frame id="modal">
@@ -35,10 +21,7 @@ Parameters:
                 role="alert"
                 class="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/70 px-3.5 py-3 text-sm text-red-700 dark:text-red-300"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                     class="size-4 mt-0.5 shrink-0 text-red-500 dark:text-red-400" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
-                </svg>
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-red-500 dark:text-red-400" aria-hidden="true"></i>
                 <div class="space-y-0.5">
                     {% for error in form.vars.errors %}
                         <p class="leading-snug">{{ error.message }}</p>

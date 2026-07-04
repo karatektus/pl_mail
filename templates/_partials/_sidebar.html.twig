@@ -1,14 +1,25 @@
-<aside id="sidebar" data-turbo-permanent class="flex flex-col w-56 h-full flex-shrink-0 bg-white dark:bg-gray-900 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/30 border border-gray-200/60 dark:border-gray-800/60">
+{% macro unread_badge(count) %}
+    {% if count > 0 %}
+        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+            {{ count }}
+        </span>
+    {% endif %}
+{% endmacro %}
+
+{% import _self as macros %}
+
+<aside id="sidebar"
+       data-turbo-permanent
+       data-controller="sidebar"
+       class="flex flex-col w-56 h-full flex-shrink-0 bg-white dark:bg-gray-900 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/30 border border-gray-200/60 dark:border-gray-800/60">
 
     {# Compose #}
     <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Compose
+            <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
+            {{ 'sidebar.compose'|trans }}
         </a>
     </div>
 
@@ -18,62 +29,72 @@
         {% set current = app.request.attributes.get('_route') %}
 
         <a href="{{ path('app_mail_inbox') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors{{ current == 'app_mail_inbox' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           data-sidebar-target="link"
+        >
             <span class="flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0l-8 5-8-5m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4"/>
-                </svg>
-                Inbox
+                <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
+                {{ 'sidebar.nav.inbox'|trans }}
             </span>
-            <span class="bg-blue-600 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full">4</span>
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Inbox')) }}
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
-           class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors {{ current == 'app_mail_starred' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
-            </svg>
-            Starred
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           data-sidebar-target="link"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
+                {{ 'sidebar.nav.starred'|trans }}
+            </span>
+            {{ macros.unread_badge(sidebarCounts.forStarred()) }}
         </a>
 
         <a href="{{ path('app_mail_sent') }}"
-           class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors {{ current == 'app_mail_sent' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-            </svg>
-            Sent
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           data-sidebar-target="link"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
+                {{ 'sidebar.nav.sent'|trans }}
+            </span>
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Sent')) }}
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
-           class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors {{ current == 'app_mail_drafts' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            Drafts
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           data-sidebar-target="link"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
+                {{ 'sidebar.nav.drafts'|trans }}
+            </span>
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Draft')) }}
         </a>
 
         <a href="{{ path('app_mail_trash') }}"
-           class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors {{ current == 'app_mail_trash' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-            Trash
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           data-sidebar-target="link"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
+                {{ 'sidebar.nav.trash'|trans }}
+            </span>
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Trash')) }}
         </a>
 
         {# Accounts section #}
         <div class="pt-4 pb-1 px-3 flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Accounts</span>
+            <span class="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
             <button
                 data-controller="modal"
                 data-action="click->modal#open"
-                data-modal-title-value="Add account"
+                data-modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                 data-modal-src-value="{{ path('app_account_new') }}"
                 class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
-                title="Add account"
+                aria-label="{{ 'sidebar.accounts.add'|trans }}"
             >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
+                <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
             </button>
         </div>
 

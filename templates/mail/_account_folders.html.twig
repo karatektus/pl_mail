@@ -1,14 +1,19 @@
 <turbo-frame id="account-folders-{{ account.id }}">
     <nav class="pl-3 space-y-0.5">
         {% for mailbox in mailboxes %}
-<a
+            <a
             data-account-expand-target="link"
             href="{{ path('app_mail_account_mailbox', { account: account.id, mailbox: mailbox.name }) }}"
             data-turbo-frame="_top"
             data-turbo-prefetch="false"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-            {{ mailbox.name }}
+            <span>{{ mailbox.name }}</span>
+            {% if mailbox.unreadMessages > 0 %}
+                <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+                        {{ mailbox.unreadMessages }}
+                    </span>
+            {% endif %}
             </a>
         {% endfor %}
     </nav>
