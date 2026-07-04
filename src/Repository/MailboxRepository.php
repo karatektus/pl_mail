@@ -31,6 +31,11 @@ class MailboxRepository extends ServiceEntityRepository
         return $indexed;
     }
 
+    public function findDraftMailboxForAccount(Account $account): ?Mailbox
+    {
+        return $this->findOneBy(['account' => $account, 'specialUse' => '\\Drafts']);
+    }
+
     public function findIdleEnabledAndSyncEnabled(): array
     {
         $queryBuilder = $this->createQueryBuilder('mailbox');

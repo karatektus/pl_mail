@@ -18,9 +18,9 @@ class AccountType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('label', TextType::class, [
+            ->add('email', TextType::class, [
                 'attr' => [
-                    'placeholder' => 'Work, Personal…',
+                    'placeholder' => 'you@example.com',
                     'class' => 'form-input',
                 ],
                 'label' => 'Account label',

@@ -12,7 +12,7 @@
                 class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-gray-300 dark:bg-gray-700' }}"></span>
-                <span class="truncate text-sm">{{ account.label ?: account.username }}</span>
+                <span class="truncate text-sm">{{ account.email ?: account.username }}</span>
             </a>
             <button
                 type="button"

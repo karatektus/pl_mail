@@ -78,7 +78,7 @@ class ImapIdleCommand extends Command
         $io->info(sprintf(
             'Starting IDLE on mailbox "%s" for account "%s"',
             $mailbox->getName(),
-            $mailbox->getAccount()->getLabel(),
+            $mailbox->getAccount()->getEmail(),
         ));
 
         $retries = 0;

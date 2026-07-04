@@ -1,0 +1,36 @@
+{# templates/form/compose_theme.html.twig #}
+
+{% block address_entry_widget %}
+    <div class="flex items-center gap-2 w-full">
+        {{- form_widget(form.address) -}}
+    </div>
+{% endblock %}
+
+{% block address_entry_row %}
+    {{- block('address_entry_widget') -}}
+{% endblock %}
+
+{# Bare email input — no wrapper, no label, no error box #}
+{% block email_widget %}
+    <input
+        type="email"
+        {{ block('widget_attributes') }}
+        {% if value is not empty %}value="{{ value }}"{% endif %}
+        class="flex-1 bg-transparent outline-none text-sm
+               text-gray-800 dark:text-gray-100
+               placeholder-gray-400 dark:placeholder-gray-500
+               min-w-0"
+    />
+{% endblock %}
+
+{% block text_widget %}
+    <input
+        type="text"
+        {{ block('widget_attributes') }}
+        {% if value is not empty %}value="{{ value }}"{% endif %}
+        class="flex-1 bg-transparent outline-none text-sm
+               text-gray-800 dark:text-gray-100
+               placeholder-gray-400 dark:placeholder-gray-500
+               min-w-0"
+    />
+{% endblock %}

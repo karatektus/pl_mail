@@ -41,7 +41,7 @@ class SyncMailboxesCommand extends Command
         }
 
         foreach ($accounts as $account) {
-            $io->section('Syncing mailboxes for: ' . $account->getLabel());
+            $io->section('Syncing mailboxes for: ' . $account->getEmail());
 
             try {
                 $result = $this->mailboxSyncer->syncForAccount($account);

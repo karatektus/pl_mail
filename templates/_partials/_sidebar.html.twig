@@ -2,12 +2,14 @@
 
     {# Compose #}
     <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
-        <button class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors">
+        <a href="{{ path('app_compose_new') }}"
+           data-turbo-frame="compose_dock"
+           class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             Compose
-        </button>
+        </a>
     </div>
 
     {# Nav #}
@@ -16,7 +18,7 @@
         {% set current = app.request.attributes.get('_route') %}
 
         <a href="{{ path('app_mail_inbox') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors {{ current == 'app_mail_inbox' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors{{ current == 'app_mail_inbox' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
             <span class="flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0l-8 5-8-5m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4"/>

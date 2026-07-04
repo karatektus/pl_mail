@@ -21,7 +21,7 @@ class Message
     #[ORM\JoinColumn(nullable: false)]
     private ?Mailbox $mailbox = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $imapUid = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]

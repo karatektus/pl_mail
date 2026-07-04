@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Domain\Model\AccountModel;
 use App\Repository\AccountRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -11,19 +12,25 @@ use Symfony\UX\Turbo\Attribute\Broadcast;
 
 #[ORM\Entity(repositoryClass: AccountRepository::class)]
 //#[Broadcast]
-class Account
+class Account extends AccountModel
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $name = null;
+
+    #[ORM\Column]
+    private bool $isPrimary = false;
+
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $usr = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $label = null;
+    private ?string $email = null;
 
     #[ORM\Column(length: 255)]
     private ?string $imapHost = null;
@@ -113,14 +120,25 @@ class Account
         return $this;
     }
 
-    public function getLabel(): ?string
+    public function getName(): ?string
     {
-        return $this->label;
+        return $this->name;
     }
 
-    public function setLabel(?string $label): static
+    public function setName(?string $name): static
     {
-        $this->label = $label;
+        $this->name = $name;
+        return $this;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(?string $email): static
+    {
+        $this->email = $email;
 
         return $this;
     }
@@ -326,6 +344,17 @@ class Account
     {
         $this->updatedAt = $updatedAt;
 
+        return $this;
+    }
+
+    public function isPrimary(): bool
+    {
+        return $this->isPrimary;
+    }
+
+    public function setIsPrimary(bool $isPrimary): static
+    {
+        $this->isPrimary = $isPrimary;
         return $this;
     }
 

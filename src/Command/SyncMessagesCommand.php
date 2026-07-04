@@ -44,7 +44,7 @@ class SyncMessagesCommand extends Command
         }
 
         foreach ($accounts as $account) {
-            $io->section('Syncing messages for: ' . $account->getLabel());
+            $io->section('Syncing messages for: ' . $account->getEmail());
 
             try {
                 $connection = ImapConnectionFactory::connect($account);
