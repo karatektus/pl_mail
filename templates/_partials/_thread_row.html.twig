@@ -5,6 +5,7 @@
     {% set unread = item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
+    {% set draft = false %}
     {% set date = item.lastMessageAt %}
     {% set count = item.messageCount %}
 
@@ -17,6 +18,7 @@
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
+    {% set draft = item.isDraft %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
@@ -25,7 +27,6 @@
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
 {% endif %}
-
 <li
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
@@ -34,11 +35,17 @@
 >
     {# Full-row clickable overlay #}
     <a
-    href="{{ isThread ? path('app_mail_thread', { id: item.id }) : href }}"
-    data-action="click->mail-pane#open"
-    class="pointer-events-auto absolute inset-0 z-0"
-    aria-label="{{ subject }}"
-    tabindex="-1"
+        {% if false == draft %}
+            href="{{ isThread ? path('app_mail_thread', { id: item.id }) : href }}"
+            data-action="click->mail-pane#open"
+        {% else %}
+            href="{{ path('app_compose_edit', {id: item.id}) }}"
+            data-turbo-frame="compose_dock"
+        {% endif %}
+        data-turbo-prefetch="false"
+        class="pointer-events-auto absolute inset-0 z-0"
+        aria-label="{{ subject }}"
+        tabindex="-1"
     ></a>
 
     <div

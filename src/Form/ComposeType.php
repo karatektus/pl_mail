@@ -12,15 +12,23 @@ use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ComposeType extends AbstractType
 {
+    public function __construct(
+        private readonly RouterInterface $router,
+    )
+    {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var UserInterface $user */
         $user = $options['user'];
+
 
         $builder
             // From — EntityType scoped to the current user's accounts
@@ -113,13 +121,14 @@ class ComposeType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Message::class,
-            'action' => '/compose/send',
+            'action' => $this->router->generate('app_compose_mail_send'),
             'method' => 'POST',
             'csrf_protection' => true,
             'csrf_field_name' => '_token',
             'csrf_token_id' => 'compose',
             'validation_groups' => ['Default'],
             'user' => null,
+            'attr' => ['data-turbo-stream' => 'true'],
         ]);
 
         $resolver->setRequired('user');

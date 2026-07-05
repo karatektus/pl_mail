@@ -1,0 +1,11 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { type: 'info', message: 'Send cancelled.' } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="append" target="compose_dock">
+    <template>
+        {% include 'compose/_window.html.twig' with { form: form, message: message } %}
+    </template>
+</turbo-stream>

@@ -28,12 +28,13 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
     }
 
-    public function findByMailboxOrderedByReceivedDate(Mailbox $mailbox): array
+    public function findByMailboxOrderedByDate(Mailbox $mailbox): array
     {
         return $this->createQueryBuilder('m')
             ->where('m.mailbox = :mailbox')
             ->setParameter('mailbox', $mailbox)
             ->orderBy('m.receivedAt', 'DESC')
+            ->orderBy('m.updatedAt', 'DESC')
             ->getQuery()
             ->getResult();
     }

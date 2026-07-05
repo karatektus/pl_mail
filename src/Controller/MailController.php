@@ -92,8 +92,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, '\\Drafts', $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, '\\Drafts');
+        $threads = $this->threadRepository->findForSpecialUse($user, '\\Draft', $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, '\\Draft');
 
         return $this->render('mail/drafts.html.twig', [
             'threads'  => $threads,
@@ -155,7 +155,7 @@ final class MailController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $messages = $this->messageRepository->findByMailboxOrderedByReceivedDate($mailboxEntity);
+        $messages = $this->messageRepository->findByMailboxOrderedByDate($mailboxEntity);
 
         return $this->render('mail/mailbox.html.twig', [
             'account' => $account,

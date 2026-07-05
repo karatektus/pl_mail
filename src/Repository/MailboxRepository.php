@@ -31,6 +31,10 @@ class MailboxRepository extends ServiceEntityRepository
         return $indexed;
     }
 
+    public function findSentMailboxForAccount(Account $account): ?Mailbox
+    {
+        return $this->findOneBy(['account' => $account, 'specialUse' => '\\Sent']);
+    }
     public function findDraftMailboxForAccount(Account $account): ?Mailbox
     {
         return $this->findOneBy(['account' => $account, 'specialUse' => '\\Drafts']);

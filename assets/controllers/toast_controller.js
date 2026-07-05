@@ -1,28 +1,44 @@
-// assets/controllers/toast_controller.js
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-    static values = { duration: { type: Number, default: 4000 } }
+    static values  = { duration: { type: Number, default: 4000 } }
+    static targets = ['countdown']
 
     connect() {
-        // Animate in
-        this.element.style.opacity = "0"
+        this.element.style.opacity   = "0"
         this.element.style.transform = "translateY(8px)"
+
         requestAnimationFrame(() => {
-            this.element.style.transition = "opacity 200ms, transform 200ms"
-            this.element.style.opacity = "1"
-            this.element.style.transform = "translateY(0)"
+            requestAnimationFrame(() => {
+                this.element.style.transition = "opacity 200ms, transform 200ms"
+                this.element.style.opacity    = "1"
+                this.element.style.transform  = "translateY(0)"
+            })
         })
 
-        this._timer = setTimeout(() => this.dismiss(), this.durationValue)
+        this._remaining = Math.round(this.durationValue / 1000)
+        this._updateCountdown()
+
+        this._interval = setInterval(() => {
+            this._remaining--
+            this._updateCountdown()
+            if (this._remaining <= 0) this.dismiss()
+        }, 1000)
     }
 
     disconnect() {
-        clearTimeout(this._timer)
+        clearInterval(this._interval)
+    }
+
+    _updateCountdown() {
+        if (this.hasCountdownTarget) {
+            this.countdownTarget.textContent = this._remaining
+        }
     }
 
     dismiss() {
-        this.element.style.opacity = "0"
+        clearInterval(this._interval)
+        this.element.style.opacity   = "0"
         this.element.style.transform = "translateY(8px)"
         this.element.addEventListener("transitionend", () => this.element.remove(), { once: true })
     }

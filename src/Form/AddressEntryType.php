@@ -23,11 +23,7 @@ class AddressEntryType extends AbstractType
             ->add('address', EmailType::class, [
                 'label' => false,
                 'row_attr' => ['class' => 'contents'],
-                'attr' => [
-                    'placeholder' => 'Email address',
-                    'class' => 'flex-1 text-sm text-gray-800 outline-none bg-transparent placeholder-gray-400 min-w-0',
-                    'autocomplete' => 'email',
-                ],
+                'attr' => [],
                 'constraints' => [
                     new NotBlank(groups: ['send']),
                     new Email(groups: ['send']),
@@ -37,10 +33,7 @@ class AddressEntryType extends AbstractType
                 'label' => false,
                 'required' => false,
                 'row_attr' => ['class' => 'contents'],
-                'attr' => [
-                    'placeholder' => 'Name',
-                    'class' => 'w-28 text-sm text-gray-500 outline-none bg-transparent placeholder-gray-300 border-l border-gray-200 pl-2 min-w-0',
-                ],
+                'attr' => [],
             ])
         ;
     }

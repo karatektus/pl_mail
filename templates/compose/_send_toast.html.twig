@@ -1,0 +1,16 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type: 'success',
+            message: 'Sending…',
+            extra: {
+                undo_url: path('app_compose_mail_undo', { id: message.id }),
+                hide_after: 8000
+            }
+        } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="update" target="compose_dock">
+    <template></template>
+</turbo-stream>

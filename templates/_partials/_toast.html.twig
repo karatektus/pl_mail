@@ -5,15 +5,46 @@
     info:    'bg-blue-600 text-white',
 } %}
 
+{% set progress_colors = {
+    success: 'bg-white',
+    error:   'bg-white',
+    info:    'bg-white',
+} %}
+
 <div
     data-controller="toast"
-    data-toast-duration-value="4000"
+    data-toast-duration-value="{{ extra.hide_after ?? 4000 }}"
     role="status"
-    class="flex items-center gap-2.5 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium
-         transition-all duration-300 {{ colors[type ?? 'success'] }}"
+    class="relative rounded-xl shadow-xl overflow-hidden min-w-[280px] max-w-sm
+           {{ colors[type ?? 'success'] }}"
 >
-    {{ message }}
-    <button data-action="click->toast#dismiss" class="ml-1 opacity-60 hover:opacity-100 transition-opacity" aria-label="{{ 'toast.dismiss'|trans }}">
-        <i class="fa-solid fa-xmark text-[14px]" aria-hidden="true"></i>
-    </button>
+    {# ── flex row for content only ── #}
+    <div class="flex items-center gap-3 px-5 py-3.5 text-base font-medium">
+        {{ message }}
+        <span data-toast-target="countdown"></span>s
+        {% if extra.undo_url is defined %}
+            <button
+                data-controller="undo-send"
+                data-undo-send-url-value="{{ extra.undo_url }}"
+                data-undo-send-hide-after-value="{{ extra.hide_after ?? 4000 }}"
+                data-action="click->undo-send#abort"
+                class="ml-1 underline underline-offset-2 font-bold hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap"
+            >
+                Undo
+            </button>
+        {% endif %}
+
+        <span class="ml-auto opacity-50 text-sm tabular-nums shrink-0">
+
+    </span>
+
+        <button
+            data-action="click->toast#dismiss"
+            class="ml-auto opacity-50 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+            aria-label="{{ 'toast.dismiss'|trans }}"
+        >
+            <i class="fa-solid fa-xmark text-base" aria-hidden="true"></i>
+        </button>
+    </div>
+
 </div>

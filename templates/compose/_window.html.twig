@@ -2,71 +2,125 @@
 {% form_theme form '_layout/form/compose_theme.html.twig' %}
 
 <turbo-frame id="compose_dock">
-    <div data-controller="compose"
-         data-compose-draft-url-value="{{ path('app_compose_draft') }}"
+    <div data-controller="compose compose-toolbar"
+         {% if null == message.id %}
+             data-compose-draft-url-value="{{ path('app_compose_form_new') }}"
+             data-compose-send-url-value="{{ path('app_compose_mail_send') }}"
+         {% else %}
+             data-compose-draft-url-value="{{ path('app_compose_form_edit', {'id': message.id}) }}"
+             data-compose-send-url-value="{{ path('app_compose_mail_send_draft', {'id': message.id}) }}"
+        {% endif %}
+
          class="w-[520px] rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60
                 bg-white/80 dark:bg-gray-900/80
                 backdrop-blur-xl
                 border border-white/60 dark:border-white/10
                 flex flex-col overflow-hidden mb-4">
 
-        {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
+        {{ form_start(form, { attr: { novalidate: 'novalidate', class: 'flex flex-col flex-1 min-h-0' } }) }}
 
         {# ── Header ───────────────────────────────────────────────── #}
         <div class="flex items-center justify-between px-4 py-2.5
-                    bg-gray-800 dark:bg-gray-950
+                    bg-black/20 dark:bg-black/30
                     rounded-t-2xl select-none shrink-0"
              data-action="dblclick->compose#toggleMinimize">
-            <span class="text-sm font-semibold text-white cursor-pointer"
+            <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 cursor-pointer truncate max-w-[260px]"
+                  data-compose-target="title"
                   data-action="click->compose#toggleMinimize">New Message</span>
             <div class="flex items-center gap-1">
                 <span data-compose-target="saveStatus"
-                      class="text-xs text-gray-400 mr-2 transition-colors"></span>
+                      class="text-xs text-gray-500 dark:text-gray-400 mr-2 transition-colors"></span>
                 <button type="button" title="Minimize"
                         data-action="click->compose#toggleMinimize"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i data-compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
                 </button>
                 <button type="button" title="Expand"
                         data-action="click->compose#toggleExpand"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i data-compose-target="expandIcon"
                        class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
                 </button>
                 <button type="button" title="Save draft and close"
                         data-action="compose#saveDraft compose#close"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
         </div>
 
         {# ── Collapsible body ─────────────────────────────────────── #}
-        <div data-compose-target="collapsible" class="flex flex-col flex-1 min-h-0">
+        <div data-compose-target="collapsible"
+             class="flex flex-col flex-1 min-h-0">
 
-            {# ── From ─────────────────────────────────────────────────── #}
-            <div class="flex items-center gap-3 px-4 border-b border-gray-100 dark:border-gray-800 min-h-[38px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-8 shrink-0">From</span>
-                <select id="{{ form.account.vars.id }}"
-                        name="{{ form.account.vars.full_name }}"
-                        class="flex-1 bg-transparent outline-none text-sm
-                           text-gray-700 dark:text-gray-300 cursor-pointer py-1">
+            {# ── Hidden account select (submitted with form) ───────── #}
+            <select id="{{ form.account.vars.id }}"
+                    name="{{ form.account.vars.full_name }}"
+                    data-compose-target="accountSelect"
+                    class="sr-only">
+                {% for choice in form.account.vars.choices %}
+                    <option value="{{ choice.value }}"
+                            {% if form.account.vars.value == choice.value %}selected{% endif %}>
+                        {{ choice.label }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            {# ── From ─────────────────────────────────────────────── #}
+            <div class="relative">
+                <div class="flex items-center gap-3 px-4 pt-3 pb-1"
+                     data-compose-target="fromRow">
+                    <span class="text-sm text-gray-400 dark:text-gray-500 w-10 shrink-0">From</span>
+                    <button type="button"
+                            data-action="click->compose#toggleFromDropdown"
+                            data-compose-target="fromBtn"
+                            class="flex-1 flex items-center justify-between gap-2 text-sm
+                                   text-gray-700 dark:text-gray-300 text-left">
+                        <span data-compose-target="fromLabel" class="truncate">
+                            {% for choice in form.account.vars.choices %}
+                                {% if form.account.vars.value == choice.value %}{{ choice.label }}{% endif %}
+                            {% endfor %}
+                        </span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 dark:text-gray-500 shrink-0 transition-transform duration-150"
+                           data-compose-target="fromChevron"></i>
+                    </button>
+                </div>
+
+                <div data-compose-target="fromDropdown"
+                     class="hidden absolute left-4 right-4 top-full z-20 rounded-xl overflow-hidden
+                            bg-white/95 dark:bg-gray-800/95
+                            backdrop-blur-sm
+                            border border-gray-200/60 dark:border-white/10
+                            shadow-xl shadow-black/15 dark:shadow-black/50">
                     {% for choice in form.account.vars.choices %}
-                        <option value="{{ choice.value }}"
-                                {% if form.account.vars.value == choice.value %}selected{% endif %}>
+                        <button type="button"
+                                data-action="click->compose#selectAccount"
+                                data-value="{{ choice.value }}"
+                                data-label="{{ choice.label }}"
+                                class="w-full text-left px-4 py-2.5 text-sm
+                                       text-gray-700 dark:text-gray-200
+                                       hover:bg-blue-50 dark:hover:bg-blue-500/20
+                                       hover:text-blue-600 dark:hover:text-blue-300
+                                       transition-colors
+                                       {% if form.account.vars.value == choice.value %}
+                                           bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300
+                                       {% endif %}">
                             {{ choice.label }}
-                        </option>
+                        </button>
                     {% endfor %}
-                </select>
+                </div>
             </div>
 
-            {# ── To ───────────────────────────────────────────────────── #}
-            <div class="flex items-center gap-3 px-4 border-b border-gray-100 dark:border-gray-800 min-h-[38px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-8 shrink-0">To</span>
-                <div class="flex-1 py-1 compose-collection compose-to"
+            {# ── To ───────────────────────────────────────────────── #}
+            <div class="flex items-center gap-3 px-4 py-1">
+                <span class="text-sm text-gray-400 dark:text-gray-500 w-10 shrink-0">To</span>
+                <div class="flex-1 compose-collection compose-to"
                      id="{{ form.toAddresses.vars.id }}"
                      data-prototype="{{ form_widget(form.toAddresses.vars.prototype)|e('html_attr') }}"
                      data-index="{{ form.toAddresses|length }}">
@@ -74,19 +128,23 @@
                         {{ form_widget(entry) }}
                     {% endfor %}
                 </div>
-                <div class="flex gap-2 text-xs font-medium shrink-0">
-                <span class="cursor-pointer text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors"
-                      data-action="click->compose#showCc">Cc</span>
-                    <span class="cursor-pointer text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors"
-                          data-action="click->compose#showBcc">Bcc</span>
+                <div class="flex gap-3 shrink-0">
+                    <button type="button"
+                            data-compose-target="ccBtn"
+                            data-action="click->compose#showCc"
+                            class="text-sm text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">Cc</button>
+                    <button type="button"
+                            data-compose-target="bccBtn"
+                            data-action="click->compose#showBcc"
+                            class="text-sm text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">Bcc</button>
                 </div>
             </div>
 
-            {# ── Cc ───────────────────────────────────────────────────── #}
+            {# ── Cc ───────────────────────────────────────────────── #}
             <div data-compose-target="ccField"
-                 class="hidden items-center gap-3 px-4 border-b border-gray-100 dark:border-gray-800 min-h-[38px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-8 shrink-0">Cc</span>
-                <div class="flex-1 py-1 compose-collection compose-cc"
+                 class="hidden items-center gap-3 px-4 py-1">
+                <span class="text-sm text-gray-400 dark:text-gray-500 w-10 shrink-0">Cc</span>
+                <div class="flex-1 compose-collection compose-cc"
                      id="{{ form.ccAddresses.vars.id }}"
                      data-prototype="{{ form_widget(form.ccAddresses.vars.prototype)|e('html_attr') }}"
                      data-index="{{ form.ccAddresses|length }}">
@@ -96,11 +154,11 @@
                 </div>
             </div>
 
-            {# ── Bcc ──────────────────────────────────────────────────── #}
+            {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose-target="bccField"
-                 class="hidden items-center gap-3 px-4 border-b border-gray-100 dark:border-gray-800 min-h-[38px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-8 shrink-0">Bcc</span>
-                <div class="flex-1 py-1 compose-collection compose-bcc"
+                 class="hidden items-center gap-3 px-4 py-1">
+                <span class="text-sm text-gray-400 dark:text-gray-500 w-10 shrink-0">Bcc</span>
+                <div class="flex-1 compose-collection compose-bcc"
                      id="{{ form.bccAddresses.vars.id }}"
                      data-prototype="{{ form_widget(form.bccAddresses.vars.prototype)|e('html_attr') }}"
                      data-index="{{ form.bccAddresses|length }}">
@@ -110,73 +168,185 @@
                 </div>
             </div>
 
-            {# ── Subject ──────────────────────────────────────────────── #}
-            <div class="flex items-center gap-3 px-4 border-b border-gray-100 dark:border-gray-800 min-h-[38px]">
+            {# ── Subject ──────────────────────────────────────────── #}
+            <div class="mx-4 border-t border-gray-200/60 dark:border-white/10 mt-1"></div>
+            <div class="flex items-center gap-3 px-4 pt-2 pb-3">
                 <input type="text"
                        id="{{ form.subject.vars.id }}"
                        name="{{ form.subject.vars.full_name }}"
                        value="{{ form.subject.vars.value ?: '' }}"
                        placeholder="Subject"
-                       class="flex-1 bg-transparent outline-none text-sm font-medium py-1
-                          text-gray-800 dark:text-gray-100
-                          placeholder-gray-400 dark:placeholder-gray-600"/>
+                       class="flex-1 bg-transparent outline-none text-sm font-medium
+                              text-gray-800 dark:text-gray-100
+                              placeholder-gray-400 dark:placeholder-gray-600"/>
             </div>
+            <div class="mx-4 border-t border-gray-200/60 dark:border-white/10"></div>
 
-            {# ── Body ─────────────────────────────────────────────────── #}
+            {# ── Body ─────────────────────────────────────────────── #}
+            <input type="hidden"
+                   id="{{ form.bodyHtml.vars.id }}"
+                   name="{{ form.bodyHtml.vars.full_name }}"
+                   data-compose-toolbar-target="hiddenInput"
+                   value="{{ form.bodyHtml.vars.value ?: '' }}">
+
             <div class="flex-1 flex flex-col min-h-[200px] px-4 py-3">
-            <textarea id="{{ form.bodyHtml.vars.id }}"
-                      name="{{ form.bodyHtml.vars.full_name }}"
-                      data-compose-target="body"
-                      placeholder="Write your message…"
-                      class="flex-1 w-full min-h-[190px] bg-transparent outline-none resize-none
-                             text-sm leading-relaxed
-                             text-gray-800 dark:text-gray-100
-                             placeholder-gray-400 dark:placeholder-gray-600">{{ form.bodyHtml.vars.value ?: '' }}</textarea>
+                <div id="compose-editor"
+                     data-compose-toolbar-target="editor"
+                     data-compose-target="body"
+                     contenteditable="true"
+                     data-placeholder="Write your message…"
+                     class="flex-1 w-full min-h-[190px] bg-transparent outline-none
+                            text-sm leading-relaxed
+                            text-gray-800 dark:text-gray-100
+                            empty:before:content-[attr(data-placeholder)]
+                            empty:before:text-gray-400 dark:empty:before:text-gray-600
+                            empty:before:pointer-events-none">{{ form.bodyHtml.vars.value ?: '' }}</div>
             </div>
 
-            {# ── Toolbar ──────────────────────────────────────────────── #}
-            <div class="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800 shrink-0">
+            {# ── Toolbar ──────────────────────────────────────────── #}
+            <div class="px-3 pb-3 pt-1 shrink-0">
 
                 {# Formatting bubble #}
                 <div class="flex items-center gap-0.5 mb-2 flex-wrap
-                        bg-gray-100/80 dark:bg-gray-800/60
-                        rounded-full px-2 py-1">
-                    <select class="bg-transparent border-none outline-none text-xs cursor-pointer px-1 py-0.5 rounded
-                               text-gray-600 dark:text-gray-400
-                               hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            bg-gray-100/80 dark:bg-gray-800/60
+                            rounded-full px-2 py-1">
+
+                    <select data-compose-toolbar-target="fontFamily"
+                            data-action="change->compose-toolbar#changeFontFamily"
+                            class="bg-transparent border-none outline-none text-xs cursor-pointer px-1 py-0.5 rounded
+                                   text-gray-600 dark:text-gray-400
+                                   hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <option>Sans Serif</option>
                         <option>Serif</option>
                         <option>Monospace</option>
                     </select>
+
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
-                    <button type="button" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded transition-colors
-                                             text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <span class="text-base font-bold leading-none">T</span><span class="text-[10px] font-bold leading-none">T</span>
-                        <i class="fa-solid fa-chevron-down text-[8px] ml-0.5"></i>
-                    </button>
+
+                    <select data-compose-toolbar-target="fontSize"
+                            data-action="change->compose-toolbar#changeFontSize"
+                            class="bg-transparent border-none outline-none text-xs cursor-pointer px-1 py-0.5 rounded
+                                   text-gray-600 dark:text-gray-400
+                                   hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <option>Small</option>
+                        <option selected>Normal</option>
+                        <option>Large</option>
+                        <option>Huge</option>
+                    </select>
+
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
-                    <button type="button" class="px-1.5 py-0.5 rounded font-bold text-sm transition-colors
-                                             text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">B</button>
-                    <button type="button" class="px-1.5 py-0.5 rounded italic text-sm transition-colors
-                                             text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">I</button>
-                    <button type="button" class="px-1.5 py-0.5 rounded underline text-sm transition-colors
-                                             text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">U</button>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm flex flex-col items-center leading-none gap-0.5 transition-colors
-                                             text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-compose-toolbar-target="boldBtn"
+                            data-action="click->compose-toolbar#bold"
+                            class="px-1.5 py-0.5 rounded font-bold text-sm transition-colors
+                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">B</button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-compose-toolbar-target="italicBtn"
+                            data-action="click->compose-toolbar#italic"
+                            class="px-1.5 py-0.5 rounded italic text-sm transition-colors
+                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">I</button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-compose-toolbar-target="underlineBtn"
+                            data-action="click->compose-toolbar#underline"
+                            class="px-1.5 py-0.5 rounded underline text-sm transition-colors
+                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">U</button>
+
+                    <label class="px-1.5 py-0.5 rounded text-sm flex flex-col items-center leading-none gap-0.5
+                                  transition-colors text-gray-700 dark:text-gray-300
+                                  hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer relative">
                         <span class="font-semibold">A</span>
-                        <span class="block w-3.5 h-[3px] bg-blue-500 rounded-sm"></span>
-                    </button>
+                        <span data-compose-toolbar-target="colorSwatch"
+                              class="block w-3.5 h-[3px] bg-blue-500 rounded-sm"></span>
+                        <input type="color"
+                               data-action="input->compose-toolbar#changeColor"
+                               class="absolute opacity-0 w-0 h-0 pointer-events-none"
+                               tabindex="-1">
+                    </label>
+
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
-                    <button type="button" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-sm transition-colors
-                                             text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <i class="fa-solid fa-align-left"></i><i class="fa-solid fa-chevron-down text-[8px]"></i>
-                    </button>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fa-solid fa-list-ol"></i></button>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fa-solid fa-list-ul"></i></button>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fa-solid fa-outdent"></i></button>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fa-solid fa-indent"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#alignLeft"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Align left">
+                        <i class="fa-solid fa-align-left"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#alignCenter"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Align center">
+                        <i class="fa-solid fa-align-center"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#alignRight"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Align right">
+                        <i class="fa-solid fa-align-right"></i></button>
+
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
-                    <button type="button" class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#orderedList"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Numbered list">
+                        <i class="fa-solid fa-list-ol"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#unorderedList"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Bullet list">
+                        <i class="fa-solid fa-list-ul"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#outdent"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Outdent">
+                        <i class="fa-solid fa-outdent"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#indent"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Indent">
+                        <i class="fa-solid fa-indent"></i></button>
+
+                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#undo"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Undo (Ctrl+Z)">
+                        <i class="fa-solid fa-rotate-left"></i></button>
+
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#redo"
+                            class="px-1.5 py-0.5 rounded text-sm transition-colors
+                                   text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Redo (Ctrl+Y)">
+                        <i class="fa-solid fa-rotate-right"></i></button>
+
                 </div>
 
                 {# Action bar #}
@@ -195,7 +365,10 @@
                     {% set ic = "w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800" %}
                     <button type="button" class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
                     <button type="button" class="{{ ic }}"><i class="fa-solid fa-paperclip"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-solid fa-link"></i></button>
+                    <button type="button"
+                            data-compose-toolbar-action
+                            data-action="click->compose-toolbar#insertLink"
+                            class="{{ ic }}"><i class="fa-solid fa-link"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-regular fa-face-smile"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-brands fa-google-drive"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-regular fa-image"></i></button>

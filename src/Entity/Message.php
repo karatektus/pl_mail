@@ -2,15 +2,17 @@
 
 namespace App\Entity;
 
+use App\Domain\Enum\MessageFlag;
+use App\Domain\Model\MessageModel;
 use App\Repository\MessageRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\UX\Turbo\Attribute\Broadcast;
 
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
-class Message
+class Message extends MessageModel
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -46,22 +48,22 @@ class Message
     private ?array $bccAddresses = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private ?DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    private ?DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $sentAt = null;
+    private ?DateTimeImmutable $sentAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $receivedAt = null;
+    private ?DateTimeImmutable $receivedAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $seenAt = null;
+    private ?DateTimeImmutable $seenAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $starredAt = null;
+    private ?DateTimeImmutable $starredAt = null;
 
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $inReplyTo = [];
@@ -76,10 +78,10 @@ class Message
     private ?bool $hasAttachments = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $syncedAt = null;
+    private ?DateTimeImmutable $syncedAt = null;
 
-    #[ORM\Column(nullable: true)]
-    private ?array $flags = null;
+    #[ORM\Column]
+    private array $flags = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $bodyText = null;
@@ -97,11 +99,14 @@ class Message
     #[ORM\JoinColumn(nullable: true)]
     private ?MessageThread $thread = null;
 
+    #[ORM\Column]
+    private bool $cancelled = false; // a helper only to tell the message handler to cancel the message should always be false except for a few seconds
+
     public function __construct()
     {
         $this->messageParts = new ArrayCollection();
-        $this->setCreatedAt(new \DateTimeImmutable());
-        $this->setUpdatedAt(new \DateTimeImmutable());
+        $this->setCreatedAt(new DateTimeImmutable());
+        $this->setUpdatedAt(new DateTimeImmutable());
     }
 
     public function getId(): ?int
@@ -217,72 +222,72 @@ class Message
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?DateTimeImmutable
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
 
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
 
         return $this;
     }
 
-    public function getSentAt(): ?\DateTimeImmutable
+    public function getSentAt(): ?DateTimeImmutable
     {
         return $this->sentAt;
     }
 
-    public function setSentAt(?\DateTimeImmutable $sentAt): static
+    public function setSentAt(?DateTimeImmutable $sentAt): static
     {
         $this->sentAt = $sentAt;
 
         return $this;
     }
 
-    public function getReceivedAt(): ?\DateTimeImmutable
+    public function getReceivedAt(): ?DateTimeImmutable
     {
         return $this->receivedAt;
     }
 
-    public function setReceivedAt(?\DateTimeImmutable $receivedAt): static
+    public function setReceivedAt(?DateTimeImmutable $receivedAt): static
     {
         $this->receivedAt = $receivedAt;
 
         return $this;
     }
 
-    public function getSeenAt(): ?\DateTimeImmutable
+    public function getSeenAt(): ?DateTimeImmutable
     {
         return $this->seenAt;
     }
 
-    public function setSeenAt(?\DateTimeImmutable $seenAt): static
+    public function setSeenAt(?DateTimeImmutable $seenAt): static
     {
         $this->seenAt = $seenAt;
 
         return $this;
     }
 
-    public function getStarredAt(): ?\DateTimeImmutable
+    public function getStarredAt(): ?DateTimeImmutable
     {
         return $this->starredAt;
     }
 
-    public function setStarredAt(?\DateTimeImmutable $starredAt): static
+    public function setStarredAt(?DateTimeImmutable $starredAt): static
     {
         $this->starredAt = $starredAt;
 
@@ -337,26 +342,35 @@ class Message
         return $this;
     }
 
-    public function getSyncedAt(): ?\DateTimeImmutable
+    public function getSyncedAt(): ?DateTimeImmutable
     {
         return $this->syncedAt;
     }
 
-    public function setSyncedAt(?\DateTimeImmutable $syncedAt): static
+    public function setSyncedAt(?DateTimeImmutable $syncedAt): static
     {
         $this->syncedAt = $syncedAt;
 
         return $this;
     }
 
-    public function getFlags(): ?array
+    public function getFlags(): array
     {
         return $this->flags;
     }
 
-    public function setFlags(?array $flags): static
+    public function setFlags(array $flags): static
     {
         $this->flags = $flags;
+
+        return $this;
+    }
+
+    public function addFlag(MessageFlag $flag): static
+    {
+        if (false === in_array($flag, $this->flags)) {
+            $this->flags[] = $flag;
+        }
 
         return $this;
     }
@@ -424,6 +438,17 @@ class Message
     {
         $this->thread = $thread;
 
+        return $this;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->cancelled;
+    }
+
+    public function setCancelled(bool $cancelled): Message
+    {
+        $this->cancelled = $cancelled;
         return $this;
     }
 }

@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon']
+    static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow'];
     static values = {
         draftUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
@@ -17,8 +17,20 @@ export default class extends Controller {
         this._ensureEntry(toCollection)
 
         this._boundAutosave = this._scheduleAutosave.bind(this)
-        this.element.querySelector('form')
-            ?.addEventListener('input', this._boundAutosave)
+        const form = this.element.querySelector('form');
+        console.log(this.element);
+        const formAction = this.element.dataset.composeSendUrlValue;
+        form?.addEventListener('input', this._boundAutosave);
+        form.action = formAction;
+        // Mirror subject into header title
+        const subjectInput = this.element.querySelector('[name$="[subject]"]')
+        if (subjectInput) {
+            this._updateTitle(subjectInput.value)
+            subjectInput.addEventListener('input', () => this._updateTitle(subjectInput.value))
+        }
+
+        // Close from-dropdown when clicking outside
+        this._boundCloseDropdown = this._closeFromDropdown.bind(this)
 
         // Auto-expand on mobile
         if (window.innerWidth < 768) {
@@ -30,7 +42,7 @@ export default class extends Controller {
         clearTimeout(this.#autosaveTimer)
         this.element.querySelector('form')
             ?.removeEventListener('input', this._boundAutosave)
-        // Make sure we restore body scroll if unmounted while expanded
+        document.removeEventListener('click', this._boundCloseDropdown, { capture: true })
         document.body.style.overflow = ''
     }
 
@@ -80,13 +92,18 @@ export default class extends Controller {
                 inset: 1rem;
                 width: auto;
                 max-width: none;
+                height: auto;
                 margin: 0;
                 z-index: 50;
+                display: flex;
+                flex-direction: column;
             `
 
+            // The body div wrapper needs to flex-grow too
             if (this.hasBodyTarget) {
+                this.bodyTarget.closest('div').style.flex = '1'
                 this.bodyTarget.style.flex = '1'
-                this.bodyTarget.style.height = '0'   // flex-1 needs a 0-basis to expand correctly
+                this.bodyTarget.style.height = '0' // 0 basis so flex-1 can take over
             }
 
             document.body.style.overflow = 'hidden'
@@ -95,6 +112,7 @@ export default class extends Controller {
             el.style.cssText = ''
 
             if (this.hasBodyTarget) {
+                this.bodyTarget.closest('div').style.flex = ''
                 this.bodyTarget.style.flex = ''
                 this.bodyTarget.style.height = ''
             }
@@ -106,6 +124,51 @@ export default class extends Controller {
             this.expandIconTarget.className = expanded
                 ? 'fa-solid fa-down-left-and-up-right-to-center text-[10px]'
                 : 'fa-solid fa-up-right-and-down-left-from-center text-[10px]'
+        }
+    }
+
+    // ── From dropdown ─────────────────────────────────────────────────
+
+    toggleFromDropdown() {
+        const open = !this.fromDropdownTarget.classList.contains('hidden')
+        if (open) {
+            this._closeFromDropdown()
+        } else {
+            this.fromDropdownTarget.classList.remove('hidden')
+            this.fromChevronTarget.style.transform = 'rotate(180deg)'
+            document.addEventListener('click', this._boundCloseDropdown, { capture: true, once: true })
+        }
+    }
+
+    selectAccount(event) {
+        const btn = event.currentTarget
+        const value = btn.dataset.value
+        const label = btn.dataset.label
+
+        // Update hidden select
+        this.accountSelectTarget.value = value
+
+        // Update button label
+        this.fromLabelTarget.textContent = label
+
+        // Highlight selected option
+        this.fromDropdownTarget.querySelectorAll('button').forEach(b => {
+            const selected = b.dataset.value === value
+            b.classList.toggle('bg-blue-50', selected)
+            b.classList.toggle('dark:bg-blue-500/10', selected)
+            b.classList.toggle('text-blue-600', selected)
+            b.classList.toggle('dark:text-blue-300', selected)
+        })
+
+        this._closeFromDropdown()
+    }
+
+    _closeFromDropdown() {
+        if (this.hasFromDropdownTarget) {
+            this.fromDropdownTarget.classList.add('hidden')
+        }
+        if (this.hasFromChevronTarget) {
+            this.fromChevronTarget.style.transform = ''
         }
     }
 
@@ -153,6 +216,19 @@ export default class extends Controller {
 
             if (response.ok) {
                 if (status) {
+                    const html = await response.text()
+                    const doc = new DOMParser().parseFromString(html, 'text/html')
+                    const newController = doc.querySelector('[data-compose-draft-url-value]')
+                    const oldForm = this.element.querySelector('form')
+
+                    if (newController) {
+                        this.draftUrlValue = newController.dataset.composeDraftUrlValue
+                    }
+
+                    if (oldForm) {
+                        oldForm.action = newController.dataset.composeSendUrlValue
+                    }
+
                     status.textContent = 'Draft saved'
                     status.classList.remove('text-gray-400', 'text-red-500')
                     status.classList.add('text-green-600')
@@ -173,15 +249,25 @@ export default class extends Controller {
 
     showCc() {
         this.ccFieldTarget.classList.remove('hidden')
+        this.ccFieldTarget.classList.add('flex')
+        if (this.hasCcBtnTarget) this.ccBtnTarget.classList.add('hidden')
         this._ensureEntry(this.ccFieldTarget.querySelector('[data-prototype]'))
     }
 
     showBcc() {
         this.bccFieldTarget.classList.remove('hidden')
+        this.bccFieldTarget.classList.add('flex')
+        if (this.hasBccBtnTarget) this.bccBtnTarget.classList.add('hidden')
         this._ensureEntry(this.bccFieldTarget.querySelector('[data-prototype]'))
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
+
+    _updateTitle(value) {
+        if (this.hasTitleTarget) {
+            this.titleTarget.textContent = value.trim() || 'New Message'
+        }
+    }
 
     _ensureEntry(collection) {
         if (!collection || collection.children.length > 0) return
