@@ -5,6 +5,7 @@ export default class extends Controller {
     static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow'];
     static values = {
         draftUrl: String,
+        sendUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
@@ -15,12 +16,16 @@ export default class extends Controller {
     connect() {
         const toCollection = this.element.querySelector('.compose-to[data-prototype]')
         this._ensureEntry(toCollection)
-
+        this._submitting = false;
+        this._boundHandleSubmit = this._handleSubmit.bind(this);
         this._boundAutosave = this._scheduleAutosave.bind(this)
         const form = this.element.querySelector('form');
-        const formAction = this.element.dataset.composeSendUrlValue;
-        form?.addEventListener('input', this._boundAutosave);
+        const formAction = this.sendUrlValue;
         form.action = formAction;
+        
+        form?.addEventListener('submit', this._boundHandleSubmit);
+        form?.addEventListener('input', this._boundAutosave);
+
         // Mirror subject into header title
         const subjectInput = this.element.querySelector('[name$="[subject]"]')
         if (subjectInput) {
@@ -42,6 +47,8 @@ export default class extends Controller {
         clearTimeout(this.#autosaveTimer)
         this.element.querySelector('form')
             ?.removeEventListener('input', this._boundAutosave)
+        this.element.querySelector('form')
+            ?.removeEventListener('submit', this._boundHandleSubmit)
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true })
         document.body.style.overflow = ''
     }
@@ -224,10 +231,11 @@ export default class extends Controller {
 
                     if (newController) {
                         this.draftUrlValue = newController.dataset.composeDraftUrlValue
+                        this.sendUrlValue  = newController.dataset.composeSendUrlValue;
                     }
 
                     if (oldForm) {
-                        oldForm.action = newController.dataset.composeSendUrlValue
+                        oldForm.action = this.sendUrlValue;
                     }
 
                     status.textContent = 'Draft saved'
@@ -246,6 +254,29 @@ export default class extends Controller {
         }
     }
 
+    _handleSubmit(event) {
+        if (this._submitting) {
+            event.preventDefault();
+            return;
+        }
+        clearTimeout(this.#autosaveTimer);
+        this._submitting = true;
+
+        const sendBtn = this.element.querySelector('[type="submit"]');
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending…';
+        }
+
+        // Reset after delay in case of validation failure / error response
+        setTimeout(() => {
+            this._submitting = false;
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }, 15_000); // slightly longer than the undo delay
+    }
     // ── Cc / Bcc ──────────────────────────────────────────────────────
 
     showCc() {
@@ -281,4 +312,6 @@ export default class extends Controller {
         collection.insertAdjacentHTML('beforeend', prototype)
         collection.querySelector('input')?.focus()
     }
+
+
 }

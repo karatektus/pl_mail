@@ -33,6 +33,10 @@ readonly class SendMessageHandler
             return;
         }
 
+        if (null !== $message->getSentAt()) {
+            return;
+        }
+
         $this->sendService->send($message);
     }
 }

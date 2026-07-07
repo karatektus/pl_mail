@@ -101,8 +101,14 @@ class ComposeController extends AbstractController
 
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $this->persistDraft($form, $message); // saves to DB first
+        if (true === $form->isSubmitted() && true === $form->isValid()) {
+            if (null !== $message->getSentAt()) {
+                return $this->render('compose/_send_toast.html.twig', [
+                    'message' => $message,
+                ], new Response('', 200, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+            }
+
+            $this->persistDraft($message); // saves to DB first
 
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),

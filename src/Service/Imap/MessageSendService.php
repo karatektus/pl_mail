@@ -26,16 +26,14 @@ class MessageSendService
     public function send(Message $message): void
     {
         $account = $message->getMailbox()->getAccount();
+        $message->setSentAt(new DateTimeImmutable());
+        $this->em->flush();
 
         $this->sendViaSmtp($message, $account);
         $this->appendToSentFolder($message, $account);
 
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
-
-        $message
-            ->setMailbox($sentMailbox)
-            ->setSentAt(new DateTimeImmutable());
-
+        $message->setMailbox($sentMailbox);
         $this->em->flush();
     }
 
@@ -84,7 +82,6 @@ class MessageSendService
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
         $folderPath = $sentMailbox?->getName();
 
-        dump($client->getFolders()) ;
         $folder = $client->getFolder($folderPath);
         $folder->appendMessage(
             $message->getBodyHtml() ?? $message->getBodyText() ?? '',
