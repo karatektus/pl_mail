@@ -3,8 +3,11 @@
 namespace App\Form;
 
 use App\Entity\Account;
+use App\Entity\Mailbox;
 use App\Entity\Message;
+use App\Repository\MailboxRepository;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
@@ -32,21 +35,17 @@ class ComposeType extends AbstractType
 
         $builder
             // From — EntityType scoped to the current user's accounts
-            ->add('account', EntityType::class, [
+            ->add('mailbox', EntityType::class, [
                 'label' => false,
-                'class' => Account::class,
-                'choice_label' => fn(Account $a) => $a->getFromHeader(),
-                'query_builder' => fn(EntityRepository $er) => $er
-                    ->createQueryBuilder('a')
-                    ->where('a.usr = :user')
-                    ->andWhere('a.isActive = true')
-                    ->orderBy('a.isPrimary', 'DESC')
-                    ->addOrderBy('a.email', 'ASC')
-                    ->setParameter('user', $user),
+                'class' => Mailbox::class,
+                'choice_label' => fn(Mailbox $mailbox) => sprintf('%s <%s>',$mailbox->getAccount()->getName(),$mailbox->getAccount()->getEmail()),
+                'query_builder' => function (MailboxRepository $repo) use ($user): QueryBuilder {
+                    return  $repo->getActiveSentMailboxesForUser($user);
+                },
                 // Pre-select the primary account
-                'preferred_choices' => fn(Account $a) => $a->isPrimary(),
-                'mapped' => false, // Controller resolves mailbox from this and sets it on Message
+//                'preferred_choices' => fn(Account $a) => $a->isPrimary(),
                 'attr' => ['class' => 'compose-from-select'],
+//                'data' => $options['selected_account'],
             ])
 
             // To — always visible, at least one entry required
@@ -119,6 +118,7 @@ class ComposeType extends AbstractType
 
     public function configureOptions(OptionsResolver $resolver): void
     {
+
         $resolver->setDefaults([
             'data_class' => Message::class,
             'action' => $this->router->generate('app_compose_mail_send'),

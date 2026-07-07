@@ -25,16 +25,20 @@ class ComposeController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly MailboxRepository $mailboxRepository,
-        private readonly MessageBusInterface $bus,
-    ) {}
+        private readonly MailboxRepository      $mailboxRepository,
+        private readonly MessageBusInterface    $bus,
+    )
+    {
+    }
 
     #[Route('/new', name: 'new', methods: ['GET'])]
     #[Route('/edit/{id}', name: 'edit', methods: ['GET'])]
     public function compose(?Message $message = null): Response
     {
-        if(null === $message) {
-            $message = new Message();
+        if (null === $message) {
+            $message = new Message()
+                ->setMailbox($this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser()))
+                ->setCreatedAt(new DateTimeImmutable());
         }
 
         $form = $this->createForm(ComposeType::class, $message, [
@@ -52,8 +56,10 @@ class ComposeController extends AbstractController
     #[Route('/draft/{id}', name: 'form_edit', methods: ['POST'])]
     public function draft(Request $request, ?Message $message = null): Response
     {
-        if(null === $message) {
-            $message = new Message();
+        if (null === $message) {
+            $message = new Message()
+                ->setMailbox($this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser()))
+                ->setCreatedAt(new DateTimeImmutable());
         }
 
         $form = $this->createForm(ComposeType::class, $message, [
@@ -64,7 +70,7 @@ class ComposeController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $this->persistDraft($form, $message);
+            $this->persistDraft($message);
 
             return $this->render('compose/_window.html.twig', [
                 'form' => $form,
@@ -84,7 +90,7 @@ class ComposeController extends AbstractController
     #[Route('/send/{id}', name: 'mail_send_draft', methods: ['POST'])]
     public function send(Request $request, ?Message $message): Response
     {
-        if(null === $message) {
+        if (null === $message) {
             $message = new Message();
         }
 
@@ -137,28 +143,16 @@ class ComposeController extends AbstractController
         ]);
     }
 
-    private function persistDraft(FormInterface $form, Message $message): void
+    private function persistDraft(Message $message): void
     {
-        /** @var Account $account */
-        $account = $form->get('account')->getData();
-
-        $draftsMailbox = $this->mailboxRepository->findDraftMailboxForAccount($account);
-
-        if (!$draftsMailbox instanceof Mailbox) {
-            throw new RuntimeException('No Drafts mailbox found for the selected account.');
-        }
-
         $now = new DateTimeImmutable();
 
         $message
-            ->setMailbox($draftsMailbox)
-            ->setFromAddress($account->getEmail())
-            ->setFromName($account->getName())
+            ->setFromAddress($message->getMailbox()->getAccount()->getEmail())
+            ->setFromName($message->getMailbox()->getAccount()->getName())
             ->addFlag(MessageFlag::DRAFT)
             ->setHasAttachments(false)
-            ->setCreatedAt($now)
-            ->setUpdatedAt($now)
-        ;
+            ->setUpdatedAt($now);
 
         $this->em->persist($message);
         $this->em->flush();

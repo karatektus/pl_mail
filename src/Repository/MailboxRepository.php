@@ -2,10 +2,13 @@
 
 namespace App\Repository;
 
+use App\Domain\Enum\MailboxSpecialUse;
+use App\Domain\Enum\MessageFlag;
 use App\Entity\Account;
 use App\Entity\Mailbox;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -33,11 +36,11 @@ class MailboxRepository extends ServiceEntityRepository
 
     public function findSentMailboxForAccount(Account $account): ?Mailbox
     {
-        return $this->findOneBy(['account' => $account, 'specialUse' => '\\Sent']);
+        return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::SENT]);
     }
     public function findDraftMailboxForAccount(Account $account): ?Mailbox
     {
-        return $this->findOneBy(['account' => $account, 'specialUse' => '\\Drafts']);
+        return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::DRAFTS]);
     }
 
     public function findIdleEnabledAndSyncEnabled(): array
@@ -67,8 +70,36 @@ class MailboxRepository extends ServiceEntityRepository
             ->andWhere('mailbox.specialUse = :inbox')
             ->setParameter('isActive', true)
             ->setParameter('usr', $user)
-            ->setParameter('inbox', '\\Inbox')
+            ->setParameter('inbox', MailboxSpecialUse::INBOX)
             ->getQuery()
             ->getSingleColumnResult();
+    }
+
+    public function getActiveSentMailboxesForUser(UserInterface $user): QueryBuilder
+    {
+        return $this->createQueryBuilder('mailbox')
+            ->leftJoin('mailbox.account', 'account')
+            ->where('account.isActive = :isActive')
+            ->andWhere('account.usr = :usr')
+            ->andWhere('mailbox.specialUse = :sent')
+            ->setParameter('isActive', true)
+            ->setParameter('usr', $user)
+            ->setParameter('sent', MailboxSpecialUse::DRAFTS)
+            ->orderBy('account.isPrimary', 'DESC');
+    }
+
+    public function findPrimaryDraftMailboxForUser(UserInterface $user){
+        return $this->createQueryBuilder('mailbox')
+            ->leftJoin('mailbox.account', 'account')
+            ->where('account.isActive = :isActive')
+            ->andWhere('account.usr = :usr')
+            ->andWhere('mailbox.specialUse = :drafts')
+            ->andWhere('account.isPrimary = :isPrimary')
+            ->setParameter('isActive', true)
+            ->setParameter('usr', $user)
+            ->setParameter('drafts', MailboxSpecialUse::DRAFTS)
+            ->setParameter('isPrimary', true)
+            ->getQuery()
+            ->getSingleResult();
     }
 }

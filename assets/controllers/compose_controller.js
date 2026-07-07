@@ -18,7 +18,6 @@ export default class extends Controller {
 
         this._boundAutosave = this._scheduleAutosave.bind(this)
         const form = this.element.querySelector('form');
-        console.log(this.element);
         const formAction = this.element.dataset.composeSendUrlValue;
         form?.addEventListener('input', this._boundAutosave);
         form.action = formAction;
@@ -36,6 +35,7 @@ export default class extends Controller {
         if (window.innerWidth < 768) {
             this.expandedValue = true
         }
+        console.log(this.accountSelectTarget.value);
     }
 
     disconnect() {
@@ -141,6 +141,7 @@ export default class extends Controller {
     }
 
     selectAccount(event) {
+        console.log(this.accountSelectTarget.value);
         const btn = event.currentTarget
         const value = btn.dataset.value
         const label = btn.dataset.label
