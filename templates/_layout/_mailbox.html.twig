@@ -2,6 +2,20 @@
 
 {% set selectedMessage = selectedMessage|default(null) %}
 
+{#
+Subclasses can override these blocks:
+  inbox_tabs      — tabs / heading row above the toolbar (renders before toolbar)
+  inbox_toolbar   — override the entire toolbar (rarely needed)
+  message_list    — the <li> items inside the <ul>
+  reading_pane    — the reading pane content
+  pane_open       — "true"/"false" string (default false)
+  list_hidden     — extra CSS classes to hide list on direct-load pages
+  reading_hidden  — extra CSS classes (default: "hidden")
+
+Pagination variables expected from the controller (all optional, fallback to 0/1):
+  page, total, per_page
+#}
+
 {% block body %}
     <div class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
         <div class="flex h-full flex-col p-3 gap-3">
@@ -26,11 +40,25 @@
                         class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
                         <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
+
+
+                            {# ── Gmail-style toolbar ──────────────────────────── #}
+                            {% block inbox_toolbar %}
+                                {% include '_partials/_list_toolbar.html.twig' with {
+                                    page:     page     ?? 1,
+                                    total:    total    ?? 0,
+                                    per_page: per_page ?? 50,
+                                } %}
+                            {% endblock %}
+
+
+                            {# Optional tabs row (inbox only) #}
                             {% block inbox_tabs %}{% endblock %}
 
                             <ul class="flex-1 overflow-y-auto divide-y divide-gray-100/70 dark:divide-gray-800/70">
                                 {% block message_list %}{% endblock %}
                             </ul>
+
                         </turbo-frame>
                     </div>
 

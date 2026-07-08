@@ -1,0 +1,244 @@
+{#
+_list_toolbar.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Gmail-style toolbar above the message list, inside #inbox-list-frame.
+
+Variables (passed via `with` from _mailbox.html.twig):
+  page     int   current page (1-based)
+  total    int   total thread count
+  per_page int   items per page
+#}
+
+{% set total    = total    ?? 0 %}
+{% set per_page = per_page ?? 50 %}
+{% set page     = page     ?? 1 %}
+
+{% set last_page  = max(1, (total / per_page)|round(0, 'ceil')) %}
+{% set page_start = total > 0 ? (page - 1) * per_page + 1 : 0 %}
+{% set page_end   = min(page * per_page, total) %}
+{% set has_prev   = page > 1 %}
+{% set has_next   = page < last_page %}
+
+{% set base_params = app.request.query.all %}
+
+{#
+tbtn macro — icon button with tooltip.
+Tooltip is a sibling <span> inside the relative-positioned <button>.
+Uses plain `group` + `group-hover:` (no named variant) so it works
+with any Tailwind v4 setup regardless of CLI version.
+The button itself carries `group` and `relative`.
+#}
+{% macro tbtn(action, icon, label, extra_classes) %}
+    <button
+        type="button"
+        data-action="{{ action }}"
+        aria-label="{{ label }}"
+        class="group relative flex items-center justify-center
+           w-8 h-8 rounded-full
+           text-gray-500 dark:text-gray-400
+           hover:text-gray-800 dark:hover:text-gray-100
+           hover:bg-gray-200 dark:hover:bg-white/10
+           transition-colors duration-100 cursor-pointer {{ extra_classes ?? '' }}"
+    >
+        <i class="{{ icon }} text-[15px]" aria-hidden="true"></i>
+        <span class="
+        pointer-events-none select-none
+        absolute top-full left-1/2 -translate-x-1/2 mt-2
+        px-2 py-1 rounded-md
+        text-[11px] font-medium leading-none whitespace-nowrap
+        bg-gray-700 dark:bg-gray-200
+        text-white dark:text-gray-900
+        opacity-0 group-hover:opacity-100
+        transition-opacity duration-100 delay-500
+        z-50
+    ">{{ label }}</span>
+    </button>
+{% endmacro %}
+
+{# Same treatment for pagination nav links (they're <a> not <button>) #}
+{% macro pgnav(href, icon, label, disabled) %}
+    {% if disabled %}
+        <span class="flex items-center justify-center w-8 h-8 rounded-full
+             text-gray-300 dark:text-gray-600 cursor-not-allowed"
+              aria-disabled="true">
+    <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
+</span>
+    {% else %}
+        <a
+            href="{{ href }}"
+            data-turbo-frame="inbox-list-frame"
+            data-turbo-action="advance"
+            aria-label="{{ label }}"
+            class="group relative flex items-center justify-center w-8 h-8 rounded-full
+           text-gray-500 dark:text-gray-400
+           hover:text-gray-800 dark:hover:text-gray-100
+           hover:bg-gray-200 dark:hover:bg-white/10
+           transition-colors duration-100"
+        >
+            <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
+            <span class="
+        pointer-events-none select-none
+        absolute top-full left-1/2 -translate-x-1/2 mt-2
+        px-2 py-1 rounded-md
+        text-[11px] font-medium leading-none whitespace-nowrap
+        bg-gray-700 dark:bg-gray-200
+        text-white dark:text-gray-900
+        opacity-0 group-hover:opacity-100
+        transition-opacity duration-100 delay-500
+        z-50
+    ">{{ label }}</span>
+        </a>
+    {% endif %}
+{% endmacro %}
+
+{% import _self as m %}
+
+<div
+    class="flex items-center px-3 py-1
+           border-b border-gray-100/70 dark:border-gray-800/70
+           bg-white/40 dark:bg-white/[0.02]
+           shrink-0 min-h-[40px]"
+    data-controller="list-toolbar"
+    data-list-toolbar-total-value="{{ total }}"
+>
+
+    {# ── Checkbox + chevron ───────────────────────────────────────────────── #}
+    <div class="flex items-center shrink-0 mr-2">
+
+        {# The visible checkbox box — styled and toggled entirely by JS.
+           We do NOT use a real <input type="checkbox"> with peer-* because
+           the checkmark SVG is a child of the label, not a peer sibling,
+           so peer-checked: cannot reach it. JS drives everything. #}
+        <button
+            type="button"
+            role="checkbox"
+            aria-checked="false"
+            data-list-toolbar-target="checkboxBtn"
+            data-action="click->list-toolbar#toggleAll"
+            class="flex items-center justify-center w-4 h-4 rounded
+                   border border-gray-400 dark:border-gray-500
+                   bg-white dark:bg-gray-800
+                   cursor-pointer transition-colors duration-100
+                   hover:border-blue-500 focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label="{{ 'toolbar.select_all'|trans }}"
+        >
+            {# Checkmark — shown when all selected #}
+            <svg data-list-toolbar-target="checkmark"
+                 class="hidden w-2.5 h-2.5 text-white pointer-events-none"
+                 viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="1.5,5 3.8,7.5 8.5,2.5"/>
+            </svg>
+            {# Dash — shown when some (but not all) selected #}
+            <svg data-list-toolbar-target="indeterminate"
+                 class="hidden w-2.5 h-2.5 text-white pointer-events-none"
+                 viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="2" y1="5" x2="8" y2="5"/>
+            </svg>
+        </button>
+
+        {# Chevron — opens select-type dropdown #}
+        <div class="relative">
+            <button
+                type="button"
+                data-action="click->list-toolbar#toggleSelectMenu"
+                data-list-toolbar-target="selectMenuBtn"
+                aria-label="{{ 'toolbar.select_menu'|trans }}"
+                aria-haspopup="true"
+                class="ml-0.5 p-0.5 rounded
+                       text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+                       transition-colors cursor-pointer"
+            >
+                <svg class="w-2.5 h-2.5" viewBox="0 0 10 10" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="2,3.5 5,6.5 8,3.5"/>
+                </svg>
+            </button>
+
+            {# Dropdown #}
+            <div
+                data-list-toolbar-target="selectMenu"
+                class="hidden absolute left-0 top-full mt-1 z-30 w-36
+                       bg-white dark:bg-gray-900
+                       border border-gray-200 dark:border-gray-700
+                       rounded-xl shadow-lg overflow-hidden py-1 text-sm"
+            >
+                {% for key, label in {
+                    'selectAll':     'toolbar.select.all',
+                    'selectNone':    'toolbar.select.none',
+                    'selectRead':    'toolbar.select.read',
+                    'selectUnread':  'toolbar.select.unread',
+                    'selectStarred': 'toolbar.select.starred',
+                } %}
+                    <button type="button"
+                            data-action="click->list-toolbar#{{ key }}"
+                            class="w-full text-left px-3 py-1.5
+                                   text-gray-700 dark:text-gray-200
+                                   hover:bg-gray-100 dark:hover:bg-gray-800
+                                   transition-colors cursor-pointer">
+                        {{ label|trans }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    {# ════════════════════════════════════════════════════════════════════════
+       Left action slot:
+         • refreshSlot  — visible when nothing is selected
+         • actions      — visible when ≥1 row is selected
+       JS swaps hidden/flex between the two.
+       ════════════════════════════════════════════════════════════════════════ #}
+
+    {# Refresh — default visible state #}
+    <div data-list-toolbar-target="refreshSlot" class="flex items-center">
+        {{ m.tbtn('click->list-toolbar#refresh', 'fa-solid fa-rotate-right', 'toolbar.refresh'|trans) }}
+    </div>
+
+    {# Bulk actions — hidden until ≥1 selected #}
+    <div
+        data-list-toolbar-target="actions"
+        class="hidden items-center gap-2"
+        aria-hidden="true"
+    >
+        {{ m.tbtn('click->list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
+        {{ m.tbtn('click->list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-red-600 dark:hover:text-red-400') }}
+        {{ m.tbtn('click->list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
+        {{ m.tbtn('click->list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
+        {{ m.tbtn('click->list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}
+
+        <span
+            data-list-toolbar-target="selectionCount"
+            class="ml-1 text-xs text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap"
+        ></span>
+    </div>
+
+    {# Spacer #}
+    <div class="flex-1"></div>
+
+    {# ── Pagination ───────────────────────────────────────────────────────── #}
+    {% if total > 0 %}
+        <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 shrink-0 pr-1">
+            <span class="tabular-nums mr-1">
+                {{ page_start }}–{{ page_end }} {{ 'toolbar.pagination.of'|trans }} {{ total }}
+            </span>
+
+            {% if has_prev %}
+                {% set prev_params = base_params|merge({page: page - 1}) %}
+                {{ m.pgnav(path(app.request.attributes.get('_route'), prev_params), 'fa-solid fa-chevron-left',  'toolbar.pagination.prev'|trans, false) }}
+            {% else %}
+                {{ m.pgnav('', 'fa-solid fa-chevron-left',  'toolbar.pagination.prev'|trans, true) }}
+            {% endif %}
+
+            {% if has_next %}
+                {% set next_params = base_params|merge({page: page + 1}) %}
+                {{ m.pgnav(path(app.request.attributes.get('_route'), next_params), 'fa-solid fa-chevron-right', 'toolbar.pagination.next'|trans, false) }}
+            {% else %}
+                {{ m.pgnav('', 'fa-solid fa-chevron-right', 'toolbar.pagination.next'|trans, true) }}
+            {% endif %}
+        </div>
+    {% endif %}
+
+</div>

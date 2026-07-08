@@ -128,3 +128,27 @@ mailbox:
 errors:
     access_denied: You do not have access to this resource.
     not_found: The requested resource could not be found.
+
+toolbar:
+    refresh: Refresh
+    select_all: Select all conversations
+    select_menu: More selection options
+
+    select:
+        all: All
+        none: None
+        read: Read
+        unread: Unread
+        starred: Starred
+
+    actions:
+        archive: Archive
+        delete: Delete
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+        snooze: Snooze
+
+    pagination:
+        of: of
+        prev: Newer
+        next: Older

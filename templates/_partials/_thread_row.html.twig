@@ -27,11 +27,14 @@
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
 {% endif %}
+
 <li
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="message-row"
     data-message-row-id-value="{{ rowId }}"
+    data-unread="{{ unread ? 'true' : 'false' }}"
+    data-starred="{{ starred ? 'true' : 'false' }}"
 >
     {# Full-row clickable overlay #}
     <a
@@ -53,11 +56,12 @@
             {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
             hover:bg-white/60 dark:hover:bg-white/[0.06]"
     >
-        {# Checkbox #}
+        {# Checkbox — fires custom event so the toolbar controller can react #}
         <input
             type="checkbox"
-            data-action="click->message-row#toggleSelect"
+            data-action="change->message-row#toggleSelect"
             class="z-10 w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
+            aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
         >
 
         {# Star toggle #}

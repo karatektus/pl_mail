@@ -9,7 +9,17 @@ export default class extends Controller {
 
     toggleSelect(event) {
         event.stopPropagation();
-        // TODO: bulk selection
+
+        // Notify the toolbar controller so it can sync the master checkbox
+        // and show/hide the action bar.  We bubble up through the DOM until
+        // we find the element that hosts list-toolbar, then dispatch there.
+        const toolbar = document.querySelector("[data-controller~='list-toolbar']");
+
+        if (toolbar) {
+            toolbar.dispatchEvent(
+                new CustomEvent("list-toolbar:row-changed", { bubbles: false }),
+            );
+        }
     }
 
     async toggleStar(event) {
@@ -29,8 +39,6 @@ export default class extends Controller {
 
     async snooze(event, until = null) {
         event.stopPropagation();
-        // Call el.dispatchEvent or pass `until` from a date picker before calling.
-        // e.g. this.snooze(event, "2026-07-10T08:00:00Z")
         await this.#post(this.#url("snooze"), { until });
     }
 
@@ -60,8 +68,6 @@ export default class extends Controller {
             return;
         }
 
-        // Turbo handles the stream response automatically when the
-        // Content-Type is text/vnd.turbo-stream.html.
         const html = await response.text();
         Turbo.renderStreamMessage(html);
     }
