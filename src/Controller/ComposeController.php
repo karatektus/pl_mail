@@ -110,10 +110,12 @@ class ComposeController extends AbstractController
 
             $this->persistDraft($message); // saves to DB first
 
-            $this->bus->dispatch(
+            $sfMessageResult = $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
                 [new DelayStamp(10_000)] // 10 seconds
             );
+
+            dump($sfMessageResult);
 
             return $this->render('compose/_send_toast.html.twig', [
                 'message' => $message,

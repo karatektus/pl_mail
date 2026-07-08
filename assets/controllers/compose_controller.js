@@ -22,7 +22,7 @@ export default class extends Controller {
         const form = this.element.querySelector('form');
         const formAction = this.sendUrlValue;
         form.action = formAction;
-        
+
         form?.addEventListener('submit', this._boundHandleSubmit);
         form?.addEventListener('input', this._boundAutosave);
 

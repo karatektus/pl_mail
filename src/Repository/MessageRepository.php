@@ -92,4 +92,16 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    public function findDrafts(): array
+    {
+        return $this->createQueryBuilder('m')
+            ->join('m.mailbox', 'mb')
+            ->join('mb.account', 'a')
+            ->where('mb.specialUse = :drafts')
+            ->setParameter('drafts', '\\Drafts')
+            ->orderBy('m.updatedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }
