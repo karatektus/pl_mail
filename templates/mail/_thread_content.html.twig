@@ -15,6 +15,7 @@
 
 <div class="flex-1 overflow-y-auto"
      data-controller="thread-read"
+     data-thread-read-mark-url-value="{{ path('app_status_mark_read', {'type': 'thread', 'id': thread.id}) }}"
      data-thread-read-id-value="{{ thread.id }}"
      data-thread-read-delay-value="0"
 >

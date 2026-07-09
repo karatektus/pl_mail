@@ -132,19 +132,22 @@
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <i class="fa-solid fa-box-archive w-4 h-4" aria-hidden="true"></i>
                 </button>
-                <button type="button" data-action="click->message-row#delete"
+                <button type="button" data-action="click->message-row#trash"
+                        data-message-row-trash-url-param="{{ path('app_status_trash', {'type': type, 'id': rowId}) }}"
                         aria-label="{{ 'thread_row.actions.delete'|trans }}"
                         title="{{ 'thread_row.actions.delete'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <i class="fa-solid fa-trash w-4 h-4" aria-hidden="true"></i>
                 </button>
                 <button type="button" data-action="click->message-row#snooze"
+                        data-message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
                         aria-label="{{ 'thread_row.actions.snooze'|trans }}"
                         title="{{ 'thread_row.actions.snooze'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
                 </button>
                 <button type="button" data-action="click->message-row#markRead"
+                        data-message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"
                         data-message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
                         aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                         title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"

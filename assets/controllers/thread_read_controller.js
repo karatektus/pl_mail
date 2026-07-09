@@ -1,7 +1,11 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-    static values = { id: Number, delay: { type: Number, default: 2000 } };
+    static values = {
+        id: Number,
+        delay: { type: Number, default: 2000 },
+        markUrl: String,
+    };
 
     #timer = null;
 
@@ -15,7 +19,7 @@ export default class extends Controller {
     }
 
     async #markRead() {
-        const response = await fetch(`/thread/${this.idValue}/status/read`, {
+        const response = await fetch(this.markUrlValue, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

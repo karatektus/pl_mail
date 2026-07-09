@@ -45,48 +45,27 @@ export default class extends Controller {
         await this.#post(archiveUrl);
     }
 
-    async delete(event) {
+    async trash(event) {
+        const { trashUrl } = event.params;
         event.stopPropagation();
-        await this.#post(this.#url("delete"));
+        await this.#post(trashUrl);
     }
 
     async snooze(event, until = null) {
+        const { snoozeUrl } = event.params;
         event.stopPropagation();
 
-        // Snooze is always thread-level.
-        const url = this.typeValue === "thread"
-            ? this.#url("snooze")
-            : `/thread/${this.idValue}/status/snooze`;
-
-        await this.#post(url, { until });
+        await this.#post(snoozeUrl, { until });
     }
 
     async markRead(event) {
+        const { read, readUrl } = event.params;
+
         event.stopPropagation();
-        const { read } = event.params;
-        await this.#post(this.#url("read"), { read });
-    }
-
-    async trash(event) {
-        event.stopPropagation();
-
-        // Separate from delete: moves to trash rather than permanently removing.
-        // For thread rows this calls the delete route (which internally decides
-        // trash vs. permanent based on current mailbox).
-        // For message rows it calls the dedicated trash route.
-        const url = this.typeValue === "message"
-            ? this.#url("trash")
-            : this.#url("delete");
-
-        await this.#post(url);
+        await this.#post(readUrl, { read });
     }
 
     // ── Private ───────────────────────────────────────────────────────────
-
-    #url(action) {
-        const base = this.typeValue === "message" ? "message" : "thread";
-        return `/${base}/${this.idValue}/status/${action}`;
-    }
 
     async #post(url, body = {}) {
         const response = await fetch(url, {

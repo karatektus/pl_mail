@@ -20,7 +20,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use function Sodium\add;
 
 #[Route('/status/{type}/{id}', name: 'app_status_')]
 #[IsGranted('IS_AUTHENTICATED_FULLY')]
@@ -71,46 +70,73 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
 
         $archiveMailbox = $this->mailboxRepository->findArchiveMailboxForAccount($messages[0]->getMailbox()->getAccount());
-        if(null === $archiveMailbox){
+
+        dump($archiveMailbox);
+        dump($messages);
+        if (null === $archiveMailbox) {
             return $this->renderTurboStream('_toasts/generic.html.twig', ['type' => 'error', 'message' => 'toast.error.no_archive_mailbox']);
         }
-//        $thread->setArchivedAt(
-//            $thread->isArchived() ? null : new DateTimeImmutable()
-//        );
+
+        if ('thread' === $type || 1 === count($messages)) {
+            $messages[0]->getThread()->setArchivedAt(new DateTimeImmutable());
+        }
+
+        foreach ($messages as $message) {
+            $message->setMailbox($archiveMailbox);
+        }
+
         $this->em->flush();
-        //move to archive
+
+        $this->dispatchImapAction($messages, 'archive');
+
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
         ]);
     }
 
-    #[Route('/delete', name: 'delete', methods: ['POST'])]
-    public function delete(MessageThread $thread): Response
+    #[Route('/trash', name: 'trash', methods: ['POST'])]
+    public function trash(string $type, int $id): Response
     {
-        $this->assertOwnership($thread);
-        $threadId = $thread->getId();
+        $messages = $this->resolveMessages($type, $id);
+        $trashMailbox = $this->mailboxRepository->findTrashMailboxForAccount($messages[0]->getMailbox()->getAccount());
+        if (null === $trashMailbox) {
+            return $this->renderTurboStream('_toasts/generic.html.twig', ['type' => 'error', 'message' => 'toast.error.no_trash_mailbox']);
+        }
+//        if('thread' === $type || 1 === count($messages)){
+//        }
 
-        $this->em->remove($thread);
+        foreach ($messages as $message) {
+            $message->setMailbox($trashMailbox);
+        }
+
         $this->em->flush();
 
-        // Remove the row from the list entirely.
+        $this->dispatchImapAction($messages, 'trash');
+
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            'thread_id' => $threadId,
+            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
         ]);
     }
 
     #[Route('/snooze', name: 'snooze', methods: ['POST'])]
-    public function snooze(MessageThread $thread, Request $request): Response
+    public function snooze(Request $request, string $type, int $id): Response
     {
-        $this->assertOwnership($thread);
+        $messages = $this->resolveMessages($type, $id);
+        $thread = $messages[0]->getThread();
 
         // Expects JSON body: { "until": "2026-07-10T08:00:00Z" }
         // Sending no / null "until" clears the snooze.
         $body = json_decode($request->getContent(), true);
         $until = null;
 
-        if (!empty($body['until'])) {
-            $until = new DateTimeImmutable($body['until']);
+        if (true === array_key_exists('until', $body)) {
+            if (null !== $body['until']) {
+                try {
+                    $until = new DateTimeImmutable($body['until']);
+                } catch (\Exception $e) {
+                    $until = new DateTimeImmutable('in 1 day');
+                }
+            }
         }
 
         $thread->setSnoozedUntil($until);
@@ -122,18 +148,21 @@ class ThreadStatusController extends AbstractController
     }
 
     #[Route('/read', name: 'mark_read', methods: ['POST'])]
-    public function markRead(MessageThread $thread, Request $request): Response
+    public function markRead(Request $request, string $type, int $id): Response
     {
-        $this->assertOwnership($thread);
+        $messages = $this->resolveMessages($type, $id);
+        $thread = $messages[0]->getThread();
 
         $body = json_decode($request->getContent(), true);
 
         $markAsRead = (true === array_key_exists('read', $body) && true === $body['read']);
 
         $unread = 0;
-        foreach ($thread->getMessages() as $message) {
+        $flag = 'unseen';
+        foreach ($messages as $message) {
             if (true === $markAsRead) {
                 $message->addFlag(MessageFlag::SEEN);
+                $flag = 'seen';
             } else {
                 $message->removeFlag(MessageFlag::SEEN);
                 $unread++;
@@ -144,8 +173,10 @@ class ThreadStatusController extends AbstractController
 
         $this->em->flush();
 
+        $this->dispatchImapAction($messages, $flag);
+
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [
-            'thread' => $thread,
+            $type => 'message' === $type ? $messages[0] : $thread,
             'markAsRead' => $markAsRead,
         ]);
     }
@@ -179,7 +210,7 @@ class ThreadStatusController extends AbstractController
     {
         $ids = [];
         foreach ($messages as $message) {
-            if(null === $message->getImapUid()){
+            if (null === $message->getImapUid()) {
                 continue;
             }
 
