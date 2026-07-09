@@ -93,6 +93,18 @@ export default class extends Controller {
     }
 
     // ── Span style injection ──────────────────────────────────────────
+    //
+    // Strategy: rather than always wrapping in a new <span>, we:
+    //   1. Find all existing <span> nodes inside the selection that carry
+    //      the same CSS property and remove that property from them
+    //      (cleaning up empty spans afterwards).
+    //   2. Check whether the *entire* selection is already inside a single
+    //      ancestor <span> with that property — if so, just mutate it.
+    //   3. Otherwise wrap the (extracted) contents in one new <span>.
+    //
+    // For a *collapsed* cursor we look for the nearest ancestor <span>
+    // that has the property set and update it; otherwise we insert a
+    // zero-width-space span so subsequent typing picks up the style.
 
     _applySpanStyle(property, value) {
         // Always restore the saved range first — the selection may have been
@@ -105,21 +117,38 @@ export default class extends Controller {
         const range = sel.getRangeAt(0);
 
         if (range.collapsed) {
-            const span = document.createElement('span');
-            span.style[property] = value;
-            span.innerHTML = '&#8203;';
-            range.insertNode(span);
+            // Collapsed cursor: update nearest ancestor span that has this
+            // property, or insert a carrier span for future typing.
+            const ancestor = this._nearestStyledAncestor(range.startContainer, property);
+            if (ancestor) {
+                ancestor.style[property] = value;
+            } else {
+                const span = document.createElement('span');
+                span.style[property] = value;
+                span.innerHTML = '&#8203;'; // zero-width space
+                range.insertNode(span);
 
-            const newRange = document.createRange();
-            newRange.setStart(span.firstChild, 1);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
+                const newRange = document.createRange();
+                newRange.setStart(span.firstChild, 1);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+            }
         } else {
+            // Non-collapsed selection:
+            // Step 1 — strip the property from any existing spans inside the range.
+            this._stripPropertyInRange(range, property);
+
+            // Step 2 — re-fetch range (DOM may have changed) and wrap in one span.
+            const freshRange = sel.getRangeAt(0);
             const span = document.createElement('span');
             span.style[property] = value;
-            span.appendChild(range.extractContents());
-            range.insertNode(span);
+            span.appendChild(freshRange.extractContents());
+
+            // Clean up any now-empty spans we pulled in.
+            this._removeEmptySpans(span);
+
+            freshRange.insertNode(span);
 
             const newRange = document.createRange();
             newRange.selectNodeContents(span);
@@ -128,6 +157,58 @@ export default class extends Controller {
         }
 
         this._syncHiddenInput();
+    }
+
+    // Walk up from `node` to the editor boundary; return the first <span>
+    // that has `property` set in its inline style.
+    _nearestStyledAncestor(node, property) {
+        let el = (node.nodeType === Node.TEXT_NODE) ? node.parentElement : node;
+        while (el && el !== this.editorTarget) {
+            if (el.tagName === 'SPAN' && el.style[property]) {
+                return el;
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
+
+    // Remove inline `property` from every <span> descendant of `root`
+    // that intersects `range`, then clean up any spans that become
+    // style-less (and therefore invisible wrappers).
+    _stripPropertyInRange(range, property) {
+        const editor = this.editorTarget;
+        // Collect all spans inside the editor that are fully or partially
+        // within the range.
+        const spans = Array.from(editor.querySelectorAll('span'));
+        for (const span of spans) {
+            if (span.style[property] && range.intersectsNode(span)) {
+                span.style[property] = '';
+                // If the span now has no inline style at all, unwrap it.
+                if (span.getAttribute('style') === '' || span.style.cssText.trim() === '') {
+                    this._unwrapNode(span);
+                }
+            }
+        }
+    }
+
+    // Replace `node` in the DOM with its own children (unwrap).
+    _unwrapNode(node) {
+        const parent = node.parentNode;
+        if (!parent) { return; }
+        while (node.firstChild) {
+            parent.insertBefore(node.firstChild, node);
+        }
+        parent.removeChild(node);
+    }
+
+    // Remove empty <span> elements (no text content, no meaningful children)
+    // from inside `root`.
+    _removeEmptySpans(root) {
+        root.querySelectorAll('span').forEach(span => {
+            if (span.textContent === '' && !span.querySelector('img,br,input')) {
+                span.remove();
+            }
+        });
     }
 
     // ── Formatting actions ────────────────────────────────────────────
@@ -213,9 +294,6 @@ export default class extends Controller {
         const list   = document.createElement(tag);
 
         if (blocks.length > 0) {
-            // Record insertion point before any DOM mutations
-            const insertionRef = blocks[0];
-
             blocks.forEach(block => {
                 const li = document.createElement('li');
                 while (block.firstChild) {
@@ -226,9 +304,6 @@ export default class extends Controller {
 
             blocks.forEach(block => block.remove());
 
-            // insertionRef is now detached — use its recorded position via
-            // the list itself; just append to editor and rely on order, or
-            // find the right spot via the parent.
             editor.appendChild(list);
         } else {
             const li = document.createElement('li');

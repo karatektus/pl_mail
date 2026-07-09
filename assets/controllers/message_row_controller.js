@@ -42,8 +42,10 @@ export default class extends Controller {
         await this.#post(this.#url("snooze"), { until });
     }
 
-    async markRead(event, read = true) {
+    async markRead(event) {
         event.stopPropagation();
+        const { read } = event.params;
+
         await this.#post(this.#url("read"), { read });
     }
 

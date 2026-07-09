@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Domain\Enum\MessageFlag;
 use App\Entity\MessageThread;
 use App\Entity\User;
 use App\Repository\MessageRepository;
@@ -96,28 +97,21 @@ class ThreadStatusController extends AbstractController
         $this->assertOwnership($thread);
 
         $body = json_decode($request->getContent(), true);
-        // true → mark as read, false → mark as unread
-        $markAsRead = (bool) ($body['read'] ?? true);
 
-        $messages = $this->messageRepository->findBy(['thread' => $thread]);
+        $markAsRead = (true === array_key_exists('read', $body) && true === $body['read']);
+
         $unread = 0;
-
-        foreach ($messages as $message) {
-            $flags = $message->getFlags() ?? [];
-
-            if ($markAsRead) {
-                $flags = array_values(array_filter($flags, fn($f) => $f !== 'unread'));
+        foreach ($thread->getMessages() as $message) {
+            if (true === $markAsRead) {
+                $message->addFlag(MessageFlag::SEEN);
             } else {
-                if (!in_array('unread', $flags, true)) {
-                    $flags[] = 'unread';
-                }
+                $message->removeFlag(MessageFlag::SEEN);
                 $unread++;
             }
-
-            $message->setFlags($flags ?: null);
         }
 
-        $thread->setUnreadCount($markAsRead ? 0 : $unread);
+        $thread->setUnreadCount($unread);
+
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [

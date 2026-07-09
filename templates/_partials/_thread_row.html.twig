@@ -73,7 +73,7 @@
         >
             <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-[18px]"></i>
         </button>
-
+{#{{ (thread.messages|first).flags|json_encode }}#}
         {# Content — switches between mobile (2-row) and desktop (1-row) #}
         <div class="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-4">
 
@@ -141,6 +141,7 @@
                     <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
                 </button>
                 <button type="button" data-action="click->message-row#markRead"
+                        data-message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
                         aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                         title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

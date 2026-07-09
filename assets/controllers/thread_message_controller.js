@@ -1,12 +1,11 @@
-
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-    static targets = ["body", "snippet", "toggleBtn", "chevron", "iframe"];
+    static targets = ["body", "snippet", "toggleBtn", "chevron", "shadowHost"];
     static values  = { expanded: Boolean };
 
     connect() {
-        // expanded value is set from Twig via data-message-bubble-expanded-value
+        // expanded value is set from Twig via data-thread-message-expanded-value
     }
 
     toggle(event) {
@@ -22,28 +21,30 @@ export default class extends Controller {
         }
     }
 
-    iframeTargetConnected(iframe) {
-        const setup = () => {
-            const doc = iframe.contentDocument;
-            if (!doc) {
-                return;
-            }
-            const style = doc.createElement("style");
-            style.textContent = "body { margin: 0; padding: 8px; overflow: visible; word-wrap: break-word; } img { max-width: 100%; }";
-            doc.head.appendChild(style);
-
-            const resize = () => {
-                const h = doc.body.scrollHeight;
-                iframe.style.height = h + "px";
-            };
-
-            new ResizeObserver(resize).observe(doc.body);
-            resize();
-        };
-        if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
-            setup();
-        } else {
-            iframe.addEventListener("load", setup, { once: true });
+    shadowHostTargetConnected(host) {
+        const html = host.dataset.html;
+        if (!html) {
+            return;
         }
+
+        const shadow = host.attachShadow({ mode: "open" });
+
+        // Styles are scoped entirely inside the shadow root — zero bleed into
+        // the parent page, and the parent page's Tailwind cannot leak in either.
+        const style = document.createElement("style");
+        style.textContent = [
+            "*, *::before, *::after { box-sizing: border-box; }",
+            "body { margin: 0; padding: 0; font-family: sans-serif; font-size: 14px; line-height: 1.5; color: #111; word-wrap: break-word; overflow-wrap: break-word; }",
+            "img { max-width: 100%; height: auto; display: block; }",
+            "a { color: #2563eb; }",
+            "pre, blockquote { overflow-x: auto; }",
+            "table { max-width: 100%; border-collapse: collapse; }",
+        ].join(" ");
+
+        shadow.appendChild(style);
+
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        shadow.appendChild(wrapper);
     }
 }

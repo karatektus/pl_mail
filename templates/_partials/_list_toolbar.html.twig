@@ -42,16 +42,18 @@ The button itself carries `group` and `relative`.
     >
         <i class="{{ icon }} text-[15px]" aria-hidden="true"></i>
         <span class="
-        pointer-events-none select-none
-        absolute top-full left-1/2 -translate-x-1/2 mt-2
-        px-2 py-1 rounded-md
-        text-[11px] font-medium leading-none whitespace-nowrap
-        bg-gray-700 dark:bg-gray-200
-        text-white dark:text-gray-900
-        opacity-0 group-hover:opacity-100
-        transition-opacity duration-100 delay-500
-        z-50
-    ">{{ label }}</span>
+    pointer-events-none select-none
+    absolute top-full left-1/2 -translate-x-1/2 mt-2
+    px-2 py-1 rounded-md
+    text-[11px] font-medium leading-none whitespace-nowrap
+    bg-gray-800 dark:bg-gray-100
+    text-white dark:text-gray-900
+    opacity-0 group-hover:opacity-100
+    transition-opacity duration-100 delay-500
+    z-50
+    before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
+    before:border-[5px] before:border-transparent before:border-b-gray-800 dark:before:border-b-gray-100
+">{{ label }}</span>
     </button>
 {% endmacro %}
 
@@ -77,16 +79,18 @@ The button itself carries `group` and `relative`.
         >
             <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
             <span class="
-        pointer-events-none select-none
-        absolute top-full left-1/2 -translate-x-1/2 mt-2
-        px-2 py-1 rounded-md
-        text-[11px] font-medium leading-none whitespace-nowrap
-        bg-gray-700 dark:bg-gray-200
-        text-white dark:text-gray-900
-        opacity-0 group-hover:opacity-100
-        transition-opacity duration-100 delay-500
-        z-50
-    ">{{ label }}</span>
+                pointer-events-none select-none
+                absolute top-full left-1/2 -translate-x-1/2 mt-2
+                px-2 py-1 rounded-md
+                text-[11px] font-medium leading-none whitespace-nowrap
+                bg-gray-800 dark:bg-gray-100
+                text-white dark:text-gray-900
+                opacity-0 group-hover:opacity-100
+                transition-opacity duration-100 delay-500
+                z-50
+                before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
+                before:border-[5px] before:border-transparent before:border-b-gray-800 dark:before:border-b-gray-100
+            ">{{ label }}</span>
         </a>
     {% endif %}
 {% endmacro %}

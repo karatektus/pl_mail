@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Domain\Enum\MessageFlag;
 use App\Domain\Model\MessageModel;
 use App\Repository\MessageRepository;
 use DateTimeImmutable;
@@ -362,15 +361,6 @@ class Message extends MessageModel
     public function setFlags(array $flags): static
     {
         $this->flags = $flags;
-
-        return $this;
-    }
-
-    public function addFlag(MessageFlag $flag): static
-    {
-        if (false === in_array($flag, $this->flags)) {
-            $this->flags[] = $flag;
-        }
 
         return $this;
     }

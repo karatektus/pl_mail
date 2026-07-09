@@ -55,12 +55,12 @@
                     {{ not isLatest ? 'data-action="click->thread-message#toggle"' : '' }}
                 >
                     <div class="flex items-baseline gap-2">
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                        {{ message.fromName ?: message.fromAddress }}
-                                    </span>
+                            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {{ message.fromName ?: message.fromAddress }}
+                            </span>
                         <span class="text-xs text-gray-400 dark:text-gray-600">
-                                        {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
-                                    </span>
+                                {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
+                            </span>
                     </div>
 
                     {% if not isLatest %}
@@ -97,13 +97,17 @@
                 >
                     <div class="text-sm text-gray-700 dark:text-gray-300 mb-4">
                         {% if message.bodyHtml %}
-                            <iframe
-                                data-thread-message-target="iframe"
-                                srcdoc="{{ message.bodyHtml|e('html_attr') }}"
-                                sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                                class="w-full border-0"
-                                style="min-height: 200px;"
-                            ></iframe>
+                            {#
+                            Shadow DOM host: the JS controller attaches a shadow root here
+                            and injects the HTML into it. This gives full style isolation
+                            without any iframe sizing problems.
+                            data-html carries the escaped HTML; the controller decodes it.
+                            #}
+                            <div
+                                data-thread-message-target="shadowHost"
+                                data-html="{{ message.bodyHtml|e('html_attr') }}"
+                                class="w-full"
+                            ></div>
                         {% else %}
                             <pre class="whitespace-pre-wrap font-sans">{{ message.bodyText }}</pre>
                         {% endif %}
