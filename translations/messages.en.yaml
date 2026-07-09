@@ -120,6 +120,8 @@ form:
     cancel: Cancel
 
 toast:
+    error:
+        no_archive_mailbox: There is no archive mailbox.
     dismiss: Dismiss
 
 mailbox:

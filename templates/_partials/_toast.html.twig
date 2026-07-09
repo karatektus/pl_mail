@@ -21,8 +21,8 @@
     {# ── flex row for content only ── #}
     <div class="flex items-center gap-3 px-5 py-3.5 text-base font-medium">
         {{ message }}
-        <span data-toast-target="countdown"></span>s
         {% if extra.undo_url is defined %}
+            <span data-toast-target="countdown"></span>s
             <button
                 data-controller="undo-send"
                 data-undo-send-url-value="{{ extra.undo_url }}"

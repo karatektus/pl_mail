@@ -1,7 +1,21 @@
 import { Controller } from "@hotwired/stimulus";
 
+/**
+ * Handles per-row status actions in the message list.
+ *
+ * Values:
+ *   id       — entity ID (thread or message)
+ *   type     — "thread" (default) | "message"
+ *
+ * Routes used:
+ *   thread  → /thread/{id}/status/{action}
+ *   message → /message/{id}/status/{action}
+ */
 export default class extends Controller {
-    static values = { id: Number };
+    static values = {
+        id:   Number,
+        type: { type: String, default: "thread" },
+    };
 
     stop(event) {
         event.stopPropagation();
@@ -10,9 +24,6 @@ export default class extends Controller {
     toggleSelect(event) {
         event.stopPropagation();
 
-        // Notify the toolbar controller so it can sync the master checkbox
-        // and show/hide the action bar.  We bubble up through the DOM until
-        // we find the element that hosts list-toolbar, then dispatch there.
         const toolbar = document.querySelector("[data-controller~='list-toolbar']");
 
         if (toolbar) {
@@ -23,13 +34,15 @@ export default class extends Controller {
     }
 
     async toggleStar(event) {
+        const { starUrl } = event.params;
         event.stopPropagation();
-        await this.#post(this.#url("star"));
+        await this.#post(starUrl);
     }
 
     async archive(event) {
+        const { archiveUrl } = event.params;
         event.stopPropagation();
-        await this.#post(this.#url("archive"));
+        await this.#post(archiveUrl);
     }
 
     async delete(event) {
@@ -39,20 +52,40 @@ export default class extends Controller {
 
     async snooze(event, until = null) {
         event.stopPropagation();
-        await this.#post(this.#url("snooze"), { until });
+
+        // Snooze is always thread-level.
+        const url = this.typeValue === "thread"
+            ? this.#url("snooze")
+            : `/thread/${this.idValue}/status/snooze`;
+
+        await this.#post(url, { until });
     }
 
     async markRead(event) {
         event.stopPropagation();
         const { read } = event.params;
-
         await this.#post(this.#url("read"), { read });
     }
 
-    // ---------------------------------------------------------------- private
+    async trash(event) {
+        event.stopPropagation();
+
+        // Separate from delete: moves to trash rather than permanently removing.
+        // For thread rows this calls the delete route (which internally decides
+        // trash vs. permanent based on current mailbox).
+        // For message rows it calls the dedicated trash route.
+        const url = this.typeValue === "message"
+            ? this.#url("trash")
+            : this.#url("delete");
+
+        await this.#post(url);
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────
 
     #url(action) {
-        return `/thread/${this.idValue}/status/${action}`;
+        const base = this.typeValue === "message" ? "message" : "thread";
+        return `/${base}/${this.idValue}/status/${action}`;
     }
 
     async #post(url, body = {}) {
@@ -66,11 +99,14 @@ export default class extends Controller {
         });
 
         if (!response.ok) {
-            console.error(`Thread status update failed: ${url}`, response.status);
+            console.error(`[message-row] status update failed: ${url}`, response.status);
             return;
         }
 
         const html = await response.text();
-        Turbo.renderStreamMessage(html);
+
+        if (html.trim() !== "") {
+            Turbo.renderStreamMessage(html);
+        }
     }
 }

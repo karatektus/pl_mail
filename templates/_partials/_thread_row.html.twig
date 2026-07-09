@@ -2,6 +2,7 @@
 {% set isThread = item.messages is defined %}
 
 {% if isThread %}
+    {% set type = 'thread' %}
     {% set unread = item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
@@ -15,6 +16,7 @@
 
     {% set rowId = item.id %}
 {% else %}
+    {% set type = 'message' %}
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
@@ -68,6 +70,7 @@
         <button
             type="button"
             data-action="click->message-row#toggleStar"
+            data-message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
             class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
             aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
         >
@@ -123,6 +126,7 @@
 
             <div class="absolute inset-0 flex items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
                 <button type="button" data-action="click->message-row#archive"
+                        data-message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
                         aria-label="{{ 'thread_row.actions.archive'|trans }}"
                         title="{{ 'thread_row.actions.archive'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

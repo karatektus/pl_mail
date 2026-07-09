@@ -1,2 +1,2 @@
-<turbo-stream action="remove" target="thread_{{ thread.id }}">
+<turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>

@@ -1,0 +1,7 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: message|trans
+            } %}
+    </template>
+</turbo-stream>

@@ -9,4 +9,5 @@ enum MailboxSpecialUse: string
     case TRASH = '\\Trash';
     case DRAFTS = '\\Drafts';
     case JUNK = '\\Junk';
+    case ARCHIVE = '\\Archive';
 }

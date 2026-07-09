@@ -2,55 +2,85 @@
 
 namespace App\Controller;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageFlag;
+use App\Entity\Message;
 use App\Entity\MessageThread;
 use App\Entity\User;
+use App\Message\ApplyImapFlagsMessage;
+use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
+use App\Repository\MessageThreadRepository;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use function Sodium\add;
 
-#[Route('/thread/{thread}/status', name: 'app_thread_status_')]
+#[Route('/status/{type}/{id}', name: 'app_status_')]
 #[IsGranted('IS_AUTHENTICATED_FULLY')]
 class ThreadStatusController extends AbstractController
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly MessageRepository $messageRepository,
-    ) {}
+        private readonly EntityManagerInterface  $em,
+        private readonly MessageRepository       $messageRepository,
+        private readonly MessageThreadRepository $threadRepository,
+        private readonly MessageBusInterface     $bus,
+        private readonly MailboxRepository       $mailboxRepository,
+    )
+    {
+    }
 
     #[Route('/star', name: 'star', methods: ['POST'])]
-    public function star(MessageThread $thread): Response
+    public function star(string $type, int $id): Response
     {
-        $this->assertOwnership($thread);
+        $messages = $this->resolveMessages($type, $id);
 
-        $thread->setStarredAt(
-            $thread->getStarredAt() === null ? new DateTimeImmutable() : null
-        );
+        $message = $messages[0];
+
+        $action = 'flag';
+        if ($message->getStarredAt() === null) {
+            $message
+                ->addFlag(MessageFlag::FLAGGED)
+                ->setStarredAt(new DateTimeImmutable());
+            $message->getThread()->setStarredAt(new DateTimeImmutable());
+        } else {
+            $action = 'unflag';
+            $message->removeFlag(MessageFlag::FLAGGED)
+                ->setStarredAt(null);
+            $message->getThread()->setStarredAt(null);
+        }
 
         $this->em->flush();
 
+        $this->dispatchImapAction($messages, $action);
+
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
-            'thread' => $thread,
+            $type => 'message' === $type ? $message : $message->getThread(),
         ]);
     }
 
     #[Route('/archive', name: 'archive', methods: ['POST'])]
-    public function archive(MessageThread $thread): Response
+    public function archive(string $type, int $id): Response
     {
-        $this->assertOwnership($thread);
+        $messages = $this->resolveMessages($type, $id);
 
-        $thread->setArchivedAt(
-            $thread->isArchived() ? null : new DateTimeImmutable()
-        );
+        $archiveMailbox = $this->mailboxRepository->findArchiveMailboxForAccount($messages[0]->getMailbox()->getAccount());
+        if(null === $archiveMailbox){
+            return $this->renderTurboStream('_toasts/generic.html.twig', ['type' => 'error', 'message' => 'toast.error.no_archive_mailbox']);
+        }
+//        $thread->setArchivedAt(
+//            $thread->isArchived() ? null : new DateTimeImmutable()
+//        );
         $this->em->flush();
-
+        //move to archive
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
-            'thread' => $thread,
+            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
         ]);
     }
 
@@ -115,20 +145,63 @@ class ThreadStatusController extends AbstractController
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [
-            'thread'   => $thread,
+            'thread' => $thread,
             'markAsRead' => $markAsRead,
         ]);
     }
 
     // ---------------------------------------------------------------- helpers
 
-    private function assertOwnership(MessageThread $thread): void
+    /**
+     * @return iterable<Message>
+     */
+    private function resolveMessages(string $type, int $id): iterable
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $messages = [];
 
-        if ($thread->getAccount()->getUsr() !== $user) {
-            throw $this->createAccessDeniedException('This thread does not belong to you.');
+        if ('message' === $type) {
+            $messages = [$this->messageRepository->find($id)];
+        }
+
+        if ('thread' === $type) {
+            $messages = $this->threadRepository->find($id)->getMessages();
+        }
+
+        $this->assertOwnership($messages);
+
+        return $messages;
+    }
+
+    /**
+     * @param iterable<Message> $messages
+     */
+    private function dispatchImapAction(iterable $messages, string $action): void
+    {
+        $ids = [];
+        foreach ($messages as $message) {
+            if(null === $message->getImapUid()){
+                continue;
+            }
+
+            $ids[] = $message->getId();
+        }
+
+        if (count($ids) === 0) {
+            return;
+        }
+
+        $this->bus->dispatch(new ApplyImapFlagsMessage($ids, $action));
+    }
+
+    /**
+     * @param iterable<Message> $messages
+     */
+    private function assertOwnership(iterable $messages): void
+    {
+        foreach ($messages as $message) {
+            if ($message->getMailbox()->getAccount()->getUsr() !== $this->getUser()) {
+                throw $this->createAccessDeniedException();
+            }
         }
     }
 
@@ -138,4 +211,5 @@ class ThreadStatusController extends AbstractController
             headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
         ));
     }
+
 }
