@@ -2,17 +2,13 @@
 
 namespace App\Controller;
 
-use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageFlag;
 use App\Entity\Message;
-use App\Entity\MessageThread;
-use App\Entity\User;
 use App\Message\ApplyImapFlagsMessage;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Repository\MessageThreadRepository;
 use DateTimeImmutable;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,9 +51,8 @@ class ThreadStatusController extends AbstractController
             $message->getThread()->setStarredAt(null);
         }
 
-        $this->em->flush();
-
         $this->dispatchImapAction($messages, $action);
+        $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
             $type => 'message' === $type ? $message : $message->getThread(),
@@ -71,8 +66,6 @@ class ThreadStatusController extends AbstractController
 
         $archiveMailbox = $this->mailboxRepository->findArchiveMailboxForAccount($messages[0]->getMailbox()->getAccount());
 
-        dump($archiveMailbox);
-        dump($messages);
         if (null === $archiveMailbox) {
             return $this->renderTurboStream('_toasts/generic.html.twig', ['type' => 'error', 'message' => 'toast.error.no_archive_mailbox']);
         }
@@ -81,13 +74,12 @@ class ThreadStatusController extends AbstractController
             $messages[0]->getThread()->setArchivedAt(new DateTimeImmutable());
         }
 
+        $this->dispatchImapAction($messages, 'archive');
+
         foreach ($messages as $message) {
             $message->setMailbox($archiveMailbox);
         }
-
         $this->em->flush();
-
-        $this->dispatchImapAction($messages, 'archive');
 
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
@@ -105,13 +97,12 @@ class ThreadStatusController extends AbstractController
 //        if('thread' === $type || 1 === count($messages)){
 //        }
 
+        $this->dispatchImapAction($messages, 'trash');
+
         foreach ($messages as $message) {
             $message->setMailbox($trashMailbox);
         }
-
         $this->em->flush();
-
-        $this->dispatchImapAction($messages, 'trash');
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
@@ -153,27 +144,31 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
         $thread = $messages[0]->getThread();
 
+        dump($messages);
+        dump($thread);
         $body = json_decode($request->getContent(), true);
 
         $markAsRead = (true === array_key_exists('read', $body) && true === $body['read']);
-
+        dump($markAsRead);
         $unread = 0;
         $flag = 'unseen';
         foreach ($messages as $message) {
             if (true === $markAsRead) {
-                $message->addFlag(MessageFlag::SEEN);
+                $message
+                    ->addFlag(MessageFlag::SEEN)
+                    ->setSeenAt(new DateTimeImmutable());
                 $flag = 'seen';
+                dump("message marked seen");
             } else {
-                $message->removeFlag(MessageFlag::SEEN);
+                $message
+                    ->removeFlag(MessageFlag::SEEN)
+                    ->setSeenAt(null);
                 $unread++;
             }
         }
-
         $thread->setUnreadCount($unread);
-
-        $this->em->flush();
-
         $this->dispatchImapAction($messages, $flag);
+        $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $thread,
@@ -203,18 +198,16 @@ class ThreadStatusController extends AbstractController
         return $messages;
     }
 
-    /**
-     * @param iterable<Message> $messages
-     */
     private function dispatchImapAction(iterable $messages, string $action): void
     {
         $ids = [];
+
         foreach ($messages as $message) {
             if (null === $message->getImapUid()) {
                 continue;
             }
 
-            $ids[] = $message->getId();
+            $ids[$message->getId()] = $message->getMailbox()->getId();
         }
 
         if (count($ids) === 0) {

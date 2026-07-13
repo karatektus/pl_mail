@@ -13,7 +13,9 @@ use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Throwable;
 use Webklex\PHPIMAP\Client;
+use Webklex\PHPIMAP\Folder;
 
 #[AsMessageHandler]
 final class ApplyImapFlagsHandler
@@ -26,38 +28,35 @@ final class ApplyImapFlagsHandler
 
     public function __invoke(ApplyImapFlagsMessage $message): void
     {
-        $messages = $this->messageRepository->findBy(['id' => $message->messageIds]);
+        $messages = $this->messageRepository->findBy(['id' => array_keys($message->messageIds)]);
 
         if (count($messages) === 0) {
             $this->logger->warning('ApplyImapFlagsHandler: no messages found', [
-                'ids'    => $message->messageIds,
+                'ids'    => array_keys($message->messageIds),
                 'action' => $message->action,
             ]);
 
             return;
         }
 
-        // Group messages by account so we open one IMAP connection per account,
-        // then sub-group by mailbox within each account.
-        /** @var array<int, array<int, Message[]>> $byAccount  accountId → mailboxId → Message[] */
+        /** @var array<int, array<int, Message[]>> $byAccount  accountId → sourceMailboxId → Message[] */
         $byAccount = [];
 
         foreach ($messages as $msg) {
-            $accountId = $msg->getMailbox()->getAccount()->getId();
-            $mailboxId = $msg->getMailbox()->getId();
-            $byAccount[$accountId][$mailboxId][] = $msg;
+            $accountId       = $msg->getMailbox()->getAccount()->getId();
+            $sourceMailboxId = $message->messageIds[$msg->getId()];
+            $byAccount[$accountId][$sourceMailboxId][] = $msg;
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
-            // All messages in the group share the same account object.
-            $firstMessage = array_values($byMailbox)[0][0];
-            $account      = $firstMessage->getMailbox()->getAccount();
+            $account = array_values($byMailbox)[0][0]->getMailbox()->getAccount();
+
 
             try {
                 $client = ImapConnectionFactory::connect($account);
                 $this->processAccount($client, $account, $byMailbox, $message->action);
                 $client->disconnect();
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: IMAP error', [
                     'accountId' => $accountId,
                     'action'    => $message->action,
@@ -68,7 +67,7 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param array<int, Message[]> $byMailbox  mailboxId → Message[]
+     * @param array<int, Message[]> $byMailbox  sourceMailboxId → Message[]
      */
     private function processAccount(
         Client  $client,
@@ -76,7 +75,6 @@ final class ApplyImapFlagsHandler
         array   $byMailbox,
         string  $action,
     ): void {
-        // Resolve destination mailbox once per account for move actions.
         $destinationPath = null;
 
         if ($action === 'archive' || $action === 'trash') {
@@ -92,18 +90,21 @@ final class ApplyImapFlagsHandler
             }
         }
 
-        foreach ($byMailbox as $mailboxId => $messages) {
-            $mailbox = $this->mailboxRepository->find($mailboxId);
+        foreach ($byMailbox as $sourceMailboxId => $messages) {
+            $sourceMailbox = $this->mailboxRepository->find($sourceMailboxId);
 
-            if ($mailbox === null) {
+            if ($sourceMailbox === null) {
+                $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
+                    'mailboxId' => $sourceMailboxId,
+                ]);
                 continue;
             }
 
             try {
-                $this->processMailbox($client, $mailbox, $messages, $action, $destinationPath);
-            } catch (\Throwable $e) {
+                $this->processMailbox($client, $sourceMailbox, $messages, $action, $destinationPath);
+            } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: mailbox error', [
-                    'mailboxId' => $mailboxId,
+                    'mailboxId' => $sourceMailboxId,
                     'action'    => $action,
                     'error'     => $e->getMessage(),
                 ]);
@@ -116,31 +117,29 @@ final class ApplyImapFlagsHandler
      */
     private function processMailbox(
         Client   $client,
-        Mailbox  $mailbox,
+        Mailbox  $sourceMailbox,
         array    $messages,
         string   $action,
         ?string  $destinationPath,
     ): void {
-        $folder = $client->getFolder($mailbox->getName());
+        $folder = $client->getFolder($sourceMailbox->getName());
 
         if ($folder === null) {
-            $this->logger->warning('ApplyImapFlagsHandler: folder not found', [
-                'mailbox' => $mailbox->getName(),
+            $this->logger->warning('ApplyImapFlagsHandler: source folder not found on server', [
+                'mailbox' => $sourceMailbox->getName(),
             ]);
 
             return;
         }
 
         foreach ($messages as $msg) {
-            // Messages synced from IMAP have an imapUid; locally-composed
-            // messages that were never appended to IMAP do not.
             if ($msg->getImapUid() === null) {
                 continue;
             }
 
             try {
                 $this->applyToMessage($folder, $msg->getImapUid(), $action, $destinationPath);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: per-message error', [
                     'messageId' => $msg->getId(),
                     'uid'       => $msg->getImapUid(),
@@ -152,20 +151,18 @@ final class ApplyImapFlagsHandler
     }
 
     private function applyToMessage(
-        \Webklex\PHPIMAP\Folder $folder,
+        Folder $folder,
         int    $uid,
         string $action,
         ?string $destinationPath,
     ): void {
-        // Fetch the live message from IMAP by UID so we get the Webklex
-        // Message object with its write methods.
         $imapMessage = $folder->messages()
             ->whereUid($uid)
             ->get()
             ->first();
 
         if ($imapMessage === null) {
-            $this->logger->warning('ApplyImapFlagsHandler: UID not found on server', [
+            $this->logger->warning('ApplyImapFlagsHandler: UID not found in source folder', [
                 'uid'    => $uid,
                 'folder' => $folder->path,
             ]);
@@ -185,16 +182,10 @@ final class ApplyImapFlagsHandler
         };
     }
 
-    /**
-     * Resolve the IMAP folder path for the destination mailbox.
-     * For archive: prefers \Archive, falls back to \Sent (unusual but safe).
-     * For trash:   uses \Trash.
-     */
     private function resolveDestinationPath(Client $client, Account $account, string $action): ?string
     {
         $specialUse = ($action === 'archive') ? '\\Archive' : '\\Trash';
 
-        // Look up in our DB first — fastest path.
         $mailbox = $this->mailboxRepository->findOneBy([
             'account'    => $account,
             'specialUse' => $specialUse,
@@ -204,7 +195,6 @@ final class ApplyImapFlagsHandler
             return $mailbox->getFullPath();
         }
 
-        // Fall back to scanning server folders by name.
         $nameMap = [
             '\\Trash'   => ['Trash', 'Deleted', 'Deleted Items', 'Deleted Messages'],
             '\\Archive' => ['Archive', 'Archives'],
@@ -219,7 +209,7 @@ final class ApplyImapFlagsHandler
                 if ($folder !== null) {
                     return $folder->path;
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Not found — try next.
             }
         }
