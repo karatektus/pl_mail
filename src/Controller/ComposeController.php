@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Domain\Trait\ParsesAddressFields;
 use App\Domain\Enum\MessageFlag;
 use App\Entity\Message;
 use App\Form\ComposeType;
@@ -20,6 +21,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/compose', name: 'app_compose_')]
 class ComposeController extends AbstractController
 {
+    use ParsesAddressFields;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly MailboxRepository      $mailboxRepository,
@@ -120,7 +123,10 @@ class ComposeController extends AbstractController
 
         $form->handleRequest($request);
 
-        if (true === $form->isSubmitted() && true === $form->isValid()) {
+        // Apply Tom Select address fields (override whatever CollectionType bound)
+        $this->applyAddressFields($request, $message);
+
+        if ($form->isSubmitted() && $form->isValid()) {
             $this->persistDraft($message);
 
             return $this->render('compose/_window.html.twig', [
@@ -151,7 +157,10 @@ class ComposeController extends AbstractController
 
         $form->handleRequest($request);
 
-        if (true === $form->isSubmitted() && true === $form->isValid()) {
+        // Apply Tom Select address fields
+        $this->applyAddressFields($request, $message);
+
+        if ($form->isSubmitted() && $form->isValid()) {
             if (null !== $message->getSentAt()) {
                 return $this->render('compose/_send_toast.html.twig', [
                     'message' => $message,
@@ -197,18 +206,32 @@ class ComposeController extends AbstractController
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Read compose_to[], compose_cc[], compose_bcc[] from the Tom Select
+     * fields and write them onto the Message, replacing whatever the
+     * Symfony CollectionType may have bound.
+     */
+    private function applyAddressFields(Request $request, Message $message): void
+    {
+        $to  = $this->parseAddressField($request, 'compose_to');
+        $cc  = $this->parseAddressField($request, 'compose_cc');
+        $bcc = $this->parseAddressField($request, 'compose_bcc');
+
+        if (!empty($to))  { $message->setToAddresses($to); }
+        if (!empty($cc))  { $message->setCcAddresses($cc); }
+        if (!empty($bcc)) { $message->setBccAddresses($bcc); }
+    }
+
     private function buildReply(Message $original, bool $replyAll): Message
     {
         $draftMailbox = $this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser());
         $account      = $draftMailbox->getAccount();
 
-        // "To" is always the original sender.
         $to = [[
             'name'    => $original->getFromName() ?? '',
             'address' => $original->getFromAddress() ?? '',
         ]];
 
-        // Reply-all: add original To/Cc, minus our own address.
         $cc = [];
         if (true === $replyAll) {
             $ownAddress = strtolower($account->getEmail() ?? '');
@@ -225,7 +248,6 @@ class ComposeController extends AbstractController
 
         $subject = $this->prefixSubject('Re', $original->getSubject());
 
-        // References chain: append original message-id to existing References.
         $references = array_merge(
             $original->getReferences() ?? [],
             array_filter([$original->getMessageId()]),
@@ -259,7 +281,7 @@ class ComposeController extends AbstractController
         $subject    = $this->prefixSubject('Fwd', $original->getSubject());
         $quotedBody = $this->buildQuotedHtml($original, 'forward');
 
-        $draft = (new Message())
+        return (new Message())
             ->setMailbox($draftMailbox)
             ->setSubject($subject)
             ->setToAddresses([])
@@ -267,8 +289,6 @@ class ComposeController extends AbstractController
             ->setHasAttachments(false)
             ->setCreatedAt(new DateTimeImmutable())
             ->setUpdatedAt(new DateTimeImmutable());
-
-        return $draft;
     }
 
     private function prefixSubject(string $prefix, ?string $subject): string
@@ -279,7 +299,6 @@ class ComposeController extends AbstractController
             return $prefix . ': ';
         }
 
-        // Avoid stacking: don't add "Re:" if it already starts with Re:/Fwd:
         $pattern = '/^(re|fwd?)\s*:\s*/i';
         if (preg_match($pattern, $subject)) {
             if (strtolower($prefix) === 're') {
@@ -290,10 +309,6 @@ class ComposeController extends AbstractController
         return $prefix . ': ' . $subject;
     }
 
-    /**
-     * Build the quoted-message HTML block inserted below the cursor.
-     * The compose editor will place the cursor BEFORE this block.
-     */
     private function buildQuotedHtml(Message $original, string $mode): string
     {
         $dateStr    = $original->getReceivedAt() ? $original->getReceivedAt()->format('D, M j, Y \a\t g:i a') : '';
@@ -304,7 +319,6 @@ class ComposeController extends AbstractController
         $bodyHtml = trim($original->getBodyHtml() ?? '');
         $bodyText = trim($original->getBodyText() ?? '');
 
-        // Prefer HTML; fall back to text wrapped in <pre>.
         if ($bodyHtml !== '') {
             $innerBody = $bodyHtml;
         } elseif ($bodyText !== '') {
@@ -327,7 +341,6 @@ class ComposeController extends AbstractController
                 HTML;
         }
 
-        // Forward: include a header block with original metadata.
         $subjectLine = htmlspecialchars($original->getSubject() ?? '', ENT_QUOTES, 'UTF-8');
         $toLine = implode(', ', array_map(
             static fn(array $a) => htmlspecialchars(

@@ -1,224 +1,115 @@
 // assets/controllers/address_autocomplete_controller.js
 //
-// Attaches to each address input inside a compose collection row.
-// Fetches /contacts/autocomplete?q=... and renders a dropdown of matches.
-// Selecting a result fills the input and fires a change event.
+// Uses Tom Select to power the recipient address fields in the compose window.
+// Replaces the Symfony CollectionType approach with a single Tom Select
+// instance per field (To / Cc / Bcc) that handles multiple addresses itself.
+//
+// Requires Tom Select in your importmap. Run once:
+//   php bin/console importmap:require tom-select
 
 import { Controller } from "@hotwired/stimulus";
+import TomSelect from "tom-select";
 
 const AUTOCOMPLETE_URL = "/contacts/autocomplete";
 const MIN_CHARS        = 1;
-const DEBOUNCE_MS      = 180;
 
 export default class extends Controller {
-    static targets = ["input", "dropdown"];
+    static targets = ["input"];
 
-    #debounceTimer  = null;
-    #activeIndex    = -1;
-    #results        = [];
+    #tomSelect = null;
 
     connect() {
-        this._boundKeydown   = this._onKeydown.bind(this);
-        this._boundClickOut  = this._onClickOutside.bind(this);
+        const input = this.inputTarget;
 
-        this.inputTarget.addEventListener("input",   this._onInput.bind(this));
-        this.inputTarget.addEventListener("keydown", this._boundKeydown);
-        this.inputTarget.addEventListener("focus",   this._onFocus.bind(this));
-        document.addEventListener("click", this._boundClickOut, { capture: true });
+        // Gather any pre-filled addresses from the hidden input's value
+        // (e.g. when editing a draft or doing reply/forward).
+        const prefilledJson = input.dataset.prefilled;
+        let prefilledItems  = [];
+        if (prefilledJson) {
+            try { prefilledItems = JSON.parse(prefilledJson); } catch (_) {}
+        }
+
+        this.#tomSelect = new TomSelect(input, {
+            // Allow typing any address freely
+            create: true,
+            createOnBlur: true,
+            createFilter: /\S+@\S+\.\S+/,   // only create if it looks like an email
+            maxItems: null,                   // unlimited recipients
+            persist: false,                   // don't keep typed text after blur
+            valueField: "value",
+            labelField: "label",
+            searchField: ["label", "email"],
+            openOnFocus: false,
+            hideSelected: true,
+            closeAfterSelect: false,          // keep open so you can add another quickly
+            preload: false,
+
+            // ── Seed with pre-filled addresses (reply/forward/draft) ───────
+            options: prefilledItems,
+            items:   prefilledItems.map((i) => i.value),
+
+            // ── Remote search ─────────────────────────────────────────────
+            load: async (query, callback) => {
+                if (query.length < MIN_CHARS) {
+                    callback([]);
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `${AUTOCOMPLETE_URL}?q=${encodeURIComponent(query)}`,
+                        { headers: { "X-Requested-With": "XMLHttpRequest" } },
+                    );
+
+                    if (!response.ok) { callback([]); return; }
+
+                    const contacts = await response.json();
+
+                    callback(contacts.map((c) => ({
+                        value:       c.email,
+                        label:       c.displayName ? `${c.displayName} <${c.email}>` : c.email,
+                        email:       c.email,
+                        displayName: c.displayName ?? "",
+                        initials:    c.initials ?? c.email[0].toUpperCase(),
+                    })));
+                } catch (_) {
+                    callback([]);
+                }
+            },
+
+            // ── Renderers ────────────────────────────────────────────────
+            render: {
+                // Suggestion row in the dropdown
+                option: (data, escape) => `
+                    <div class="ts-custom-option">
+                        <span class="ts-avatar">${escape(data.initials ?? data.email?.[0]?.toUpperCase() ?? "?")}</span>
+                        <span class="ts-text">
+                            ${data.displayName ? `<span class="ts-name">${escape(data.displayName)}</span>` : ""}
+                            <span class="ts-email">${escape(data.email ?? data.value)}</span>
+                        </span>
+                    </div>`,
+
+                // Selected chip inside the control
+                item: (data, escape) => `
+                    <div class="ts-chip" title="${escape(data.email ?? data.value)}">
+                        ${escape(data.displayName || data.email || data.value)}
+                    </div>`,
+
+                // "Add <typed text>" row — rendered subtly at the bottom
+                option_create: (data, escape) => `
+                    <div class="ts-create-option">
+                        <i class="fa-solid fa-plus ts-create-icon"></i>
+                        Add <strong>${escape(data.input)}</strong>
+                    </div>`,
+
+                no_results: () => `<div class="ts-no-results">No contacts found</div>`,
+                loading:    () => `<div class="ts-loading-msg">Searching…</div>`,
+            },
+        });
     }
 
     disconnect() {
-        clearTimeout(this.#debounceTimer);
-        this.inputTarget.removeEventListener("keydown", this._boundKeydown);
-        document.removeEventListener("click", this._boundClickOut, { capture: true });
-    }
-
-    // ── Event handlers ────────────────────────────────────────────────────
-
-    _onInput() {
-        clearTimeout(this.#debounceTimer);
-        this.#debounceTimer = setTimeout(() => this._fetch(), DEBOUNCE_MS);
-    }
-
-    _onFocus() {
-        const q = this.inputTarget.value.trim();
-        if (q.length >= MIN_CHARS) {
-            this._fetch();
-        }
-    }
-
-    _onKeydown(event) {
-        if (!this._isOpen()) {
-            return;
-        }
-
-        if (event.key === "ArrowDown") {
-            event.preventDefault();
-            this._move(1);
-        } else if (event.key === "ArrowUp") {
-            event.preventDefault();
-            this._move(-1);
-        } else if (event.key === "Enter" && this.#activeIndex >= 0) {
-            event.preventDefault();
-            this._select(this.#results[this.#activeIndex]);
-        } else if (event.key === "Escape") {
-            this._close();
-        }
-    }
-
-    _onClickOutside(event) {
-        if (!this.element.contains(event.target)) {
-            this._close();
-        }
-    }
-
-    // ── Fetch & render ────────────────────────────────────────────────────
-
-    async _fetch() {
-        const q = this.inputTarget.value.trim();
-
-        if (q.length < MIN_CHARS) {
-            this._close();
-            return;
-        }
-
-        try {
-            const url      = `${AUTOCOMPLETE_URL}?q=${encodeURIComponent(q)}`;
-            const response = await fetch(url, {
-                headers: { "X-Requested-With": "XMLHttpRequest" },
-            });
-
-            if (!response.ok) {
-                return;
-            }
-
-            this.#results = await response.json();
-            this._render();
-        } catch (_) {
-            // Network error — silently ignore, don't break compose.
-        }
-    }
-
-    _render() {
-        if (this.#results.length === 0) {
-            this._close();
-            return;
-        }
-
-        this.#activeIndex = -1;
-        const dropdown    = this.dropdownTarget;
-
-        dropdown.innerHTML = "";
-
-        this.#results.forEach((contact, index) => {
-            const item = document.createElement("button");
-            item.type  = "button";
-            item.className = [
-                "w-full flex items-center gap-3 px-3 py-2 text-left",
-                "text-sm text-gray-700 dark:text-gray-200",
-                "hover:bg-blue-50 dark:hover:bg-blue-500/10",
-                "hover:text-blue-700 dark:hover:text-blue-300",
-                "transition-colors",
-            ].join(" ");
-            item.dataset.index = String(index);
-
-            // Initials avatar
-            const avatar = document.createElement("span");
-            avatar.className = [
-                "flex-shrink-0 w-7 h-7 rounded-full",
-                "flex items-center justify-center",
-                "text-xs font-semibold text-white",
-                "bg-gradient-to-br from-blue-500 to-indigo-600",
-            ].join(" ");
-            avatar.textContent = contact.initials;
-
-            // Text block
-            const text = document.createElement("span");
-            text.className = "flex flex-col min-w-0";
-
-            if (contact.displayName) {
-                const name = document.createElement("span");
-                name.className = "font-medium truncate";
-                name.textContent = contact.displayName;
-                text.appendChild(name);
-            }
-
-            const email = document.createElement("span");
-            email.className = "text-xs text-gray-400 dark:text-gray-500 truncate";
-            email.textContent = contact.email;
-            text.appendChild(email);
-
-            item.appendChild(avatar);
-            item.appendChild(text);
-
-            item.addEventListener("mousedown", (e) => {
-                // Prevent input blur before we can read the selection.
-                e.preventDefault();
-            });
-
-            item.addEventListener("click", () => {
-                this._select(contact);
-            });
-
-            dropdown.appendChild(item);
-        });
-
-        dropdown.classList.remove("hidden");
-    }
-
-    // ── Selection ─────────────────────────────────────────────────────────
-
-    _select(contact) {
-        this.inputTarget.value = contact.email;
-
-        // Fire change so Symfony's form collection knows the value updated.
-        this.inputTarget.dispatchEvent(new Event("change", { bubbles: true }));
-
-        this._close();
-        this.inputTarget.focus();
-    }
-
-    // ── Keyboard navigation ───────────────────────────────────────────────
-
-    _move(direction) {
-        const items = this.dropdownTarget.querySelectorAll("button");
-
-        if (items.length === 0) {
-            return;
-        }
-
-        // Remove highlight from current item.
-        if (this.#activeIndex >= 0) {
-            items[this.#activeIndex].classList.remove(
-                "bg-blue-50", "dark:bg-blue-500/10",
-                "text-blue-700", "dark:text-blue-300",
-            );
-        }
-
-        this.#activeIndex = Math.max(
-            -1,
-            Math.min(this.#activeIndex + direction, items.length - 1),
-        );
-
-        if (this.#activeIndex >= 0) {
-            items[this.#activeIndex].classList.add(
-                "bg-blue-50", "dark:bg-blue-500/10",
-                "text-blue-700", "dark:text-blue-300",
-            );
-            items[this.#activeIndex].scrollIntoView({ block: "nearest" });
-        }
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-
-    _isOpen() {
-        return !this.dropdownTarget.classList.contains("hidden");
-    }
-
-    _close() {
-        this.dropdownTarget.classList.add("hidden");
-        this.dropdownTarget.innerHTML = "";
-        this.#results     = [];
-        this.#activeIndex = -1;
+        this.#tomSelect?.destroy();
+        this.#tomSelect = null;
     }
 }

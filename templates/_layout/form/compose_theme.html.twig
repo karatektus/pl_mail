@@ -2,32 +2,18 @@
 
 {% block address_entry_widget %}
     {#
-    Each address entry row gets the address_autocomplete controller.
-    The controller targets:
-      - input    → the email <input>
-      - dropdown → the suggestion list rendered below it
-    The wrapper is `relative` so the dropdown positions correctly.
+    Each address entry is a single <input> that Tom Select attaches to.
+    The address_autocomplete controller initialises Tom Select on connect().
     #}
-    <div class="relative flex items-center gap-2 w-full"
+    <div class="relative flex-1 min-w-0"
          data-controller="address-autocomplete">
 
         {{- form_widget(form.address, {
             attr: {
                 'data-address-autocomplete-target': 'input',
-                'data-action': 'input->address-autocomplete#_onInput focus->address-autocomplete#_onFocus keydown->address-autocomplete#_onKeydown',
             }
         }) -}}
 
-        {# Dropdown portal — positioned absolutely below the input #}
-        <div
-            data-address-autocomplete-target="dropdown"
-            class="hidden absolute left-0 top-full mt-1 z-40
-                   w-72 max-h-60 overflow-y-auto
-                   bg-white dark:bg-gray-900
-                   border border-gray-200/70 dark:border-white/10
-                   rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40
-                   py-1"
-        ></div>
     </div>
 {% endblock %}
 
@@ -42,10 +28,6 @@
         autocapitalize="off"
         autocorrect="off"
         spellcheck="false"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-haspopup="listbox"
-        aria-expanded="false"
         {{ block('widget_attributes') }}
         {% if value is not empty %}value="{{ value }}"{% endif %}
         placeholder=""
