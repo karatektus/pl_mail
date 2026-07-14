@@ -36,7 +36,7 @@
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.inbox'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Inbox')) }}
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').INBOX)) }}
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
@@ -58,7 +58,7 @@
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.sent'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Sent')) }}
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').SENT)) }}
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
@@ -69,7 +69,7 @@
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.drafts'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Draft')) }}
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').DRAFTS)) }}
         </a>
 
         <a href="{{ path('app_mail_trash') }}"
@@ -80,7 +80,7 @@
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.trash'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forSpecialUse('\\Trash')) }}
+            {{ macros.unread_badge(sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').TRASH)) }}
         </a>
 
         {# Accounts section #}

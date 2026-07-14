@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageTab;
 use App\Entity\Account;
 use App\Entity\MessageThread;
@@ -131,7 +132,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function findForSpecialUse(UserInterface $user, string $specialUse, int $page = 1, int $perPage = 50): array
+    public function findForSpecialUse(UserInterface $user, MailboxSpecialUse $specialUse, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -151,7 +152,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function countForSpecialUse(UserInterface $user, string $specialUse): int
+    public function countForSpecialUse(UserInterface $user, MailboxSpecialUse $specialUse): int
     {
         return $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
@@ -182,12 +183,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
 
         $counts = [];
-
+        dump($rows);
         foreach ($rows as $row) {
-            $counts[$row['specialUse']] = (int) $row['unreadCount'];
+            $counts[$row['specialUse']->value] = $row['unreadCount'];
         }
 
-        return $counts;
+        return $rows;
     }
 
     public function countUnreadForStarred(UserInterface $user): int

@@ -24,3 +24,4 @@ framework:
             App\Message\SyncMailboxMessage: async
             App\Message\SendMessageMessage: async
             App\Message\ApplyImapFlagsMessage: async
+            App\Message\HarvestContactsMessage: async

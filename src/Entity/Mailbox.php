@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Repository\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -29,7 +30,7 @@ class Mailbox
     private ?string $delimiter = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $specialUse = null;
+    private ?MailboxSpecialUse $specialUse = null;
 
     #[ORM\Column(nullable: true)]
     private ?int $uidValidity = null;
@@ -131,12 +132,12 @@ class Mailbox
         return $this;
     }
 
-    public function getSpecialUse(): ?string
+    public function getSpecialUse(): ?MailboxSpecialUse
     {
         return $this->specialUse;
     }
 
-    public function setSpecialUse(?string $specialUse): static
+    public function setSpecialUse(?MailboxSpecialUse $specialUse): static
     {
         $this->specialUse = $specialUse;
 

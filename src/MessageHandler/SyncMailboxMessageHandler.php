@@ -2,6 +2,7 @@
 
 namespace App\MessageHandler;
 
+use App\Message\HarvestContactsMessage;
 use App\Message\SyncMailboxMessage;
 use App\Repository\MailboxRepository;
 use App\Service\Imap\MessageSyncer;
@@ -10,15 +11,17 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 readonly class SyncMailboxMessageHandler
 {
     public function __construct(
-        private MailboxRepository $mailboxRepository,
-        private MessageSyncer     $messageSyncer,
-        private HubInterface      $hub,
+        private MailboxRepository  $mailboxRepository,
+        private MessageSyncer      $messageSyncer,
+        private HubInterface       $hub,
         private LoggerInterface    $logger,
+        private MessageBusInterface $bus,
     ) {}
 
     public function __invoke(SyncMailboxMessage $message): void
@@ -40,6 +43,9 @@ readonly class SyncMailboxMessageHandler
         $this->messageSyncer->syncMailbox($mailbox, $client);
         $client->disconnect();
 
+        // Harvest contact addresses from newly synced messages.
+        $this->bus->dispatch(new HarvestContactsMessage($message->mailboxId));
+
         $this->logger->info('Publishing Mercure update', ['mailboxId' => $message->mailboxId]);
 
         $userId = $account->getUsr()->getId();
@@ -50,10 +56,10 @@ readonly class SyncMailboxMessageHandler
                 sprintf('mail/mailbox/%d', $mailbox->getId()),
             ],
             data: json_encode([
-                'type'      => 'mailbox.synced',
-                'mailboxId' => $mailbox->getId(),
-                'accountId' => $account->getId(),
-                'specialUse'=> $mailbox->getSpecialUse(),
+                'type'       => 'mailbox.synced',
+                'mailboxId'  => $mailbox->getId(),
+                'accountId'  => $account->getId(),
+                'specialUse' => $mailbox->getSpecialUse(),
             ]),
         ));
 

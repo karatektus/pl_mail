@@ -2,6 +2,7 @@
 
 namespace App\Twig;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Repository\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -15,15 +16,11 @@ class SidebarCounts
         private Security                $security,
     ) {}
 
-    public function forSpecialUse(string $specialUse): int
+    public function forSpecialUse(MailboxSpecialUse $specialUse): int
     {
-        $counts = $this->getSpecialUseCounts();
+        $value = array_find($this->getSpecialUseCounts(), fn(array $value) => $value['specialUse'] === $specialUse);
 
-        if (isset($counts[$specialUse])) {
-            return $counts[$specialUse];
-        }
-
-        return 0;
+        return $value['unreadCount'] ?? 0;
     }
 
     public function forStarred(): int

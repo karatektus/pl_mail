@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageTab;
 use App\Entity\Account;
 use App\Entity\Message;
@@ -76,8 +77,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, '\\Sent', $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, '\\Sent');
+        $threads = $this->threadRepository->findForSpecialUse($user, MailboxSpecialUse::SENT, $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, MailboxSpecialUse::SENT);
 
         return $this->render('mail/sent.html.twig', [
             'threads'  => $threads,
@@ -92,8 +93,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, '\\Draft', $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, '\\Draft');
+        $threads = $this->threadRepository->findForSpecialUse($user, MailboxSpecialUse::DRAFTS, $page);
+        $total   = $this->threadRepository->countForSpecialUse($user, MailboxSpecialUse::DRAFTS);
 
         return $this->render('mail/drafts.html.twig', [
             'threads'  => $threads,
