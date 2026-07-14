@@ -1,25 +1,12 @@
 {# templates/form/compose_theme.html.twig #}
 
-{% block address_entry_widget %}
-    {#
-    Each address entry is a single <input> that Tom Select attaches to.
-    The address_autocomplete controller initialises Tom Select on connect().
-    #}
-    <div class="relative flex-1 min-w-0"
-         data-controller="address-autocomplete">
-
-        {{- form_widget(form.address, {
-            attr: {
-                'data-address-autocomplete-target': 'input',
-            }
-        }) -}}
-
-    </div>
-{% endblock %}
-
-{% block address_entry_row %}
-    {{- block('address_entry_widget') -}}
-{% endblock %}
+{#
+address_entry_widget / address_entry_row are no longer used —
+the compose window uses ts-address fields directly.
+Kept here as no-ops so Symfony doesn't throw if they're referenced.
+#}
+{% block address_entry_widget %}{% endblock %}
+{% block address_entry_row %}{% endblock %}
 
 {% block email_widget %}
     <input
