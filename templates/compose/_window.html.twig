@@ -150,32 +150,7 @@ the Symfony CollectionType value (array of {name, address} maps).
                 - Tom Select wraps it seamlessly
                 The name maps to our custom ComposeController deserialization.
                 #}
-                <select
-                    name="compose_to[]"
-                    multiple
-                    data-address-autocomplete-target="input"
-                    data-prefilled="{{ m.ts_prefilled(form.toAddresses.vars.data ?? []) }}"
-                    class="hidden"
-                >
-                    {% for addr in form.toAddresses.vars.data ?? [] %}
-                        {% if addr.address is defined and addr.address %}
-                            <option value="{{ addr.address }}" selected>
-                                {{- addr.name ? addr.name ~ ' <' ~ addr.address ~ '>' : addr.address -}}
-                            </option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-
-                <div class="flex gap-2 shrink-0 ml-auto pl-2">
-                    <button type="button"
-                            data-compose-target="ccBtn"
-                            data-action="click->compose#showCc"
-                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">Cc</button>
-                    <button type="button"
-                            data-compose-target="bccBtn"
-                            data-action="click->compose#showBcc"
-                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">Bcc</button>
-                </div>
+{{ form_widget(form.toAddresses) }}
             </div>
 
             {# ── Cc ───────────────────────────────────────────────── #}

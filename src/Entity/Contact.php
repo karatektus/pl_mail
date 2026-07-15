@@ -163,4 +163,11 @@ class Contact
 
         return mb_strtoupper(mb_substr($this->email ?? '?', 0, 1));
     }
+
+    public function __toString(): string
+    {
+        return sprintf('%s (%s)', $this->getDisplayName() ?? '', $this->getEmail());
+    }
+
+
 }

@@ -49,22 +49,7 @@ class ComposeType extends AbstractType
             ])
 
             // To — always visible, at least one entry required
-            ->add('toAddresses', CollectionType::class, [
-                'label' => false,
-                'entry_type' => AddressEntryType::class,
-                'allow_add' => true,
-                'allow_delete' => true,
-                'by_reference' => false,
-                'prototype' => true,
-                'prototype_name' => '__to__',
-                'constraints' => [
-                    new NotBlank(
-                        message: 'At least one recipient is required.',
-                        groups: ['send'],
-                    ),
-                ],
-                'attr' => ['class' => 'compose-collection compose-to'],
-            ])
+            ->add('toAddresses', ContactAutocompleteField::class )
 
             // Cc — hidden until the Cc button is clicked (Stimulus handles visibility)
             ->add('ccAddresses', CollectionType::class, [
