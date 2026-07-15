@@ -19,6 +19,8 @@
     position: relative;
     display: flex;
     align-items: center;
+    cursor: text;           /* ← add this */
+    width: 100%;
 }
 
 /* ── Control (chip tray + input) ────────────────────────────────────────── */
@@ -51,8 +53,12 @@
     margin: 0;
     font-size: 0.875rem;
     line-height: 1.5;
-    color: inherit;
+    color: rgb(17 24 39);      /* ← add: gray-900 */
     box-shadow: none;
+}
+
+.dark .ts-control > input {
+    color: rgb(243 244 246);   /* ← add: gray-100 */
 }
 
 .ts-control > input::placeholder {

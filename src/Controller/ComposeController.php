@@ -168,7 +168,7 @@ class ComposeController extends AbstractController
             }
 
             $this->persistDraft($message);
-
+            dump($message->getToAddresses());
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
                 [new DelayStamp(10_000)],

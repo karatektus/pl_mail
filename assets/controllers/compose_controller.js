@@ -14,21 +14,22 @@ export default class extends Controller {
     #autosaveTimer = null
 
     connect() {
-        const toCollection = this.element.querySelector('.compose-to[data-prototype]');
-        this._ensureEntry(toCollection);
+        const input = this.element.querySelector('.compose-to[data-prototype]');
+        this._ensureEntry(input);
         this._submitting = false;
         this._boundHandleSubmit = this._handleSubmit.bind(this);
         this._boundAutosave = this._scheduleAutosave.bind(this);
-        const form = this.element.querySelector('form');
-        const formAction = this.sendUrlValue;
-        form.action = formAction;
 
-        form?.addEventListener('submit', this._boundHandleSubmit);
-        form?.addEventListener('input', this._boundAutosave);
+
+        const form = this.element.querySelector('form');
+
+        form.action = this.sendUrlValue;
+        form.addEventListener('submit', this._boundHandleSubmit);
+        form.addEventListener('input', this._boundAutosave);
 
         // Mirror subject into header title
         const subjectInput = this.element.querySelector('[name$="[subject]"]');
-        if (subjectInput) {
+        if (null !== subjectInput) {
             this._updateTitle(subjectInput.value);
             subjectInput.addEventListener('input', () => this._updateTitle(subjectInput.value));
         }
@@ -49,10 +50,9 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.#autosaveTimer);
-        this.element.querySelector('form')
-            ?.removeEventListener('input', this._boundAutosave);
-        this.element.querySelector('form')
-            ?.removeEventListener('submit', this._boundHandleSubmit);
+        const form = this.element.querySelector('form');
+            form.removeEventListener('input', this._boundAutosave);
+            form.removeEventListener('submit', this._boundHandleSubmit);
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
         document.body.style.overflow = '';
     }

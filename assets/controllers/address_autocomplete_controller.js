@@ -21,6 +21,14 @@ export default class extends Controller {
     connect() {
         const input = this.inputTarget;
 
+        // Forward clicks anywhere in the row to the TS input.
+        this._boundRowClick = (e) => {
+            console.log("row click", e.target);
+            if (e.target.closest(".item")) { return; }
+            this.#tomSelect?.focus();
+        };
+        this.element.addEventListener("click", this._boundRowClick);
+
         // Gather any pre-filled addresses from the hidden input's value
         // (e.g. when editing a draft or doing reply/forward).
         const prefilledJson = input.dataset.prefilled;
@@ -43,6 +51,10 @@ export default class extends Controller {
             hideSelected: true,
             closeAfterSelect: false,          // keep open so you can add another quickly
             preload: false,
+            onItemAdd: function() {
+                this.setTextboxValue('');
+                this.close();
+            },
 
             // ── Seed with pre-filled addresses (reply/forward/draft) ───────
             options: prefilledItems,
@@ -109,6 +121,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.element.removeEventListener("click", this._boundRowClick);
         this.#tomSelect?.destroy();
         this.#tomSelect = null;
     }
