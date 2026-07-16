@@ -13,15 +13,12 @@
         <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>
     </button>
 
-    {# Logo — links back to inbox #}
+    {# Logo #}
     <a
         href="{{ path('app_mail_inbox') }}"
-        data-controller="mail-menu"
-        data-action="click->mail-pane#onMailboxSynced"
         class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
         aria-label="{{ 'app.name'|trans }}"
     >
-        {# Inline SVG so it renders on all backgrounds without a network request #}
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true">
             <defs>
                 <clipPath id="logo-clip">
@@ -41,15 +38,51 @@
         <span class="hidden sm:inline font-semibold text-gray-800 dark:text-gray-100 text-sm tracking-wide">{{ 'app.name'|trans }}</span>
     </a>
 
-    {# Search #}
-    <div class="flex-1 max-w-2xl mx-auto">
+    {# ── Search ────────────────────────────────────────────────────────── #}
+    <div
+        class="flex-1 max-w-2xl mx-auto relative"
+        data-controller="search"
+    >
         <div class="relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm" aria-hidden="true"></i>
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" aria-hidden="true"></i>
             <input
-                type="text"
+                type="search"
+                name="q"
+                value="{{ app.request.query.get('q', '') }}"
                 placeholder="{{ 'header.search.placeholder'|trans }}"
-                class="w-full pl-10 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition-colors"
+                autocomplete="off"
+                data-search-target="input"
+                data-action="keydown->search#onKeydown focus->search#onFocus input->search#onInput"
+                class="w-full pl-10 pr-4 py-2 text-sm
+                       bg-gray-100 dark:bg-gray-800
+                       border border-transparent rounded-xl
+                       text-gray-900 dark:text-gray-100
+                       placeholder-gray-400 dark:placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-blue-500
+                       focus:bg-white dark:focus:bg-gray-700
+                       transition-colors"
             >
+        </div>
+
+        {# Recent searches dropdown #}
+        <div
+            data-search-target="dropdown"
+            class="hidden absolute left-0 right-0 top-full mt-1 z-50
+                   bg-white dark:bg-gray-900
+                   border border-gray-200 dark:border-gray-700
+                   rounded-xl shadow-xl overflow-hidden"
+        >
+            <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 dark:border-gray-800">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Recent searches</span>
+                <button
+                    type="button"
+                    data-action="click->search#clearRecents"
+                    class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                    Clear
+                </button>
+            </div>
+            <ul data-search-target="recentsList" class="py-1 max-h-56 overflow-y-auto"></ul>
         </div>
     </div>
 
@@ -65,7 +98,7 @@
         </button>
         <script>
             (function() {
-                var dark = document.documentElement.classList.contains('dark');
+                const dark = document.documentElement.classList.contains('dark');
                 document.getElementById('icon-moon').classList.toggle('hidden', dark);
                 document.getElementById('icon-sun').classList.toggle('hidden', !dark);
             })();

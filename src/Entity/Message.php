@@ -98,6 +98,21 @@ class Message extends MessageModel
     #[ORM\JoinColumn(nullable: true)]
     private ?MessageThread $thread = null;
 
+    #[ORM\Column(
+        name: 'search_vector',
+        type: 'string',
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: "tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('english', coalesce(subject, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(from_name, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(from_address, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(body_text, '')), 'C')
+    ) STORED"
+    )]
+    private ?string $searchVector = null;
+
     #[ORM\Column]
     private bool $cancelled = false; // a helper only to tell the message handler to cancel the message should always be false except for a few seconds
 
