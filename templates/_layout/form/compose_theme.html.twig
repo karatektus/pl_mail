@@ -1,12 +1,33 @@
-{# templates/form/compose_theme.html.twig #}
+{# templates/_layout/form/compose_theme.html.twig #}
 
 {#
-address_entry_widget / address_entry_row are no longer used —
-the compose window uses ts-address fields directly.
-Kept here as no-ops so Symfony doesn't throw if they're referenced.
+Form theme for the compose window only.
+- Strips ALL styling from <select> elements so Tom Select copies no classes
+  onto its .ts-wrapper div.
+- Removes the native-select chevron wrapper that modal_form_theme adds.
+- address_entry_widget / address_entry_row kept as no-ops.
 #}
+
 {% block address_entry_widget %}{% endblock %}
 {% block address_entry_row %}{% endblock %}
+
+{# ── Bare select — Tom Select clones this element's classes onto .ts-wrapper ── #}
+{% block choice_widget_collapsed %}
+    <select {{ block('widget_attributes') }} {% if multiple %}multiple="multiple"{% endif %}>
+        {% if placeholder is not none %}
+            <option value=""{% if not value %} selected{% endif %}>{{ placeholder|trans({}, translation_domain) }}</option>
+        {% endif %}
+        {% if preferred_choices|length > 0 %}
+            {% set options = preferred_choices %}
+            {{ block('choice_widget_options') }}
+            {% if choices|length > 0 and separator is not none %}
+                <option disabled>{{ separator }}</option>
+            {% endif %}
+        {% endif %}
+        {% set options = choices %}
+        {{ block('choice_widget_options') }}
+    </select>
+{% endblock %}
 
 {% block email_widget %}
     <input

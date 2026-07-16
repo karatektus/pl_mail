@@ -1,10 +1,8 @@
 /*
  * tom-select.css
- * Overrides the UX Autocomplete / Tom Select default skin to match
- * the plMail compose window aesthetic.
- *
- * Loaded via @import in app.css. Set tom-select.default.css autoimport
- * to false in controllers.json so this is the only skin.
+ * Custom skin for Symfony UX Autocomplete / Tom Select used in the
+ * plMail compose window. All default Tom Select CSS bundles are disabled
+ * in controllers.json — this is the sole skin.
  */
 
 /* ── Base reset ──────────────────────────────────────────────────────── */
@@ -24,12 +22,18 @@
     min-width: 0;
 }
 
+/* UX Autocomplete wraps the <select> in an extra div — flatten it */
+.ts-wrapper.multi.has-items .ts-control,
+.ts-wrapper.multi .ts-control {
+    padding-bottom: 2px;
+}
+
 /* ── Control (the visible input area) ───────────────────────────────── */
 .ts-control {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     padding: 2px 0;
     background: transparent !important;
     border: none !important;
@@ -40,7 +44,7 @@
     border-radius: 0;
 }
 
-/* The actual text input Tom Select injects */
+/* The text input Tom Select injects */
 .ts-control input {
     flex: 1 1 80px;
     min-width: 80px;
@@ -67,7 +71,7 @@
     color: rgb(107 114 128); /* gray-500 */
 }
 
-/* Hide the default dropdown caret Tom Select appends */
+/* Hide the dropdown caret Tom Select appends to the wrapper */
 .ts-wrapper .ts-control::after,
 .ts-wrapper.single .ts-control::after,
 .ts-wrapper.multi .ts-control::after {
@@ -78,8 +82,8 @@
 .ts-control .item {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 1px 4px 1px 8px;
+    gap: 4px;
+    padding: 2px 6px 2px 9px;
     border-radius: 9999px;
     background-color: rgb(219 234 254);  /* blue-100 */
     color: rgb(29 78 216);               /* blue-700 */
@@ -99,7 +103,7 @@
     color: rgb(147 197 253); /* blue-300 */
 }
 
-/* × remove button */
+/* × remove button — per chip */
 .ts-control .item .remove {
     display: inline-flex;
     align-items: center;
@@ -107,17 +111,17 @@
     width: 14px;
     height: 14px;
     border-radius: 9999px;
-    font-size: 11px;
+    font-size: 13px;
     font-style: normal;
     line-height: 1;
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: pointer;
     color: inherit;
     border: none;
     background: transparent;
     padding: 0;
-    margin-left: 1px;
     flex-shrink: 0;
+    text-decoration: none;
     transition: opacity 100ms;
 }
 
@@ -125,12 +129,18 @@
     opacity: 1;
 }
 
+/* Hide Tom Select's global clear button — we use per-chip removes */
+.ts-wrapper .clear-button,
+.ts-wrapper > .clear-button {
+    display: none !important;
+}
+
 /* ── Dropdown panel ──────────────────────────────────────────────────── */
 .ts-dropdown {
     position: absolute;
     left: -4rem;
     right: -1rem;
-    top: calc(100% + 2px);
+    top: calc(100% + 4px);
     z-index: 40;
     border-radius: 0.75rem;
     overflow: hidden;
@@ -165,31 +175,38 @@
     padding: 7px 14px;
     cursor: pointer;
     transition: background-color 80ms;
-    color: rgb(55 65 81);
+    color: rgb(55 65 81); /* gray-700 */
 }
 
 .dark .ts-dropdown .option {
-    color: rgb(229 231 235);
+    color: rgb(229 231 235); /* gray-200 */
 }
 
 .ts-dropdown .option.active,
 .ts-dropdown .option:hover {
-    background-color: rgb(239 246 255);
-    color: rgb(29 78 216);
+    background-color: rgb(239 246 255); /* blue-50 */
+    color: rgb(29 78 216);              /* blue-700 */
 }
 
 .dark .ts-dropdown .option.active,
 .dark .ts-dropdown .option:hover {
     background-color: rgba(37 99 235 / 0.15);
-    color: rgb(147 197 253);
+    color: rgb(147 197 253); /* blue-300 */
 }
 
 .ts-dropdown .option.selected {
     background-color: transparent;
-    opacity: 0.5;
+    opacity: 0.45;
 }
 
-/* ── Option inner layout: avatar + text block ────────────────────────── */
+/* ── Option inner layout ─────────────────────────────────────────────── */
+.ts-option-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 1px 0;
+}
+
 .ts-option-avatar {
     display: inline-flex;
     align-items: center;
@@ -232,50 +249,72 @@
 }
 
 /* ── "Add …" create row ──────────────────────────────────────────────── */
-.ts-dropdown .create {
+.ts-option-create {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 7px 14px;
     font-size: 0.8125rem;
-    color: rgb(107 114 128);
+    color: rgb(107 114 128); /* gray-500 */
+}
+
+.dark .ts-option-create {
+    color: rgb(156 163 175); /* gray-400 */
+}
+
+.ts-option-create-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background-color: rgb(219 234 254); /* blue-100 */
+    color: rgb(37 99 235);              /* blue-600 */
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.dark .ts-option-create-icon {
+    background-color: rgba(37 99 235 / 0.2);
+    color: rgb(147 197 253);
+}
+
+.ts-dropdown .create {
+    padding: 7px 14px;
     cursor: pointer;
     transition: background-color 80ms;
     border-top: 1px solid rgba(209 213 219 / 0.5);
 }
 
 .dark .ts-dropdown .create {
-    color: rgb(156 163 175);
     border-top-color: rgba(255 255 255 / 0.08);
 }
 
 .ts-dropdown .create:hover,
 .ts-dropdown .create.active {
     background-color: rgb(249 250 251);
-    color: rgb(31 41 55);
 }
 
 .dark .ts-dropdown .create:hover,
 .dark .ts-dropdown .create.active {
     background-color: rgba(255 255 255 / 0.05);
-    color: rgb(229 231 235);
 }
 
 /* ── No results ──────────────────────────────────────────────────────── */
-.ts-dropdown .no-results,
-.ts-dropdown .no_results {
+.ts-no-results {
     padding: 10px 14px;
     font-size: 0.8125rem;
-    color: rgb(156 163 175);
+    color: rgb(156 163 175); /* gray-400 */
     text-align: center;
 }
 
-/* ── Spinner ─────────────────────────────────────────────────────────── */
+/* ── Spinner — hidden, UX Autocomplete handles loading state ─────────── */
 .ts-wrapper .spinner {
-    display: none;
+    display: none !important;
 }
 
-/* ── Focus / open state ──────────────────────────────────────────────── */
+/* ── Focus / open state — keep frameless ─────────────────────────────── */
 .ts-wrapper.focus .ts-control,
 .ts-wrapper.dropdown-active .ts-control {
     outline: none !important;
@@ -290,19 +329,49 @@
 }
 
 /* ── Thin scrollbar ──────────────────────────────────────────────────── */
-.ts-dropdown-content::-webkit-scrollbar {
-    width: 4px;
-}
-
-.ts-dropdown-content::-webkit-scrollbar-track {
-    background: transparent;
-}
-
+.ts-dropdown-content::-webkit-scrollbar { width: 4px; }
+.ts-dropdown-content::-webkit-scrollbar-track { background: transparent; }
 .ts-dropdown-content::-webkit-scrollbar-thumb {
     background-color: rgba(156 163 175 / 0.45);
     border-radius: 9999px;
 }
-
 .dark .ts-dropdown-content::-webkit-scrollbar-thumb {
     background-color: rgba(75 85 99 / 0.5);
+}
+/* Hide the original <select> that Tom Select moves off-screen */
+.ts-hidden-accessible {
+    position: absolute !important;
+    left: -10000px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* remove_button plugin — × button appended to each chip by Tom Select */
+.ts-control .item .remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.5;
+    cursor: pointer;
+    color: inherit;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-left: 2px;
+    flex-shrink: 0;
+    text-decoration: none;
+    transition: opacity 100ms;
+}
+
+.ts-control .item .remove:hover {
+    opacity: 1;
 }
