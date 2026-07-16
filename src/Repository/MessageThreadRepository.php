@@ -183,7 +183,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
 
         $counts = [];
-        
+
         foreach ($rows as $row) {
             $counts[$row['specialUse']->value] = $row['unreadCount'];
         }

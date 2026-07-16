@@ -19,8 +19,25 @@
         data-controller="mail-menu"
         data-action="click->mail-pane#onMailboxSynced"
         class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
+        aria-label="{{ 'app.name'|trans }}"
     >
-        <i class="fa-solid fa-envelope text-blue-600 text-lg" aria-hidden="true"></i>
+        {# Inline SVG so it renders on all backgrounds without a network request #}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true">
+            <defs>
+                <clipPath id="logo-clip">
+                    <rect width="48" height="48" rx="10"/>
+                </clipPath>
+            </defs>
+            <g clip-path="url(#logo-clip)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="15" y1="10" x2="15" y2="38" stroke="#4285F4" stroke-width="5.5"/>
+                <path d="M15 10 Q15 6 19 6 L25 6 Q31 6 31 12" stroke="#EA4335" stroke-width="5.5"/>
+                <line x1="31" y1="12" x2="31" y2="26" stroke="#FBBC04" stroke-width="5.5"/>
+                <path d="M31 26 Q31 30 25 30 L19 30 Q15 30 15 26" stroke="#34A853" stroke-width="5.5"/>
+                <line x1="37" y1="7" x2="37" y2="26" stroke="#EA4335" stroke-width="5.5"/>
+                <line x1="37" y1="26" x2="37" y2="35" stroke="#4285F4" stroke-width="5.5"/>
+                <path d="M37 35 Q37 42 44 42" stroke="#FBBC04" stroke-width="5.5"/>
+            </g>
+        </svg>
         <span class="hidden sm:inline font-semibold text-gray-800 dark:text-gray-100 text-sm tracking-wide">{{ 'app.name'|trans }}</span>
     </a>
 
@@ -39,13 +56,6 @@
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
 
-        {#
-        Dark mode toggle.
-        Both icons start hidden. The inline <script> inside the button
-        runs synchronously before paint and shows exactly one of them
-        based on the current .dark class (which the <head> script already set).
-        The app.js click handler calls window.syncThemeIcon() after toggling.
-        #}
         <button id="theme-toggle"
                 class="p-2 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                 aria-label="{{ 'header.theme.toggle'|trans }}"
