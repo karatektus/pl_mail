@@ -1,13 +1,28 @@
-<header class="flex items-center gap-4 px-4 h-14 flex-shrink-0 rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/30">
+<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/30 relative z-20">
 
-    {# Logo #}
-    <div
+    {# Burger — mobile only #}
+    <button
+        type="button"
+        class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg
+               text-gray-500 dark:text-gray-400
+               hover:bg-gray-100 dark:hover:bg-gray-800
+               transition-colors flex-shrink-0"
+        aria-label="{{ 'sidebar.nav.inbox'|trans }}"
+        data-action="click->sidebar-drawer#toggle"
+    >
+        <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>
+    </button>
+
+    {# Logo — links back to inbox #}
+    <a
+        href="{{ path('app_mail_inbox') }}"
         data-controller="mail-menu"
         data-action="click->mail-pane#onMailboxSynced"
-        class="flex items-center gap-2 w-52 flex-shrink-0">
+        class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
+    >
         <i class="fa-solid fa-envelope text-blue-600 text-lg" aria-hidden="true"></i>
-        <span class="font-semibold text-gray-800 dark:text-gray-100 text-sm tracking-wide">{{ 'app.name'|trans }}</span>
-    </div>
+        <span class="hidden sm:inline font-semibold text-gray-800 dark:text-gray-100 text-sm tracking-wide">{{ 'app.name'|trans }}</span>
+    </a>
 
     {# Search #}
     <div class="flex-1 max-w-2xl mx-auto">
@@ -24,14 +39,27 @@
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
 
-        {# Dark mode toggle #}
+        {#
+        Dark mode toggle.
+        Both icons start hidden. The inline <script> inside the button
+        runs synchronously before paint and shows exactly one of them
+        based on the current .dark class (which the <head> script already set).
+        The app.js click handler calls window.syncThemeIcon() after toggling.
+        #}
         <button id="theme-toggle"
                 class="p-2 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                 aria-label="{{ 'header.theme.toggle'|trans }}"
                 title="{{ 'header.theme.toggle'|trans }}">
-            <i id="icon-moon" class="fa-solid fa-moon text-sm" aria-hidden="true"></i>
-            <i id="icon-sun" class="fa-solid fa-sun text-sm hidden" aria-hidden="true"></i>
+            <i id="icon-moon" class="fa-solid fa-moon text-sm hidden" aria-hidden="true"></i>
+            <i id="icon-sun"  class="fa-solid fa-sun  text-sm hidden" aria-hidden="true"></i>
         </button>
+        <script>
+            (function() {
+                var dark = document.documentElement.classList.contains('dark');
+                document.getElementById('icon-moon').classList.toggle('hidden', dark);
+                document.getElementById('icon-sun').classList.toggle('hidden', !dark);
+            })();
+        </script>
 
         {# User menu #}
         <div class="relative ml-1">
@@ -42,7 +70,7 @@
                 {{ app.user.email | first | upper }}
             </button>
 
-            <div id="user-menu" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg py-1 z-100">
+            <div id="user-menu" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ app.user.email }}</p>

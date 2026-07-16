@@ -17,17 +17,49 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
 #}
 
 {% block body %}
-    <div class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
+    {#
+    sidebar-drawer wraps the entire page so the controller can manage
+    the drawer state from any trigger (burger button in the topbar, backdrop).
+    #}
+    <div
+        class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950"
+        data-controller="sidebar-drawer"
+    >
+        {# ── Mobile backdrop ──────────────────────────────────────────────── #}
+        <div
+            data-sidebar-drawer-target="backdrop"
+            data-action="click->sidebar-drawer#backdropClick"
+            class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm
+                   opacity-0 pointer-events-none transition-opacity duration-200"
+            aria-hidden="true"
+        ></div>
+
+        {# ── Mobile sidebar drawer ────────────────────────────────────────── #}
+        {#
+        On mobile: fixed, full-height, slides in from the left.
+        On md+: hidden (the normal sidebar is in the flex row below).
+        #}
+        <div
+            data-sidebar-drawer-target="drawer"
+            class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3
+                   -translate-x-full transition-transform duration-200 ease-out"
+            aria-label="{{ 'sidebar.nav.inbox'|trans }}"
+        >
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+        </div>
+
         <div class="flex h-full flex-col p-3 gap-3">
 
-            {# Full-width topbar #}
-            {% include '_partials/_topbar.html.twig' %}
+            {# Full-width topbar — passes burger button context #}
+            {% include '_partials/_topbar.html.twig' with { _showBurger: true } %}
 
             {# Sidebar + content #}
             <div class="flex flex-1 gap-3 overflow-hidden">
 
-                {# Sidebar — solid, opaque, its own card #}
-                {% include '_partials/_sidebar.html.twig' %}
+                {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
+                <div class="hidden md:flex">
+                    {% include '_partials/_sidebar.html.twig' %}
+                </div>
 
                 {# Main content #}
                 <div class="flex flex-1 overflow-hidden relative rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/30">
@@ -41,8 +73,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     >
                         <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
 
-
-                            {# ── Gmail-style toolbar ──────────────────────────── #}
+                            {# ── Gmail-style toolbar ──────────────────────── #}
                             {% block inbox_toolbar %}
                                 {% include '_partials/_list_toolbar.html.twig' with {
                                     page:     page     ?? 1,
@@ -50,7 +81,6 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                                     per_page: per_page ?? 50,
                                 } %}
                             {% endblock %}
-
 
                             {# Optional tabs row (inbox only) #}
                             {% block inbox_tabs %}{% endblock %}

@@ -8,8 +8,14 @@
 
 {% import _self as macros %}
 
-<aside id="sidebar"
-       data-turbo-permanent
+{#
+_drawerMode is set to true when this sidebar is rendered inside the mobile drawer.
+When true, nav links also dispatch a close action to the parent sidebar-drawer controller.
+#}
+{% set _drawerClose = _drawerMode is defined and _drawerMode ? 'click->sidebar-drawer#close' : '' %}
+
+<aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
+       {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="sidebar"
        class="flex flex-col w-56 h-full flex-shrink-0 bg-white dark:bg-gray-900 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/30 border border-gray-200/60 dark:border-gray-800/60">
 
@@ -17,6 +23,7 @@
     <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
+           data-action="{{ _drawerClose }}"
            class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors">
             <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
             {{ 'sidebar.compose'|trans }}
@@ -26,11 +33,10 @@
     {# Nav #}
     <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-sm">
 
-        {% set current = app.request.attributes.get('_route') %}
-
         <a href="{{ path('app_mail_inbox') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
+           data-action="{{ _drawerClose }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
@@ -42,6 +48,7 @@
         <a href="{{ path('app_mail_starred') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
+           data-action="{{ _drawerClose }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
@@ -53,6 +60,7 @@
         <a href="{{ path('app_mail_sent') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
+           data-action="{{ _drawerClose }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
@@ -64,6 +72,7 @@
         <a href="{{ path('app_mail_drafts') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
+           data-action="{{ _drawerClose }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
@@ -75,6 +84,7 @@
         <a href="{{ path('app_mail_trash') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
+           data-action="{{ _drawerClose }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
@@ -88,7 +98,7 @@
             <span class="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
             <button
                 data-controller="modal"
-                data-action="click->modal#open"
+                data-action="click->modal#open {{ _drawerClose }}"
                 data-modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                 data-modal-src-value="{{ path('app_account_new') }}"
                 class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
@@ -98,8 +108,8 @@
             </button>
         </div>
 
-        <div id="account-list" class="space-y-0.5">
-            {% include '_partials/_account_list.html.twig' %}
+        <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="space-y-0.5">
+            {% include '_partials/_account_list.html.twig' with { _drawerClose: _drawerClose } %}
         </div>
 
     </nav>
