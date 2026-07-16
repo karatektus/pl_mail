@@ -45,16 +45,19 @@ class MessageSyncer
             $this->logger->error('Folder not found', ['mailbox' => $mailbox->getName()]);
             return;
         }
+        $syncedUids = array_flip($this->messageRepository->findSyncedUids($mailbox) ?? []);
 
         $synced = 0;
 
+        $sinceDate = $mailbox->getSyncedAt() ?? new DateTimeImmutable('-30 days');
+
         $folder->messages()
-            ->where('UID', $uidRange)
-            ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced) {
-                $this->processBatch($batch, $mailboxId, $accountId);
+            ->since($sinceDate)
+            ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids) {
+                $this->processBatch($batch, $mailboxId, $accountId, $syncedUids);
                 $synced += count($batch);
                 $this->em->clear();
-                $this->logger->info(sprintf('Synced %d messages so far', $synced));
+                $this->logger->info(sprintf('Processed %d messages so far', $synced));
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
@@ -64,7 +67,7 @@ class MessageSyncer
         $this->em->flush();
     }
 
-    private function processBatch($batch, int $mailboxId, int $accountId): void
+    private function processBatch($batch, int $mailboxId, int $accountId, array &$syncedUids): void
     {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
@@ -72,6 +75,13 @@ class MessageSyncer
 
         // Pass 1 — persist all messages without threading
         foreach ($batch as $imapMessage) {
+            $uid = $imapMessage->getUid();
+
+            // Skip already-synced UIDs — critical for date-based fetching.
+            if (isset($syncedUids[$uid])) {
+                continue;
+            }
+
             try {
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
