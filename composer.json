@@ -12,6 +12,8 @@
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.6",
         "knplabs/knp-paginator-bundle": "*",
+        "league/oauth2-client": "^2.9",
+        "league/oauth2-google": "^5.0",
         "phpdocumentor/reflection-docblock": "^6.0",
         "phpstan/phpdoc-parser": "^2.3",
         "symfony/asset": "8.1.*",

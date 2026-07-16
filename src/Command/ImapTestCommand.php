@@ -15,7 +15,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'app:imap:test', description: 'Test IMAP connection and folder listing')]
 class ImapTestCommand extends Command
 {
-    public function __construct(private readonly AccountRepository $accounts)
+    public function __construct(
+        private readonly AccountRepository $accounts,
+        private readonly ImapConnectionFactory $imapConnectionFactory,
+    )
     {
         parent::__construct();
     }
@@ -44,7 +47,7 @@ class ImapTestCommand extends Command
 // 1. Connect
         $io->section('1. Connecting…');
         try {
-            $client = ImapConnectionFactory::connect($account);
+            $client = $this->imapConnectionFactory->connect($account);
             $io->success('Connected.');
         } catch (\Throwable $e) {
             $io->error('Connection failed: ' . $e->getMessage());

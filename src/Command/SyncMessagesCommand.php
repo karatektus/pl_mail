@@ -23,6 +23,7 @@ class SyncMessagesCommand extends Command
         private readonly AccountRepository $accountRepository,
         private readonly MailboxRepository $mailboxRepository,
         private readonly MessageSyncer $messageSyncer,
+        private readonly ImapConnectionFactory $imapConnectionFactory,
     ) {
         parent::__construct();
     }
@@ -47,7 +48,7 @@ class SyncMessagesCommand extends Command
             $io->section('Syncing messages for: ' . $account->getEmail());
 
             try {
-                $connection = ImapConnectionFactory::connect($account);
+                $connection = $this->imapConnectionFactory->connect($account);
             } catch (\Throwable $e) {
                 $io->error('Failed to connect: ' . $e->getMessage());
                 continue;

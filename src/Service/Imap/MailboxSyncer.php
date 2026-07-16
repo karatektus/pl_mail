@@ -2,6 +2,7 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Account;
 use App\Entity\Mailbox;
@@ -15,11 +16,12 @@ readonly class MailboxSyncer
     public function __construct(
         private MailboxRepository      $mailboxRepository,
         private EntityManagerInterface $em,
+        private ImapConnectionFactory $imapConnectionFactory,
     ) {}
 
     public function syncForAccount(Account $account): array
     {
-        $client = ImapConnectionFactory::connect($account);
+        $client = $this->imapConnectionFactory->connect($account);
 
         $serverFolders = $client->getFolders(false);
 
@@ -85,23 +87,23 @@ readonly class MailboxSyncer
         $mailbox->setSpecialUse($this->detectSpecialUse($folder));
     }
 
-    private function detectSpecialUse(Folder $folder): ?string
+    private function detectSpecialUse(Folder $folder): ?MailboxSpecialUse
     {
         $name = strtolower($folder->name);
 
         $nameMap = [
-            'inbox'            => '\\Inbox',
-            'sent'             => '\\Sent',
-            'sent messages'    => '\\Sent',
-            'drafts'           => '\\Drafts',
-            'draft'            => '\\Drafts',
-            'trash'            => '\\Trash',
-            'deleted'          => '\\Trash',
-            'deleted messages' => '\\Trash',
-            'junk'             => '\\Junk',
-            'spam'             => '\\Junk',
-            'spambucket'       => '\\Junk',
-            'archive'          => '\\Archive',
+            'inbox'            => MailboxSpecialUse::INBOX,
+            'sent'             => MailboxSpecialUse::SENT,
+            'sent messages'    => MailboxSpecialUse::SENT,
+            'drafts'           => MailboxSpecialUse::DRAFTS,
+            'draft'            => MailboxSpecialUse::DRAFTS,
+            'trash'            => MailboxSpecialUse::TRASH,
+            'deleted'          => MailboxSpecialUse::TRASH,
+            'deleted messages' => MailboxSpecialUse::TRASH,
+            'junk'             => MailboxSpecialUse::JUNK,
+            'spam'             => MailboxSpecialUse::JUNK,
+            'spambucket'       => MailboxSpecialUse::JUNK,
+            'archive'          => MailboxSpecialUse::ARCHIVE,
         ];
 
         if (array_key_exists($name, $nameMap)) {

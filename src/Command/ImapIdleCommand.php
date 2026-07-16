@@ -29,6 +29,7 @@ class ImapIdleCommand extends Command
     public function __construct(
         private readonly MailboxRepository  $mailboxRepository,
         private readonly MessageBusInterface $bus,
+        private readonly ImapConnectionFactory $imapConnectionFactory,
     ) {
         parent::__construct();
     }
@@ -120,7 +121,7 @@ class ImapIdleCommand extends Command
     {
         $mailbox    = $this->mailboxRepository->find($mailboxId);
         $account    = $mailbox->getAccount();
-        $client     = ImapConnectionFactory::connect($account);
+        $client     = $this->imapConnectionFactory->connect($account);
         $folder     = $client->getFolder($mailbox->getName());
 
         if ($folder === null) {

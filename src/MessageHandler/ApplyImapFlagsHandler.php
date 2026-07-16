@@ -24,6 +24,7 @@ final class ApplyImapFlagsHandler
         private readonly MessageRepository $messageRepository,
         private readonly MailboxRepository $mailboxRepository,
         private readonly LoggerInterface   $logger,
+        private readonly ImapConnectionFactory $imapConnectionFactory,
     ) {}
 
     public function __invoke(ApplyImapFlagsMessage $message): void
@@ -53,7 +54,7 @@ final class ApplyImapFlagsHandler
 
 
             try {
-                $client = ImapConnectionFactory::connect($account);
+                $client = $this->imapConnectionFactory->connect($account);
                 $this->processAccount($client, $account, $byMailbox, $message->action);
                 $client->disconnect();
             } catch (Throwable $e) {

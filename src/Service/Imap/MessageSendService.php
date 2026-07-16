@@ -8,38 +8,45 @@ use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Repository\MailboxRepository;
-use Carbon\Carbon;
+use App\Service\Mail\MailSenderRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 
+/**
+ * Builds the outgoing MIME once, then dispatches it to the sender that handles
+ * the account (Gmail API for Google OAuth, SMTP for password accounts).
+ */
 class MessageSendService
 {
     public function __construct(
-        private readonly MailboxRepository      $mailboxRepository,
-        private readonly EntityManagerInterface $em,
+        private readonly MailboxRepository       $mailboxRepository,
+        private readonly EntityManagerInterface  $em,
         private readonly AttachmentStorageHelper $attachmentStorage,
-    )
-    {
+        private readonly MailSenderRegistry      $senderRegistry,
+        private readonly ImapConnectionFactory   $imapConnectionFactory,
+    ) {
     }
 
     public function send(Message $message): bool
     {
         $account = $message->getMailbox()->getAccount();
+        $email   = $this->buildEmail($message, $account);
 
-        $email = $this->buildEmail($message, $account);
+        $sender      = $this->senderRegistry->resolve($account);
+        $sendSuccess = $sender->send($email, $account);
 
-        $sendSuccess = $this->sendViaSmtp($email, $account);
-        $this->appendToSentFolder($email, $account);
-
-        $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
-        if(false === $sendSuccess){
+        if (false === $sendSuccess) {
             return false;
         }
+
+        // API senders file their own Sent copy; only append manually for SMTP.
+        if (false === $sender->filesSentCopy()) {
+            $this->appendToSentFolder($email, $account);
+        }
+
+        $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
 
         if (null !== $sentMailbox) {
             $message
@@ -52,38 +59,18 @@ class MessageSendService
         return true;
     }
 
-    private function sendViaSmtp(Email $email, Account $account): bool
-    {
-        $enc = strtolower($account->getSmtpEncryption() ?? 'tls');
-        $dsn = sprintf(
-            '%s://%s:%s@%s:%d',
-            $enc === 'ssl' ? 'smtps' : 'smtp',
-            urlencode($account->getUsername()),
-            urlencode($account->getPassword()),
-            $account->getSmtpHost(),
-            $account->getSmtpPort() ?? 587,
-        );
-
-        try {
-            new Mailer(Transport::fromDsn($dsn))->send($email);
-        } catch (TransportExceptionInterface $e) {
-            return false;
-        }
-
-        return true;
-    }
-
     private function appendToSentFolder(Email $email, Account $account): void
     {
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
+
         if (null === $sentMailbox) {
             return;
         }
 
-        $client = ImapConnectionFactory::connect($account);
+        $client = $this->imapConnectionFactory->connect($account);
         $folder = $client->getFolder($sentMailbox->getName());
 
-        $appendResult = $folder->appendMessage(
+        $folder->appendMessage(
             $email->toString(),
             [MessageFlag::SEEN->value],
         );
@@ -93,32 +80,59 @@ class MessageSendService
 
     private function buildEmail(Message $message, Account $account): Email
     {
-        $email = new Email()
-            ->from(new Address($account->getEmail(), $account->getName() ?? ''))
-            ->subject($message->getSubject() ?? '');
+        $fromName = $account->getName();
+        if (null === $fromName) {
+            $fromName = '';
+        }
 
-        foreach ($message->getToAddresses() ?? [] as $addr) {
-            $email->addTo(new Address($addr['address'], $addr['name'] ?? ''));
+        $subject = $message->getSubject();
+        if (null === $subject) {
+            $subject = '';
         }
-        foreach ($message->getCcAddresses() ?? [] as $addr) {
-            $email->addCc(new Address($addr['address'], $addr['name'] ?? ''));
+
+        $email = (new Email())
+            ->from(new Address($account->getEmail(), $fromName))
+            ->subject($subject);
+
+        $toAddresses = $message->getToAddresses();
+        if (null !== $toAddresses) {
+            foreach ($toAddresses as $addr) {
+                $email->addTo($this->toAddress($addr));
+            }
         }
-        foreach ($message->getBccAddresses() ?? [] as $addr) {
-            $email->addBcc(new Address($addr['address'], $addr['name'] ?? ''));
+
+        $ccAddresses = $message->getCcAddresses();
+        if (null !== $ccAddresses) {
+            foreach ($ccAddresses as $addr) {
+                $email->addCc($this->toAddress($addr));
+            }
+        }
+
+        $bccAddresses = $message->getBccAddresses();
+        if (null !== $bccAddresses) {
+            foreach ($bccAddresses as $addr) {
+                $email->addBcc($this->toAddress($addr));
+            }
         }
 
         if ($message->getBodyHtml()) {
             $email->html($message->getBodyHtml());
         }
+
         if ($message->getBodyText()) {
             $email->text($message->getBodyText());
         }
 
         foreach ($message->getMessageParts() as $part) {
             if (true === $part->isInline()) {
+                $contentId = $part->getContentId();
+                if (null === $contentId) {
+                    $contentId = $part->getFilename();
+                }
+
                 $email->embedFromPath(
                     $this->attachmentStorage->getAbsolutePath($part->getStoragePath()),
-                    $part->getContentId() ?? $part->getFilename(),
+                    $contentId,
                     $part->getContentType(),
                 );
             } else {
@@ -131,5 +145,19 @@ class MessageSendService
         }
 
         return $email;
+    }
+
+    /**
+     * @param array{name?: string|null, address: string} $addr
+     */
+    private function toAddress(array $addr): Address
+    {
+        $name = '';
+
+        if (array_key_exists('name', $addr) && null !== $addr['name']) {
+            $name = $addr['name'];
+        }
+
+        return new Address($addr['address'], $name);
     }
 }

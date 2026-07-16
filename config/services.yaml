@@ -22,3 +22,17 @@ services:
     App\Domain\Helper\AttachmentStorageHelper:
         arguments:
             $projectDir: '%kernel.project_dir%'
+    App\Service\OAuth\OAuthProviderFactory:
+        arguments:
+            $googleClientId: '%env(GOOGLE_OAUTH_CLIENT_ID)%'
+            $googleClientSecret: '%env(GOOGLE_OAUTH_CLIENT_SECRET)%'
+
+    App\Service\Mail\GmailApiSender:
+        tags: [{ name: app.mail_sender, priority: 10 }]
+
+    App\Service\Mail\SmtpMailSender:
+        tags: [{ name: app.mail_sender, priority: 0 }]
+
+    App\Service\Mail\MailSenderRegistry:
+        arguments:
+            $senders: !tagged_iterator app.mail_sender

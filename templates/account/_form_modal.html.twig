@@ -106,7 +106,8 @@
                 <div class="space-y-2.5">
 
                     <a
-                        href="#"
+                        href="{{ path('app_oauth_connect', { provider: 'google' }) }}"
+                        data-turbo="false"
                         class="flex items-center gap-3 mb-3 w-full px-4 py-2.5 rounded-xl
                                border border-white/15 dark:border-white/10
                                bg-white/10 dark:bg-white/5

@@ -22,6 +22,7 @@ readonly class SyncMailboxMessageHandler
         private HubInterface       $hub,
         private LoggerInterface    $logger,
         private MessageBusInterface $bus,
+        private ImapConnectionFactory $imapConnectionFactory,
     ) {}
 
     public function __invoke(SyncMailboxMessage $message): void
@@ -39,7 +40,7 @@ readonly class SyncMailboxMessageHandler
         }
 
         $account = $mailbox->getAccount();
-        $client  = ImapConnectionFactory::connect($account);
+        $client  = $this->imapConnectionFactory->connect($account);
         $this->messageSyncer->syncMailbox($mailbox, $client);
         $client->disconnect();
 
