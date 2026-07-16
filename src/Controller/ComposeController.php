@@ -10,8 +10,10 @@ use App\Message\SendMessageMessage;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -124,9 +126,11 @@ class ComposeController extends AbstractController
         $form->handleRequest($request);
 
         // Apply Tom Select address fields (override whatever CollectionType bound)
-        $this->applyAddressFields($request, $message);
+        $this->applyAddressFields($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            dump($message);
+            dump($form);
             $this->persistDraft($message);
 
             return $this->render('compose/_window.html.twig', [
@@ -158,7 +162,7 @@ class ComposeController extends AbstractController
         $form->handleRequest($request);
 
         // Apply Tom Select address fields
-        $this->applyAddressFields($request, $message);
+        $this->applyAddressFields($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
             if (null !== $message->getSentAt()) {
@@ -168,7 +172,6 @@ class ComposeController extends AbstractController
             }
 
             $this->persistDraft($message);
-            dump($message->getToAddresses());
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
                 [new DelayStamp(10_000)],
@@ -211,11 +214,30 @@ class ComposeController extends AbstractController
      * fields and write them onto the Message, replacing whatever the
      * Symfony CollectionType may have bound.
      */
-    private function applyAddressFields(Request $request, Message $message): void
+    private function applyAddressFields(FormInterface $form, Message $message): void
     {
-        $to  = $this->parseAddressField($request, 'compose_to');
-        $cc  = $this->parseAddressField($request, 'compose_cc');
-        $bcc = $this->parseAddressField($request, 'compose_bcc');
+        $extract = static function (string $field) use ($form): array {
+            /** @var Collection $contacts */
+            $contacts = $form->get($field)->getData();
+
+            if (empty($contacts)) {
+                return [];
+            }
+
+            $result = [];
+            foreach ($contacts as $contact) {
+                $result[] = [
+                    'name'    => $contact->getDisplayName() ?? '',
+                    'address' => $contact->getEmail() ?? '',
+                ];
+            }
+
+            return array_values(array_filter($result, static fn(array $a): bool => $a['address'] !== ''));
+        };
+
+        $to  = $extract('toAddresses');
+        $cc  = $extract('ccAddresses');
+        $bcc = $extract('bccAddresses');
 
         if (!empty($to))  { $message->setToAddresses($to); }
         if (!empty($cc))  { $message->setCcAddresses($cc); }

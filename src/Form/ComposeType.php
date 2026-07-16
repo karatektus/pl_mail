@@ -42,14 +42,18 @@ class ComposeType extends AbstractType
                 'attr' => ['class' => 'compose-from-select'],
             ])
 
-            ->add('toAddresses', ContactAutocompleteField::class)
+            ->add('toAddresses', ContactAutocompleteField::class, [
+                'mapped' => false,
+            ])
 
             ->add('ccAddresses', ContactAutocompleteField::class, [
                 'required' => false,
+                'mapped' => false,
             ])
 
             ->add('bccAddresses', ContactAutocompleteField::class, [
                 'required' => false,
+                'mapped' => false,
             ])
 
             ->add('subject', TextType::class, [
