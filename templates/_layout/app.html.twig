@@ -2,8 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Welcome!{% endblock %}</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%221em%22 font-size=%2224%22>✉️</text></svg>">
+    <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%232563eb%22/><path d=%22M4 10 L16 19 L28 10 M4 10 L4 24 L28 24 L28 10 Z%22 stroke=%22white%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linejoin=%22round%22/></svg>">
 
     {# Must be first thing in <head> to avoid flash of wrong theme #}
     <script>

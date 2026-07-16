@@ -1,5 +1,10 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
+{% block title %}
+    {% set _unread = sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').SENT) %}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ 'Sent'|trans }} — {{ 'app.name'|trans }}
+{% endblock %}
+
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-gray-100/70 dark:border-gray-800/70">
         <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ 'sent.heading'|trans }}</h2>

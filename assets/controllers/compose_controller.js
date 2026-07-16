@@ -397,18 +397,17 @@ export default class extends Controller {
 
     showCc() {
         this.ccFieldTarget.classList.remove('hidden');
-        this.ccFieldTarget.classList.add('flex');
-        if (this.hasCcBtnTarget) { this.ccBtnTarget.classList.add('hidden'); }
-        this._ensureEntry(this.ccFieldTarget.querySelector('[data-prototype]'));
+        if (this.hasCcBtnTarget) {
+            this.ccBtnTarget.classList.add('hidden');
+        }
     }
 
     showBcc() {
         this.bccFieldTarget.classList.remove('hidden');
-        this.bccFieldTarget.classList.add('flex');
-        if (this.hasBccBtnTarget) { this.bccBtnTarget.classList.add('hidden'); }
-        this._ensureEntry(this.bccFieldTarget.querySelector('[data-prototype]'));
+        if (this.hasBccBtnTarget) {
+            this.bccBtnTarget.classList.add('hidden');
+        }
     }
-
     // ── Helpers ───────────────────────────────────────────────────────
 
     _updateTitle(value) {

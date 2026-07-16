@@ -1,21 +1,6 @@
 {# templates/compose/_window.html.twig #}
 {% form_theme form '_layout/form/compose_theme.html.twig' %}
 
-{#
-Helper macro — builds a prefilled JSON array for Tom Select from
-the Symfony CollectionType value (array of {name, address} maps).
-#}
-{% macro ts_prefilled(addresses) %}
-    {%- set items = [] -%}
-    {%- for addr in addresses -%}
-        {%- if addr.address is defined and addr.address -%}
-            {%- set label = addr.name ? addr.name ~ ' <' ~ addr.address ~ '>' : addr.address -%}
-            {%- set items = items|merge([{value: addr.address, label: label, email: addr.address, displayName: addr.name|default(''), initials: addr.name|default(addr.address)|slice(0,1)|upper}]) -%}
-        {%- endif -%}
-    {%- endfor -%}
-    {{- items|json_encode -}}
-{% endmacro %}
-
 {% import _self as m %}
 
 <turbo-frame id="compose_dock">
@@ -27,7 +12,6 @@ the Symfony CollectionType value (array of {name, address} maps).
             data-compose-draft-url-value="{{ path('app_compose_form_edit', {'id': message.id}) }}"
             data-compose-send-url-value="{{ path('app_compose_mail_send_draft', {'id': message.id}) }}"
         {% endif %}
-
          class="max-h-[90vh]
        w-[520px] rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60
        bg-white/80 dark:bg-gray-900/80
@@ -134,72 +118,51 @@ the Symfony CollectionType value (array of {name, address} maps).
                 </div>
             </div>
 
-            {# ── Divider ──────────────────────────────────────────── #}
-            <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] mt-1 shrink-0"></div>
-
             {# ── To ───────────────────────────────────────────────── #}
-            <div class="flex items-center gap-2 px-4 py-1.5 shrink-0 min-h-[36px]"
-                 data-controller="address-autocomplete"
-                 data-address-autocomplete-field-value="to">
+            <div class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">To</span>
-
-                {#
-                A <select multiple> is the cleanest Tom Select target:
-                - pre-filled options become selected items automatically
-                - form submission sends multiple values under the same name
-                - Tom Select wraps it seamlessly
-                The name maps to our custom ComposeController deserialization.
-                #}
-{{ form_widget(form.toAddresses) }}
+                <div class="flex-1 min-w-0">
+                    {{ form_widget(form.toAddresses) }}
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button type="button"
+                            data-compose-target="ccBtn"
+                            data-action="click->compose#showCc"
+                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        Cc
+                    </button>
+                    <button type="button"
+                            data-compose-target="bccBtn"
+                            data-action="click->compose#showBcc"
+                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        Bcc
+                    </button>
+                </div>
             </div>
 
             {# ── Cc ───────────────────────────────────────────────── #}
             <div data-compose-target="ccField"
-                 class="hidden items-center gap-2 px-4 py-1.5 shrink-0 min-h-[36px]"
-                 data-controller="address-autocomplete">
+                 class="hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Cc</span>
-                <select
-                    name="compose_cc[]"
-                    multiple
-                    data-address-autocomplete-target="input"
-                    data-prefilled="{{ m.ts_prefilled(form.ccAddresses.vars.data ?? []) }}"
-                    class="hidden"
-                >
-                    {% for addr in form.ccAddresses.vars.data ?? [] %}
-                        {% if addr.address is defined and addr.address %}
-                            <option value="{{ addr.address }}" selected>
-                                {{- addr.name ? addr.name ~ ' <' ~ addr.address ~ '>' : addr.address -}}
-                            </option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
+                <div class="flex-1 min-w-0">
+                    {{ form_widget(form.ccAddresses) }}
+                </div>
             </div>
 
             {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose-target="bccField"
-                 class="hidden items-center gap-2 px-4 py-1.5 shrink-0 min-h-[36px]"
-                 data-controller="address-autocomplete">
+                 class="hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Bcc</span>
-                <select
-                    name="compose_bcc[]"
-                    multiple
-                    data-address-autocomplete-target="input"
-                    data-prefilled="{{ m.ts_prefilled(form.bccAddresses.vars.data ?? []) }}"
-                    class="hidden"
-                >
-                    {% for addr in form.bccAddresses.vars.data ?? [] %}
-                        {% if addr.address is defined and addr.address %}
-                            <option value="{{ addr.address }}" selected>
-                                {{- addr.name ? addr.name ~ ' <' ~ addr.address ~ '>' : addr.address -}}
-                            </option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
+                <div class="flex-1 min-w-0">
+                    {{ form_widget(form.bccAddresses) }}
+                </div>
             </div>
 
+            {# ── Divider ──────────────────────────────────────────── #}
+            <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] mt-1 shrink-0"></div>
+
             {# ── Subject ──────────────────────────────────────────── #}
-            <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] shrink-0"></div>
-            <div class="flex items-center gap-2 px-4 py-2 shrink-0">
+            <div class="flex items-center gap-3 px-4 py-2 shrink-0">
                 <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Subj</span>
                 <input type="text"
                        id="{{ form.subject.vars.id }}"
@@ -236,7 +199,6 @@ the Symfony CollectionType value (array of {name, address} maps).
             {# ── Toolbar ──────────────────────────────────────────── #}
             <div class="px-3 pb-3 pt-1 shrink-0">
 
-                {# Formatting bubble #}
                 <div class="flex items-center gap-0.5 mb-2 flex-wrap
                             bg-gray-100/80 dark:bg-gray-800/60
                             rounded-full px-2 py-1">
@@ -266,26 +228,15 @@ the Symfony CollectionType value (array of {name, address} maps).
 
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
 
-                    <button type="button"
-                            data-compose-toolbar-action
-                            data-compose-toolbar-target="boldBtn"
+                    <button type="button" data-compose-toolbar-action data-compose-toolbar-target="boldBtn"
                             data-action="click->compose-toolbar#bold"
-                            class="px-1.5 py-0.5 rounded font-bold text-sm transition-colors
-                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">B</button>
-
-                    <button type="button"
-                            data-compose-toolbar-action
-                            data-compose-toolbar-target="italicBtn"
+                            class="px-1.5 py-0.5 rounded font-bold text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">B</button>
+                    <button type="button" data-compose-toolbar-action data-compose-toolbar-target="italicBtn"
                             data-action="click->compose-toolbar#italic"
-                            class="px-1.5 py-0.5 rounded italic text-sm transition-colors
-                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">I</button>
-
-                    <button type="button"
-                            data-compose-toolbar-action
-                            data-compose-toolbar-target="underlineBtn"
+                            class="px-1.5 py-0.5 rounded italic text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">I</button>
+                    <button type="button" data-compose-toolbar-action data-compose-toolbar-target="underlineBtn"
                             data-action="click->compose-toolbar#underline"
-                            class="px-1.5 py-0.5 rounded underline text-sm transition-colors
-                                   text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">U</button>
+                            class="px-1.5 py-0.5 rounded underline text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">U</button>
 
                     <label class="px-1.5 py-0.5 rounded text-sm flex flex-col items-center leading-none gap-0.5
                                   transition-colors text-gray-700 dark:text-gray-300
@@ -293,10 +244,8 @@ the Symfony CollectionType value (array of {name, address} maps).
                         <span class="font-semibold">A</span>
                         <span data-compose-toolbar-target="colorSwatch"
                               class="block w-3.5 h-[3px] bg-blue-500 rounded-sm"></span>
-                        <input type="color"
-                               data-action="input->compose-toolbar#changeColor"
-                               class="absolute opacity-0 w-0 h-0 pointer-events-none"
-                               tabindex="-1">
+                        <input type="color" data-action="input->compose-toolbar#changeColor"
+                               class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1">
                     </label>
 
                     <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
@@ -334,7 +283,6 @@ the Symfony CollectionType value (array of {name, address} maps).
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#redo"
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700" title="Redo">
                         <i class="fa-solid fa-rotate-right"></i></button>
-
                 </div>
 
                 {# Action bar #}

@@ -1,6 +1,8 @@
 {# mail/thread.html.twig #}
 {% extends '_layout/_mailbox.html.twig' %}
 
+{% block title %}{{ thread.subject ?: ('thread.no_subject'|trans) }} — {{ 'app.name'|trans }}{% endblock %}
+
 {% block message_list %}{% endblock %}
 {% block inbox_tabs %}{% endblock %}
 {% block pane_open %}true{% endblock %}
