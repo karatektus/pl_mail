@@ -83,6 +83,23 @@ class Account extends AccountModel
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $gmailHistoryId = null;
+
+    /**
+     * When the users.watch() registration for this mailbox expires.
+     * Google watch registrations last at most 7 days and must be renewed.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $gmailWatchExpiry = null;
+
+    /**
+     * The resource name returned by users.watch() — stored so we can call
+     * users.stop() if the account is disconnected.
+     */
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $gmailWatchResourceName = null;
+
     /**
      * @var Collection<int, Mailbox>
      */
@@ -416,5 +433,47 @@ class Account extends AccountModel
         }
 
         return $this;
+    }
+
+    public function getGmailHistoryId(): ?string
+    {
+        return $this->gmailHistoryId;
+    }
+
+    public function setGmailHistoryId(?string $gmailHistoryId): static
+    {
+        $this->gmailHistoryId = $gmailHistoryId;
+        return $this;
+    }
+
+    public function getGmailWatchExpiry(): ?\DateTimeImmutable
+    {
+        return $this->gmailWatchExpiry;
+    }
+
+    public function setGmailWatchExpiry(?\DateTimeImmutable $gmailWatchExpiry): static
+    {
+        $this->gmailWatchExpiry = $gmailWatchExpiry;
+        return $this;
+    }
+
+    public function getGmailWatchResourceName(): ?string
+    {
+        return $this->gmailWatchResourceName;
+    }
+
+    public function setGmailWatchResourceName(?string $gmailWatchResourceName): static
+    {
+        $this->gmailWatchResourceName = $gmailWatchResourceName;
+        return $this;
+    }
+
+    public function isGmailWatchActive(): bool
+    {
+        if (null === $this->gmailWatchExpiry) {
+            return false;
+        }
+
+        return $this->gmailWatchExpiry > new \DateTimeImmutable();
     }
 }

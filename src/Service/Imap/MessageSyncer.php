@@ -3,11 +3,11 @@
 namespace App\Service\Imap;
 
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
-use App\Entity\Mailbox;
-use App\Repository\MessageRepository;
 use App\Repository\MailboxRepository;
+use App\Repository\MessageRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -16,7 +16,7 @@ use Webklex\PHPIMAP\Message as ImapMessage;
 
 class MessageSyncer
 {
-    private const BATCH_SIZE = 50;
+    private const int BATCH_SIZE = 50;
 
     public function __construct(
         private readonly AttachmentStorageHelper $attachmentStorage,
@@ -35,29 +35,33 @@ class MessageSyncer
         $uidRange    = ($lastSeenUid + 1) . ':*';
 
         $this->logger->info('Syncing mailbox', [
-            'mailbox' => $mailbox->getFullPath(),
-            'account' => $accountId,
+            'mailbox'     => $mailbox->getFullPath(),
+            'account'     => $accountId,
+            'lastSeenUid' => $lastSeenUid,
         ]);
 
         $folder = $client->getFolder($mailbox->getName());
 
-        if ($folder === null) {
+        if (null === $folder) {
             $this->logger->error('Folder not found', ['mailbox' => $mailbox->getName()]);
             return;
         }
-        $syncedUids = array_flip($this->messageRepository->findSyncedUids($mailbox) ?? []);
+
+        // Load all already-synced UIDs up front so each batch can O(1)-skip them.
+        // array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
+        $syncedUids = array_flip(
+            $this->messageRepository->findSyncedUids($mailbox)
+        );
 
         $synced = 0;
 
-        $sinceDate = $mailbox->getSyncedAt() ?? new DateTimeImmutable('-30 days');
-
         $folder->messages()
-            ->since($sinceDate)
+            ->where('UID', $uidRange)
             ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids) {
                 $this->processBatch($batch, $mailboxId, $accountId, $syncedUids);
                 $synced += count($batch);
                 $this->em->clear();
-                $this->logger->info(sprintf('Processed %d messages so far', $synced));
+                $this->logger->info(sprintf('Synced %d messages so far', $synced));
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
@@ -67,38 +71,49 @@ class MessageSyncer
         $this->em->flush();
     }
 
-    private function processBatch($batch, int $mailboxId, int $accountId, array &$syncedUids): void
-    {
+    /**
+     * @param array<int,bool> $syncedUids  passed by reference so new UIDs are
+     *                                      registered within the same sync run
+     *                                      (guards against duplicates inside a
+     *                                      single chunked call)
+     */
+    private function processBatch(
+        iterable $batch,
+        int      $mailboxId,
+        int      $accountId,
+        array    &$syncedUids,
+    ): void {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
         $maxUid   = 0;
 
-        // Pass 1 — persist all messages without threading
+        // Pass 1 — build + persist Message rows (no threading yet)
         foreach ($batch as $imapMessage) {
             $uid = $imapMessage->getUid();
 
-            // Skip already-synced UIDs — critical for date-based fetching.
-            if (isset($syncedUids[$uid])) {
+            if (true === isset($syncedUids[$uid])) {
+                $this->logger->debug('Skipping already-synced UID', ['uid' => $uid]);
                 continue;
             }
 
             try {
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
-                $messages[] = $message;
+                $messages[]        = $message;
+                $syncedUids[$uid]  = true; // mark within this run
 
-                if ($imapMessage->getUid() > $maxUid) {
-                    $maxUid = $imapMessage->getUid();
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to build message', [
-                    'uid'   => $imapMessage->getUid(),
+                    'uid'   => $uid,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        // Flush so all messages are now queryable by the threader
+        // Flush so all new messages have IDs before the threader queries them
         $this->em->flush();
 
         // Pass 2 — assign threads now that all messages exist in DB
@@ -117,7 +132,7 @@ class MessageSyncer
             }
         }
 
-        if ($maxUid > 0) {
+        if (true === ($maxUid > 0)) {
             $mailbox->setLastSeenUid($maxUid);
         }
 
@@ -130,14 +145,17 @@ class MessageSyncer
         $message->setMailbox($mailbox);
         $message->setImapUid($imapMessage->getUid());
         $message->setMessageId((string) $imapMessage->getMessageId());
-        $message->setSubject($this->decodeMimeHeader((string) $imapMessage->getSubject()));
-
+        $message->setSubject(
+            $this->decodeMimeHeader((string) $imapMessage->getSubject())
+        );
 
         // From
         $from = $imapMessage->getFrom()->first();
-        if ($from !== null) {
+        if (null !== $from) {
             $message->setFromAddress($from->mail ?? '');
-            $message->setFromName($this->decodeMimeHeader((string) $imapMessage->getFrom()->first()->personal));
+            $message->setFromName(
+                $this->decodeMimeHeader((string) $from->personal)
+            );
         }
 
         // Recipients
@@ -147,15 +165,18 @@ class MessageSyncer
 
         // Dates
         $date = $imapMessage->getDate()->toDate();
-        $message->setSentAt(DateTimeImmutable::createFromInterface($date));
-        $message->setReceivedAt(DateTimeImmutable::createFromInterface($date));
+        $receivedAt = DateTimeImmutable::createFromInterface($date);
+        $message->setSentAt($receivedAt);
+        $message->setReceivedAt($receivedAt);
 
         // Flags
-        $flags     = $imapMessage->getFlags()->toArray();
-        $flagNames = array_values($flags);
+        $flagNames = array_values($imapMessage->getFlags()->toArray());
         $message->setFlags($flagNames);
 
-        if (in_array('Seen', $flagNames, true) || in_array('\\Seen', $flagNames, true)) {
+        if (
+            true === in_array('Seen', $flagNames, true)
+            || true === in_array('\\Seen', $flagNames, true)
+        ) {
             $message->setSeenAt(new DateTimeImmutable());
         }
 
@@ -164,10 +185,10 @@ class MessageSyncer
         $references = $imapMessage->getReferences();
 
         $message->setInReplyTo(
-            $inReplyTo->exist() ? explode(' ', (string) $inReplyTo) : []
+            $inReplyTo->exist() ? explode(' ', trim((string) $inReplyTo)) : []
         );
         $message->setReferences(
-            $references->exist() ? explode(' ', (string) $references) : []
+            $references->exist() ? explode(' ', trim((string) $references)) : []
         );
 
         // Body
@@ -177,7 +198,6 @@ class MessageSyncer
         // Attachments
         $attachments = $imapMessage->getAttachments();
         $message->setHasAttachments($attachments->isNotEmpty());
-
         $message->setSyncedAt(new DateTimeImmutable());
 
         foreach ($attachments as $attachment) {
@@ -187,7 +207,7 @@ class MessageSyncer
         return $message;
     }
 
-    private function persistAttachment($attachment, Message $message, int $accountId): void
+    private function persistAttachment(mixed $attachment, Message $message, int $accountId): void
     {
         $filename = $attachment->getFilename() ?? ('attachment_' . uniqid());
         $content  = $attachment->getContent();
@@ -212,14 +232,13 @@ class MessageSyncer
         $this->em->persist($part);
     }
 
-    private function formatAddresses($attribute): array
+    private function formatAddresses(mixed $attribute): array
     {
-        if ($attribute === null) {
+        if (null === $attribute) {
             return [];
         }
 
         $result = [];
-
         foreach ($attribute as $address) {
             $result[] = [
                 'name'    => $address->personal ?? '',
@@ -234,7 +253,7 @@ class MessageSyncer
     {
         $decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
 
-        if ($decoded === false) {
+        if (false === $decoded) {
             return $value;
         }
 

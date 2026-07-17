@@ -9,7 +9,8 @@ use App\Entity\Account;
 use App\Entity\User;
 use App\Enum\AuthType;
 use App\Repository\AccountRepository;
-use App\Service\OAuth\OAuthProviderFactory;
+use App\Repository\MailboxRepository;
+use App\Service\Gmail\GmailWatchService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -20,19 +21,20 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Service\OAuth\OAuthProviderFactory;
 
 #[IsGranted('ROLE_USER')]
 #[Route('/oauth', name: 'app_oauth_')]
 class OAuthController extends AbstractController
 {
-    private const SESSION_STATE_KEY = 'oauth2_state';
+    private const string SESSION_STATE_KEY = 'oauth2_state';
 
     public function __construct(
         private readonly OAuthProviderFactory   $providerFactory,
         private readonly AccountRepository      $accountRepository,
         private readonly EntityManagerInterface $em,
-    ) {
-    }
+        private readonly GmailWatchService      $watchService,
+    ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
     public function connect(string $provider, Request $request): RedirectResponse
@@ -83,16 +85,30 @@ class OAuthController extends AbstractController
         $email     = $this->extractEmail($ownerData);
 
         if (null === $email) {
-            throw $this->createAccessDeniedException('Could not determine the account email from the provider.');
+            throw $this->createAccessDeniedException(
+                'Could not determine the account email from the provider.'
+            );
         }
 
-        $this->upsertAccount($mailProvider, $email, $token);
+        $account = $this->upsertAccount($mailProvider, $email, $token);
+
+        // Register Gmail push-notification watch for the inbox mailbox.
+        // The mailbox sync runs separately (SyncMailboxesCommand); the watch
+        // only needs to exist before the first push arrives.
+        if (true === (MailProvider::Google === $mailProvider)) {
+            $this->registerGmailWatch($account);
+        }
 
         return $this->redirectToRoute('app_default_index');
     }
 
-    private function upsertAccount(MailProvider $provider, string $email, AccessTokenInterface $token): void
-    {
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    private function upsertAccount(
+        MailProvider       $provider,
+        string             $email,
+        AccessTokenInterface $token,
+    ): Account {
         /** @var User $user */
         $user = $this->getUser();
 
@@ -115,10 +131,7 @@ class OAuthController extends AbstractController
         $account->setImapHost($provider->imapHost());
         $account->setImapPort($provider->imapPort());
         $account->setImapEncryption($provider->imapEncryption());
-
-        // OAuth accounts never carry a password; sending goes over the provider API.
         $account->setPassword(null);
-
         $account->setOauthAccessToken($token->getToken());
 
         $refreshToken = $token->getRefreshToken();
@@ -128,27 +141,40 @@ class OAuthController extends AbstractController
 
         $expires = $token->getExpires();
         if (null !== $expires) {
-            $account->setOauthTokenExpiry(new DateTimeImmutable()->setTimestamp($expires));
+            $account->setOauthTokenExpiry(
+                (new DateTimeImmutable())->setTimestamp($expires)
+            );
         }
 
         $account->setUpdatedAt(new DateTimeImmutable());
 
         $this->em->persist($account);
         $this->em->flush();
+
+        return $account;
+    }
+
+    private function registerGmailWatch(Account $account): void
+    {
+        try {
+            $this->watchService->watch($account);
+        } catch (\Throwable $e) {
+            // Non-fatal — push will be missing until renewal command runs
+            // but polling-based sync still works
+        }
     }
 
     /**
-     * Provider-agnostic email extraction. Google exposes "email"; Microsoft
-     * exposes "mail" or falls back to "userPrincipalName".
-     *
-     * @param array<string, mixed> $ownerData
+     * @param array<string,mixed> $ownerData
      */
     private function extractEmail(array $ownerData): ?string
     {
-        $candidateKeys = ['email', 'mail', 'userPrincipalName'];
-
-        foreach ($candidateKeys as $key) {
-            if (array_key_exists($key, $ownerData) && is_string($ownerData[$key]) && '' !== $ownerData[$key]) {
+        foreach (['email', 'mail', 'userPrincipalName'] as $key) {
+            if (
+                true === array_key_exists($key, $ownerData)
+                && true === is_string($ownerData[$key])
+                && '' !== $ownerData[$key]
+            ) {
                 return $ownerData[$key];
             }
         }
@@ -161,7 +187,9 @@ class OAuthController extends AbstractController
         $mailProvider = MailProvider::tryFrom($provider);
 
         if (null === $mailProvider) {
-            throw $this->createNotFoundException(sprintf('Unknown OAuth provider "%s".', $provider));
+            throw $this->createNotFoundException(
+                sprintf('Unknown OAuth provider "%s".', $provider)
+            );
         }
 
         return $mailProvider;

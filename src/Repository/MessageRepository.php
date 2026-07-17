@@ -28,6 +28,18 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
     }
 
+    public function findSyncedMessageIds(Mailbox $mailbox): array
+    {
+        return $this->createQueryBuilder('m')
+            ->select('m.messageId')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.messageId IS NOT NULL')
+            ->andWhere('m.imapUid IS NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
     public function findByMailboxOrderedByDate(Mailbox $mailbox): array
     {
         return $this->createQueryBuilder('m')
