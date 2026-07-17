@@ -5,132 +5,71 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Entity\Mailbox;
+use App\Message\SyncGmailMessageBatchMessage;
 use App\Repository\MessageRepository;
-use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Syncs a Gmail mailbox using the Gmail REST API.
- *
- * Two entry points:
- *   initialSync()      — fetches all messages, stores historyId for future incremental calls
- *   syncIncremental()  — fetches only what changed since the last stored historyId
- *
- * The SyncMailboxMessageHandler decides which to call based on whether a
- * historyId is already stored on the Mailbox.
+ * Plans Gmail INBOX sync work and fans it out to SyncGmailMessageBatchMessage
+ * jobs. Message building/persistence happens in SyncGmailMessageBatchHandler,
+ * so initial and incremental sync share one build path and parallelise.
  */
 final class GmailApiSyncer
 {
-    /** Max messages to fetch per initial-sync page (API max is 500) */
+    /** Message-list page size (API max is 500). */
     private const int PAGE_SIZE = 500;
 
+    /** Gmail message IDs per fan-out batch. */
+    private const int BATCH_SIZE = 100;
+
     public function __construct(
-        private readonly GmailApiClient    $apiClient,
-        private readonly GmailMessageBuilder $messageBuilder,
-        private readonly MessageThreader   $messageThreader,
-        private readonly MessageRepository $messageRepository,
+        private readonly GmailApiClient         $apiClient,
+        private readonly MessageRepository      $messageRepository,
         private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface   $logger,
+        private readonly MessageBusInterface    $bus,
+        private readonly LoggerInterface        $logger,
     ) {}
 
-    // ── Public entry points ───────────────────────────────────────────────────
-
     /**
-     * Full initial sync: fetch all INBOX message IDs, build Message entities,
-     * assign threads, store the current historyId.
-     *
-     * Safe to call on subsequent runs — already-synced messages are skipped
-     * via messageId dedup.
+     * Snapshot the historyId up front (so a crash mid-fan-out leaves the account
+     * incremental-ready), list every INBOX message ID, and dispatch batches for
+     * the ones we don't already have.
      */
     public function initialSync(Mailbox $mailbox): void
     {
         $account = $mailbox->getAccount();
 
-        $this->logger->info('GmailApiSyncer: starting initial sync', [
+        $this->logger->info('GmailApiSyncer: planning initial sync', [
             'mailboxId' => $mailbox->getId(),
             'account'   => $account->getEmail(),
         ]);
 
-        // Grab the current historyId before we start so we don't miss anything
-        // that arrives while we're paginating
-        $profile = $this->apiClient->getProfile($account);
+        $profile          = $this->apiClient->getProfile($account);
         $currentHistoryId = (string) ($profile['historyId'] ?? '');
 
-        // Load existing message IDs for dedup
-        $syncedMessageIds = array_flip(
-            $this->messageRepository->findSyncedMessageIds($mailbox)
-        );
+        // Persist the snapshot immediately. The backlog is filled by batch jobs
+        // (by ID) and dedup prevents double inserts, so storing it before the
+        // messages land is safe and makes a partial run incremental-ready.
+        if ('' !== $currentHistoryId) {
+            $account->setGmailHistoryId($currentHistoryId);
+            $this->em->flush();
+        }
 
         $messageRefs = $this->apiClient->listMessages($account, [
             'labelIds'   => 'INBOX',
             'maxResults' => self::PAGE_SIZE,
         ]);
 
-        $this->logger->info('GmailApiSyncer: fetched message list', [
-            'count' => count($messageRefs),
-        ]);
-
-        $synced = 0;
-
-        foreach ($messageRefs as $ref) {
-            $gmailId = (string) ($ref['id'] ?? '');
-
-            if (true === isset($syncedMessageIds[$gmailId])) {
-                continue;
-            }
-
-            try {
-                $payload = $this->apiClient->getMessage($account, $gmailId);
-                $message = $this->messageBuilder->build($payload, $mailbox);
-                $this->em->persist($message);
-                $this->em->flush();
-
-                $this->messageThreader->assignThread($message, $account, $mailbox);
-                $this->em->flush();
-
-                $syncedMessageIds[$gmailId] = true;
-                $synced++;
-
-                // Flush in small batches to avoid memory pressure
-                if (true === ($synced % 50 === 0)) {
-                    $this->em->clear();
-                    $this->logger->info(sprintf('GmailApiSyncer: synced %d messages', $synced));
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error('GmailApiSyncer: failed to sync message', [
-                    'gmailId' => $gmailId,
-                    'error'   => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Store historyId captured at the start — anything arriving after this
-        // point will be caught by the next incremental sync
-        if ('' !== $currentHistoryId) {
-            $account->setGmailHistoryId($currentHistoryId);
-        }
-
-        $mailbox->setSyncedAt(new DateTimeImmutable());
-        $mailbox->setTotalMessages(
-            $this->messageRepository->countTotalForMailbox($mailbox)
-        );
-        $mailbox->setUnreadMessages(
-            $this->messageRepository->countUnseenForMailbox($mailbox)
-        );
-        $this->em->flush();
-
-        $this->logger->info('GmailApiSyncer: initial sync complete', [
-            'synced'    => $synced,
-            'historyId' => $currentHistoryId,
-        ]);
+        $this->dispatchBatches($mailbox, $this->newGmailIds($mailbox, $messageRefs));
     }
 
     /**
-     * Incremental sync: fetch only messages added since the last historyId.
-     * Updates the stored historyId on completion.
+     * Read history since the stored historyId, dispatch batches for newly-added
+     * messages, and advance the stored historyId.
      */
     public function syncIncremental(Mailbox $mailbox): void
     {
@@ -138,28 +77,27 @@ final class GmailApiSyncer
         $startHistoryId = $account->getGmailHistoryId();
 
         if (null === $startHistoryId) {
-            $this->logger->warning(
-                'GmailApiSyncer: no historyId stored, falling back to initial sync',
-                ['mailboxId' => $mailbox->getId()],
-            );
+            $this->logger->warning('GmailApiSyncer: no historyId stored, running initial sync', [
+                'mailboxId' => $mailbox->getId(),
+            ]);
             $this->initialSync($mailbox);
             return;
         }
 
-        $this->logger->info('GmailApiSyncer: incremental sync', [
-            'mailboxId'      => $mailbox->getId(),
-            'startHistoryId' => $startHistoryId,
-        ]);
-
         try {
             $result = $this->apiClient->listHistory($account, $startHistoryId, [
-                'labelId'         => 'INBOX',
-                'historyTypes'    => 'messageAdded',
+                'labelId'      => 'INBOX',
+                'historyTypes' => 'messageAdded',
             ]);
         } catch (\Throwable $e) {
-            // historyId too old (410 Gone) — fall back to initial sync
-            if (true === str_contains($e->getMessage(), '410')) {
-                $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync');
+            // A too-old historyId returns 404 or 410 — rebuild from scratch.
+            if (
+                true === str_contains($e->getMessage(), '404')
+                || true === str_contains($e->getMessage(), '410')
+            ) {
+                $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync', [
+                    'mailboxId' => $mailbox->getId(),
+                ]);
                 $account->setGmailHistoryId(null);
                 $this->em->flush();
                 $this->initialSync($mailbox);
@@ -169,63 +107,63 @@ final class GmailApiSyncer
             throw $e;
         }
 
-        $newHistoryId = $result['historyId'];
-        $history      = $result['history'];
-
-        // Collect unique message IDs from messagesAdded events
-        $gmailIds = [];
-        foreach ($history as $record) {
+        $refs = [];
+        foreach ($result['history'] as $record) {
             foreach ($record['messagesAdded'] ?? [] as $added) {
                 $id = (string) ($added['message']['id'] ?? '');
                 if ('' !== $id) {
-                    $gmailIds[$id] = true;
+                    $refs[] = ['id' => $id];
                 }
             }
         }
 
-        $this->logger->info('GmailApiSyncer: new messages from history', [
-            'count' => count($gmailIds),
-        ]);
+        $this->dispatchBatches($mailbox, $this->newGmailIds($mailbox, $refs));
 
-        // Dedup against already-synced
-        $syncedMessageIds = array_flip(
-            $this->messageRepository->findSyncedMessageIds($mailbox)
+        $account->setGmailHistoryId((string) $result['historyId']);
+        $mailbox->setSyncedAt(new DateTimeImmutable());
+        $this->em->flush();
+    }
+
+    /**
+     * @param list<array{id?: string}> $refs
+     * @return list<string>
+     */
+    private function newGmailIds(Mailbox $mailbox, array $refs): array
+    {
+        $syncedGmailIds = array_flip(
+            $this->messageRepository->findSyncedGmailIds($mailbox)
         );
 
-        foreach (array_keys($gmailIds) as $gmailId) {
-            if (true === isset($syncedMessageIds[$gmailId])) {
+        $pending = [];
+        foreach ($refs as $ref) {
+            $gmailId = (string) ($ref['id'] ?? '');
+            if ('' === $gmailId) {
                 continue;
             }
-
-            try {
-                $payload = $this->apiClient->getMessage($account, $gmailId);
-                $message = $this->messageBuilder->build($payload, $mailbox);
-                $this->em->persist($message);
-                $this->em->flush();
-
-                $this->messageThreader->assignThread($message, $account, $mailbox);
-                $this->em->flush();
-            } catch (\Throwable $e) {
-                $this->logger->error('GmailApiSyncer: failed to sync message', [
-                    'gmailId' => $gmailId,
-                    'error'   => $e->getMessage(),
-                ]);
+            if (true === isset($syncedGmailIds[$gmailId])) {
+                continue;
             }
+            $pending[] = $gmailId;
         }
 
-        // Always advance the stored historyId even if no new messages arrived
-        $account->setGmailHistoryId($newHistoryId);
-        $mailbox->setSyncedAt(new DateTimeImmutable());
-        $mailbox->setUnreadMessages(
-            $this->messageRepository->countUnseenForMailbox($mailbox)
-        );
-        $mailbox->setTotalMessages(
-            $this->messageRepository->countTotalForMailbox($mailbox)
-        );
-        $this->em->flush();
+        return $pending;
+    }
 
-        $this->logger->info('GmailApiSyncer: incremental sync complete', [
-            'newHistoryId' => $newHistoryId,
+    /**
+     * @param list<string> $gmailIds
+     */
+    private function dispatchBatches(Mailbox $mailbox, array $gmailIds): void
+    {
+        $chunks = array_chunk($gmailIds, self::BATCH_SIZE);
+
+        foreach ($chunks as $chunk) {
+            $this->bus->dispatch(new SyncGmailMessageBatchMessage($mailbox->getId(), $chunk));
+        }
+
+        $this->logger->info('GmailApiSyncer: fanned out sync', [
+            'mailboxId' => $mailbox->getId(),
+            'messages'  => count($gmailIds),
+            'batches'   => count($chunks),
         ]);
     }
 }

@@ -51,6 +51,6 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
             $this->gmailApiSyncer->syncIncremental($inbox);
         }
 
-        return [$inbox->getId()];
+        return [];
     }
 }

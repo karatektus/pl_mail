@@ -34,7 +34,7 @@
 
         {% if message.bodyHtml %}
             <div class="prose prose-sm dark:prose-invert max-w-none">
-                {{ message.bodyHtml|raw }}
+                {{ message.bodyHtml|resolve_cid(message)|raw }}
             </div>
         {% else %}
             <div class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
@@ -45,7 +45,20 @@
         {% if message.hasAttachments %}
             <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                 <p class="text-xs font-medium text-gray-400 dark:text-gray-600 mb-2">{{ 'message.attachments'|trans }}</p>
-                {# attachment list goes here once MessagePart rendering is wired up #}
+                <div class="flex flex-wrap gap-2">
+                    {% for part in message.messageParts if not part.isInline %}
+
+                        href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+                        bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-white/10
+                        text-gray-700 dark:text-gray-300
+                        hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                        >
+                        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+                        <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
             </div>
         {% endif %}
 

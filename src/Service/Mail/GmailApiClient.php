@@ -69,6 +69,43 @@ final class GmailApiClient
     }
 
     /**
+     * Fetch multiple messages (format=full) concurrently, keyed by Gmail message ID.
+     * Concurrency is bounded by the HTTP client's connection pool, so a large batch
+     * won't open a request per ID at once. Failed fetches are dropped; re-runs are
+     * safe via dedup.
+     *
+     * @param list<string> $messageIds
+     * @return array<string,array<string,mixed>>
+     */
+    public function getMessages(Account $account, array $messageIds): array
+    {
+        $token     = $this->tokenManager->getValidAccessToken($account);
+        $responses = [];
+
+        foreach ($messageIds as $id) {
+            $responses[$id] = $this->httpClient->request(
+                'GET',
+                self::BASE . '/messages/' . urlencode($id),
+                [
+                    'auth_bearer' => $token,
+                    'query'       => ['format' => 'full'],
+                ],
+            );
+        }
+
+        $payloads = [];
+        foreach ($responses as $id => $response) {
+            try {
+                $payloads[$id] = $response->toArray();
+            } catch (\Throwable) {
+                // Skip; the batch is re-runnable and dedup makes retries safe.
+            }
+        }
+
+        return $payloads;
+    }
+
+    /**
      * Fetch a single message in full RFC-2822 format (raw) so we can parse it
      * exactly like an IMAP message.
      *
@@ -191,5 +228,24 @@ final class GmailApiClient
         ]);
 
         return $response->toArray();
+    }
+
+    /**
+     * Download a single attachment's bytes. Gmail returns URL-safe base64 in `data`.
+     */
+    public function getAttachment(Account $account, string $messageId, string $attachmentId): string
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request(
+            'GET',
+            self::BASE . '/messages/' . urlencode($messageId) . '/attachments/' . urlencode($attachmentId),
+            ['auth_bearer' => $token],
+        );
+
+        $body = $response->toArray();
+        $data = (string) ($body['data'] ?? '');
+
+        return base64_decode(strtr($data, '-_', '+/'));
     }
 }

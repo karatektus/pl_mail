@@ -227,7 +227,14 @@ class MessageSyncer
         $part->setDisposition($attachment->getDisposition() ?? 'attachment');
         $part->setSize(strlen($content));
         $part->setStoragePath($storagePath);
-        $part->setIsInline(($attachment->getDisposition() ?? '') === 'inline');
+
+        $contentId     = $attachment->getId();
+        $normalizedCid = null !== $contentId ? trim((string) $contentId, '<> ') : '';
+        $part->setContentId('' !== $normalizedCid ? $normalizedCid : null);
+
+        $part->setIsInline(
+            ($attachment->getDisposition() ?? '') === 'inline' || '' !== $normalizedCid
+        );
 
         $this->em->persist($part);
     }

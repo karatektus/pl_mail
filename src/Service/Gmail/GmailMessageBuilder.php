@@ -42,9 +42,8 @@ final class GmailMessageBuilder
         $message = new Message();
         $message->setMailbox($mailbox);
 
-        // Gmail message ID (not RFC Message-ID — that lives in the headers)
-        // We use it as the imapUid equivalent for dedup; store as messageId.
-        $gmailId = (string) ($payload['id'] ?? '');
+        $gmailId = $payload['id'] ?? '';
+        $message->setGmailId($gmailId);
 
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
@@ -215,13 +214,20 @@ final class GmailMessageBuilder
             }
         }
 
-        // Attachment reference (has an attachmentId, no inline data)
-        if (
-            true === isset($part['body']['attachmentId'])
-            && '' !== ($part['filename'] ?? '')
-        ) {
-            $hasAttachments = true;
-            $this->persistAttachmentStub($part, $message, $mailbox, $accountId, $fakeUid);
+        // Attachment or inline part backed by a separate attachmentId
+        if (true === isset($part['body']['attachmentId'])) {
+            $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
+            $filename     = (string) ($part['filename'] ?? '');
+            $hasContentId = '' !== trim((string) ($partHeaders['content-id'] ?? ''), '<> ');
+
+            if ('' !== $filename || true === $hasContentId) {
+                $isInline = $this->persistAttachmentStub($part, $message, $mailbox, $accountId, $fakeUid);
+
+                // Only real (non-inline) attachments flip the paperclip.
+                if (false === $isInline) {
+                    $hasAttachments = true;
+                }
+            }
         }
 
         // Recurse into sub-parts (multipart/*)
@@ -236,11 +242,11 @@ final class GmailMessageBuilder
     }
 
     /**
-     * Persist a MessagePart stub for an attachment.
-     * We store the Gmail attachmentId in storagePath for now; a separate job
-     * can download the content later if needed.
+     * Persist a MessagePart stub for an attachment. Bytes are fetched lazily by
+     * AttachmentResolver on first access.
      *
      * @param array<string,mixed> $part
+     * @return bool  true if the part is inline (referenced from the body)
      */
     private function persistAttachmentStub(
         array   $part,
@@ -248,28 +254,30 @@ final class GmailMessageBuilder
         Mailbox $mailbox,
         int     $accountId,
         int     $fakeUid,
-    ): void {
+    ): bool {
+        $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
         $filename     = (string) ($part['filename'] ?? 'attachment');
         $contentType  = (string) ($part['mimeType'] ?? 'application/octet-stream');
         $attachmentId = (string) ($part['body']['attachmentId'] ?? '');
-        $size         = (int)   ($part['body']['size'] ?? 0);
-        $isInline     = str_contains(
-            strtolower((string) ($part['headers']['content-disposition'] ?? '')),
-            'inline',
-        );
+        $size         = (int) ($part['body']['size'] ?? 0);
+
+        $contentId   = trim((string) ($partHeaders['content-id'] ?? ''), '<> ');
+        $disposition = strtolower((string) ($partHeaders['content-disposition'] ?? ''));
+        $isInline    = true === str_contains($disposition, 'inline') || '' !== $contentId;
 
         $mp = new MessagePart();
         $mp->setMessage($message);
         $mp->setContentType($contentType);
         $mp->setFilename($filename);
+        $mp->setContentId('' !== $contentId ? $contentId : null);
         $mp->setDisposition($isInline ? 'inline' : 'attachment');
         $mp->setSize($size);
-        // Store the Gmail attachment ID so we can fetch later;
-        // prefix distinguishes it from a real filesystem path
         $mp->setStoragePath('gmail://' . $attachmentId);
         $mp->setIsInline($isInline);
 
         $this->em->persist($mp);
+
+        return $isInline;
     }
 
     private function decodeMimeHeader(string $value): string

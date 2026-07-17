@@ -10,6 +10,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+#[ORM\Index(name: 'idx_message_gmail_id', columns: ['gmail_id'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 class Message extends MessageModel
 {
@@ -27,6 +28,9 @@ class Message extends MessageModel
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $messageId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $gmailId = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $subject = null;
@@ -439,6 +443,18 @@ class Message extends MessageModel
     public function setCancelled(bool $cancelled): Message
     {
         $this->cancelled = $cancelled;
+        return $this;
+    }
+
+    public function getGmailId(): ?string
+    {
+        return $this->gmailId;
+    }
+
+    public function setGmailId(?string $gmailId): static
+    {
+        $this->gmailId = $gmailId;
+
         return $this;
     }
 }

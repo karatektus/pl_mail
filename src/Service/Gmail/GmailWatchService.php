@@ -9,6 +9,7 @@ use App\Service\Mail\GmailApiClient;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Registers or renews a Gmail push-notification watch for a mailbox.
@@ -29,6 +30,7 @@ final class GmailWatchService
         private readonly GmailApiClient         $apiClient,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface        $logger,
+        #[Autowire(env: 'GMAIL_PUBSUB_TOPIC')]
         private readonly string                 $pubSubTopicName,
     ) {}
 

@@ -21,7 +21,9 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
-            App\Message\SyncMailboxMessage: async
+            App\Message\SyncImapMailboxMessage: async
+            App\Message\SyncAccountMessage: async
             App\Message\SendMessageMessage: async
             App\Message\ApplyImapFlagsMessage: async
             App\Message\HarvestContactsMessage: async
+            App\Message\SyncGmailMessageBatchMessage: async

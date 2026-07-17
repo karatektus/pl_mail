@@ -8,6 +8,7 @@ use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Repository\MailboxRepository;
+use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailSenderRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,7 @@ class MessageSendService
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly MailSenderRegistry      $senderRegistry,
         private readonly ImapConnectionFactory   $imapConnectionFactory,
+        private readonly AttachmentResolver      $attachmentResolver,
     ) {
     }
 
@@ -90,7 +92,7 @@ class MessageSendService
             $subject = '';
         }
 
-        $email = (new Email())
+        $email = new Email()
             ->from(new Address($account->getEmail(), $fromName))
             ->subject($subject);
 
@@ -131,13 +133,13 @@ class MessageSendService
                 }
 
                 $email->embedFromPath(
-                    $this->attachmentStorage->getAbsolutePath($part->getStoragePath()),
+                    $this->attachmentResolver->absolutePathFor($part),
                     $contentId,
                     $part->getContentType(),
                 );
             } else {
                 $email->attachFromPath(
-                    $this->attachmentStorage->getAbsolutePath($part->getStoragePath()),
+                    $this->attachmentResolver->absolutePathFor($part),
                     $part->getFilename(),
                     $part->getContentType(),
                 );

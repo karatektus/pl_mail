@@ -21,7 +21,11 @@ final readonly class SyncNotifier
     public function notifyMailboxSynced(Account $account, Mailbox $mailbox): void
     {
         $this->bus->dispatch(new HarvestContactsMessage($mailbox->getId()));
+        $this->publishMailboxSynced($account, $mailbox);
+    }
 
+    public function publishMailboxSynced(Account $account, Mailbox $mailbox): void
+    {
         $this->hub->publish(new Update(
             topics: [
                 sprintf('mail/user/%d', $account->getUsr()->getId()),

@@ -100,7 +100,7 @@
                         {% if message.bodyHtml %}
                             <div
                                 data-thread-message-target="shadowHost"
-                                data-html="{{ message.bodyHtml|e('html_attr') }}"
+                                data-html="{{ message.bodyHtml|resolve_cid(message)|e('html_attr') }}"
                                 class="w-full"
                             ></div>
                         {% else %}
