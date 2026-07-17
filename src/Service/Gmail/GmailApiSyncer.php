@@ -14,9 +14,16 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Plans Gmail INBOX sync work and fans it out to SyncGmailMessageBatchMessage
- * jobs. Message building/persistence happens in SyncGmailMessageBatchHandler,
- * so initial and incremental sync share one build path and parallelise.
+ * Plans Gmail sync work and fans it out to SyncGmailMessageBatchMessage jobs.
+ *
+ * No label filter is applied here — all mail is fetched regardless of label.
+ * Each batch handler then routes individual messages to the correct local
+ * mailbox based on the message's labelIds via GmailLabelMailboxRouter, and
+ * filters out messages not addressed to the owning account via
+ * GmailAddressFilter.
+ *
+ * The $mailbox passed in is used only as the account carrier and as the
+ * fallback mailbox for the batch handler; actual routing happens per-message.
  */
 final class GmailApiSyncer
 {
@@ -35,9 +42,8 @@ final class GmailApiSyncer
     ) {}
 
     /**
-     * Snapshot the historyId up front (so a crash mid-fan-out leaves the account
-     * incremental-ready), list every INBOX message ID, and dispatch batches for
-     * the ones we don't already have.
+     * Snapshot the historyId up front, list every message ID (all labels),
+     * and dispatch batches for the ones we don't already have.
      */
     public function initialSync(Mailbox $mailbox): void
     {
@@ -51,16 +57,13 @@ final class GmailApiSyncer
         $profile          = $this->apiClient->getProfile($account);
         $currentHistoryId = (string) ($profile['historyId'] ?? '');
 
-        // Persist the snapshot immediately. The backlog is filled by batch jobs
-        // (by ID) and dedup prevents double inserts, so storing it before the
-        // messages land is safe and makes a partial run incremental-ready.
         if ('' !== $currentHistoryId) {
             $account->setGmailHistoryId($currentHistoryId);
             $this->em->flush();
         }
 
+        // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
         $messageRefs = $this->apiClient->listMessages($account, [
-            'labelIds'   => 'INBOX',
             'maxResults' => self::PAGE_SIZE,
         ]);
 
@@ -81,16 +84,16 @@ final class GmailApiSyncer
                 'mailboxId' => $mailbox->getId(),
             ]);
             $this->initialSync($mailbox);
+
             return;
         }
 
         try {
+            // No labelId filter — track additions across all labels.
             $result = $this->apiClient->listHistory($account, $startHistoryId, [
-                'labelId'      => 'INBOX',
                 'historyTypes' => 'messageAdded',
             ]);
         } catch (\Throwable $e) {
-            // A too-old historyId returns 404 or 410 — rebuild from scratch.
             if (
                 true === str_contains($e->getMessage(), '404')
                 || true === str_contains($e->getMessage(), '410')
@@ -101,6 +104,7 @@ final class GmailApiSyncer
                 $account->setGmailHistoryId(null);
                 $this->em->flush();
                 $this->initialSync($mailbox);
+
                 return;
             }
 
@@ -123,6 +127,8 @@ final class GmailApiSyncer
         $mailbox->setSyncedAt(new DateTimeImmutable());
         $this->em->flush();
     }
+
+    // ── Private ───────────────────────────────────────────────────────────────
 
     /**
      * @param list<array{id?: string}> $refs

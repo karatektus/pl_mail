@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Entity\Account;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -18,7 +19,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * {
  *   "id": "…",
  *   "threadId": "…",
- *   "labelIds": ["INBOX", "UNREAD"],
+ *   "labelIds": ["INBOX", "UNREAD", "STARRED"],
  *   "payload": {
  *     "headers": [{"name": "From", "value": "…"}, …],
  *     "body": {"data": "<base64url>"},
@@ -26,65 +27,74 @@ use Doctrine\ORM\EntityManagerInterface;
  *   },
  *   "internalDate": "1234567890000"   ← ms since epoch
  * }
+ *
+ * The $fallbackMailbox passed to build() is only used when the label router
+ * cannot find a matching local mailbox (e.g. the account has no Sent folder
+ * yet). The router is the authoritative source for mailbox assignment.
  */
 final class GmailMessageBuilder
 {
     public function __construct(
-        private readonly AttachmentStorageHelper $attachmentStorage,
-        private readonly EntityManagerInterface  $em,
+        private readonly AttachmentStorageHelper  $attachmentStorage,
+        private readonly EntityManagerInterface   $em,
+        private readonly GmailLabelMailboxRouter  $labelRouter,
     ) {}
 
     /**
-     * @param array<string,mixed> $payload  Decoded JSON from messages.get (format=full)
+     * @param array<string,mixed> $payload         Decoded JSON from messages.get (format=full)
+     * @param Mailbox             $fallbackMailbox  Used only when the router finds no match
+     * @param Account             $account          Owning account (needed for router lookup)
      */
-    public function build(array $payload, Mailbox $mailbox): Message
+    public function build(array $payload, Mailbox $fallbackMailbox, Account $account): Message
     {
         $message = new Message();
-        $message->setMailbox($mailbox);
 
-        $gmailId = $payload['id'] ?? '';
+        $gmailId  = (string) ($payload['id'] ?? '');
+        $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));
+
         $message->setGmailId($gmailId);
+        $message->setGmailLabelIds($labelIds);
+
+        // Route to the correct local mailbox based on Gmail labels.
+        $targetMailbox = $this->labelRouter->resolve($labelIds, $account) ?? $fallbackMailbox;
+        $message->setMailbox($targetMailbox);
 
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
 
         $rfcMessageId = $headers['message-id'] ?? '';
-        $message->setMessageId($rfcMessageId !== '' ? $rfcMessageId : $gmailId);
+        $message->setMessageId('' !== $rfcMessageId ? $rfcMessageId : $gmailId);
         $message->setSubject($this->decodeMimeHeader($headers['subject'] ?? ''));
 
-        // From
         [$fromName, $fromAddress] = $this->parseAddress($headers['from'] ?? '');
         $message->setFromAddress($fromAddress);
         $message->setFromName($fromName);
 
-        // Recipients
         $message->setToAddresses($this->parseAddressList($headers['to'] ?? ''));
         $message->setCcAddresses($this->parseAddressList($headers['cc'] ?? ''));
         $message->setBccAddresses($this->parseAddressList($headers['bcc'] ?? ''));
 
-        // Threading headers
-        $inReplyToRaw = trim($headers['in-reply-to'] ?? '');
+        $inReplyToRaw  = trim($headers['in-reply-to'] ?? '');
         $referencesRaw = trim($headers['references'] ?? '');
 
         $message->setInReplyTo(
-            $inReplyToRaw !== '' ? preg_split('/\s+/', $inReplyToRaw) : []
+            '' !== $inReplyToRaw ? preg_split('/\s+/', $inReplyToRaw) : []
         );
         $message->setReferences(
-            $referencesRaw !== '' ? preg_split('/\s+/', $referencesRaw) : []
+            '' !== $referencesRaw ? preg_split('/\s+/', $referencesRaw) : []
         );
 
         // ── Date ──────────────────────────────────────────────────────────────
         $internalDateMs = (int) ($payload['internalDate'] ?? 0);
-        $receivedAt = $internalDateMs > 0
+        $receivedAt     = $internalDateMs > 0
             ? (new DateTimeImmutable())->setTimestamp((int) ($internalDateMs / 1000))
             : new DateTimeImmutable();
 
         $message->setReceivedAt($receivedAt);
         $message->setSentAt($receivedAt);
 
-        // ── Flags / labels ────────────────────────────────────────────────────
-        $labelIds = $payload['labelIds'] ?? [];
-        $flags    = [];
+        // ── Flags (derived from label IDs) ────────────────────────────────────
+        $flags = [];
 
         if (false === in_array('UNREAD', $labelIds, true)) {
             $flags[] = '\\Seen';
@@ -103,14 +113,13 @@ final class GmailMessageBuilder
         $message->setFlags($flags);
 
         // ── Body + attachments ────────────────────────────────────────────────
-        $accountId = $mailbox->getAccount()->getId();
-        // We use the gmail message id as UID stand-in for attachment storage paths
+        $accountId = $account->getId();
         $fakeUid   = abs(crc32($gmailId));
 
         [$bodyText, $bodyHtml, $hasAttachments] = $this->extractBody(
             $payload['payload'] ?? [],
             $message,
-            $mailbox,
+            $targetMailbox,
             $accountId,
             $fakeUid,
         );
@@ -119,10 +128,6 @@ final class GmailMessageBuilder
         $message->setBodyHtml($bodyHtml);
         $message->setHasAttachments($hasAttachments);
         $message->setSyncedAt(new DateTimeImmutable());
-
-        // Store the Gmail message ID so we can dedup on subsequent syncs.
-        // We abuse imapUid = null for Gmail (it has no IMAP UID in our flow)
-        // and use messageId for dedup instead.
 
         return $message;
     }
@@ -139,6 +144,7 @@ final class GmailMessageBuilder
         foreach ($headers as $h) {
             $index[strtolower((string) ($h['name'] ?? ''))] = (string) ($h['value'] ?? '');
         }
+
         return $index;
     }
 
@@ -170,8 +176,7 @@ final class GmailMessageBuilder
         }
 
         $result = [];
-        // Split on commas that are not inside angle brackets
-        $parts = preg_split('/,(?![^<]*>)/', $raw) ?: [];
+        $parts  = preg_split('/,(?![^<]*>)/', $raw) ?: [];
 
         foreach ($parts as $part) {
             [$name, $address] = $this->parseAddress($part);
@@ -200,10 +205,8 @@ final class GmailMessageBuilder
         $bodyHtml       = '';
         $hasAttachments = false;
 
-        $mimeType   = strtolower((string) ($part['mimeType'] ?? ''));
-        $disposition = strtolower((string) ($part['headers']['content-disposition'] ?? ''));
+        $mimeType = strtolower((string) ($part['mimeType'] ?? ''));
 
-        // Leaf node with body data
         if (true === isset($part['body']['data'])) {
             $decoded = base64_decode(strtr((string) $part['body']['data'], '-_', '+/'));
 
@@ -214,7 +217,6 @@ final class GmailMessageBuilder
             }
         }
 
-        // Attachment or inline part backed by a separate attachmentId
         if (true === isset($part['body']['attachmentId'])) {
             $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
             $filename     = (string) ($part['filename'] ?? '');
@@ -223,19 +225,23 @@ final class GmailMessageBuilder
             if ('' !== $filename || true === $hasContentId) {
                 $isInline = $this->persistAttachmentStub($part, $message, $mailbox, $accountId, $fakeUid);
 
-                // Only real (non-inline) attachments flip the paperclip.
                 if (false === $isInline) {
                     $hasAttachments = true;
                 }
             }
         }
 
-        // Recurse into sub-parts (multipart/*)
         foreach ($part['parts'] ?? [] as $subPart) {
             [$t, $h, $a] = $this->extractBody($subPart, $message, $mailbox, $accountId, $fakeUid);
-            if ('' === $bodyText) { $bodyText = $t; }
-            if ('' === $bodyHtml) { $bodyHtml = $h; }
-            if (true === $a)      { $hasAttachments = true; }
+            if ('' === $bodyText) {
+                $bodyText = $t;
+            }
+            if ('' === $bodyHtml) {
+                $bodyHtml = $h;
+            }
+            if (true === $a) {
+                $hasAttachments = true;
+            }
         }
 
         return [$bodyText, $bodyHtml, $hasAttachments];
@@ -261,19 +267,19 @@ final class GmailMessageBuilder
         $attachmentId = (string) ($part['body']['attachmentId'] ?? '');
         $size         = (int) ($part['body']['size'] ?? 0);
 
-        $contentId   = trim((string) ($partHeaders['content-id'] ?? ''), '<> ');
-        $disposition = strtolower((string) ($partHeaders['content-disposition'] ?? ''));
+        $contentId   = trim($partHeaders['content-id'] ?? '', '<> ');
+        $disposition = strtolower($partHeaders['content-disposition'] ?? '');
         $isInline    = true === str_contains($disposition, 'inline') || '' !== $contentId;
 
-        $mp = new MessagePart();
-        $mp->setMessage($message);
-        $mp->setContentType($contentType);
-        $mp->setFilename($filename);
-        $mp->setContentId('' !== $contentId ? $contentId : null);
-        $mp->setDisposition($isInline ? 'inline' : 'attachment');
-        $mp->setSize($size);
-        $mp->setStoragePath('gmail://' . $attachmentId);
-        $mp->setIsInline($isInline);
+        $mp = new MessagePart()
+            ->setMessage($message)
+            ->setContentType($contentType)
+            ->setFilename($filename)
+            ->setContentId('' !== $contentId ? $contentId : null)
+            ->setDisposition($isInline ? 'inline' : 'attachment')
+            ->setSize($size)
+            ->setStoragePath('gmail://' . $attachmentId)
+            ->setIsInline($isInline);
 
         $this->em->persist($mp);
 

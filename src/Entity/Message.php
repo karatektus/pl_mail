@@ -32,6 +32,16 @@ class Message extends MessageModel
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $gmailId = null;
 
+    /**
+     * Raw Gmail label IDs (e.g. ["INBOX", "UNREAD", "STARRED", "Label_123"]).
+     * Stored so the UI can show label state without re-fetching from the API,
+     * and so flag-sync can mutate labels rather than moving IMAP folders.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $gmailLabelIds = null;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $subject = null;
 
@@ -102,8 +112,23 @@ class Message extends MessageModel
     #[ORM\JoinColumn(nullable: true)]
     private ?MessageThread $thread = null;
 
+    #[ORM\Column(
+        name: 'search_vector',
+        type: 'string',
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: "tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('english', coalesce(subject, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(from_name, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(from_address, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(body_text, '')), 'C')
+    ) STORED"
+    )]
+    private ?string $searchVector = null;
+
     #[ORM\Column]
-    private bool $cancelled = false; // a helper only to tell the message handler to cancel the message should always be false except for a few seconds
+    private bool $cancelled = false;
 
     public function __construct()
     {
@@ -151,6 +176,49 @@ class Message extends MessageModel
         $this->messageId = $messageId;
 
         return $this;
+    }
+
+    public function getGmailId(): ?string
+    {
+        return $this->gmailId;
+    }
+
+    public function setGmailId(?string $gmailId): static
+    {
+        $this->gmailId = $gmailId;
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    public function getGmailLabelIds(): ?array
+    {
+        return $this->gmailLabelIds;
+    }
+
+    /**
+     * @param list<string>|null $gmailLabelIds
+     */
+    public function setGmailLabelIds(?array $gmailLabelIds): static
+    {
+        $this->gmailLabelIds = $gmailLabelIds;
+
+        return $this;
+    }
+
+    /**
+     * Convenience: returns true when this message has been given the STARRED
+     * Gmail label (independent of the local \Flagged IMAP flag).
+     */
+    public function hasGmailLabel(string $label): bool
+    {
+        if (null === $this->gmailLabelIds) {
+            return false;
+        }
+
+        return true === in_array($label, $this->gmailLabelIds, true);
     }
 
     public function getSubject(): ?string
@@ -338,7 +406,7 @@ class Message extends MessageModel
         return $this->hasAttachments;
     }
 
-    public function setHasAttachments(bool $hasAttachments): static
+    public function setHasAttachments(?bool $hasAttachments): static
     {
         $this->hasAttachments = $hasAttachments;
 
@@ -414,7 +482,6 @@ class Message extends MessageModel
     public function removeMessagePart(MessagePart $messagePart): static
     {
         if ($this->messageParts->removeElement($messagePart)) {
-            // set the owning side to null (unless already changed)
             if ($messagePart->getMessage() === $this) {
                 $messagePart->setMessage(null);
             }
@@ -440,20 +507,9 @@ class Message extends MessageModel
         return $this->cancelled;
     }
 
-    public function setCancelled(bool $cancelled): Message
+    public function setCancelled(bool $cancelled): static
     {
         $this->cancelled = $cancelled;
-        return $this;
-    }
-
-    public function getGmailId(): ?string
-    {
-        return $this->gmailId;
-    }
-
-    public function setGmailId(?string $gmailId): static
-    {
-        $this->gmailId = $gmailId;
 
         return $this;
     }

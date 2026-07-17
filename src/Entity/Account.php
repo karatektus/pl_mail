@@ -114,6 +114,17 @@ class Account extends AccountModel
     #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messageThreads;
 
+    /**
+     * When enabled, sent messages whose From address matches a Gmailified
+     * address that belongs to another active account of this user are synced
+     * and attributed to that other account.
+     *
+     * When disabled, only messages sent from this account's own Gmail address
+     * are synced into the Sent mailbox.
+     */
+    #[ORM\Column]
+    private bool $gmailSyncGmailifyEnabled = true;
+
     public function __construct()
     {
         $this->mailboxes = new ArrayCollection();
@@ -469,7 +480,17 @@ class Account extends AccountModel
         $this->gmailWatchResourceName = $gmailWatchResourceName;
         return $this;
     }
+    public function isGmailSyncGmailifyEnabled(): bool
+    {
+        return $this->gmailSyncGmailifyEnabled;
+    }
 
+    public function setGmailSyncGmailifyEnabled(bool $gmailSyncGmailifyEnabled): static
+    {
+        $this->gmailSyncGmailifyEnabled = $gmailSyncGmailifyEnabled;
+
+        return $this;
+    }
     public function isGmailWatchActive(): bool
     {
         if (null === $this->gmailWatchExpiry) {
