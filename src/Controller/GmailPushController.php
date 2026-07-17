@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Message\SyncMailboxMessage;
+use App\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
-use App\Repository\MailboxRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,7 +41,6 @@ final class GmailPushController extends AbstractController
 {
     public function __construct(
         private readonly AccountRepository  $accountRepository,
-        private readonly MailboxRepository  $mailboxRepository,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface    $logger,
     ) {}
@@ -102,23 +100,10 @@ final class GmailPushController extends AbstractController
         }
 
         // Find the inbox mailbox for this account
-        $inboxMailbox = $this->mailboxRepository->findOneBy([
-            'account'    => $account,
-            'specialUse' => '\\Inbox',
-        ]);
+        $this->bus->dispatch(new SyncAccountMessage($account->getId()));
 
-        if (null === $inboxMailbox) {
-            $this->logger->warning('GmailPush: no inbox mailbox found', [
-                'accountId' => $account->getId(),
-            ]);
-            return new Response('', Response::HTTP_OK);
-        }
-
-        // Dispatch — the handler will call GmailApiSyncer::syncIncremental()
-        $this->bus->dispatch(new SyncMailboxMessage($inboxMailbox->getId()));
-
-        $this->logger->info('GmailPush: dispatched SyncMailboxMessage', [
-            'mailboxId' => $inboxMailbox->getId(),
+        $this->logger->info('GmailPush: dispatched SyncAccountMessage', [
+            'accountId' => $account->getId(),
         ]);
 
         return new Response('', Response::HTTP_OK);

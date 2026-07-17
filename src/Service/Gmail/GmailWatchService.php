@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Entity\Account;
-use App\Entity\Mailbox;
 use App\Service\Mail\GmailApiClient;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

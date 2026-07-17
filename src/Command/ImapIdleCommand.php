@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Domain\Helper\ImapConnectionFactory;
-use App\Message\SyncMailboxMessage;
+use App\Message\SyncImapMailboxMessage;
 use App\Repository\MailboxRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -171,7 +171,7 @@ class ImapIdleCommand extends Command
             if (str_contains($line, 'EXISTS')) {
                 $io->text(sprintf('[%s] Notification received — dispatching sync.', date('H:i:s')));
                 try {
-                    $envelope = $this->bus->dispatch(new SyncMailboxMessage($mailboxId));
+                    $envelope = $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
                     $io->text(sprintf('[%s] Dispatch returned envelope.', date('H:i:s')));
                 } catch (\Throwable $e) {
                     $io->error(sprintf('[%s] Dispatch failed: %s', date('H:i:s'), $e->getMessage()));

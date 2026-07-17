@@ -2,7 +2,9 @@
 
 namespace App\Entity;
 
+use App\Domain\Enum\MailProvider;
 use App\Domain\Model\AccountModel;
+use App\Enum\AuthType;
 use App\Repository\AccountRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -475,5 +477,11 @@ class Account extends AccountModel
         }
 
         return $this->gmailWatchExpiry > new \DateTimeImmutable();
+    }
+
+    public function isGmail(): bool
+    {
+        return AuthType::OAuth2->value === $this->authType
+            && MailProvider::Google->value === $this->oauthProvider;
     }
 }

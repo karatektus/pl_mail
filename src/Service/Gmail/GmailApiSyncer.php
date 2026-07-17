@@ -110,7 +110,7 @@ final class GmailApiSyncer
         // Store historyId captured at the start — anything arriving after this
         // point will be caught by the next incremental sync
         if ('' !== $currentHistoryId) {
-            $mailbox->setGmailHistoryId($currentHistoryId);
+            $account->setGmailHistoryId($currentHistoryId);
         }
 
         $mailbox->setSyncedAt(new DateTimeImmutable());
@@ -135,7 +135,7 @@ final class GmailApiSyncer
     public function syncIncremental(Mailbox $mailbox): void
     {
         $account        = $mailbox->getAccount();
-        $startHistoryId = $mailbox->getGmailHistoryId();
+        $startHistoryId = $account->getGmailHistoryId();
 
         if (null === $startHistoryId) {
             $this->logger->warning(
@@ -160,7 +160,7 @@ final class GmailApiSyncer
             // historyId too old (410 Gone) — fall back to initial sync
             if (true === str_contains($e->getMessage(), '410')) {
                 $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync');
-                $mailbox->setGmailHistoryId(null);
+                $account->setGmailHistoryId(null);
                 $this->em->flush();
                 $this->initialSync($mailbox);
                 return;
@@ -214,7 +214,7 @@ final class GmailApiSyncer
         }
 
         // Always advance the stored historyId even if no new messages arrived
-        $mailbox->setGmailHistoryId($newHistoryId);
+        $account->setGmailHistoryId($newHistoryId);
         $mailbox->setSyncedAt(new DateTimeImmutable());
         $mailbox->setUnreadMessages(
             $this->messageRepository->countUnseenForMailbox($mailbox)

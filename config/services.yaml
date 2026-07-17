@@ -36,3 +36,6 @@ services:
     App\Service\Mail\MailSenderRegistry:
         arguments:
             $senders: !tagged_iterator app.mail_sender
+    _instanceof:
+        App\Domain\Interface\AccountSyncerInterface:
+            tags: ['app.account_syncer']
