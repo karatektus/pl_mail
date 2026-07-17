@@ -105,13 +105,13 @@ class Account extends AccountModel
     /**
      * @var Collection<int, Mailbox>
      */
-    #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
     private Collection $mailboxes;
 
     /**
      * @var Collection<int, MessageThread>
      */
-    #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messageThreads;
 
     public function __construct()

@@ -29,7 +29,7 @@
 </head>
 <body
     {% if app.user %}
-        data-controller="mercure mail-pane"
+        data-controller="{% block body_controllers %}mercure mail-pane{% endblock %}"
         data-mercure-url-value="{{ mercure(['mail/user/' ~ app.user.id]) }}"
         data-action="mercure:mailbox-synced->mail-pane#onMailboxSynced"
         data-mail-pane-open-value="{% block pane_open %}false{% endblock %}"

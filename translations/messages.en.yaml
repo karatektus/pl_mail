@@ -90,6 +90,10 @@ message_list:
 account:
     add_title: Add account
     added: Account added successfully
+    updated: Account updated
+    enabled: Account enabled
+    disabled: Account disabled
+    removed: Account removed
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -154,3 +158,26 @@ toolbar:
         of: of
         prev: Newer
         next: Older
+
+settings:
+    title: Settings
+    back: Back to inbox
+    nav:
+        accounts: Mail accounts
+        general: General
+    accounts:
+        heading: Mail accounts
+        subheading: Add, edit, enable, or remove the mailboxes you sync.
+        empty: No accounts yet. Add one to start syncing mail.
+        edit: Edit account
+        enable: Enable account
+        disable: Disable account
+        delete: Remove account
+        delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
+        password_help: Leave blank to keep the current password.
+        status:
+            active: Active
+            disabled: Disabled
+        type:
+            imap: IMAP
+            oauth: '%provider% (OAuth)'

@@ -62,7 +62,7 @@ class Mailbox
     /**
      * @var Collection<int, Message>
      */
-    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'mailbox', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'mailbox', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messages;
 
     /**

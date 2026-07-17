@@ -10,10 +10,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
-    name: 'app:imap:reset',
+    name: 'app:reset',
     description: 'Truncate all synced message data, optionally including mailbox structure',
 )]
-class ResetImapDataCommand extends Command
+class ResetDataCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -56,6 +56,8 @@ class ResetImapDataCommand extends Command
             $io->text('✓ mailbox');
         }
 
+        $connection->executeStatement('UPDATE account SET gmail_history_id = NULL');
+        $io->text('✓ account');
         // Re-enable FK checks
         $connection->executeStatement('SET session_replication_role = DEFAULT');
 

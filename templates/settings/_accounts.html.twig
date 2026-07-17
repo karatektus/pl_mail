@@ -1,0 +1,66 @@
+{% if manageableAccounts is empty %}
+    <p class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 italic">
+        {{ 'settings.accounts.empty'|trans }}
+    </p>
+{% else %}
+    <ul class="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+        {% for account in manageableAccounts %}
+            {% set isPassword = account.authType == 'password' %}
+            <li class="flex items-center gap-4 px-4 py-3.5">
+
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-zinc-300 dark:bg-zinc-600' }}"
+                      title="{{ account.isActive ? 'settings.accounts.status.active'|trans : 'settings.accounts.status.disabled'|trans }}"></span>
+
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{{ account.email ?: account.username }}</p>
+                    <p class="truncate text-xs text-zinc-400 dark:text-zinc-500">{{ account.username }} · {{ account.imapHost }}</p>
+                </div>
+
+                <span class="hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
+                             {{ isPassword ? 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-300' }}">
+                    {{ isPassword ? 'settings.accounts.type.imap'|trans : 'settings.accounts.type.oauth'|trans({ '%provider%': account.oauthProvider|capitalize }) }}
+                </span>
+
+                <div class="flex items-center gap-1 shrink-0">
+                    {% if isPassword %}
+                        <button
+                            type="button"
+                            data-controller="modal"
+                            data-action="click->modal#open"
+                            data-modal-title-value="{{ 'settings.accounts.edit'|trans }}"
+                            data-modal-src-value="{{ path('app_account_edit', { id: account.id }) }}"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.accounts.edit'|trans }}" title="{{ 'settings.accounts.edit'|trans }}"
+                        >
+                            <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                        </button>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
+                        <button
+                            type="submit"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            aria-label="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
+                            title="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
+                        >
+                            <i class="fa-solid {{ account.isActive ? 'fa-toggle-on text-green-500' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
+                        </button>
+                    </form>
+
+                    <form method="post" action="{{ path('app_account_delete', { id: account.id }) }}"
+                          data-turbo-confirm="{{ 'settings.accounts.delete_confirm'|trans({ '%account%': account.email ?: account.username }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ account.id) }}">
+                        <button
+                            type="submit"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.accounts.delete'|trans }}" title="{{ 'settings.accounts.delete'|trans }}"
+                        >
+                            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

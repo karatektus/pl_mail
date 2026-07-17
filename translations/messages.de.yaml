@@ -90,6 +90,10 @@ message_list:
 account:
     add_title: Konto hinzufügen
     added: Konto erfolgreich hinzugefügt
+    updated: Konto aktualisiert
+    enabled: Konto aktiviert
+    disabled: Konto deaktiviert
+    removed: Konto entfernt
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -128,3 +132,26 @@ mailbox:
 errors:
     access_denied: Sie haben keinen Zugriff auf diese Ressource.
     not_found: Die angeforderte Ressource konnte nicht gefunden werden.
+
+settings:
+    title: Einstellungen
+    back: Zurück zum Posteingang
+    nav:
+        accounts: E-Mail-Konten
+        general: Allgemein
+    accounts:
+        heading: E-Mail-Konten
+        subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
+        empty: Noch keine Konten. Fügen Sie eines hinzu, um E-Mails zu synchronisieren.
+        edit: Konto bearbeiten
+        enable: Konto aktivieren
+        disable: Konto deaktivieren
+        delete: Konto entfernen
+        delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos dauerhaft gelöscht und können nicht wiederhergestellt werden.'
+        password_help: Leer lassen, um das aktuelle Passwort beizubehalten.
+        status:
+            active: Aktiv
+            disabled: Deaktiviert
+        type:
+            imap: IMAP
+            oauth: '%provider% (OAuth)'

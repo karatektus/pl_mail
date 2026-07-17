@@ -1,0 +1,34 @@
+{# Closes the modal (if open), toasts, and refreshes both the sidebar list
+   and the settings pane. Streams targeting an absent id are no-ops, so this
+   works whether the mutation came from the sidebar or the settings screen. #}
+
+<turbo-stream action="update" target="modal">
+    <template></template>
+</turbo-stream>
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: 'success',
+        } %}
+    </template>
+</turbo-stream>
+
+{# Sidebar list (mail pages) — uses the active-only accounts global. #}
+<turbo-stream action="replace" target="account-list">
+    <template>
+        <div id="account-list" class="space-y-0.5">
+            {% include '_partials/_account_list.html.twig' %}
+        </div>
+    </template>
+</turbo-stream>
+
+{# Settings pane — uses the full, explicitly-passed account list. #}
+<turbo-stream action="replace" target="settings-account-list">
+    <template>
+        <div id="settings-account-list">
+            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>

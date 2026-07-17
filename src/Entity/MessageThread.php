@@ -47,7 +47,7 @@ class MessageThread
     /**
      * @var Collection<int, Message>
      */
-    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messages;
 
     /**

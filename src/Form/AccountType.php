@@ -42,6 +42,7 @@ class AccountType extends AbstractType
                 ],
                 'label' => 'Password',
                 'always_empty' => true,
+                'required' => $options['require_password'],
             ])
             ->add('imapHost', TextType::class, [
                 'attr' => [
@@ -103,7 +104,10 @@ class AccountType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class' => Account::class,
+            'data_class'       => Account::class,
+            'require_password' => true,
         ]);
+
+        $resolver->setAllowedTypes('require_password', 'bool');
     }
 }

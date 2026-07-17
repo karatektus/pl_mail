@@ -95,7 +95,7 @@ class Message extends MessageModel
     /**
      * @var Collection<int, MessagePart>
      */
-    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messageParts;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]

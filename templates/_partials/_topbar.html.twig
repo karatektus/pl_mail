@@ -118,7 +118,7 @@
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
                     <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ app.user.email }}</p>
                 </div>
-                <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <a href="{{ path('app_settings_index') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.settings'|trans }}
                 </a>
