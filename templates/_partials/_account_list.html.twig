@@ -1,40 +1,33 @@
 {% set _drawerClose = _drawerClose is defined ? _drawerClose : '' %}
 
 {% for account in accounts %}
-    {% set currentAccount = app.request.attributes.get('account') %}
-    {% set isActive = currentAccount is not null and currentAccount == account.id %}
     <div data-controller="account-expand"
          data-account-expand-folders-url-value="{{ path('app_mail_account_folders', { account: account.id }) }}"
-         data-account-expand-active-value="{{ isActive ? 'true' : 'false' }}">
+         data-account-expand-active-value="false">
 
-        <div class="flex items-center" data-action="click->account-expand#toggle">
-            <a
-                href="{{ path('app_mail_account_mailbox', { account: account.id, mailbox: 'INBOX' }) }}"
-                data-action="click->account-expand#stop {{ _drawerClose }}"
-                class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
+        {# The whole row toggles the label list — per-account "folders" are
+           labels now, so there is no INBOX landing link anymore. #}
+        <div class="flex items-center cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+             data-action="click->account-expand#toggle">
+            <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-gray-600 dark:text-gray-400">
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-gray-300 dark:bg-gray-700' }}"></span>
                 <span class="truncate text-sm">{{ account.email ?: account.username }}</span>
-            </a>
+            </div>
             <button
                 type="button"
                 aria-label="{{ 'sidebar.accounts.toggle'|trans }}"
-                data-action="click->account-expand#toggle"
-                class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                class="p-2 rounded-lg text-gray-400 pointer-events-none"
             >
                 <i data-account-expand-target="chevron"
-                   class="fa-solid fa-chevron-right text-xs shrink-0 transition-transform duration-150 {{ isActive ? 'rotate-90' : '' }}"></i>
+                   class="fa-solid fa-chevron-right text-xs shrink-0 transition-transform duration-150"></i>
             </button>
         </div>
 
         <turbo-frame
             id="account-folders-{{ account.id }}"
             data-account-expand-target="frame"
-            class="{{ isActive ? '' : 'hidden' }}"
+            class="hidden"
         >
-            {% if isActive %}
-                <div class="pl-5 py-1 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.accounts.loading'|trans }}</div>
-            {% endif %}
         </turbo-frame>
     </div>
 {% else %}

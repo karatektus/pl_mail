@@ -3,12 +3,12 @@
 namespace App\Controller;
 
 use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageTab;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
 use App\Entity\MessageThread;
+use App\Repository\LabelRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Repository\MessageThreadRepository;
@@ -24,6 +24,7 @@ final class MailController extends AbstractController
         private readonly MailboxRepository $mailboxRepository,
         private readonly MessageRepository $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
+        private readonly LabelRepository $labelRepository,
     )
     {
     }
@@ -145,43 +146,18 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        // Security check — account must belong to current user
         if ($account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
-        $mailboxes = $this->mailboxRepository->findBy(
-            ['account' => $account],
-            ['name' => 'ASC'],
-        );
+        $labels = array_values(array_filter(
+            $this->labelRepository->findForAccount($account),
+            static fn(Label $label): bool => true === $label->isVisible,
+        ));
 
-        return $this->render('mail/_account_folders.html.twig', [
-            'account'  => $account,
-            'mailboxes' => $mailboxes,
-        ]);
-    }
-
-    #[Route('/account/{account}/{mailbox}', name: 'account_mailbox')]
-    public function mailbox(Account $account, string $mailbox): Response
-    {
-        $this->denyAccessUnlessGranted('ROLE_USER');
-
-        if ($account->getUsr() !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-
-        $mailboxEntity = $this->mailboxRepository->findOneBy(['account' => $account, 'name' => $mailbox]);
-
-        if (null === $mailboxEntity) {
-            throw $this->createNotFoundException();
-        }
-
-        $messages = $this->messageRepository->findByMailboxOrderedByDate($mailboxEntity);
-
-        return $this->render('mail/mailbox.html.twig', [
+        return $this->render('mail/_account_labels.html.twig', [
             'account' => $account,
-            'mailbox' => $mailboxEntity,
-            'messages' => $messages,
+            'labels'  => $labels,
         ]);
     }
 

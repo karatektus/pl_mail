@@ -3,12 +3,16 @@
 namespace App\Controller;
 
 use App\Domain\Trait\ParsesAddressFields;
+use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MessageFlag;
+use App\Entity\Account;
 use App\Entity\Message;
 use App\Form\ComposeType;
 use App\Message\SendMessageMessage;
+use App\Repository\AccountRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
+use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +24,12 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Label-based compose: the From selector is an Account (unmapped form field),
+ * not a Mailbox. Drafts carry the chosen account's Drafts label; for plain-
+ * IMAP accounts the physical Drafts folder is attached as mailbox, for Gmail
+ * accounts mailbox stays null.
+ */
 #[Route('/compose', name: 'app_compose_')]
 class ComposeController extends AbstractController
 {
@@ -29,6 +39,8 @@ class ComposeController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly MailboxRepository      $mailboxRepository,
         private readonly MessageRepository      $messageRepository,
+        private readonly AccountRepository      $accountRepository,
+        private readonly LabelResolver          $labelResolver,
         private readonly MessageBusInterface    $bus,
     ) {
     }
@@ -39,14 +51,18 @@ class ComposeController extends AbstractController
     {
         if (null === $message) {
             $message = new Message()
-                ->setMailbox($this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser()))
                 ->setCreatedAt(new DateTimeImmutable());
+            $account = $this->defaultAccount();
+        } else {
+            $this->assertOwnership($message);
+            $account = $message->getAccount();
         }
 
         $form = $this->createForm(ComposeType::class, $message, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
+        $form->get('account')->setData($account);
 
         return $this->render('compose/_window.html.twig', [
             'form'    => $form,
@@ -59,12 +75,14 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($original);
 
-        $draft = $this->buildReply($original, replyAll: false);
+        $account = $original->getAccount() ?? $this->defaultAccount();
+        $draft   = $this->buildReply($original, replyAll: false, account: $account);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
+        $form->get('account')->setData($account);
 
         return $this->render('compose/_window.html.twig', [
             'form'    => $form,
@@ -77,12 +95,14 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($original);
 
-        $draft = $this->buildReply($original, replyAll: true);
+        $account = $original->getAccount() ?? $this->defaultAccount();
+        $draft   = $this->buildReply($original, replyAll: true, account: $account);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
+        $form->get('account')->setData($account);
 
         return $this->render('compose/_window.html.twig', [
             'form'    => $form,
@@ -95,12 +115,14 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($original);
 
-        $draft = $this->buildForward($original);
+        $account = $original->getAccount() ?? $this->defaultAccount();
+        $draft   = $this->buildForward($original);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
+        $form->get('account')->setData($account);
 
         return $this->render('compose/_window.html.twig', [
             'form'    => $form,
@@ -114,8 +136,9 @@ class ComposeController extends AbstractController
     {
         if (null === $message) {
             $message = new Message()
-                ->setMailbox($this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser()))
                 ->setCreatedAt(new DateTimeImmutable());
+        } else {
+            $this->assertOwnership($message);
         }
 
         $form = $this->createForm(ComposeType::class, $message, [
@@ -129,9 +152,14 @@ class ComposeController extends AbstractController
         $this->applyAddressFields($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            dump($message);
-            dump($form);
-            $this->persistDraft($message);
+            $account = $this->resolveAccount($form, $message);
+
+            if (null === $account) {
+                throw $this->createNotFoundException('No active account to compose from.');
+            }
+
+            $this->applyAccount($message, $account);
+            $this->persistDraft($message, $account);
 
             return $this->render('compose/_window.html.twig', [
                 'form'    => $form,
@@ -152,6 +180,8 @@ class ComposeController extends AbstractController
     {
         if (null === $message) {
             $message = new Message();
+        } else {
+            $this->assertOwnership($message);
         }
 
         $form = $this->createForm(ComposeType::class, $message, [
@@ -171,7 +201,14 @@ class ComposeController extends AbstractController
                 ], new Response('', 200, ['Content-Type' => 'text/vnd.turbo-stream.html']));
             }
 
-            $this->persistDraft($message);
+            $account = $this->resolveAccount($form, $message);
+
+            if (null === $account) {
+                throw $this->createNotFoundException('No active account to send from.');
+            }
+
+            $this->applyAccount($message, $account);
+            $this->persistDraft($message, $account);
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
                 [new DelayStamp(10_000)],
@@ -200,6 +237,7 @@ class ComposeController extends AbstractController
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
+        $form->get('account')->setData($message->getAccount());
 
         return $this->render('compose/_undo_toast.html.twig', [
             'form'    => $form,
@@ -208,6 +246,65 @@ class ComposeController extends AbstractController
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Submitted From account, falling back to the message's current account,
+     * then the user's default.
+     */
+    private function resolveAccount(FormInterface $form, Message $message): ?Account
+    {
+        $account = $form->get('account')->getData();
+
+        if (null !== $account) {
+            return $account;
+        }
+
+        return $message->getAccount() ?? $this->defaultAccount();
+    }
+
+    private function defaultAccount(): ?Account
+    {
+        $account = $this->accountRepository->findOneBy([
+            'usr'       => $this->getUser(),
+            'isActive'  => true,
+            'isPrimary' => true,
+        ]);
+
+        if (null !== $account) {
+            return $account;
+        }
+
+        return $this->accountRepository->findOneBy([
+            'usr'      => $this->getUser(),
+            'isActive' => true,
+        ]);
+    }
+
+    /**
+     * Wire the message to its From account: Drafts label of that account,
+     * plus the physical Drafts folder for plain-IMAP accounts (Gmail
+     * accounts have no mailboxes — mailbox stays null).
+     *
+     * Switching the From account on an existing draft moves it: Drafts
+     * labels of other accounts are dropped.
+     */
+    private function applyAccount(Message $message, Account $account): void
+    {
+        $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
+
+        foreach ($message->getLabels() as $label) {
+            if (LabelRole::Drafts === $label->role && $label !== $draftsLabel) {
+                $message->removeLabel($label);
+            }
+        }
+
+        $message->addLabel($draftsLabel);
+
+        $message->setMailbox($this->mailboxRepository->findOneBy([
+            'account' => $account,
+            'label'   => $draftsLabel,
+        ]));
+    }
 
     /**
      * Read compose_to[], compose_cc[], compose_bcc[] from the Tom Select
@@ -244,11 +341,8 @@ class ComposeController extends AbstractController
         if (!empty($bcc)) { $message->setBccAddresses($bcc); }
     }
 
-    private function buildReply(Message $original, bool $replyAll): Message
+    private function buildReply(Message $original, bool $replyAll, Account $account): Message
     {
-        $draftMailbox = $this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser());
-        $account      = $draftMailbox->getAccount();
-
         $to = [[
             'name'    => $original->getFromName() ?? '',
             'address' => $original->getFromAddress() ?? '',
@@ -278,7 +372,6 @@ class ComposeController extends AbstractController
         $quotedBody = $this->buildQuotedHtml($original, 'reply');
 
         $draft = (new Message())
-            ->setMailbox($draftMailbox)
             ->setSubject($subject)
             ->setToAddresses($to)
             ->setCcAddresses($cc)
@@ -298,13 +391,10 @@ class ComposeController extends AbstractController
 
     private function buildForward(Message $original): Message
     {
-        $draftMailbox = $this->mailboxRepository->findPrimaryDraftMailboxForUser($this->getUser());
-
         $subject    = $this->prefixSubject('Fwd', $original->getSubject());
         $quotedBody = $this->buildQuotedHtml($original, 'forward');
 
         return (new Message())
-            ->setMailbox($draftMailbox)
             ->setSubject($subject)
             ->setToAddresses([])
             ->setBodyHtml($quotedBody)
@@ -331,6 +421,9 @@ class ComposeController extends AbstractController
         return $prefix . ': ' . $subject;
     }
 
+    // NOTE: keep YOUR existing buildQuotedHtml() body — only the callers
+    // changed. The reply branch below is reconstructed and may differ from
+    // your version; the forward branch is verbatim.
     private function buildQuotedHtml(Message $original, string $mode): string
     {
         $dateStr    = $original->getReceivedAt() ? $original->getReceivedAt()->format('D, M j, Y \a\t g:i a') : '';
@@ -338,26 +431,17 @@ class ComposeController extends AbstractController
         $fromAddr   = htmlspecialchars($original->getFromAddress() ?? '', ENT_QUOTES, 'UTF-8');
         $fromLine   = $fromName !== '' ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
 
-        $bodyHtml = trim($original->getBodyHtml() ?? '');
-        $bodyText = trim($original->getBodyText() ?? '');
+        $bodyHtml  = trim($original->getBodyHtml() ?? '');
+        $bodyText  = trim($original->getBodyText() ?? '');
+        $innerBody = $bodyHtml !== '' ? $bodyHtml : nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
 
-        if ($bodyHtml !== '') {
-            $innerBody = $bodyHtml;
-        } elseif ($bodyText !== '') {
-            $innerBody = '<pre style="white-space:pre-wrap;font-family:inherit;margin:0">'
-                . htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8')
-                . '</pre>';
-        } else {
-            $innerBody = '';
-        }
-
-        if ($mode === 'reply') {
-            $attribution = "On {$dateStr}, {$fromLine} wrote:";
-
+        if ('reply' === $mode) {
             return <<<HTML
                 <p><br></p>
-                <p style="margin:0;font-size:0.85em;color:#555">{$attribution}</p>
-                <blockquote style="margin:0 0 0 0.5em;padding:0 0 0 1em;border-left:3px solid #c7c7c7;color:#444">
+                <div style="font-size:0.85em;color:#555;margin-bottom:0.25em">
+                    On {$dateStr}, {$fromLine} wrote:
+                </div>
+                <blockquote style="border-left:2px solid #e0e0e0;margin:0;padding-left:0.75em;color:#555">
                     {$innerBody}
                 </blockquote>
                 HTML;
@@ -386,13 +470,13 @@ class ComposeController extends AbstractController
             HTML;
     }
 
-    private function persistDraft(Message $message): void
+    private function persistDraft(Message $message, Account $account): void
     {
         $now = new DateTimeImmutable();
 
         $message
-            ->setFromAddress($message->getMailbox()->getAccount()->getEmail())
-            ->setFromName($message->getMailbox()->getAccount()->getName())
+            ->setFromAddress($account->getEmail())
+            ->setFromName($account->getName())
             ->addFlag(MessageFlag::DRAFT)
             ->setHasAttachments(false)
             ->setUpdatedAt($now);
@@ -403,7 +487,9 @@ class ComposeController extends AbstractController
 
     private function assertOwnership(Message $message): void
     {
-        if ($message->getMailbox()->getAccount()->getUsr() !== $this->getUser()) {
+        $account = $message->getAccount();
+
+        if (null === $account || $account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

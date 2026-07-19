@@ -2,12 +2,15 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Account;
 use App\Entity\Message;
+use App\Repository\LabelRepository;
 use App\Repository\MailboxRepository;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailSenderRegistry;
 use DateTimeImmutable;
@@ -24,17 +27,23 @@ class MessageSendService
     public function __construct(
         private readonly MailboxRepository       $mailboxRepository,
         private readonly EntityManagerInterface  $em,
-        private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly MailSenderRegistry      $senderRegistry,
         private readonly ImapConnectionFactory   $imapConnectionFactory,
         private readonly AttachmentResolver      $attachmentResolver,
+        private readonly LabelResolver           $labelResolver,
+        private readonly LabelRepository         $labelRepository,
     ) {
     }
 
     public function send(Message $message): bool
     {
-        $account = $message->getMailbox()->getAccount();
-        $email   = $this->buildEmail($message, $account);
+        $account = $message->getAccount();
+
+        if (null === $account) {
+            return false;
+        }
+
+        $email = $this->buildEmail($message, $account);
 
         $sender      = $this->senderRegistry->resolve($account);
         $sendSuccess = $sender->send($email, $account);
@@ -48,15 +57,25 @@ class MessageSendService
             $this->appendToSentFolder($email, $account);
         }
 
-        $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
+        $sentLabel   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
+        $draftsLabel = $this->labelRepository->findOneByRoleForAccount(LabelRole::Drafts, $account);
 
-        if (null !== $sentMailbox) {
-            $message
-                ->setMailbox($sentMailbox)
-                ->setSentAt(new DateTimeImmutable());
+        $message->addLabel($sentLabel);
 
-            $this->em->flush();
+        if (null !== $draftsLabel) {
+            $message->removeLabel($draftsLabel);
         }
+
+        $message->removeFlag(MessageFlag::DRAFT);
+        $message->setSentAt(new DateTimeImmutable());
+
+        // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
+        $message->setMailbox($this->mailboxRepository->findOneBy([
+            'account' => $account,
+            'label'   => $sentLabel,
+        ]));
+
+        $this->em->flush();
 
         return true;
     }

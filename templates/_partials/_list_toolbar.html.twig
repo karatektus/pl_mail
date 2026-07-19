@@ -19,7 +19,7 @@ Variables (passed via `with` from _mailbox.html.twig):
 {% set has_prev   = page > 1 %}
 {% set has_next   = page < last_page %}
 
-{% set base_params = app.request.query.all %}
+{% set base_params = app.request.attributes.get('_route_params')|default({})|merge(app.request.query.all) %}
 
 {#
 tbtn macro — icon button with tooltip.

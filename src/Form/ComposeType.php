@@ -2,9 +2,9 @@
 
 namespace App\Form;
 
-use App\Entity\Mailbox;
+use App\Entity\Account;
 use App\Entity\Message;
-use App\Repository\MailboxRepository;
+use App\Repository\AccountRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
@@ -28,16 +28,26 @@ class ComposeType extends AbstractType
         $user = $options['user'];
 
         $builder
-            ->add('mailbox', EntityType::class, [
+            // Unmapped: Message has no account column — the controller reads
+            // this field and wires the Drafts label + IMAP drafts mailbox via
+            // applyAccount(). Pre-set on render with $form->get('account')->setData().
+            ->add('account', EntityType::class, [
                 'label' => false,
-                'class' => Mailbox::class,
-                'choice_label' => fn(Mailbox $mailbox) => sprintf(
+                'mapped' => false,
+                'class' => Account::class,
+                'choice_label' => fn(Account $account) => sprintf(
                     '%s <%s>',
-                    $mailbox->getAccount()->getName(),
-                    $mailbox->getAccount()->getEmail(),
+                    $account->getName(),
+                    $account->getEmail(),
                 ),
-                'query_builder' => function (MailboxRepository $repo) use ($user): QueryBuilder {
-                    return $repo->getActiveSentMailboxesForUser($user);
+                'query_builder' => function (AccountRepository $repo) use ($user): QueryBuilder {
+                    return $repo->createQueryBuilder('account')
+                        ->where('account.usr = :usr')
+                        ->andWhere('account.isActive = :isActive')
+                        ->setParameter('usr', $user)
+                        ->setParameter('isActive', true)
+                        ->orderBy('account.isPrimary', 'DESC')
+                        ->addOrderBy('account.email', 'ASC');
                 },
                 'attr' => ['class' => 'compose-from-select'],
             ])

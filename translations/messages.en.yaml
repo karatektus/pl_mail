@@ -92,9 +92,6 @@ message:
 thread:
     no_subject: (no subject)
 
-message_list:
-    empty: No messages in this mailbox.
-
 account:
     add_title: Add account
     added: Account added successfully
@@ -135,9 +132,6 @@ toast:
     error:
         no_archive_mailbox: There is no archive mailbox.
     dismiss: Dismiss
-
-mailbox:
-    not_found: Mailbox not found.
 
 errors:
     access_denied: You do not have access to this resource.

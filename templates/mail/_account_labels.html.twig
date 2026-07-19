@@ -1,0 +1,28 @@
+{# Replaces mail/_account_folders.html.twig — an account's navigation is its
+   labels now. System labels first (fixed sortOrder), custom labels after,
+   indented by tree depth. Every entry links to the generic label view, which
+   works for system labels too (an account's Inbox label = its inbox). #}
+<turbo-frame id="account-folders-{{ account.id }}">
+    <nav class="pl-3 space-y-0.5">
+        {% for label in labels %}
+            <a
+                data-account-expand-target="link"
+                href="{{ path('app_mail_label', { id: label.id }) }}"
+                data-turbo-frame="_top"
+                data-turbo-prefetch="false"
+                class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                style="padding-left: {{ 12 + label.depth * 12 }}px"
+            >
+                <span class="truncate">{{ label.name }}</span>
+                {% if not label.isSystem %}
+                    {% set _unread = sidebarCounts.forLabel(label) %}
+                    {% if _unread > 0 %}
+                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+                            {{ _unread }}
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </a>
+        {% endfor %}
+    </nav>
+</turbo-frame>

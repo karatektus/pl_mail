@@ -550,4 +550,24 @@ class Message extends MessageModel
     {
         return $this->labels->contains($label);
     }
+
+    public function getAccount(): ?Account
+    {
+        if (null !== $this->mailbox) {
+            return $this->mailbox->getAccount();
+        }
+
+        if (null !== $this->thread) {
+            return $this->thread->getAccount();
+        }
+
+        // Gmail-API messages before threading: any attached label carries it.
+        foreach ($this->labels as $label) {
+            if (null !== $label->account) {
+                return $label->account;
+            }
+        }
+
+        return null;
+    }
 }

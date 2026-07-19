@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Domain\Enum\LabelRole;
 use App\Entity\Account;
 use App\Entity\Mailbox;
 use App\Entity\Message;
@@ -9,7 +10,6 @@ use App\Entity\MessageThread;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-
 
 class MessageRepository extends ServiceEntityRepository
 {
@@ -42,17 +42,9 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
     }
 
-    public function findByMailboxOrderedByDate(Mailbox $mailbox): array
-    {
-        return $this->createQueryBuilder('m')
-            ->where('m.mailbox = :mailbox')
-            ->setParameter('mailbox', $mailbox)
-            ->orderBy('m.receivedAt', 'DESC')
-            ->orderBy('m.updatedAt', 'DESC')
-            ->getQuery()
-            ->getResult();
-    }
-
+    /**
+     * Joined via thread since Gmail-API messages carry no mailbox.
+     */
     public function findOneByMessageIdsForAccount(array $messageIds, Account $account): ?Message
     {
         if (count($messageIds) === 0) {
@@ -60,8 +52,8 @@ class MessageRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('message')
-            ->innerJoin('message.mailbox', 'mailbox')
-            ->where('mailbox.account = :account')
+            ->innerJoin('message.thread', 'thread')
+            ->where('thread.account = :account')
             ->andWhere('message.messageId IN (:messageIds)')
             ->setParameter('account', $account)
             ->setParameter('messageIds', $messageIds)
@@ -107,13 +99,15 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Label-based: covers Gmail drafts too (no mailbox to join through).
+     */
     public function findDrafts(): array
     {
         return $this->createQueryBuilder('m')
-            ->join('m.mailbox', 'mb')
-            ->join('mb.account', 'a')
-            ->where('mb.specialUse = :drafts')
-            ->setParameter('drafts', '\\Drafts')
+            ->innerJoin('m.labels', 'l')
+            ->where('l.role = :drafts')
+            ->setParameter('drafts', LabelRole::Drafts)
             ->orderBy('m.updatedAt', 'DESC')
             ->getQuery()
             ->getResult();
