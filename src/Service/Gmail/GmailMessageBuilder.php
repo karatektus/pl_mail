@@ -35,17 +35,15 @@ use Doctrine\ORM\EntityManagerInterface;
 final class GmailMessageBuilder
 {
     public function __construct(
-        private readonly AttachmentStorageHelper  $attachmentStorage,
         private readonly EntityManagerInterface   $em,
-        private readonly GmailLabelMailboxRouter  $labelRouter,
+        private readonly GmailLabelResolver  $labelResolver,
     ) {}
 
     /**
      * @param array<string,mixed> $payload         Decoded JSON from messages.get (format=full)
-     * @param Mailbox             $fallbackMailbox  Used only when the router finds no match
      * @param Account             $account          Owning account (needed for router lookup)
      */
-    public function build(array $payload, Mailbox $fallbackMailbox, Account $account): Message
+    public function build(array $payload, Account $account): Message
     {
         $message = new Message();
 
@@ -56,8 +54,9 @@ final class GmailMessageBuilder
         $message->setGmailLabelIds($labelIds);
 
         // Route to the correct local mailbox based on Gmail labels.
-        $targetMailbox = $this->labelRouter->resolve($labelIds, $account) ?? $fallbackMailbox;
-        $message->setMailbox($targetMailbox);
+        foreach ($this->labelResolver->resolve($labelIds, $account) as $label) {
+            $message->addLabel($label);
+        }
 
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
@@ -113,15 +112,10 @@ final class GmailMessageBuilder
         $message->setFlags($flags);
 
         // ── Body + attachments ────────────────────────────────────────────────
-        $accountId = $account->getId();
-        $fakeUid   = abs(crc32($gmailId));
 
         [$bodyText, $bodyHtml, $hasAttachments] = $this->extractBody(
             $payload['payload'] ?? [],
             $message,
-            $targetMailbox,
-            $accountId,
-            $fakeUid,
         );
 
         $message->setBodyText($bodyText);
@@ -197,9 +191,6 @@ final class GmailMessageBuilder
     private function extractBody(
         array   $part,
         Message $message,
-        Mailbox $mailbox,
-        int     $accountId,
-        int     $fakeUid,
     ): array {
         $bodyText       = '';
         $bodyHtml       = '';
@@ -223,7 +214,7 @@ final class GmailMessageBuilder
             $hasContentId = '' !== trim((string) ($partHeaders['content-id'] ?? ''), '<> ');
 
             if ('' !== $filename || true === $hasContentId) {
-                $isInline = $this->persistAttachmentStub($part, $message, $mailbox, $accountId, $fakeUid);
+                $isInline = $this->persistAttachmentStub($part, $message);
 
                 if (false === $isInline) {
                     $hasAttachments = true;
@@ -232,7 +223,7 @@ final class GmailMessageBuilder
         }
 
         foreach ($part['parts'] ?? [] as $subPart) {
-            [$t, $h, $a] = $this->extractBody($subPart, $message, $mailbox, $accountId, $fakeUid);
+            [$t, $h, $a] = $this->extractBody($subPart, $message);
             if ('' === $bodyText) {
                 $bodyText = $t;
             }
@@ -257,9 +248,6 @@ final class GmailMessageBuilder
     private function persistAttachmentStub(
         array   $part,
         Message $message,
-        Mailbox $mailbox,
-        int     $accountId,
-        int     $fakeUid,
     ): bool {
         $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
         $filename     = (string) ($part['filename'] ?? 'attachment');

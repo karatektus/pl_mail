@@ -16,7 +16,9 @@ final readonly class SyncNotifier
     public function __construct(
         private HubInterface        $hub,
         private MessageBusInterface $bus,
-    ) {}
+    )
+    {
+    }
 
     public function notifyMailboxSynced(Account $account, Mailbox $mailbox): void
     {
@@ -32,10 +34,23 @@ final readonly class SyncNotifier
                 sprintf('mail/mailbox/%d', $mailbox->getId()),
             ],
             data: json_encode([
-                'type'       => 'mailbox.synced',
-                'mailboxId'  => $mailbox->getId(),
-                'accountId'  => $account->getId(),
+                'type' => 'mailbox.synced',
+                'mailboxId' => $mailbox->getId(),
+                'accountId' => $account->getId(),
                 'specialUse' => $mailbox->getSpecialUse(),
+            ]),
+        ));
+    }
+
+    public function publishAccountSynced(Account $account): void
+    {
+        $this->hub->publish(new Update(
+            topics: [
+                sprintf('mail/user/%d', $account->getUsr()->getId()),
+            ],
+            data: json_encode([
+                'type' => 'account.synced',
+                'accountId' => $account->getId(),
             ]),
         ));
     }

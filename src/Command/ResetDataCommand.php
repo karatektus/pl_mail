@@ -42,16 +42,22 @@ class ResetDataCommand extends Command
         $connection->executeStatement('TRUNCATE TABLE message_part CASCADE');
         $io->text('✓ message_part');
 
+        $connection->executeStatement('TRUNCATE TABLE message_label CASCADE');
+        $io->text('✓ message_label');
+
+        $connection->executeStatement('TRUNCATE TABLE thread_label CASCADE');
+        $io->text('✓ thread_label');
+
         $connection->executeStatement('TRUNCATE TABLE message CASCADE');
         $io->text('✓ message');
-
-        $connection->executeStatement('TRUNCATE TABLE message_thread_mailbox CASCADE');
-        $io->text('✓ message_thread_mailbox');
 
         $connection->executeStatement('TRUNCATE TABLE message_thread CASCADE');
         $io->text('✓ message_thread');
 
         if ($deleteMailboxes) {
+            $connection->executeStatement('TRUNCATE TABLE label CASCADE');
+            $io->text('✓ label');
+
             $connection->executeStatement('TRUNCATE TABLE mailbox CASCADE');
             $io->text('✓ mailbox');
         }

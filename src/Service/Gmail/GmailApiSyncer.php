@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Entity\Mailbox;
+use App\Entity\Account;
 use App\Message\SyncGmailMessageBatchMessage;
 use App\Repository\MessageRepository;
 use App\Service\Mail\GmailApiClient;
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -16,14 +15,10 @@ use Symfony\Component\Messenger\MessageBusInterface;
 /**
  * Plans Gmail sync work and fans it out to SyncGmailMessageBatchMessage jobs.
  *
- * No label filter is applied here — all mail is fetched regardless of label.
- * Each batch handler then routes individual messages to the correct local
- * mailbox based on the message's labelIds via GmailLabelMailboxRouter, and
- * filters out messages not addressed to the owning account via
- * GmailAddressFilter.
- *
- * The $mailbox passed in is used only as the account carrier and as the
- * fallback mailbox for the batch handler; actual routing happens per-message.
+ * Label-based architecture: the planner operates on the Account directly —
+ * Gmail accounts have no Mailbox rows anymore. Each batch handler resolves
+ * a message's labelIds to Label entities via GmailLabelResolver and filters
+ * out messages not addressed to the owning account via GmailAddressFilter.
  */
 final class GmailApiSyncer
 {
@@ -45,12 +40,10 @@ final class GmailApiSyncer
      * Snapshot the historyId up front, list every message ID (all labels),
      * and dispatch batches for the ones we don't already have.
      */
-    public function initialSync(Mailbox $mailbox): void
+    public function initialSync(Account $account): void
     {
-        $account = $mailbox->getAccount();
-
         $this->logger->info('GmailApiSyncer: planning initial sync', [
-            'mailboxId' => $mailbox->getId(),
+            'accountId' => $account->getId(),
             'account'   => $account->getEmail(),
         ]);
 
@@ -67,23 +60,22 @@ final class GmailApiSyncer
             'maxResults' => self::PAGE_SIZE,
         ]);
 
-        $this->dispatchBatches($mailbox, $this->newGmailIds($mailbox, $messageRefs));
+        $this->dispatchBatches($account, $this->newGmailIds($account, $messageRefs));
     }
 
     /**
      * Read history since the stored historyId, dispatch batches for newly-added
      * messages, and advance the stored historyId.
      */
-    public function syncIncremental(Mailbox $mailbox): void
+    public function syncIncremental(Account $account): void
     {
-        $account        = $mailbox->getAccount();
         $startHistoryId = $account->getGmailHistoryId();
 
         if (null === $startHistoryId) {
             $this->logger->warning('GmailApiSyncer: no historyId stored, running initial sync', [
-                'mailboxId' => $mailbox->getId(),
+                'accountId' => $account->getId(),
             ]);
-            $this->initialSync($mailbox);
+            $this->initialSync($account);
 
             return;
         }
@@ -99,11 +91,11 @@ final class GmailApiSyncer
                 || true === str_contains($e->getMessage(), '410')
             ) {
                 $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync', [
-                    'mailboxId' => $mailbox->getId(),
+                    'accountId' => $account->getId(),
                 ]);
                 $account->setGmailHistoryId(null);
                 $this->em->flush();
-                $this->initialSync($mailbox);
+                $this->initialSync($account);
 
                 return;
             }
@@ -112,19 +104,20 @@ final class GmailApiSyncer
         }
 
         $refs = [];
+
         foreach ($result['history'] as $record) {
             foreach ($record['messagesAdded'] ?? [] as $added) {
                 $id = (string) ($added['message']['id'] ?? '');
+
                 if ('' !== $id) {
                     $refs[] = ['id' => $id];
                 }
             }
         }
 
-        $this->dispatchBatches($mailbox, $this->newGmailIds($mailbox, $refs));
+        $this->dispatchBatches($account, $this->newGmailIds($account, $refs));
 
         $account->setGmailHistoryId((string) $result['historyId']);
-        $mailbox->setSyncedAt(new DateTimeImmutable());
         $this->em->flush();
     }
 
@@ -134,21 +127,25 @@ final class GmailApiSyncer
      * @param list<array{id?: string}> $refs
      * @return list<string>
      */
-    private function newGmailIds(Mailbox $mailbox, array $refs): array
+    private function newGmailIds(Account $account, array $refs): array
     {
         $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIds($mailbox)
+            $this->messageRepository->findSyncedGmailIdsForUser($account->getUsr())
         );
 
         $pending = [];
+
         foreach ($refs as $ref) {
             $gmailId = (string) ($ref['id'] ?? '');
+
             if ('' === $gmailId) {
                 continue;
             }
+
             if (true === isset($syncedGmailIds[$gmailId])) {
                 continue;
             }
+
             $pending[] = $gmailId;
         }
 
@@ -158,18 +155,25 @@ final class GmailApiSyncer
     /**
      * @param list<string> $gmailIds
      */
-    private function dispatchBatches(Mailbox $mailbox, array $gmailIds): void
+    private function dispatchBatches(Account $account, array $gmailIds): void
     {
-        $chunks = array_chunk($gmailIds, self::BATCH_SIZE);
-
-        foreach ($chunks as $chunk) {
-            $this->bus->dispatch(new SyncGmailMessageBatchMessage($mailbox->getId(), $chunk));
+        if (count($gmailIds) === 0) {
+            return;
         }
 
-        $this->logger->info('GmailApiSyncer: fanned out sync', [
-            'mailboxId' => $mailbox->getId(),
+        $batches = array_chunk($gmailIds, self::BATCH_SIZE);
+
+        foreach ($batches as $batch) {
+            $this->bus->dispatch(new SyncGmailMessageBatchMessage(
+                (int) $account->getId(),
+                $batch,
+            ));
+        }
+
+        $this->logger->info('GmailApiSyncer: batches dispatched', [
+            'accountId' => $account->getId(),
             'messages'  => count($gmailIds),
-            'batches'   => count($chunks),
+            'batches'   => count($batches),
         ]);
     }
 }

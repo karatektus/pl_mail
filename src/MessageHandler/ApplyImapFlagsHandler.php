@@ -17,13 +17,26 @@ use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 
+/**
+ * Best-effort outgoing IMAP state sync. Every failure is logged, never
+ * rethrown into the local mutation — the DB is the source of truth and
+ * incoming sync reconciles drift.
+ *
+ * Actions:
+ *   flag/unflag/seen/unseen — flag mutations in place
+ *   archive/trash           — move, destination resolved here from labels/folders
+ *   move                    — move to the explicit destinationPath computed by
+ *                             the LabelChangePropagator (custom location-label
+ *                             replacement)
+ *   delete                  — expunge
+ */
 #[AsMessageHandler]
 final class ApplyImapFlagsHandler
 {
     public function __construct(
-        private readonly MessageRepository $messageRepository,
-        private readonly MailboxRepository $mailboxRepository,
-        private readonly LoggerInterface   $logger,
+        private readonly MessageRepository     $messageRepository,
+        private readonly MailboxRepository     $mailboxRepository,
+        private readonly LoggerInterface       $logger,
         private readonly ImapConnectionFactory $imapConnectionFactory,
     ) {}
 
@@ -44,18 +57,28 @@ final class ApplyImapFlagsHandler
         $byAccount = [];
 
         foreach ($messages as $msg) {
-            $accountId       = $msg->getMailbox()->getAccount()->getId();
             $sourceMailboxId = $message->messageIds[$msg->getId()];
+            $sourceMailbox   = $this->mailboxRepository->find($sourceMailboxId);
+
+            if (null === $sourceMailbox) {
+                $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
+                    'mailboxId' => $sourceMailboxId,
+                ]);
+                continue;
+            }
+
+            $accountId = $sourceMailbox->getAccount()->getId();
+
             $byAccount[$accountId][$sourceMailboxId][] = $msg;
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
-            $account = array_values($byMailbox)[0][0]->getMailbox()->getAccount();
-
+            $firstMailboxId = array_key_first($byMailbox);
+            $account        = $this->mailboxRepository->find($firstMailboxId)->getAccount();
 
             try {
                 $client = $this->imapConnectionFactory->connect($account);
-                $this->processAccount($client, $account, $byMailbox, $message->action);
+                $this->processAccount($client, $account, $byMailbox, $message->action, $message->destinationPath);
                 $client->disconnect();
             } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: IMAP error', [
@@ -75,29 +98,29 @@ final class ApplyImapFlagsHandler
         Account $account,
         array   $byMailbox,
         string  $action,
+        ?string $explicitDestinationPath,
     ): void {
-        $destinationPath = null;
+        $destinationPath = $explicitDestinationPath;
 
-        if ($action === 'archive' || $action === 'trash') {
+        if ('archive' === $action || 'trash' === $action) {
             $destinationPath = $this->resolveDestinationPath($client, $account, $action);
+        }
 
-            if ($destinationPath === null) {
-                $this->logger->warning('ApplyImapFlagsHandler: destination mailbox not found', [
-                    'accountId' => $account->getId(),
-                    'action'    => $action,
-                ]);
+        $needsDestination = in_array($action, ['archive', 'trash', 'move'], true);
 
-                return;
-            }
+        if (true === $needsDestination && null === $destinationPath) {
+            $this->logger->warning('ApplyImapFlagsHandler: destination not resolvable', [
+                'accountId' => $account->getId(),
+                'action'    => $action,
+            ]);
+
+            return;
         }
 
         foreach ($byMailbox as $sourceMailboxId => $messages) {
             $sourceMailbox = $this->mailboxRepository->find($sourceMailboxId);
 
-            if ($sourceMailbox === null) {
-                $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
-                    'mailboxId' => $sourceMailboxId,
-                ]);
+            if (null === $sourceMailbox) {
                 continue;
             }
 
@@ -117,15 +140,15 @@ final class ApplyImapFlagsHandler
      * @param Message[] $messages
      */
     private function processMailbox(
-        Client   $client,
-        Mailbox  $sourceMailbox,
-        array    $messages,
-        string   $action,
-        ?string  $destinationPath,
+        Client  $client,
+        Mailbox $sourceMailbox,
+        array   $messages,
+        string  $action,
+        ?string $destinationPath,
     ): void {
         $folder = $client->getFolder($sourceMailbox->getName());
 
-        if ($folder === null) {
+        if (null === $folder) {
             $this->logger->warning('ApplyImapFlagsHandler: source folder not found on server', [
                 'mailbox' => $sourceMailbox->getName(),
             ]);
@@ -134,7 +157,7 @@ final class ApplyImapFlagsHandler
         }
 
         foreach ($messages as $msg) {
-            if ($msg->getImapUid() === null) {
+            if (null === $msg->getImapUid()) {
                 continue;
             }
 
@@ -152,9 +175,9 @@ final class ApplyImapFlagsHandler
     }
 
     private function applyToMessage(
-        Folder $folder,
-        int    $uid,
-        string $action,
+        Folder  $folder,
+        int     $uid,
+        string  $action,
         ?string $destinationPath,
     ): void {
         $imapMessage = $folder->messages()
@@ -162,7 +185,7 @@ final class ApplyImapFlagsHandler
             ->get()
             ->first();
 
-        if ($imapMessage === null) {
+        if (null === $imapMessage) {
             $this->logger->warning('ApplyImapFlagsHandler: UID not found in source folder', [
                 'uid'    => $uid,
                 'folder' => $folder->path,
@@ -178,6 +201,7 @@ final class ApplyImapFlagsHandler
             'unseen'  => $imapMessage->unsetFlag('Seen'),
             'archive' => $imapMessage->move($destinationPath),
             'trash'   => $imapMessage->move($destinationPath),
+            'move'    => $imapMessage->move($destinationPath),
             'delete'  => $imapMessage->delete(expunge: true),
             default   => $this->logger->warning('ApplyImapFlagsHandler: unknown action', ['action' => $action]),
         };
@@ -185,14 +209,18 @@ final class ApplyImapFlagsHandler
 
     private function resolveDestinationPath(Client $client, Account $account, string $action): ?string
     {
-        $specialUse = ($action === 'archive') ? '\\Archive' : '\\Trash';
+        $specialUse = '\\Trash';
+
+        if ('archive' === $action) {
+            $specialUse = '\\Archive';
+        }
 
         $mailbox = $this->mailboxRepository->findOneBy([
             'account'    => $account,
             'specialUse' => $specialUse,
         ]);
 
-        if ($mailbox !== null) {
+        if (null !== $mailbox) {
             return $mailbox->getFullPath();
         }
 
@@ -207,7 +235,7 @@ final class ApplyImapFlagsHandler
             try {
                 $folder = $client->getFolder($candidate);
 
-                if ($folder !== null) {
+                if (null !== $folder) {
                     return $folder->path;
                 }
             } catch (Throwable) {

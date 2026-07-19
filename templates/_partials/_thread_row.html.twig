@@ -91,8 +91,10 @@
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date('g:i a') }}
-                        {% else %}
+                        {% elseif date|date('Y') == 'now'|date('Y')%}
                             {{ date|date('M j') }}
+                        {% else %}
+                            {{ date|date('M j Y') }}
                         {% endif %}
                     {% endif %}
                 </span>
@@ -100,6 +102,12 @@
 
             {# Row 2 (mobile) / subject+snippet (desktop) #}
             <span class="flex-1 min-w-0 truncate text-sm">
+                {% for label in thread.labels|filter(l => not l.isSystem and l.isVisible)|slice(0, 3) %}
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium
+                                 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 truncate max-w-24">
+                        {{ label.name }}
+                    </span>
+                {% endfor %}
                 <span class="{{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-700 dark:text-gray-300' }}">
                     {{ subject }}
                     {% if count > 1 %}
@@ -118,8 +126,10 @@
                 {% if date %}
                     {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                         {{ date|date('g:i a') }}
-                    {% else %}
+                    {% elseif date|date('Y') == 'now'|date('Y')%}
                         {{ date|date('M j') }}
+                    {% else %}
+                        {{ date|date('M j Y') }}
                     {% endif %}
                 {% endif %}
             </span>

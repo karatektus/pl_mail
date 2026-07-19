@@ -1,0 +1,13 @@
+{#
+Turbo stream after a label attach/detach.
+NOTE: mirror the structure of _star.stream.html.twig — replace the affected
+thread/message row so its label chips re-render. Adjust the target id
+pattern to whatever _star.stream uses (e.g. "thread_row_{id}").
+#}
+{% if thread is defined %}
+    <turbo-stream action="replace" target="thread_row_{{ thread.id }}">
+        <template>
+            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+        </template>
+    </turbo-stream>
+{% endif %}

@@ -50,6 +50,10 @@ class Mailbox
     #[ORM\Column]
     private bool $isIdleEnabled = false;
 
+    #[ORM\ManyToOne(targetEntity: Label::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Label $label = null;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $syncedAt = null;
 
@@ -65,16 +69,9 @@ class Mailbox
     #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'mailbox', cascade: ['remove'], orphanRemoval: true)]
     private Collection $messages;
 
-    /**
-     * @var Collection<int, MessageThread>
-     */
-    #[ORM\ManyToMany(targetEntity: MessageThread::class, mappedBy: 'mailboxes')]
-    private Collection $messageThreads;
-
     public function __construct()
     {
         $this->messages = new ArrayCollection();
-        $this->messageThreads = new ArrayCollection();
         $this->setCreatedAt(new \DateTimeImmutable());
         $this->setUpdatedAt(new \DateTimeImmutable());
     }
@@ -214,7 +211,17 @@ class Mailbox
         $this->isIdleEnabled = $isIdleEnabled;
         return $this;
     }
+    public function getLabel(): ?Label
+    {
+        return $this->label;
+    }
 
+    public function setLabel(?Label $label): static
+    {
+        $this->label = $label;
+
+        return $this;
+    }
     public function getSyncedAt(): ?\DateTimeImmutable
     {
         return $this->syncedAt;
@@ -281,30 +288,4 @@ class Mailbox
         return $this;
     }
 
-    /**
-     * @return Collection<int, MessageThread>
-     */
-    public function getMessageThreads(): Collection
-    {
-        return $this->messageThreads;
-    }
-
-    public function addMessageThread(MessageThread $messageThread): static
-    {
-        if (!$this->messageThreads->contains($messageThread)) {
-            $this->messageThreads->add($messageThread);
-            $messageThread->addMailbox($this);
-        }
-
-        return $this;
-    }
-
-    public function removeMessageThread(MessageThread $messageThread): static
-    {
-        if ($this->messageThreads->removeElement($messageThread)) {
-            $messageThread->removeMailbox($this);
-        }
-
-        return $this;
-    }
 }

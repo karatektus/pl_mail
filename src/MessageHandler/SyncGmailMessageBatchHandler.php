@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Entity\Account;
-use App\Entity\Mailbox;
+use App\Entity\Message;
 use App\Message\SyncGmailMessageBatchMessage;
 use App\Repository\AccountRepository;
-use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailMessageBuilder;
@@ -16,7 +15,6 @@ use App\Service\HarvestContactsService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\SyncNotifier;
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -25,7 +23,6 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class SyncGmailMessageBatchHandler
 {
     public function __construct(
-        private MailboxRepository      $mailboxRepository,
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
         private GmailApiClient         $apiClient,
@@ -40,32 +37,35 @@ final readonly class SyncGmailMessageBatchHandler
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
     {
-        $mailbox = $this->mailboxRepository->find($message->mailboxId);
+        $account = $this->accountRepository->find($message->accountId);
 
-        if (null === $mailbox) {
-            $this->logger->warning('SyncGmailMessageBatch: mailbox not found', [
-                'mailboxId' => $message->mailboxId,
+        if (null === $account) {
+            $this->logger->warning('SyncGmailMessageBatch: account not found', [
+                'accountId' => $message->accountId,
             ]);
 
             return;
         }
-
-        $account = $mailbox->getAccount();
 
         // Build a normalised-address → Account map for all active sibling accounts.
         // Used to attribute Gmailify sent messages to the correct account.
         $siblingAccounts = $this->buildSiblingAccountMap($account);
 
         // Dedup inside the batch too — batches can overlap across runs/retries.
+        // USER-scoped, not account-scoped: Gmailify attribution stores messages
+        // under sibling accounts, so a carrier-scoped lookup would miss them
+        // and re-insert on every retry.
         $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIds($mailbox)
+            $this->messageRepository->findSyncedGmailIdsForUser($account->getUsr())
         );
 
         $toFetch = [];
+
         foreach ($message->gmailIds as $gmailId) {
             if (true === isset($syncedGmailIds[$gmailId])) {
                 continue;
             }
+
             $toFetch[] = $gmailId;
         }
 
@@ -75,8 +75,8 @@ final readonly class SyncGmailMessageBatchHandler
 
         $payloads = $this->apiClient->getMessages($account, $toFetch);
 
-        /** @var array<int, list<\App\Entity\Message>> $builtByMailbox  mailboxId → built messages */
-        $builtByMailbox = [];
+        /** @var list<array{message: Message, account: Account}> $built */
+        $built = [];
 
         foreach ($payloads as $payload) {
             $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));
@@ -99,12 +99,17 @@ final readonly class SyncGmailMessageBatchHandler
             }
 
             // ── Build entity ──────────────────────────────────────────────────
+            // Label resolution inside the builder runs against the ATTRIBUTED
+            // account — a Gmailify sent message gets the sibling's Sent label,
+            // exactly like the old mailbox routing attributed the mailbox.
             try {
-                $entity = $this->messageBuilder->build($payload, $mailbox, $targetAccount);
+                $entity = $this->messageBuilder->build($payload, $targetAccount);
                 $this->em->persist($entity);
 
-                $targetMailboxId = (int) $entity->getMailbox()->getId();
-                $builtByMailbox[$targetMailboxId][] = $entity;
+                $built[] = [
+                    'message' => $entity,
+                    'account' => $targetAccount,
+                ];
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGmailMessageBatch: build failed', [
                     'gmailId' => $payload['id'] ?? '(unknown)',
@@ -113,24 +118,18 @@ final readonly class SyncGmailMessageBatchHandler
             }
         }
 
-        if (count($builtByMailbox) === 0) {
+        if (count($built) === 0) {
             return;
         }
 
         $this->em->flush();
 
-        $allBuilt = array_merge(...array_values($builtByMailbox));
-
-        foreach ($allBuilt as $entity) {
+        foreach ($built as $item) {
             try {
-                $this->messageThreader->assignThread(
-                    $entity,
-                    $entity->getMailbox()->getAccount(),
-                    $entity->getMailbox(),
-                );
+                $this->messageThreader->assignThread($item['message'], $item['account']);
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGmailMessageBatch: threading failed', [
-                    'messageId' => $entity->getId(),
+                    'messageId' => $item['message']->getId(),
                     'error'     => $e->getMessage(),
                 ]);
             }
@@ -138,24 +137,23 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->em->flush();
 
-        $this->harvestService->harvestMessages($account->getUsr(), $allBuilt);
+        $this->harvestService->harvestMessages(
+            $account->getUsr(),
+            array_column($built, 'message'),
+        );
 
-        // Update counts and publish a Mercure event for every affected mailbox.
-        foreach ($builtByMailbox as $mailboxId => $_messages) {
-            $affectedMailbox = $this->mailboxRepository->find($mailboxId);
-            if (null === $affectedMailbox) {
-                continue;
-            }
+        // One Mercure event per affected account — there are no mailboxes to
+        // update counts on anymore; sidebar counts are thread/label queries.
+        /** @var array<int, Account> $affectedAccounts */
+        $affectedAccounts = [];
 
-            $affectedMailbox
-                ->setUnreadMessages($this->messageRepository->countUnseenForMailbox($affectedMailbox))
-                ->setTotalMessages($this->messageRepository->countTotalForMailbox($affectedMailbox))
-                ->setSyncedAt(new DateTimeImmutable());
-
-            $this->syncNotifier->publishMailboxSynced($affectedMailbox->getAccount(), $affectedMailbox);
+        foreach ($built as $item) {
+            $affectedAccounts[(int) $item['account']->getId()] = $item['account'];
         }
 
-        $this->em->flush();
+        foreach ($affectedAccounts as $affectedAccount) {
+            $this->syncNotifier->publishAccountSynced($affectedAccount);
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -205,6 +203,7 @@ final readonly class SyncGmailMessageBatchHandler
         }
 
         $from = $headers['from'] ?? '';
+
         if ('' === $from) {
             return null;
         }
@@ -236,6 +235,7 @@ final readonly class SyncGmailMessageBatchHandler
             }
 
             $email = (string) $sibling->getEmail();
+
             if ('' === $email) {
                 continue;
             }
@@ -253,6 +253,7 @@ final readonly class SyncGmailMessageBatchHandler
     private function indexHeaders(array $headers): array
     {
         $index = [];
+
         foreach ($headers as $h) {
             $index[strtolower((string) ($h['name'] ?? ''))] = (string) ($h['value'] ?? '');
         }

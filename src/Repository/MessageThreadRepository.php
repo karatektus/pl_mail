@@ -3,9 +3,11 @@
 namespace App\Repository;
 
 use App\Domain\DTO\ParsedSearchQuery;
+use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageTab;
 use App\Entity\Account;
+use App\Entity\Label;
 use App\Entity\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ParameterType;
@@ -38,13 +40,13 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         return $this->createQueryBuilder('t')
             ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
+            ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
-            ->andWhere('m.specialUse = :inbox')
+            ->andWhere('l.role = :inbox')
             ->andWhere('t.tab = :tab')
             ->setParameter('user', $user)
-            ->setParameter('inbox', '\\Inbox')
+            ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('tab', $tab)
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
@@ -59,13 +61,13 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
             ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
+            ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
-            ->andWhere('m.specialUse = :inbox')
+            ->andWhere('l.role = :inbox')
             ->andWhere('t.tab = :tab')
             ->setParameter('user', $user)
-            ->setParameter('inbox', '\\Inbox')
+            ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('tab', $tab)
             ->distinct()
             ->getQuery()
@@ -77,14 +79,14 @@ class MessageThreadRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('t')
             ->select('t.tab AS tab', 'COUNT(DISTINCT t.id) AS unreadCount')
             ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
+            ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
-            ->andWhere('m.specialUse = :inbox')
+            ->andWhere('l.role = :inbox')
             ->andWhere('t.unreadCount > 0')
             ->groupBy('t.tab')
             ->setParameter('user', $user)
-            ->setParameter('inbox', '\\Inbox')
+            ->setParameter('inbox', LabelRole::Inbox)
             ->getQuery()
             ->getResult();
 
@@ -103,6 +105,64 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $counts;
     }
 
+    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50): array
+    {
+        $offset = ($page - 1) * $perPage;
+
+        return $this->createQueryBuilder('t')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :role')
+            ->setParameter('user', $user)
+            ->setParameter('role', $role)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->distinct()
+            ->getQuery()
+            ->getResult();
+    }
+    public function countForRole(UserInterface $user, LabelRole $role): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :role')
+            ->setParameter('user', $user)
+            ->setParameter('role', $role)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+    public function findForLabel(Label $label, int $page = 1, int $perPage = 50): array
+    {
+        $offset = ($page - 1) * $perPage;
+
+        return $this->createQueryBuilder('t')
+            ->join('t.labels', 'l')
+            ->where('l = :label')
+            ->setParameter('label', $label)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countForLabel(Label $label): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->join('t.labels', 'l')
+            ->where('l = :label')
+            ->setParameter('label', $label)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
     public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
@@ -132,64 +192,62 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
-
-    public function findForSpecialUse(UserInterface $user, MailboxSpecialUse $specialUse, int $page = 1, int $perPage = 50): array
-    {
-        $offset = ($page - 1) * $perPage;
-
-        return $this->createQueryBuilder('t')
-            ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
-            ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
-            ->andWhere('m.specialUse = :specialUse')
-            ->setParameter('user', $user)
-            ->setParameter('specialUse', $specialUse)
-            ->orderBy('t.lastMessageAt', 'DESC')
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage)
-            ->distinct()
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function countForSpecialUse(UserInterface $user, MailboxSpecialUse $specialUse): int
-    {
-        return $this->createQueryBuilder('t')
-            ->select('COUNT(DISTINCT t.id)')
-            ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
-            ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
-            ->andWhere('m.specialUse = :specialUse')
-            ->setParameter('user', $user)
-            ->setParameter('specialUse', $specialUse)
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    public function countUnreadPerSpecialUse(UserInterface $user): array
+    /**
+     * @return array<string,int> role value → unread thread-message sum
+     */
+    public function countUnreadPerRole(UserInterface $user): array
     {
         $rows = $this->createQueryBuilder('t')
-            ->select('m.specialUse AS specialUse', 'COUNT(DISTINCT t.id) AS unreadCount')
+            ->select('l.role AS role', 'SUM(t.unreadCount) AS unreadCount')
             ->join('t.account', 'a')
-            ->join('t.mailboxes', 'm')
+            ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
-            ->andWhere('t.unreadCount > 0')
-            ->andWhere('m.specialUse IS NOT NULL')
-            ->groupBy('m.specialUse')
+            ->andWhere('l.role IS NOT NULL')
             ->setParameter('user', $user)
+            ->groupBy('l.role')
             ->getQuery()
-            ->getResult();
+            ->getArrayResult();
 
         $counts = [];
 
         foreach ($rows as $row) {
-            $counts[$row['specialUse']->value] = $row['unreadCount'];
+            $role = $row['role'];
+
+            if ($role instanceof LabelRole) {
+                $role = $role->value;
+            }
+
+            $counts[(string) $role] = (int) $row['unreadCount'];
         }
 
-        return $rows;
+        return $counts;
+    }
+
+    /**
+     * @return array<int,int> label id → unread thread-message sum
+     */
+    public function countUnreadPerUserLabel(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('l.id AS labelId', 'SUM(t.unreadCount) AS unreadCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role IS NULL')
+            ->setParameter('user', $user)
+            ->groupBy('l.id')
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(int) $row['labelId']] = (int) $row['unreadCount'];
+        }
+
+        return $counts;
     }
 
     public function countUnreadForStarred(UserInterface $user): int
@@ -342,21 +400,24 @@ class MessageThreadRepository extends ServiceEntityRepository
             $params['before']  = $query->before->format('Y-m-d H:i:s');
         }
 
+        if ($query->label !== null) {
+            $where[]         = 'LOWER(lbl.name) = :labelName AND lbl.role IS NULL';
+            $params['labelName'] = strtolower($query->label);
+        }
         // ── Mailbox role filter ───────────────────────────────────────────
         $roleMap = [
-            'inbox'   => '\\\\Inbox',
-            'sent'    => '\\\\Sent',
-            'drafts'  => '\\\\Drafts',
-            'draft'   => '\\\\Drafts',
-            'trash'   => '\\\\Trash',
-            'archive' => '\\\\Archive',
-            'junk'    => '\\\\Junk',
-            'spam'    => '\\\\Junk',
+            'inbox'   => 'inbox',
+            'sent'    => 'sent',
+            'drafts'  => 'drafts',
+            'draft'   => 'drafts',
+            'trash'   => 'trash',
+            'junk'    => 'spam',
+            'spam'    => 'spam',
         ];
 
-        if ($query->mailboxRole !== null && isset($roleMap[$query->mailboxRole])) {
-            $where[]              = 'mb.special_use = :specialUse';
-            $params['specialUse'] = $roleMap[$query->mailboxRole];
+        if ($query->mailboxRole !== null && true === isset($roleMap[$query->mailboxRole])) {
+            $where[]        = 'lbl.role = :labelRole';
+            $params['labelRole'] = $roleMap[$query->mailboxRole];
         }
 
         $whereClause = implode(' AND ', $where);
@@ -366,8 +427,9 @@ class MessageThreadRepository extends ServiceEntityRepository
                 SELECT COUNT(DISTINCT t.id)
                 FROM message_thread t
                 JOIN message m ON m.thread_id = t.id
-                JOIN mailbox mb ON mb.id = m.mailbox_id
-                JOIN account a ON a.id = mb.account_id
+                JOIN account a ON a.id = t.account_id
+                LEFT JOIN thread_label tl ON tl.message_thread_id = t.id
+                LEFT JOIN label lbl ON lbl.id = tl.label_id
                 WHERE {$whereClause}
             SQL;
 
@@ -381,8 +443,9 @@ class MessageThreadRepository extends ServiceEntityRepository
                 MAX(t.last_message_at)                            AS last_message_at
             FROM message_thread t
             JOIN message m ON m.thread_id = t.id
-            JOIN mailbox mb ON mb.id = m.mailbox_id
-            JOIN account a ON a.id = mb.account_id
+           JOIN account a ON a.id = t.account_id
+           LEFT JOIN thread_label tl ON tl.message_thread_id = t.id
+           LEFT JOIN label lbl ON lbl.id = tl.label_id
             WHERE {$whereClause}
             GROUP BY t.id
         SQL;

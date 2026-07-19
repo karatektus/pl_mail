@@ -15,6 +15,10 @@ login:
         coming_soon: Registration coming soon.
 
 header:
+    labels:
+        heading: Labels
+        add: Create label
+        none: No labels yet
     search:
         placeholder: Search mail…
     theme:
@@ -26,6 +30,10 @@ header:
         sign_out: Sign out
 
 sidebar:
+    labels:
+        heading: Labels
+        add: Create label
+        none: No labels yet
     compose: Compose
     nav:
         inbox: Inbox
@@ -148,6 +156,7 @@ toolbar:
         starred: Starred
 
     actions:
+        label: Label as
         archive: Archive
         delete: Delete
         mark_read: Mark as read
@@ -181,3 +190,28 @@ settings:
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
+label:
+    empty: No conversations with this label.
+    menu:
+        empty: No labels yet.
+        create: Create new
+    form:
+        name: Name
+        account: Account
+        parent: Nest under
+        no_parent: '— top level —'
+        color: Color
+        no_color: '— none —'
+        delete: Delete label
+    error:
+        duplicate: A label with this name already exists here.
+    color:
+        gray: Gray
+        red: Red
+        orange: Orange
+        amber: Amber
+        green: Green
+        teal: Teal
+        blue: Blue
+        violet: Violet
+        pink: Pink

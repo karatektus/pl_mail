@@ -1,0 +1,11 @@
+{# Close the modal and refresh the sidebar label list after create/update. #}
+<turbo-stream action="replace" target="label-list">
+    <template>
+        <div id="label-list" class="space-y-0.5">
+            {% import '_partials/_sidebar.html.twig' as sidebar %}
+            {% for root in sidebarCounts.userLabelRoots() %}
+                {{ sidebar.label_item(root, 0, '') }}
+            {% endfor %}
+        </div>
+    </template>
+</turbo-stream>

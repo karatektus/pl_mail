@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Account;
-use App\Repository\MailboxRepository;
-use Psr\Log\LoggerInterface;
 
+/**
+ * Gmail sync entry point. Label-based architecture: syncs the label list
+ * first so every labelId on incoming messages resolves, then plans message
+ * work directly on the account — no Mailbox involvement.
+ */
 final readonly class GmailAccountSyncer implements AccountSyncerInterface
 {
     public function __construct(
-        private GmailApiSyncer    $gmailApiSyncer,
-        private MailboxRepository $mailboxRepository,
-        private LoggerInterface   $logger,
+        private GmailApiSyncer   $gmailApiSyncer,
+        private GmailLabelSyncer $labelSyncer,
     ) {}
 
     public function supports(Account $account): bool
@@ -25,36 +26,12 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
 
     public function sync(Account $account): array
     {
-        // The inbox mailbox is used as the "carrier" for the sync job and as
-        // the fallback mailbox in GmailMessageBuilder. Actual per-message
-        // routing to Sent / Trash / Spam etc. happens inside the batch handler
-        // via GmailLabelMailboxRouter, so syncing all mail through a single
-        // entry point here is correct.
-        $inbox = $this->mailboxRepository->findOneBy([
-            'account'    => $account,
-            'specialUse' => MailboxSpecialUse::INBOX,
-        ]);
-
-        if (null === $inbox) {
-            $this->logger->warning('GmailAccountSyncer: no inbox mailbox found', [
-                'accountId' => $account->getId(),
-            ]);
-
-            return [];
-        }
-
-        if (false === $inbox->isSyncEnabled()) {
-            $this->logger->info('GmailAccountSyncer: inbox sync disabled', [
-                'accountId' => $account->getId(),
-            ]);
-
-            return [];
-        }
+        $this->labelSyncer->sync($account);
 
         if (null === $account->getGmailHistoryId()) {
-            $this->gmailApiSyncer->initialSync($inbox);
+            $this->gmailApiSyncer->initialSync($account);
         } else {
-            $this->gmailApiSyncer->syncIncremental($inbox);
+            $this->gmailApiSyncer->syncIncremental($account);
         }
 
         return [];

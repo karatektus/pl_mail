@@ -6,6 +6,7 @@ use App\Entity\Account;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessageThread;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -28,13 +29,15 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
     }
 
-    public function findSyncedGmailIds(Mailbox $mailbox): array
+    public function findSyncedGmailIdsForUser(User $user): array
     {
         return $this->createQueryBuilder('m')
             ->select('m.gmailId')
-            ->where('m.mailbox = :mailbox')
+            ->innerJoin('m.thread', 't')
+            ->innerJoin('t.account', 'a')
+            ->where('a.usr = :usr')
             ->andWhere('m.gmailId IS NOT NULL')
-            ->setParameter('mailbox', $mailbox)
+            ->setParameter('usr', $user)
             ->getQuery()
             ->getSingleColumnResult();
     }

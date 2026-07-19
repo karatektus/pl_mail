@@ -7,6 +7,8 @@ namespace App\Message;
 /**
  * A chunk of Gmail message IDs to fetch, build, and persist. Dispatched by
  * GmailApiSyncer so the work parallelises across workers.
+ *
+ * Account-based since the label refactor: Gmail messages have no Mailbox.
  */
 readonly class SyncGmailMessageBatchMessage
 {
@@ -14,7 +16,7 @@ readonly class SyncGmailMessageBatchMessage
      * @param list<string> $gmailIds
      */
     public function __construct(
-        public int   $mailboxId,
+        public int   $accountId,
         public array $gmailIds,
     ) {}
 }

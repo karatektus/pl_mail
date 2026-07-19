@@ -12,6 +12,7 @@ namespace App\Domain\DTO;
 final class ParsedSearchQuery
 {
     public string $freeText    = '';
+    public ?string $label       = null;
     public ?string $from       = null;
     public ?string $to         = null;
     public ?string $subject    = null;
@@ -26,6 +27,7 @@ final class ParsedSearchQuery
     public function isEmpty(): bool
     {
         return $this->freeText === ''
+            && $this->label === null
             && $this->from === null
             && $this->to === null
             && $this->subject === null

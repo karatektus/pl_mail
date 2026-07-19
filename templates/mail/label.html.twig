@@ -1,0 +1,20 @@
+{#
+mail/label.html.twig — thread list for a custom label.
+NOTE: mirror of sent.html.twig — align the extends/include names with the
+ones used there if they differ (I modelled this on the variables the
+controller passes: threads, page, total, per_page).
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block title %}
+    {% set _unread = sidebarCounts.forLabel(label) %}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ label.fullName }} — {{ 'app.name'|trans }}
+{% endblock %}
+
+{% block list_heading %}
+    <span class="flex items-center gap-2">
+        {{ label.fullName }}
+    </span>
+{% endblock %}
+
+{% block list_empty %}{{ 'label.empty'|trans }}{% endblock %}

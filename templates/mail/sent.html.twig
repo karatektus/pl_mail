@@ -1,7 +1,7 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forSpecialUse(enum('App\\Domain\\Enum\\MailboxSpecialUse').SENT) %}
+    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Sent) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'Sent'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
 

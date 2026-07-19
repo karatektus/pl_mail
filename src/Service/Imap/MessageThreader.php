@@ -5,7 +5,6 @@ namespace App\Service\Imap;
 use App\Domain\Enum\MessageTab;
 use App\Domain\Enum\ThreadingMethod;
 use App\Entity\Account;
-use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessageThread;
 use App\Repository\MessageRepository;
@@ -29,7 +28,7 @@ final class MessageThreader
      * does not need to be persisted yet — this method will associate it
      * with a thread and the caller is responsible for the final flush.
      */
-    public function assignThread(Message $message, Account $account, Mailbox $mailbox): void
+    public function assignThread(Message $message, Account $account): void
     {
         $referenceIds = $this->collectReferenceIds($message);
 
@@ -38,7 +37,7 @@ final class MessageThreader
 
             if ($parentMessage !== null && $parentMessage->getThread() !== null) {
                 $thread = $parentMessage->getThread();
-                $this->attachMessageToThread($message, $thread, $mailbox);
+                $this->attachMessageToThread($message, $thread);
 
                 return;
             }
@@ -46,7 +45,7 @@ final class MessageThreader
             // Headers are valid even though no parent has been synced yet —
             // method is about what the message provides, not whether a match occurred.
             $thread = $this->createThread($message, $account, ThreadingMethod::References);
-            $this->attachMessageToThread($message, $thread, $mailbox);
+            $this->attachMessageToThread($message, $thread);
 
             return;
         }
@@ -61,14 +60,14 @@ final class MessageThreader
             );
 
             if ($candidateThread !== null && $this->participantsOverlap($message, $candidateThread)) {
-                $this->attachMessageToThread($message, $candidateThread, $mailbox);
+                $this->attachMessageToThread($message, $candidateThread);
 
                 return;
             }
         }
 
         $thread = $this->createThread($message, $account, ThreadingMethod::SubjectFallback);
-        $this->attachMessageToThread($message, $thread, $mailbox);
+        $this->attachMessageToThread($message, $thread);
     }
 
     /**
@@ -149,15 +148,15 @@ final class MessageThreader
         return $thread;
     }
 
-    private function attachMessageToThread(Message $message, MessageThread $thread, Mailbox $mailbox): void
+    private function attachMessageToThread(Message $message, MessageThread $thread): void
     {
         $message->setThread($thread);
 
-        if (!$thread->getMailboxes()->contains($mailbox)) {
-            $thread->addMailbox($mailbox);
-        }
-
         $thread->setMessageCount($thread->getMessageCount() + 1);
+
+        foreach ($message->getLabels() as $label) {
+            $thread->addLabel($label);
+        }
 
         if (null === $message->getSeenAt()) {
             $thread->setUnreadCount($thread->getUnreadCount() + 1);

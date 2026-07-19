@@ -9,7 +9,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\UX\Turbo\Attribute\Broadcast;
 
 #[ORM\Entity(repositoryClass: MessageThreadRepository::class)]
 class MessageThread
@@ -51,11 +50,15 @@ class MessageThread
     private Collection $messages;
 
     /**
-     * @var Collection<int, Mailbox>
+     * @var Collection<int, Label>
      */
-    #[ORM\ManyToMany(targetEntity: Mailbox::class, inversedBy: 'messageThreads')]
-    #[ORM\JoinTable(name: 'message_thread_mailbox')]
-    private Collection $mailboxes;
+    #[ORM\ManyToMany(targetEntity: Label::class)]
+    #[ORM\JoinTable(
+        name: 'thread_label',
+        joinColumns: [new ORM\JoinColumn(name: 'message_thread_id', referencedColumnName: 'id', onDelete: 'CASCADE')],
+        inverseJoinColumns: [new ORM\JoinColumn(name: 'label_id', referencedColumnName: 'id', onDelete: 'CASCADE')],
+    )]
+    private Collection $labels;
 
     #[ORM\Column(enumType: ThreadingMethod::class)]
     private ?ThreadingMethod $threadingMethod = null;
@@ -64,15 +67,12 @@ class MessageThread
     private ?string $normalizedSubject = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $archivedAt = null;
-
-    #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $snoozedUntil = null;
 
     public function __construct()
     {
         $this->messages = new ArrayCollection();
-        $this->mailboxes = new ArrayCollection();
+        $this->labels = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -206,30 +206,6 @@ class MessageThread
         return $this;
     }
 
-    /**
-     * @return Collection<int, Mailbox>
-     */
-    public function getMailboxes(): Collection
-    {
-        return $this->mailboxes;
-    }
-
-    public function addMailbox(Mailbox $mailbox): static
-    {
-        if (!$this->mailboxes->contains($mailbox)) {
-            $this->mailboxes->add($mailbox);
-        }
-
-        return $this;
-    }
-
-    public function removeMailbox(Mailbox $mailbox): static
-    {
-        $this->mailboxes->removeElement($mailbox);
-
-        return $this;
-    }
-
     public function getThreadingMethod(): ?ThreadingMethod
     {
         return $this->threadingMethod;
@@ -254,17 +230,6 @@ class MessageThread
         return $this;
     }
 
-    public function getArchivedAt(): ?\DateTimeImmutable
-    {
-        return $this->archivedAt;
-    }
-
-    public function setArchivedAt(?\DateTimeImmutable $archivedAt): static
-    {
-        $this->archivedAt = $archivedAt;
-        return $this;
-    }
-
     public function isArchived(): bool
     {
         return $this->archivedAt !== null;
@@ -284,5 +249,34 @@ class MessageThread
     public function isSnoozed(): bool
     {
         return $this->snoozedUntil !== null && $this->snoozedUntil > new \DateTimeImmutable();
+    }
+
+    /**
+     * @return Collection<int, Label>
+     */
+    public function getLabels(): Collection
+    {
+        return $this->labels;
+    }
+
+    public function addLabel(Label $label): static
+    {
+        if (false === $this->labels->contains($label)) {
+            $this->labels->add($label);
+        }
+
+        return $this;
+    }
+
+    public function removeLabel(Label $label): static
+    {
+        $this->labels->removeElement($label);
+
+        return $this;
+    }
+
+    public function hasLabel(Label $label): bool
+    {
+        return $this->labels->contains($label);
     }
 }

@@ -2,9 +2,11 @@
 
 namespace App\Controller;
 
+use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MailboxSpecialUse;
 use App\Domain\Enum\MessageTab;
 use App\Entity\Account;
+use App\Entity\Label;
 use App\Entity\Message;
 use App\Entity\MessageThread;
 use App\Repository\MailboxRepository;
@@ -39,20 +41,38 @@ final class MailController extends AbstractController
             $tab = MessageTab::from($tabParam);
         }
 
-        $mailboxIds = $this->mailboxRepository->getIdsOfActiveInboxMailboxesForUser($user);
         $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
         $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
         $tabCounts  = $this->threadRepository->countUnreadByTabForUnifiedInbox($user);
 
         return $this->render('mail/inbox.html.twig', [
             'threads'    => $threads,
-            'mailboxIds' => $mailboxIds,
             'tab'        => $tab,
             'tabs'       => MessageTab::cases(),
             'tabCounts'  => $tabCounts,
             'page'       => $page,
             'total'      => $total,
             'per_page'   => 50,
+        ]);
+    }
+
+    #[Route('/label/{id}', name: 'label')]
+    public function labelView(Label $label, Request $request): Response
+    {
+        if ($label->account?->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page    = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForLabel($label, $page);
+        $total   = $this->threadRepository->countForLabel($label);
+
+        return $this->render('mail/label.html.twig', [
+            'label'    => $label,
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
         ]);
     }
 
@@ -77,8 +97,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, MailboxSpecialUse::SENT, $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, MailboxSpecialUse::SENT);
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Sent, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Sent);
 
         return $this->render('mail/sent.html.twig', [
             'threads'  => $threads,
@@ -93,8 +113,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, MailboxSpecialUse::DRAFTS, $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, MailboxSpecialUse::DRAFTS);
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Drafts, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Drafts);
 
         return $this->render('mail/drafts.html.twig', [
             'threads'  => $threads,
@@ -109,8 +129,8 @@ final class MailController extends AbstractController
     {
         $user  = $this->getUser();
         $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForSpecialUse($user, '\\Trash', $page);
-        $total   = $this->threadRepository->countForSpecialUse($user, '\\Trash');
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Trash, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Trash);
 
         return $this->render('mail/trash.html.twig', [
             'threads'  => $threads,
@@ -170,8 +190,8 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $mailbox = $message->getMailbox();
-        $account = $mailbox->getAccount();
+        $thread = $message->getThread();
+        $account = $thread->getAccount();
 
         if ($account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
@@ -187,7 +207,7 @@ final class MailController extends AbstractController
         // Direct load / refresh / bookmark — render the full mailbox page
         // with the reading pane already open
         return $this->render('mail/mailbox.html.twig', [
-            'mailbox' => $mailbox,
+            'thread' => $thread,
             'account' => $account,
             'selectedMessage' => $message,
         ]);
@@ -213,9 +233,6 @@ final class MailController extends AbstractController
             // For this implementation, we'll grab the last one in the collection.
             $latestMessage = $messages->last();
         }
-
-        // A thread can belong to multiple mailboxes; we'll pick the first one for the context.
-        $mailbox = $thread->getMailboxes()->first();
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             return $this->render('mail/_thread_content.html.twig', [

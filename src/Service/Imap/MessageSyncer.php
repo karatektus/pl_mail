@@ -122,7 +122,6 @@ class MessageSyncer
                 $this->messageThreader->assignThread(
                     $message,
                     $mailbox->getAccount(),
-                    $mailbox,
                 );
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to assign thread', [
@@ -143,6 +142,11 @@ class MessageSyncer
     {
         $message = new Message();
         $message->setMailbox($mailbox);
+        $mailboxLabel = $mailbox->getLabel();
+
+        if (null !== $mailboxLabel) {
+            $message->addLabel($mailboxLabel);
+        }
         $message->setImapUid($imapMessage->getUid());
         $message->setMessageId((string) $imapMessage->getMessageId());
         $message->setSubject(

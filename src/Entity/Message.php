@@ -20,7 +20,7 @@ class Message extends MessageModel
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Mailbox $mailbox = null;
 
     #[ORM\Column(nullable: true)]
@@ -130,11 +130,19 @@ class Message extends MessageModel
     #[ORM\Column]
     private bool $cancelled = false;
 
+    /**
+     * @var Collection<int, Label>
+     */
+    #[ORM\ManyToMany(targetEntity: Label::class)]
+    #[ORM\JoinTable(name: 'message_label')]
+    private Collection $labels;
+
     public function __construct()
     {
         $this->messageParts = new ArrayCollection();
         $this->setCreatedAt(new DateTimeImmutable());
         $this->setUpdatedAt(new DateTimeImmutable());
+        $this->labels = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -159,7 +167,7 @@ class Message extends MessageModel
         return $this->imapUid;
     }
 
-    public function setImapUid(int $imapUid): static
+    public function setImapUid(?int $imapUid): static
     {
         $this->imapUid = $imapUid;
 
@@ -512,5 +520,34 @@ class Message extends MessageModel
         $this->cancelled = $cancelled;
 
         return $this;
+    }
+
+    /**
+     * @return Collection<int, Label>
+     */
+    public function getLabels(): Collection
+    {
+        return $this->labels;
+    }
+
+    public function addLabel(Label $label): static
+    {
+        if (false === $this->labels->contains($label)) {
+            $this->labels->add($label);
+        }
+
+        return $this;
+    }
+
+    public function removeLabel(Label $label): static
+    {
+        $this->labels->removeElement($label);
+
+        return $this;
+    }
+
+    public function hasLabel(Label $label): bool
+    {
+        return $this->labels->contains($label);
     }
 }

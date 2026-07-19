@@ -369,4 +369,71 @@ final class GmailApiClient
 
         return $results;
     }
+    // ── labels ────────────────────────────────────────────────────────────────
+
+    /**
+     * @return list<array<string,mixed>>  raw `labels` array from labels.list
+     */
+    public function listLabels(Account $account): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/labels', [
+            'auth_bearer' => $token,
+        ]);
+
+        $body = $response->toArray();
+
+        return $body['labels'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>  the created label resource (id, name, …)
+     */
+    public function createLabel(Account $account, string $name): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('POST', self::BASE . '/labels', [
+            'auth_bearer' => $token,
+            'json'        => [
+                'name'                  => $name,
+                'labelListVisibility'   => 'labelShow',
+                'messageListVisibility' => 'show',
+            ],
+        ]);
+
+        return $response->toArray();
+    }
+
+    /**
+     * Mutate labels on up to 1000 messages in one call.
+     *
+     * @param list<string> $gmailMessageIds
+     * @param list<string> $addLabelIds
+     * @param list<string> $removeLabelIds
+     */
+    public function batchModify(Account $account, array $gmailMessageIds, array $addLabelIds, array $removeLabelIds): void
+    {
+        if (count($gmailMessageIds) === 0) {
+            return;
+        }
+
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $payload = ['ids' => $gmailMessageIds];
+
+        if (count($addLabelIds) > 0) {
+            $payload['addLabelIds'] = $addLabelIds;
+        }
+
+        if (count($removeLabelIds) > 0) {
+            $payload['removeLabelIds'] = $removeLabelIds;
+        }
+
+        $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
+            'auth_bearer' => $token,
+            'json'        => $payload,
+        ]);
+    }
 }

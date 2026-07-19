@@ -1,0 +1,16 @@
+{# Refresh the sidebar label list after delete. #}
+<turbo-stream action="replace" target="label-list">
+    <template>
+        <div id="label-list" class="space-y-0.5">
+            {% import '_partials/_sidebar.html.twig' as sidebar %}
+            {% set roots = sidebarCounts.userLabelRoots() %}
+            {% if roots|length == 0 %}
+                <p class="px-3 py-1.5 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.labels.none'|trans }}</p>
+            {% else %}
+                {% for root in roots %}
+                    {{ sidebar.label_item(root, 0, '') }}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </template>
+</turbo-stream>
