@@ -131,24 +131,21 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Does the account already hold a message with this RFC Message-ID
-     * (via mailbox or thread ownership)? Used by the Gmailify importer to
-     * yield to the sibling's own IMAP copy.
+     * The account's own copy of a message (via mailbox or thread ownership)
+     * by canonical RFC Message-ID — the enrichment target for Gmailify dedup.
      */
-    public function existsForAccountByMessageId(Account $account, string $messageId): bool
+    public function findOneForAccountByMessageId(Account $account, string $messageId): ?Message
     {
-        $count = (int) $this->createQueryBuilder('message')
-            ->select('COUNT(message.id)')
+        return $this->createQueryBuilder('message')
             ->leftJoin('message.mailbox', 'mailbox')
             ->leftJoin('message.thread', 'thread')
             ->where('message.messageId = :messageId')
             ->andWhere('mailbox.account = :account OR thread.account = :account')
             ->setParameter('messageId', $messageId)
             ->setParameter('account', $account)
+            ->setMaxResults(1)
             ->getQuery()
-            ->getSingleScalarResult();
-
-        return $count > 0;
+            ->getOneOrNullResult();
     }
 
     /**

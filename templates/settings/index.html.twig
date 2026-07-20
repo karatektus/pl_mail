@@ -38,65 +38,84 @@
                             <h1 class="text-base font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.title'|trans }}</h1>
                         </div>
 
-                        {# Scrollable body: section nav + content #}
+                        {# Scrollable body: section nav + content.
+                           IMPORTANT: this grid must have exactly TWO children —
+                           the nav and ONE content wrapper. A third child wraps
+                           into the 180px nav column on the next grid row. #}
                         <div class="flex-1 overflow-y-auto">
                             <div class="max-w-3xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8">
 
                                 <nav class="space-y-1">
-                                    <span class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
-                                                 bg-black/[0.04] dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100">
-                                        <i class="fa-solid fa-at w-4 text-zinc-400" aria-hidden="true"></i>
+                                    {% set navActive   = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-black/[0.04] dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100' %}
+                                    {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-500 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors' %}
+
+                                    <a href="{{ path('app_settings_index', { section: 'accounts' }) }}"
+                                       class="{{ section == 'accounts' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-at w-4 {{ section == 'accounts' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.accounts'|trans }}
-                                    </span>
+                                    </a>
+                                    <a href="{{ path('app_settings_index', { section: 'labels' }) }}"
+                                       class="{{ section == 'labels' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.labels'|trans }}
+                                    </a>
                                     <span class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 dark:text-zinc-600 cursor-not-allowed">
                                         <i class="fa-solid fa-sliders w-4" aria-hidden="true"></i>
                                         {{ 'settings.nav.general'|trans }}
                                     </span>
                                 </nav>
 
-                                <section>
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.accounts.heading'|trans }}</h2>
-                                            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{{ 'settings.accounts.subheading'|trans }}</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            data-controller="modal"
-                                            data-action="click->modal#open"
-                                            data-modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
-                                            data-modal-src-value="{{ path('app_account_new') }}"
-                                            class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
-                                                   bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
-                                        >
-                                            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
-                                            {{ 'sidebar.accounts.add'|trans }}
-                                        </button>
-                                    </div>
+                                {# Single content wrapper — second (and last) grid child #}
+                                <div>
+                                    {% if section == 'labels' %}
 
-                                    <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden">
-                                        <div id="settings-account-list">
-                                            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
-                                        </div>
-                                    </div>
-                                </section>
-                                <section>
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.labels.heading'|trans }}</h2>
-                                            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{{ 'settings.labels.subheading'|trans }}</p>
-                                        </div>
-                                    </div>
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.labels.heading'|trans }}</h2>
+                                                <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{{ 'settings.labels.subheading'|trans }}</p>
+                                            </div>
 
-                                    <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden">
-                                        <div id="settings-label-list">
-                                            {% include 'settings/_labels.html.twig' with {
-                                                manageableAccounts: manageableAccounts,
-                                                labelsByAccount: labelsByAccount,
-                                            } %}
-                                        </div>
-                                    </div>
-                                </section>
+                                            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden">
+                                                <div id="settings-label-list">
+                                                    {% include 'settings/_labels.html.twig' with {
+                                                        manageableAccounts: manageableAccounts,
+                                                        labelsByAccount: labelsByAccount,
+                                                    } %}
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                    {% else %}
+
+                                        <section>
+                                            <div class="flex items-center justify-between mb-4">
+                                                <div>
+                                                    <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.accounts.heading'|trans }}</h2>
+                                                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{{ 'settings.accounts.subheading'|trans }}</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    data-controller="modal"
+                                                    data-action="click->modal#open"
+                                                    data-modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
+                                                    data-modal-src-value="{{ path('app_account_new') }}"
+                                                    class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                                           bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
+                                                >
+                                                    <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                                                    {{ 'sidebar.accounts.add'|trans }}
+                                                </button>
+                                            </div>
+
+                                            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden">
+                                                <div id="settings-account-list">
+                                                    {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                    {% endif %}
+                                </div>
 
                             </div>
                         </div>

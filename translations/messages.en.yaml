@@ -176,6 +176,7 @@ settings:
     nav:
         accounts: Mail accounts
         general: General
+        labels: Labels
     accounts:
         heading: Mail accounts
         subheading: Add, edit, enable, or remove the mailboxes you sync.

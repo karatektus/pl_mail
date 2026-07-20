@@ -55,7 +55,8 @@ final readonly class SyncGmailMessageBatchHandler
         // Dedup inside the batch too — batches can overlap across runs/retries.
         // USER-scoped, not account-scoped: Gmailify attribution stores messages
         // under sibling accounts, so a carrier-scoped lookup would miss them
-        // and re-insert on every retry.
+        // and re-insert on every retry. Enriched IMAP rows get their gmailId
+        // set, so they are covered here too and enrichment runs exactly once.
         $syncedGmailIds = array_flip(
             $this->messageRepository->findSyncedGmailIdsForUser($account->getUsr())
         );
@@ -79,9 +80,14 @@ final readonly class SyncGmailMessageBatchHandler
         /** @var list<array{message: Message, account: Account}> $built */
         $built = [];
 
+        /** @var array<int, Account> $affectedAccounts */
+        $affectedAccounts = [];
+        $enriched         = 0;
+
         foreach ($payloads as $payload) {
             $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));
             $headers  = $this->indexHeaders($payload['payload']['headers'] ?? []);
+            $gmailId  = (string) ($payload['id'] ?? '');
 
             // ── Address ownership filter ──────────────────────────────────────
             $targetAccount = $this->resolveOwningAccount(
@@ -93,10 +99,31 @@ final readonly class SyncGmailMessageBatchHandler
 
             if (null === $targetAccount) {
                 $this->logger->debug('SyncGmailMessageBatch: skipping message not attributable to any known account', [
-                    'gmailId'   => $payload['id'] ?? '(unknown)',
+                    'gmailId'   => '' !== $gmailId ? $gmailId : '(unknown)',
                     'accountId' => $account->getId(),
                 ]);
                 continue;
+            }
+
+            // ── Gmailify dedup: merge, don't skip ─────────────────────────────
+            // When the sibling's own IMAP sync already holds this message
+            // (same canonical RFC Message-ID), the IMAP row keeps ownership of
+            // location/flags — but it still gains everything the Gmail copy
+            // knows: gmailId, gmailLabelIds, and the translated labels.
+            if ($targetAccount !== $account) {
+                $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
+
+                if ('' !== $rfcMessageId) {
+                    $existing = $this->messageRepository->findOneForAccountByMessageId($targetAccount, $rfcMessageId);
+
+                    if (null !== $existing) {
+                        $this->enrichExisting($existing, $labelIds, $gmailId, $targetAccount, $account);
+
+                        $enriched++;
+                        $affectedAccounts[(int) $targetAccount->getId()] = $targetAccount;
+                        continue;
+                    }
+                }
             }
 
             // ── Build entity ──────────────────────────────────────────────────
@@ -111,15 +138,17 @@ final readonly class SyncGmailMessageBatchHandler
                     'message' => $entity,
                     'account' => $targetAccount,
                 ];
+
+                $affectedAccounts[(int) $targetAccount->getId()] = $targetAccount;
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGmailMessageBatch: build failed', [
-                    'gmailId' => $payload['id'] ?? '(unknown)',
+                    'gmailId' => '' !== $gmailId ? $gmailId : '(unknown)',
                     'error'   => $e->getMessage(),
                 ]);
             }
         }
 
-        if (count($built) === 0) {
+        if (count($built) === 0 && 0 === $enriched) {
             return;
         }
 
@@ -138,20 +167,15 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->em->flush();
 
-        $this->harvestService->harvestMessages(
-            $account->getUsr(),
-            array_column($built, 'message'),
-        );
+        if (count($built) > 0) {
+            $this->harvestService->harvestMessages(
+                $account->getUsr(),
+                array_column($built, 'message'),
+            );
+        }
 
         // One Mercure event per affected account — there are no mailboxes to
         // update counts on anymore; sidebar counts are thread/label queries.
-        /** @var array<int, Account> $affectedAccounts */
-        $affectedAccounts = [];
-
-        foreach ($built as $item) {
-            $affectedAccounts[(int) $item['account']->getId()] = $item['account'];
-        }
-
         foreach ($affectedAccounts as $affectedAccount) {
             $this->syncNotifier->publishAccountSynced($affectedAccount);
         }
@@ -160,14 +184,47 @@ final readonly class SyncGmailMessageBatchHandler
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
+     * Merge the Gmail copy's knowledge onto an existing IMAP-synced row:
+     * gmailId (covers it under the user-scoped dedup from now on),
+     * gmailLabelIds, and the carrier's labels translated onto the target
+     * account, propagated to the thread. Flags/read state stay untouched —
+     * the IMAP copy owns those.
+     *
+     * @param list<string> $labelIds
+     */
+    private function enrichExisting(
+        Message $existing,
+        array   $labelIds,
+        string  $gmailId,
+        Account $target,
+        Account $carrier,
+    ): void {
+        if ('' !== $gmailId) {
+            $existing->setGmailId($gmailId);
+        }
+
+        $existing->setGmailLabelIds($labelIds);
+
+        $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
+
+        $thread = $existing->getThread();
+
+        if (null !== $thread) {
+            foreach ($existing->getLabels() as $label) {
+                $thread->addLabel($label);
+            }
+        }
+    }
+
+    /**
      * Determine which account owns this message.
      *
      * Received mail (no SENT label):
      *   - Delivered-To / To matches this account         → this account.
      *   - Delivered-To / To / Cc matches a sibling AND the carrier has
-     *     gmailSyncGmailifyEnabled → Gmailify history import: attribute to
-     *     the sibling UNLESS the sibling already carries a message with the
-     *     same RFC Message-ID (its own IMAP sync owns that copy).
+     *     gmailSyncGmailifyEnabled                       → the sibling
+     *     (the loop then decides between enriching the sibling's existing
+     *     IMAP row and importing a new one).
      *   - Otherwise skip (return null).
      *
      * Sent mail (SENT label):
@@ -199,27 +256,8 @@ final readonly class SyncGmailMessageBatchHandler
                 return null;
             }
 
-            // Gmailify history import: delivered to a sibling account.
-            $sibling = $this->addressFilter->resolveRecipientAccount($headers, $siblingAccounts);
-
-            if (null === $sibling) {
-                return null;
-            }
-
-            // If the sibling's own IMAP sync already holds this message
-            // (same RFC Message-ID), the IMAP copy owns it — skip. The id
-            // MUST be canonicalised: IMAP stores it bracket-less, the raw
-            // Gmail header keeps the angle brackets.
-            $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
-
-            if (
-                '' !== $rfcMessageId
-                && true === $this->messageRepository->existsForAccountByMessageId($sibling, $rfcMessageId)
-            ) {
-                return null;
-            }
-
-            return $sibling;
+            // Gmailify: delivered to a sibling account.
+            return $this->addressFilter->resolveRecipientAccount($headers, $siblingAccounts);
         }
 
         // Sent mail — check From against this account first.

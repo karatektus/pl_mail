@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
 use App\Entity\Label;
-use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
 use App\Service\Label\LabelResolver;
@@ -60,14 +58,7 @@ final class GmailMessageBuilder
         $message->setGmailId($gmailId);
         $message->setGmailLabelIds($labelIds);
 
-        // Resolve labelIds against the carrier (the Gmail account that owns
-        // them), then translate onto the attributed account when they differ:
-        // system labels map by role, custom labels by name chain.
-        $resolutionAccount = $carrierAccount ?? $account;
-
-        foreach ($this->labelResolver->resolve($labelIds, $resolutionAccount) as $label) {
-            $message->addLabel($this->translateLabel($label, $account));
-        }
+        $this->applyTranslatedLabels($message, $labelIds, $account, $carrierAccount ?? $account);
 
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
@@ -97,7 +88,7 @@ final class GmailMessageBuilder
         // ── Date ──────────────────────────────────────────────────────────────
         $internalDateMs = (int)($payload['internalDate'] ?? 0);
         $receivedAt = $internalDateMs > 0
-            ? (new DateTimeImmutable())->setTimestamp((int)($internalDateMs / 1000))
+            ? new DateTimeImmutable()->setTimestamp((int)($internalDateMs / 1000))
             : new DateTimeImmutable();
 
         $message->setReceivedAt($receivedAt);
@@ -322,5 +313,20 @@ final class GmailMessageBuilder
         }
 
         return $translated;
+    }
+
+    /**
+     * Resolve Gmail labelIds against the carrier account and attach the
+     * translated labels for the target account. Shared by the import path
+     * (new messages) and the enrichment path (existing IMAP rows gaining
+     * their Gmail labels after dedup).
+     *
+     * @param list<string> $labelIds
+     */
+    public function applyTranslatedLabels(Message $message, array $labelIds, Account $target, Account $carrier): void
+    {
+        foreach ($this->labelResolver->resolve($labelIds, $carrier) as $label) {
+            $message->addLabel($this->translateLabel($label, $target));
+        }
     }
 }
