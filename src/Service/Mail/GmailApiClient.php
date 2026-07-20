@@ -75,21 +75,32 @@ final class GmailApiClient
      * quota with individual concurrent requests and dramatically reduces
      * round-trips for large initial syncs.
      *
-     * Failed sub-requests are silently dropped — batches are re-runnable and
-     * dedup in the handler makes retries safe.
+     * Every requested id is accounted for in the result:
+     *   - payloads:  id → decoded message resource (200 parts)
+     *   - retryable: ids whose part failed transiently (429/403/5xx) or was
+     *                missing from the response — the caller must re-queue them
+     *   - gone:      ids that are permanently unfetchable (404/410/other 4xx)
+     *
+     * A whole-batch failure THROWS instead of returning empty — returning
+     * empty would let the Messenger message ack and silently drop every id
+     * in the batch.
      *
      * @param list<string> $messageIds  Maximum 100 per call (enforced by caller via BATCH_SIZE)
-     * @return array<string,array<string,mixed>>  keyed by Gmail message ID
+     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>}
      */
     public function getMessages(Account $account, array $messageIds): array
     {
         if (count($messageIds) === 0) {
-            return [];
+            return [
+                'payloads'  => [],
+                'retryable' => [],
+                'gone'      => [],
+            ];
         }
 
-        $token     = $this->tokenManager->getValidAccessToken($account);
-        $boundary  = 'plmail_batch_' . bin2hex(random_bytes(8));
-        $body      = $this->buildBatchBody($messageIds, $boundary);
+        $token    = $this->tokenManager->getValidAccessToken($account);
+        $boundary = 'plmail_batch_' . bin2hex(random_bytes(8));
+        $body     = $this->buildBatchBody($messageIds, $boundary);
 
         $response = $this->httpClient->request('POST', self::BATCH, [
             'auth_bearer' => $token,
@@ -102,13 +113,46 @@ final class GmailApiClient
         try {
             $rawBody = $response->getContent();
         } catch (HttpException $e) {
-            // The whole batch failed (e.g. token error) — return empty so the
-            // handler can skip and the Messenger retry mechanism re-queues.
-            return [];
+            throw new \RuntimeException(
+                'Gmail batch request failed: ' . $e->getMessage(),
+                0,
+                $e,
+            );
         }
 
-        return $this->parseBatchResponse($rawBody);
+        $parsed    = $this->parseBatchResponse($rawBody);
+        $payloads  = $parsed['payloads'];
+        $retryable = [];
+        $gone      = [];
+
+        foreach ($messageIds as $id) {
+            if (true === isset($payloads[$id])) {
+                continue;
+            }
+
+            $status = $parsed['statuses'][$id] ?? null;
+
+            if (null === $status) {
+                // Part missing or unparseable — assume transient.
+                $retryable[] = $id;
+                continue;
+            }
+
+            if (true === in_array($status, [429, 403, 500, 502, 503, 504], true)) {
+                $retryable[] = $id;
+                continue;
+            }
+
+            $gone[] = $id;
+        }
+
+        return [
+            'payloads'  => $payloads,
+            'retryable' => $retryable,
+            'gone'      => $gone,
+        ];
     }
+
 
     /**
      * Fetch a single message in full format.
@@ -277,13 +321,14 @@ final class GmailApiClient
     }
 
     /**
-     * Parse a multipart/mixed batch response body into an array keyed by
-     * Gmail message ID.
+     * Parse a multipart/mixed batch response body.
      *
-     * Each part contains an HTTP/1.1 response envelope followed by a JSON
-     * body. We extract the JSON from each 200 part and decode it.
+     * Each part carries a Content-ID echoing the sub-request id (Google
+     * prefixes it with "response-") and an inner HTTP/1.1 envelope followed
+     * by a JSON body. 200 parts are decoded into payloads; every part's
+     * status is recorded so the caller can classify failures per id.
      *
-     * @return array<string,array<string,mixed>>
+     * @return array{payloads: array<string,array<string,mixed>>, statuses: array<string,int>}
      */
     private function parseBatchResponse(string $rawBody): array
     {
@@ -293,17 +338,24 @@ final class GmailApiClient
         $head = substr($rawBody, 0, 512);
 
         if (1 !== preg_match('/--([a-zA-Z0-9_\-]+)/', $head, $m)) {
-            return [];
+            return [
+                'payloads' => [],
+                'statuses' => [],
+            ];
         }
 
         $boundary = $m[1];
-        $results  = [];
+        $payloads = [];
+        $statuses = [];
 
         // Split on the boundary lines, drop the preamble and epilogue.
         $parts = preg_split('/\r?\n--' . preg_quote($boundary, '/') . '(?:--)?(?:\r?\n|$)/', $rawBody);
 
         if (false === $parts) {
-            return [];
+            return [
+                'payloads' => [],
+                'statuses' => [],
+            ];
         }
 
         foreach ($parts as $part) {
@@ -313,61 +365,45 @@ final class GmailApiClient
                 continue;
             }
 
-            // Each part has headers, a blank line, then the inner HTTP response.
-            $innerPos = strpos($part, "\r\n\r\n");
-            if (false === $innerPos) {
-                $innerPos = strpos($part, "\n\n");
-                if (false === $innerPos) {
+            // Which sub-request is this? Google echoes our Content-Id with a
+            // "response-" prefix.
+            $contentId = null;
+
+            if (1 === preg_match('/^Content-ID:\s*<?(?:response-)?([^>\r\n]+)>?/mi', $part, $cm)) {
+                $contentId = trim($cm[1]);
+            }
+
+            // Inner HTTP status line.
+            $status = null;
+
+            if (1 === preg_match('/HTTP\/[\d.]+\s+(\d{3})/', $part, $sm)) {
+                $status = (int) $sm[1];
+            }
+
+            // JSON body — everything from the first brace on.
+            $jsonStart = strpos($part, '{');
+            $json      = false !== $jsonStart ? substr($part, $jsonStart) : '';
+
+            if (200 === $status && '' !== $json) {
+                $decoded = json_decode($json, true);
+
+                if (true === is_array($decoded) && true === isset($decoded['id'])) {
+                    $gmailId            = (string) $decoded['id'];
+                    $payloads[$gmailId] = $decoded;
+                    $statuses[$gmailId] = 200;
                     continue;
                 }
-                $inner = substr($part, $innerPos + 2);
-            } else {
-                $inner = substr($part, $innerPos + 4);
             }
 
-            // The inner content is itself an HTTP response:
-            //   HTTP/1.1 200 OK\r\n
-            //   <headers>\r\n
-            //   \r\n
-            //   <json body>
-            $innerBodyPos = strpos($inner, "\r\n\r\n");
-            if (false === $innerBodyPos) {
-                $innerBodyPos = strpos($inner, "\n\n");
-                if (false === $innerBodyPos) {
-                    continue;
-                }
-                $statusLine = substr($inner, 0, $innerBodyPos);
-                $jsonBody   = substr($inner, $innerBodyPos + 2);
-            } else {
-                $statusLine = substr($inner, 0, $innerBodyPos);
-                $jsonBody   = substr($inner, $innerBodyPos + 4);
+            if (null !== $contentId && null !== $status) {
+                $statuses[$contentId] = $status;
             }
-
-            // Only process successful sub-responses.
-            if (false === str_contains($statusLine, '200')) {
-                continue;
-            }
-
-            $jsonBody = trim($jsonBody);
-            if ('' === $jsonBody) {
-                continue;
-            }
-
-            try {
-                $decoded = json_decode($jsonBody, true, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException) {
-                continue;
-            }
-
-            $gmailId = (string) ($decoded['id'] ?? '');
-            if ('' === $gmailId) {
-                continue;
-            }
-
-            $results[$gmailId] = $decoded;
         }
 
-        return $results;
+        return [
+            'payloads' => $payloads,
+            'statuses' => $statuses,
+        ];
     }
     // ── labels ────────────────────────────────────────────────────────────────
 

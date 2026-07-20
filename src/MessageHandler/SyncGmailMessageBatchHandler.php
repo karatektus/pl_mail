@@ -19,10 +19,15 @@ use App\Service\Mail\SyncNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 #[AsMessageHandler]
 final readonly class SyncGmailMessageBatchHandler
 {
+    /** Delay before re-fetching sub-requests that hit the rate limit. */
+    private const int RETRY_DELAY_MS = 30000;
+
     public function __construct(
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
@@ -32,6 +37,7 @@ final readonly class SyncGmailMessageBatchHandler
         private MessageThreader        $messageThreader,
         private HarvestContactsService $harvestService,
         private SyncNotifier           $syncNotifier,
+        private MessageBusInterface    $bus,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -75,7 +81,31 @@ final readonly class SyncGmailMessageBatchHandler
             return;
         }
 
-        $payloads = $this->apiClient->getMessages($account, $toFetch);
+        $fetch    = $this->apiClient->getMessages($account, $toFetch);
+        $payloads = $fetch['payloads'];
+
+        // ── Fetch accountability ──────────────────────────────────────────────
+        // Every id we asked for is either processed below, re-queued (transient
+        // sub-request failure — typically 429 mid-batch on initial syncs), or
+        // logged as permanently gone. Nothing gets dropped silently.
+        if (count($fetch['gone']) > 0) {
+            $this->logger->warning('SyncGmailMessageBatch: messages permanently unfetchable, skipping', [
+                'accountId' => $account->getId(),
+                'gmailIds'  => $fetch['gone'],
+            ]);
+        }
+
+        if (count($fetch['retryable']) > 0) {
+            $this->logger->info('SyncGmailMessageBatch: re-queueing failed sub-requests', [
+                'accountId' => $account->getId(),
+                'count'     => count($fetch['retryable']),
+            ]);
+
+            $this->bus->dispatch(
+                new SyncGmailMessageBatchMessage($account->getId(), $fetch['retryable']),
+                [new DelayStamp(self::RETRY_DELAY_MS)],
+            );
+        }
 
         /** @var list<array{message: Message, account: Account}> $built */
         $built = [];
@@ -220,12 +250,13 @@ final readonly class SyncGmailMessageBatchHandler
      * Determine which account owns this message.
      *
      * Received mail (no SENT label):
-     *   - Delivered-To / To matches this account         → this account.
-     *   - Delivered-To / To / Cc matches a sibling AND the carrier has
-     *     gmailSyncGmailifyEnabled                       → the sibling
-     *     (the loop then decides between enriching the sibling's existing
-     *     IMAP row and importing a new one).
-     *   - Otherwise skip (return null).
+     *   - Without Gmailify attribution: only mail genuinely addressed to
+     *     this account is considered.
+     *   - With it: GmailAddressFilter::resolveReceivedAccount decides
+     *     between carrier and siblings, To/Cc outranking a
+     *     carrier-matching Delivered-To (Gmail stamps its own address on
+     *     fetched mail). The loop then decides between enriching the
+     *     sibling's existing IMAP row and importing a new one.
      *
      * Sent mail (SENT label):
      *   - From matches this account's own address        → this account.
@@ -247,18 +278,15 @@ final readonly class SyncGmailMessageBatchHandler
         $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
 
         if (false === $isSent) {
-            if (false === $isSent) {
-                if (false === $gmailifyEnabled) {
-                    // Without Gmailify attribution only the carrier's own mail counts.
-                    if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
-                        return $account;
-                    }
-
-                    return null;
+            if (false === $gmailifyEnabled) {
+                if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
+                    return $account;
                 }
 
-                return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts);
+                return null;
             }
+
+            return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts);
         }
 
         // Sent mail — check From against this account first.
