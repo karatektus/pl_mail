@@ -41,6 +41,7 @@ sidebar:
         sent: Sent
         drafts: Drafts
         trash: Trash
+        archive: Archive
     accounts:
         heading: Accounts
         add: Add account
@@ -163,6 +164,13 @@ toolbar:
         next: Older
 
 settings:
+    labels:
+        heading: Labels
+        subheading: Choose which labels appear in the sidebar.
+        empty: No labels yet — they appear after the first sync.
+        system: System
+        show: Show label
+        hide: Hide label
     title: Settings
     back: Back to inbox
     nav:
@@ -209,3 +217,6 @@ label:
         blue: Blue
         violet: Violet
         pink: Pink
+    visibility:
+        shown: Label is now visible.
+        hidden: Label is now hidden.

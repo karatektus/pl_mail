@@ -1,0 +1,78 @@
+{#
+settings/_labels.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Per-account label list with show/hide toggles.
+
+Variables:
+  manageableAccounts  Account[]
+  labelsByAccount     array<int, Label[]>  accountId → tree-ordered labels
+#}
+{% if manageableAccounts is empty %}
+    <p class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500 italic">
+        {{ 'settings.accounts.empty'|trans }}
+    </p>
+{% else %}
+    <div class="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+        {% for account in manageableAccounts %}
+            {% set accountLabels = labelsByAccount[account.id]|default([]) %}
+            <div>
+                <p class="px-4 pt-3 pb-1 text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                    {{ account.email ?: account.username }}
+                </p>
+
+                {% if accountLabels|length == 0 %}
+                    <p class="px-4 pb-3 text-xs text-zinc-400 dark:text-zinc-500 italic">{{ 'settings.labels.empty'|trans }}</p>
+                {% else %}
+                    <ul class="pb-2">
+                        {% for label in accountLabels %}
+                            <li class="flex items-center gap-3 pr-4 py-1.5"
+                                style="padding-left: {{ 16 + label.depth * 14 }}px">
+
+                                {% if label.isSystem %}
+                                    <i class="fa-solid fa-inbox w-3.5 text-xs text-zinc-400 dark:text-zinc-500 shrink-0" aria-hidden="true"></i>
+                                {% else %}
+                                    <span class="w-2.5 h-2.5 rounded-full shrink-0
+                                        {{ {
+                                            'gray':   'bg-gray-400 dark:bg-gray-500',
+                                            'red':    'bg-red-500',
+                                            'orange': 'bg-orange-500',
+                                            'amber':  'bg-amber-500',
+                                            'green':  'bg-green-500',
+                                            'teal':   'bg-teal-500',
+                                            'blue':   'bg-blue-500',
+                                            'violet': 'bg-violet-500',
+                                            'pink':   'bg-pink-500',
+                                        }[label.color ?? 'gray'] ?? 'bg-gray-400 dark:bg-gray-500' }}"
+                                        aria-hidden="true"></span>
+                                {% endif %}
+
+                                <span class="flex-1 min-w-0 flex items-center gap-2">
+                                    <span class="truncate text-sm {{ label.isVisible ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500' }}">
+                                        {{ label.name }}
+                                    </span>
+                                    {% if label.isSystem %}
+                                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-zinc-500 dark:text-zinc-400">
+                                            {{ 'settings.labels.system'|trans }}
+                                        </span>
+                                    {% endif %}
+                                </span>
+
+                                <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
+                                    <button
+                                        type="submit"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                        aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                                        title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                                    >
+                                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-blue-500' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

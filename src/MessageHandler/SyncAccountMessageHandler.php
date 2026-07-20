@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Account;
+use App\Message\HarvestContactsMessage;
 use App\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
 use App\Repository\MailboxRepository;
@@ -13,6 +14,7 @@ use App\Service\Mail\SyncNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class SyncAccountMessageHandler
@@ -21,12 +23,13 @@ final readonly class SyncAccountMessageHandler
      * @param iterable<AccountSyncerInterface> $syncers
      */
     public function __construct(
-        private AccountRepository $accountRepository,
-        private MailboxRepository $mailboxRepository,
-        private SyncNotifier      $syncNotifier,
-        private LoggerInterface   $logger,
+        private AccountRepository   $accountRepository,
+        private MailboxRepository   $mailboxRepository,
+        private SyncNotifier        $syncNotifier,
+        private MessageBusInterface $bus,
+        private LoggerInterface     $logger,
         #[AutowireIterator('app.account_syncer')]
-        private iterable          $syncers,
+        private iterable            $syncers,
     ) {}
 
     public function __invoke(SyncAccountMessage $message): void
@@ -66,8 +69,12 @@ final readonly class SyncAccountMessageHandler
                 continue;
             }
 
-            $this->syncNotifier->notifyMailboxSynced($account, $mailbox);
+            $this->syncNotifier->publishMailboxSynced($account, $mailbox);
         }
+
+        // One account-scoped harvest per sync run — mailbox-scoped harvesting
+        // misses Gmail-API messages, which carry no mailbox row.
+        $this->bus->dispatch(new HarvestContactsMessage((int) $account->getId()));
     }
 
     private function resolveSyncer(Account $account): ?AccountSyncerInterface

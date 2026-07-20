@@ -6,24 +6,21 @@ namespace App\Service\Mail;
 
 use App\Entity\Account;
 use App\Entity\Mailbox;
-use App\Message\HarvestContactsMessage;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
-use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * Mercure publishing only. Contact harvesting is dispatched once per
+ * account by the sync handlers (SyncAccountMessageHandler /
+ * SyncImapMailboxMessageHandler / SyncGmailMessageBatchHandler harvests
+ * inline), not per mailbox here.
+ */
 final readonly class SyncNotifier
 {
     public function __construct(
-        private HubInterface        $hub,
-        private MessageBusInterface $bus,
+        private HubInterface $hub,
     )
     {
-    }
-
-    public function notifyMailboxSynced(Account $account, Mailbox $mailbox): void
-    {
-        $this->bus->dispatch(new HarvestContactsMessage($mailbox->getId()));
-        $this->publishMailboxSynced($account, $mailbox);
     }
 
     public function publishMailboxSynced(Account $account, Mailbox $mailbox): void

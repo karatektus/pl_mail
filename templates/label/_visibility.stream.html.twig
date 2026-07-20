@@ -1,0 +1,39 @@
+{# Refresh the settings label list and the sidebar label tree after a
+   visibility toggle. Streams targeting an absent id are no-ops, so this
+   works from the settings screen and anywhere else alike. #}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: 'success',
+        } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-label-list">
+    <template>
+        <div id="settings-label-list">
+            {% include 'settings/_labels.html.twig' with {
+                manageableAccounts: manageableAccounts,
+                labelsByAccount: labelsByAccount,
+            } %}
+        </div>
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="label-list">
+    <template>
+        <div id="label-list" class="space-y-0.5">
+            {% import '_partials/_sidebar.html.twig' as sidebar %}
+            {% set labelTree = sidebarCounts.userLabelTree() %}
+            {% if labelTree|length == 0 %}
+                <p class="px-3 py-1.5 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.labels.none'|trans }}</p>
+            {% else %}
+                {% for node in labelTree %}
+                    {{ sidebar.label_node(node, 0, '') }}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </template>
+</turbo-stream>

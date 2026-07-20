@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\Mailbox;
+use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\User;
 use App\Repository\ContactRepository;
@@ -20,15 +20,21 @@ final readonly class HarvestContactsService
         private ContactRepository $contactRepository,
         private LoggerInterface   $logger,
     ) {}
-    public function harvestForMailbox(Mailbox $mailbox): int
-    {
-        $user     = $mailbox->getAccount()->getUsr();
-        $messages = $this->messageRepository->findByMailboxOrderedByDate($mailbox);
-        $total    = $this->upsertFromMessages($user, $messages);
 
-        $this->logger->info('HarvestContactsService: mailbox done', [
-            'mailboxId' => $mailbox->getId(),
-            'messages'  => count($messages),
+    /**
+     * Harvest every message that belongs to the account — via its mailbox
+     * (IMAP) or its thread (Gmail-API messages have no mailbox row).
+     */
+    public function harvestForAccount(Account $account): int
+    {
+        $user  = $account->getUsr();
+        $total = $this->upsertFromMessages(
+            $user,
+            $this->messageRepository->iterateForAccount($account),
+        );
+
+        $this->logger->info('HarvestContactsService: account done', [
+            'accountId' => $account->getId(),
             'addresses' => $total,
         ]);
 

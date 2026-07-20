@@ -7,11 +7,12 @@ namespace App\Domain\Enum;
 /**
  * System role of a Label. User-created labels have a null role.
  *
- * Note: Archive exists only as an IMAP location-bookkeeping label. It is
- * never shown in the UI — "archived" in the domain model means "carries no
- * Inbox label". The Archive label marks messages physically stored in the
- * server's Archive folder so the location-label invariant holds for plain
- * IMAP accounts.
+ * Note: Archive exists primarily as an IMAP location-bookkeeping label —
+ * "archived" in the domain model means "carries no Inbox label". The
+ * Archive label marks messages physically stored in the server's Archive
+ * folder so the location-label invariant holds for plain IMAP accounts.
+ * It is created hidden, but the user can switch it visible in the label
+ * settings, which surfaces an Archive entry in the sidebar.
  */
 enum LabelRole: string
 {
@@ -63,8 +64,10 @@ enum LabelRole: string
     }
 
     /**
-     * The Archive label is pure IMAP location bookkeeping and never
-     * user-visible.
+     * CREATION DEFAULT for Label::$isVisible — used only when the label
+     * row is first created (LabelResolver::systemLabel). After creation,
+     * visibility belongs to the user via the label settings and this
+     * method must not be consulted again.
      */
     public function isVisible(): bool
     {

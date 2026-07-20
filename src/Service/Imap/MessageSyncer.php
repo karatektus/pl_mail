@@ -3,6 +3,7 @@
 namespace App\Service\Imap;
 
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -91,9 +92,38 @@ class MessageSyncer
         foreach ($batch as $imapMessage) {
             $uid = $imapMessage->getUid();
 
-            if (true === isset($syncedUids[$uid])) {
-                $this->logger->debug('Skipping already-synced UID', ['uid' => $uid]);
-                continue;
+            // Gmailify history claim: a Gmail-imported copy of this exact message
+            // (same RFC Message-ID, gmailId set, no IMAP location yet) gets linked
+            // to this mailbox/UID instead of inserting a duplicate row. From here
+            // on, IMAP operations (flags, moves) work on it normally.
+            $rfcMessageId = MessageIdHelper::normalise($imapMessage->getMessageId());
+
+            if ('' !== $rfcMessageId) {
+                $claimable = $this->messageRepository->findGmailOnlyByMessageId(
+                    $mailbox->getAccount(),
+                    $rfcMessageId,
+                );
+
+                if (null !== $claimable) {
+                    $claimable
+                        ->setMailbox($mailbox)
+                        ->setImapUid($uid);
+
+                    $mailboxLabel = $mailbox->getLabel();
+
+                    if (null !== $mailboxLabel) {
+                        $claimable->addLabel($mailboxLabel);
+                        $claimable->getThread()?->addLabel($mailboxLabel);
+                    }
+
+                    $syncedUids[$uid] = true;
+
+                    if (true === ($uid > $maxUid)) {
+                        $maxUid = $uid;
+                    }
+
+                    continue;
+                }
             }
 
             try {

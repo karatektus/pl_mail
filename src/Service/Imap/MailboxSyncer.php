@@ -22,6 +22,10 @@ use Webklex\PHPIMAP\Folder;
  *
  * This is also the incoming half of best-effort label sync-back: a folder
  * created by another client shows up here and gets its label chain created.
+ *
+ * Gmail-API accounts are hard-excluded: their organization comes from
+ * GmailLabelSyncer only. Running an IMAP folder listing against a Gmail
+ * account would create "[Gmail]/…" mailbox rows and bogus label chains.
  */
 readonly class MailboxSyncer
 {
@@ -34,6 +38,14 @@ readonly class MailboxSyncer
 
     public function syncForAccount(Account $account): array
     {
+        if (true === $account->isGmail()) {
+            return [
+                'created' => 0,
+                'updated' => 0,
+                'deleted' => 0,
+            ];
+        }
+
         $client = $this->imapConnectionFactory->connect($account);
 
         $serverFolders = $client->getFolders(false);

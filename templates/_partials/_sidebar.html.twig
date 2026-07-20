@@ -6,60 +6,58 @@
     {% endif %}
 {% endmacro %}
 
-{% macro label_dot(label) %}
-    {% set color = label.color ?? 'gray' %}
+{% macro label_dot(color) %}
     <span class="w-2.5 h-2.5 rounded-full shrink-0
         {{ {
-            'gray':   'bg-gray-400 dark:bg-gray-500',
-            'red':    'bg-red-500',
-            'orange': 'bg-orange-500',
-            'amber':  'bg-amber-500',
-            'green':  'bg-green-500',
-            'teal':   'bg-teal-500',
-            'blue':   'bg-blue-500',
-            'violet': 'bg-violet-500',
-            'pink':   'bg-pink-500',
-        }[color] ?? 'bg-gray-400 dark:bg-gray-500' }}"
-        aria-hidden="true"></span>
+        'gray':   'bg-gray-400 dark:bg-gray-500',
+        'red':    'bg-red-500',
+        'orange': 'bg-orange-500',
+        'amber':  'bg-amber-500',
+        'green':  'bg-green-500',
+        'teal':   'bg-teal-500',
+        'blue':   'bg-blue-500',
+        'violet': 'bg-violet-500',
+        'pink':   'bg-pink-500',
+    }[color ?? 'gray'] ?? 'bg-gray-400 dark:bg-gray-500' }}"
+          aria-hidden="true"></span>
 {% endmacro %}
 
-{% macro label_item(label, depth, drawerClose) %}
+{% macro label_node(node, depth, drawerClose) %}
     {% import _self as macros %}
-    {% set visibleChildren = label.children|filter(child => child.isVisible) %}
 
-    {% if visibleChildren|length > 0 %}
+    {% if node.children|length > 0 %}
         <details class="group/tree" open>
             <summary class="flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer list-none
                             hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                      style="padding-left: {{ 12 + depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-gray-400 dark:text-gray-500 w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
-                {{ macros.label_dot(label) }}
-                <a href="{{ path('app_mail_label', { id: label.id }) }}"
+                {{ macros.label_dot(node.color) }}
+                <a href="{{ path('app_mail_label_path', { path: node.path }) }}"
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-sidebar-target="link"
                    data-action="{{ drawerClose }}">
-                    <span class="truncate">{{ label.name }}</span>
-                    {{ macros.unread_badge(sidebarCounts.forLabel(label)) }}
+                    <span class="truncate">{{ node.name }}</span>
+                    {{ macros.unread_badge(sidebarCounts.forNode(node)) }}
                 </a>
             </summary>
             <div class="space-y-0.5">
-                {% for child in visibleChildren %}
-                    {{ macros.label_item(child, depth + 1, drawerClose) }}
+                {% for child in node.children %}
+                    {{ macros.label_node(child, depth + 1, drawerClose) }}
                 {% endfor %}
             </div>
         </details>
     {% else %}
-        <a href="{{ path('app_mail_label', { id: label.id }) }}"
+        <a href="{{ path('app_mail_label_path', { path: node.path }) }}"
            class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
                   hover:bg-gray-100 dark:hover:bg-gray-800"
            style="padding-left: {{ 12 + depth * 14 + 16 }}px"
            data-sidebar-target="link"
            data-action="{{ drawerClose }}">
-            {{ macros.label_dot(label) }}
+            {{ macros.label_dot(node.color) }}
             <span class="flex-1 flex items-center justify-between gap-2 truncate">
-                <span class="truncate">{{ label.name }}</span>
-                {{ macros.unread_badge(sidebarCounts.forLabel(label)) }}
+                <span class="truncate">{{ node.name }}</span>
+                {{ macros.unread_badge(sidebarCounts.forNode(node)) }}
             </span>
         </a>
     {% endif %}
@@ -139,7 +137,18 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Drafts)) }}
         </a>
-
+        {% if sidebarCounts.hasVisibleArchive %}
+            <a href="{{ path('app_mail_archive') }}"
+               class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               data-sidebar-target="link"
+               data-action="{{ _drawerClose }}">
+                <i class="fa-solid fa-box-archive w-4 text-sm" aria-hidden="true"></i>
+                <span class="flex-1 flex items-center justify-between gap-2">
+            <span>{{ 'sidebar.nav.archive'|trans }}</span>
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive)) }}
+        </span>
+            </a>
+        {% endif %}
         <a href="{{ path('app_mail_trash') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
@@ -168,12 +177,12 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
         </div>
 
         <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="space-y-0.5">
-            {% set labelRoots = sidebarCounts.userLabelRoots() %}
-            {% if labelRoots|length == 0 %}
+            {% set labelTree = sidebarCounts.userLabelTree() %}
+            {% if labelTree|length == 0 %}
                 <p class="px-3 py-1.5 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.labels.none'|trans }}</p>
             {% else %}
-                {% for label in labelRoots %}
-                    {{ macros.label_item(label, 0, _drawerClose) }}
+                {% for node in labelTree %}
+                    {{ macros.label_node(node, 0, _drawerClose) }}
                 {% endfor %}
             {% endif %}
         </div>

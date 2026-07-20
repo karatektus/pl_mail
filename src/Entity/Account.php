@@ -114,15 +114,11 @@ class Account extends AccountModel
     private Collection $messageThreads;
 
     /**
-     * When enabled, sent messages whose From address matches a Gmailified
-     * address that belongs to another active account of this user are synced
-     * and attributed to that other account.
-     *
-     * When disabled, only messages sent from this account's own Gmail address
-     * are synced into the Sent mailbox.
+     * Free-form per-account settings. Empty by default; readers assume their
+     * defaults at the call site via getSetting($key, $default).
      */
-    #[ORM\Column]
-    private bool $gmailSyncGmailifyEnabled = true;
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    private array $settings = [];
 
     public function __construct()
     {
@@ -479,17 +475,7 @@ class Account extends AccountModel
         $this->gmailWatchResourceName = $gmailWatchResourceName;
         return $this;
     }
-    public function isGmailSyncGmailifyEnabled(): bool
-    {
-        return $this->gmailSyncGmailifyEnabled;
-    }
 
-    public function setGmailSyncGmailifyEnabled(bool $gmailSyncGmailifyEnabled): static
-    {
-        $this->gmailSyncGmailifyEnabled = $gmailSyncGmailifyEnabled;
-
-        return $this;
-    }
     public function isGmailWatchActive(): bool
     {
         if (null === $this->gmailWatchExpiry) {
@@ -498,7 +484,21 @@ class Account extends AccountModel
 
         return $this->gmailWatchExpiry > new \DateTimeImmutable();
     }
+    public function getSetting(string $key, mixed $default = null): mixed
+    {
+        if (true === array_key_exists($key, $this->settings)) {
+            return $this->settings[$key];
+        }
 
+        return $default;
+    }
+
+    public function setSetting(string $key, mixed $value): static
+    {
+        $this->settings[$key] = $value;
+
+        return $this;
+    }
     public function isGmail(): bool
     {
         return AuthType::OAuth2->value === $this->authType

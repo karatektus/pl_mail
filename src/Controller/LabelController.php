@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Label;
 use App\Form\LabelType;
+use App\Repository\AccountRepository;
 use App\Repository\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,6 +36,7 @@ final class LabelController extends AbstractController
     public function __construct(
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
+        private readonly AccountRepository      $accountRepository,
     ) {}
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -116,6 +118,46 @@ final class LabelController extends AbstractController
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
     }
 
+    /**
+     * Show/hide a label in the sidebar. Unlike the CRUD actions this also
+     * allows SYSTEM labels — that's how the hidden Archive label becomes
+     * user-enableable.
+     */
+    #[Route('/{id}/toggle-visibility', name: 'toggle_visibility', methods: ['POST'])]
+    public function toggleVisibility(Request $request, Label $label): Response
+    {
+        if ($label->account?->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if (false === $this->isCsrfTokenValid('label-visibility' . $label->id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $label
+            ->setIsVisible(false === $label->isVisible)
+            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->em->flush();
+
+        if (true === $label->isVisible) {
+            $toastMessage = 'label.visibility.shown';
+        } else {
+            $toastMessage = 'label.visibility.hidden';
+        }
+
+        $manageableAccounts = $this->accountRepository->findForUserOrderedByName($this->getUser());
+        $labelsByAccount    = [];
+
+        foreach ($manageableAccounts as $account) {
+            $labelsByAccount[(int) $account->getId()] = $this->labelRepository->findForAccountTreeOrdered($account);
+        }
+
+        return $this->render('label/_visibility.stream.html.twig', [
+            'toastMessage'       => $toastMessage,
+            'manageableAccounts' => $manageableAccounts,
+            'labelsByAccount'    => $labelsByAccount,
+        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
     // ── Private ───────────────────────────────────────────────────────────────
 
     private function assertOwnedUserLabel(Label $label): void

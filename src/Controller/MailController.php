@@ -46,6 +46,8 @@ final class MailController extends AbstractController
         $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
         $tabCounts  = $this->threadRepository->countUnreadByTabForUnifiedInbox($user);
 
+        $this->threadRepository->preloadLabels($threads);
+
         return $this->render('mail/inbox.html.twig', [
             'threads'    => $threads,
             'tab'        => $tab,
@@ -54,6 +56,39 @@ final class MailController extends AbstractController
             'page'       => $page,
             'total'      => $total,
             'per_page'   => 50,
+        ]);
+    }
+
+    /**
+     * Merged label view: one sidebar entry may aggregate same-named labels
+     * from several accounts; this resolves the path back to every matching
+     * Label and lists threads across all of them.
+     *
+     * Declared before the id-based route so "/label/path/…" never collides
+     * with "/label/{id}".
+     */
+    #[Route('/label/path/{path}', name: 'label_path', requirements: ['path' => '.+'])]
+    public function labelPathView(string $path, Request $request): Response
+    {
+        $labels = $this->labelRepository->findByPathForUser($this->getUser(), $path);
+
+        if (count($labels) === 0) {
+            throw $this->createNotFoundException();
+        }
+
+        $page    = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForLabels($labels, $page);
+        $total   = $this->threadRepository->countForLabels($labels);
+
+        $this->threadRepository->preloadLabels($threads);
+
+        return $this->render('mail/label.html.twig', [
+            'label'    => $labels[0],
+            'labels'   => $labels,
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
         ]);
     }
 
@@ -67,6 +102,8 @@ final class MailController extends AbstractController
         $page    = max(1, (int) $request->query->get('page', 1));
         $threads = $this->threadRepository->findForLabel($label, $page);
         $total   = $this->threadRepository->countForLabel($label);
+
+        $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/label.html.twig', [
             'label'    => $label,
@@ -85,6 +122,8 @@ final class MailController extends AbstractController
         $threads = $this->threadRepository->findForStarred($user, $page);
         $total   = $this->threadRepository->countForStarred($user);
 
+        $this->threadRepository->preloadLabels($threads);
+
         return $this->render('mail/starred.html.twig', [
             'threads'  => $threads,
             'page'     => $page,
@@ -100,6 +139,8 @@ final class MailController extends AbstractController
         $page  = max(1, (int) $request->query->get('page', 1));
         $threads = $this->threadRepository->findForRole($user, LabelRole::Sent, $page);
         $total   = $this->threadRepository->countForRole($user, LabelRole::Sent);
+
+        $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/sent.html.twig', [
             'threads'  => $threads,
@@ -117,6 +158,8 @@ final class MailController extends AbstractController
         $threads = $this->threadRepository->findForRole($user, LabelRole::Drafts, $page);
         $total   = $this->threadRepository->countForRole($user, LabelRole::Drafts);
 
+        $this->threadRepository->preloadLabels($threads);
+
         return $this->render('mail/drafts.html.twig', [
             'threads'  => $threads,
             'page'     => $page,
@@ -133,7 +176,31 @@ final class MailController extends AbstractController
         $threads = $this->threadRepository->findForRole($user, LabelRole::Trash, $page);
         $total   = $this->threadRepository->countForRole($user, LabelRole::Trash);
 
+        $this->threadRepository->preloadLabels($threads);
+
         return $this->render('mail/trash.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
+    }
+
+    /**
+     * Archive role view — only reachable when the user has switched an
+     * Archive label visible in the label settings.
+     */
+    #[Route('/archive', name: 'archive')]
+    public function archive(Request $request): Response
+    {
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Archive, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Archive);
+
+        $this->threadRepository->preloadLabels($threads);
+
+        return $this->render('mail/archive.html.twig', [
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,

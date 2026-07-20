@@ -213,7 +213,7 @@ The button itself carries `group` and `relative`.
         {{ m.tbtn('click->list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
         {{ m.tbtn('click->list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}
         {% include '_partials/_label_menu.html.twig' with {
-            labels: sidebarCounts.userLabelsFlat,
+            labels: sidebarCounts.flattenedUserLabels,
             targetType: 'thread',
         } %}
         <span

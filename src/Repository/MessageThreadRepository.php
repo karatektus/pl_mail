@@ -264,6 +264,62 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Threads carrying ANY of the given labels — the merged path-based label
+     * view aggregating same-named labels across accounts.
+     *
+     * @param Label[] $labels
+     * @return MessageThread[]
+     */
+    public function findForLabels(array $labels, int $page, int $perPage = 50): array
+    {
+        return $this->createQueryBuilder('thread')
+            ->innerJoin('thread.labels', 'label')
+            ->where('label IN (:labels)')
+            ->setParameter('labels', $labels)
+            ->groupBy('thread.id')
+            ->orderBy('thread.lastMessageAt', 'DESC')
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @param Label[] $labels
+     */
+    public function countForLabels(array $labels): int
+    {
+        return (int) $this->createQueryBuilder('thread')
+            ->select('COUNT(DISTINCT thread.id)')
+            ->innerJoin('thread.labels', 'label')
+            ->where('label IN (:labels)')
+            ->setParameter('labels', $labels)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Initialize the labels collection of every given thread in ONE query so
+     * the list view's label chips don't lazy-load per row. Fetch-joining onto
+     * already-managed entities marks their collections initialized.
+     *
+     * @param MessageThread[] $threads
+     */
+    public function preloadLabels(array $threads): void
+    {
+        if (count($threads) === 0) {
+            return;
+        }
+
+        $this->createQueryBuilder('thread')
+            ->addSelect('label')
+            ->leftJoin('thread.labels', 'label')
+            ->where('thread IN (:threads)')
+            ->setParameter('threads', $threads)
+            ->getQuery()
+            ->getResult();
+    }
 
     /**
      * Full-text + operator search across messages for a given user.

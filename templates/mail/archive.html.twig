@@ -1,0 +1,18 @@
+{# mail/archive.html.twig #}
+{% extends "_layout/_mailbox.html.twig" %}
+
+{% block title %}{{ "sidebar.nav.archive"|trans }} — {{ "app.name"|trans }}{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
+            {{ "label.empty"|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {% include "_partials/_thread_row.html.twig" with {
+                thread: thread,
+            } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

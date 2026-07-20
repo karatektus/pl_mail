@@ -45,7 +45,7 @@ class Message extends MessageModel
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $subject = null;
 
-    #[ORM\Column(length: 320, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $fromAddress = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]

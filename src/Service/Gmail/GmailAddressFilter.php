@@ -17,10 +17,12 @@ use App\Entity\Account;
  * After normalisation karatektus@gmail.com, kara.te.ktus@gmail.com and
  * karatektus+newsletter@gmail.com all reduce to the same canonical form.
  *
- * Two entry points are provided:
+ * Entry points:
  *
- *   isAddressedToAccount()  — for received mail: checks Delivered-To then To.
- *   isSentByAccount()       — for sent mail (SENT label): checks From.
+ *   isAddressedToAccount()     — for received mail: checks Delivered-To then To.
+ *   isSentByAccount()          — for sent mail (SENT label): checks From.
+ *   resolveRecipientAccount()  — for Gmailify history import: which sibling
+ *                                account (if any) this message was delivered to.
  */
 final class GmailAddressFilter
 {
@@ -86,6 +88,43 @@ final class GmailAddressFilter
         }
 
         return false;
+    }
+
+    /**
+     * Resolve which known account (keyed by normalised email) a received
+     * message was delivered to. Delivered-To is authoritative when present;
+     * otherwise To and Cc are checked.
+     *
+     * @param array<string,string>  $headers                    lower-cased header name → value
+     * @param array<string,Account> $accountsByNormalisedEmail  normalisedEmail → Account
+     */
+    public function resolveRecipientAccount(array $headers, array $accountsByNormalisedEmail): ?Account
+    {
+        $deliveredTo = $headers['delivered-to'] ?? '';
+
+        if ('' !== $deliveredTo) {
+            foreach ($this->splitAddressList($deliveredTo) as $addr) {
+                $norm = $this->normalise($addr);
+
+                if (true === isset($accountsByNormalisedEmail[$norm])) {
+                    return $accountsByNormalisedEmail[$norm];
+                }
+            }
+
+            return null;
+        }
+
+        foreach ([$headers['to'] ?? '', $headers['cc'] ?? ''] as $headerValue) {
+            foreach ($this->splitAddressList($headerValue) as $addr) {
+                $norm = $this->normalise($addr);
+
+                if (true === isset($accountsByNormalisedEmail[$norm])) {
+                    return $accountsByNormalisedEmail[$norm];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

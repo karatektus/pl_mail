@@ -6,9 +6,11 @@ namespace App\Service\Gmail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
+use App\Entity\Label;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -35,27 +37,36 @@ use Doctrine\ORM\EntityManagerInterface;
 final class GmailMessageBuilder
 {
     public function __construct(
-        private readonly EntityManagerInterface   $em,
-        private readonly GmailLabelResolver  $labelResolver,
-    ) {}
+        private readonly EntityManagerInterface $em,
+        private readonly GmailLabelResolver     $labelResolver,
+        private readonly LabelResolver          $localLabelResolver,
+    )
+    {
+    }
 
     /**
      * @param array<string,mixed> $payload         Decoded JSON from messages.get (format=full)
-     * @param Account             $account          Owning account (needed for router lookup)
+     * @param Account             $account         Account the message is ATTRIBUTED to
+     * @param Account|null        $carrierAccount  Gmail account whose labelIds these are
+     *                                             (differs from $account for Gmailify imports)
      */
-    public function build(array $payload, Account $account): Message
+    public function build(array $payload, Account $account, ?Account $carrierAccount = null): Message
     {
         $message = new Message();
 
-        $gmailId  = (string) ($payload['id'] ?? '');
+        $gmailId = (string)($payload['id'] ?? '');
         $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));
 
         $message->setGmailId($gmailId);
         $message->setGmailLabelIds($labelIds);
 
-        // Route to the correct local mailbox based on Gmail labels.
-        foreach ($this->labelResolver->resolve($labelIds, $account) as $label) {
-            $message->addLabel($label);
+        // Resolve labelIds against the carrier (the Gmail account that owns
+        // them), then translate onto the attributed account when they differ:
+        // system labels map by role, custom labels by name chain.
+        $resolutionAccount = $carrierAccount ?? $account;
+
+        foreach ($this->labelResolver->resolve($labelIds, $resolutionAccount) as $label) {
+            $message->addLabel($this->translateLabel($label, $account));
         }
 
         // ── Headers ───────────────────────────────────────────────────────────
@@ -73,7 +84,7 @@ final class GmailMessageBuilder
         $message->setCcAddresses($this->parseAddressList($headers['cc'] ?? ''));
         $message->setBccAddresses($this->parseAddressList($headers['bcc'] ?? ''));
 
-        $inReplyToRaw  = trim($headers['in-reply-to'] ?? '');
+        $inReplyToRaw = trim($headers['in-reply-to'] ?? '');
         $referencesRaw = trim($headers['references'] ?? '');
 
         $message->setInReplyTo(
@@ -84,9 +95,9 @@ final class GmailMessageBuilder
         );
 
         // ── Date ──────────────────────────────────────────────────────────────
-        $internalDateMs = (int) ($payload['internalDate'] ?? 0);
-        $receivedAt     = $internalDateMs > 0
-            ? (new DateTimeImmutable())->setTimestamp((int) ($internalDateMs / 1000))
+        $internalDateMs = (int)($payload['internalDate'] ?? 0);
+        $receivedAt = $internalDateMs > 0
+            ? (new DateTimeImmutable())->setTimestamp((int)($internalDateMs / 1000))
             : new DateTimeImmutable();
 
         $message->setReceivedAt($receivedAt);
@@ -136,7 +147,7 @@ final class GmailMessageBuilder
     {
         $index = [];
         foreach ($headers as $h) {
-            $index[strtolower((string) ($h['name'] ?? ''))] = (string) ($h['value'] ?? '');
+            $index[strtolower((string)($h['name'] ?? ''))] = (string)($h['value'] ?? '');
         }
 
         return $index;
@@ -170,7 +181,7 @@ final class GmailMessageBuilder
         }
 
         $result = [];
-        $parts  = preg_split('/,(?![^<]*>)/', $raw) ?: [];
+        $parts = preg_split('/,(?![^<]*>)/', $raw) ?: [];
 
         foreach ($parts as $part) {
             [$name, $address] = $this->parseAddress($part);
@@ -191,15 +202,16 @@ final class GmailMessageBuilder
     private function extractBody(
         array   $part,
         Message $message,
-    ): array {
-        $bodyText       = '';
-        $bodyHtml       = '';
+    ): array
+    {
+        $bodyText = '';
+        $bodyHtml = '';
         $hasAttachments = false;
 
-        $mimeType = strtolower((string) ($part['mimeType'] ?? ''));
+        $mimeType = strtolower((string)($part['mimeType'] ?? ''));
 
         if (true === isset($part['body']['data'])) {
-            $decoded = base64_decode(strtr((string) $part['body']['data'], '-_', '+/'));
+            $decoded = base64_decode(strtr((string)$part['body']['data'], '-_', '+/'));
 
             if ('text/plain' === $mimeType) {
                 $bodyText = $decoded;
@@ -209,9 +221,9 @@ final class GmailMessageBuilder
         }
 
         if (true === isset($part['body']['attachmentId'])) {
-            $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
-            $filename     = (string) ($part['filename'] ?? '');
-            $hasContentId = '' !== trim((string) ($partHeaders['content-id'] ?? ''), '<> ');
+            $partHeaders = $this->indexHeaders($part['headers'] ?? []);
+            $filename = (string)($part['filename'] ?? '');
+            $hasContentId = '' !== trim((string)($partHeaders['content-id'] ?? ''), '<> ');
 
             if ('' !== $filename || true === $hasContentId) {
                 $isInline = $this->persistAttachmentStub($part, $message);
@@ -248,16 +260,17 @@ final class GmailMessageBuilder
     private function persistAttachmentStub(
         array   $part,
         Message $message,
-    ): bool {
-        $partHeaders  = $this->indexHeaders($part['headers'] ?? []);
-        $filename     = (string) ($part['filename'] ?? 'attachment');
-        $contentType  = (string) ($part['mimeType'] ?? 'application/octet-stream');
-        $attachmentId = (string) ($part['body']['attachmentId'] ?? '');
-        $size         = (int) ($part['body']['size'] ?? 0);
+    ): bool
+    {
+        $partHeaders = $this->indexHeaders($part['headers'] ?? []);
+        $filename = (string)($part['filename'] ?? 'attachment');
+        $contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
+        $attachmentId = (string)($part['body']['attachmentId'] ?? '');
+        $size = (int)($part['body']['size'] ?? 0);
 
-        $contentId   = trim($partHeaders['content-id'] ?? '', '<> ');
+        $contentId = trim($partHeaders['content-id'] ?? '', '<> ');
         $disposition = strtolower($partHeaders['content-disposition'] ?? '');
-        $isInline    = true === str_contains($disposition, 'inline') || '' !== $contentId;
+        $isInline = true === str_contains($disposition, 'inline') || '' !== $contentId;
 
         $mp = new MessagePart()
             ->setMessage($message)
@@ -283,5 +296,31 @@ final class GmailMessageBuilder
         $decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
 
         return (false === $decoded) ? $value : $decoded;
+    }
+
+    private function translateLabel(Label $label, Account $target): Label
+    {
+        if ($label->account === $target) {
+            return $label;
+        }
+
+        if (null !== $label->role) {
+            return $this->localLabelResolver->systemLabel($label->role, $target);
+        }
+
+        $translated = $this->localLabelResolver->customChain(
+            explode('/', (string) $label->fullName),
+            $target,
+        );
+
+        if (null === $translated) {
+            throw new \LogicException(sprintf(
+                'Could not translate label "%s" onto account %d',
+                (string) $label->fullName,
+                (int) $target->getId(),
+            ));
+        }
+
+        return $translated;
     }
 }

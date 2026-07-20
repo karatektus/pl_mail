@@ -27,6 +27,10 @@ use Psr\Log\LoggerInterface;
  *   - STARRED / UNREAD / IMPORTANT / CHAT / CATEGORY_* are intentionally
  *     skipped: starred and read state are message columns, the rest are
  *     not modelled.
+ *
+ * Remote labelListVisibility is adopted ONCE, when the remote label is
+ * first linked. After that, visibility belongs to the user (label settings)
+ * and is never overwritten by sync.
  */
 final readonly class GmailLabelSyncer
 {
@@ -41,6 +45,7 @@ final readonly class GmailLabelSyncer
     public function __construct(
         private GmailApiClient         $apiClient,
         private LabelResolver          $labelResolver,
+        private LabelRepository        $labelRepository,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -76,6 +81,11 @@ final readonly class GmailLabelSyncer
                 continue;
             }
 
+            // Was this remote label already linked before this run? Only a
+            // first-time link adopts Gmail's visibility; afterwards the user
+            // owns it via the label settings.
+            $firstLink = null === $this->labelRepository->findOneByGmailLabelId($gmailLabelId, $account);
+
             $segments = explode('/', $name);
             $label    = $this->labelResolver->customChain($segments, $account);
 
@@ -87,11 +97,12 @@ final readonly class GmailLabelSyncer
                 $label->setGmailLabelId($gmailLabelId);
             }
 
-            // Hidden labels stay hidden in our sidebar too.
-            $visibility = (string) ($remoteLabel['labelListVisibility'] ?? 'labelShow');
+            if (true === $firstLink) {
+                $visibility = (string) ($remoteLabel['labelListVisibility'] ?? 'labelShow');
 
-            if ('labelHide' === $visibility && true === $label->isVisible) {
-                $label->setIsVisible(false);
+                if ('labelHide' === $visibility && true === $label->isVisible) {
+                    $label->setIsVisible(false);
+                }
             }
 
             $synced++;

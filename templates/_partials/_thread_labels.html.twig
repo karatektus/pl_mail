@@ -1,0 +1,35 @@
+{#
+_thread_labels.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Gmail-style label chips inside a thread/message list row.
+
+Variables:
+  item   MessageThread|Message  anything exposing .labels
+#}
+{% set chipLabels = item.labels|filter(chipLabel => chipLabel.role is null and chipLabel.isVisible) %}
+{% if chipLabels|length > 0 %}
+    <span class="hidden sm:inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
+        {% for chipLabel in chipLabels|slice(0, 3) %}
+            <span class="inline-flex items-center gap-1 px-1.5 py-px rounded text-[11px] font-medium max-w-28
+                         bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                <span class="w-1.5 h-1.5 rounded-full shrink-0
+                    {{ {
+                        'gray':   'bg-gray-400 dark:bg-gray-500',
+                        'red':    'bg-red-500',
+                        'orange': 'bg-orange-500',
+                        'amber':  'bg-amber-500',
+                        'green':  'bg-green-500',
+                        'teal':   'bg-teal-500',
+                        'blue':   'bg-blue-500',
+                        'violet': 'bg-violet-500',
+                        'pink':   'bg-pink-500',
+                    }[chipLabel.color ?? 'gray'] ?? 'bg-gray-400 dark:bg-gray-500' }}"
+                    aria-hidden="true"></span>
+                <span class="truncate">{{ chipLabel.name }}</span>
+            </span>
+        {% endfor %}
+        {% if chipLabels|length > 3 %}
+            <span class="text-[11px] text-gray-400 dark:text-gray-500">+{{ chipLabels|length - 3 }}</span>
+        {% endif %}
+    </span>
+{% endif %}

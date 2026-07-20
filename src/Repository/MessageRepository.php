@@ -112,4 +112,62 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Stream every message belonging to an account — via its mailbox (IMAP)
+     * or its thread (Gmail-API messages carry no mailbox row).
+     *
+     * @return iterable<Message>
+     */
+    public function iterateForAccount(Account $account): iterable
+    {
+        return $this->createQueryBuilder('message')
+            ->leftJoin('message.mailbox', 'mailbox')
+            ->leftJoin('message.thread', 'thread')
+            ->where('mailbox.account = :account OR thread.account = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->toIterable();
+    }
+
+    /**
+     * Does the account already hold a message with this RFC Message-ID
+     * (via mailbox or thread ownership)? Used by the Gmailify importer to
+     * yield to the sibling's own IMAP copy.
+     */
+    public function existsForAccountByMessageId(Account $account, string $messageId): bool
+    {
+        $count = (int) $this->createQueryBuilder('message')
+            ->select('COUNT(message.id)')
+            ->leftJoin('message.mailbox', 'mailbox')
+            ->leftJoin('message.thread', 'thread')
+            ->where('message.messageId = :messageId')
+            ->andWhere('mailbox.account = :account OR thread.account = :account')
+            ->setParameter('messageId', $messageId)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
+    }
+
+    /**
+     * A Gmail-imported message on this account with the given RFC Message-ID
+     * that has no IMAP location yet — claimable by the IMAP syncer when the
+     * server-side copy shows up.
+     */
+    public function findGmailOnlyByMessageId(Account $account, string $messageId): ?Message
+    {
+        return $this->createQueryBuilder('message')
+            ->innerJoin('message.thread', 'thread')
+            ->where('message.messageId = :messageId')
+            ->andWhere('message.gmailId IS NOT NULL')
+            ->andWhere('message.imapUid IS NULL')
+            ->andWhere('thread.account = :account')
+            ->setParameter('messageId', $messageId)
+            ->setParameter('account', $account)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

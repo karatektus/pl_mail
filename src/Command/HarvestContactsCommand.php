@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\AccountRepository;
-use App\Repository\MailboxRepository;
 use App\Service\HarvestContactsService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,8 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class HarvestContactsCommand extends Command
 {
     public function __construct(
-        private readonly AccountRepository     $accountRepository,
-        private readonly MailboxRepository     $mailboxRepository,
+        private readonly AccountRepository      $accountRepository,
         private readonly HarvestContactsService $harvestService,
     ) {
         parent::__construct();
@@ -56,14 +54,7 @@ final class HarvestContactsCommand extends Command
 
             $io->section(sprintf('Harvesting contacts for %s', $account->getEmail()));
 
-            $mailboxes = $this->mailboxRepository->findBy(['account' => $account]);
-            $total     = 0;
-
-            foreach ($mailboxes as $mailbox) {
-                $count  = $this->harvestService->harvestForMailbox($mailbox);
-                $total += $count;
-                $io->text(sprintf('  ✓ %s — %d address occurrences', $mailbox->getName(), $count));
-            }
+            $total = $this->harvestService->harvestForAccount($account);
 
             $io->success(sprintf('Harvested %d address occurrences for %s', $total, $account->getEmail()));
         }

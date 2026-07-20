@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Message\HarvestContactsMessage;
-use App\Repository\MailboxRepository;
+use App\Repository\AccountRepository;
 use App\Service\HarvestContactsService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -14,23 +14,23 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class HarvestContactsHandler
 {
     public function __construct(
-        private MailboxRepository      $mailboxRepository,
+        private AccountRepository      $accountRepository,
         private HarvestContactsService $harvestService,
         private LoggerInterface        $logger,
     ) {}
 
     public function __invoke(HarvestContactsMessage $message): void
     {
-        $mailbox = $this->mailboxRepository->find($message->mailboxId);
+        $account = $this->accountRepository->find($message->accountId);
 
-        if ($mailbox === null) {
-            $this->logger->warning('HarvestContactsHandler: mailbox not found', [
-                'mailboxId' => $message->mailboxId,
+        if (null === $account) {
+            $this->logger->warning("HarvestContactsHandler: account not found", [
+                "accountId" => $message->accountId,
             ]);
 
             return;
         }
 
-        $this->harvestService->harvestForMailbox($mailbox);
+        $this->harvestService->harvestForAccount($account);
     }
 }

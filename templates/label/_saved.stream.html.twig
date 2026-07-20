@@ -3,9 +3,14 @@
     <template>
         <div id="label-list" class="space-y-0.5">
             {% import '_partials/_sidebar.html.twig' as sidebar %}
-            {% for root in sidebarCounts.userLabelRoots() %}
-                {{ sidebar.label_item(root, 0, '') }}
-            {% endfor %}
+            {% set labelTree = sidebarCounts.userLabelTree() %}
+            {% if labelTree|length == 0 %}
+                <p class="px-3 py-1.5 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.labels.none'|trans }}</p>
+            {% else %}
+                {% for node in labelTree %}
+                    {{ sidebar.label_node(node, 0, '') }}
+                {% endfor %}
+            {% endif %}
         </div>
     </template>
 </turbo-stream>

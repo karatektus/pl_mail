@@ -80,6 +80,23 @@
                                         </div>
                                     </div>
                                 </section>
+                                <section>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100">{{ 'settings.labels.heading'|trans }}</h2>
+                                            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{{ 'settings.labels.subheading'|trans }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden">
+                                        <div id="settings-label-list">
+                                            {% include 'settings/_labels.html.twig' with {
+                                                manageableAccounts: manageableAccounts,
+                                                labelsByAccount: labelsByAccount,
+                                            } %}
+                                        </div>
+                                    </div>
+                                </section>
 
                             </div>
                         </div>
