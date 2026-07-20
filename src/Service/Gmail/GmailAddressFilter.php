@@ -7,7 +7,7 @@ namespace App\Service\Gmail;
 use App\Entity\Account;
 
 /**
- * Decides whether a Gmail API message payload belongs to a given account.
+ * Decides which account a Gmail API message payload belongs to.
  *
  * Gmail-specific address normalisation rules applied before any comparison:
  *   1. Lowercase the entire address.
@@ -19,16 +19,79 @@ use App\Entity\Account;
  *
  * Entry points:
  *
- *   isAddressedToAccount()     — for received mail: checks Delivered-To then To.
- *   isSentByAccount()          — for sent mail (SENT label): checks From.
- *   resolveRecipientAccount()  — for Gmailify history import: which sibling
- *                                account (if any) this message was delivered to.
+ *   resolveReceivedAccount() — attribution for received mail on a Gmailify
+ *                              carrier (carrier vs sibling accounts).
+ *   isAddressedToAccount()   — received mail without Gmailify attribution.
+ *   isSentByAccount()        — sent mail (SENT label): checks From.
  */
 final class GmailAddressFilter
 {
     /**
+     * Attribution for received mail on a Gmailify carrier.
+     *
+     * Gmail stamps its OWN address into Delivered-To when it ingests
+     * fetched mail, so "Delivered-To: <carrier>" is NOT evidence the mail
+     * was for the carrier — for those messages To/Cc is the stronger
+     * signal. Resolution order:
+     *
+     *   1. A sibling appears in Delivered-To  → that sibling.
+     *      (the original server's stamp survived — authoritative)
+     *   2. The carrier appears in To/Cc       → carrier.
+     *      (genuinely addressed to the Gmail address)
+     *   3. A sibling appears in To/Cc         → that sibling.
+     *      (fetched mail wearing only Gmail's own Delivered-To stamp)
+     *   4. The carrier appears in Delivered-To → carrier.
+     *      (BCC/list mail to the Gmail address — no other signal left)
+     *   5. Nothing matches                    → null.
+     *
+     * Known limitation: BCC/list mail delivered to a sibling and fetched
+     * by Gmail carries no sibling signal at all and lands on the carrier
+     * via step 4 — imported and visible, just not re-attributed.
+     *
+     * @param array<string,string>  $headers                     lower-cased header name → value
+     * @param array<string,Account> $siblingsByNormalisedEmail   normalisedEmail → Account
+     */
+    public function resolveReceivedAccount(
+        array   $headers,
+        Account $carrier,
+        array   $siblingsByNormalisedEmail,
+    ): ?Account {
+        $carrierNorm = $this->normalise((string) $carrier->getEmail());
+
+        $deliveredTo = $this->normalisedList($headers['delivered-to'] ?? '');
+        $toCc        = array_merge(
+            $this->normalisedList($headers['to'] ?? ''),
+            $this->normalisedList($headers['cc'] ?? ''),
+        );
+
+        foreach ($deliveredTo as $norm) {
+            if (true === isset($siblingsByNormalisedEmail[$norm])) {
+                return $siblingsByNormalisedEmail[$norm];
+            }
+        }
+
+        if (true === in_array($carrierNorm, $toCc, true)) {
+            return $carrier;
+        }
+
+        foreach ($toCc as $norm) {
+            if (true === isset($siblingsByNormalisedEmail[$norm])) {
+                return $siblingsByNormalisedEmail[$norm];
+            }
+        }
+
+        if (true === in_array($carrierNorm, $deliveredTo, true)) {
+            return $carrier;
+        }
+
+        return null;
+    }
+
+    /**
      * Returns true when at least one Delivered-To (or, as a fallback, To)
-     * address in the headers normalises to the same local part as $account.
+     * address in the headers normalises to the same canonical form as
+     * $account. Used for received mail when Gmailify attribution is off —
+     * only the carrier's own mail is considered then.
      *
      * @param array<string,string> $headers  lower-cased header name → value
      */
@@ -36,9 +99,6 @@ final class GmailAddressFilter
     {
         $accountNorm = $this->normalise((string) $account->getEmail());
 
-        // Delivered-To is the most reliable header for Gmailify detection.
-        // Gmail may emit several Delivered-To lines; the API folds them into
-        // one comma-separated value.
         $deliveredTo = $headers['delivered-to'] ?? '';
 
         if ('' !== $deliveredTo) {
@@ -48,12 +108,9 @@ final class GmailAddressFilter
                 }
             }
 
-            // A Delivered-To header was present but none matched — this message
-            // was delivered to a different address (e.g. a Gmailify alias).
             return false;
         }
 
-        // No Delivered-To — fall back to To header.
         $to = $headers['to'] ?? '';
 
         foreach ($this->splitAddressList($to) as $addr) {
@@ -67,7 +124,7 @@ final class GmailAddressFilter
 
     /**
      * Returns true when the From address in the headers normalises to the
-     * same local part as $account.
+     * same canonical form as $account.
      *
      * @param array<string,string> $headers  lower-cased header name → value
      */
@@ -88,43 +145,6 @@ final class GmailAddressFilter
         }
 
         return false;
-    }
-
-    /**
-     * Resolve which known account (keyed by normalised email) a received
-     * message was delivered to. Delivered-To is authoritative when present;
-     * otherwise To and Cc are checked.
-     *
-     * @param array<string,string>  $headers                    lower-cased header name → value
-     * @param array<string,Account> $accountsByNormalisedEmail  normalisedEmail → Account
-     */
-    public function resolveRecipientAccount(array $headers, array $accountsByNormalisedEmail): ?Account
-    {
-        $deliveredTo = $headers['delivered-to'] ?? '';
-
-        if ('' !== $deliveredTo) {
-            foreach ($this->splitAddressList($deliveredTo) as $addr) {
-                $norm = $this->normalise($addr);
-
-                if (true === isset($accountsByNormalisedEmail[$norm])) {
-                    return $accountsByNormalisedEmail[$norm];
-                }
-            }
-
-            return null;
-        }
-
-        foreach ([$headers['to'] ?? '', $headers['cc'] ?? ''] as $headerValue) {
-            foreach ($this->splitAddressList($headerValue) as $addr) {
-                $norm = $this->normalise($addr);
-
-                if (true === isset($accountsByNormalisedEmail[$norm])) {
-                    return $accountsByNormalisedEmail[$norm];
-                }
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -164,6 +184,22 @@ final class GmailAddressFilter
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Split a raw address-list header and normalise every entry.
+     *
+     * @return list<string>
+     */
+    private function normalisedList(string $raw): array
+    {
+        $normalised = [];
+
+        foreach ($this->splitAddressList($raw) as $addr) {
+            $normalised[] = $this->normalise($addr);
+        }
+
+        return $normalised;
+    }
 
     /**
      * Split a comma-separated address list into individual raw address strings.

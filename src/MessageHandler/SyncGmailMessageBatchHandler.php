@@ -247,17 +247,18 @@ final readonly class SyncGmailMessageBatchHandler
         $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
 
         if (false === $isSent) {
-            // Received mail — addressed to this account directly?
-            if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
-                return $account;
-            }
+            if (false === $isSent) {
+                if (false === $gmailifyEnabled) {
+                    // Without Gmailify attribution only the carrier's own mail counts.
+                    if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
+                        return $account;
+                    }
 
-            if (false === $gmailifyEnabled) {
-                return null;
-            }
+                    return null;
+                }
 
-            // Gmailify: delivered to a sibling account.
-            return $this->addressFilter->resolveRecipientAccount($headers, $siblingAccounts);
+                return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts);
+            }
         }
 
         // Sent mail — check From against this account first.
