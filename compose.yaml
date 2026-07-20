@@ -72,7 +72,7 @@ services:
       retries: 5
       start_period: 60s
     volumes:
-      - database_data:/var/lib/postgresql/data:rw
+      - database_data:/var/lib/postgresql
 
   mercure:
     image: dunglas/mercure
