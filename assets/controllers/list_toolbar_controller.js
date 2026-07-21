@@ -11,8 +11,12 @@
 import { Controller } from "@hotwired/stimulus";
 
 // Classes applied to the checkbox button in each state
-const CB_BASE      = "border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800";
-const CB_ACTIVE    = "border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500";
+const CB_BASE   = "border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800";
+const CB_ACTIVE = "border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500";
+
+// Base path prefix for all status actions — must match Symfony routing.
+// Individual action URLs are built as: STATUS_BASE + "/thread/{id}/{action}"
+const STATUS_BASE = "/status";
 
 export default class extends Controller {
     static targets = [
@@ -33,8 +37,8 @@ export default class extends Controller {
     connect() {
         // Listen for the custom event fired by message_row_controller when
         // a row checkbox changes.
-        this._onRowChange     = this._syncFromRows.bind(this);
-        this._onClickOutside  = this._closeSelectMenu.bind(this);
+        this._onRowChange    = this._syncFromRows.bind(this);
+        this._onClickOutside = this._closeSelectMenu.bind(this);
 
         this.element.addEventListener("list-toolbar:row-changed", this._onRowChange);
         document.addEventListener("click", this._onClickOutside, { capture: true });
@@ -118,41 +122,41 @@ export default class extends Controller {
         }
     }
 
-    // ── Bulk action stubs ─────────────────────────────────────────────────
+    // ── Bulk actions ──────────────────────────────────────────────────────
 
-    archiveSelected() {
+    async archiveSelected() {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        console.log("[list-toolbar] archive", ids);
-        // TODO: POST /threads/bulk-archive { ids }
+        await this._bulkPost(ids, "archive");
     }
 
-    deleteSelected() {
+    async deleteSelected() {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        console.log("[list-toolbar] delete", ids);
-        // TODO: POST /threads/bulk-delete { ids }
+        await this._bulkPost(ids, "trash");
     }
 
-    markReadSelected() {
+    async markReadSelected() {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        console.log("[list-toolbar] mark-read", ids);
-        // TODO: POST /threads/bulk-mark-read { ids }
+        await this._bulkPost(ids, "read", { read: true });
     }
 
-    markUnreadSelected() {
+    async markUnreadSelected() {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        console.log("[list-toolbar] mark-unread", ids);
-        // TODO: POST /threads/bulk-mark-unread { ids }
+        await this._bulkPost(ids, "read", { read: false });
     }
 
-    snoozeSelected() {
+    async snoozeSelected() {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        console.log("[list-toolbar] snooze", ids);
-        // TODO: open snooze picker then POST /threads/bulk-snooze { ids, until }
+        // Default: snooze until tomorrow morning.
+        // Replace with a date-picker dispatch if you add a snooze UI.
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(8, 0, 0, 0);
+        await this._bulkPost(ids, "snooze", { until: tomorrow.toISOString() });
     }
 
     // ── Private ───────────────────────────────────────────────────────────
@@ -186,6 +190,54 @@ export default class extends Controller {
             const li = cb.closest("li");
             cb.checked = li ? predicate(li) : false;
         });
+        this._syncFromRows();
+    }
+
+    /**
+     * Posts the given action to every selected thread in parallel, then
+     * renders all returned Turbo Stream fragments in document order.
+     *
+     * Reuses the same routes as single-row actions:
+     *   POST /status/thread/{id}/{action}
+     *
+     * @param {number[]} ids     - thread IDs to act on
+     * @param {string}   action  - route suffix: archive | trash | read | snooze | star
+     * @param {object}   body    - optional JSON body (e.g. { read: true })
+     */
+    async _bulkPost(ids, action, body = {}) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+
+        const results = await Promise.all(
+            ids.map(async (id) => {
+                const url      = `${STATUS_BASE}/thread/${id}/${action}`;
+                const response = await fetch(url, {
+                    method:  "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrf,
+                    },
+                    body: JSON.stringify(body),
+                });
+
+                if (!response.ok) {
+                    console.error(`[list-toolbar] ${action} failed for thread ${id}`, response.status);
+                    return null;
+                }
+
+                return response.text();
+            }),
+        );
+
+        // Render streams in selection order so DOM mutations are predictable.
+        for (const html of results) {
+            if (html !== null && html.trim() !== "") {
+                Turbo.renderStreamMessage(html);
+            }
+        }
+
+        // Uncheck all rows after the action succeeds (rows may have been
+        // removed from the DOM by the stream responses).
+        this._setAllRows(false);
         this._syncFromRows();
     }
 
@@ -226,7 +278,7 @@ export default class extends Controller {
      * Sets the visual state of the master checkbox button.
      *
      * States:
-     *   unchecked    — plain bordered box, no icon
+     *   unchecked     — plain bordered box, no icon
      *   indeterminate — blue fill, dash icon
      *   checked       — blue fill, checkmark icon
      */
