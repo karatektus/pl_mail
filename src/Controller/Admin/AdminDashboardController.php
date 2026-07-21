@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Repository\LogEntryRepository;
 use App\Service\Monitoring\AdminMonitoringService;
+use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\QueueMonitor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class AdminDashboardController extends AbstractController
 {
+    private const array SECTIONS = ['system', 'database', 'logs'];
     private const int LOGS_PER_PAGE = 100;
 
     /** Monolog numeric levels offered as minimum-level filters. */
@@ -32,12 +34,21 @@ final class AdminDashboardController extends AbstractController
         private readonly AdminMonitoringService $monitoring,
         private readonly QueueMonitor           $queueMonitor,
         private readonly LogEntryRepository     $logEntryRepository,
+        private readonly DbPerformanceService   $dbPerformance,
     ) {}
 
     #[Route('', name: 'dashboard')]
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        return $this->render('admin/index.html.twig');
+        $section = (string) $request->query->get('section', 'system');
+
+        if (false === in_array($section, self::SECTIONS, true)) {
+            $section = 'system';
+        }
+
+        return $this->render('admin/index.html.twig', [
+            'section' => $section,
+        ]);
     }
 
     /**
@@ -87,6 +98,32 @@ final class AdminDashboardController extends AbstractController
             'levels'   => self::LOG_LEVELS,
             'channels' => $this->logEntryRepository->distinctChannels(),
         ]);
+    }
+
+    #[Route('/db', name: 'db')]
+    public function db(): Response
+    {
+        return $this->render('admin/_db_frame.html.twig', [
+            'statStatementsAvailable' => $this->dbPerformance->isStatStatementsAvailable(),
+            'slowestByMean'           => $this->dbPerformance->slowestByMean(),
+            'heaviestByTotal'         => $this->dbPerformance->heaviestByTotal(),
+            'activeQueries'           => $this->dbPerformance->activeQueries(),
+            'gauges'                  => $this->dbPerformance->healthGauges(),
+        ]);
+    }
+
+    #[Route('/db/reset-stats', name: 'db_reset', methods: ['POST'])]
+    public function resetDbStats(Request $request): Response
+    {
+        $token = (string) $request->request->get('_token', '');
+
+        if (false === $this->isCsrfTokenValid('admin_db_reset', $token)) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        $this->dbPerformance->resetStatStatements();
+
+        return $this->redirectToRoute('app_admin_dashboard');
     }
 
     #[Route('/failed/{id}/retry', name: 'failed_retry', methods: ['POST'])]

@@ -25,6 +25,7 @@
         "symfony/flex": "^2",
         "symfony/form": "8.1.*",
         "symfony/framework-bundle": "8.1.*",
+        "symfony/html-sanitizer": "8.1.*",
         "symfony/http-client": "8.1.*",
         "symfony/intl": "8.1.*",
         "symfony/mailer": "8.1.*",
@@ -49,6 +50,7 @@
         "symfony/web-link": "8.1.*",
         "symfony/yaml": "8.1.*",
         "symfonycasts/tailwind-bundle": "^0.14.0",
+        "tijsverkoyen/css-to-inline-styles": "^2.4",
         "twig/extra-bundle": "^2.12|^3.0",
         "twig/twig": "^2.12|^3.0",
         "webklex/php-imap": "^6.2"

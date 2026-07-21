@@ -3,6 +3,9 @@
 {% block title %}{{ 'admin.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
+    {% set navActive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-black/[0.04] dark:bg-white/10 text-zinc-800 dark:text-zinc-100' %}
+    {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-500 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/5 transition-colors' %}
+
     <div class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950"
          data-controller="sidebar-drawer">
 
@@ -36,30 +39,77 @@
                         <div class="flex items-center gap-3 px-6 h-14 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                             <i class="fa-solid fa-gauge-high text-zinc-400" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-zinc-800 dark:text-zinc-100">{{ 'admin.title'|trans }}</h1>
-                            <span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.refresh_hint'|trans }}</span>
+                            {% if section != 'logs' %}
+                                <span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.refresh_hint'|trans }}</span>
+                            {% endif %}
                         </div>
 
-                        {# Scrollable body #}
+                        {# Scrollable body: section nav + content.
+                           Two grid children only — nav and ONE content wrapper. #}
                         <div class="flex-1 overflow-y-auto">
-                            <div class="flex flex-col max-w-5xl mx-auto px-6 py-6 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
 
-                                <turbo-frame id="admin-live"
-                                             src="{{ path('app_admin_live') }}"
-                                             loading="lazy"
-                                             data-controller="auto-refresh"
-                                             data-auto-refresh-interval-value="10000">
-                                    <div class="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                                        <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
-                                    </div>
-                                </turbo-frame>
+                                {# Section nav #}
+                                <nav class="flex md:flex-col gap-1 flex-wrap">
+                                    <a href="{{ path('app_admin_dashboard', { section: 'system' }) }}"
+                                       class="{{ section == 'system' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-heart-pulse w-4 {{ section == 'system' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.system'|trans }}
+                                    </a>
+                                    <a href="{{ path('app_admin_dashboard', { section: 'database' }) }}"
+                                       class="{{ section == 'database' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-database w-4 {{ section == 'database' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.database'|trans }}
+                                    </a>
+                                    <a href="{{ path('app_admin_dashboard', { section: 'logs' }) }}"
+                                       class="{{ section == 'logs' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-scroll w-4 {{ section == 'logs' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.logs'|trans }}
+                                    </a>
+                                </nav>
 
-                                <turbo-frame id="admin-logs"
-                                             src="{{ path('app_admin_logs') }}"
-                                             loading="lazy">
-                                    <div class="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                                        <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
-                                    </div>
-                                </turbo-frame>
+                                {# Single content wrapper — second (and last) grid child.
+                                   Only the active section's frame is rendered, so only
+                                   one loads/polls at a time. #}
+                                <div class="min-w-0">
+
+                                    {% if section == 'database' %}
+
+                                        <turbo-frame id="admin-db"
+                                                     src="{{ path('app_admin_db') }}"
+                                                     loading="lazy"
+                                                     data-controller="auto-refresh"
+                                                     data-auto-refresh-interval-value="20000">
+                                            <div class="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'logs' %}
+
+                                        <turbo-frame id="admin-logs"
+                                                     src="{{ path('app_admin_logs') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% else %}
+
+                                        <turbo-frame id="admin-live"
+                                                     src="{{ path('app_admin_live') }}"
+                                                     loading="lazy"
+                                                     data-controller="auto-refresh"
+                                                     data-auto-refresh-interval-value="10000">
+                                            <div class="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% endif %}
+
+                                </div>
 
                             </div>
                         </div>

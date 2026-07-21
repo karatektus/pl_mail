@@ -97,15 +97,15 @@
                     class="{{ isExpanded ? '' : 'hidden' }}"
                 >
                     <div class="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                        {% if message.bodyHtml %}
-                            <div
-                                data-thread-message-target="shadowHost"
-                                data-html="{{ message.bodyHtml|resolve_cid(message)|e('html_attr') }}"
-                                class="w-full"
-                            ></div>
-                        {% else %}
-                            <pre class="whitespace-pre-wrap font-sans">{{ message.bodyText }}</pre>
-                        {% endif %}
+                        <div class="mb-4">
+                            {% if message.bodyHtmlSafe %}
+                                <div class="rounded-lg bg-white text-gray-900 p-4 overflow-x-auto">
+                                    {{ message.bodyHtmlSafe|raw }}
+                                </div>
+                            {% else %}
+                                <pre class="whitespace-pre-wrap font-sans text-sm text-gray-700 dark:text-gray-300">{{ message.bodyText }}</pre>
+                            {% endif %}
+                        </div>
                     </div>
 
                     {% if message.hasAttachments %}

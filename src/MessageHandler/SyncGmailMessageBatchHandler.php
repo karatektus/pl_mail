@@ -15,6 +15,7 @@ use App\Service\Gmail\GmailMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\SyncNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -38,6 +39,7 @@ final readonly class SyncGmailMessageBatchHandler
         private HarvestContactsService $harvestService,
         private SyncNotifier           $syncNotifier,
         private MessageBusInterface    $bus,
+        private MailBodySanitizer      $sanitizer,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -184,7 +186,10 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->em->flush();
 
+
         foreach ($built as $item) {
+            $this->sanitizer->sanitize($item['message']);
+
             try {
                 $this->messageThreader->assignThread($item['message'], $item['account']);
             } catch (\Throwable $e) {

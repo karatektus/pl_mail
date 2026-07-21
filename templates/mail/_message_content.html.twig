@@ -32,15 +32,16 @@
             </p>
         </div>
 
-        {% if message.bodyHtml %}
-            <div class="prose prose-sm dark:prose-invert max-w-none">
-                {{ message.bodyHtml|resolve_cid(message)|raw }}
+        {% if message.bodyHtmlSafe %}
+            <div class="rounded-lg bg-white text-gray-900 p-5 overflow-x-auto">
+                {{ message.bodyHtmlSafe|raw }}
             </div>
         {% else %}
             <div class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
                 {{ message.bodyText }}
             </div>
         {% endif %}
+
         {% if message.hasAttachments %}
             <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                 <p class="text-xs font-medium text-gray-400 dark:text-gray-600 mb-2">{{ 'message.attachments'|trans }}</p>

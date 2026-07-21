@@ -73,6 +73,12 @@ services:
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.track=top"
 
   mercure:
     image: dunglas/mercure

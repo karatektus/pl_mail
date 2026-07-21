@@ -52,6 +52,36 @@ admin:
         page: 'Page'
         newer: 'Newer'
         older: 'Older'
+    db:
+        connections: 'Connections'
+        cache_hit: 'Cache hit'
+        rollback_ratio: 'Rollback ratio'
+        deadlocks: 'Deadlocks'
+        extension_missing: 'pg_stat_statements is not enabled — slow-query aggregation is unavailable. Enable it once:'
+        reset: 'Reset stats'
+        reset_confirm: 'Reset all collected query statistics?'
+        slow_mean:
+            heading: 'Slowest queries (by mean time)'
+            hint: 'Statements averaging ≥ 5ms, current database.'
+            empty: 'No statements above the threshold yet.'
+        heavy_total:
+            heading: 'Heaviest queries (by total time)'
+            hint: 'Cumulative time across all calls — where the DB spends its time overall.'
+        active:
+            heading: 'Live activity'
+            empty: 'No active queries right now.'
+        col:
+            query: 'Query'
+            calls: 'Calls'
+            mean: 'Mean ms'
+            max: 'Max ms'
+            total: 'Total'
+            rows: 'Rows'
+            hit: 'Cache'
+    nav:
+        system: System
+        database: Database
+        logs: Logs
 login:
     page_title: Sign in
     tagline: Sign in to your account

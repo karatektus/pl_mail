@@ -9,6 +9,7 @@ use App\Entity\Message;
 use App\Entity\MessagePart;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
+use App\Service\Mail\MailBodySanitizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -26,6 +27,7 @@ class MessageSyncer
         private readonly LoggerInterface         $logger,
         private readonly MessageThreader         $messageThreader,
         private readonly MessageRepository       $messageRepository,
+        private readonly MailBodySanitizer       $sanitizer,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -148,6 +150,7 @@ class MessageSyncer
 
         // Pass 2 — assign threads now that all messages exist in DB
         foreach ($messages as $message) {
+            $this->sanitizer->sanitize($message);
             try {
                 $this->messageThreader->assignThread(
                     $message,

@@ -102,6 +102,9 @@ class Message extends MessageModel
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $bodyHtml = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $bodyHtmlSafe = null;
+
     /**
      * @var Collection<int, MessagePart>
      */
@@ -549,6 +552,18 @@ class Message extends MessageModel
     public function hasLabel(Label $label): bool
     {
         return $this->labels->contains($label);
+    }
+
+    public function getBodyHtmlSafe(): ?string
+    {
+        return $this->bodyHtmlSafe;
+    }
+
+    public function setBodyHtmlSafe(?string $bodyHtmlSafe): static
+    {
+        $this->bodyHtmlSafe = $bodyHtmlSafe;
+
+        return $this;
     }
 
     public function getAccount(): ?Account
