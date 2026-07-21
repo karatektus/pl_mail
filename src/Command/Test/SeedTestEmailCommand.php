@@ -43,7 +43,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
     name: 'app:test:seed-mail',
     description: 'Seed a known inbox (star/archive/trash/read threads) for the mail-UI E2E tests',
 )]
-final class SeedE2eMailCommand extends Command
+final class SeedTestEmailCommand extends Command
 {
     private const string SEED_ACCOUNT_USERNAME = 'mailbox@e2e.test';
 
