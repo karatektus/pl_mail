@@ -56,7 +56,7 @@ final class SeedTestUserCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         if ('prod' === $this->environment) {
-            $io->error('app:e2e:seed-user must not run in the prod environment.');
+            $io->error('app:test:seed-user must not run in the prod environment.');
 
             return Command::FAILURE;
         }
