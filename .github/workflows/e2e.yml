@@ -59,7 +59,9 @@ jobs:
               run: composer install --no-interaction --prefer-dist --no-progress
 
             - name: Install Symfony CLI
-              run: curl -sS https://get.symfony.com/cli/installer | bash && sudo mv ~/.symfony*/bin/symfony /usr/local/bin/symfony
+              run: |
+                  curl -1sLf 'https://get.symfony.com/cli/setup.deb.sh' | sudo -E bash
+                  sudo apt-get install -y symfony-cli
 
             - name: Setup Node
               uses: actions/setup-node@v4
