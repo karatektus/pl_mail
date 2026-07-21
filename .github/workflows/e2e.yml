@@ -1,0 +1,100 @@
+name: E2E
+
+on:
+    push:
+    pull_request:
+
+jobs:
+    playwright:
+        name: Playwright (login + account)
+        runs-on: ubuntu-latest
+
+        env:
+            APP_ENV: test
+            APP_DEBUG: "1"
+            DATABASE_URL: "postgresql://app:app@127.0.0.1:5432/app?serverVersion=18&charset=utf8"
+            MESSENGER_TRANSPORT_DSN: "in-memory://"
+            MAILER_DSN: "null://null"
+            APP_DEV_USER_EMAIL: "e2e@plmail.test"
+            APP_DEV_USER_PASSWORD: "e2e-password-change-me"
+
+        services:
+            postgres:
+                image: postgres:18
+                env:
+                    POSTGRES_USER: app
+                    POSTGRES_PASSWORD: app
+                    POSTGRES_DB: app
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U app"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  extensions: ctype, iconv, pcntl, pdo_pgsql, pgsql, intl, sodium, mbstring, xml, curl, zip
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Get Composer cache directory
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache Composer dependencies
+              uses: actions/cache@v4
+              with:
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: composer-
+
+            - name: Install PHP dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Install Symfony CLI
+              run: |
+                  curl -1sLf 'https://get.symfony.com/cli/setup.deb.sh' | sudo -E bash
+                  sudo apt-get install -y symfony-cli
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install Node dependencies
+              run: npm ci
+
+            - name: Install Playwright browsers
+              run: npx playwright install --with-deps chromium
+
+            - name: Build frontend assets
+              run: |
+                  php bin/console importmap:install
+                  php bin/console tailwind:build
+
+            - name: Prepare database
+              run: |
+                  php bin/console doctrine:database:create --if-not-exists --no-interaction
+                  php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+            - name: Seed E2E user
+              run: php bin/console app:e2e:seed-user
+
+            - name: Run Playwright tests
+              run: npx playwright test
+
+            - name: Upload Playwright report
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report
+                  path: playwright-report/
+                  retention-days: 14
