@@ -1,0 +1,85 @@
+<turbo-frame id="admin-logs">
+
+    <section class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+
+        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-black/[0.06] dark:border-white/10">
+            <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ 'admin.logs.heading'|trans }}</h2>
+            <span class="text-xs text-zinc-400 dark:text-zinc-500">{{ total }} {{ 'admin.logs.entries'|trans }}</span>
+
+            <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
+                <select name="level"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-zinc-700 dark:text-zinc-200 px-2"
+                        onchange="this.form.requestSubmit();">
+                    {% for value, name in levels %}
+                        <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="channel"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-zinc-700 dark:text-zinc-200 px-2"
+                        onchange="this.form.requestSubmit();">
+                    <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
+                    {% for ch in channels %}
+                        <option value="{{ ch }}" {{ channel == ch ? 'selected' : '' }}>{{ ch }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer">
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                    {{ 'admin.logs.refresh'|trans }}
+                </button>
+            </form>
+        </div>
+
+        {% if entries|length == 0 %}
+            <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.logs.empty'|trans }}</p>
+        {% else %}
+            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                {% for entry in entries %}
+                    <details class="px-5 py-2.5 text-sm group">
+                        <summary class="flex items-center gap-3 cursor-pointer list-none">
+                            <span class="shrink-0 w-16 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
+                                {{ entry.level >= 400
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                                    : (entry.level >= 300
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300') }}">
+                                {{ entry.levelName }}
+                            </span>
+                            <span class="shrink-0 text-xs text-zinc-400 dark:text-zinc-500 font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
+                            <span class="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">{{ entry.source ?? '—' }}</span>
+                            <span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{{ entry.channel }}</span>
+                            <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-200 group-open:whitespace-normal group-open:break-all">{{ entry.message }}</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-zinc-300 dark:text-zinc-600 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                        </summary>
+                        {% if entry.context %}
+                            <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-black/[0.04] dark:border-white/5 text-xs text-zinc-600 dark:text-zinc-300 overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                        {% endif %}
+                    </details>
+                {% endfor %}
+            </div>
+
+            {% if pages > 1 %}
+                <div class="flex items-center justify-between px-5 py-3 border-t border-black/[0.06] dark:border-white/10 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span>{{ 'admin.logs.page'|trans }} {{ page }} / {{ pages }}</span>
+                    <div class="flex items-center gap-2">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page - 1 }) }}"
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors">
+                                {{ 'admin.logs.newer'|trans }}
+                            </a>
+                        {% endif %}
+                        {% if page < pages %}
+                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page + 1 }) }}"
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors">
+                                {{ 'admin.logs.older'|trans }}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
+    </section>
+
+</turbo-frame>

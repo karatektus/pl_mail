@@ -26,7 +26,6 @@ class OAuthProviderFactory
 
     public function create(MailProvider $provider): AbstractProvider
     {
-        dump($this->googleClientId);
         $redirectUri = $this->urlGenerator->generate(
             'app_oauth_callback',
             ['provider' => $provider->value],

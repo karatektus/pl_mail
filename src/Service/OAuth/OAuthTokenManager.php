@@ -8,6 +8,9 @@ use App\Domain\Enum\MailProvider;
 use App\Entity\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use GuzzleHttp\Exception\GuzzleException;
+use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
+use Throwable;
 
 /**
  * Single source of a valid access token for an OAuth account.
@@ -26,7 +29,8 @@ class OAuthTokenManager
     public function __construct(
         private readonly OAuthProviderFactory   $providerFactory,
         private readonly EntityManagerInterface $em,
-    ) {
+    )
+    {
     }
 
     public function getValidAccessToken(Account $account): string
@@ -61,6 +65,11 @@ class OAuthTokenManager
         return false;
     }
 
+    /**
+     * @throws Throwable
+     * @throws GuzzleException
+     * @throws IdentityProviderException
+     */
     private function refresh(Account $account): string
     {
         $refreshToken = $account->getOauthRefreshToken();
@@ -68,22 +77,29 @@ class OAuthTokenManager
         if (null === $refreshToken) {
             throw new \RuntimeException(sprintf(
                 'Account %d has no refresh token; the account must be reconnected.',
-                (int) $account->getId(),
+                $account->getId(),
             ));
         }
 
         $provider = $this->providerFactory->create($this->providerFor($account));
 
-        $newToken = $provider->getAccessToken('refresh_token', [
-            'refresh_token' => $refreshToken,
-        ]);
+        try {
+            $newToken = $provider->getAccessToken('refresh_token', [
+                'refresh_token' => $refreshToken,
+            ]);
+        } catch (Throwable $e) {
+            $account->setOauthLastRefreshError($e->getMessage());
+            $this->em->flush();
+
+            throw $e;
+        }
 
         $account->setOauthAccessToken($newToken->getToken());
 
         $expires = $newToken->getExpires();
         if (null !== $expires) {
             $account->setOauthTokenExpiry(
-                (new DateTimeImmutable())->setTimestamp($expires),
+                new DateTimeImmutable()->setTimestamp($expires),
             );
         }
 
@@ -91,7 +107,10 @@ class OAuthTokenManager
         // existing one unless a new one is explicitly returned.
         $returnedRefresh = $newToken->getRefreshToken();
         if (null !== $returnedRefresh) {
-            $account->setOauthRefreshToken($returnedRefresh);
+            $account
+                ->setOauthRefreshToken($returnedRefresh)
+                ->setOauthLastRefreshAt(new DateTimeImmutable())
+                ->setOauthLastRefreshError(null);;
         }
 
         $account->setUpdatedAt(new DateTimeImmutable());
@@ -108,7 +127,7 @@ class OAuthTokenManager
         if (null === $providerValue) {
             throw new \RuntimeException(sprintf(
                 'Account %d has no OAuth provider set.',
-                (int) $account->getId(),
+                $account->getId(),
             ));
         }
 
@@ -117,7 +136,7 @@ class OAuthTokenManager
         if (null === $provider) {
             throw new \RuntimeException(sprintf(
                 'Account %d has unknown OAuth provider "%s".',
-                (int) $account->getId(),
+                $account->getId(),
                 $providerValue,
             ));
         }

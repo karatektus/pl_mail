@@ -120,6 +120,20 @@ class Account extends AccountModel
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     private array $settings = [];
 
+    /**
+     * Last time Google's Pub/Sub push actually reached /gmail/push for this
+     * account — distinguishes "watch registered but subscription broken"
+     * from "healthy but quiet".
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $gmailLastPushAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $oauthLastRefreshAt = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $oauthLastRefreshError = null;
+
     public function __construct()
     {
         $this->mailboxes = new ArrayCollection();
@@ -484,6 +498,7 @@ class Account extends AccountModel
 
         return $this->gmailWatchExpiry > new \DateTimeImmutable();
     }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -499,6 +514,43 @@ class Account extends AccountModel
 
         return $this;
     }
+
+    public function getGmailLastPushAt(): ?\DateTimeImmutable
+    {
+        return $this->gmailLastPushAt;
+    }
+
+    public function setGmailLastPushAt(?\DateTimeImmutable $gmailLastPushAt): static
+    {
+        $this->gmailLastPushAt = $gmailLastPushAt;
+
+        return $this;
+    }
+
+    public function getOauthLastRefreshAt(): ?\DateTimeImmutable
+    {
+        return $this->oauthLastRefreshAt;
+    }
+
+    public function setOauthLastRefreshAt(?\DateTimeImmutable $oauthLastRefreshAt): static
+    {
+        $this->oauthLastRefreshAt = $oauthLastRefreshAt;
+
+        return $this;
+    }
+
+    public function getOauthLastRefreshError(): ?string
+    {
+        return $this->oauthLastRefreshError;
+    }
+
+    public function setOauthLastRefreshError(?string $oauthLastRefreshError): static
+    {
+        $this->oauthLastRefreshError = $oauthLastRefreshError;
+
+        return $this;
+    }
+
     public function isGmail(): bool
     {
         return AuthType::OAuth2->value === $this->authType

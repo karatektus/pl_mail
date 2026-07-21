@@ -1,6 +1,57 @@
 app:
     name: Mail
-
+admin:
+    title: 'Admin'
+    refresh_hint: 'Live panels refresh every 10s'
+    loading: 'Loading…'
+    ago: 'ago'
+    processes:
+        heading: 'Processes'
+        empty: 'No heartbeats yet — processes report here after their first beat.'
+        type: 'Type'
+        key: 'Instance'
+        pid: 'PID'
+        last_beat: 'Last beat'
+    webhooks:
+        heading: 'Gmail webhooks'
+        empty: 'No Gmail accounts with watch state.'
+        watch_expiry: 'Watch expiry'
+        last_push: 'Last push'
+        history_id: 'History ID'
+        none: 'not registered'
+        never: 'never'
+    tokens:
+        heading: 'OAuth token health'
+        empty: 'No token refreshes recorded yet.'
+    queues:
+        heading: 'Messenger queues'
+        empty: 'No pending messages.'
+        queue: 'Queue'
+        pending: 'Pending'
+        oldest: 'Oldest waiting'
+    failed:
+        heading: 'Failed messages'
+        empty: 'Failure transport is empty. 🎉'
+        retry: 'Retry'
+        delete: 'Delete'
+        delete_confirm: 'Permanently drop this failed message?'
+    accounts:
+        heading: 'Accounts'
+        account: 'Account'
+        threads: 'Threads'
+        messages: 'Messages'
+        last_activity: 'Last activity'
+    tables:
+        heading: 'Table sizes'
+    logs:
+        heading: 'Logs'
+        entries: 'entries'
+        all_channels: 'All channels'
+        refresh: 'Refresh'
+        empty: 'Nothing logged at this level.'
+        page: 'Page'
+        newer: 'Newer'
+        older: 'Older'
 login:
     page_title: Sign in
     tagline: Sign in to your account
@@ -27,6 +78,7 @@ header:
         label: User menu for %email%
         signed_in_as: Signed in as
         settings: Settings
+        admin: Admin
         sign_out: Sign out
 
 sidebar:

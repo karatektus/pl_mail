@@ -122,6 +122,12 @@
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.settings'|trans }}
                 </a>
+                {% if is_granted('ROLE_ADMIN') %}
+                    <a href="{{ path('app_admin_dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <i class="fa-solid fa-gauge-high w-4 text-gray-400" aria-hidden="true"></i>
+                        {{ 'header.user_menu.admin'|trans }}
+                    </a>
+                {% endif %}
                 <a href="{{ path('app_logout') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.sign_out'|trans }}

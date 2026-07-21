@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Message\SyncImapMailboxMessage;
 use App\Repository\MailboxRepository;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -20,23 +21,28 @@ use Webklex\PHPIMAP\Connection\Protocols\Response;
 )]
 class ImapIdleCommand extends Command
 {
-    private const IDLE_TIMEOUT    = 1740; // 29 minutes in seconds (RFC max is 30)
-    private const RECONNECT_DELAY = 5;    // seconds between reconnection attempts
-    private const MAX_RETRIES     = 10;
+    private const IDLE_TIMEOUT      = 1740; // 29 minutes in seconds (RFC max is 30)
+    private const RECONNECT_DELAY   = 5;    // seconds between reconnection attempts
+    private const MAX_RETRIES       = 10;
+    private const HEARTBEAT_MIN_GAP = 30;   // min seconds between idle-loop keepalive beats
 
     private bool $shouldStop = false;
 
+    /** Unix time of the last heartbeat, to throttle the idle-loop keepalive. */
+    private int $lastBeatAt = 0;
+
     public function __construct(
-        private readonly MailboxRepository  $mailboxRepository,
-        private readonly MessageBusInterface $bus,
-        private readonly ImapConnectionFactory $imapConnectionFactory,
+        private readonly MailboxRepository       $mailboxRepository,
+        private readonly MessageBusInterface     $bus,
+        private readonly ImapConnectionFactory   $imapConnectionFactory,
+        private readonly ProcessHeartbeatService $heartbeats,
     ) {
         parent::__construct();
     }
 
     private function registerSignalHandlers(SymfonyStyle $io): void
     {
-        if (!function_exists('pcntl_async_signals')) {
+        if (false === function_exists('pcntl_async_signals')) {
             $io->warning('pcntl extension not available — signal handling disabled');
             return;
         }
@@ -64,12 +70,12 @@ class ImapIdleCommand extends Command
         $mailboxId  = (int) $input->getArgument('mailbox-id');
         $mailbox    = $this->mailboxRepository->find($mailboxId);
 
-        if ($mailbox === null) {
+        if (null === $mailbox) {
             $io->error(sprintf('Mailbox %d not found.', $mailboxId));
             return Command::FAILURE;
         }
 
-        if (!$mailbox->isIdleEnabled() || !$mailbox->isSyncEnabled()) {
+        if (false === $mailbox->isIdleEnabled() || false === $mailbox->isSyncEnabled()) {
             $io->error('Mailbox is not enabled for IDLE.');
             return Command::FAILURE;
         }
@@ -84,12 +90,12 @@ class ImapIdleCommand extends Command
 
         $retries = 0;
 
-        while (!$this->shouldStop) {
+        while (false === $this->shouldStop) {
             try {
                 $this->idle($mailboxId, $io);
                 $retries = 0;
             } catch (\Throwable $e) {
-                if ($this->shouldStop) {
+                if (true === $this->shouldStop) {
                     break;
                 }
 
@@ -124,10 +130,12 @@ class ImapIdleCommand extends Command
         $client     = $this->imapConnectionFactory->connect($account);
         $folder     = $client->getFolder($mailbox->getName());
 
-        if ($folder === null) {
+        if (null === $folder) {
             $client->disconnect();
             throw new \RuntimeException(sprintf('Folder "%s" not found.', $mailbox->getName()));
         }
+
+        $this->beat($mailbox, $account, true);
 
         $connection = $client->getConnection();
         $connection->selectFolder($folder->path);
@@ -138,7 +146,8 @@ class ImapIdleCommand extends Command
         $startTime = time();
 
         while (true) {
-            if ($this->shouldStop) {
+
+            if (true === $this->shouldStop) {
                 $io->text(sprintf('[%s] Shutdown requested — closing IDLE cleanly.', date('H:i:s')));
                 $connection->done();
                 $client->disconnect();
@@ -149,26 +158,31 @@ class ImapIdleCommand extends Command
                 $io->text(sprintf('[%s] IDLE timeout — reconnecting.', date('H:i:s')));
                 $connection->done();
                 $client->disconnect();
+                $this->beat($mailbox, $account, true);
                 return;
             }
 
             try {
                 $line = $connection->nextLine(new Response(0, false));
             } catch (\Throwable $e) {
-                if ($this->shouldStop) {
+                if (true === $this->shouldStop) {
                     $connection->done();
                     $client->disconnect();
                     return;
                 }
 
-                if (str_contains($e->getMessage(), 'empty response')) {
-                    // Stream read timed out — normal, just keep looping
+                if (true === str_contains($e->getMessage(), 'empty response')) {
+                    // Stream read timed out — the normal quiet-mailbox case.
+                    // Beat (throttled) so liveness is detected far faster than
+                    // the 29-minute IDLE re-issue would allow.
+                    $this->beat($mailbox, $account);
                     continue;
                 }
                 throw $e;
             }
 
-            if (str_contains($line, 'EXISTS')) {
+            if (true === str_contains($line, 'EXISTS')) {
+                $this->beat($mailbox, $account, true);
                 $io->text(sprintf('[%s] Notification received — dispatching sync.', date('H:i:s')));
                 try {
                     $envelope = $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
@@ -178,5 +192,27 @@ class ImapIdleCommand extends Command
                 }
             }
         }
+    }
+
+    /**
+     * Record a liveness heartbeat for this mailbox's IDLE process. Lifecycle
+     * beats (connect, timeout re-issue, EXISTS wake) pass $force so they
+     * always land; the idle-loop keepalive is throttled to HEARTBEAT_MIN_GAP.
+     */
+    private function beat(object $mailbox, object $account, bool $force = false): void
+    {
+        $now = time();
+
+        if (false === $force && ($now - $this->lastBeatAt) < self::HEARTBEAT_MIN_GAP) {
+            return;
+        }
+
+        $this->lastBeatAt = $now;
+
+        $this->heartbeats->beat(
+            ProcessHeartbeatService::TYPE_IMAP_IDLE,
+            (string) $mailbox->getId(),
+            ['mailbox' => $mailbox->getFullPath(), 'account' => $account->getEmail()],
+        );
     }
 }

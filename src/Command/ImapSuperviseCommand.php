@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\MailboxRepository;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -42,6 +43,7 @@ final class ImapSuperviseCommand extends Command
 
     public function __construct(
         private readonly MailboxRepository $mailboxRepository,
+        private readonly ProcessHeartbeatService $heartbeats,
         private readonly LoggerInterface $logger,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
@@ -97,7 +99,11 @@ final class ImapSuperviseCommand extends Command
                 $this->reconcile($io);
                 $lastPollAt = microtime(true);
             }
-
+            $this->heartbeats->beat(
+                ProcessHeartbeatService::TYPE_IMAP_SUPERVISE,
+                'main',
+                ['children' => count($this->processes)],
+            );
             usleep(500000);
         }
 

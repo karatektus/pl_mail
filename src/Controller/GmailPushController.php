@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
+use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,6 +45,7 @@ final class GmailPushController extends AbstractController
         private readonly AccountRepository  $accountRepository,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface    $logger,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -76,8 +79,8 @@ final class GmailPushController extends AbstractController
             return new Response('', Response::HTTP_OK);
         }
 
-        $emailAddress = (string) ($data['emailAddress'] ?? '');
-        $historyId    = (string) ($data['historyId'] ?? '');
+        $emailAddress = $data['emailAddress'] ?? '';
+        $historyId    = $data['historyId'] ?? '';
 
         $this->logger->info('GmailPush: received notification', [
             'emailAddress' => $emailAddress,
@@ -98,6 +101,9 @@ final class GmailPushController extends AbstractController
             ]);
             return new Response('', Response::HTTP_OK);
         }
+
+        $account->setGmailLastPushAt(new DateTimeImmutable());
+        $this->entityManager->flush();
 
         // Find the inbox mailbox for this account
         $this->bus->dispatch(new SyncAccountMessage($account->getId()));
