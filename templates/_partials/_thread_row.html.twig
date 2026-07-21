@@ -62,6 +62,7 @@
         <input
             type="checkbox"
             data-action="change->message-row#toggleSelect"
+            data-thread-select value="{{ rowId }}"
             class="z-10 w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
             aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
         >

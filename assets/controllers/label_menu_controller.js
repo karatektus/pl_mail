@@ -47,7 +47,7 @@ export default class extends Controller {
         const attach = button.dataset.attached !== "true";
 
         const targets = this._resolveTargets();
-
+        console.log(targets, labelId, attach);
         for (const target of targets) {
             await this._post(
                 `/status/${target.type}/${target.id}/label`,
