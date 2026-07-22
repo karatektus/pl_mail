@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
+use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
-use Symfony\Component\Messenger\Transport\Receiver\ListableReceiver;
+use Symfony\Component\Messenger\Transport\Receiver\ListableReceiverInterface;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 
 /**
@@ -63,11 +65,12 @@ final class QueueMonitor
     }
 
     /**
-     * @return list<array{id: string, class: string, error: string|null, failedAt: \DateTimeInterface|null}>
+     * @return list<array{id: string, class: string, error: string|null, failedAt: DateTimeInterface|null}>
      */
     public function failedMessages(int $limit = 50): array
     {
-        if (false === $this->failureTransport instanceof ListableReceiver) {
+
+        if (false === $this->failureTransport instanceof ListableReceiverInterface) {
             return [];
         }
 
@@ -132,9 +135,9 @@ final class QueueMonitor
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private function find(string $id): ?\Symfony\Component\Messenger\Envelope
+    private function find(string $id): ?Envelope
     {
-        if (false === $this->failureTransport instanceof ListableReceiver) {
+        if (false === $this->failureTransport instanceof ListableReceiverInterface) {
             return null;
         }
 
