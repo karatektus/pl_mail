@@ -6,7 +6,7 @@ on:
 
 jobs:
     playwright:
-        name: Playwright (login + account)
+        name: Playwright
         runs-on: ubuntu-latest
 
         env:
