@@ -124,8 +124,8 @@ final class SeedTestEmailCommand extends Command
             $receivedAt = $now->modify(sprintf('-%d minutes', $offset));
             $offset++;
 
-            $message = new Message();
-            $message
+            $message = new Message()
+                ->setAccount($account)
                 ->setSubject($subject)
                 ->setFromName('E2E Sender')
                 ->setFromAddress('sender@e2e.test')

@@ -2,8 +2,6 @@ import './stimulus_bootstrap.js';
 import './styles/app.css';
 import '@fortawesome/fontawesome-free/css/all.css';
 
-console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
-
 // Exposed globally so the inline <script> in _topbar and any other code
 // can call it after toggling the .dark class.
 window.syncThemeIcon = function() {

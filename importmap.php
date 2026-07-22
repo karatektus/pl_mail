@@ -35,4 +35,7 @@ return [
     'tom-select/dist/css/tom-select.default.css' => ['version' => '2.6.2', 'type' => 'css'],
     'tom-select/dist/css/tom-select.bootstrap4.css' => ['version' => '2.6.2', 'type' => 'css'],
     'tom-select/dist/css/tom-select.bootstrap5.css' => ['version' => '2.6.2', 'type' => 'css'],
+    '@stimulus-components/sortable' => ['version' => '5.0.3'],
+    'sortablejs' => ['version' => '1.15.6'],
+    '@rails/request.js' => ['version' => '0.0.12'],
 ];

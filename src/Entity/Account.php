@@ -23,6 +23,9 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $name = null;
 
+    #[ORM\Column(options: ['default' => 0])]
+    private int $sortOrder = 0;
+
     #[ORM\Column]
     private bool $isPrimary = false;
 
@@ -385,7 +388,17 @@ class Account extends AccountModel
 
         return $this;
     }
+    public function getSortOrder(): int
+    {
+        return $this->sortOrder;
+    }
 
+    public function setSortOrder(int $sortOrder): static
+    {
+        $this->sortOrder = $sortOrder;
+
+        return $this;
+    }
     public function isPrimary(): bool
     {
         return $this->isPrimary;

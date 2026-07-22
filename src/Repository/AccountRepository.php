@@ -30,4 +30,19 @@ class AccountRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return iterable<Account>
+     */
+    public function findForUserOrdered(UserInterface $user): array
+    {
+        return $this->createQueryBuilder('account')
+            ->addSelect('LOWER(COALESCE(account.email, account.username)) AS HIDDEN sortName')
+            ->andWhere('account.usr = :usr')
+            ->setParameter('usr', $user)
+            ->orderBy('account.sortOrder', 'ASC')
+            ->addOrderBy('sortName', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

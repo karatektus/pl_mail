@@ -1,0 +1,15 @@
+<turbo-stream action="replace" target="account-list">
+    <template>
+        <div id="account-list" class="space-y-0.5">
+            {% include '_partials/_account_list.html.twig' %}
+        </div>
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-account-list">
+    <template>
+        <div id="settings-account-list">
+            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>

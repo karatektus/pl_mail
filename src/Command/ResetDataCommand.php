@@ -39,6 +39,9 @@ class ResetDataCommand extends Command
         // Disable FK checks while truncating
         $connection->executeStatement('SET session_replication_role = replica');
 
+        $connection->executeStatement('TRUNCATE TABLE messenger_messages CASCADE');
+        $io->text('✓ messenger_messages');
+
         $connection->executeStatement('TRUNCATE TABLE message_part CASCADE');
         $io->text('✓ message_part');
 

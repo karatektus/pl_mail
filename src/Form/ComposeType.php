@@ -46,7 +46,7 @@ class ComposeType extends AbstractType
                         ->andWhere('account.isActive = :isActive')
                         ->setParameter('usr', $user)
                         ->setParameter('isActive', true)
-                        ->orderBy('account.isPrimary', 'DESC')
+                        ->orderBy('account.sortOrder', 'ASC')
                         ->addOrderBy('account.email', 'ASC');
                 },
                 'attr' => ['class' => 'compose-from-select'],

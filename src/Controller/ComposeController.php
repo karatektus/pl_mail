@@ -50,9 +50,11 @@ class ComposeController extends AbstractController
     public function compose(?Message $message = null): Response
     {
         if (null === $message) {
-            $message = new Message()
-                ->setCreatedAt(new DateTimeImmutable());
             $account = $this->defaultAccount();
+            $message = new Message()
+                ->setAccount($account)
+                ->setCreatedAt(new DateTimeImmutable());
+
         } else {
             $this->assertOwnership($message);
             $account = $message->getAccount();
@@ -136,6 +138,7 @@ class ComposeController extends AbstractController
     {
         if (null === $message) {
             $message = new Message()
+                ->setAccount($this->defaultAccount())
                 ->setCreatedAt(new DateTimeImmutable());
         } else {
             $this->assertOwnership($message);
@@ -179,7 +182,8 @@ class ComposeController extends AbstractController
     public function send(Request $request, ?Message $message): Response
     {
         if (null === $message) {
-            $message = new Message();
+            $message = new Message()
+                ->setAccount($this->defaultAccount());
         } else {
             $this->assertOwnership($message);
         }
@@ -371,7 +375,8 @@ class ComposeController extends AbstractController
 
         $quotedBody = $this->buildQuotedHtml($original, 'reply');
 
-        $draft = (new Message())
+        $draft = new Message()
+            ->setAccount($account)
             ->setSubject($subject)
             ->setToAddresses($to)
             ->setCcAddresses($cc)
@@ -394,7 +399,8 @@ class ComposeController extends AbstractController
         $subject    = $this->prefixSubject('Fwd', $original->getSubject());
         $quotedBody = $this->buildQuotedHtml($original, 'forward');
 
-        return (new Message())
+        return new Message()
+            ->setAccount($original->getAccount())
             ->setSubject($subject)
             ->setToAddresses([])
             ->setBodyHtml($quotedBody)

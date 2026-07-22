@@ -173,8 +173,9 @@ class MessageSyncer
 
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
-        $message = new Message();
-        $message->setMailbox($mailbox);
+        $message = new Message()
+            ->setAccount($mailbox->getAccount())
+            ->setMailbox($mailbox);
         $mailboxLabel = $mailbox->getLabel();
 
         if (null !== $mailboxLabel) {

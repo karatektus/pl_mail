@@ -8,6 +8,7 @@ use App\Entity\Account;
 use App\Form\AccountType;
 use App\Repository\AccountRepository;
 use App\Service\Mail\GmailApiClient;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -42,6 +43,11 @@ final class AccountController extends AbstractController
                 ->setAuthType('password')
                 ->setIsActive(true)
                 ->setUsr($this->getUser());
+
+
+            $ordered   = $this->accountRepository->findForUserOrdered($this->getUser());
+            $ordered[] = $account;
+            $this->resequence($ordered);
 
             $this->entityManager->persist($account);
             $this->entityManager->flush();
@@ -82,7 +88,7 @@ final class AccountController extends AbstractController
                 $account->setPassword($existingPassword);
             }
 
-            $account->setUpdatedAt(new \DateTimeImmutable());
+            $account->setUpdatedAt(new DateTimeImmutable());
             $this->entityManager->flush();
 
             return $this->streamAccountList($request, 'account.updated');
@@ -107,7 +113,7 @@ final class AccountController extends AbstractController
 
         $account
             ->setIsActive($newActive)
-            ->setUpdatedAt(new \DateTimeImmutable());
+            ->setUpdatedAt(new DateTimeImmutable());
         $this->entityManager->flush();
 
         if (true === $newActive) {
@@ -144,7 +150,58 @@ final class AccountController extends AbstractController
         $this->entityManager->remove($account);
         $this->entityManager->flush();
 
+        $this->resequence($this->accountRepository->findForUserOrdered($this->getUser()));
+        $this->entityManager->flush();
+
         return $this->streamAccountList($request, 'account.removed');
+    }
+    #[Route('/{id}/reorder', name: 'reorder', methods: ['PATCH'])]
+    public function reorder(Request $request, Account $account): Response
+    {
+        $this->denyUnlessOwner($account);
+
+        // No CSRF token here: @stimulus-components/sortable owns the request body
+        // (it only sends account[position]). The action is authenticated,
+        // same-origin, and non-destructive. Say the word if you want parity with
+        // toggle/delete and I'll wire an X-CSRF-Token header + meta tag.
+        $position = (int) ($request->getPayload()->all('account')['position'] ?? 0);
+
+        $ordered = $this->accountRepository->findForUserOrdered($this->getUser());
+
+        // Pull the dragged account out, re-insert at the target index.
+        $ordered = array_values(array_filter($ordered, static function (Account $candidate) use ($account): bool {
+            return $candidate->getId() !== $account->getId();
+        }));
+
+        $targetIndex = max(0, min(count($ordered), $position - 1));
+        array_splice($ordered, $targetIndex, 0, [$account]);
+
+        $this->resequence($ordered);
+        $this->entityManager->flush();
+
+        return $this->render('account/_reorder.stream.html.twig', [
+            'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
+        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
+
+    /**
+     * Writes sequential sortOrder and re-derives the single primary (first row).
+     * Caller is responsible for flushing.
+     *
+     * @param Account[] $orderedAccounts
+     */
+    private function resequence(array $orderedAccounts): void
+    {
+        $index = 0;
+
+        foreach ($orderedAccounts as $account) {
+            $account
+                ->setSortOrder($index)
+                ->setIsPrimary(0 === $index)
+                ->setUpdatedAt(new DateTimeImmutable());
+
+            $index++;
+        }
     }
 
     private function denyUnlessOwner(Account $account): void

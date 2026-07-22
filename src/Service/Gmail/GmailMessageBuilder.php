@@ -50,7 +50,8 @@ final class GmailMessageBuilder
      */
     public function build(array $payload, Account $account, ?Account $carrierAccount = null): Message
     {
-        $message = new Message();
+        $message = new Message()
+            ->setAccount($account);
 
         $gmailId = (string)($payload['id'] ?? '');
         $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));

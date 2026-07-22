@@ -19,6 +19,10 @@ class Message extends MessageModel
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private Account $account;
+
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: true)]
     private ?Mailbox $mailbox = null;
@@ -566,23 +570,15 @@ class Message extends MessageModel
         return $this;
     }
 
-    public function getAccount(): ?Account
+    public function setAccount(Account $account): static
     {
-        if (null !== $this->mailbox) {
-            return $this->mailbox->getAccount();
-        }
+        $this->account = $account;
 
-        if (null !== $this->thread) {
-            return $this->thread->getAccount();
-        }
+        return $this;
+    }
 
-        // Gmail-API messages before threading: any attached label carries it.
-        foreach ($this->labels as $label) {
-            if (null !== $label->account) {
-                return $label->account;
-            }
-        }
-
-        return null;
+    public function getAccount(): Account
+    {
+        return $this->account;
     }
 }

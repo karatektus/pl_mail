@@ -260,6 +260,8 @@ settings:
         general: General
         labels: Labels
     accounts:
+        primary: Primary
+        reorder: Drag to reorder
         heading: Mail accounts
         subheading: Add, edit, enable, or remove the mailboxes you sync.
         empty: No accounts yet. Add one to start syncing mail.
