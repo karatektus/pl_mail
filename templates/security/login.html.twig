@@ -11,26 +11,26 @@
             <div class="flex flex-col items-center mb-8">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="fa-solid fa-envelope text-blue-600 text-2xl" aria-hidden="true"></i>
-                    <span class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ 'app.name'|trans }}</span>
+                    <span class="text-xl font-semibold text-ink">{{ 'app.name'|trans }}</span>
                 </div>
                 <p class="text-sm text-ink-muted">{{ 'login.tagline'|trans }}</p>
             </div>
 
             {# Error #}
             {% if error %}
-                <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
+                <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-sm text-danger">
                     {{ error.messageKey | trans(error.messageData, 'security') }}
                 </div>
             {% endif %}
 
             {# Card #}
-            <div class="bg-surface rounded-pane shadow-sm border border-gray-200 dark:border-gray-800 p-8">
+            <div class="bg-surface rounded-pane shadow-sm border border-line p-8">
 
                 <form method="post">
 
                     <div class="space-y-4">
                         <div>
-                            <label for="inputEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            <label for="inputEmail" class="block text-sm font-medium text-ink-soft mb-1.5">
                                 {{ 'login.form.email'|trans }}
                             </label>
                             <input
@@ -41,17 +41,17 @@
                                 autocomplete="email"
                                 autofocus
                                 required
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                 placeholder="you@example.com"
                             >
                         </div>
 
                         <div>
                             <div class="flex items-baseline justify-between mb-1.5">
-                                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label for="password" class="block text-sm font-medium text-ink-soft">
                                     {{ 'login.form.password'|trans }}
                                 </label>
-                                <a href="#" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                                <a href="#" class="text-xs text-accent hover:underline">
                                     {{ 'login.form.forgot_password'|trans }}
                                 </a>
                             </div>
@@ -62,7 +62,7 @@
                                 autocomplete="current-password"
                                 required
                                 value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >
                         </div>
@@ -83,7 +83,7 @@
             {# Register link #}
             <p class="text-center text-sm text-ink-muted mt-6">
                 {{ 'login.register.prompt'|trans }}
-                <a href="#" class="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+                <a href="#" class="text-accent font-medium hover:underline">
                     {{ 'login.register.link'|trans }}
                 </a>
                 <span class="block text-xs text-ink-faint mt-1">{{ 'login.register.coming_soon'|trans }}</span>

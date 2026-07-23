@@ -9,7 +9,7 @@
         <div class="overflow-y-auto px-5 py-5 space-y-5">
 
             {% if form.vars.errors|length %}
-                <div role="alert" class="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/25 px-3.5 py-3 text-sm text-red-600 dark:text-red-300">
+                <div role="alert" class="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/25 px-3.5 py-3 text-sm text-danger">
                     <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
                     <div>{{ form_errors(form) }}</div>
                 </div>
@@ -43,7 +43,7 @@
 
         <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-black/[0.03] dark:bg-black/20">
             <button type="button" data-action="click->modal#close"
-                    class="px-3 h-9 rounded-lg text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer">
+                    class="px-3 h-9 rounded-lg text-sm font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer">
                 {{ 'form.cancel'|trans }}
             </button>
             <button type="submit"

@@ -2,7 +2,7 @@
    (a src on the returned frame causes a refetch loop). #}
 
 {% macro card_open(icon, title) %}
-    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
         <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
             <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
@@ -21,38 +21,38 @@
 
         {# ── Health gauges ─────────────────────────────────────────────── #}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+            <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
                 <p class="text-xs text-ink-faint">{{ 'admin.db.connections'|trans }}</p>
                 <p class="mt-1 text-lg font-semibold text-ink">{{ gauges.connections }}</p>
             </div>
-            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+            <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
                 <p class="text-xs text-ink-faint">{{ 'admin.db.cache_hit'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.cacheHitPct is not null and gauges.cacheHitPct < 99 ? 'text-amber-600 dark:text-amber-400' : 'text-ink' }}">
+                <p class="mt-1 text-lg font-semibold {{ gauges.cacheHitPct is not null and gauges.cacheHitPct < 99 ? 'text-warning' : 'text-ink' }}">
                     {{ gauges.cacheHitPct is not null ? gauges.cacheHitPct ~ '%' : '—' }}
                 </p>
             </div>
-            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+            <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
                 <p class="text-xs text-ink-faint">{{ 'admin.db.rollback_ratio'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.rollbackPct is not null and gauges.rollbackPct > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-ink' }}">
+                <p class="mt-1 text-lg font-semibold {{ gauges.rollbackPct is not null and gauges.rollbackPct > 5 ? 'text-warning' : 'text-ink' }}">
                     {{ gauges.rollbackPct is not null ? gauges.rollbackPct ~ '%' : '—' }}
                 </p>
             </div>
-            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+            <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
                 <p class="text-xs text-ink-faint">{{ 'admin.db.deadlocks'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.deadlocks > 0 ? 'text-red-600 dark:text-red-400' : 'text-ink' }}">{{ gauges.deadlocks }}</p>
+                <p class="mt-1 text-lg font-semibold {{ gauges.deadlocks > 0 ? 'text-danger' : 'text-ink' }}">{{ gauges.deadlocks }}</p>
             </div>
         </div>
 
         {# ── Slowest by mean ───────────────────────────────────────────── #}
         {{ ui.card_open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans) }}
-            <div class="flex items-center gap-2 px-5 py-2 border-b border-black/[0.04] dark:border-white/5">
+            <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
                 <span class="text-xs text-ink-faint">{{ 'admin.db.slow_mean.hint'|trans }}</span>
                 {% if statStatementsAvailable %}
                     <form method="post" action="{{ path('app_admin_db_reset') }}" data-turbo-frame="_top"
                           data-turbo-confirm="{{ 'admin.db.reset_confirm'|trans }}" class="ml-auto">
                         <input type="hidden" name="_token" value="{{ csrf_token('admin_db_reset') }}">
                         <button type="submit"
-                                class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer">
+                                class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-ink-soft transition-colors cursor-pointer">
                             <i class="fa-solid fa-eraser" aria-hidden="true"></i>
                             {{ 'admin.db.reset'|trans }}
                         </button>
@@ -66,7 +66,7 @@
                         <i class="fa-solid fa-circle-info text-amber-500" aria-hidden="true"></i>
                         {{ 'admin.db.extension_missing'|trans }}
                     </p>
-                    <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-black/[0.04] dark:border-white/5 text-xs text-zinc-600 dark:text-zinc-300 overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
+                    <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-line text-xs text-ink-soft overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                 </div>
             {% elseif slowestByMean|length == 0 %}
@@ -79,7 +79,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
         {# ── Heaviest by total time ────────────────────────────────────── #}
         {% if statStatementsAvailable and heaviestByTotal|length > 0 %}
             {{ ui.card_open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans) }}
-                <p class="px-5 py-2 border-b border-black/[0.04] dark:border-white/5 text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
+                <p class="px-5 py-2 border-b border-line text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
                 {{ _self.statement_table(heaviestByTotal, 'totalMs') }}
             </section>
         {% endif %}
@@ -89,20 +89,20 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
             {% if activeQueries|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
             {% else %}
-                <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                <div class="divide-y divide-line">
                     {% for row in activeQueries %}
                         <div class="px-5 py-3 text-sm">
                             <div class="flex items-center gap-3 text-xs">
                                 <span class="font-mono text-ink-faint">pid {{ row.pid }}</span>
-                                <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">{{ row.state }}</span>
+                                <span class="px-1.5 py-0.5 rounded-md bg-sunken text-ink-soft">{{ row.state }}</span>
                                 {% if row.waitEvent %}
-                                    <span class="text-amber-600 dark:text-amber-400 font-mono">{{ row.waitEvent }}</span>
+                                    <span class="text-warning font-mono">{{ row.waitEvent }}</span>
                                 {% endif %}
-                                <span class="ml-auto font-mono {{ row.durationSeconds is not null and row.durationSeconds > 5 ? 'text-red-600 dark:text-red-400' : 'text-ink-muted' }}">
+                                <span class="ml-auto font-mono {{ row.durationSeconds is not null and row.durationSeconds > 5 ? 'text-danger' : 'text-ink-muted' }}">
                                     {{ row.durationSeconds is not null ? row.durationSeconds ~ 's' : '—' }}
                                 </span>
                             </div>
-                            <pre class="mt-1.5 text-xs text-zinc-700 dark:text-zinc-200 font-mono whitespace-pre-wrap break-all">{{ row.query }}</pre>
+                            <pre class="mt-1.5 text-xs text-ink-soft font-mono whitespace-pre-wrap break-all">{{ row.query }}</pre>
                         </div>
                     {% endfor %}
                 </div>
@@ -130,16 +130,16 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
             </thead>
             <tbody>
                 {% for row in rows %}
-                    <tr class="border-t border-black/[0.04] dark:border-white/5 text-zinc-700 dark:text-zinc-300 align-top">
+                    <tr class="border-t border-line text-ink-soft align-top">
                         <td class="px-5 py-2">
-                            <code class="text-xs text-zinc-600 dark:text-zinc-300 break-all">{{ row.query }}</code>
+                            <code class="text-xs text-ink-soft break-all">{{ row.query }}</code>
                         </td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.calls|number_format }}</td>
-                        <td class="px-2 py-2 text-xs text-right tabular-nums {{ highlight == 'meanMs' ? 'font-semibold text-zinc-900 dark:text-zinc-100' : '' }}">{{ row.meanMs|number_format(2) }}</td>
+                        <td class="px-2 py-2 text-xs text-right tabular-nums {{ highlight == 'meanMs' ? 'font-semibold text-ink' : '' }}">{{ row.meanMs|number_format(2) }}</td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.maxMs|number_format(2) }}</td>
-                        <td class="px-2 py-2 text-xs text-right tabular-nums {{ highlight == 'totalMs' ? 'font-semibold text-zinc-900 dark:text-zinc-100' : '' }}">{{ (row.totalMs / 1000)|number_format(2) }}s</td>
+                        <td class="px-2 py-2 text-xs text-right tabular-nums {{ highlight == 'totalMs' ? 'font-semibold text-ink' : '' }}">{{ (row.totalMs / 1000)|number_format(2) }}s</td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.rows|number_format }}</td>
-                        <td class="px-2 py-2 text-xs text-right pr-5 tabular-nums {{ row.hitPct is not null and row.hitPct < 90 ? 'text-amber-600 dark:text-amber-400' : '' }}">
+                        <td class="px-2 py-2 text-xs text-right pr-5 tabular-nums {{ row.hitPct is not null and row.hitPct < 90 ? 'text-warning' : '' }}">
                             {{ row.hitPct is not null ? row.hitPct ~ '%' : '—' }}
                         </td>
                     </tr>

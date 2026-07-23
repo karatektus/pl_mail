@@ -77,7 +77,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
        class="flex flex-col w-56 h-full flex-shrink-0 bg-surface rounded-pane shadow-lg shadow-black/5 dark:shadow-black/30 border border-gray-200/60 dark:border-gray-800/60">
 
     {# Compose #}
-    <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
+    <div class="px-3 py-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-action="{{ _drawerClose }}"
@@ -169,7 +169,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 data-action="click->modal#open {{ _drawerClose }}"
                 data-modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                 data-modal-src-value="{{ path('app_label_new') }}"
-                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
                 aria-label="{{ 'sidebar.labels.add'|trans }}"
             >
                 <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
@@ -195,7 +195,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 data-action="click->modal#open {{ _drawerClose }}"
                 data-modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                 data-modal-src-value="{{ path('app_account_new') }}"
-                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
                 aria-label="{{ 'sidebar.accounts.add'|trans }}"
             >
                 <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>

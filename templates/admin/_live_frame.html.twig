@@ -6,7 +6,7 @@
 {% endmacro %}
 
 {% macro card_open(icon, title) %}
-    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
         <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
             <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
@@ -36,12 +36,12 @@
                     </thead>
                     <tbody>
                         {% for row in heartbeats %}
-                            <tr class="border-t border-black/[0.04] dark:border-white/5 text-zinc-700 dark:text-zinc-300">
+                            <tr class="border-t border-line text-ink-soft">
                                 <td class="px-5 py-2 w-8">{{ ui.dot(row.healthy) }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.type }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.key }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.pid ?? '—' }}</td>
-                                <td class="px-2 py-2 text-xs {{ row.healthy ? '' : 'text-red-600 dark:text-red-400' }}">
+                                <td class="px-2 py-2 text-xs {{ row.healthy ? '' : 'text-danger' }}">
                                     {{ row.age }} {{ 'admin.ago'|trans }}
                                 </td>
                             </tr>
@@ -58,7 +58,7 @@
                 {% if webhooks|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
                 {% else %}
-                    <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                    <div class="divide-y divide-line">
                         {% for row in webhooks %}
                             <div class="px-5 py-3 text-sm">
                                 <div class="flex items-center gap-2">
@@ -67,7 +67,7 @@
                                 </div>
                                 <dl class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-muted">
                                     <dt>{{ 'admin.webhooks.watch_expiry'|trans }}</dt>
-                                    <dd class="{{ row.watchActive ? '' : 'text-red-600 dark:text-red-400' }}">
+                                    <dd class="{{ row.watchActive ? '' : 'text-danger' }}">
                                         {{ row.watchExpiry ? row.watchExpiry|date('Y-m-d H:i') : 'admin.webhooks.none'|trans }}
                                     </dd>
                                     <dt>{{ 'admin.webhooks.last_push'|trans }}</dt>
@@ -86,7 +86,7 @@
                 {% if tokenHealth|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
                 {% else %}
-                    <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                    <div class="divide-y divide-line">
                         {% for row in tokenHealth %}
                             <div class="px-5 py-3 text-sm">
                                 <div class="flex items-center gap-2">
@@ -97,7 +97,7 @@
                                     </span>
                                 </div>
                                 {% if row.error %}
-                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400 font-mono break-all">{{ row.error }}</p>
+                                    <p class="mt-1 text-xs text-danger font-mono break-all">{{ row.error }}</p>
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -122,12 +122,12 @@
                     </thead>
                     <tbody>
                         {% for row in queueStats %}
-                            <tr class="border-t border-black/[0.04] dark:border-white/5 text-zinc-700 dark:text-zinc-300">
+                            <tr class="border-t border-line text-ink-soft">
                                 <td class="px-5 py-2 font-mono text-xs">{{ row.queue }}</td>
                                 <td class="px-2 py-2">{{ row.pending }}</td>
                                 <td class="px-2 py-2 text-xs">
                                     {% if row.oldestAgeSeconds is not null and row.oldestAgeSeconds > 300 %}
-                                        <span class="text-amber-600 dark:text-amber-400">{{ (row.oldestAgeSeconds // 60) }}m</span>
+                                        <span class="text-warning">{{ (row.oldestAgeSeconds // 60) }}m</span>
                                     {% elseif row.oldestAgeSeconds is not null %}
                                         {{ row.oldestAgeSeconds }}s
                                     {% else %}
@@ -146,14 +146,14 @@
             {% if failedMessages|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
             {% else %}
-                <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                <div class="divide-y divide-line">
                     {% for row in failedMessages %}
                         <div class="px-5 py-3 text-sm">
                             <div class="flex items-start gap-3">
                                 <div class="min-w-0 flex-1">
                                     <p class="font-mono text-xs text-ink truncate">{{ row.class }}</p>
                                     {% if row.error %}
-                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400 font-mono break-all line-clamp-2">{{ row.error }}</p>
+                                        <p class="mt-1 text-xs text-danger font-mono break-all line-clamp-2">{{ row.error }}</p>
                                     {% endif %}
                                     {% if row.failedAt %}
                                         <p class="mt-1 text-xs text-ink-faint">{{ row.failedAt|date('Y-m-d H:i:s') }}</p>
@@ -200,7 +200,7 @@
                     </thead>
                     <tbody>
                         {% for row in accountOverview %}
-                            <tr class="border-t border-black/[0.04] dark:border-white/5 text-zinc-700 dark:text-zinc-300 {{ row.is_active ? '' : 'opacity-50' }}">
+                            <tr class="border-t border-line text-ink-soft {{ row.is_active ? '' : 'opacity-50' }}">
                                 <td class="px-5 py-2 text-xs truncate max-w-40">{{ row.email }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.threads }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.messages }}</td>
@@ -216,7 +216,7 @@
                 <table class="w-full text-sm">
                     <tbody>
                         {% for row in tableSizes %}
-                            <tr class="border-t border-black/[0.04] dark:border-white/5 first:border-t-0 text-zinc-700 dark:text-zinc-300">
+                            <tr class="border-t border-line first:border-t-0 text-ink-soft">
                                 <td class="px-5 py-2 font-mono text-xs">{{ row.table }}</td>
                                 <td class="px-2 py-2 text-xs text-right pr-5">{{ row.size }}</td>
                             </tr>

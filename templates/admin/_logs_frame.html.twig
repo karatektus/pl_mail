@@ -1,6 +1,6 @@
 <turbo-frame id="admin-logs">
 
-    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
 
         <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
             <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
@@ -9,14 +9,14 @@
 
             <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
                 <select name="level"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-zinc-700 dark:text-zinc-200 px-2"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     {% for value, name in levels %}
                         <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
                     {% endfor %}
                 </select>
                 <select name="channel"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-zinc-700 dark:text-zinc-200 px-2"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
                     {% for ch in channels %}
@@ -24,7 +24,7 @@
                     {% endfor %}
                 </select>
                 <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer">
+                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-ink-soft transition-colors cursor-pointer">
                     <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
                     {{ 'admin.logs.refresh'|trans }}
                 </button>
@@ -34,7 +34,7 @@
         {% if entries|length == 0 %}
             <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.logs.empty'|trans }}</p>
         {% else %}
-            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+            <div class="divide-y divide-line">
                 {% for entry in entries %}
                     <details class="px-5 py-2.5 text-sm group">
                         <summary class="flex items-center gap-3 cursor-pointer list-none">
@@ -49,11 +49,11 @@
                             <span class="shrink-0 text-xs text-ink-faint font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
                             <span class="shrink-0 text-xs text-ink-faint">{{ entry.source ?? '—' }}</span>
                             <span class="shrink-0 text-xs text-ink-muted font-mono">{{ entry.channel }}</span>
-                            <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-200 group-open:whitespace-normal group-open:break-all">{{ entry.message }}</span>
-                            <i class="fa-solid fa-chevron-down text-[10px] text-zinc-300 dark:text-zinc-600 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                            <span class="min-w-0 flex-1 truncate text-ink-soft group-open:whitespace-normal group-open:break-all">{{ entry.message }}</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint transition-transform group-open:rotate-180" aria-hidden="true"></i>
                         </summary>
                         {% if entry.context %}
-                            <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-black/[0.04] dark:border-white/5 text-xs text-zinc-600 dark:text-zinc-300 overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                            <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-line text-xs text-ink-soft overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
                         {% endif %}
                     </details>
                 {% endfor %}

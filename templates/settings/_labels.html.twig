@@ -61,7 +61,7 @@ Variables:
                                     <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
                                     <button
                                         type="submit"
-                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                                         aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                                         title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                                     >

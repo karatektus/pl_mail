@@ -36,8 +36,8 @@ The button itself carries `group` and `relative`.
         class="group relative flex items-center justify-center
            w-8 h-8 rounded-full
            text-ink-muted
-           hover:text-gray-800 dark:hover:text-gray-100
-           hover:bg-gray-200 dark:hover:bg-white/10
+           hover:text-ink
+           hover:bg-hover
            transition-colors duration-100 cursor-pointer {{ extra_classes ?? '' }}"
     >
         <i class="{{ icon }} text-[15px]" aria-hidden="true"></i>
@@ -61,7 +61,7 @@ The button itself carries `group` and `relative`.
 {% macro pgnav(href, icon, label, disabled) %}
     {% if disabled %}
         <span class="flex items-center justify-center w-8 h-8 rounded-full
-             text-gray-300 dark:text-gray-600 cursor-not-allowed"
+             text-ink-faint cursor-not-allowed"
               aria-disabled="true">
     <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
 </span>
@@ -73,8 +73,8 @@ The button itself carries `group` and `relative`.
             aria-label="{{ label }}"
             class="group relative flex items-center justify-center w-8 h-8 rounded-full
            text-ink-muted
-           hover:text-gray-800 dark:hover:text-gray-100
-           hover:bg-gray-200 dark:hover:bg-white/10
+           hover:text-ink
+           hover:bg-hover
            transition-colors duration-100"
         >
             <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
@@ -99,7 +99,7 @@ The button itself carries `group` and `relative`.
 
 <div
     class="flex items-center px-3 py-1
-           border-b border-gray-100/70 dark:border-gray-800/70
+           border-b border-line
            bg-white/40 dark:bg-white/[0.02]
            shrink-0 min-h-[40px]"
     data-controller="list-toolbar"
@@ -150,7 +150,7 @@ The button itself carries `group` and `relative`.
                 aria-label="{{ 'toolbar.select_menu'|trans }}"
                 aria-haspopup="true"
                 class="ml-0.5 p-0.5 rounded
-                       text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+                       text-gray-400 hover:text-ink-soft
                        transition-colors cursor-pointer"
             >
                 <svg class="w-2.5 h-2.5" viewBox="0 0 10 10" fill="none"
@@ -165,7 +165,7 @@ The button itself carries `group` and `relative`.
                 data-list-toolbar-target="selectMenu"
                 class="hidden absolute left-0 top-full mt-1 z-30 w-36
                        bg-surface
-                       border border-gray-200 dark:border-gray-700
+                       border border-line
                        rounded-xl shadow-lg overflow-hidden py-1 text-sm"
             >
                 {% for key, label in {
@@ -178,7 +178,7 @@ The button itself carries `group` and `relative`.
                     <button type="button"
                             data-action="click->list-toolbar#{{ key }}"
                             class="w-full text-left px-3 py-1.5
-                                   text-gray-700 dark:text-gray-200
+                                   text-ink-soft
                                    hover:bg-hover
                                    transition-colors cursor-pointer">
                         {{ label|trans }}
@@ -208,7 +208,7 @@ The button itself carries `group` and `relative`.
         aria-hidden="true"
     >
         {{ m.tbtn('click->list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
-        {{ m.tbtn('click->list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-red-600 dark:hover:text-red-400') }}
+        {{ m.tbtn('click->list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
         {{ m.tbtn('click->list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
         {{ m.tbtn('click->list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
         {{ m.tbtn('click->list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}

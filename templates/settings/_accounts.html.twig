@@ -29,7 +29,7 @@
                     <p class="flex items-center gap-2 min-w-0">
                         <span class="truncate text-sm font-medium text-ink">{{ account.email ?: account.username }}</span>
                         {% if loop.first %}
-                            <span class="shrink-0 inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-300">
+                            <span class="shrink-0 inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                                 {{ 'settings.accounts.primary'|trans }}
                             </span>
                         {% endif %}
@@ -50,7 +50,7 @@
                             data-action="click->modal#open"
                             data-modal-title-value="{{ 'settings.accounts.edit'|trans }}"
                             data-modal-src-value="{{ path('app_account_edit', { id: account.id }) }}"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.edit'|trans }}" title="{{ 'settings.accounts.edit'|trans }}"
                         >
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
@@ -61,7 +61,7 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
                         <button
                             type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
                             title="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
                         >
@@ -74,7 +74,7 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ account.id) }}">
                         <button
                             type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-red-500/10 transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.delete'|trans }}" title="{{ 'settings.accounts.delete'|trans }}"
                         >
                             <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>

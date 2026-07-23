@@ -27,6 +27,9 @@
     --rgb-danger:       220  38  38;
     --rgb-warning:      217 119   6;
     --rgb-success:       22 163  74;
+    --rgb-inverse:       31  41  55;   /* gray-800 — tooltip bg */
+    --rgb-inverse-ink:  255 255 255;
+    --rgb-info:          37  99 235;
 
     --border-alpha: 0.6;
     --line-alpha:   0.06;
@@ -36,6 +39,8 @@
     --sunken-alpha: 1;
     --field-alpha:  0.6;
     --field-border-alpha: 0.4;
+    --danger-soft-alpha: 0.08;
+    --info-soft-alpha:   0.08;
 
     --app-bg: linear-gradient(to bottom right, #eff6ff, #f1f5f9, #e0e7ff);
     --scrim-alpha: 0;
@@ -64,6 +69,8 @@
     --rgb-danger:       248 113 113;
     --rgb-warning:      251 191  36;
     --rgb-success:       74 222 128;
+    --rgb-inverse:      243 244 246;   /* gray-100 */
+    --rgb-inverse-ink:   17  24  39;
 
     --border-alpha: 0.1;
     --line-alpha:   0.1;
@@ -73,6 +80,8 @@
     --sunken-alpha: 0.06;
     --field-alpha:  0.4;
     --field-border-alpha: 0.3;
+    --danger-soft-alpha: 0.12;
+    --info-soft-alpha:   0.12;
 
     --app-bg: linear-gradient(to bottom right, #020617, #0f172a, #1e1b4b);
 }
@@ -130,6 +139,17 @@
     --color-danger:       rgb(var(--rgb-danger));
     --color-warning:      rgb(var(--rgb-warning));
     --color-success:      rgb(var(--rgb-success));
+    --color-inverse:      rgb(var(--rgb-inverse));
+    --color-inverse-ink:  rgb(var(--rgb-inverse-ink));
+    --color-info:         rgb(var(--rgb-info));
+    --color-danger-soft:  rgb(var(--rgb-danger) / var(--danger-soft-alpha));
+    --color-info-soft:    rgb(var(--rgb-info) / var(--info-soft-alpha));
+    --color-pane-soft:    rgb(var(--rgb-surface) / calc(var(--pane-alpha) * 0.6));
+
+    --shadow-float: 0 20px 25px -5px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 4)),
+    0 8px 10px -6px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 4));
+    --shadow-pop:   0 10px 15px -3px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 3)),
+    0 4px 6px -4px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 3));
 
     --radius-pane: var(--app-radius);
     --spacing-row: var(--density-row-y);
@@ -178,7 +198,26 @@
 @utility row-y {
     padding-block: var(--density-row-y);
 }
+@utility alert-danger {
+    background-color: rgb(var(--rgb-danger) / var(--danger-soft-alpha));
+    border: 1px solid rgb(var(--rgb-danger) / 0.25);
+    color: rgb(var(--rgb-danger));
+}
 
+@utility alert-info {
+    background-color: rgb(var(--rgb-info) / var(--info-soft-alpha));
+    border: 1px solid rgb(var(--rgb-info) / 0.2);
+    color: rgb(var(--rgb-info));
+}
+
+@utility tooltip-bubble {
+    background-color: rgb(var(--rgb-inverse));
+    color: rgb(var(--rgb-inverse-ink));
+
+    &::before {
+        border-bottom-color: rgb(var(--rgb-inverse));
+    }
+}
 @layer utilities {
     .compose-address-row {
         display: flex;

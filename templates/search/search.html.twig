@@ -5,10 +5,10 @@
 {% endblock %}
 
 {% block inbox_tabs %}
-    <div class="px-4 py-2.5 border-b border-gray-100/70 dark:border-gray-800/70 flex items-center gap-3">
-        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex-1 min-w-0 truncate">
+    <div class="px-4 py-2.5 border-b border-line flex items-center gap-3">
+        <h2 class="text-sm font-semibold text-ink-soft flex-1 min-w-0 truncate">
             {% if q %}
-                Search results for <span class="text-blue-600 dark:text-blue-400">{{ q }}</span>
+                Search results for <span class="text-accent">{{ q }}</span>
             {% else %}
                 Search
             {% endif %}
@@ -22,7 +22,7 @@
 
     {# Active filter pills — shown when structured operators were parsed #}
     {% if parsed is not null and not parsed.isEmpty %}
-        <div class="flex flex-wrap gap-1.5 px-4 py-2 border-b border-gray-100/70 dark:border-gray-800/70">
+        <div class="flex flex-wrap gap-1.5 px-4 py-2 border-b border-line">
             {% if parsed.from %}
                 {{ _self.pill('From', parsed.from, q) }}
             {% endif %}
@@ -70,21 +70,21 @@
     {% if q == '' %}
         {# Empty state — no query yet #}
         <li class="flex flex-col items-center justify-center py-16 text-center px-4">
-            <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+            <div class="w-12 h-12 rounded-full bg-sunken flex items-center justify-center mb-4">
                 <i class="fa-solid fa-magnifying-glass text-ink-faint text-lg" aria-hidden="true"></i>
             </div>
             <p class="text-sm font-medium text-ink-muted">Search your mail</p>
             <p class="text-xs text-ink-faint mt-1 max-w-xs">
-                Try <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">from:alice</code>,
-                <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">has:attachment</code>,
-                <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">is:unread</code>, or just type a keyword.
+                Try <code class="bg-sunken px-1 rounded">from:alice</code>,
+                <code class="bg-sunken px-1 rounded">has:attachment</code>,
+                <code class="bg-sunken px-1 rounded">is:unread</code>, or just type a keyword.
             </p>
         </li>
     {% elseif threads is empty %}
         {# No results #}
         <li class="flex flex-col items-center justify-center py-16 text-center px-4">
-            <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                <i class="fa-solid fa-magnifying-glass text-gray-300 dark:text-gray-700 text-lg" aria-hidden="true"></i>
+            <div class="w-12 h-12 rounded-full bg-sunken flex items-center justify-center mb-4">
+                <i class="fa-solid fa-magnifying-glass text-ink-faint text-lg" aria-hidden="true"></i>
             </div>
             <p class="text-sm font-medium text-ink-muted">No results for "{{ q }}"</p>
             <p class="text-xs text-ink-faint mt-1">Try different keywords or remove some filters.</p>

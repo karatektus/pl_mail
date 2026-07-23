@@ -54,10 +54,10 @@
                 data-search-target="input"
                 data-action="keydown->search#onKeydown focus->search#onFocus input->search#onInput"
                 class="w-full pl-10 pr-4 py-2 text-sm
-                       bg-gray-100 dark:bg-gray-800
+                       bg-sunken
                        border border-transparent rounded-xl
-                       text-gray-900 dark:text-gray-100
-                       placeholder-gray-400 dark:placeholder-gray-500
+                       text-ink
+                       placeholder:text-ink-faint
                        focus:outline-none focus:ring-2 focus:ring-blue-500
                        focus:bg-white dark:focus:bg-gray-700
                        transition-colors"
@@ -69,15 +69,15 @@
             data-search-target="dropdown"
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
                    bg-surface
-                   border border-gray-200 dark:border-gray-700
+                   border border-line
                    rounded-xl shadow-xl overflow-hidden"
         >
-            <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center justify-between px-3 py-1.5 border-b border-line">
                 <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
                 <button
                     type="button"
                     data-action="click->search#clearRecents"
-                    class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    class="text-[11px] text-gray-400 hover:text-ink-soft transition-colors"
                 >
                     Clear
                 </button>
@@ -97,22 +97,22 @@
                 {{ app.user.email | first | upper }}
             </button>
 
-            <div id="user-menu" class="hidden absolute right-0 mt-2 w-56 bg-surface border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg py-1 z-[200]">
-                <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+            <div id="user-menu" class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
+                <div class="px-4 py-2.5 border-b border-line">
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ app.user.email }}</p>
+                    <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>
                 </div>
-                <a href="{{ path('app_settings_index') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <a href="{{ path('app_settings_index') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.settings'|trans }}
                 </a>
                 {% if is_granted('ROLE_ADMIN') %}
-                    <a href="{{ path('app_admin_dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <a href="{{ path('app_admin_dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                         <i class="fa-solid fa-gauge-high w-4 text-gray-400" aria-hidden="true"></i>
                         {{ 'header.user_menu.admin'|trans }}
                     </a>
                 {% endif %}
-                <a href="{{ path('app_logout') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <a href="{{ path('app_logout') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.sign_out'|trans }}
                 </a>
