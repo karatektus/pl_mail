@@ -38,7 +38,7 @@ final class SettingsController extends AbstractController
         $labelsByAccount = [];
 
         foreach ($manageableAccounts as $account) {
-            $labelsByAccount[(int) $account->getId()] = $this->labelRepository->findForAccountTreeOrdered($account);
+            $labelsByAccount[$account->getId()] = $this->labelRepository->findForAccountTreeOrdered($account);
         }
 
         return $this->render('settings/index.html.twig', [

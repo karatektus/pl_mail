@@ -13,10 +13,9 @@
             data-compose-send-url-value="{{ path('app_compose_mail_send_draft', {'id': message.id}) }}"
         {% endif %}
          class="max-h-[90vh]
-       w-[520px] rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60
-       bg-white/80 dark:bg-gray-900/80
-       backdrop-blur-xl
-       border border-white/60 dark:border-white/10
+       w-[520px] rounded-pane shadow-2xl shadow-black/20 dark:shadow-black/60
+       pane-flat
+       border border-line
        flex flex-col mb-4">
         {{ form_start(form, { attr: { novalidate: 'novalidate', class: 'flex flex-col flex-1 min-h-0' } }) }}
 
@@ -25,23 +24,23 @@
                     bg-black/20 dark:bg-black/30
                     rounded-t-2xl select-none shrink-0"
              data-action="dblclick->compose#toggleMinimize">
-            <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 cursor-pointer truncate max-w-[260px]"
+            <span class="text-sm font-semibold text-ink cursor-pointer truncate max-w-[260px]"
                   data-compose-target="title"
                   data-action="click->compose#toggleMinimize">New Message</span>
             <div class="flex items-center gap-1">
                 <span data-compose-target="saveStatus"
-                      class="text-xs text-gray-500 dark:text-gray-400 mr-2 transition-colors"></span>
+                      class="text-xs text-ink-muted mr-2 transition-colors"></span>
                 <button type="button" title="Minimize"
                         data-action="click->compose#toggleMinimize"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-gray-800 dark:hover:text-white
                                hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i data-compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
                 </button>
                 <button type="button" title="Expand"
                         data-action="click->compose#toggleExpand"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-gray-800 dark:hover:text-white
                                hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i data-compose-target="expandIcon"
                        class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
@@ -49,7 +48,7 @@
                 <button type="button" title="Save draft and close"
                         data-action="compose#saveDraft compose#close"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-gray-800 dark:hover:text-white
                                hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
@@ -77,7 +76,7 @@
             <div class="relative shrink-0">
                 <div class="flex items-center gap-3 px-4 pt-3 pb-1"
                      data-compose-target="fromRow">
-                    <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">From</span>
+                    <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">From</span>
                     <button type="button"
                             data-action="click->compose#toggleFromDropdown"
                             data-compose-target="fromBtn"
@@ -88,7 +87,7 @@
                                 {% if form.account.vars.value == choice.value %}{{ choice.label }}{% endif %}
                             {% endfor %}
                         </span>
-                        <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 dark:text-gray-500 shrink-0 transition-transform duration-150"
+                        <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint shrink-0 transition-transform duration-150"
                            data-compose-target="fromChevron"></i>
                     </button>
                 </div>
@@ -120,7 +119,7 @@
 
             {# ── To ───────────────────────────────────────────────── #}
             <div class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">To</span>
+                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">To</span>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.toAddresses) }}
                 </div>
@@ -128,13 +127,13 @@
                     <button type="button"
                             data-compose-target="ccBtn"
                             data-action="click->compose#showCc"
-                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            class="text-xs text-ink-faint hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                         Cc
                     </button>
                     <button type="button"
                             data-compose-target="bccBtn"
                             data-action="click->compose#showBcc"
-                            class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            class="text-xs text-ink-faint hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                         Bcc
                     </button>
                 </div>
@@ -143,7 +142,7 @@
             {# ── Cc ───────────────────────────────────────────────── #}
             <div data-compose-target="ccField"
                  class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Cc</span>
+                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Cc</span>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.ccAddresses) }}
                 </div>
@@ -152,7 +151,7 @@
             {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose-target="bccField"
                  class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Bcc</span>
+                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Bcc</span>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.bccAddresses) }}
                 </div>
@@ -163,14 +162,14 @@
 
             {# ── Subject ──────────────────────────────────────────── #}
             <div class="flex items-center gap-3 px-4 py-2 shrink-0">
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 w-10 shrink-0 text-right">Subj</span>
+                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Subj</span>
                 <input type="text"
                        id="{{ form.subject.vars.id }}"
                        name="{{ form.subject.vars.full_name }}"
                        value="{{ form.subject.vars.value ?: '' }}"
                        placeholder="Subject"
                        class="flex-1 bg-transparent outline-none text-sm
-                              text-gray-800 dark:text-gray-100
+                              text-ink
                               placeholder-gray-400 dark:placeholder-gray-600"/>
             </div>
             <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] shrink-0"></div>
@@ -190,7 +189,7 @@
                      data-placeholder="Write your message…"
                      class="w-full min-h-[170px] bg-transparent outline-none
                             text-sm leading-relaxed
-                            text-gray-800 dark:text-gray-100
+                            text-ink
                             empty:before:content-[attr(data-placeholder)]
                             empty:before:text-gray-400 dark:empty:before:text-gray-600
                             empty:before:pointer-events-none">{{ form.bodyHtml.vars.value|raw ?: '' }}</div>
@@ -298,7 +297,7 @@
                         </button>
                     </div>
 
-                    {% set ic = "w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800" %}
+                    {% set ic = "w-8 h-8 flex items-center justify-center rounded-full transition-colors text-ink-muted hover:text-gray-700 dark:hover:text-gray-200 hover:bg-hover" %}
                     <button type="button" class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
                     <button type="button" class="{{ ic }}"><i class="fa-solid fa-paperclip"></i></button>
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#insertLink" class="{{ ic }}"><i class="fa-solid fa-link"></i></button>

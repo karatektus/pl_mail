@@ -2,10 +2,10 @@
    (a src on the returned frame causes a refetch loop). #}
 
 {% macro card_open(icon, title) %}
-    <section class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-black/[0.06] dark:border-white/10">
+    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
             <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ title }}</h2>
+            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
         </div>
 {% endmacro %}
 
@@ -21,32 +21,32 @@
 
         {# ── Health gauges ─────────────────────────────────────────────── #}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 px-4 py-3">
-                <p class="text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.connections'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold text-zinc-800 dark:text-zinc-100">{{ gauges.connections }}</p>
+            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+                <p class="text-xs text-ink-faint">{{ 'admin.db.connections'|trans }}</p>
+                <p class="mt-1 text-lg font-semibold text-ink">{{ gauges.connections }}</p>
             </div>
-            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 px-4 py-3">
-                <p class="text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.cache_hit'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.cacheHitPct is not null and gauges.cacheHitPct < 99 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-800 dark:text-zinc-100' }}">
+            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+                <p class="text-xs text-ink-faint">{{ 'admin.db.cache_hit'|trans }}</p>
+                <p class="mt-1 text-lg font-semibold {{ gauges.cacheHitPct is not null and gauges.cacheHitPct < 99 ? 'text-amber-600 dark:text-amber-400' : 'text-ink' }}">
                     {{ gauges.cacheHitPct is not null ? gauges.cacheHitPct ~ '%' : '—' }}
                 </p>
             </div>
-            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 px-4 py-3">
-                <p class="text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.rollback_ratio'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.rollbackPct is not null and gauges.rollbackPct > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-800 dark:text-zinc-100' }}">
+            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+                <p class="text-xs text-ink-faint">{{ 'admin.db.rollback_ratio'|trans }}</p>
+                <p class="mt-1 text-lg font-semibold {{ gauges.rollbackPct is not null and gauges.rollbackPct > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-ink' }}">
                     {{ gauges.rollbackPct is not null ? gauges.rollbackPct ~ '%' : '—' }}
                 </p>
             </div>
-            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 px-4 py-3">
-                <p class="text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.deadlocks'|trans }}</p>
-                <p class="mt-1 text-lg font-semibold {{ gauges.deadlocks > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-800 dark:text-zinc-100' }}">{{ gauges.deadlocks }}</p>
+            <div class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 px-4 py-3">
+                <p class="text-xs text-ink-faint">{{ 'admin.db.deadlocks'|trans }}</p>
+                <p class="mt-1 text-lg font-semibold {{ gauges.deadlocks > 0 ? 'text-red-600 dark:text-red-400' : 'text-ink' }}">{{ gauges.deadlocks }}</p>
             </div>
         </div>
 
         {# ── Slowest by mean ───────────────────────────────────────────── #}
         {{ ui.card_open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans) }}
             <div class="flex items-center gap-2 px-5 py-2 border-b border-black/[0.04] dark:border-white/5">
-                <span class="text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.slow_mean.hint'|trans }}</span>
+                <span class="text-xs text-ink-faint">{{ 'admin.db.slow_mean.hint'|trans }}</span>
                 {% if statStatementsAvailable %}
                     <form method="post" action="{{ path('app_admin_db_reset') }}" data-turbo-frame="_top"
                           data-turbo-confirm="{{ 'admin.db.reset_confirm'|trans }}" class="ml-auto">
@@ -61,7 +61,7 @@
             </div>
 
             {% if statStatementsAvailable == false %}
-                <div class="px-5 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                <div class="px-5 py-4 text-sm text-ink-muted">
                     <p class="flex items-center gap-2">
                         <i class="fa-solid fa-circle-info text-amber-500" aria-hidden="true"></i>
                         {{ 'admin.db.extension_missing'|trans }}
@@ -70,7 +70,7 @@
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                 </div>
             {% elseif slowestByMean|length == 0 %}
-                <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.db.slow_mean.empty'|trans }}</p>
+                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.slow_mean.empty'|trans }}</p>
             {% else %}
                 {{ _self.statement_table(slowestByMean, 'meanMs') }}
             {% endif %}
@@ -79,7 +79,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
         {# ── Heaviest by total time ────────────────────────────────────── #}
         {% if statStatementsAvailable and heaviestByTotal|length > 0 %}
             {{ ui.card_open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans) }}
-                <p class="px-5 py-2 border-b border-black/[0.04] dark:border-white/5 text-xs text-zinc-400 dark:text-zinc-500">{{ 'admin.db.heavy_total.hint'|trans }}</p>
+                <p class="px-5 py-2 border-b border-black/[0.04] dark:border-white/5 text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
                 {{ _self.statement_table(heaviestByTotal, 'totalMs') }}
             </section>
         {% endif %}
@@ -87,18 +87,18 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
         {# ── Live activity ─────────────────────────────────────────────── #}
         {{ ui.card_open('fa-bolt', 'admin.db.active.heading'|trans) }}
             {% if activeQueries|length == 0 %}
-                <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.db.active.empty'|trans }}</p>
+                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
             {% else %}
                 <div class="divide-y divide-black/[0.04] dark:divide-white/5">
                     {% for row in activeQueries %}
                         <div class="px-5 py-3 text-sm">
                             <div class="flex items-center gap-3 text-xs">
-                                <span class="font-mono text-zinc-400 dark:text-zinc-500">pid {{ row.pid }}</span>
+                                <span class="font-mono text-ink-faint">pid {{ row.pid }}</span>
                                 <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">{{ row.state }}</span>
                                 {% if row.waitEvent %}
                                     <span class="text-amber-600 dark:text-amber-400 font-mono">{{ row.waitEvent }}</span>
                                 {% endif %}
-                                <span class="ml-auto font-mono {{ row.durationSeconds is not null and row.durationSeconds > 5 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-400' }}">
+                                <span class="ml-auto font-mono {{ row.durationSeconds is not null and row.durationSeconds > 5 ? 'text-red-600 dark:text-red-400' : 'text-ink-muted' }}">
                                     {{ row.durationSeconds is not null ? row.durationSeconds ~ 's' : '—' }}
                                 </span>
                             </div>
@@ -118,7 +118,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="text-left text-xs text-zinc-400 dark:text-zinc-500">
+                <tr class="text-left text-xs text-ink-faint">
                     <th class="px-5 py-2 font-medium">{{ 'admin.db.col.query'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.calls'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.mean'|trans }}</th>

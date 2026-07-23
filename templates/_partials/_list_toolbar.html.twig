@@ -35,7 +35,7 @@ The button itself carries `group` and `relative`.
         aria-label="{{ label }}"
         class="group relative flex items-center justify-center
            w-8 h-8 rounded-full
-           text-gray-500 dark:text-gray-400
+           text-ink-muted
            hover:text-gray-800 dark:hover:text-gray-100
            hover:bg-gray-200 dark:hover:bg-white/10
            transition-colors duration-100 cursor-pointer {{ extra_classes ?? '' }}"
@@ -72,7 +72,7 @@ The button itself carries `group` and `relative`.
             data-turbo-action="advance"
             aria-label="{{ label }}"
             class="group relative flex items-center justify-center w-8 h-8 rounded-full
-           text-gray-500 dark:text-gray-400
+           text-ink-muted
            hover:text-gray-800 dark:hover:text-gray-100
            hover:bg-gray-200 dark:hover:bg-white/10
            transition-colors duration-100"
@@ -164,7 +164,7 @@ The button itself carries `group` and `relative`.
             <div
                 data-list-toolbar-target="selectMenu"
                 class="hidden absolute left-0 top-full mt-1 z-30 w-36
-                       bg-white dark:bg-gray-900
+                       bg-surface
                        border border-gray-200 dark:border-gray-700
                        rounded-xl shadow-lg overflow-hidden py-1 text-sm"
             >
@@ -179,7 +179,7 @@ The button itself carries `group` and `relative`.
                             data-action="click->list-toolbar#{{ key }}"
                             class="w-full text-left px-3 py-1.5
                                    text-gray-700 dark:text-gray-200
-                                   hover:bg-gray-100 dark:hover:bg-gray-800
+                                   hover:bg-hover
                                    transition-colors cursor-pointer">
                         {{ label|trans }}
                     </button>
@@ -218,7 +218,7 @@ The button itself carries `group` and `relative`.
         } %}
         <span
             data-list-toolbar-target="selectionCount"
-            class="ml-1 text-xs text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap"
+            class="ml-1 text-xs text-ink-muted tabular-nums whitespace-nowrap"
         ></span>
     </div>
 
@@ -227,7 +227,7 @@ The button itself carries `group` and `relative`.
 
     {# ── Pagination ───────────────────────────────────────────────────────── #}
     {% if total > 0 %}
-        <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 shrink-0 pr-1">
+        <div class="flex items-center gap-1 text-xs text-ink-muted shrink-0 pr-1">
             <span class="tabular-nums mr-1">
                 {{ page_start }}–{{ page_end }} {{ 'toolbar.pagination.of'|trans }} {{ total }}
             </span>

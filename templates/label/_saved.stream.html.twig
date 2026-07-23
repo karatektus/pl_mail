@@ -5,7 +5,7 @@
             {% import '_partials/_sidebar.html.twig' as sidebar %}
             {% set labelTree = sidebarCounts.userLabelTree() %}
             {% if labelTree|length == 0 %}
-                <p class="px-3 py-1.5 text-xs text-gray-400 dark:text-gray-600">{{ 'sidebar.labels.none'|trans }}</p>
+                <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
             {% else %}
                 {% for node in labelTree %}
                     {{ sidebar.label_node(node, 0, '') }}

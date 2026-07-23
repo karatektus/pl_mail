@@ -22,7 +22,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
     the drawer state from any trigger (burger button in the topbar, backdrop).
     #}
     <div
-        class="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950"
+        class="h-screen overflow-hidden app-bg"
         data-controller="sidebar-drawer"
     >
         {# ── Mobile backdrop ──────────────────────────────────────────────── #}
@@ -62,7 +62,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                 </div>
 
                 {# Main content #}
-                <div class="flex flex-1 overflow-hidden relative rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/30">
+                <div class="flex flex-1 overflow-hidden relative pane">
 
                     {# List pane #}
                     <div

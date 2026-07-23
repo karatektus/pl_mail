@@ -14,7 +14,7 @@
             {% endif %}
         </h2>
         {% if total > 0 %}
-            <span class="text-xs text-gray-400 dark:text-gray-600 flex-shrink-0">
+            <span class="text-xs text-ink-faint flex-shrink-0">
                 {{ total }} result{{ total != 1 ? 's' : '' }}
             </span>
         {% endif %}
@@ -71,10 +71,10 @@
         {# Empty state — no query yet #}
         <li class="flex flex-col items-center justify-center py-16 text-center px-4">
             <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                <i class="fa-solid fa-magnifying-glass text-gray-400 dark:text-gray-600 text-lg" aria-hidden="true"></i>
+                <i class="fa-solid fa-magnifying-glass text-ink-faint text-lg" aria-hidden="true"></i>
             </div>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Search your mail</p>
-            <p class="text-xs text-gray-400 dark:text-gray-600 mt-1 max-w-xs">
+            <p class="text-sm font-medium text-ink-muted">Search your mail</p>
+            <p class="text-xs text-ink-faint mt-1 max-w-xs">
                 Try <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">from:alice</code>,
                 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">has:attachment</code>,
                 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">is:unread</code>, or just type a keyword.
@@ -86,8 +86,8 @@
             <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                 <i class="fa-solid fa-magnifying-glass text-gray-300 dark:text-gray-700 text-lg" aria-hidden="true"></i>
             </div>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No results for "{{ q }}"</p>
-            <p class="text-xs text-gray-400 dark:text-gray-600 mt-1">Try different keywords or remove some filters.</p>
+            <p class="text-sm font-medium text-ink-muted">No results for "{{ q }}"</p>
+            <p class="text-xs text-ink-faint mt-1">Try different keywords or remove some filters.</p>
         </li>
     {% else %}
         {% for thread in threads %}

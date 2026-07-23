@@ -6,10 +6,10 @@
 {% endmacro %}
 
 {% macro card_open(icon, title) %}
-    <section class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-black/[0.06] dark:border-white/10">
+    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
             <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ title }}</h2>
+            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
         </div>
 {% endmacro %}
 
@@ -22,11 +22,11 @@
         {# ── Processes ─────────────────────────────────────────────────── #}
         {{ ui.card_open('fa-heart-pulse', 'admin.processes.heading'|trans) }}
             {% if heartbeats|length == 0 %}
-                <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.processes.empty'|trans }}</p>
+                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.processes.empty'|trans }}</p>
             {% else %}
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="text-left text-xs text-zinc-400 dark:text-zinc-500">
+                        <tr class="text-left text-xs text-ink-faint">
                             <th class="px-5 py-2 font-medium"></th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.processes.type'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.processes.key'|trans }}</th>
@@ -56,16 +56,16 @@
             {# ── Gmail webhooks ────────────────────────────────────────── #}
             {{ ui.card_open('fa-satellite-dish', 'admin.webhooks.heading'|trans) }}
                 {% if webhooks|length == 0 %}
-                    <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.webhooks.empty'|trans }}</p>
+                    <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
                 {% else %}
                     <div class="divide-y divide-black/[0.04] dark:divide-white/5">
                         {% for row in webhooks %}
                             <div class="px-5 py-3 text-sm">
                                 <div class="flex items-center gap-2">
                                     {{ ui.dot(row.watchActive) }}
-                                    <span class="font-medium text-zinc-800 dark:text-zinc-100">{{ row.account.email }}</span>
+                                    <span class="font-medium text-ink">{{ row.account.email }}</span>
                                 </div>
-                                <dl class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                <dl class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-muted">
                                     <dt>{{ 'admin.webhooks.watch_expiry'|trans }}</dt>
                                     <dd class="{{ row.watchActive ? '' : 'text-red-600 dark:text-red-400' }}">
                                         {{ row.watchExpiry ? row.watchExpiry|date('Y-m-d H:i') : 'admin.webhooks.none'|trans }}
@@ -84,15 +84,15 @@
             {# ── OAuth token health ────────────────────────────────────── #}
             {{ ui.card_open('fa-key', 'admin.tokens.heading'|trans) }}
                 {% if tokenHealth|length == 0 %}
-                    <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.tokens.empty'|trans }}</p>
+                    <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
                 {% else %}
                     <div class="divide-y divide-black/[0.04] dark:divide-white/5">
                         {% for row in tokenHealth %}
                             <div class="px-5 py-3 text-sm">
                                 <div class="flex items-center gap-2">
                                     {{ ui.dot(row.healthy) }}
-                                    <span class="font-medium text-zinc-800 dark:text-zinc-100">{{ row.account.email }}</span>
-                                    <span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                                    <span class="font-medium text-ink">{{ row.account.email }}</span>
+                                    <span class="ml-auto text-xs text-ink-faint">
                                         {{ row.lastRefreshAt ? (row.lastRefreshAge ~ ' ' ~ 'admin.ago'|trans) : '—' }}
                                     </span>
                                 </div>
@@ -110,11 +110,11 @@
         {# ── Messenger queues ──────────────────────────────────────────── #}
         {{ ui.card_open('fa-list-check', 'admin.queues.heading'|trans) }}
             {% if queueStats|length == 0 %}
-                <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.queues.empty'|trans }}</p>
+                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
             {% else %}
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="text-left text-xs text-zinc-400 dark:text-zinc-500">
+                        <tr class="text-left text-xs text-ink-faint">
                             <th class="px-5 py-2 font-medium">{{ 'admin.queues.queue'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.pending'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.oldest'|trans }}</th>
@@ -144,26 +144,26 @@
         {# ── Failed messages ───────────────────────────────────────────── #}
         {{ ui.card_open('fa-triangle-exclamation', 'admin.failed.heading'|trans) }}
             {% if failedMessages|length == 0 %}
-                <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.failed.empty'|trans }}</p>
+                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
             {% else %}
                 <div class="divide-y divide-black/[0.04] dark:divide-white/5">
                     {% for row in failedMessages %}
                         <div class="px-5 py-3 text-sm">
                             <div class="flex items-start gap-3">
                                 <div class="min-w-0 flex-1">
-                                    <p class="font-mono text-xs text-zinc-800 dark:text-zinc-100 truncate">{{ row.class }}</p>
+                                    <p class="font-mono text-xs text-ink truncate">{{ row.class }}</p>
                                     {% if row.error %}
                                         <p class="mt-1 text-xs text-red-600 dark:text-red-400 font-mono break-all line-clamp-2">{{ row.error }}</p>
                                     {% endif %}
                                     {% if row.failedAt %}
-                                        <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{{ row.failedAt|date('Y-m-d H:i:s') }}</p>
+                                        <p class="mt-1 text-xs text-ink-faint">{{ row.failedAt|date('Y-m-d H:i:s') }}</p>
                                     {% endif %}
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
                                     <form method="post" action="{{ path('app_admin_failed_retry', { id: row.id }) }}" data-turbo-frame="_top">
                                         <input type="hidden" name="_token" value="{{ csrf_token('admin_failed_' ~ row.id) }}">
                                         <button type="submit"
-                                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer">
+                                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
                                             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
                                             {{ 'admin.failed.retry'|trans }}
                                         </button>
@@ -191,7 +191,7 @@
             {{ ui.card_open('fa-at', 'admin.accounts.heading'|trans) }}
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="text-left text-xs text-zinc-400 dark:text-zinc-500">
+                        <tr class="text-left text-xs text-ink-faint">
                             <th class="px-5 py-2 font-medium">{{ 'admin.accounts.account'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.accounts.threads'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.accounts.messages'|trans }}</th>

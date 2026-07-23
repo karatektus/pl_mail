@@ -4,13 +4,13 @@
     <button
         type="button"
         data-action="click->mail-pane#close"
-        class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-hover transition-colors"
     >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
         </svg>
     </button>
-    <span class="text-sm text-gray-400 dark:text-gray-600 truncate">{{ thread.subject ?: ('thread.no_subject'|trans) }}</span>
+    <span class="text-sm text-ink-faint truncate">{{ thread.subject ?: ('thread.no_subject'|trans) }}</span>
 </div>
 
 <div class="flex-1 overflow-y-auto"
@@ -59,7 +59,7 @@
                             <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 {{ message.fromName ?: message.fromAddress }}
                             </span>
-                        <span class="text-xs text-gray-400 dark:text-gray-600">
+                        <span class="text-xs text-ink-faint">
                                 {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
                             </span>
                     </div>
@@ -69,7 +69,7 @@
                             type="button"
                             data-action="click->thread-message#toggle:stop"
                             data-thread-message-target="toggleBtn"
-                            class="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                            class="p-1 text-gray-400 hover:bg-hover rounded transition-colors"
                         >
                             <svg
                                 data-thread-message-target="chevron"
@@ -86,7 +86,7 @@
                 <div
                     data-thread-message-target="snippet"
                     data-action="click->thread-message#toggle"
-                    class="text-xs text-gray-500 dark:text-gray-400 truncate py-1 cursor-pointer {{ isExpanded ? 'hidden' : '' }}"
+                    class="text-xs text-ink-muted truncate py-1 cursor-pointer {{ isExpanded ? 'hidden' : '' }}"
                 >
                     {{ message.bodyText|striptags|slice(0, 150) }}…
                 </div>
@@ -189,7 +189,7 @@
                            border border-gray-200/60 dark:border-white/10
                            bg-white/60 dark:bg-white/[0.03]
                            hover:bg-gray-50 dark:hover:bg-white/[0.06]
-                           text-sm text-gray-400 dark:text-gray-600
+                           text-sm text-ink-faint
                            transition-colors cursor-text"
                 >
                     <i class="fa-solid fa-reply text-xs text-gray-300 dark:text-gray-700" aria-hidden="true"></i>

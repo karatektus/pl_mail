@@ -1,11 +1,11 @@
 <turbo-frame id="admin-logs">
 
-    <section class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/60 dark:bg-gray-900/40 overflow-hidden">
+    <section class="rounded-pane border border-line bg-white/60 dark:bg-gray-900/40 overflow-hidden">
 
-        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-black/[0.06] dark:border-white/10">
+        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
             <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{{ 'admin.logs.heading'|trans }}</h2>
-            <span class="text-xs text-zinc-400 dark:text-zinc-500">{{ total }} {{ 'admin.logs.entries'|trans }}</span>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.logs.heading'|trans }}</h2>
+            <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.logs.entries'|trans }}</span>
 
             <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
                 <select name="level"
@@ -32,7 +32,7 @@
         </div>
 
         {% if entries|length == 0 %}
-            <p class="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{{ 'admin.logs.empty'|trans }}</p>
+            <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.logs.empty'|trans }}</p>
         {% else %}
             <div class="divide-y divide-black/[0.04] dark:divide-white/5">
                 {% for entry in entries %}
@@ -46,9 +46,9 @@
                                         : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300') }}">
                                 {{ entry.levelName }}
                             </span>
-                            <span class="shrink-0 text-xs text-zinc-400 dark:text-zinc-500 font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
-                            <span class="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">{{ entry.source ?? '—' }}</span>
-                            <span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400 font-mono">{{ entry.channel }}</span>
+                            <span class="shrink-0 text-xs text-ink-faint font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
+                            <span class="shrink-0 text-xs text-ink-faint">{{ entry.source ?? '—' }}</span>
+                            <span class="shrink-0 text-xs text-ink-muted font-mono">{{ entry.channel }}</span>
                             <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-200 group-open:whitespace-normal group-open:break-all">{{ entry.message }}</span>
                             <i class="fa-solid fa-chevron-down text-[10px] text-zinc-300 dark:text-zinc-600 transition-transform group-open:rotate-180" aria-hidden="true"></i>
                         </summary>
@@ -60,7 +60,7 @@
             </div>
 
             {% if pages > 1 %}
-                <div class="flex items-center justify-between px-5 py-3 border-t border-black/[0.06] dark:border-white/10 text-xs text-zinc-500 dark:text-zinc-400">
+                <div class="flex items-center justify-between px-5 py-3 border-t border-line text-xs text-ink-muted">
                     <span>{{ 'admin.logs.page'|trans }} {{ page }} / {{ pages }}</span>
                     <div class="flex items-center gap-2">
                         {% if page > 1 %}

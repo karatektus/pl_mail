@@ -13,7 +13,7 @@
         <p class="text-xs text-ink-faint mt-0.5 mb-4">{{ 'settings.appearance.theme.subheading'|trans }}</p>
 
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {% for theme in enum('App\\Enum\\Theme').cases %}
+            {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
                 {% set swatch = theme.swatch %}
                 <button type="button"
                         data-theme="{{ theme.value }}"
@@ -86,7 +86,7 @@
     <section>
         <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.density.heading'|trans }}</h2>
         <div class="inline-flex rounded-pane border border-line overflow-hidden">
-            {% for density in enum('App\\Enum\\Density').cases %}
+            {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
                 <label class="cursor-pointer">
                     <input type="radio" name="density" class="peer sr-only"
                            value="{{ density.value }}"
@@ -118,7 +118,7 @@
                 </span>
             </label>
 
-            {% for preset in enum('App\\Enum\\BackgroundPreset').cases %}
+            {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
                 <label class="cursor-pointer">
                     <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
                            data-appearance-field="backgroundPreset"

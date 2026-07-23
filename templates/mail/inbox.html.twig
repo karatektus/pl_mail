@@ -16,7 +16,7 @@
                 <a
                     href="{{ path('app_mail_inbox', {tab: tabCase.value}) }}"
                     data-turbo-frame="inbox-list-frame"
-                    class="px-4 py-3 font-medium border-b-2 -mb-px transition-colors {{ isActive ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                    class="px-4 py-3 font-medium border-b-2 -mb-px transition-colors {{ isActive ? 'text-blue-600 border-blue-600' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {{ ('tabs.' ~ tabCase.value)|trans }}
                     {% if unreadCount > 0 %}
@@ -30,7 +30,7 @@
 
 {% block message_list %}
     {% if threads is empty %}
-        <li class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
             {{ 'inbox.empty'|trans }}
         </li>
     {% else %}

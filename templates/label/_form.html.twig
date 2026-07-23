@@ -5,7 +5,7 @@ account form). Frosted-glass design language, zinc form fields, Tailwind only.
 {{ form_start(form, { attr: { class: 'space-y-4' } }) }}
 
     <div>
-        {{ form_label(form.name, null, { label_attr: { class: 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1' } }) }}
+        {{ form_label(form.name, null, { label_attr: { class: 'block text-xs font-medium text-ink-muted mb-1' } }) }}
         {{ form_widget(form.name, { attr: {
             class: 'w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-transparent
                     focus:border-blue-500 focus:ring-0 text-sm px-3 py-2
@@ -15,7 +15,7 @@ account form). Frosted-glass design language, zinc form fields, Tailwind only.
     </div>
 
     <div>
-        {{ form_label(form.account, null, { label_attr: { class: 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1' } }) }}
+        {{ form_label(form.account, null, { label_attr: { class: 'block text-xs font-medium text-ink-muted mb-1' } }) }}
         {{ form_widget(form.account, { attr: {
             class: 'w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-transparent
                     focus:border-blue-500 focus:ring-0 text-sm px-3 py-2
@@ -25,7 +25,7 @@ account form). Frosted-glass design language, zinc form fields, Tailwind only.
     </div>
 
     <div>
-        {{ form_label(form.parent, null, { label_attr: { class: 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1' } }) }}
+        {{ form_label(form.parent, null, { label_attr: { class: 'block text-xs font-medium text-ink-muted mb-1' } }) }}
         {{ form_widget(form.parent, { attr: {
             class: 'w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-transparent
                     focus:border-blue-500 focus:ring-0 text-sm px-3 py-2
@@ -35,7 +35,7 @@ account form). Frosted-glass design language, zinc form fields, Tailwind only.
     </div>
 
     <div>
-        {{ form_label(form.color, null, { label_attr: { class: 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1' } }) }}
+        {{ form_label(form.color, null, { label_attr: { class: 'block text-xs font-medium text-ink-muted mb-1' } }) }}
         {{ form_widget(form.color, { attr: {
             class: 'w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-transparent
                     focus:border-blue-500 focus:ring-0 text-sm px-3 py-2
@@ -57,7 +57,7 @@ account form). Frosted-glass design language, zinc form fields, Tailwind only.
         {% endif %}
 
         <button type="submit"
-                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                class="bg-accent hover:bg-accent-strong text-white text-sm font-medium
                        rounded-lg px-4 py-2 transition-colors cursor-pointer">
             {{ 'form.submit'|trans }}
         </button>

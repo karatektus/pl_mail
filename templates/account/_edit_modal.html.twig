@@ -18,7 +18,7 @@
             {{ form_row(form.email, { label: 'account.form.email'|trans }) }}
 
             <div class="space-y-3">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{{ 'account.form.imap.heading'|trans }}</p>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'account.form.imap.heading'|trans }}</p>
                 {{ form_row(form.username, { label: 'account.form.username'|trans }) }}
                 {{ form_row(form.password, { label: 'account.form.password'|trans, help: 'settings.accounts.password_help'|trans, attr: { placeholder: '••••••••' } }) }}
                 <div class="grid grid-cols-[1fr_100px] gap-3">
@@ -28,10 +28,10 @@
                 {{ form_row(form.imapEncryption, { label: 'account.form.encryption'|trans }) }}
             </div>
 
-            <div class="border-t border-black/[0.06] dark:border-white/10"></div>
+            <div class="border-t border-line"></div>
 
             <div class="space-y-3">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{{ 'account.form.smtp.heading'|trans }}</p>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'account.form.smtp.heading'|trans }}</p>
                 <div class="grid grid-cols-[1fr_100px] gap-3">
                     {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans }) }}
                     {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
@@ -41,13 +41,13 @@
 
         </div>
 
-        <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-black/[0.06] dark:border-white/10 bg-black/[0.03] dark:bg-black/20">
+        <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-black/[0.03] dark:bg-black/20">
             <button type="button" data-action="click->modal#close"
                     class="px-3 h-9 rounded-lg text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer">
                 {{ 'form.cancel'|trans }}
             </button>
             <button type="submit"
-                    class="px-4 h-9 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer">
+                    class="px-4 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
                 {{ 'form.submit'|trans }}
             </button>
         </div>

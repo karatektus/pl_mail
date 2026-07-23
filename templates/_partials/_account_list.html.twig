@@ -7,7 +7,7 @@
 
         {# The whole row toggles the label list — per-account "folders" are
            labels now, so there is no INBOX landing link anymore. #}
-        <div class="flex items-center cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        <div class="flex items-center cursor-pointer rounded-lg hover:bg-hover transition-colors"
              data-action="click->account-expand#toggle">
             <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-gray-600 dark:text-gray-400">
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-gray-300 dark:bg-gray-700' }}"></span>
@@ -31,5 +31,5 @@
         </turbo-frame>
     </div>
 {% else %}
-    <p class="px-3 py-2 text-sm text-gray-400 dark:text-gray-600 italic">{{ 'sidebar.accounts.none'|trans }}</p>
+    <p class="px-3 py-2 text-sm text-ink-faint italic">{{ 'sidebar.accounts.none'|trans }}</p>
 {% endfor %}

@@ -88,7 +88,7 @@
                 </span>
 
                 {# Date — mobile only (top-right), hidden on desktop #}
-                <span class="md:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
+                <span class="md:hidden flex-shrink-0 ml-2 text-xs text-ink-faint">
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date('g:i a') }}
@@ -107,10 +107,10 @@
                 <span class="{{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-700 dark:text-gray-300' }}">
                     {{ subject }}
                     {% if count > 1 %}
-                        <span class="ml-1 text-xs font-medium text-gray-500 dark:text-gray-400">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
+                        <span class="ml-1 text-xs font-medium text-ink-muted">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                     {% endif %}
                 </span>
-                <span class="text-gray-400 dark:text-gray-600"> — {{ snippet }}</span>
+                <span class="text-ink-faint"> — {{ snippet }}</span>
             </span>
 
         </div>
@@ -118,7 +118,7 @@
         {# Date + hover actions slot — desktop only #}
         <div class="hidden md:flex flex-shrink-0 w-36 relative h-full items-center">
 
-            <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-gray-400 dark:text-gray-600">
+            <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-ink-faint">
                 {% if date %}
                     {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                         {{ date|date('g:i a') }}

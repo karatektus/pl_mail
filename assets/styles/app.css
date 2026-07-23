@@ -20,12 +20,22 @@
     --rgb-accent:        37  99 235;
     --rgb-accent-ink:   255 255 255;
     --rgb-shadow:         0   0   0;
+    --rgb-ink-soft:      55  65  81;   /* gray-700 */
+    --rgb-sunken:       243 244 246;   /* gray-100 */
+    --rgb-field:        255 255 255;
+    --rgb-field-border:  212 212 216;
+    --rgb-danger:       220  38  38;
+    --rgb-warning:      217 119   6;
+    --rgb-success:       22 163  74;
 
     --border-alpha: 0.6;
     --line-alpha:   0.06;
     --raised-alpha: 0.04;
     --hover-alpha:  0.03;
     --shadow-alpha: 0.05;
+    --sunken-alpha: 1;
+    --field-alpha:  0.6;
+    --field-border-alpha: 0.4;
 
     --app-bg: linear-gradient(to bottom right, #eff6ff, #f1f5f9, #e0e7ff);
     --scrim-alpha: 0;
@@ -36,6 +46,7 @@
     --app-radius:    1rem;
     --density-row-y: 0.875rem;
     --density-gap:   0.75rem;
+
 }
 
 .dark {
@@ -46,12 +57,22 @@
     --rgb-ink:         244 244 245;
     --rgb-ink-muted:   161 161 170;
     --rgb-ink-faint:   113 113 122;
+    --rgb-ink-soft:     209 213 219;   /* gray-300 */
+    --rgb-sunken:       255 255 255;
+    --rgb-field:         39  39  42;
+    --rgb-field-border: 113 113 122;
+    --rgb-danger:       248 113 113;
+    --rgb-warning:      251 191  36;
+    --rgb-success:       74 222 128;
 
     --border-alpha: 0.1;
     --line-alpha:   0.1;
     --raised-alpha: 0.06;
     --hover-alpha:  0.04;
     --shadow-alpha: 0.3;
+    --sunken-alpha: 0.06;
+    --field-alpha:  0.4;
+    --field-border-alpha: 0.3;
 
     --app-bg: linear-gradient(to bottom right, #020617, #0f172a, #1e1b4b);
 }
@@ -102,6 +123,13 @@
     --color-accent-strong: color-mix(in oklab, rgb(var(--rgb-accent)) 85%, black);
     --color-accent-soft:  rgb(var(--rgb-accent) / 0.1);
     --color-accent-ink:   rgb(var(--rgb-accent-ink));
+    --color-ink-soft:     rgb(var(--rgb-ink-soft));
+    --color-sunken:       rgb(var(--rgb-sunken) / var(--sunken-alpha));
+    --color-field:        rgb(var(--rgb-field) / var(--field-alpha));
+    --color-field-border: rgb(var(--rgb-field-border) / var(--field-border-alpha));
+    --color-danger:       rgb(var(--rgb-danger));
+    --color-warning:      rgb(var(--rgb-warning));
+    --color-success:      rgb(var(--rgb-success));
 
     --radius-pane: var(--app-radius);
     --spacing-row: var(--density-row-y);
