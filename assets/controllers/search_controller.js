@@ -154,18 +154,18 @@ export default class extends Controller {
                     data-query="${this._escape(r)}"
                     data-action="click->search#selectRecent"
                     class="group w-full flex items-center gap-2.5 px-3 py-2
-                           text-sm text-gray-700 dark:text-gray-300
-                           hover:bg-gray-50 dark:hover:bg-gray-800
+                           text-sm text-ink-soft
+                           hover:bg-hover
                            transition-colors text-left"
                 >
-                    <i class="fa-solid fa-clock-rotate-left text-gray-300 dark:text-gray-600 w-3.5 flex-shrink-0" aria-hidden="true"></i>
+                    <i class="fa-solid fa-clock-rotate-left text-ink-faint w-3.5 flex-shrink-0" aria-hidden="true"></i>
                     <span class="flex-1 truncate">${this._escape(r)}</span>
                     <span
                         role="button"
                         tabindex="0"
                         data-action="click->search#removeRecent"
                         class="opacity-0 group-hover:opacity-100 p-0.5 rounded
-                               text-gray-400 hover:text-gray-600 dark:hover:text-gray-200
+                               text-ink-faint hover:text-ink-soft
                                transition-opacity"
                         aria-label="Remove"
                     >

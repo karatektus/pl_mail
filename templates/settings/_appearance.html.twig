@@ -30,7 +30,7 @@
                 </button>
             {% endfor %}
         </div>
-        <input type="hidden" data-appearance-field="theme" value="{{ a.theme.value }}">
+        <input type="hidden" data-appearance-target="theme" data-appearance-field="theme" value="{{ a.theme.value }}">
     </section>
 
     {# ── Glass ─────────────────────────────────────────────────────────── #}
@@ -109,7 +109,7 @@
 
         <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
             <label class="cursor-pointer">
-                <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
+                <input type="radio" name="backgroundKind" class="sr-only" value="preset"
                        data-appearance-field="backgroundKind"
                        data-action="change->appearance#pickBackground"
                     {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>

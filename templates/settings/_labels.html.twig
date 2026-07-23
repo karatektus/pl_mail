@@ -39,7 +39,7 @@ Variables:
                                             'amber':  'bg-amber-500',
                                             'green':  'bg-green-500',
                                             'teal':   'bg-teal-500',
-                                            'blue':   'bg-blue-500',
+                                            'blue':   'bg-accent',
                                             'violet': 'bg-violet-500',
                                             'pink':   'bg-pink-500',
                                         }[label.color ?? 'gray'] ?? 'bg-ink-faint' }}"
@@ -65,7 +65,7 @@ Variables:
                                         aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                                         title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                                     >
-                                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-blue-500' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
+                                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
                                     </button>
                                 </form>
                             </li>

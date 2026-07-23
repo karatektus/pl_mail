@@ -10,7 +10,7 @@
             {# Logo #}
             <div class="flex flex-col items-center mb-8">
                 <div class="flex items-center gap-2 mb-2">
-                    <i class="fa-solid fa-envelope text-blue-600 text-2xl" aria-hidden="true"></i>
+                    <i class="fa-solid fa-envelope text-accent text-2xl" aria-hidden="true"></i>
                     <span class="text-xl font-semibold text-ink">{{ 'app.name'|trans }}</span>
                 </div>
                 <p class="text-sm text-ink-muted">{{ 'login.tagline'|trans }}</p>
@@ -41,7 +41,7 @@
                                 autocomplete="email"
                                 autofocus
                                 required
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="you@example.com"
                             >
                         </div>
@@ -62,7 +62,7 @@
                                 autocomplete="current-password"
                                 required
                                 value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >
                         </div>
@@ -72,7 +72,7 @@
 
                     <button
                         type="submit"
-                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ring-offset-surface"
+                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface"
                     >
                         {{ 'login.form.submit'|trans }}
                     </button>

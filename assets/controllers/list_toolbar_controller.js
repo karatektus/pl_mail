@@ -11,8 +11,8 @@
 import { Controller } from "@hotwired/stimulus";
 
 // Classes applied to the checkbox button in each state
-const CB_BASE   = "border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800";
-const CB_ACTIVE = "border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500";
+const CB_BASE   = "border-field bg-field";
+const CB_ACTIVE = "border-accent bg-accent";
 
 // Base path prefix for all status actions — must match Symfony routing.
 // Individual action URLs are built as: STATUS_BASE + "/thread/{id}/{action}"

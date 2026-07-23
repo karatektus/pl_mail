@@ -54,7 +54,7 @@
     ></a>
 
     <div
-        class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
+        class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-row cursor-pointer transition-colors
             {{ unread ? 'bg-raised' : 'bg-transparent' }}
             hover:bg-hover"
     >
@@ -63,7 +63,7 @@
             type="checkbox"
             data-action="change->message-row#toggleSelect"
             data-thread-select value="{{ rowId }}"
-            class="z-10 w-4 h-4 rounded border-field text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
+            class="z-10 w-4 h-4 rounded border-field accent-accent focus:ring-accent focus:ring-offset-0 cursor-pointer flex-shrink-0"
             aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
         >
 

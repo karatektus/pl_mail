@@ -60,13 +60,9 @@ export default class extends Controller {
     highlightActive() {
         this.linkTargets.forEach((link) => {
             const isActive = window.location.pathname === new URL(link.href).pathname;
-            link.classList.toggle('bg-blue-50', isActive);
-            link.classList.toggle('dark:bg-blue-950/40', isActive);
-            link.classList.toggle('text-blue-700', isActive);
-            link.classList.toggle('dark:text-blue-400', isActive);
-            link.classList.toggle('font-medium', isActive);
-            link.classList.toggle('text-gray-500', !isActive);
-            link.classList.toggle('dark:text-gray-400', !isActive);
+            link.classList.toggle('bg-accent-soft', isActive);
+            link.classList.toggle('text-accent', isActive);
+            link.classList.toggle('text-ink-muted', !isActive);
         });
     }
 }

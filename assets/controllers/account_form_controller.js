@@ -18,14 +18,11 @@ export default class extends Controller {
     _activate(panelName) {
         this.tabTargets.forEach(tab => {
             const isActive = tab.dataset.panel === panelName;
-            tab.classList.toggle("border-blue-500", isActive);
-            tab.classList.toggle("text-blue-600", isActive);
-            tab.classList.toggle("dark:text-blue-400", isActive);
-            tab.classList.toggle("border-transparent", !isActive);
-            tab.classList.toggle("text-zinc-500", !isActive);
-            tab.classList.toggle("dark:text-zinc-400", !isActive);
-            tab.classList.toggle("hover:text-zinc-700", !isActive);
-            tab.classList.toggle("dark:hover:text-zinc-200", !isActive);
+            tab.classList.toggle("border-accent", isActive);
+            tab.classList.toggle("text-accent", isActive);
+
+            tab.classList.toggle("text-ink-muted", !isActive);
+            tab.classList.toggle("hover:text-ink-soft", !isActive);
         });
 
         this.panelTargets.forEach(panel => {

@@ -58,7 +58,7 @@
                        border border-transparent rounded-xl
                        text-ink
                        placeholder:text-ink-faint
-                       focus:outline-none focus:ring-2 focus:ring-blue-500
+                       focus:outline-none focus:ring-2 focus:ring-accent
                        focus:bg-field
                        transition-colors"
             >
@@ -89,15 +89,16 @@
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
         {# User menu #}
-        <div class="relative ml-1">
+        <div class="relative ml-1" data-controller="user-menu">
             <button id="user-menu-btn"
+                    data-action="click->user-menu#toggle"
                     class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
                     title="{{ app.user.email }}">
                 {{ app.user.email | first | upper }}
             </button>
 
-            <div id="user-menu" class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
+            <div id="user-menu" data-user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
                     <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>

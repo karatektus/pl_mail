@@ -8,8 +8,7 @@ export default class extends Controller {
         resetUrl: String,
     };
 
-    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'importInput', 'uploadInput'];
-
+    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput'];
     connect() {
         this.root = document.documentElement;
         this.pending = null;
@@ -33,6 +32,8 @@ export default class extends Controller {
     pickTheme(event) {
         const theme = event.currentTarget.dataset.theme;
         const isDark = event.currentTarget.dataset.dark === '1';
+
+        this.themeTarget.value = theme;
 
         this.root.dataset.theme = theme;
         this.root.classList.toggle('dark', isDark);
@@ -61,7 +62,15 @@ export default class extends Controller {
         this.queue();
     }
 
-    pickBackground() {
+    pickBackground(event) {
+        if (event.currentTarget.dataset.appearanceField === 'backgroundPreset') {
+            const kindInput = this.element.querySelector('[data-appearance-field="backgroundKind"][value="preset"]');
+
+            if (kindInput) {
+                kindInput.checked = true;
+            }
+        }
+
         this.queue(0);
     }
 

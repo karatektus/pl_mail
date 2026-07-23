@@ -38,7 +38,7 @@
                 <div role="alert" class="mx-5 mt-5 flex items-start gap-2.5 rounded-xl
                                          alert-danger
                                          px-3.5 py-3 text-sm text-danger">
-                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-red-500/80" aria-hidden="true"></i>
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger opacity-80" aria-hidden="true"></i>
                     <div class="space-y-0.5">
                         {% for error in form.vars.errors %}<p class="leading-snug">{{ error.message }}</p>{% endfor %}
                     </div>
@@ -96,7 +96,7 @@
                 <div class="flex items-start gap-3 rounded-xl
                             alert-info
                             px-4 py-3 text-sm text-accent">
-                    <i class="fa-solid fa-circle-info mt-0.5 shrink-0 text-blue-500/70" aria-hidden="true"></i>
+                    <i class="fa-solid fa-circle-info mt-0.5 shrink-0 text-accent/70" aria-hidden="true"></i>
                     <p>{{ 'account.oauth.info'|trans }}</p>
                 </div>
 
@@ -161,7 +161,7 @@
                        bg-sunken
                        border border-line
                        hover:bg-hover
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
                        transition-colors duration-100 cursor-pointer"
             >{{ 'form.cancel'|trans }}</button>
 
@@ -170,7 +170,7 @@
                 data-account-form-target="submitBtn"
                 class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
                        bg-blue-600 hover:bg-blue-500 active:bg-blue-700
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
                        transition-colors duration-100 cursor-pointer"
             >{{ 'account.add_title'|trans }}</button>
         </div>

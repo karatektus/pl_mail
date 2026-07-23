@@ -1,8 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 
-const ACTIVE_CLASSES   = ["bg-blue-50", "dark:bg-blue-950/40", "text-blue-700", "dark:text-blue-400", "font-medium"];
-const INACTIVE_CLASSES = ["text-gray-600", "dark:text-gray-400", "hover:bg-gray-100", "dark:hover:bg-gray-800"];
-
+const ACTIVE_CLASSES   = ["bg-accent-soft", "text-accent", "font-medium"];
+const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 export default class extends Controller {
     static targets = ["link"];
 

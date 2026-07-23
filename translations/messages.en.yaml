@@ -134,6 +134,7 @@ tabs:
     promotions: Promotions
     updates: Updates
     social: Social
+    forums: Forums
 
 inbox:
     empty: No messages in this tab.
@@ -156,6 +157,7 @@ trash:
 
 thread_row:
     no_subject: (no subject)
+    select: Select
     message_count: "({ count })"
     star: Star this message
     unstar: Unstar this message

@@ -1,6 +1,6 @@
 {% macro unread_badge(count) %}
     {% if count > 0 %}
-        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white">
             {{ count }}
         </span>
     {% endif %}
@@ -15,7 +15,7 @@
         'amber':  'bg-amber-500',
         'green':  'bg-green-500',
         'teal':   'bg-teal-500',
-        'blue':   'bg-blue-500',
+        'blue':   'bg-accent',
         'violet': 'bg-violet-500',
         'pink':   'bg-pink-500',
     }[color ?? 'gray'] ?? 'bg-ink-faint' }}"
@@ -74,14 +74,14 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="sidebar"
-       class="flex flex-col w-56 h-full flex-shrink-0 bg-surface rounded-pane shadow-pop border border-line">
+       class="flex flex-col w-56 h-full flex-shrink-0 pane">
 
     {# Compose #}
     <div class="px-3 py-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-action="{{ _drawerClose }}"
-           class="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors">
+           class="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-row transition-colors">
             <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
             {{ 'sidebar.compose'|trans }}
         </a>

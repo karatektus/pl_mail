@@ -172,36 +172,36 @@ final class Appearance
         }
 
         if (true === isset($data['paneAlpha'])) {
-            $this->setPaneAlpha($data['paneAlpha']);
+            $this->setPaneAlpha(floatval($data['paneAlpha']));
         }
 
         if (true === isset($data['paneBlur'])) {
-            $this->setPaneBlur($data['paneBlur']);
+            $this->setPaneBlur(intval($data['paneBlur']));
         }
 
         if (true === isset($data['radius'])) {
-            $this->setRadius($data['radius']);
+            $this->setRadius(floatval($data['radius']));
         }
 
         if (true === isset($data['density'])) {
-            $this->setDensity(Density::tryFrom((string) $data['density']) ?? $this->density);
+            $this->setDensity(Density::tryFrom($data['density']) ?? $this->density);
         }
 
         if (true === isset($data['backgroundKind'])) {
-            $this->setBackgroundKind(BackgroundKind::tryFrom((string) $data['backgroundKind']) ?? $this->backgroundKind);
+            $this->setBackgroundKind(BackgroundKind::tryFrom($data['backgroundKind']) ?? $this->backgroundKind);
         }
 
         if (true === array_key_exists('backgroundPreset', $data)) {
-            $this->setBackgroundPreset(BackgroundPreset::tryFrom((string) $data['backgroundPreset']));
+            $this->setBackgroundPreset(BackgroundPreset::tryFrom( $data['backgroundPreset']));
         }
 
         if (true === array_key_exists('backgroundSolid', $data)) {
-            $solid = (string) $data['backgroundSolid'];
+            $solid = $data['backgroundSolid'];
             $this->setBackgroundSolid(1 === preg_match('/^#[0-9a-fA-F]{6}$/', $solid) ? strtolower($solid) : null);
         }
 
         if (true === isset($data['scrimAlpha'])) {
-            $this->setScrimAlpha((float) $data['scrimAlpha']);
+            $this->setScrimAlpha(floatval($data['scrimAlpha']));
         }
 
         return $this;

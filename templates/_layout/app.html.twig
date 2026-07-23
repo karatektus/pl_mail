@@ -7,10 +7,9 @@
     <title>{% block title %}Welcome!{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%221em%22 font-size=%2224%22>✉️</text></svg>">
 
-    {# Must be first thing in <head> to avoid flash of wrong theme #}
     <script>
-        if (localStorage.getItem('theme') === 'dark' ||
-            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (document.documentElement.dataset.theme === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
     </script>
@@ -42,11 +41,5 @@
     {% include '_partials/_modal.html.twig' %}
     <turbo-frame id="compose_dock" class="fixed bottom-4 right-6 flex items-end gap-3"></turbo-frame>
     <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
-    <script>
-        if (document.documentElement.dataset.theme === 'system' &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-    </script>
 </body>
 </html>

@@ -48,13 +48,13 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
             {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
         </div>
 
-        <div class="flex h-full flex-col p-3 gap-3">
+        <div class="flex h-full flex-col p-gutter gap-gutter">
 
             {# Full-width topbar — passes burger button context #}
             {% include '_partials/_topbar.html.twig' with { _showBurger: true } %}
 
             {# Sidebar + content #}
-            <div class="flex flex-1 gap-3 overflow-hidden">
+            <div class="flex flex-1 gap-gutter overflow-hidden">
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
                 <div class="hidden md:flex">

@@ -17,7 +17,7 @@
                 {% if not label.isSystem %}
                     {% set _unread = sidebarCounts.forLabel(label) %}
                     {% if _unread > 0 %}
-                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white">
                             {{ _unread }}
                         </span>
                     {% endif %}

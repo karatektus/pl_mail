@@ -401,10 +401,8 @@ export default class extends Controller {
         const capitalized = targetName.charAt(0).toUpperCase() + targetName.slice(1);
         if (!this[`has${capitalized}Target`]) { return; }
         const target = this[`${targetName}Target`];
-        target.classList.toggle('bg-gray-200',      active);
-        target.classList.toggle('dark:bg-gray-600', active);
-        target.classList.toggle('text-gray-900',    active);
-        target.classList.toggle('dark:text-white',  active);
+        target.classList.toggle('bg-raised', active);
+        target.classList.toggle('text-ink', active);
     }
 
     // ── Sync contenteditable → hidden input ───────────────────────────

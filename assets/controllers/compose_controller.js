@@ -278,10 +278,8 @@ export default class extends Controller {
 
         this.fromDropdownTarget.querySelectorAll('button').forEach(b => {
             const selected = b.dataset.value === value;
-            b.classList.toggle('bg-blue-50', selected);
-            b.classList.toggle('dark:bg-blue-500/10', selected);
-            b.classList.toggle('text-blue-600', selected);
-            b.classList.toggle('dark:text-blue-300', selected);
+            b.classList.toggle('bg-accent-soft', selected);
+            b.classList.toggle('text-accent', selected);
         });
 
         this._closeFromDropdown();
@@ -321,11 +319,11 @@ export default class extends Controller {
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
-
+        const STATUS_CLASSES = ['text-ink-faint', 'text-danger', 'text-success'];
         if (status) {
             status.textContent = 'Saving…';
-            status.classList.remove('text-red-500', 'text-green-600');
-            status.classList.add('text-gray-400');
+            status.classList.remove(...STATUS_CLASSES);
+            status.classList.add('text-ink-faint');
         }
 
         try {
@@ -355,8 +353,8 @@ export default class extends Controller {
                     }
 
                     status.textContent = 'Draft saved';
-                    status.classList.remove('text-gray-400', 'text-red-500');
-                    status.classList.add('text-green-600');
+                    status.classList.remove(...STATUS_CLASSES);
+                    status.classList.add('text-success');
                 }
             } else {
                 throw new Error('Server error');
@@ -364,8 +362,8 @@ export default class extends Controller {
         } catch (_) {
             if (status) {
                 status.textContent = 'Failed to save';
-                status.classList.remove('text-gray-400', 'text-green-600');
-                status.classList.add('text-red-500');
+                status.classList.remove(...STATUS_CLASSES);
+                status.classList.add('text-danger');
             }
         }
     }
