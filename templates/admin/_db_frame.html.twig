@@ -52,7 +52,7 @@
                           data-turbo-confirm="{{ 'admin.db.reset_confirm'|trans }}" class="ml-auto">
                         <input type="hidden" name="_token" value="{{ csrf_token('admin_db_reset') }}">
                         <button type="submit"
-                                class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-ink-soft transition-colors cursor-pointer">
+                                class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
                             <i class="fa-solid fa-eraser" aria-hidden="true"></i>
                             {{ 'admin.db.reset'|trans }}
                         </button>

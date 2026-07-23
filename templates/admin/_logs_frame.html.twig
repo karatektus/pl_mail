@@ -9,14 +9,14 @@
 
             <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
                 <select name="level"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-field text-xs text-ink-soft px-2"
+                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     {% for value, name in levels %}
                         <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
                     {% endfor %}
                 </select>
                 <select name="channel"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-field text-xs text-ink-soft px-2"
+                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
                     {% for ch in channels %}
@@ -24,7 +24,7 @@
                     {% endfor %}
                 </select>
                 <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-ink-soft transition-colors cursor-pointer">
+                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
                     <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
                     {{ 'admin.logs.refresh'|trans }}
                 </button>
@@ -38,12 +38,8 @@
                 {% for entry in entries %}
                     <details class="px-5 py-2.5 text-sm group">
                         <summary class="flex items-center gap-3 cursor-pointer list-none">
-                            <span class="shrink-0 w-16 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
-                                {{ entry.level >= 400
-                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                    : (entry.level >= 300
-                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300') }}">
+                           <span class="shrink-0 w-16 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
+                            {{ entry.level >= 400 ? 'badge-danger' : (entry.level >= 300 ? 'badge-warning' : 'badge-neutral') }}">
                                 {{ entry.levelName }}
                             </span>
                             <span class="shrink-0 text-xs text-ink-faint font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
@@ -65,13 +61,13 @@
                     <div class="flex items-center gap-2">
                         {% if page > 1 %}
                             <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page - 1 }) }}"
-                               class="px-2.5 h-7 inline-flex items-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors">
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
                                 {{ 'admin.logs.newer'|trans }}
                             </a>
                         {% endif %}
                         {% if page < pages %}
                             <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page + 1 }) }}"
-                               class="px-2.5 h-7 inline-flex items-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors">
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
                                 {{ 'admin.logs.older'|trans }}
                             </a>
                         {% endif %}

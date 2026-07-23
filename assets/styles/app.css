@@ -227,6 +227,20 @@
         background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 3.5));
     }
 }
+@utility badge-danger {
+    background-color: rgb(var(--rgb-danger) / var(--danger-soft-alpha));
+    color: rgb(var(--rgb-danger));
+}
+
+@utility badge-warning {
+    background-color: rgb(var(--rgb-warning) / var(--danger-soft-alpha));
+    color: rgb(var(--rgb-warning));
+}
+
+@utility badge-neutral {
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+    color: rgb(var(--rgb-ink-soft));
+}
 @layer utilities {
     .compose-address-row {
         display: flex;
