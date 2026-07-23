@@ -4,8 +4,7 @@ namespace App\Repository;
 
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MailboxSpecialUse;
-use App\Domain\Enum\MessageTab;
+use App\Domain\Enum\MessageCategory;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\MessageThread;
@@ -34,7 +33,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    public function findForUnifiedInbox(UserInterface $user, MessageTab $tab, int $page = 1, int $perPage = 50): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -44,10 +43,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
-            ->andWhere('t.tab = :tab')
+            ->andWhere('t.category = :category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
-            ->setParameter('tab', $tab)
+            ->setParameter('category', $category)
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
@@ -56,7 +55,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function countForUnifiedInbox(UserInterface $user, MessageTab $tab): int
+    public function countForUnifiedInbox(UserInterface $user, MessageCategory $category): int
     {
         return $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
@@ -65,26 +64,26 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
-            ->andWhere('t.tab = :tab')
+            ->andWhere('t.category = :category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
-            ->setParameter('tab', $tab)
+            ->setParameter('category', $category)
             ->distinct()
             ->getQuery()
             ->getSingleScalarResult();
     }
 
-    public function countUnreadByTabForUnifiedInbox(UserInterface $user): array
+    public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
     {
         $rows = $this->createQueryBuilder('t')
-            ->select('t.tab AS tab', 'COUNT(DISTINCT t.id) AS unreadCount')
+            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS unreadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
             ->andWhere('t.unreadCount > 0')
-            ->groupBy('t.tab')
+            ->groupBy('t.category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
             ->getQuery()
@@ -93,13 +92,13 @@ class MessageThreadRepository extends ServiceEntityRepository
         $counts = [];
 
         foreach ($rows as $row) {
-            $tabValue = $row['tab'];
+            $categoryValue = $row['category'];
 
-            if ($tabValue instanceof MessageTab) {
-                $tabValue = $tabValue->value;
+            if ($categoryValue instanceof MessageCategory) {
+                $categoryValue = $categoryValue->value;
             }
 
-            $counts[$tabValue] = (int) $row['unreadCount'];
+            $counts[$categoryValue] = (int) $row['unreadCount'];
         }
 
         return $counts;
@@ -415,7 +414,9 @@ class MessageThreadRepository extends ServiceEntityRepository
         // ── Operator filters ──────────────────────────────────────────────
 
         if ($query->from !== null) {
-            $where[]          = 'LOWER(m.from_address) LIKE :fromAddr OR LOWER(m.from_name) LIKE :fromAddr';
+            // Parenthesised: this OR must not bleed into the surrounding
+            // AND-joined WHERE clause when other filters are present.
+            $where[]            = '(LOWER(m.from_address) LIKE :fromAddr OR LOWER(m.from_name) LIKE :fromAddr)';
             $params['fromAddr'] = '%' . strtolower($query->from) . '%';
         }
 
@@ -507,5 +508,25 @@ class MessageThreadRepository extends ServiceEntityRepository
         SQL;
 
         return [$sql, $params, $types];
+    }
+
+    public function recomputeCategoriesForAccount(Account $account): int
+    {
+        $sql = <<<'SQL'
+        UPDATE message_thread t
+        SET category = sub.category
+        FROM (
+            SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
+            FROM message m
+            WHERE m.category IS NOT NULL
+            ORDER BY m.thread_id, m.received_at DESC NULLS LAST
+        ) sub
+        WHERE t.id = sub.thread_id AND t.account_id = :accountId
+        SQL;
+
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            $sql,
+            ['accountId' => $account->getId()],
+        );
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageTab;
+use App\Domain\Enum\MessageCategory;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
@@ -34,24 +34,24 @@ final class MailController extends AbstractController
         Request $request,
     ): Response {
         $user = $this->getUser();
-        $tab  = MessageTab::Primary;
+        $tab  = MessageCategory::Primary;
         $page = max(1, (int) $request->query->get('page', 1));
 
         $tabParam = $request->query->get('tab');
         if ($tabParam !== null) {
-            $tab = MessageTab::from($tabParam);
+            $tab = MessageCategory::from($tabParam);
         }
 
         $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
         $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
-        $tabCounts  = $this->threadRepository->countUnreadByTabForUnifiedInbox($user);
+        $tabCounts  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/inbox.html.twig', [
             'threads'    => $threads,
             'tab'        => $tab,
-            'tabs'       => MessageTab::cases(),
+            'tabs'       => MessageCategory::cases(),
             'tabCounts'  => $tabCounts,
             'page'       => $page,
             'total'      => $total,

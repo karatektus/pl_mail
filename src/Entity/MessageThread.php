@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Domain\Enum\MessageTab;
+use App\Domain\Enum\MessageCategory;
 use App\Domain\Enum\ThreadingMethod;
 use App\Repository\MessageThreadRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -34,8 +34,8 @@ class MessageThread
     #[ORM\Column]
     private ?int $unreadCount = 0;
 
-    #[ORM\Column(nullable: true, enumType: MessageTab::class)]
-    private ?MessageTab $tab = null;
+    #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
+    private ?MessageCategory $category = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $starredAt = null;
@@ -140,14 +140,14 @@ class MessageThread
         return $this;
     }
 
-    public function getTab(): ?MessageTab
+    public function getCategory(): ?MessageCategory
     {
-        return $this->tab;
+        return $this->category;
     }
 
-    public function setTab(?MessageTab $tab): static
+    public function setCategory(?MessageCategory $category): static
     {
-        $this->tab = $tab;
+        $this->category = $category;
 
         return $this;
     }

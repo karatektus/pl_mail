@@ -30,6 +30,9 @@ class Contact
     #[ORM\Column]
     private int $frequency = 1;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isCorrespondent = false;
+
     #[ORM\Column]
     private ?DateTimeImmutable $firstSeenAt = null;
 
@@ -141,6 +144,18 @@ class Contact
     public function setUpdatedAt(DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    public function isCorrespondent(): bool
+    {
+        return $this->isCorrespondent;
+    }
+
+    public function setIsCorrespondent(bool $isCorrespondent): static
+    {
+        $this->isCorrespondent = $isCorrespondent;
+
         return $this;
     }
 

@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html class="{{ appearance_class() }}"
+      data-theme="{{ appearance_theme() }}"
+      style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Welcome!{% endblock %}</title>
@@ -35,10 +37,16 @@
         data-mail-pane-open-value="{% block pane_open %}false{% endblock %}"
     {% endif %}
 >
-{% block body %}{% endblock %}
-{% block javascripts_body %}{% endblock %}
-{% include '_partials/_modal.html.twig' %}
-<turbo-frame id="compose_dock" class="fixed bottom-4 right-6 flex items-end gap-3"></turbo-frame>
-<div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
+    {% block body %}{% endblock %}
+    {% block javascripts_body %}{% endblock %}
+    {% include '_partials/_modal.html.twig' %}
+    <turbo-frame id="compose_dock" class="fixed bottom-4 right-6 flex items-end gap-3"></turbo-frame>
+    <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
+    <script>
+        if (document.documentElement.dataset.theme === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
 </body>
 </html>

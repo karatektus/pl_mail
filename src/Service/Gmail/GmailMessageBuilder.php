@@ -114,6 +114,27 @@ final class GmailMessageBuilder
 
         $message->setFlags($flags);
 
+        // ── Headers ──────────────────────────────────────────────────────────
+
+        $rawHeaders = [];
+
+        foreach ($payload['payload']['headers'] ?? [] as $header) {
+            $name = (string) ($header['name'] ?? '');
+
+            if ('' === $name) {
+                continue;
+            }
+
+            if (true === isset($rawHeaders[$name])) {
+                $rawHeaders[$name] = array_merge((array) $rawHeaders[$name], [(string) ($header['value'] ?? '')]);
+                continue;
+            }
+
+            $rawHeaders[$name] = (string) ($header['value'] ?? '');
+        }
+
+        $message->setHeaders($rawHeaders);
+
         // ── Body + attachments ────────────────────────────────────────────────
 
         [$bodyText, $bodyHtml, $hasAttachments] = $this->extractBody(
@@ -215,7 +236,7 @@ final class GmailMessageBuilder
         if (true === isset($part['body']['attachmentId'])) {
             $partHeaders = $this->indexHeaders($part['headers'] ?? []);
             $filename = (string)($part['filename'] ?? '');
-            $hasContentId = '' !== trim((string)($partHeaders['content-id'] ?? ''), '<> ');
+            $hasContentId = '' !== trim(($partHeaders['content-id'] ?? ''), '<> ');
 
             if ('' !== $filename || true === $hasContentId) {
                 $isInline = $this->persistAttachmentStub($part, $message);

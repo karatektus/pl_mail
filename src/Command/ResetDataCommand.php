@@ -11,7 +11,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:reset',
-    description: 'Truncate all synced message data, optionally including mailbox structure',
+    description: 'Truncate all synced message data, optionally including mailbox structure and monitoring data',
 )]
 class ResetDataCommand extends Command
 {
@@ -30,6 +30,11 @@ class ResetDataCommand extends Command
         $deleteMailboxes = $io->confirm(
             'Also delete mailbox structure (folders)? If no, only messages and threads will be cleared.',
             false,
+        );
+
+        $resetMonitoring = $io->confirm(
+            'Also clear monitoring data (aggregated logs and process heartbeats)?',
+            true,
         );
 
         $io->section('Truncating tables...');
@@ -57,7 +62,7 @@ class ResetDataCommand extends Command
         $connection->executeStatement('TRUNCATE TABLE message_thread CASCADE');
         $io->text('✓ message_thread');
 
-        if ($deleteMailboxes) {
+        if (true === $deleteMailboxes) {
             $connection->executeStatement('TRUNCATE TABLE label CASCADE');
             $io->text('✓ label');
 
@@ -65,12 +70,20 @@ class ResetDataCommand extends Command
             $io->text('✓ mailbox');
         }
 
+        if (true === $resetMonitoring) {
+            $connection->executeStatement('TRUNCATE TABLE log_entry CASCADE');
+            $io->text('✓ log_entry');
+
+            $connection->executeStatement('TRUNCATE TABLE process_heartbeat CASCADE');
+            $io->text('✓ process_heartbeat');
+        }
+
         $connection->executeStatement('UPDATE account SET gmail_history_id = NULL');
         $io->text('✓ account');
         // Re-enable FK checks
         $connection->executeStatement('SET session_replication_role = DEFAULT');
 
-        $io->success('Done. Run app:imap:sync-mailboxes and app:imap:sync-messages to re-sync.');
+        $io->success('Done. Run app:mail:sync to re-sync.');
 
         return Command::SUCCESS;
     }

@@ -41,6 +41,7 @@ class ContactRepository extends ServiceEntityRepository
 
         foreach ($addresses as $addr) {
             $email = mb_strtolower(trim($addr['email'] ?? ''));
+            $isCorrespondent = (bool) ($addr['correspondent'] ?? false);
 
             if ($email === '') {
                 continue;
@@ -55,25 +56,29 @@ class ContactRepository extends ServiceEntityRepository
 
             $conn->executeStatement(
                 <<<'SQL'
-                INSERT INTO contact (usr_id, email, display_name, frequency, first_seen_at, last_seen_at, created_at, updated_at)
-                VALUES (:userId, :email, :name, 1, :now, :now, :now, :now)
+                INSERT INTO contact (usr_id, email, display_name, frequency, first_seen_at, last_seen_at, created_at, updated_at, is_correspondent)
+                VALUES (:userId, :email, :name, 1, :now, :now, :now, :now, :isCorrespondent)
                 ON CONFLICT (usr_id, email) DO UPDATE
                     SET frequency    = contact.frequency + 1,
+                        is_correspondent = contact.is_correspondent OR EXCLUDED.is_correspondent,
                         last_seen_at = :now,
                         updated_at   = :now,
                         display_name = COALESCE(NULLIF(:name, ''), contact.display_name)
+
                 SQL,
                 [
                     'userId' => $userId,
                     'email'  => $email,
                     'name'   => $name,
                     'now'    => $now,
+                    'isCorrespondent' => $isCorrespondent,
                 ],
                 [
                     'userId' => Types::INTEGER,
                     'email'  => Types::STRING,
                     'name'   => Types::STRING,
                     'now'    => Types::DATETIME_IMMUTABLE,
+                    'isCorrespondent' => Types::BOOLEAN,
                 ]
             );
         }
@@ -106,5 +111,25 @@ class ContactRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
+
+    /** @return array<string,true> normalised correspondent emails as a set */
+    public function findCorrespondentEmails(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.email')
+            ->where('c.usr = :user')
+            ->andWhere('c.isCorrespondent = true')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getScalarResult();
+
+        $set = [];
+
+        foreach ($rows as $row) {
+            $set[mb_strtolower(trim((string) $row['email']))] = true;
+        }
+
+        return $set;
     }
 }

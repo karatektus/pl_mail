@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Domain\Model\UserEntityModel;
+use App\Entity\Embeddable\Appearance;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -31,6 +32,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column]
     private array $roles = [];
 
+    #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
+    public private(set) Appearance $appearance;
     /**
      * The hashed password
      */
@@ -70,6 +73,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->setUpdatedAt(new \DateTimeImmutable());
         $this->setDeletedAt(null);
         $this->accounts = new ArrayCollection();
+        $this->appearance = new Appearance();
     }
 
 

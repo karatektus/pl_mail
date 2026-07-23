@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Test;
 
 use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageTab;
+use App\Domain\Enum\MessageCategory;
 use App\Domain\Enum\ThreadingMethod;
 use App\Entity\Account;
 use App\Entity\Message;
@@ -153,7 +153,7 @@ final class SeedTestEmailCommand extends Command
                 ->setThreadingMethod(ThreadingMethod::SubjectFallback)
                 ->setMessageCount(1)
                 ->setUnreadCount(true === $unread ? 1 : 0)
-                ->setTab(MessageTab::Primary)
+                ->setCategory(MessageCategory::Primary)
                 ->setAttachmentCount(0)
                 ->setLastMessageAt($receivedAt)
                 ->addLabel($inboxLabel);

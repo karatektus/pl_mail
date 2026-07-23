@@ -102,8 +102,6 @@ header:
         none: No labels yet
     search:
         placeholder: Search mail…
-    theme:
-        toggle: Toggle dark mode
     user_menu:
         label: User menu for %email%
         signed_in_as: Signed in as
@@ -259,6 +257,7 @@ settings:
         accounts: Mail accounts
         general: General
         labels: Labels
+        appearance: Appearance
     accounts:
         primary: Primary
         reorder: Drag to reorder
@@ -277,6 +276,37 @@ settings:
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
+    appearance:
+        theme:
+            heading: Theme
+            subheading: Colour scheme for the whole interface.
+            system: System
+            light: Light
+            dark: Dark
+            nord: Nord
+            dusk: Dusk
+            solar: Solar
+        glass:
+            heading: Glass
+            subheading: How much of the background shows through your panels.
+            paneAlpha: Opacity
+            paneBlur: Blur
+            radius: Corner radius
+            scrimAlpha: Background dimming
+        accent:
+            heading: Accent colour
+        density:
+            heading: Density
+            comfortable: Comfortable
+            cosy: Cosy
+            compact: Compact
+        background:
+            heading: Background
+            theme: Theme default
+            upload: Upload image
+        export: Export theme
+        import: Import theme
+        reset: Reset to defaults
 label:
     empty: No conversations with this label.
     menu:

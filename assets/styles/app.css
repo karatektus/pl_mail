@@ -3,69 +3,185 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* ═══ Palette channels + runtime knobs ══════════════════════════════════════
+   Unlayered on purpose: these are variable definitions, not utilities, and
+   unlayered declarations outrank Tailwind's cascade layers.
+   Channels are stored as space-separated RGB triplets so alpha stays
+   composable via rgb(var(--x) / <alpha>).
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+    --rgb-surface:      255 255 255;
+    --rgb-border:       255 255 255;
+    --rgb-line:           0   0   0;
+    --rgb-raised:         0   0   0;
+    --rgb-ink:           39  39  42;
+    --rgb-ink-muted:    113 113 122;
+    --rgb-ink-faint:    161 161 170;
+    --rgb-accent:        37  99 235;
+    --rgb-accent-ink:   255 255 255;
+    --rgb-shadow:         0   0   0;
+
+    --border-alpha: 0.6;
+    --line-alpha:   0.06;
+    --raised-alpha: 0.04;
+    --hover-alpha:  0.03;
+    --shadow-alpha: 0.05;
+
+    --app-bg: linear-gradient(to bottom right, #eff6ff, #f1f5f9, #e0e7ff);
+    --scrim-alpha: 0;
+
+    /* user-tunable — overwritten inline on <html> by AppearanceRenderer */
+    --pane-alpha:    0.7;
+    --pane-blur:     24px;
+    --app-radius:    1rem;
+    --density-row-y: 0.875rem;
+    --density-gap:   0.75rem;
+}
+
+.dark {
+    --rgb-surface:      17  24  39;
+    --rgb-border:      255 255 255;
+    --rgb-line:        255 255 255;
+    --rgb-raised:      255 255 255;
+    --rgb-ink:         244 244 245;
+    --rgb-ink-muted:   161 161 170;
+    --rgb-ink-faint:   113 113 122;
+
+    --border-alpha: 0.1;
+    --line-alpha:   0.1;
+    --raised-alpha: 0.06;
+    --hover-alpha:  0.04;
+    --shadow-alpha: 0.3;
+
+    --app-bg: linear-gradient(to bottom right, #020617, #0f172a, #1e1b4b);
+}
+
+/* Theme blocks come AFTER .dark so they win at equal specificity. */
+[data-theme="nord"] {
+    --rgb-surface:    46  52  64;
+    --rgb-ink:       236 239 244;
+    --rgb-ink-muted: 216 222 233;
+    --rgb-ink-faint: 143 158 179;
+    --app-bg: linear-gradient(to bottom right, #2e3440, #3b4252, #434c5e);
+}
+
+[data-theme="dusk"] {
+    --rgb-surface:    30  27  46;
+    --rgb-ink:       237 233 254;
+    --rgb-ink-muted: 196 181 253;
+    --rgb-ink-faint: 139 125 191;
+    --app-bg: linear-gradient(to bottom right, #14101f, #1e1b2e, #2d1b4e);
+}
+
+[data-theme="solar"] {
+    --rgb-surface:   253 246 227;
+    --rgb-ink:        88 110 117;
+    --rgb-ink-muted: 101 123 131;
+    --rgb-ink-faint: 147 161 161;
+    --app-bg: linear-gradient(to bottom right, #fdf6e3, #eee8d5, #f5e6c8);
+}
+
+/* Accessibility: never force glass on people who opted out. */
+@media (prefers-reduced-transparency: reduce) {
+    :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; }
+}
+
+/* ═══ Semantic tokens → Tailwind utilities ══════════════════════════════════
+   `inline` is required: it bakes rgb(var(--rgb-*)) into each utility so the
+   utility re-resolves when a theme block changes the channel.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@theme inline {
+    --color-surface:      rgb(var(--rgb-surface));
+    --color-line:         rgb(var(--rgb-line) / var(--line-alpha));
+    --color-raised:       rgb(var(--rgb-raised) / var(--raised-alpha));
+    --color-hover:        rgb(var(--rgb-raised) / var(--hover-alpha));
+    --color-ink:          rgb(var(--rgb-ink));
+    --color-ink-muted:    rgb(var(--rgb-ink-muted));
+    --color-ink-faint:    rgb(var(--rgb-ink-faint));
+    --color-accent:       rgb(var(--rgb-accent));
+    --color-accent-strong: color-mix(in oklab, rgb(var(--rgb-accent)) 85%, black);
+    --color-accent-soft:  rgb(var(--rgb-accent) / 0.1);
+    --color-accent-ink:   rgb(var(--rgb-accent-ink));
+
+    --radius-pane: var(--app-radius);
+    --spacing-row: var(--density-row-y);
+    --spacing-gutter: var(--density-gap);
+}
+
+/* ═══ Composed utilities ═══════════════════════════════════════════════════ */
+@utility pane {
+    background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
+    backdrop-filter: blur(var(--pane-blur));
+    -webkit-backdrop-filter: blur(var(--pane-blur));
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: var(--app-radius);
+    box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
+    0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
+}
+
+@utility pane-flat {
+    background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
+    backdrop-filter: blur(var(--pane-blur));
+    -webkit-backdrop-filter: blur(var(--pane-blur));
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: var(--app-radius);
+}
+
+@utility app-bg {
+    position: relative;
+    background-image: var(--app-bg);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-color: rgb(0 0 0 / var(--scrim-alpha));
+    }
+
+    & > * {
+        position: relative;
+    }
+}
+
+@utility row-y {
+    padding-block: var(--density-row-y);
+}
+
 @layer utilities {
     .compose-address-row {
         display: flex;
         align-items: center;
-        gap: 0.5rem;      /* gap-2 */
-        padding: 0.375rem 1rem; /* py-1.5 px-4 */
+        gap: 0.5rem;
+        padding: 0.375rem 1rem;
         flex-shrink: 0;
         min-height: 36px;
     }
 
     .compose-field-label {
-        font-size: 0.75rem;   /* text-xs */
+        font-size: 0.75rem;
         font-weight: 500;
-        color: rgb(156 163 175);  /* gray-400 */
-        width: 2.5rem;            /* w-10 */
+        color: rgb(var(--rgb-ink-faint));
+        width: 2.5rem;
         flex-shrink: 0;
         text-align: right;
     }
 }
 
-:where(.dark, .dark *) .compose-field-label {
-    color: rgb(107 114 128); /* gray-500 */
-}
-/* ── Scrollbars ─────────────────────────────────────────────────────────────
-   Webkit (Chrome, Safari, Edge): thin track, rounded thumb.
-   Firefox: scrollbar-color shorthand.
-   Both themes are covered; the dark overrides kick in when .dark is on <html>.
-   ────────────────────────────────────────────────────────────────────────── */
-
-/* Light theme */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
+/* ═══ Scrollbars — now token-driven ════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background-color: rgb(203 213 225 / 0.8); /* slate-300 */
+    background-color: rgb(var(--rgb-ink) / 0.2);
     border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(148 163 184 / 0.9); /* slate-400 */
-}
-::-webkit-scrollbar-corner {
-    background: transparent;
-}
+::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--rgb-ink) / 0.35); }
+::-webkit-scrollbar-corner { background: transparent; }
 
-/* Firefox — light */
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(203 213 225 / 0.8) transparent;
-}
-
-/* Dark theme */
-.dark ::-webkit-scrollbar-thumb {
-    background-color: rgb(51 65 85 / 0.8); /* slate-700 */
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(71 85 105 / 0.9); /* slate-600 */
-}
-
-/* Firefox — dark */
-.dark * {
-    scrollbar-color: rgb(51 65 85 / 0.8) transparent;
+    scrollbar-color: rgb(var(--rgb-ink) / 0.2) transparent;
 }

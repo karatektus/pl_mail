@@ -2,7 +2,7 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Enum\MessageTab;
+use App\Domain\Enum\MessageCategory;
 use App\Domain\Enum\ThreadingMethod;
 use App\Entity\Account;
 use App\Entity\Message;
@@ -140,7 +140,7 @@ final class MessageThreader
             ->setThreadingMethod($threadingMethod)
             ->setMessageCount(0)
             ->setUnreadCount(0)
-            ->setTab(MessageTab::Primary)
+            ->setCategory(MessageCategory::Primary)
             ->setAttachmentCount(0);
 
         $this->entityManager->persist($thread);
@@ -168,11 +168,15 @@ final class MessageThreader
 
         $receivedAt = $message->getReceivedAt();
 
-        if (null !== $receivedAt ) {
+        if (null !== $receivedAt) {
             $currentLastMessageAt = $thread->getLastMessageAt();
 
-            if (null !== $currentLastMessageAt || $receivedAt > $currentLastMessageAt) {
+            if (null === $currentLastMessageAt || $receivedAt > $currentLastMessageAt) {
                 $thread->setLastMessageAt($receivedAt);
+
+                if (null !== $message->getCategory()) {
+                    $thread->setCategory($message->getCategory());
+                }
             }
         }
     }

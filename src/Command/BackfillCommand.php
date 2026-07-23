@@ -16,11 +16,16 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 /**
  * One-off backfills against existing data.
  *
- * Data is disposable, but some regenerations (like the sanitized HTML body)
- * are far cheaper than a full delete-and-resync — this is where they live.
+ * Data is disposable, but some regenerations (like the sanitized HTML body or
+ * message categories) are far cheaper than a full delete-and-resync — this is
+ * where they live.
  *
  * Adding a task: implement BackfillTaskInterface. It is auto-tagged and picked
- * up here with no config. Run `app:backfill` with no argument to list them.
+ * up here with no config.
+ *
+ * Run `app:backfill` with no argument to pick a task from a list; pass the task
+ * name to run it directly. Under --no-interaction (CI, cron) the argument is
+ * required, since there is no one to answer the prompt.
  */
 #[AsCommand(
     name: 'app:backfill',
@@ -43,13 +48,15 @@ final class BackfillCommand extends Command
         foreach ($tasks as $task) {
             $this->tasks[$task->getName()] = $task;
         }
+
+        ksort($this->tasks);
     }
 
     protected function configure(): void
     {
         $this
             ->addArgument('task', InputArgument::OPTIONAL, 'The backfill task to run')
-            ->setHelp('Run "app:backfill" with no argument to list available tasks.');
+            ->setHelp('Run "app:backfill" with no argument to choose a task interactively.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -57,10 +64,18 @@ final class BackfillCommand extends Command
         $io   = new SymfonyStyle($input, $output);
         $name = $input->getArgument('task');
 
-        if (null === $name) {
-            $this->listTasks($io);
+        if (count($this->tasks) === 0) {
+            $io->warning('No backfill tasks are registered.');
 
             return Command::SUCCESS;
+        }
+
+        if (null === $name) {
+            $name = $this->askForTask($io, $input);
+
+            if (null === $name) {
+                return Command::FAILURE;
+            }
         }
 
         if (false === isset($this->tasks[$name])) {
@@ -79,15 +94,49 @@ final class BackfillCommand extends Command
         return $task->run($io);
     }
 
-    private function listTasks(SymfonyStyle $io): void
+    /**
+     * Present the registered tasks as a numbered choice. The choice list shows
+     * "name — description" so the listing and the picker are the same view;
+     * the leading name is split back off the answer.
+     */
+    private function askForTask(SymfonyStyle $io, InputInterface $input): ?string
     {
-        if (count($this->tasks) === 0) {
-            $io->warning('No backfill tasks are registered.');
+        if (false === $input->isInteractive()) {
+            $io->error('No task given and the terminal is non-interactive.');
+            $this->listTasks($io);
 
-            return;
+            return null;
+        }
+
+        $choices = [];
+
+        foreach ($this->tasks as $taskName => $task) {
+            $choices[$taskName] = sprintf('%s — %s', $taskName, $task->getDescription());
         }
 
         $io->title('Available backfill tasks');
+
+        $answer = $io->choice('Which backfill task should run?', $choices);
+
+        // SymfonyStyle::choice returns the KEY when the choices are an
+        // associative array, but older/edge paths can return the label —
+        // accept either so the picker cannot break on a Console upgrade.
+        if (true === isset($this->tasks[$answer])) {
+            return $answer;
+        }
+
+        $key = array_search($answer, $choices, true);
+
+        if (false === $key) {
+            return null;
+        }
+
+        return (string) $key;
+    }
+
+    private function listTasks(SymfonyStyle $io): void
+    {
+        $io->text('Available tasks:');
         $io->listing(array_map(
             static fn(BackfillTaskInterface $task): string => sprintf('%s — %s', $task->getName(), $task->getDescription()),
             array_values($this->tasks),

@@ -9,6 +9,7 @@ use App\Entity\Account;
 use App\Entity\Message;
 use App\Message\SyncGmailMessageBatchMessage;
 use App\Repository\AccountRepository;
+use App\Repository\ContactRepository;
 use App\Repository\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailMessageBuilder;
@@ -16,6 +17,7 @@ use App\Service\HarvestContactsService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\SyncNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -32,10 +34,12 @@ final readonly class SyncGmailMessageBatchHandler
     public function __construct(
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
+        private ContactRepository      $contactRepository,
         private GmailApiClient         $apiClient,
         private GmailMessageBuilder    $messageBuilder,
         private GmailAddressFilter     $addressFilter,
         private MessageThreader        $messageThreader,
+        private MessageCategorizer     $categorizer,
         private HarvestContactsService $harvestService,
         private SyncNotifier           $syncNotifier,
         private MessageBusInterface    $bus,
@@ -186,10 +190,12 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->em->flush();
 
+        $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
 
         foreach ($built as $item) {
             $this->sanitizer->sanitize($item['message']);
 
+            $item['message']->setCategory($this->categorizer->categorize($item['message'], $correspondents));
             try {
                 $this->messageThreader->assignThread($item['message'], $item['account']);
             } catch (\Throwable $e) {
@@ -206,6 +212,7 @@ final readonly class SyncGmailMessageBatchHandler
             $this->harvestService->harvestMessages(
                 $account->getUsr(),
                 array_column($built, 'message'),
+                $account->getEmail()
             );
         }
 

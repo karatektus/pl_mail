@@ -1,0 +1,163 @@
+{% set a = appearance() %}
+
+<div class="space-y-8"
+     data-controller="appearance"
+     data-appearance-update-url-value="{{ path('app_appearance_update') }}"
+     data-appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
+     data-appearance-import-url-value="{{ path('app_appearance_import') }}"
+     data-appearance-reset-url-value="{{ path('app_appearance_reset') }}">
+
+    {# ── Theme ─────────────────────────────────────────────────────────── #}
+    <section>
+        <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h2>
+        <p class="text-xs text-ink-faint mt-0.5 mb-4">{{ 'settings.appearance.theme.subheading'|trans }}</p>
+
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {% for theme in enum('App\\Enum\\Theme').cases %}
+                {% set swatch = theme.swatch %}
+                <button type="button"
+                        data-theme="{{ theme.value }}"
+                        data-dark="{{ theme.isDark ? '1' : '0' }}"
+                        data-action="click->appearance#pickTheme"
+                        class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
+                               {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">
+                    <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
+                          style="background:{{ swatch[0] }}">
+                        <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
+                        <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
+                    </span>
+                    <span class="text-[11px] text-ink-muted">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
+                </button>
+            {% endfor %}
+        </div>
+        <input type="hidden" data-appearance-field="theme" value="{{ a.theme.value }}">
+    </section>
+
+    {# ── Glass ─────────────────────────────────────────────────────────── #}
+    <section class="space-y-5">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
+        </div>
+
+        {% set sliders = [
+            { field: 'paneAlpha', var: '--pane-alpha', suffix: '', min: 0.15, max: 1,   step: 0.01, value: a.paneAlpha },
+            { field: 'paneBlur',  var: '--pane-blur',  suffix: 'px', min: 0,  max: 60,  step: 1,    value: a.paneBlur },
+            { field: 'radius',    var: '--app-radius', suffix: 'rem', min: 0, max: 2,   step: 0.125, value: a.radius },
+            { field: 'scrimAlpha', var: '--scrim-alpha', suffix: '', min: 0, max: 0.7, step: 0.05, value: a.scrimAlpha },
+        ] %}
+
+        {% for slider in sliders %}
+            <label class="block">
+                <span class="text-xs font-medium text-ink-muted">{{ ('settings.appearance.glass.' ~ slider.field)|trans }}</span>
+                <input type="range"
+                       min="{{ slider.min }}" max="{{ slider.max }}" step="{{ slider.step }}"
+                       value="{{ slider.value }}"
+                       data-appearance-field="{{ slider.field }}"
+                       data-css-variable="{{ slider.var }}"
+                       data-css-suffix="{{ slider.suffix }}"
+                       data-action="input->appearance#slide"
+                       class="w-full mt-2 accent-accent cursor-pointer">
+            </label>
+        {% endfor %}
+    </section>
+
+    {# ── Accent ────────────────────────────────────────────────────────── #}
+    <section>
+        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.accent.heading'|trans }}</h2>
+        <div class="flex items-center gap-2 flex-wrap">
+            {% for hex in ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#dc2626'] %}
+                <button type="button"
+                        data-accent="{{ hex }}"
+                        data-action="click->appearance#pickAccent"
+                        class="w-7 h-7 rounded-full border border-line cursor-pointer hover:scale-110 transition-transform"
+                        style="background:{{ hex }}"></button>
+            {% endfor %}
+            <input type="color"
+                   value="{{ a.accent }}"
+                   data-appearance-target="accent"
+                   data-appearance-field="accent"
+                   data-action="input->appearance#pickAccent"
+                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+        </div>
+    </section>
+
+    {# ── Density ───────────────────────────────────────────────────────── #}
+    <section>
+        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.density.heading'|trans }}</h2>
+        <div class="inline-flex rounded-pane border border-line overflow-hidden">
+            {% for density in enum('App\\Enum\\Density').cases %}
+                <label class="cursor-pointer">
+                    <input type="radio" name="density" class="peer sr-only"
+                           value="{{ density.value }}"
+                           data-appearance-field="density"
+                           data-row-y="{{ density.rowPadding }}"
+                           data-gap="{{ density.gap }}"
+                           data-action="change->appearance#pickDensity"
+                        {{ a.density == density ? 'checked' : '' }}>
+                    <span class="block px-4 py-2 text-sm text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
+                        {{ ('settings.appearance.density.' ~ density.value)|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Background ────────────────────────────────────────────────────── #}
+    <section>
+        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.background.heading'|trans }}</h2>
+
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
+            <label class="cursor-pointer">
+                <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
+                       data-appearance-field="backgroundKind"
+                       data-action="change->appearance#pickBackground"
+                    {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
+                <span class="flex items-center justify-center h-16 rounded-pane border border-line text-xs text-ink-muted peer-checked:ring-2 peer-checked:ring-accent app-bg">
+                    {{ 'settings.appearance.background.theme'|trans }}
+                </span>
+            </label>
+
+            {% for preset in enum('App\\Enum\\BackgroundPreset').cases %}
+                <label class="cursor-pointer">
+                    <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
+                           data-appearance-field="backgroundPreset"
+                           data-action="change->appearance#pickBackground"
+                        {{ a.backgroundPreset == preset ? 'checked' : '' }}>
+                    <span class="block h-16 rounded-pane border border-line bg-cover bg-center peer-checked:ring-2 peer-checked:ring-accent"
+                          style="background-image:url('{{ asset(preset.thumbnail) }}')"></span>
+                </label>
+            {% endfor %}
+        </div>
+
+        <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+            <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
+            {{ 'settings.appearance.background.upload'|trans }}
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
+                   data-appearance-target="uploadInput"
+                   data-action="change->appearance#upload">
+        </label>
+    </section>
+
+    {# ── Import / export ───────────────────────────────────────────────── #}
+    <section class="flex items-center gap-2 pt-4 border-t border-line">
+        <a href="{{ path('app_appearance_export') }}"
+           class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover transition-colors">
+            <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+            {{ 'settings.appearance.export'|trans }}
+        </a>
+
+        <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>
+            {{ 'settings.appearance.import'|trans }}
+            <input type="file" accept="application/json" class="sr-only"
+                   data-appearance-target="importInput"
+                   data-action="change->appearance#importFile">
+        </label>
+
+        <button type="button" data-action="click->appearance#reset"
+                class="ml-auto text-xs text-ink-faint hover:text-ink-muted cursor-pointer transition-colors">
+            {{ 'settings.appearance.reset'|trans }}
+        </button>
+    </section>
+</div>

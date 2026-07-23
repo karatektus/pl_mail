@@ -31,6 +31,7 @@ final readonly class HarvestContactsService
         $total = $this->upsertFromMessages(
             $user,
             $this->messageRepository->iterateForAccount($account),
+            $account->getEmail()
         );
 
         $this->logger->info('HarvestContactsService: account done', [
@@ -44,32 +45,35 @@ final readonly class HarvestContactsService
     /**
      * @param list<Message> $messages
      */
-    public function harvestMessages(User $user, array $messages): int
+    public function harvestMessages(User $user, array $messages, string $ownAddress): int
     {
-        return $this->upsertFromMessages($user, $messages);
+        return $this->upsertFromMessages($user, $messages, $ownAddress);
     }
 
     /**
      * @param iterable<Message> $messages
      */
-    private function upsertFromMessages(User $user, iterable $messages): int
+    private function upsertFromMessages(User $user, iterable $messages, string $ownAddress): int
     {
         $batch = [];
         $total = 0;
 
         foreach ($messages as $msg) {
+            $isOutbound = '' !== $ownAddress
+                && mb_strtolower(trim((string) $msg->getFromAddress())) === $ownAddress;
+
             if ($msg->getFromAddress() !== null && $msg->getFromAddress() !== '') {
-                $batch[] = ['email' => $msg->getFromAddress(), 'name' => $msg->getFromName()];
+                $batch[] = ['email' => $msg->getFromAddress(), 'name' => $msg->getFromName(), 'correspondent' => false];
             }
 
             foreach ([$msg->getToAddresses(), $msg->getCcAddresses(), $msg->getBccAddresses()] as $group) {
-                if ($group === null) {
+                if (null === $group) {
                     continue;
                 }
 
                 foreach ($group as $addr) {
-                    if (isset($addr['address']) && $addr['address'] !== '') {
-                        $batch[] = ['email' => $addr['address'], 'name' => $addr['name'] ?? null];
+                    if (true === isset($addr['address']) && '' !== $addr['address']) {
+                        $batch[] = ['email' => $addr['address'], 'name' => $addr['name'] ?? null, 'correspondent' => $isOutbound];
                     }
                 }
             }

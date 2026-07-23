@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Domain\Enum\MessageCategory;
 use App\Domain\Model\MessageModel;
 use App\Repository\MessageRepository;
 use DateTimeImmutable;
@@ -27,6 +28,9 @@ class Message extends MessageModel
     #[ORM\JoinColumn(nullable: true)]
     private ?Mailbox $mailbox = null;
 
+    #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
+    private ?MessageCategory $category = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $imapUid = null;
 
@@ -37,15 +41,15 @@ class Message extends MessageModel
     private ?string $gmailId = null;
 
     /**
-     * Raw Gmail label IDs (e.g. ["INBOX", "UNREAD", "STARRED", "Label_123"]).
-     * Stored so the UI can show label state without re-fetching from the API,
-     * and so flag-sync can mutate labels rather than moving IMAP folders.
-     *
      * @var list<string>|null
      */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $gmailLabelIds = null;
-
+    /**
+     * @var array<string,string|list<string>>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $headers = null;
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $subject = null;
 
@@ -580,5 +584,31 @@ class Message extends MessageModel
     public function getAccount(): Account
     {
         return $this->account;
+    }
+
+    public function getCategory(): ?MessageCategory
+    {
+        return $this->category;
+    }
+
+    public function setCategory(?MessageCategory $category): static
+    {
+        $this->category = $category;
+
+        return $this;
+    }
+
+    /** @return array<string,string>|null */
+    public function getHeaders(): ?array
+    {
+        return $this->headers;
+    }
+
+    /** @param array<string,string>|null $headers */
+    public function setHeaders(?array $headers): static
+    {
+        $this->headers = $headers;
+
+        return $this;
     }
 }

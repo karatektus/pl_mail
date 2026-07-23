@@ -7,9 +7,11 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MessageCategorizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -28,6 +30,8 @@ class MessageSyncer
         private readonly MessageThreader         $messageThreader,
         private readonly MessageRepository       $messageRepository,
         private readonly MailBodySanitizer       $sanitizer,
+        private readonly MessageCategorizer      $categorizer,
+        private readonly ContactRepository       $contactRepository,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -148,9 +152,11 @@ class MessageSyncer
         // Flush so all new messages have IDs before the threader queries them
         $this->em->flush();
 
+        $correspondents = $this->contactRepository->findCorrespondentEmails($mailbox->getAccount()->getUsr());
         // Pass 2 — assign threads now that all messages exist in DB
         foreach ($messages as $message) {
             $this->sanitizer->sanitize($message);
+            $message->setCategory($this->categorizer->categorize($message, $correspondents));
             try {
                 $this->messageThreader->assignThread(
                     $message,
@@ -229,6 +235,19 @@ class MessageSyncer
             $references->exist() ? explode(' ', trim((string) $references)) : []
         );
 
+        // Headers
+        $rawHeaders = [];
+
+        foreach ($imapMessage->getHeader()->getAttributes() as $name => $attribute) {
+            $values = $attribute->toArray();
+
+            $rawHeaders[(string) $name] = count($values) === 1
+                ? (string) reset($values)
+                : array_map(static fn($v): string => (string) $v, $values);
+        }
+
+        $message->setHeaders($rawHeaders);
+
         // Body
         $message->setBodyText($imapMessage->getTextBody() ?? '');
         $message->setBodyHtml($imapMessage->getHTMLBody() ?? '');
@@ -241,6 +260,7 @@ class MessageSyncer
         foreach ($attachments as $attachment) {
             $this->persistAttachment($attachment, $message, $accountId);
         }
+
 
         return $message;
     }

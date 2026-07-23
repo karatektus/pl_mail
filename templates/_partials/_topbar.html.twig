@@ -88,22 +88,6 @@
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
-
-        <button id="theme-toggle"
-                class="p-2 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
-                aria-label="{{ 'header.theme.toggle'|trans }}"
-                title="{{ 'header.theme.toggle'|trans }}">
-            <i id="icon-moon" class="fa-solid fa-moon text-sm hidden" aria-hidden="true"></i>
-            <i id="icon-sun"  class="fa-solid fa-sun  text-sm hidden" aria-hidden="true"></i>
-        </button>
-        <script>
-            (function() {
-                const dark = document.documentElement.classList.contains('dark');
-                document.getElementById('icon-moon').classList.toggle('hidden', dark);
-                document.getElementById('icon-sun').classList.toggle('hidden', !dark);
-            })();
-        </script>
-
         {# User menu #}
         <div class="relative ml-1">
             <button id="user-menu-btn"

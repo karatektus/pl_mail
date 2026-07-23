@@ -33,8 +33,7 @@ class MessageRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('m')
             ->select('m.gmailId')
-            ->innerJoin('m.thread', 't')
-            ->innerJoin('t.account', 'a')
+            ->innerJoin('m.account', 'a')
             ->where('a.usr = :usr')
             ->andWhere('m.gmailId IS NOT NULL')
             ->setParameter('usr', $user)
@@ -166,5 +165,19 @@ class MessageRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /** @return iterable<Message> */
+    public function iterateForRecategorization(Account $account, bool $includeCategorized): iterable
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->setParameter('account', $account);
+
+        if (false === $includeCategorized) {
+            $qb->andWhere('m.category IS NULL');
+        }
+
+        return $qb->getQuery()->toIterable();
     }
 }

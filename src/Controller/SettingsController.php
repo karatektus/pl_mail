@@ -16,7 +16,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels'];
+    private const array SECTIONS = ['accounts', 'labels', 'appearance'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
