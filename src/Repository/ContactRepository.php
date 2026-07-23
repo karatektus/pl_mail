@@ -132,4 +132,75 @@ class ContactRepository extends ServiceEntityRepository
 
         return $set;
     }
+
+    /**
+     * @param string[] $emails
+     *
+     * @return array<string, Contact> lowercase email => contact
+     */
+    public function findByEmailsForUser(UserInterface $user, array $emails): array
+    {
+        if (count($emails) === 0) {
+            return [];
+        }
+
+        $contacts = $this->createQueryBuilder('c')
+            ->where('c.usr = :user')
+            ->andWhere('LOWER(c.email) IN (:emails)')
+            ->setParameter('user', $user)
+            ->setParameter('emails', array_map(mb_strtolower(...), $emails))
+            ->getQuery()
+            ->getResult();
+
+        $indexed = [];
+
+        foreach ($contacts as $contact) {
+            $indexed[mb_strtolower((string) $contact->getEmail())] = $contact;
+        }
+
+        return $indexed;
+    }
+
+    /**
+     * Insert placeholder contacts for addresses typed into a draft but never
+     * sent to. frequency 0 keeps them out of the ranked suggestions until a
+     * real send (or a sync) promotes them via upsertBatch().
+     *
+     * @param string[] $emails
+     */
+    public function createUnsent(User $user, array $emails): void
+    {
+        if (count($emails) === 0) {
+            return;
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $now  = new DateTimeImmutable();
+
+        foreach ($emails as $email) {
+            $email = mb_strtolower(trim($email));
+
+            if ($email === '') {
+                continue;
+            }
+
+            $conn->executeStatement(
+                <<<'SQL'
+            INSERT INTO contact (usr_id, email, display_name, frequency, first_seen_at, last_seen_at, created_at, updated_at)
+            VALUES (:userId, :email, NULL, 0, :now, :now, :now, :now)
+            ON CONFLICT (usr_id, email) DO NOTHING
+            SQL,
+                [
+                    'userId' => $user->getId(),
+                    'email'  => $email,
+                    'now'    => $now,
+                ],
+                [
+                    'userId' => Types::INTEGER,
+                    'email'  => Types::STRING,
+                    'now'    => Types::DATETIME_IMMUTABLE,
+                ],
+            );
+        }
+    }
 }

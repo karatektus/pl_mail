@@ -100,7 +100,7 @@ final class MessageThreader
         return array_values(array_unique($ids));
     }
 
-    private function normalizeSubject(?string $subject): string
+    public function normalizeSubject(?string $subject): string
     {
         if ($subject === null) {
             return '';
@@ -120,6 +120,27 @@ final class MessageThreader
         $normalized = mb_strtolower(trim($normalized));
 
         return $normalized;
+    }
+    /**
+     * Keep a single-message draft thread's subject in step with the draft.
+     * No-op once the thread holds anything else — a reply draft must never
+     * rename the conversation it hangs off.
+     */
+    public function resyncDraftThreadSubject(Message $message): void
+    {
+        $thread = $message->getThread();
+
+        if (null === $thread) {
+            return;
+        }
+
+        if ($thread->getMessageCount() > 1) {
+            return;
+        }
+
+        $thread
+            ->setSubject($message->getSubject())
+            ->setNormalizedSubject($this->normalizeSubject($message->getSubject()));
     }
 
     private function participantsOverlap(Message $message, MessageThread $thread): bool
@@ -147,7 +168,6 @@ final class MessageThreader
 
         return $thread;
     }
-
     private function attachMessageToThread(Message $message, MessageThread $thread): void
     {
         $message->setThread($thread);
@@ -166,17 +186,15 @@ final class MessageThreader
             $thread->setAttachmentCount($thread->getAttachmentCount() + 1);
         }
 
-        $receivedAt = $message->getReceivedAt();
+        $occurredAt = $message->getReceivedAt()
+            ?? $message->getSentAt()
+            ?? $message->getCreatedAt();
 
-        if (null !== $receivedAt) {
+        if (null !== $occurredAt) {
             $currentLastMessageAt = $thread->getLastMessageAt();
 
-            if (null === $currentLastMessageAt || $receivedAt > $currentLastMessageAt) {
-                $thread->setLastMessageAt($receivedAt);
-
-                if (null !== $message->getCategory()) {
-                    $thread->setCategory($message->getCategory());
-                }
+            if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
+                $thread->setLastMessageAt($occurredAt);
             }
         }
     }

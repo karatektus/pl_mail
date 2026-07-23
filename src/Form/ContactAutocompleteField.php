@@ -3,7 +3,12 @@
 namespace App\Form;
 
 use App\Entity\Contact;
+use App\Repository\ContactRepository;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Event\PreSubmitEvent;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\UX\Autocomplete\Form\AsEntityAutocompleteField;
 use Symfony\UX\Autocomplete\Form\BaseEntityAutocompleteType;
@@ -11,6 +16,84 @@ use Symfony\UX\Autocomplete\Form\BaseEntityAutocompleteType;
 #[AsEntityAutocompleteField]
 class ContactAutocompleteField extends AbstractType
 {
+    public function __construct(
+        private readonly ContactRepository $contactRepository,
+        private readonly Security          $security,
+    ) {
+    }
+
+    public function buildForm(FormBuilderInterface $builder, array $options): void
+    {
+        // allow_options_create only enables the "Add …" row client-side. The
+        // bundle submits entity IDs, so a created option arrives as the raw
+        // typed address and the choice loader rejects it. Materialise a
+        // Contact first and hand the loader the id it expects.
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, $this->resolveCreatedOptions(...));
+    }
+
+    private function resolveCreatedOptions(PreSubmitEvent $event): void
+    {
+        $submitted = $event->getData();
+
+        if (false === is_array($submitted)) {
+            return;
+        }
+
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return;
+        }
+
+        $typed = [];
+
+        foreach ($submitted as $value) {
+            if (true === is_numeric($value)) {
+                continue;
+            }
+
+            $email = mb_strtolower(trim((string) $value));
+
+            if (false === (bool) filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            $typed[$email] = $email;
+        }
+
+        if (count($typed) === 0) {
+            return;
+        }
+
+        $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($typed));
+        $missing  = array_values(array_diff(array_keys($typed), array_keys($contacts)));
+
+        if (count($missing) > 0) {
+            $this->contactRepository->createUnsent($user, $missing);
+            $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($typed));
+        }
+
+        $resolved = [];
+
+        foreach ($submitted as $value) {
+            if (true === is_numeric($value)) {
+                $resolved[] = $value;
+
+                continue;
+            }
+
+            $email = mb_strtolower(trim((string) $value));
+
+            // Anything that still doesn't resolve was not a valid address —
+            // dropping it here beats failing the whole form on one typo.
+            if (true === array_key_exists($email, $contacts)) {
+                $resolved[] = (string) $contacts[$email]->getId();
+            }
+        }
+
+        $event->setData($resolved);
+    }
+
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

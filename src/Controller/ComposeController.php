@@ -10,9 +10,12 @@ use App\Entity\Message;
 use App\Form\ComposeType;
 use App\Message\SendMessageMessage;
 use App\Repository\AccountRepository;
+use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
+use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,13 +39,17 @@ class ComposeController extends AbstractController
     use ParsesAddressFields;
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly MailboxRepository      $mailboxRepository,
-        private readonly MessageRepository      $messageRepository,
-        private readonly AccountRepository      $accountRepository,
-        private readonly LabelResolver          $labelResolver,
-        private readonly MessageBusInterface    $bus,
-    ) {
+        private readonly EntityManagerInterface  $em,
+        private readonly MailboxRepository       $mailboxRepository,
+        private readonly MessageRepository       $messageRepository,
+        private readonly AccountRepository       $accountRepository,
+        private readonly LabelResolver           $labelResolver,
+        private readonly MessageBusInterface     $bus,
+        private readonly MessageThreader         $threader,
+        private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
+        private readonly ContactRepository       $contactRepository,
+    )
+    {
     }
 
     #[Route('/new', name: 'new', methods: ['GET'])]
@@ -65,9 +72,10 @@ class ComposeController extends AbstractController
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($account);
+        $this->hydrateAddressFields($form, $message);
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $message,
         ]);
     }
@@ -78,16 +86,17 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft   = $this->buildReply($original, replyAll: false, account: $account);
+        $draft = $this->buildReply($original, replyAll: false, account: $account);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($account);
+        $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $draft,
         ]);
     }
@@ -98,16 +107,17 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft   = $this->buildReply($original, replyAll: true, account: $account);
+        $draft = $this->buildReply($original, replyAll: true, account: $account);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($account);
+        $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $draft,
         ]);
     }
@@ -118,16 +128,17 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft   = $this->buildForward($original);
+        $draft = $this->buildForward($original);
 
         $form = $this->createForm(ComposeType::class, $draft, [
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($account);
+        $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $draft,
         ]);
     }
@@ -165,14 +176,14 @@ class ComposeController extends AbstractController
             $this->persistDraft($message, $account);
 
             return $this->render('compose/_window.html.twig', [
-                'form'    => $form,
+                'form' => $form,
                 'message' => $message,
-                'saved'   => true,
+                'saved' => true,
             ]);
         }
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $message,
         ]);
     }
@@ -224,7 +235,7 @@ class ComposeController extends AbstractController
         }
 
         return $this->render('compose/_window.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $message,
         ]);
     }
@@ -244,7 +255,7 @@ class ComposeController extends AbstractController
         $form->get('account')->setData($message->getAccount());
 
         return $this->render('compose/_undo_toast.html.twig', [
-            'form'    => $form,
+            'form' => $form,
             'message' => $message,
         ]);
     }
@@ -269,8 +280,8 @@ class ComposeController extends AbstractController
     private function defaultAccount(): ?Account
     {
         $account = $this->accountRepository->findOneBy([
-            'usr'       => $this->getUser(),
-            'isActive'  => true,
+            'usr' => $this->getUser(),
+            'isActive' => true,
             'isPrimary' => true,
         ]);
 
@@ -279,7 +290,7 @@ class ComposeController extends AbstractController
         }
 
         return $this->accountRepository->findOneBy([
-            'usr'      => $this->getUser(),
+            'usr' => $this->getUser(),
             'isActive' => true,
         ]);
     }
@@ -306,7 +317,7 @@ class ComposeController extends AbstractController
 
         $message->setMailbox($this->mailboxRepository->findOneBy([
             'account' => $account,
-            'label'   => $draftsLabel,
+            'label' => $draftsLabel,
         ]));
     }
 
@@ -328,7 +339,7 @@ class ComposeController extends AbstractController
             $result = [];
             foreach ($contacts as $contact) {
                 $result[] = [
-                    'name'    => $contact->getDisplayName() ?? '',
+                    'name' => $contact->getDisplayName() ?? '',
                     'address' => $contact->getEmail() ?? '',
                 ];
             }
@@ -336,19 +347,25 @@ class ComposeController extends AbstractController
             return array_values(array_filter($result, static fn(array $a): bool => $a['address'] !== ''));
         };
 
-        $to  = $extract('toAddresses');
-        $cc  = $extract('ccAddresses');
+        $to = $extract('toAddresses');
+        $cc = $extract('ccAddresses');
         $bcc = $extract('bccAddresses');
 
-        if (!empty($to))  { $message->setToAddresses($to); }
-        if (!empty($cc))  { $message->setCcAddresses($cc); }
-        if (!empty($bcc)) { $message->setBccAddresses($bcc); }
+        if (!empty($to)) {
+            $message->setToAddresses($to);
+        }
+        if (!empty($cc)) {
+            $message->setCcAddresses($cc);
+        }
+        if (!empty($bcc)) {
+            $message->setBccAddresses($bcc);
+        }
     }
 
     private function buildReply(Message $original, bool $replyAll, Account $account): Message
     {
         $to = [[
-            'name'    => $original->getFromName() ?? '',
+            'name' => $original->getFromName() ?? '',
             'address' => $original->getFromAddress() ?? '',
         ]];
 
@@ -396,7 +413,7 @@ class ComposeController extends AbstractController
 
     private function buildForward(Message $original): Message
     {
-        $subject    = $this->prefixSubject('Fwd', $original->getSubject());
+        $subject = $this->prefixSubject('Fwd', $original->getSubject());
         $quotedBody = $this->buildQuotedHtml($original, 'forward');
 
         return new Message()
@@ -432,13 +449,13 @@ class ComposeController extends AbstractController
     // your version; the forward branch is verbatim.
     private function buildQuotedHtml(Message $original, string $mode): string
     {
-        $dateStr    = $original->getReceivedAt() ? $original->getReceivedAt()->format('D, M j, Y \a\t g:i a') : '';
-        $fromName   = htmlspecialchars($original->getFromName() ?? '', ENT_QUOTES, 'UTF-8');
-        $fromAddr   = htmlspecialchars($original->getFromAddress() ?? '', ENT_QUOTES, 'UTF-8');
-        $fromLine   = $fromName !== '' ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
+        $dateStr = $original->getReceivedAt() ? $original->getReceivedAt()->format('D, M j, Y \a\t g:i a') : '';
+        $fromName = htmlspecialchars($original->getFromName() ?? '', ENT_QUOTES, 'UTF-8');
+        $fromAddr = htmlspecialchars($original->getFromAddress() ?? '', ENT_QUOTES, 'UTF-8');
+        $fromLine = $fromName !== '' ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
 
-        $bodyHtml  = trim($original->getBodyHtml() ?? '');
-        $bodyText  = trim($original->getBodyText() ?? '');
+        $bodyHtml = trim($original->getBodyHtml() ?? '');
+        $bodyText = trim($original->getBodyText() ?? '');
         $innerBody = $bodyHtml !== '' ? $bodyHtml : nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
 
         if ('reply' === $mode) {
@@ -485,9 +502,19 @@ class ComposeController extends AbstractController
             ->setFromName($account->getName())
             ->addFlag(MessageFlag::DRAFT)
             ->setHasAttachments(false)
+            ->setSeenAt($message->getSeenAt() ?? $now)
             ->setUpdatedAt($now);
 
         $this->em->persist($message);
+
+        if (null === $message->getThread()) {
+            // Uses in_reply_to / references, so reply drafts land on the
+            // original thread; fresh composes get a new one.
+            $this->threader->assignThread($message, $account);
+        }
+        $this->threader->resyncDraftThreadSubject($message);
+        $this->threadLabelSynchronizer->sync($message->getThread());
+
         $this->em->flush();
     }
 
@@ -497,6 +524,69 @@ class ComposeController extends AbstractController
 
         if (null === $account || $account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
+        }
+    }
+
+    /**
+     * Inverse of applyAddressFields(): turn the stored {name, address} JSON
+     * back into the Contact entities the autocomplete field renders as
+     * selected options. Addresses typed freehand may have no contact row yet,
+     * so those are harvested on the spot — the field cannot represent an
+     * address that is not a Contact.
+     */
+    private function hydrateAddressFields(FormInterface $form, Message $message): void
+    {
+        $groups = [
+            'toAddresses'  => $message->getToAddresses() ?? [],
+            'ccAddresses'  => $message->getCcAddresses() ?? [],
+            'bccAddresses' => $message->getBccAddresses() ?? [],
+        ];
+
+        $pending = [];
+
+        foreach ($groups as $addresses) {
+            foreach ($addresses as $addr) {
+                $email = mb_strtolower(trim($addr['address'] ?? ''));
+
+                if ($email === '') {
+                    continue;
+                }
+
+                $pending[$email] = ['email' => $email, 'name' => $addr['name'] ?? null];
+            }
+        }
+
+        if (count($pending) === 0) {
+            return;
+        }
+
+        $user     = $this->getUser();
+        $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($pending));
+
+        $missing = array_values(array_filter(
+            $pending,
+            static fn(array $addr): bool => false === array_key_exists($addr['email'], $contacts),
+        ));
+
+        // Only upsert what is genuinely absent — upsertBatch bumps frequency,
+        // and merely opening a draft is not a new contact signal.
+        if (count($missing) > 0) {
+            $this->contactRepository->upsertBatch($user, $missing);
+            $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($pending));
+        }
+
+        foreach ($groups as $field => $addresses) {
+            $selected = [];
+
+            foreach ($addresses as $addr) {
+                $email = mb_strtolower(trim($addr['address'] ?? ''));
+
+                if (true === array_key_exists($email, $contacts)) {
+                    $selected[] = $contacts[$email];
+                }
+            }
+
+            $form->get($field)->setData($selected);
         }
     }
 }

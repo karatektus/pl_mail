@@ -1,3 +1,16 @@
+{#
+Renders one row in the message list.
+
+Accepts either a MessageThread (`thread`) or a Message (`message`);
+everything below normalises onto the same set of variables so the markup
+is shared.
+
+Draft handling: a row opens the compose dock instead of the reading pane
+only when the row IS the draft — i.e. a thread holding a single draft
+message, or a bare Message row flagged as a draft. A real conversation
+carrying an unsent reply still opens the thread; that draft is edited from
+inside the reading pane.
+#}
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
@@ -6,25 +19,30 @@
     {% set unread = item.unreadCount > 0 %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
-    {% set draft = false %}
     {% set date = item.lastMessageAt %}
     {% set count = item.messageCount %}
 
     {% set latest = item.messages|last %}
     {% set sender = latest ? (latest.fromName ?: latest.fromAddress) : '' %}
-    {% set snippet = latest ? latest.bodyText|striptags|slice(0, 100) : '' %}
+    {% set snippet = latest ? (latest.bodyText ?? '')|striptags|slice(0, 100) : '' %}
 
+    {% set draft = latest is not null and latest.isDraft and item.messageCount == 1 %}
+    {% set draftId = draft ? latest.id : null %}
+
+    {% set href = path('app_mail_thread', { id: item.id }) %}
     {% set rowId = item.id %}
 {% else %}
     {% set type = 'message' %}
     {% set unread = item.seenAt is null %}
     {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
     {% set starred = item.starredAt is not null %}
-    {% set draft = item.isDraft %}
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
-    {% set snippet = item.bodyText|striptags|slice(0, 100) %}
+    {% set snippet = (item.bodyText ?? '')|striptags|slice(0, 100) %}
+
+    {% set draft = item.isDraft %}
+    {% set draftId = item.id %}
 
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
@@ -39,31 +57,31 @@
     data-starred="{{ starred ? 'true' : 'false' }}"
 >
     {# Full-row clickable overlay #}
-    <a
-        {% if false == draft %}
-            href="{{ isThread ? path('app_mail_thread', { id: item.id }) : href }}"
-            data-action="click->mail-pane#open"
-        {% else %}
-            href="{{ path('app_compose_edit', {id: item.id}) }}"
-            data-turbo-frame="compose_dock"
-        {% endif %}
-        data-turbo-prefetch="false"
-        class="pointer-events-auto absolute inset-0 z-0"
-        aria-label="{{ subject }}"
-        tabindex="-1"
+<a
+    {% if false == draft %}
+        href="{{ href }}"
+        data-action="click->mail-pane#open"
+    {% else %}
+        href="{{ path('app_compose_edit', { id: draftId }) }}"
+        data-turbo-frame="compose_dock"
+    {% endif %}
+    data-turbo-prefetch="false"
+    class="pointer-events-auto absolute inset-0 z-0"
+    aria-label="{{ subject }}"
+    tabindex="-1"
     ></a>
 
     <div
-        class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-row cursor-pointer transition-colors
-            {{ unread ? 'bg-raised' : 'bg-transparent' }}
-            hover:bg-hover"
+        class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
+            {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
+            hover:bg-white/60 dark:hover:bg-white/[0.06]"
     >
         {# Checkbox — fires custom event so the toolbar controller can react #}
         <input
             type="checkbox"
             data-action="change->message-row#toggleSelect"
             data-thread-select value="{{ rowId }}"
-            class="z-10 w-4 h-4 rounded border-field accent-accent focus:ring-accent focus:ring-offset-0 cursor-pointer flex-shrink-0"
+            class="z-10 w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
             aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
         >
 
@@ -72,7 +90,7 @@
             type="button"
             data-action="click->message-row#toggleStar"
             data-message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
-            class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-ink-faint hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
+            class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
             aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
         >
             <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-[18px]"></i>
@@ -83,16 +101,16 @@
 
             {# Row 1 (mobile) / sender column (desktop) #}
             <div class="flex items-center justify-between md:justify-start md:w-40 md:flex-shrink-0">
-                <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
+                <span class="truncate text-sm {{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-600 dark:text-gray-400' }}">
                     {{ sender }}
                 </span>
 
                 {# Date — mobile only (top-right), hidden on desktop #}
-                <span class="md:hidden flex-shrink-0 ml-2 text-xs text-ink-faint">
+                <span class="md:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date('g:i a') }}
-                        {% elseif date|date('Y') == 'now'|date('Y')%}
+                        {% elseif date|date('Y') == 'now'|date('Y') %}
                             {{ date|date('M j') }}
                         {% else %}
                             {{ date|date('M j Y') }}
@@ -104,13 +122,13 @@
             {# Row 2 (mobile) / subject+snippet (desktop) #}
             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
             <span class="flex-1 min-w-0 truncate text-sm">
-                <span class="{{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
+                <span class="{{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-700 dark:text-gray-300' }}">
                     {{ subject }}
                     {% if count > 1 %}
-                        <span class="ml-1 text-xs font-medium text-ink-muted">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
+                        <span class="ml-1 text-xs font-medium text-gray-500 dark:text-gray-400">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                     {% endif %}
                 </span>
-                <span class="text-ink-faint"> — {{ snippet }}</span>
+                <span class="text-gray-400 dark:text-gray-600"> — {{ snippet }}</span>
             </span>
 
         </div>
@@ -118,11 +136,11 @@
         {# Date + hover actions slot — desktop only #}
         <div class="hidden md:flex flex-shrink-0 w-36 relative h-full items-center">
 
-            <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-ink-faint">
+            <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-gray-400 dark:text-gray-600">
                 {% if date %}
                     {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                         {{ date|date('g:i a') }}
-                    {% elseif date|date('Y') == 'now'|date('Y')%}
+                    {% elseif date|date('Y') == 'now'|date('Y') %}
                         {{ date|date('M j') }}
                     {% else %}
                         {{ date|date('M j Y') }}
@@ -131,39 +149,46 @@
             </span>
 
             <div class="absolute inset-0 flex items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
-                <button type="button" data-action="click->message-row#archive"
-                        data-message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
-                        aria-label="{{ 'thread_row.actions.archive'|trans }}"
-                        title="{{ 'thread_row.actions.archive'|trans }}"
-                        class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-ink hover:bg-hover transition-colors">
-                    <i class="fa-solid fa-box-archive w-4 h-4" aria-hidden="true"></i>
-                </button>
+                {% if false == draft %}
+                    <button type="button" data-action="click->message-row#archive"
+                            data-message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
+                            aria-label="{{ 'thread_row.actions.archive'|trans }}"
+                            title="{{ 'thread_row.actions.archive'|trans }}"
+                            class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fa-solid fa-box-archive w-4 h-4" aria-hidden="true"></i>
+                    </button>
+                {% endif %}
+
                 <button type="button" data-action="click->message-row#trash"
                         data-message-row-trash-url-param="{{ path('app_status_trash', {'type': type, 'id': rowId}) }}"
                         aria-label="{{ 'thread_row.actions.delete'|trans }}"
                         title="{{ 'thread_row.actions.delete'|trans }}"
-                        class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-red-600 hover:bg-hover transition-colors">
+                        class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <i class="fa-solid fa-trash w-4 h-4" aria-hidden="true"></i>
                 </button>
-                <button type="button" data-action="click->message-row#snooze"
-                        data-message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
-                        aria-label="{{ 'thread_row.actions.snooze'|trans }}"
-                        title="{{ 'thread_row.actions.snooze'|trans }}"
-                        class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-ink hover:bg-hover transition-colors">
-                    <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
-                </button>
-                <button type="button" data-action="click->message-row#markRead"
-                        data-message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"
-                        data-message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
-                        aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
-                        title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
-                        class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-ink hover:bg-hover transition-colors">
-                    {% if unread %}
-                        <i class="fa-solid fa-envelope w-4 h-4" aria-hidden="true"></i>
-                    {% else %}
-                        <i class="fa-solid fa-envelope-open w-4 h-4" aria-hidden="true"></i>
-                    {% endif %}
-                </button>
+
+                {% if false == draft %}
+                    <button type="button" data-action="click->message-row#snooze"
+                            data-message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
+                            aria-label="{{ 'thread_row.actions.snooze'|trans }}"
+                            title="{{ 'thread_row.actions.snooze'|trans }}"
+                            class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
+                    </button>
+
+                    <button type="button" data-action="click->message-row#markRead"
+                            data-message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"
+                            data-message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
+                            aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
+                            title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
+                            class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        {% if unread %}
+                            <i class="fa-solid fa-envelope w-4 h-4" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="fa-solid fa-envelope-open w-4 h-4" aria-hidden="true"></i>
+                        {% endif %}
+                    </button>
+                {% endif %}
             </div>
         </div>
 
