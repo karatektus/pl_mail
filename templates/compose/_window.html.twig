@@ -33,14 +33,14 @@
                 <button type="button" title="Minimize"
                         data-action="click->compose#toggleMinimize"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-ink-muted hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-ink
                                hover:bg-hover transition-colors">
                     <i data-compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
                 </button>
                 <button type="button" title="Expand"
                         data-action="click->compose#toggleExpand"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-ink-muted hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-ink
                                hover:bg-hover transition-colors">
                     <i data-compose-target="expandIcon"
                        class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
@@ -48,7 +48,7 @@
                 <button type="button" title="Save draft and close"
                         data-action="compose#saveDraft compose#close"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-ink-muted hover:text-gray-800 dark:hover:text-white
+                               text-ink-muted hover:text-ink
                                hover:bg-hover transition-colors">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
@@ -106,7 +106,7 @@
                                 class="w-full text-left px-4 py-2.5 text-sm
                                        text-ink-soft
                                        hover:bg-accent-soft
-                                       hover:text-blue-600 dark:hover:text-blue-300
+                                       hover:text-accent
                                        transition-colors
                                        {% if form.account.vars.value == choice.value %}
                                            bg-accent-soft text-accent
@@ -158,7 +158,7 @@
             </div>
 
             {# ── Divider ──────────────────────────────────────────── #}
-            <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] mt-1 shrink-0"></div>
+            <div class="mx-4 border-t border-line mt-1 shrink-0"></div>
 
             {# ── Subject ──────────────────────────────────────────── #}
             <div class="flex items-center gap-3 px-4 py-2 shrink-0">
@@ -172,7 +172,7 @@
                               text-ink
                               placeholder:text-ink-faint"/>
             </div>
-            <div class="mx-4 border-t border-gray-100/80 dark:border-white/[0.06] shrink-0"></div>
+            <div class="mx-4 border-t border-line shrink-0"></div>
 
             {# ── Body ─────────────────────────────────────────────── #}
             <input type="hidden"
@@ -313,7 +313,7 @@
                     <button type="button"
                             data-action="compose#close"
                             title="Discard draft"
-                            class="{{ ic }} hover:text-red-500 dark:hover:text-red-400">
+                            class="{{ ic }} hover:text-danger">
                         <i class="fa-regular fa-trash-can"></i>
                     </button>
                 </div>

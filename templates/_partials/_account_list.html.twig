@@ -10,7 +10,7 @@
         <div class="flex items-center cursor-pointer rounded-lg hover:bg-hover transition-colors"
              data-action="click->account-expand#toggle">
             <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-ink-muted">
-                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-gray-300 dark:bg-gray-700' }}"></span>
+                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
                 <span class="truncate text-sm">{{ account.email ?: account.username }}</span>
             </div>
             <button
