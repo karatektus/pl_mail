@@ -18,7 +18,7 @@
 
             {# Error #}
             {% if error %}
-                <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-sm text-danger">
+                <div class="mb-4 px-4 py-3 rounded-lg alert-danger text-sm text-danger">
                     {{ error.messageKey | trans(error.messageData, 'security') }}
                 </div>
             {% endif %}
@@ -41,7 +41,7 @@
                                 autocomplete="email"
                                 autofocus
                                 required
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                 placeholder="you@example.com"
                             >
                         </div>
@@ -62,7 +62,7 @@
                                 autocomplete="current-password"
                                 required
                                 value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >
                         </div>
@@ -72,7 +72,7 @@
 
                     <button
                         type="submit"
-                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ring-offset-surface"
                     >
                         {{ 'login.form.submit'|trans }}
                     </button>

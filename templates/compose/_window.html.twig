@@ -13,7 +13,7 @@
             data-compose-send-url-value="{{ path('app_compose_mail_send_draft', {'id': message.id}) }}"
         {% endif %}
          class="max-h-[90vh]
-       w-[520px] rounded-pane shadow-2xl shadow-black/20 dark:shadow-black/60
+       w-[520px] rounded-pane shadow-float
        pane-flat
        border border-line
        flex flex-col mb-4">
@@ -21,7 +21,7 @@
 
         {# ── Header ───────────────────────────────────────────────── #}
         <div class="flex items-center justify-between px-4 py-2.5
-                    bg-black/20 dark:bg-black/30
+                    bg-sunken
                     rounded-t-2xl select-none shrink-0"
              data-action="dblclick->compose#toggleMinimize">
             <span class="text-sm font-semibold text-ink cursor-pointer truncate max-w-[260px]"
@@ -97,7 +97,7 @@
                             bg-pane-soft
                             backdrop-blur-sm
                             border border-line
-                            shadow-xl shadow-black/15 dark:shadow-black/50">
+                            shadow-pop">
                     {% for choice in form.account.vars.choices %}
                         <button type="button"
                                 data-action="click->compose#selectAccount"
@@ -105,11 +105,11 @@
                                 data-label="{{ choice.label }}"
                                 class="w-full text-left px-4 py-2.5 text-sm
                                        text-ink-soft
-                                       hover:bg-blue-50 dark:hover:bg-blue-500/20
+                                       hover:bg-accent-soft
                                        hover:text-blue-600 dark:hover:text-blue-300
                                        transition-colors
                                        {% if form.account.vars.value == choice.value %}
-                                           bg-blue-50 dark:bg-blue-500/10 text-accent
+                                           bg-accent-soft text-accent
                                        {% endif %}">
                             {{ choice.label }}
                         </button>
@@ -127,13 +127,13 @@
                     <button type="button"
                             data-compose-target="ccBtn"
                             data-action="click->compose#showCc"
-                            class="text-xs text-ink-faint hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            class="text-xs text-ink-faint hover:text-accent transition-colors">
                         Cc
                     </button>
                     <button type="button"
                             data-compose-target="bccBtn"
                             data-action="click->compose#showBcc"
-                            class="text-xs text-ink-faint hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                            class="text-xs text-ink-faint hover:text-accent transition-colors">
                         Bcc
                     </button>
                 </div>
@@ -191,7 +191,7 @@
                             text-sm leading-relaxed
                             text-ink
                             empty:before:content-[attr(data-placeholder)]
-                            empty:before:text-gray-400 dark:empty:before:text-gray-600
+                            empty:before:text-ink-faint
                             empty:before:pointer-events-none">{{ form.bodyHtml.vars.value|raw ?: '' }}</div>
             </div>
 
@@ -199,7 +199,7 @@
             <div class="px-3 pb-3 pt-1 shrink-0">
 
                 <div class="flex items-center gap-0.5 mb-2 flex-wrap
-                            bg-gray-100/80 dark:bg-gray-800/60
+                            bg-sunken
                             rounded-full px-2 py-1">
 
                     <select data-compose-toolbar-target="fontFamily"
@@ -212,7 +212,7 @@
                         <option>Monospace</option>
                     </select>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <select data-compose-toolbar-target="fontSize"
                             data-action="change->compose-toolbar#changeFontSize"
@@ -225,7 +225,7 @@
                         <option>Huge</option>
                     </select>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <button type="button" data-compose-toolbar-action data-compose-toolbar-target="boldBtn"
                             data-action="click->compose-toolbar#bold"
@@ -247,7 +247,7 @@
                                class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1">
                     </label>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#alignLeft"
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" title="Align left">
@@ -259,7 +259,7 @@
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" title="Align right">
                         <i class="fa-solid fa-align-right"></i></button>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#orderedList"
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" title="Numbered list">
@@ -274,7 +274,7 @@
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" title="Indent">
                         <i class="fa-solid fa-indent"></i></button>
 
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1 shrink-0"></div>
+                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#undo"
                             class="px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" title="Undo">

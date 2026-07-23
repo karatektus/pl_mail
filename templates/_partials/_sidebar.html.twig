@@ -9,7 +9,7 @@
 {% macro label_dot(color) %}
     <span class="w-2.5 h-2.5 rounded-full shrink-0
         {{ {
-        'gray':   'bg-gray-400 dark:bg-gray-500',
+        'gray':   'bg-ink-faint',
         'red':    'bg-red-500',
         'orange': 'bg-orange-500',
         'amber':  'bg-amber-500',
@@ -18,7 +18,7 @@
         'blue':   'bg-blue-500',
         'violet': 'bg-violet-500',
         'pink':   'bg-pink-500',
-    }[color ?? 'gray'] ?? 'bg-gray-400 dark:bg-gray-500' }}"
+    }[color ?? 'gray'] ?? 'bg-ink-faint' }}"
           aria-hidden="true"></span>
 {% endmacro %}
 
@@ -74,7 +74,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="sidebar"
-       class="flex flex-col w-56 h-full flex-shrink-0 bg-surface rounded-pane shadow-lg shadow-black/5 dark:shadow-black/30 border border-gray-200/60 dark:border-gray-800/60">
+       class="flex flex-col w-56 h-full flex-shrink-0 bg-surface rounded-pane shadow-pop border border-line">
 
     {# Compose #}
     <div class="px-3 py-3 border-b border-line">

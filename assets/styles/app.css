@@ -218,6 +218,15 @@
         border-bottom-color: rgb(var(--rgb-inverse));
     }
 }
+
+@utility btn-quiet {
+    background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
+    color: rgb(var(--rgb-ink-soft));
+
+    &:hover {
+        background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 3.5));
+    }
+}
 @layer utilities {
     .compose-address-row {
         display: flex;

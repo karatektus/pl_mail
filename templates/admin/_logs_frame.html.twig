@@ -9,14 +9,14 @@
 
             <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
                 <select name="level"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-ink-soft px-2"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-field text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     {% for value, name in levels %}
                         <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
                     {% endfor %}
                 </select>
                 <select name="channel"
-                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-xs text-ink-soft px-2"
+                        class="h-8 rounded-lg border border-black/[0.08] dark:border-white/10 bg-field text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
                     {% for ch in channels %}
@@ -53,7 +53,7 @@
                             <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint transition-transform group-open:rotate-180" aria-hidden="true"></i>
                         </summary>
                         {% if entry.context %}
-                            <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-line text-xs text-ink-soft overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                            <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
                         {% endif %}
                     </details>
                 {% endfor %}

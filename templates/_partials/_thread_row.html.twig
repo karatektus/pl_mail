@@ -55,15 +55,15 @@
 
     <div
         class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
-            {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
-            hover:bg-white/60 dark:hover:bg-white/[0.06]"
+            {{ unread ? 'bg-raised' : 'bg-transparent' }}
+            hover:bg-hover"
     >
         {# Checkbox — fires custom event so the toolbar controller can react #}
         <input
             type="checkbox"
             data-action="change->message-row#toggleSelect"
             data-thread-select value="{{ rowId }}"
-            class="z-10 w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
+            class="z-10 w-4 h-4 rounded border-field text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
             aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
         >
 

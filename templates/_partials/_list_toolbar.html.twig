@@ -46,13 +46,12 @@ The button itself carries `group` and `relative`.
     absolute top-full left-1/2 -translate-x-1/2 mt-2
     px-2 py-1 rounded-md
     text-[11px] font-medium leading-none whitespace-nowrap
-    bg-gray-800 dark:bg-gray-100
-    text-white dark:text-gray-900
+    tooltip-bubble
     opacity-0 group-hover:opacity-100
     transition-opacity duration-100 delay-500
     z-50
     before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
-    before:border-[5px] before:border-transparent before:border-b-gray-800 dark:before:border-b-gray-100
+    before:border-[5px] before:border-transparent
 ">{{ label }}</span>
     </button>
 {% endmacro %}
@@ -83,13 +82,12 @@ The button itself carries `group` and `relative`.
                 absolute top-full left-1/2 -translate-x-1/2 mt-2
                 px-2 py-1 rounded-md
                 text-[11px] font-medium leading-none whitespace-nowrap
-                bg-gray-800 dark:bg-gray-100
-                text-white dark:text-gray-900
+                tooltip-bubble
                 opacity-0 group-hover:opacity-100
                 transition-opacity duration-100 delay-500
                 z-50
                 before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
-                before:border-[5px] before:border-transparent before:border-b-gray-800 dark:before:border-b-gray-100
+                before:border-[5px] before:border-transparent
             ">{{ label }}</span>
         </a>
     {% endif %}
@@ -100,7 +98,7 @@ The button itself carries `group` and `relative`.
 <div
     class="flex items-center px-3 py-1
            border-b border-line
-           bg-white/40 dark:bg-white/[0.02]
+           bg-raised
            shrink-0 min-h-[40px]"
     data-controller="list-toolbar"
     data-list-toolbar-total-value="{{ total }}"
@@ -120,8 +118,8 @@ The button itself carries `group` and `relative`.
             data-list-toolbar-target="checkboxBtn"
             data-action="click->list-toolbar#toggleAll"
             class="flex items-center justify-center w-4 h-4 rounded
-                   border border-gray-400 dark:border-gray-500
-                   bg-white dark:bg-gray-800
+                   border border-field
+                   bg-field
                    cursor-pointer transition-colors duration-100
                    hover:border-blue-500 focus-visible:outline-none
                    focus-visible:ring-2 focus-visible:ring-blue-500"

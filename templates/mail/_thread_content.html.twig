@@ -34,7 +34,7 @@
 
                 {# Thread connection line #}
                 {% if not loop.last %}
-                    <div class="absolute left-[19px] top-4 bottom-[-24px] w-0.5 bg-gray-200 dark:bg-gray-800 -z-0"></div>
+                    <div class="absolute left-[19px] top-4 bottom-[-24px] w-0.5 bg-line -z-0"></div>
                 {% endif %}
 
                 <div class="flex items-start gap-3 relative z-10">
@@ -109,7 +109,7 @@
                     </div>
 
                     {% if message.hasAttachments %}
-                        <div class="mt-3 p-3 border border-line rounded-lg bg-gray-50/50 dark:bg-gray-800/50">
+                        <div class="mt-3 p-3 border border-line rounded-lg bg-sunken">
                             <p class="text-xs font-medium text-gray-400 mb-2">{{ 'message.attachments'|trans }}</p>
                             <div class="flex gap-2">
                                 {# TODO: iterate message.parts filtered by disposition = attachment #}
@@ -187,8 +187,8 @@
                     data-turbo-frame="compose_dock"
                     class="flex items-center gap-3 w-full px-4 py-3 rounded-xl
                            border border-line
-                           bg-white/60 dark:bg-white/[0.03]
-                           hover:bg-gray-50 dark:hover:bg-white/[0.06]
+                           bg-raised
+                           hover:bg-hover
                            text-sm text-ink-faint
                            transition-colors cursor-text"
                 >

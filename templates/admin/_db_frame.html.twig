@@ -66,7 +66,7 @@
                         <i class="fa-solid fa-circle-info text-amber-500" aria-hidden="true"></i>
                         {{ 'admin.db.extension_missing'|trans }}
                     </p>
-                    <pre class="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-line text-xs text-ink-soft overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
+                    <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                 </div>
             {% elseif slowestByMean|length == 0 %}

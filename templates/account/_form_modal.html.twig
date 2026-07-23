@@ -13,7 +13,7 @@
         }) }}
 
         {# ── Tab bar ─────────────────────────────────────────────────────────── #}
-        <div class="flex border-b border-line px-5 -mt-px bg-black/5 dark:bg-black/20">
+        <div class="flex border-b border-line px-5 -mt-px bg-sunken">
             <button
                 type="button"
                 data-account-form-target="tab"
@@ -36,8 +36,7 @@
             {# Global errors #}
             {% if form.vars.errors|length %}
                 <div role="alert" class="mx-5 mt-5 flex items-start gap-2.5 rounded-xl
-                                         bg-red-500/10 dark:bg-red-500/10
-                                         border border-red-500/25 dark:border-red-500/20
+                                         alert-danger
                                          px-3.5 py-3 text-sm text-danger">
                     <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-red-500/80" aria-hidden="true"></i>
                     <div class="space-y-0.5">
@@ -95,8 +94,7 @@
 
                 {# Info banner #}
                 <div class="flex items-start gap-3 rounded-xl
-                            bg-blue-500/10 dark:bg-blue-500/10
-                            border border-blue-500/20 dark:border-blue-500/15
+                            alert-info
                             px-4 py-3 text-sm text-accent">
                     <i class="fa-solid fa-circle-info mt-0.5 shrink-0 text-blue-500/70" aria-hidden="true"></i>
                     <p>{{ 'account.oauth.info'|trans }}</p>
@@ -109,7 +107,7 @@
                         href="{{ path('app_oauth_connect', { provider: 'google' }) }}"
                         data-turbo="false"
                         class="flex items-center gap-3 mb-3 w-full px-4 py-2.5 rounded-xl
-                               border border-white/15 dark:border-white/10
+                               border border-line
                                bg-sunken
                                hover:bg-hover
                                text-sm font-medium text-ink
@@ -127,7 +125,7 @@
                     <a
                         href="#"
                         class="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl
-                               border border-white/15 dark:border-white/10
+                               border border-line
                                bg-sunken
                                hover:bg-hover
                                text-sm font-medium text-ink
@@ -153,15 +151,15 @@
         {# ── Footer ───────────────────────────────────────────────────────────── #}
         <div class="flex items-center justify-end gap-2 px-5 py-3.5
                     border-t border-line
-                    bg-black/10 dark:bg-black/20
+                    bg-sunken
                     rounded-b-xl shrink-0">
             <button
                 type="button"
                 data-action="click->modal#close"
                 class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                        text-ink-soft
-                       bg-white/50 dark:bg-white/5
-                       border border-white/40 dark:border-white/10
+                       bg-sunken
+                       border border-line
                        hover:bg-white/70 dark:hover:bg-white/10
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
                        transition-colors duration-100 cursor-pointer"
