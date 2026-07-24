@@ -132,17 +132,26 @@ class OAuthController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
+        // Email alone does NOT identify an account: an OAuth provider's login
+        // address is independent of where the mail is hosted, so the same
+        // address can legitimately exist as both an IMAP account and an OAuth
+        // one. Adopting by email would silently convert the IMAP account and
+        // null its password. Match on the full identity instead.
         $account = $this->accountRepository->findOneBy([
-            'usr'   => $user,
-            'email' => $email,
+            'usr'           => $user,
+            'email'         => $email,
+            'authType'      => AuthType::OAuth2->value,
+            'oauthProvider' => $provider->value,
         ]);
 
         if (null === $account) {
-            $account = new Account();
-            $account->setUsr($user);
-            $account->setEmail($email);
-            $account->setName($email);
-            $account->setIsActive(true);
+            $duplicate = $this->accountRepository->count(['usr' => $user, 'email' => $email]) > 0;
+
+            $account = new Account()
+                ->setUsr($user)
+                ->setEmail($email)
+                ->setName($duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email)
+                ->setIsActive(true);
         }
 
         $account->setUsername($email);

@@ -45,6 +45,12 @@ enum MailProvider: string
                 'https://graph.microsoft.com/User.Read',
                 'https://graph.microsoft.com/Mail.ReadWrite',
                 'https://graph.microsoft.com/Mail.Send',
+                // Master categories live under the Outlook user-settings
+                // resource, NOT under Mail.* — /me/outlook/masterCategories
+                // returns ErrorAccessDenied without this. ReadWrite rather than
+                // Read because GraphCategorySyncer and ApplyGraphChangesHandler
+                // both create category definitions.
+                'https://graph.microsoft.com/MailboxSettings.ReadWrite',
             ],
         };
     }

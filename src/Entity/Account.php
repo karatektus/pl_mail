@@ -37,13 +37,13 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $email = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $imapHost = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $imapPort = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(length: 20, nullable: true)]
     private ?string $imapEncryption = null;
 
     #[ORM\Column(length: 255)]
@@ -214,7 +214,7 @@ class Account extends AccountModel
         return $this->imapHost;
     }
 
-    public function setImapHost(string $imapHost): static
+    public function setImapHost(?string $imapHost): static
     {
         $this->imapHost = $imapHost;
 
@@ -226,7 +226,7 @@ class Account extends AccountModel
         return $this->imapPort;
     }
 
-    public function setImapPort(int $imapPort): static
+    public function setImapPort(?int $imapPort): static
     {
         $this->imapPort = $imapPort;
 
@@ -238,7 +238,7 @@ class Account extends AccountModel
         return $this->imapEncryption;
     }
 
-    public function setImapEncryption(string $imapEncryption): static
+    public function setImapEncryption(?string $imapEncryption): static
     {
         $this->imapEncryption = $imapEncryption;
 

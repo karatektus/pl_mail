@@ -7,6 +7,7 @@ namespace App\Service\Graph;
 use App\Entity\Account;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
+use App\Service\Mail\GraphApiException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -39,6 +40,28 @@ final readonly class GraphCategorySyncer
     {
         try {
             $categories = $this->apiClient->listMasterCategories($account);
+        } catch (GraphApiException $e) {
+            // 403 here almost always means the MailboxSettings.ReadWrite scope
+            // is missing rather than anything being broken: master categories
+            // live under the Outlook user-settings resource, not under Mail.*.
+            // Degrade quietly — folders, messages and send are unaffected, only
+            // the category axis is unavailable.
+            if (403 === $e->getStatus()) {
+                $this->logger->warning(
+                    'GraphCategorySyncer: no access to master categories — '
+                    . 'the account likely needs reconnecting with MailboxSettings.ReadWrite',
+                    ['accountId' => $account->getId()],
+                );
+
+                return;
+            }
+
+            $this->logger->error('GraphCategorySyncer: listing failed', [
+                'accountId' => $account->getId(),
+                'error'     => $e->getMessage(),
+            ]);
+
+            return;
         } catch (\Throwable $e) {
             $this->logger->error('GraphCategorySyncer: listing failed', [
                 'accountId' => $account->getId(),

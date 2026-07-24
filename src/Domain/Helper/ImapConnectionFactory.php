@@ -31,8 +31,17 @@ class ImapConnectionFactory
             default    => false,
         };
 
+        $host = $account->getImapHost();
+
+        if (null === $host || '' === $host) {
+            throw new \RuntimeException(sprintf(
+                'Account %d (%s) has no IMAP host — it is API-synced and must not be opened over IMAP.',
+                $account->getId(),
+                $account->getEmail(),
+            ));
+        }
         $accountConfig = [
-            'host'          => $account->getImapHost(),
+            'host'          => $host,
             'port'          => $account->getImapPort(),
             'encryption'    => $encryption,
             'validate_cert' => true,

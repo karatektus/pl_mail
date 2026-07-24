@@ -1,0 +1,62 @@
+{# Compact push control for a single account row in the accounts settings list.
+
+   Include with just the account; it resolves its own state:
+
+       {{ include('settings/accounts/_push_control.html.twig', {account: account}) }}
+
+   Renders nothing for providers without push (IMAP), so no conditional is
+   needed at the call site — the row simply has one fewer control.
+
+   For the roomier card version (headings, hint text, labelled repair button)
+   use _push_toggle.html.twig in the account edit pane instead.
+
+   NOTE: `class="contents"` on the turbo-frame is load-bearing. <turbo-frame>
+   is display:block by default, which breaks it out of the row's flex layout
+   and pushes every sibling control out of alignment. #}
+
+{% set status = status|default(push_status(account)) %}
+
+<turbo-frame id="account-push-{{ account.id }}" class="contents">
+    {% if status.supported %}
+        {% set degraded = status.health.value == 'degraded' %}
+
+        {# When push is registered but not delivering, the useful action is to
+           re-register, not to toggle off. Same control, different target. #}
+        {% set action = degraded
+            ? path('settings_account_push_repair', {id: account.id})
+            : path('settings_account_push_toggle', {id: account.id}) %}
+
+        {% if status.failed %}
+            {% set tooltip = 'settings.accounts.push.failed'|trans %}
+        {% elseif degraded %}
+            {% set tooltip = 'settings.accounts.push.degraded_hint'|trans %}
+        {% elseif not status.configured and not status.enabled %}
+            {% set tooltip = 'settings.accounts.push.not_configured'|trans %}
+        {% elseif status.enabled %}
+            {% set tooltip = 'settings.accounts.push.on_hint'|trans %}
+        {% else %}
+            {% set tooltip = 'settings.accounts.push.off_hint'|trans %}
+        {% endif %}
+
+        <form method="post" action="{{ action }}" class="contents">
+            <input type="hidden" name="_token" value="{{ csrf_token('account_push_' ~ account.id) }}">
+
+            <button type="submit"
+                    title="{{ tooltip }}"
+                    aria-label="{{ 'settings.accounts.push.title'|trans }}: {{ status.health.translationKey|trans }}"
+                {{ not status.isToggleable and not degraded ? 'disabled' : '' }}
+                    class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm transition-colors
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                           disabled:cursor-not-allowed disabled:opacity-40
+                           {% if status.failed or degraded %}
+                               text-amber-600 hover:bg-amber-100/60 dark:text-amber-400 dark:hover:bg-amber-950/40
+                           {% elseif status.enabled %}
+                               text-emerald-600 hover:bg-emerald-100/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40
+                           {% else %}
+                               text-zinc-400 hover:bg-zinc-100/60 dark:text-zinc-500 dark:hover:bg-zinc-800/60
+                           {% endif %}">
+                <i class="fa-solid {{ status.failed ? 'fa-triangle-exclamation' : status.health.icon }}"></i>
+            </button>
+        </form>
+    {% endif %}
+</turbo-frame>

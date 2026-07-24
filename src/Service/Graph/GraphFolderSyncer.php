@@ -29,13 +29,42 @@ use Psr\Log\LoggerInterface;
  * reliable: a folder literally named "A/B" would break the Gmail approach but
  * is handled correctly here.
  *
- * Immutable IDs do NOT cover mailFolder resources, so folder ids can change.
- * System folders are therefore always re-resolved by wellKnownName rather than
- * trusting a stored id, and a custom folder whose id has rotated is re-linked
- * by its name chain on the next run.
+ * ── Why roles are resolved by a separate lookup ───────────────────────────
+ * The obvious implementation reads a `wellKnownName` property off each folder
+ * in the list. The v1.0 endpoint refuses to project that property onto
+ * microsoft.graph.mailFolder and fails the whole request with
+ * "Could not find a property named 'wellKnownName'". So instead each well-known
+ * name is resolved to an id up front — Graph accepts a well-known name in place
+ * of an id on the mailFolders path — and the resulting id => name map is
+ * consulted while walking the list.
+ *
+ * That is also the more correct approach: immutable ids do not cover mailFolder
+ * resources, so system folder ids can rotate, and resolving by name every sync
+ * means a rotated id re-links itself.
  */
 final readonly class GraphFolderSyncer
 {
+    /**
+     * Well-known names we resolve to ids. Ones the mailbox does not have are
+     * skipped silently by the client — `archive` is missing on some mailboxes,
+     * and the recoverable-items folders are absent on consumer accounts.
+     */
+    private const array WELL_KNOWN_NAMES = [
+        'msgfolderroot',
+        'inbox',
+        'sentitems',
+        'drafts',
+        'deleteditems',
+        'junkemail',
+        'archive',
+        'outbox',
+        'searchfolders',
+        'conversationhistory',
+        'recoverableitemsdeletions',
+        'serverfailures',
+        'syncissues',
+    ];
+
     /**
      * Folders we deliberately do not model as labels — Exchange plumbing that
      * has no user-facing meaning.
@@ -75,6 +104,12 @@ final readonly class GraphFolderSyncer
     {
         $folders = $this->apiClient->listFolders($account);
 
+        // wellKnownName => folderId, then inverted so the walk can ask
+        // "what role, if any, does this folder id have?"
+        $wellKnownByName = $this->apiClient->resolveWellKnownFolders($account, self::WELL_KNOWN_NAMES);
+        $nameByFolderId  = array_flip($wellKnownByName);
+        $rootId          = $wellKnownByName['msgfolderroot'] ?? '';
+
         /** @var array<string, array<string,mixed>> $byId */
         $byId = [];
 
@@ -92,7 +127,7 @@ final readonly class GraphFolderSyncer
         $synced   = 0;
 
         foreach ($byId as $id => $folder) {
-            $wellKnown = strtolower((string) ($folder['wellKnownName'] ?? ''));
+            $wellKnown = $nameByFolderId[$id] ?? '';
 
             if (true === in_array($wellKnown, self::IGNORED_WELL_KNOWN, true)) {
                 continue;
@@ -103,7 +138,7 @@ final readonly class GraphFolderSyncer
             if (true === array_key_exists($wellKnown, self::SYSTEM_MAP)) {
                 $label = $this->labelResolver->systemLabel(self::SYSTEM_MAP[$wellKnown], $account);
             } else {
-                $segments = $this->nameChain($id, $byId);
+                $segments = $this->nameChain($id, $byId, $rootId);
 
                 if (count($segments) === 0) {
                     continue;
@@ -157,9 +192,10 @@ final readonly class GraphFolderSyncer
      * Walk parentFolderId upward, collecting display names root-first.
      *
      * @param array<string, array<string,mixed>> $byId
+     * @param string                             $rootId  msgfolderroot id, walk stops there
      * @return list<string>
      */
-    private function nameChain(string $folderId, array $byId): array
+    private function nameChain(string $folderId, array $byId, string $rootId): array
     {
         $segments = [];
         $cursor   = $folderId;
@@ -173,14 +209,12 @@ final readonly class GraphFolderSyncer
                 break;
             }
 
-            $folder    = $byId[$cursor];
-            $wellKnown = strtolower((string) ($folder['wellKnownName'] ?? ''));
-
-            if ('msgfolderroot' === $wellKnown) {
+            if ('' !== $rootId && $cursor === $rootId) {
                 break;
             }
 
-            $name = trim((string) ($folder['displayName'] ?? ''));
+            $folder = $byId[$cursor];
+            $name   = trim((string) ($folder['displayName'] ?? ''));
 
             if ('' !== $name) {
                 array_unshift($segments, $name);

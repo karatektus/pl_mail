@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Exception\GraphApiException;
+use App\Domain\Exception\GraphResyncRequiredException;
+use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Account;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -64,6 +67,14 @@ final class GraphApiClient
     /**
      * Every mail folder in the mailbox, flattened, following pagination.
      *
+     * Uses the delta endpoint because plain /me/mailFolders returns only
+     * top-level folders — delta returns the whole tree in one flattened pass.
+     *
+     * Deliberately does NOT $select wellKnownName: the v1.0 endpoint refuses
+     * it on microsoft.graph.mailFolder ("Could not find a property named
+     * 'wellKnownName'"), so roles are resolved by name instead — see
+     * resolveWellKnownFolders().
+     *
      * @return list<array<string,mixed>>
      */
     public function listFolders(Account $account): array
@@ -71,21 +82,58 @@ final class GraphApiClient
         return $this->collectPages(
             $account,
             self::ME . '/mailFolders/delta',
-            ['$select' => 'id,displayName,parentFolderId,wellKnownName,totalItemCount'],
+            ['$select' => 'id,displayName,parentFolderId,childFolderCount,totalItemCount'],
         )['items'];
     }
 
     /**
-     * Resolve a well-known folder (inbox, sentitems, drafts, deleteditems,
-     * junkemail, archive) to its current id. Folder ids are not immutable, so
-     * this is called rather than cached across syncs.
+     * Map each well-known folder name to its current folder id.
+     *
+     * Graph accepts a well-known name in place of an id on the mailFolders
+     * path, which is the supported way to identify system folders. It is also
+     * the only reliable way: immutable ids do not cover mailFolder resources,
+     * so a stored system-folder id can rotate, and wellKnownName cannot be
+     * projected onto the folder list in v1.0.
+     *
+     * Names that do not exist on the mailbox are skipped — `archive` is absent
+     * on some mailboxes, and the recoverable-items folders are absent on
+     * consumer accounts.
+     *
+     * @param list<string> $names
+     * @return array<string, string>  wellKnownName => folderId
+     */
+    public function resolveWellKnownFolders(Account $account, array $names): array
+    {
+        $map = [];
+
+        foreach ($names as $name) {
+            try {
+                $folder = $this->getWellKnownFolder($account, $name);
+            } catch (GraphApiException) {
+                // 404 for a folder this mailbox does not have. Not an error.
+                continue;
+            }
+
+            $id = (string) ($folder['id'] ?? '');
+
+            if ('' !== $id) {
+                $map[$name] = $id;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Resolve a single well-known folder (inbox, sentitems, drafts,
+     * deleteditems, junkemail, archive, msgfolderroot) to its current id.
      *
      * @return array<string,mixed>
      */
     public function getWellKnownFolder(Account $account, string $wellKnownName): array
     {
         return $this->request($account, 'GET', self::ME . '/mailFolders/' . rawurlencode($wellKnownName), [
-            'query' => ['$select' => 'id,displayName,parentFolderId,wellKnownName'],
+            'query' => ['$select' => 'id,displayName,parentFolderId'],
         ])->toArray();
     }
 

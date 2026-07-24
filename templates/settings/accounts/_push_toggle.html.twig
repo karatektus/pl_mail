@@ -15,7 +15,7 @@
 {% set status = status|default(push_status(account)) %}
 
 {% if status.supported %}
-    <turbo-frame id="account-push-{{ account.id }}">
+    <turbo-frame id="account-push-{{ account.id }}" class="block">
         <div class="rounded-xl border border-white/40 dark:border-white/10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl p-4">
             <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
