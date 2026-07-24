@@ -527,15 +527,6 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function isGmailWatchActive(): bool
-    {
-        if (null === $this->gmailWatchExpiry) {
-            return false;
-        }
-
-        return $this->gmailWatchExpiry > new DateTimeImmutable();
-    }
-
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -676,5 +667,16 @@ class Account extends AccountModel
         $this->graphSubscriptionExpiresAt = $graphSubscriptionExpiresAt;
 
         return $this;
+    }
+
+    public function isGmailWatchActive(): bool
+    {
+        $expiry = $this->gmailWatchExpiry;
+
+        if (null === $expiry) {
+            return false;
+        }
+
+        return $expiry > new \DateTimeImmutable();
     }
 }

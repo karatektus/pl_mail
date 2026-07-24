@@ -8,6 +8,7 @@ use App\Entity\Account;
 use App\Form\AccountType;
 use App\Repository\AccountRepository;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -31,9 +32,9 @@ final class AccountController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AccountRepository      $accountRepository,
-        private readonly GmailApiClient         $gmailApiClient,
         private readonly LoggerInterface        $logger,
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
+        private readonly PushSubscriptionRegistry $subscriptionRegistry,
     ) {
     }
 
@@ -147,19 +148,12 @@ final class AccountController extends AbstractController
 
         // Best-effort: stop any Gmail push watch so we don't leave a dangling
         // registration pointing at an account that no longer exists.
-        if (null !== $account->getGmailWatchResourceName()) {
-            try {
-                $this->gmailApiClient->stopWatch($account);
-            } catch (Throwable $e) {
-                $this->logger->warning('Failed to stop Gmail watch during account delete', [
-                    'accountId' => $account->getId(),
-                    'error'     => $e->getMessage(),
-                ]);
-            }
+        $manager = $this->subscriptionRegistry->resolve($account);
+
+        if (null !== $manager) {
+            $manager->unsubscribe($account);
         }
-        if (true === $account->isMicrosoft()) {
-            $this->graphSubscriptionManager->unsubscribe($account);
-        }
+
         $this->entityManager->remove($account);
         $this->entityManager->flush();
 

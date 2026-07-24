@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Entity\Account;
+use App\Service\Push\PushStatusFactory;
 use App\Service\Push\PushSubscriptionRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,6 +34,7 @@ final class AccountPushController extends AbstractController
 {
     public function __construct(
         private readonly PushSubscriptionRegistry $registry,
+        private readonly PushStatusFactory        $statusFactory,
         private readonly EntityManagerInterface   $em,
     ) {}
 
@@ -73,13 +75,7 @@ final class AccountPushController extends AbstractController
             $this->em->flush();
         }
 
-        return $this->render('settings/accounts/_push_toggle.html.twig', [
-            'account'      => $account,
-            'health'       => $manager->health($account),
-            'expiresAt'    => $manager->expiresAt($account),
-            'isConfigured' => $manager->isConfigured(),
-            'failed'       => $failed,
-        ]);
+        return $this->renderToggle($account, $failed);
     }
 
     /**
@@ -106,12 +102,25 @@ final class AccountPushController extends AbstractController
 
         $failed = false === $manager->renew($account);
 
+        return $this->renderToggle($account, $failed);
+    }
+
+    /**
+     * The partial resolves its own state via push_status(), so the only thing
+     * worth passing explicitly is the outcome of the action just performed —
+     * a failure is not derivable from the account afterwards.
+     */
+    private function renderToggle(Account $account, bool $failed): Response
+    {
+        $status = $this->statusFactory->build($account);
+
+        if (true === $failed) {
+            $status = $status->withFailure();
+        }
+
         return $this->render('settings/accounts/_push_toggle.html.twig', [
-            'account'      => $account,
-            'health'       => $manager->health($account),
-            'expiresAt'    => $manager->expiresAt($account),
-            'isConfigured' => $manager->isConfigured(),
-            'failed'       => $failed,
+            'account' => $account,
+            'status'  => $status,
         ]);
     }
 

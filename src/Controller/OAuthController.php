@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\AuthType;
 use App\Repository\AccountRepository;
 use App\Service\Gmail\GmailWatchService;
+use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -33,8 +34,8 @@ class OAuthController extends AbstractController
         private readonly OAuthProviderFactory   $providerFactory,
         private readonly AccountRepository      $accountRepository,
         private readonly EntityManagerInterface $em,
-        private readonly GmailWatchService      $watchService,
-        private readonly GraphSubscriptionManager $graphSubscriptionManager
+        private readonly GraphSubscriptionManager $graphSubscriptionManager,
+        private readonly PushSubscriptionRegistry $pushRegistry,
     ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
@@ -116,16 +117,7 @@ class OAuthController extends AbstractController
 
         $account = $this->upsertAccount($mailProvider, $email, $token);
 
-        // Register Gmail push-notification watch for the inbox mailbox.
-        // The mailbox sync runs separately (SyncMailboxesCommand); the watch
-        // only needs to exist before the first push arrives.
-        if (MailProvider::Google === $mailProvider) {
-            $this->registerGmailWatch($account);
-        }
-
-        if (MailProvider::Microsoft === $mailProvider) {
-            $this->registerGraphWatch($account);
-        }
+        $this->registerPush($account);
 
         return $this->redirectToRoute('app_default_index');
     }
@@ -188,30 +180,25 @@ class OAuthController extends AbstractController
         return $account;
     }
 
-    private function registerGmailWatch(Account $account): void
-    {
-        try {
-            $this->watchService->watch($account);
-        } catch (\Throwable $e) {
-            // Non-fatal — push will be missing until renewal command runs
-            // but polling-based sync still works
-        }
-    }
-
     /**
-     * Establish push for a freshly connected Microsoft account.
+     * Establish push for a freshly connected account.
      *
-     * Push is opt-in but defaults to on at connect time, because that is the
-     * one moment we know the token is fresh and the user is present. Failure
-     * is non-fatal: the account falls back to scheduled delta polling and the
-     * settings pane shows it as pull.
+     * On by default at connect time, because that is the one moment we know the
+     * token is fresh and the user is present. Failure is non-fatal: the account
+     * falls back to scheduled polling and the settings pane shows it as such.
      */
-    private function registerGraphWatch(Account $account): void
+    private function registerPush(Account $account): void
     {
+        $manager = $this->pushRegistry->resolve($account);
+
+        if (null === $manager) {
+            return;
+        }
+
         $account->setPushEnabled(true);
         $this->em->flush();
 
-        if (false === $this->graphSubscriptionManager->subscribe($account)) {
+        if (false === $manager->subscribe($account)) {
             $account->setPushEnabled(false);
             $this->em->flush();
         }

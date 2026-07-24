@@ -37,6 +37,12 @@ services:
     App\Service\Mail\GraphApiSender:
         tags: ['app.mail_sender']
 
+    App\Service\Gmail\GmailPushSubscriptionManager:
+        tags: ['app.push_subscription_manager']
+
+    App\Service\Graph\GraphSubscriptionManager:
+        tags: ['app.push_subscription_manager']
+
     App\Service\Mail\GmailApiSender:
         tags: [{ name: app.mail_sender, priority: 10 }]
 

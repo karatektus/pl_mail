@@ -285,6 +285,18 @@ settings:
             imap: IMAP
             oauth: '%provider% (OAuth)'
         push:
+            not_configured: >-
+                Push isn't available on this server — it needs a public HTTPS
+                address and, for Gmail, a Cloud Pub/Sub topic.
+            degraded_hint: >-
+                Push is registered but nothing has arrived recently. The Pub/Sub
+                push subscription in Google Cloud may be missing or pointing
+                elsewhere. Mail is still syncing on a schedule.
+            reregister: Re-register push
+            health:
+                active: Push
+                degraded: Push (not delivering)
+                inactive: Scheduled
             title: Instant delivery
             on_hint: New mail arrives immediately via Microsoft push notifications.
             off_hint: Mail is checked on a schedule. Turn on push for instant delivery.

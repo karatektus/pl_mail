@@ -47,7 +47,6 @@ final class SettingsController extends AbstractController
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
             'labelsByAccount'    => $labelsByAccount,
-            'isConfigured'       => 'false',
         ]);
     }
 }
