@@ -18,6 +18,11 @@ use Symfony\Component\Mime\Email;
  */
 class SmtpMailSender implements MailSenderInterface
 {
+    public function __construct(
+        private readonly SmtpDsnFactory $dsnFactory,
+    ) {
+    }
+
     public function supports(Account $account): bool
     {
         if (AuthType::OAuth2->value === $account->getAuthType()) {
@@ -34,37 +39,8 @@ class SmtpMailSender implements MailSenderInterface
 
     public function send(Email $email, Account $account): bool
     {
-        $rawEncryption = $account->getSmtpEncryption();
-
-        if (null === $rawEncryption) {
-            $encryption = 'tls';
-        } else {
-            $encryption = strtolower($rawEncryption);
-        }
-
-        if ('ssl' === $encryption) {
-            $scheme = 'smtps';
-        } else {
-            $scheme = 'smtp';
-        }
-
-        $port = $account->getSmtpPort();
-
-        if (null === $port) {
-            $port = 587;
-        }
-
-        $dsn = sprintf(
-            '%s://%s:%s@%s:%d',
-            $scheme,
-            urlencode($account->getUsername()),
-            urlencode($account->getPassword()),
-            $account->getSmtpHost(),
-            $port,
-        );
-
         try {
-            $mailer = new Mailer(Transport::fromDsn($dsn));
+            $mailer = new Mailer(Transport::fromDsn($this->dsnFactory->forAccount($account)));
             $mailer->send($email);
         } catch (TransportExceptionInterface $e) {
             return false;

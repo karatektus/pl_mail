@@ -193,8 +193,7 @@ class ComposeController extends AbstractController
     public function send(Request $request, ?Message $message): Response
     {
         if (null === $message) {
-            $message = new Message()
-                ->setAccount($this->defaultAccount());
+            $message = new Message();
         } else {
             $this->assertOwnership($message);
         }
@@ -285,6 +284,10 @@ class ComposeController extends AbstractController
             'isPrimary' => true,
         ]);
 
+        if (null !== $account && $account->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
         if (null !== $account) {
             return $account;
         }
@@ -305,6 +308,8 @@ class ComposeController extends AbstractController
      */
     private function applyAccount(Message $message, Account $account): void
     {
+        $message->setAccount($account);
+
         $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
 
         foreach ($message->getLabels() as $label) {

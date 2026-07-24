@@ -1,0 +1,130 @@
+{#
+_fields.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Shared IMAP/SMTP field block for the account create and edit modals.
+
+The two modals differ only in their shell: creation offers an IMAP/OAuth tab
+bar, editing is password-only (AccountController::edit() rejects OAuth
+accounts outright). Everything between the preset dropdown and the connection
+tester is identical, so it lives here.
+
+Variables:
+  form   FormView   an AccountType form view
+  mode   string     "new" | "edit" — controls password help text only
+
+Note: rows deliberately pass no `attr` override. The data-imap-preset-target
+attributes are defined in AccountType, and a template-level `attr` replaces
+that hash wholesale rather than merging into it. Where an override is
+genuinely needed, merge onto form.<field>.vars.attr.
+#}
+{% set mode = mode|default('new') %}
+
+{# ── Global errors ────────────────────────────────────────────────────── #}
+{% if form.vars.errors|length %}
+    <div role="alert" class="flex items-start gap-2.5 rounded-xl
+                             alert-danger
+                             px-3.5 py-3 text-sm text-danger">
+        <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger opacity-80" aria-hidden="true"></i>
+        <div class="space-y-0.5">
+            {% for error in form.vars.errors %}<p class="leading-snug">{{ error.message }}</p>{% endfor %}
+        </div>
+    </div>
+{% endif %}
+
+{# ── Provider preset ──────────────────────────────────────────────────── #}
+<div class="space-y-2">
+    {{ form_row(form.preset, { label: 'account.form.preset.label'|trans }) }}
+    <p data-imap-preset-target="note"
+       class="hidden rounded-lg bg-accent-soft px-3 py-2 text-xs leading-snug text-accent"></p>
+</div>
+
+<div class="border-t border-line"></div>
+
+{# ── Account basics ───────────────────────────────────────────────────── #}
+<div class="space-y-3">
+    <div class="grid grid-cols-2 gap-3">
+        {{ form_row(form.email,    { label: 'account.form.email'|trans }) }}
+        {{ form_row(form.username, { label: 'account.form.username'|trans }) }}
+    </div>
+    {{ form_row(form.password, {
+        label: 'account.form.password'|trans,
+        help: mode == 'edit' ? 'settings.accounts.password_help'|trans : null,
+        attr: form.password.vars.attr|merge({ placeholder: '••••••••' })
+    }) }}
+</div>
+
+<div class="border-t border-line"></div>
+
+{# ── Incoming — IMAP ──────────────────────────────────────────────────── #}
+<div class="space-y-3">
+    <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+        {{ 'account.form.imap.heading'|trans }}
+    </p>
+    <div class="grid grid-cols-[1fr_100px] gap-3">
+        {{ form_row(form.imapHost, { label: 'account.form.imap.host'|trans }) }}
+        {{ form_row(form.imapPort, { label: 'account.form.port'|trans }) }}
+    </div>
+    {{ form_row(form.imapEncryption, { label: 'account.form.encryption'|trans }) }}
+</div>
+
+<div class="border-t border-line"></div>
+
+{# ── Outgoing — SMTP ──────────────────────────────────────────────────── #}
+<div class="space-y-3">
+    <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+        {{ 'account.form.smtp.heading'|trans }}
+    </p>
+    <div class="grid grid-cols-[1fr_100px] gap-3">
+        {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans }) }}
+        {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
+    </div>
+    {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}
+</div>
+
+<div class="border-t border-line"></div>
+
+{# ── Connection test ──────────────────────────────────────────────────── #}
+<div class="space-y-3">
+    <div class="flex items-center gap-3">
+        <button
+            type="button"
+            data-connection-test-target="button"
+            data-action="click->connection-test#run"
+            class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                   border border-line text-ink-soft
+                   hover:bg-hover transition-colors cursor-pointer
+                   disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+            <i class="fa-solid fa-plug text-xs" aria-hidden="true"></i>
+            {{ 'account.test.button'|trans }}
+        </button>
+
+        <span data-connection-test-target="spinner" class="hidden">
+            <i class="fa-solid fa-circle-notch fa-spin text-ink-faint text-sm" aria-hidden="true"></i>
+        </span>
+    </div>
+
+    <div data-connection-test-target="panel"
+         class="hidden space-y-2 rounded-xl border border-line bg-sunken px-3.5 py-3"
+         aria-live="polite">
+
+        <div data-connection-test-target="imapRow" class="flex items-start gap-2.5 text-xs">
+            <i class="fa-solid fa-circle-notch mt-0.5 shrink-0 text-ink-faint" aria-hidden="true"></i>
+            <div class="min-w-0">
+                <p class="font-semibold text-ink">{{ 'account.test.imap'|trans }}</p>
+                <p data-connection-test-target="imapTarget" class="text-ink-faint font-mono text-[11px]"></p>
+                <p data-connection-test-target="imapText" class="text-ink-soft break-words leading-snug"></p>
+            </div>
+        </div>
+
+        <div data-connection-test-target="smtpRow" class="flex items-start gap-2.5 text-xs">
+            <i class="fa-solid fa-circle-notch mt-0.5 shrink-0 text-ink-faint" aria-hidden="true"></i>
+            <div class="min-w-0">
+                <p class="font-semibold text-ink">{{ 'account.test.smtp'|trans }}</p>
+                <p data-connection-test-target="smtpTarget" class="text-ink-faint font-mono text-[11px]"></p>
+                <p data-connection-test-target="smtpText" class="text-ink-soft break-words leading-snug"></p>
+            </div>
+        </div>
+
+    </div>
+</div>

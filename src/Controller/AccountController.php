@@ -18,6 +18,11 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
 use Throwable;
+use App\Domain\DTO\ConnectionTestResult;
+use App\Service\Mail\ConnectionTester;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+
 
 #[Route('/account', name: 'app_account_')]
 #[IsGranted('ROLE_USER')]
@@ -34,7 +39,12 @@ final class AccountController extends AbstractController
     #[Route('/new', name: 'new')]
     public function new(Request $request): Response
     {
-        $account = new Account();
+        $account = new Account()
+            ->setImapPort(993)
+            ->setImapEncryption('ssl')
+            ->setSmtpPort(587)
+            ->setSmtpEncryption('starttls');
+
         $form = $this->createForm(AccountType::class, $account, ['action' => $this->generateUrl('app_account_new')]);
         $form->handleRequest($request);
 
@@ -95,8 +105,8 @@ final class AccountController extends AbstractController
         }
 
         return $this->render('account/_edit_modal.html.twig', [
-            'account' => $account,
             'form'    => $form,
+            'account' => $account,
         ]);
     }
 
@@ -182,6 +192,63 @@ final class AccountController extends AbstractController
         return $this->render('account/_reorder.stream.html.twig', [
             'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
+
+    #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]
+    public function testConnection(Request $request, ConnectionTester $tester): JsonResponse
+    {
+        if (false === $this->isCsrfTokenValid('account_test', (string) $request->headers->get('X-CSRF-Token'))) {
+            throw new BadRequestHttpException('Invalid CSRF token.');
+        }
+
+        $payload = json_decode($request->getContent(), true);
+
+        if (false === is_array($payload)) {
+            throw new BadRequestHttpException('Malformed payload.');
+        }
+
+        $account = new Account()
+            ->setAuthType('password')
+            ->setUsername((string) ($payload['username'] ?? ''))
+            ->setPassword((string) ($payload['password'] ?? ''))
+            ->setImapHost((string) ($payload['imapHost'] ?? ''))
+            ->setImapPort((int) ($payload['imapPort'] ?? 993))
+            ->setImapEncryption((string) ($payload['imapEncryption'] ?? 'ssl'))
+            ->setSmtpHost((string) ($payload['smtpHost'] ?? ''))
+            ->setSmtpPort((int) ($payload['smtpPort'] ?? 587))
+            ->setSmtpEncryption((string) ($payload['smtpEncryption'] ?? 'starttls'));
+
+        // Blank password on the edit form means "keep the stored one".
+        if ('' === $account->getPassword() && null !== ($payload['accountId'] ?? null)) {
+            $existing = $this->accountRepository->find((int) $payload['accountId']);
+
+            if (null === $existing) {
+                throw $this->createNotFoundException();
+            }
+
+            $this->denyUnlessOwner($existing);
+            $account->setPassword($existing->getPassword());
+        }
+
+        if ('' === $account->getUsername() || '' === $account->getImapHost()) {
+            return $this->json(new ConnectionTestResult(
+                false,
+                'Enter at least an email address and an IMAP host first.',
+                null,
+                '',
+            )->toArray());
+        }
+
+        if ('' === $account->getPassword()) {
+            return $this->json(new ConnectionTestResult(
+                false,
+                'No password available to test with. Enter one above — on the edit form a blank field means "keep the stored password", which the tester can only resolve once the account id reaches it.',
+                null,
+                '',
+            )->toArray());
+        }
+
+        return $this->json($tester->test($account)->toArray());
     }
 
     /**

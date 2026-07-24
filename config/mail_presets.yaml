@@ -1,0 +1,328 @@
+# IMAP/SMTP presets shown in the "Provider" dropdown on the account form.
+#
+# encryption: ssl | starttls | none  (must match the form choice values)
+# domains:    used to auto-detect a preset from the email address the user types
+# note:       optional hint rendered under the dropdown (translation-free, short)
+presets:
+
+    # ── Deutschland / DACH ────────────────────────────────────────────────
+    gmx:
+        name: GMX
+        group: Deutschland
+        domains: ['gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch']
+        note: 'IMAP muss im GMX-Webinterface unter Einstellungen erst aktiviert werden.'
+        imap: { host: imap.gmx.net, port: 993, encryption: ssl }
+        smtp: { host: mail.gmx.net, port: 587, encryption: starttls }
+
+    gmx-com:
+        name: GMX (International)
+        group: Deutschland
+        domains: ['gmx.com', 'gmx.us']
+        imap: { host: imap.gmx.com, port: 993, encryption: ssl }
+        smtp: { host: mail.gmx.com, port: 587, encryption: starttls }
+
+    web-de:
+        name: WEB.DE
+        group: Deutschland
+        domains: ['web.de']
+        note: 'IMAP muss im WEB.DE-Webinterface erst freigeschaltet werden.'
+        imap: { host: imap.web.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.web.de, port: 587, encryption: starttls }
+
+    t-online:
+        name: Telekom / T-Online
+        group: Deutschland
+        domains: ['t-online.de', 'magenta.de']
+        note: 'Es wird ein separates E-Mail-Passwort benötigt, nicht das Telekom-Login.'
+        imap: { host: secureimap.t-online.de, port: 993, encryption: ssl }
+        smtp: { host: securesmtp.t-online.de, port: 587, encryption: starttls }
+
+    freenet:
+        name: freenet
+        group: Deutschland
+        domains: ['freenet.de']
+        imap: { host: mx.freenet.de, port: 993, encryption: ssl }
+        smtp: { host: mx.freenet.de, port: 587, encryption: starttls }
+
+    mailbox-org:
+        name: mailbox.org
+        group: Deutschland
+        domains: ['mailbox.org']
+        imap: { host: imap.mailbox.org, port: 993, encryption: ssl }
+        smtp: { host: smtp.mailbox.org, port: 465, encryption: ssl }
+
+    posteo:
+        name: Posteo
+        group: Deutschland
+        domains: ['posteo.de', 'posteo.net']
+        imap: { host: posteo.de, port: 993, encryption: ssl }
+        smtp: { host: posteo.de, port: 465, encryption: ssl }
+
+    mail-de:
+        name: mail.de
+        group: Deutschland
+        domains: ['mail.de']
+        imap: { host: imap.mail.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.mail.de, port: 465, encryption: ssl }
+
+    vodafone-de:
+        name: Vodafone / Arcor
+        group: Deutschland
+        domains: ['vodafone.de', 'vodafonemail.de', 'arcor.de', 'kabelmail.de']
+        imap: { host: imap.vodafonemail.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.vodafonemail.de, port: 587, encryption: starttls }
+
+    netcologne:
+        name: NetCologne
+        group: Deutschland
+        domains: ['netcologne.de']
+        imap: { host: imap.netcologne.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.netcologne.de, port: 587, encryption: starttls }
+
+    ewe:
+        name: EWE
+        group: Deutschland
+        domains: ['ewe.net', 'ewetel.net']
+        imap: { host: imap.ewe.net, port: 993, encryption: ssl }
+        smtp: { host: smtp.ewe.net, port: 587, encryption: starttls }
+
+    bluewin:
+        name: Swisscom Bluewin
+        group: Deutschland
+        domains: ['bluewin.ch']
+        imap: { host: imap.bluewin.ch, port: 993, encryption: ssl }
+        smtp: { host: smtp.bluewin.ch, port: 465, encryption: ssl }
+
+    # ── Hosting-Provider ──────────────────────────────────────────────────
+    hetzner:
+        name: Hetzner (Konsole H)
+        group: Hosting
+        domains: []
+        note: 'Benutzername ist die vollständige E-Mail-Adresse.'
+        imap: { host: mail.your-server.de, port: 993, encryption: ssl }
+        smtp: { host: mail.your-server.de, port: 587, encryption: starttls }
+
+    ionos:
+        name: IONOS / 1&1
+        group: Hosting
+        domains: ['ionos.de', 'online.de']
+        imap: { host: imap.ionos.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.ionos.de, port: 587, encryption: starttls }
+
+    strato:
+        name: STRATO
+        group: Hosting
+        domains: []
+        imap: { host: imap.strato.de, port: 993, encryption: ssl }
+        smtp: { host: smtp.strato.de, port: 465, encryption: ssl }
+
+    domainfactory:
+        name: domainFACTORY
+        group: Hosting
+        domains: []
+        note: 'Gemeinsamer Mailpool-Host; Benutzername ist die volle Adresse.'
+        imap: { host: sslmailpool.ispgateway.de, port: 993, encryption: ssl }
+        smtp: { host: sslmailpool.ispgateway.de, port: 465, encryption: ssl }
+
+    ovh:
+        name: OVH
+        group: Hosting
+        domains: []
+        imap: { host: ssl0.ovh.net, port: 993, encryption: ssl }
+        smtp: { host: ssl0.ovh.net, port: 465, encryption: ssl }
+
+    infomaniak:
+        name: Infomaniak
+        group: Hosting
+        domains: ['ik.me', 'etik.com']
+        imap: { host: mail.infomaniak.com, port: 993, encryption: ssl }
+        smtp: { host: mail.infomaniak.com, port: 465, encryption: ssl }
+
+    migadu:
+        name: Migadu
+        group: Hosting
+        domains: []
+        imap: { host: imap.migadu.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.migadu.com, port: 465, encryption: ssl }
+
+    rackspace:
+        name: Rackspace Email
+        group: Hosting
+        domains: []
+        imap: { host: secure.emailsrvr.com, port: 993, encryption: ssl }
+        smtp: { host: secure.emailsrvr.com, port: 465, encryption: ssl }
+
+    # ── International ─────────────────────────────────────────────────────
+    gmail:
+        name: Gmail
+        group: International
+        domains: ['gmail.com', 'googlemail.com']
+        note: 'Requires an app password; prefer the OAuth tab instead.'
+        imap: { host: imap.gmail.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.gmail.com, port: 587, encryption: starttls }
+
+    outlook:
+        name: Outlook.com / Hotmail
+        group: International
+        domains: ['outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.com', 'live.de', 'msn.com']
+        note: 'Microsoft has disabled basic auth for most tenants — use the OAuth tab.'
+        imap: { host: outlook.office365.com, port: 993, encryption: ssl }
+        smtp: { host: smtp-mail.outlook.com, port: 587, encryption: starttls }
+
+    icloud:
+        name: iCloud Mail
+        group: International
+        domains: ['icloud.com', 'me.com', 'mac.com']
+        note: 'Requires an app-specific password.'
+        imap: { host: imap.mail.me.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.mail.me.com, port: 587, encryption: starttls }
+
+    yahoo:
+        name: Yahoo Mail
+        group: International
+        domains: ['yahoo.com', 'yahoo.de', 'ymail.com', 'rocketmail.com']
+        note: 'Requires an app password.'
+        imap: { host: imap.mail.yahoo.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.mail.yahoo.com, port: 465, encryption: ssl }
+
+    aol:
+        name: AOL Mail
+        group: International
+        domains: ['aol.com', 'aol.de']
+        imap: { host: imap.aol.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.aol.com, port: 465, encryption: ssl }
+
+    fastmail:
+        name: Fastmail
+        group: International
+        domains: ['fastmail.com', 'fastmail.fm']
+        note: 'Requires an app password.'
+        imap: { host: imap.fastmail.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.fastmail.com, port: 465, encryption: ssl }
+
+    protonmail-bridge:
+        name: Proton Mail (Bridge)
+        group: International
+        domains: ['proton.me', 'protonmail.com', 'pm.me']
+        note: 'Only works with Proton Mail Bridge running on the same host.'
+        imap: { host: 127.0.0.1, port: 1143, encryption: none }
+        smtp: { host: 127.0.0.1, port: 1025, encryption: starttls }
+
+    zoho-eu:
+        name: Zoho Mail (EU)
+        group: International
+        domains: ['zoho.eu']
+        imap: { host: imap.zoho.eu, port: 993, encryption: ssl }
+        smtp: { host: smtp.zoho.eu, port: 465, encryption: ssl }
+
+    zoho-com:
+        name: Zoho Mail (COM)
+        group: International
+        domains: ['zoho.com', 'zohomail.com']
+        imap: { host: imap.zoho.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.zoho.com, port: 465, encryption: ssl }
+
+    mail-com:
+        name: mail.com
+        group: International
+        domains: ['mail.com', 'email.com', 'usa.com']
+        imap: { host: imap.mail.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.mail.com, port: 587, encryption: starttls }
+
+    mailfence:
+        name: Mailfence
+        group: International
+        domains: ['mailfence.com']
+        imap: { host: imap.mailfence.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.mailfence.com, port: 465, encryption: ssl }
+
+    runbox:
+        name: Runbox
+        group: International
+        domains: ['runbox.com']
+        imap: { host: imap.runbox.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.runbox.com, port: 465, encryption: ssl }
+
+    purelymail:
+        name: Purelymail
+        group: International
+        domains: ['purelymail.com']
+        imap: { host: imap.purelymail.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.purelymail.com, port: 465, encryption: ssl }
+
+    hushmail:
+        name: Hushmail
+        group: International
+        domains: ['hushmail.com']
+        imap: { host: imap.hushmail.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.hushmail.com, port: 465, encryption: ssl }
+
+    yandex:
+        name: Yandex Mail
+        group: International
+        domains: ['yandex.com', 'yandex.ru', 'ya.ru']
+        imap: { host: imap.yandex.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.yandex.com, port: 465, encryption: ssl }
+
+    mail-ru:
+        name: Mail.ru
+        group: International
+        domains: ['mail.ru', 'inbox.ru', 'bk.ru', 'list.ru']
+        imap: { host: imap.mail.ru, port: 993, encryption: ssl }
+        smtp: { host: smtp.mail.ru, port: 465, encryption: ssl }
+
+    seznam:
+        name: Seznam.cz
+        group: International
+        domains: ['seznam.cz', 'email.cz']
+        imap: { host: imap.seznam.cz, port: 993, encryption: ssl }
+        smtp: { host: smtp.seznam.cz, port: 465, encryption: ssl }
+
+    wp-pl:
+        name: WP.pl
+        group: International
+        domains: ['wp.pl']
+        imap: { host: imap.wp.pl, port: 993, encryption: ssl }
+        smtp: { host: smtp.wp.pl, port: 465, encryption: ssl }
+
+    orange-fr:
+        name: Orange
+        group: International
+        domains: ['orange.fr', 'wanadoo.fr']
+        imap: { host: imap.orange.fr, port: 993, encryption: ssl }
+        smtp: { host: smtp.orange.fr, port: 465, encryption: ssl }
+
+    free-fr:
+        name: Free
+        group: International
+        domains: ['free.fr']
+        imap: { host: imap.free.fr, port: 993, encryption: ssl }
+        smtp: { host: smtp.free.fr, port: 465, encryption: ssl }
+
+    libero:
+        name: Libero
+        group: International
+        domains: ['libero.it', 'inwind.it', 'iol.it']
+        imap: { host: imapmail.libero.it, port: 993, encryption: ssl }
+        smtp: { host: smtp.libero.it, port: 465, encryption: ssl }
+
+    comcast:
+        name: Comcast / Xfinity
+        group: International
+        domains: ['comcast.net']
+        imap: { host: imap.comcast.net, port: 993, encryption: ssl }
+        smtp: { host: smtp.comcast.net, port: 587, encryption: starttls }
+
+    qq:
+        name: QQ Mail
+        group: International
+        domains: ['qq.com', 'foxmail.com']
+        imap: { host: imap.qq.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.qq.com, port: 465, encryption: ssl }
+
+    netease-163:
+        name: NetEase 163
+        group: International
+        domains: ['163.com', '126.com']
+        imap: { host: imap.163.com, port: 993, encryption: ssl }
+        smtp: { host: smtp.163.com, port: 465, encryption: ssl }

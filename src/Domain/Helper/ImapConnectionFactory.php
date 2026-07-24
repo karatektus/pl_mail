@@ -22,7 +22,7 @@ class ImapConnectionFactory
     ) {
     }
 
-    public function connect(Account $account): Client
+    public function connect(Account $account, ?int $timeout = null): Client
     {
         $encryption = match ($account->getImapEncryption()) {
             'ssl'      => 'ssl',
@@ -46,6 +46,10 @@ class ImapConnectionFactory
         } else {
             $accountConfig['password']       = $account->getPassword();
             $accountConfig['authentication'] = null;
+        }
+
+        if (null !== $timeout) {
+            $accountConfig['timeout'] = $timeout;
         }
 
         $client = new Client(Config::make([

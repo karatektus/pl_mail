@@ -185,6 +185,10 @@ account:
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
+    test:
+        button: Test connection
+        imap: IMAP
+        smtp: SMTP
     form:
         email: Email address
         username: Username
@@ -197,6 +201,9 @@ account:
         smtp:
             heading: Outgoing — SMTP
             host: Host
+        preset:
+            label: Provider
+            placeholder: Choose a provider…
     oauth:
         info: Sign in with your provider — no password stored.
         google: Continue with Google

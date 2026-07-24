@@ -3,6 +3,7 @@
 namespace App\Form;
 
 use App\Entity\Account;
+use App\Service\Mail\MailPresetProvider;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -15,9 +16,29 @@ use Symfony\Component\Validator\Constraints\Range;
 
 class AccountType extends AbstractType
 {
+    public function __construct(
+        private readonly MailPresetProvider $presetProvider,
+    )
+    {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+            ->add('preset', ChoiceType::class, [
+                'mapped'      => false,
+                'required'    => false,
+                'label'       => 'account.form.preset.label',
+                'placeholder' => 'account.form.preset.placeholder',
+                'choices'     => $this->presetProvider->choices(),
+                'autocomplete' => true,
+                'attr' => [
+                    'class'                    => 'form-select',
+                    'data-imap-preset-target'  => 'select',
+                    'data-action'              => 'change->imap-preset#apply',
+                    'data-presets'             => json_encode($this->presetProvider->toClientArray(), JSON_THROW_ON_ERROR),
+                ],
+            ])
             ->add('email', TextType::class, [
                 'attr' => [
                     'placeholder' => 'you@example.com',
@@ -27,11 +48,13 @@ class AccountType extends AbstractType
             ])
             ->add('username', TextType::class, [
                 'attr' => [
-                    'placeholder' => 'you@example.com',
-                    'class' => 'form-input',
-                    'autocomplete' => 'email',
+                    'placeholder'             => 'you@example.com',
+                    'class'                   => 'form-input',
+                    'autocomplete'            => 'email',
+                    'data-imap-preset-target' => 'username',
+                    'data-action'             => 'change->imap-preset#detect blur->imap-preset#detect',
                 ],
-                'label' => 'Email address',
+                'label'       => 'Email address',
                 'constraints' => [new NotBlank()],
             ])
             ->add('password', PasswordType::class, [
@@ -58,14 +81,13 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ],
                 'label' => 'IMAP port',
-                'data' => 993,
                 'constraints' => [new NotBlank(), new Range(min: 1, max: 65535)],
             ])
             ->add('imapEncryption', ChoiceType::class, [
                 'choices' => [
                     'SSL / TLS' => 'ssl',
-                    'STARTTLS'  => 'starttls',
-                    'None'      => 'none',
+                    'STARTTLS' => 'starttls',
+                    'None' => 'none',
                 ],
                 'attr' => ['class' => 'form-select'],
                 'label' => 'Encryption',
@@ -85,26 +107,26 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ],
                 'label' => 'SMTP port',
-                'data' => 587,
                 'constraints' => [new Range(min: 1, max: 65535)],
             ])
             ->add('smtpEncryption', ChoiceType::class, [
                 'required' => false,
                 'choices' => [
-                    'STARTTLS'  => 'starttls',
+                    'STARTTLS' => 'starttls',
                     'SSL / TLS' => 'ssl',
-                    'None'      => 'none',
+                    'None' => 'none',
                 ],
-                'attr' => ['class' => 'form-select'],
+                'attr' => [
+                    'class' => 'form-select',
+                    ],
                 'label' => 'SMTP encryption',
-            ])
-        ;
+            ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class'       => Account::class,
+            'data_class' => Account::class,
             'require_password' => true,
         ]);
 
