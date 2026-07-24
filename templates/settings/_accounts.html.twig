@@ -56,7 +56,9 @@
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                         </button>
                     {% endif %}
-
+                    {% if account.microsoft or account.gmail %}
+                        {{ include('settings/accounts/_push_toggle.html.twig', {account: account, failed: false}) }}
+                    {% endif %}
                     <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
                         <button

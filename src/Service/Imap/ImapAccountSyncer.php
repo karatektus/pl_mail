@@ -28,9 +28,16 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
 
     public function supports(Account $account): bool
     {
-        return false === $account->isGmail(); //TODO: lets do a better check for ->isImap() maybe Account should get an explicit accountType field with an AccountType enum
-    }
+        if (true === $account->isGmail()) {
+            return false;
+        }
 
+        if (true === $account->isMicrosoft()) {
+            return false;
+        }
+
+        return true;
+    }
     public function sync(Account $account): array
     {
         try {

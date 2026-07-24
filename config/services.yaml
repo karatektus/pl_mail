@@ -26,6 +26,16 @@ services:
         arguments:
             $googleClientId: '%env(GOOGLE_OAUTH_CLIENT_ID)%'
             $googleClientSecret: '%env(GOOGLE_OAUTH_CLIENT_SECRET)%'
+            $microsoftClientId: '%env(MICROSOFT_OAUTH_CLIENT_ID)%'
+            $microsoftClientSecret: '%env(MICROSOFT_OAUTH_CLIENT_SECRET)%'
+            $microsoftTenant: '%env(MICROSOFT_OAUTH_TENANT)%'
+
+    App\Service\Graph\GraphAccountSyncer:
+        tags: ['app.account_syncer']
+
+    # Must be registered BEFORE SmtpMailSender so the API sender wins.
+    App\Service\Mail\GraphApiSender:
+        tags: ['app.mail_sender']
 
     App\Service\Mail\GmailApiSender:
         tags: [{ name: app.mail_sender, priority: 10 }]

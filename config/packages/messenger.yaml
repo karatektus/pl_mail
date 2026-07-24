@@ -27,3 +27,5 @@ framework:
             App\Message\ApplyImapFlagsMessage: async
             App\Message\HarvestContactsMessage: async
             App\Message\SyncGmailMessageBatchMessage: async
+            App\Message\SyncGraphMessageBatchMessage: async
+            App\Message\ApplyGraphChangesMessage: async

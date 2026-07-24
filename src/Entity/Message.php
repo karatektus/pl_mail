@@ -40,6 +40,9 @@ class Message extends MessageModel
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $gmailId = null;
 
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $graphId = null;
+
     /**
      * @var list<string>|null
      */
@@ -205,6 +208,18 @@ class Message extends MessageModel
     public function setGmailId(?string $gmailId): static
     {
         $this->gmailId = $gmailId;
+
+        return $this;
+    }
+
+    public function getGraphId(): ?string
+    {
+        return $this->graphId;
+    }
+
+    public function setGraphId(?string $graphId): static
+    {
+        $this->graphId = $graphId;
 
         return $this;
     }

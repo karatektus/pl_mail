@@ -103,14 +103,12 @@ class OAuthTokenManager
             );
         }
 
-        // Providers usually omit a fresh refresh token on refresh — keep the
-        // existing one unless a new one is explicitly returned.
         $returnedRefresh = $newToken->getRefreshToken();
         if (null !== $returnedRefresh) {
             $account
                 ->setOauthRefreshToken($returnedRefresh)
                 ->setOauthLastRefreshAt(new DateTimeImmutable())
-                ->setOauthLastRefreshError(null);;
+                ->setOauthLastRefreshError(null);
         }
 
         $account->setUpdatedAt(new DateTimeImmutable());

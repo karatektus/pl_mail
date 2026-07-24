@@ -67,6 +67,13 @@ class Label
     #[ORM\Column(length: 255, nullable: true)]
     public private(set) ?string $gmailLabelId = null;
 
+    #[ORM\Column(length: 512, nullable: true)]
+    public ?string $graphFolderId = null {
+        set (?string $value) {
+            $this->graphFolderId = $value;
+        }
+    }
+
     /**
      * Optional UI color (Tailwind token or hex, decided in Phase 5).
      */
@@ -178,6 +185,13 @@ class Label
     public function setGmailLabelId(?string $gmailLabelId): static
     {
         $this->gmailLabelId = $gmailLabelId;
+
+        return $this;
+    }
+
+    public function setGraphFolderId(?string $graphFolderId): static
+    {
+        $this->graphFolderId = $graphFolderId;
 
         return $this;
     }

@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\AccountRepository;
 use App\Repository\LabelRepository;
+use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,7 @@ final class SettingsController extends AbstractController
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
+        private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
     ) {
     }
 
@@ -45,6 +47,7 @@ final class SettingsController extends AbstractController
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
             'labelsByAccount'    => $labelsByAccount,
+            'isConfigured'       => 'false',
         ]);
     }
 }

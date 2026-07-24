@@ -7,19 +7,27 @@ namespace App\Domain\Enum;
 /**
  * A cloud mail provider we connect to over OAuth2.
  *
- * Holds only the *non-flow* provider differences (scopes, mail hosts,
- * authorization-url options). The OAuth flow itself is provider-agnostic and
- * lives in the OAuth service layer.
+ * Holds only the *non-flow* provider differences (scopes, authorization-url
+ * options). The OAuth flow itself is provider-agnostic and lives in the OAuth
+ * service layer.
+ *
+ * Microsoft note: we deliberately do NOT request IMAP/SMTP scopes.
+ * Exchange Online classifies IMAP/POP/SMTP as legacy-authentication clients
+ * in Entra Conditional Access, so IMAP+XOAUTH2 is blocked outright in any
+ * tenant running Security Defaults — which is the default for new tenants.
+ * Microsoft Graph is the only path that works everywhere and is the only one
+ * Microsoft is investing in (EWS is disabled from 2026-10-01 and removed
+ * 2027-04-01). Microsoft accounts therefore never touch the IMAP stack.
  */
 enum MailProvider: string
 {
-    case Google = 'google';
+    case Google    = 'google';
     case Microsoft = 'microsoft';
 
     /**
      * OAuth scopes requested at consent time.
      *
-     * @return string[]
+     * @return list<string>
      */
     public function scopes(): array
     {
@@ -31,10 +39,12 @@ enum MailProvider: string
             ],
             MailProvider::Microsoft => [
                 'offline_access',
-                'https://outlook.office.com/IMAP.AccessAsUser.All',
-                'https://outlook.office.com/SMTP.Send',
                 'openid',
                 'email',
+                'profile',
+                'https://graph.microsoft.com/User.Read',
+                'https://graph.microsoft.com/Mail.ReadWrite',
+                'https://graph.microsoft.com/Mail.Send',
             ],
         };
     }
@@ -42,9 +52,9 @@ enum MailProvider: string
     /**
      * Extra parameters appended to the authorization URL.
      *
-     * Google needs access_type=offline + prompt=consent to reliably return a
-     * refresh token. Microsoft signals the same intent via the offline_access
-     * scope, so it needs nothing here.
+     * Google needs prompt=consent (plus accessType=offline, set on the league
+     * provider) to reliably return a refresh token. Microsoft signals the same
+     * intent via the offline_access scope, so it needs nothing here.
      *
      * @return array<string, string>
      */
@@ -56,21 +66,38 @@ enum MailProvider: string
         };
     }
 
-    public function imapHost(): string
+    /**
+     * Whether this provider is synced over IMAP at all.
+     *
+     * Both current providers are API-synced; the method exists so the IMAP
+     * syncer can ask the question instead of hard-coding provider checks.
+     */
+    public function usesImap(): bool
+    {
+        return false;
+    }
+
+    public function imapHost(): ?string
     {
         return match ($this) {
             MailProvider::Google    => 'imap.gmail.com',
-            MailProvider::Microsoft => 'outlook.office365.com',
+            MailProvider::Microsoft => null,
         };
     }
 
-    public function imapPort(): int
+    public function imapPort(): ?int
     {
-        return 993;
+        return match ($this) {
+            MailProvider::Google    => 993,
+            MailProvider::Microsoft => null,
+        };
     }
 
-    public function imapEncryption(): string
+    public function imapEncryption(): ?string
     {
-        return 'ssl';
+        return match ($this) {
+            MailProvider::Google    => 'ssl',
+            MailProvider::Microsoft => null,
+        };
     }
 }

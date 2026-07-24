@@ -195,4 +195,33 @@ class LabelRepository extends ServiceEntityRepository
 
         return $matches;
     }
+
+    public function findOneByGraphFolderId(string $graphFolderId, Account $account): ?Label
+    {
+        return $this->findOneBy([
+            'graphFolderId' => $graphFolderId,
+            'account'       => $account,
+        ]);
+    }
+
+    /**
+     * @return list<Label>
+     */
+    public function findWithGraphFolderIdForAccount(Account $account): array
+    {
+        return $this->createQueryBuilder('l')
+            ->andWhere('l.account = :account')
+            ->andWhere('l.graphFolderId IS NOT NULL')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOneByFullNameForAccount(string $fullName, Account $account): ?Label
+    {
+        return $this->findOneBy([
+            'fullName' => $fullName,
+            'account'  => $account,
+        ]);
+    }
 }

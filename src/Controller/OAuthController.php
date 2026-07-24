@@ -9,7 +9,6 @@ use App\Entity\Account;
 use App\Entity\User;
 use App\Enum\AuthType;
 use App\Repository\AccountRepository;
-use App\Repository\MailboxRepository;
 use App\Service\Gmail\GmailWatchService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\OAuth\OAuthProviderFactory;
+use App\Service\Graph\GraphSubscriptionManager;
 
 #[IsGranted('ROLE_USER')]
 #[Route('/oauth', name: 'app_oauth_')]
@@ -34,6 +34,7 @@ class OAuthController extends AbstractController
         private readonly AccountRepository      $accountRepository,
         private readonly EntityManagerInterface $em,
         private readonly GmailWatchService      $watchService,
+        private readonly GraphSubscriptionManager $graphSubscriptionManager
     ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
@@ -62,6 +63,23 @@ class OAuthController extends AbstractController
         $state         = $request->query->get('state');
         $expectedState = $request->getSession()->get(self::SESSION_STATE_KEY);
         $request->getSession()->remove(self::SESSION_STATE_KEY);
+        $error = $request->query->get('error');
+
+        if (null !== $error) {
+            $description = (string) $request->query->get('error_description', '');
+            $translated  = $this->microsoftErrorTranslator->translate($description);
+
+            $this->logger->warning('OAuth callback returned an error', [
+                'provider'    => $provider,
+                'error'       => $error,
+                'aadstsCode'  => $translated['code'],
+                'description' => $description,
+            ]);
+
+            $this->addFlash('error', $this->translator->trans($translated['key']));
+
+            return $this->redirectToRoute('settings_accounts');
+        }
 
         if (null === $state || $state !== $expectedState) {
             throw $this->createAccessDeniedException('Invalid OAuth state.');
@@ -78,7 +96,13 @@ class OAuthController extends AbstractController
         try {
             $token = $client->getAccessToken('authorization_code', ['code' => $code]);
         } catch (IdentityProviderException $e) {
-            throw $this->createAccessDeniedException('OAuth token exchange failed: ' . $e->getMessage());
+            $translated = $this->microsoftErrorTranslator->translate(
+                $e->getMessage() . ' ' . json_encode($e->getResponseBody())
+            );
+
+            $this->addFlash('error', $this->translator->trans($translated['key']));
+
+            return $this->redirectToRoute('app_settings_index');
         }
 
         $ownerData = $client->getResourceOwner($token)->toArray();
@@ -95,8 +119,12 @@ class OAuthController extends AbstractController
         // Register Gmail push-notification watch for the inbox mailbox.
         // The mailbox sync runs separately (SyncMailboxesCommand); the watch
         // only needs to exist before the first push arrives.
-        if (true === (MailProvider::Google === $mailProvider)) {
+        if (MailProvider::Google === $mailProvider) {
             $this->registerGmailWatch($account);
+        }
+
+        if (MailProvider::Microsoft === $mailProvider) {
+            $this->registerGraphWatch($account);
         }
 
         return $this->redirectToRoute('app_default_index');
@@ -128,11 +156,17 @@ class OAuthController extends AbstractController
         $account->setUsername($email);
         $account->setAuthType(AuthType::OAuth2->value);
         $account->setOauthProvider($provider->value);
-        $account->setImapHost($provider->imapHost());
-        $account->setImapPort($provider->imapPort());
-        $account->setImapEncryption($provider->imapEncryption());
         $account->setPassword(null);
         $account->setOauthAccessToken($token->getToken());
+
+        $imapHost = $provider->imapHost();
+
+        if (null !== $imapHost) {
+            $account
+                ->setImapHost($imapHost)
+                ->setImapPort($provider->imapPort())
+                ->setImapEncryption($provider->imapEncryption());
+        }
 
         $refreshToken = $token->getRefreshToken();
         if (null !== $refreshToken) {
@@ -142,7 +176,7 @@ class OAuthController extends AbstractController
         $expires = $token->getExpires();
         if (null !== $expires) {
             $account->setOauthTokenExpiry(
-                (new DateTimeImmutable())->setTimestamp($expires)
+                new DateTimeImmutable()->setTimestamp($expires)
             );
         }
 
@@ -164,6 +198,24 @@ class OAuthController extends AbstractController
         }
     }
 
+    /**
+     * Establish push for a freshly connected Microsoft account.
+     *
+     * Push is opt-in but defaults to on at connect time, because that is the
+     * one moment we know the token is fresh and the user is present. Failure
+     * is non-fatal: the account falls back to scheduled delta polling and the
+     * settings pane shows it as pull.
+     */
+    private function registerGraphWatch(Account $account): void
+    {
+        $account->setPushEnabled(true);
+        $this->em->flush();
+
+        if (false === $this->graphSubscriptionManager->subscribe($account)) {
+            $account->setPushEnabled(false);
+            $this->em->flush();
+        }
+    }
     /**
      * @param array<string,mixed> $ownerData
      */

@@ -6,6 +6,7 @@ use App\Domain\Enum\MailProvider;
 use App\Domain\Model\AccountModel;
 use App\Enum\AuthType;
 use App\Repository\AccountRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -73,19 +74,19 @@ class Account extends AccountModel
     private ?string $oauthRefreshToken = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $oauthTokenExpiry = null;
+    private ?DateTimeImmutable $oauthTokenExpiry = null;
 
     #[ORM\Column]
     private ?bool $isActive = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $lastSyncedAt = null;
+    private ?DateTimeImmutable $lastSyncedAt = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private ?DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    private ?DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $gmailHistoryId = null;
@@ -95,7 +96,7 @@ class Account extends AccountModel
      * Google watch registrations last at most 7 days and must be renewed.
      */
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $gmailWatchExpiry = null;
+    private ?DateTimeImmutable $gmailWatchExpiry = null;
 
     /**
      * The resource name returned by users.watch() — stored so we can call
@@ -129,20 +130,43 @@ class Account extends AccountModel
      * from "healthy but quiet".
      */
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $gmailLastPushAt = null;
+    private ?DateTimeImmutable $gmailLastPushAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $oauthLastRefreshAt = null;
+    private ?DateTimeImmutable $oauthLastRefreshAt = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $oauthLastRefreshError = null;
+
+    #[ORM\Column(type: Types::JSON)]
+    private array $graphDeltaLinks = [];
+
+    /**
+     * Whether this mailbox honours Prefer: IdType="ImmutableId".
+     * Null = not yet probed. False is survivable — dedup keys on the RFC
+     * Message-ID — but means messages re-address on every folder move.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?bool $graphImmutableIds = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $pushEnabled = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $graphSubscriptionId = null;
+
+    #[ORM\Column(length: 128, nullable: true)]
+    private ?string $graphSubscriptionClientState = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?DateTimeImmutable $graphSubscriptionExpiresAt = null;
 
     public function __construct()
     {
         $this->mailboxes = new ArrayCollection();
         $this->messageThreads = new ArrayCollection();
-        $this->setCreatedAt(new \DateTimeImmutable());
-        $this->setUpdatedAt(new \DateTimeImmutable());
+        $this->setCreatedAt(new DateTimeImmutable());
+        $this->setUpdatedAt(new DateTimeImmutable());
     }
 
     public function getId(): ?int
@@ -329,12 +353,12 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getOauthTokenExpiry(): ?\DateTimeImmutable
+    public function getOauthTokenExpiry(): ?DateTimeImmutable
     {
         return $this->oauthTokenExpiry;
     }
 
-    public function setOauthTokenExpiry(?\DateTimeImmutable $oauthTokenExpiry): static
+    public function setOauthTokenExpiry(?DateTimeImmutable $oauthTokenExpiry): static
     {
         $this->oauthTokenExpiry = $oauthTokenExpiry;
 
@@ -353,36 +377,36 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getLastSyncedAt(): ?\DateTimeImmutable
+    public function getLastSyncedAt(): ?DateTimeImmutable
     {
         return $this->lastSyncedAt;
     }
 
-    public function setLastSyncedAt(?\DateTimeImmutable $lastSyncedAt): static
+    public function setLastSyncedAt(?DateTimeImmutable $lastSyncedAt): static
     {
         $this->lastSyncedAt = $lastSyncedAt;
 
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?DateTimeImmutable
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
 
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
 
@@ -481,12 +505,12 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getGmailWatchExpiry(): ?\DateTimeImmutable
+    public function getGmailWatchExpiry(): ?DateTimeImmutable
     {
         return $this->gmailWatchExpiry;
     }
 
-    public function setGmailWatchExpiry(?\DateTimeImmutable $gmailWatchExpiry): static
+    public function setGmailWatchExpiry(?DateTimeImmutable $gmailWatchExpiry): static
     {
         $this->gmailWatchExpiry = $gmailWatchExpiry;
         return $this;
@@ -509,7 +533,7 @@ class Account extends AccountModel
             return false;
         }
 
-        return $this->gmailWatchExpiry > new \DateTimeImmutable();
+        return $this->gmailWatchExpiry > new DateTimeImmutable();
     }
 
     public function getSetting(string $key, mixed $default = null): mixed
@@ -528,24 +552,24 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getGmailLastPushAt(): ?\DateTimeImmutable
+    public function getGmailLastPushAt(): ?DateTimeImmutable
     {
         return $this->gmailLastPushAt;
     }
 
-    public function setGmailLastPushAt(?\DateTimeImmutable $gmailLastPushAt): static
+    public function setGmailLastPushAt(?DateTimeImmutable $gmailLastPushAt): static
     {
         $this->gmailLastPushAt = $gmailLastPushAt;
 
         return $this;
     }
 
-    public function getOauthLastRefreshAt(): ?\DateTimeImmutable
+    public function getOauthLastRefreshAt(): ?DateTimeImmutable
     {
         return $this->oauthLastRefreshAt;
     }
 
-    public function setOauthLastRefreshAt(?\DateTimeImmutable $oauthLastRefreshAt): static
+    public function setOauthLastRefreshAt(?DateTimeImmutable $oauthLastRefreshAt): static
     {
         $this->oauthLastRefreshAt = $oauthLastRefreshAt;
 
@@ -563,10 +587,94 @@ class Account extends AccountModel
 
         return $this;
     }
+    /**
+     * @return array<string, string>  graphFolderId => deltaLink
+     */
+    public function getGraphDeltaLinks(): array
+    {
+        return $this->graphDeltaLinks;
+    }
 
+    /**
+     * @param array<string, string> $graphDeltaLinks
+     */
+    public function setGraphDeltaLinks(array $graphDeltaLinks): static
+    {
+        $this->graphDeltaLinks = $graphDeltaLinks;
+
+        return $this;
+    }
+
+    public function getGraphImmutableIds(): ?bool
+    {
+        return $this->graphImmutableIds;
+    }
+
+    public function setGraphImmutableIds(?bool $graphImmutableIds): static
+    {
+        $this->graphImmutableIds = $graphImmutableIds;
+
+        return $this;
+    }
+
+    public function isMicrosoft(): bool
+    {
+        if (AuthType::OAuth2->value !== $this->authType) {
+            return false;
+        }
+
+        return MailProvider::Microsoft->value === $this->oauthProvider;
+    }
     public function isGmail(): bool
     {
         return AuthType::OAuth2->value === $this->authType
             && MailProvider::Google->value === $this->oauthProvider;
+    }
+    public function isPushEnabled(): bool
+    {
+        return $this->pushEnabled;
+    }
+
+    public function setPushEnabled(bool $pushEnabled): static
+    {
+        $this->pushEnabled = $pushEnabled;
+
+        return $this;
+    }
+
+    public function getGraphSubscriptionId(): ?string
+    {
+        return $this->graphSubscriptionId;
+    }
+
+    public function setGraphSubscriptionId(?string $graphSubscriptionId): static
+    {
+        $this->graphSubscriptionId = $graphSubscriptionId;
+
+        return $this;
+    }
+
+    public function getGraphSubscriptionClientState(): ?string
+    {
+        return $this->graphSubscriptionClientState;
+    }
+
+    public function setGraphSubscriptionClientState(?string $graphSubscriptionClientState): static
+    {
+        $this->graphSubscriptionClientState = $graphSubscriptionClientState;
+
+        return $this;
+    }
+
+    public function getGraphSubscriptionExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->graphSubscriptionExpiresAt;
+    }
+
+    public function setGraphSubscriptionExpiresAt(?\DateTimeImmutable $graphSubscriptionExpiresAt): static
+    {
+        $this->graphSubscriptionExpiresAt = $graphSubscriptionExpiresAt;
+
+        return $this;
     }
 }

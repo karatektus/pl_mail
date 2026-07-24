@@ -38,12 +38,8 @@ readonly class MailboxSyncer
 
     public function syncForAccount(Account $account): array
     {
-        if (true === $account->isGmail()) {
-            return [
-                'created' => 0,
-                'updated' => 0,
-                'deleted' => 0,
-            ];
+        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
+            return ['created' => 0, 'updated' => 0, 'deleted' => 0];
         }
 
         $client = $this->imapConnectionFactory->connect($account);

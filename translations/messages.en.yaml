@@ -208,7 +208,6 @@ account:
         info: Sign in with your provider — no password stored.
         google: Continue with Google
         microsoft: Continue with Microsoft
-        wip: OAuth support is in progress. Gmail and Outlook will be supported first.
 
 modal:
     close: Close
@@ -285,6 +284,17 @@ settings:
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
+        push:
+            title: Instant delivery
+            on_hint: New mail arrives immediately via Microsoft push notifications.
+            off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
+            renews: Subscription renews before %date%.
+            failed: >-
+                Push couldn't be enabled — Microsoft needs to reach this server
+                over HTTPS. Check your reverse proxy and APP_PUBLIC_URL. The
+                account is still syncing on a schedule.
+            mode_push: Push
+            mode_pull: Scheduled
     appearance:
         theme:
             heading: Theme
@@ -344,3 +354,23 @@ label:
     visibility:
         shown: Label is now visible.
         hidden: Label is now hidden.
+oauth:
+    error:
+        generic: We couldn't connect that account. Please try again.
+        microsoft:
+            admin_consent_required: >-
+                Your organisation requires an administrator to approve plMail
+                before you can connect this account. Please ask your Microsoft
+                 administrator to grant access.
+            tenant_mismatch: >-
+                This account type can't sign in to plMail with the current
+                configuration. Check the MICROSOFT_OAUTH_TENANT setting.
+            app_not_found: >-
+                plMail isn't registered in your Microsoft organisation.
+            blocked_by_policy: >-
+                A security policy in your organisation blocked this sign-in.
+            consent_declined: >-
+                Connection cancelled — plMail wasn't granted access.
+            bad_credentials: >-
+                plMail's Microsoft credentials are invalid or expired. This is a
+                server configuration problem, not something you can fix.

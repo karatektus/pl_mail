@@ -22,7 +22,7 @@ use App\Domain\DTO\ConnectionTestResult;
 use App\Service\Mail\ConnectionTester;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-
+use App\Service\Graph\GraphSubscriptionManager;
 
 #[Route('/account', name: 'app_account_')]
 #[IsGranted('ROLE_USER')]
@@ -33,6 +33,7 @@ final class AccountController extends AbstractController
         private readonly AccountRepository      $accountRepository,
         private readonly GmailApiClient         $gmailApiClient,
         private readonly LoggerInterface        $logger,
+        private readonly GraphSubscriptionManager $graphSubscriptionManager,
     ) {
     }
 
@@ -156,7 +157,9 @@ final class AccountController extends AbstractController
                 ]);
             }
         }
-
+        if (true === $account->isMicrosoft()) {
+            $this->graphSubscriptionManager->unsubscribe($account);
+        }
         $this->entityManager->remove($account);
         $this->entityManager->flush();
 

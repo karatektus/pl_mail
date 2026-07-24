@@ -180,4 +180,21 @@ class MessageRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->toIterable();
     }
+
+    /**
+     * @return list<string>
+     */
+    public function findSyncedGraphIdsForUser(User $user): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.graphId')
+            ->join('m.account', 'a')
+            ->andWhere('a.usr = :user')
+            ->andWhere('m.graphId IS NOT NULL')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map('strval', array_column($rows, 'graphId')));
+    }
 }
