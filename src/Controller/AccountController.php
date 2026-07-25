@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Account;
 use App\Form\AccountType;
 use App\Repository\AccountRepository;
+use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
@@ -35,6 +36,7 @@ final class AccountController extends AbstractController
         private readonly LoggerInterface        $logger,
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
         private readonly PushSubscriptionRegistry $subscriptionRegistry,
+        private readonly AliasSeeder $aliasSeeder,
     ) {
     }
 
@@ -63,6 +65,7 @@ final class AccountController extends AbstractController
 
             $this->entityManager->persist($account);
             $this->entityManager->flush();
+            $this->aliasSeeder->seed($account);
 
             return $this->streamAccountList($request, 'account.added');
         }

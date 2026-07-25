@@ -12,6 +12,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Index(name: 'idx_message_gmail_id', columns: ['gmail_id'])]
+#[ORM\Index(name: 'idx_message_search_vector', columns: ['search_vector'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 class Message extends MessageModel
 {
@@ -128,7 +129,7 @@ class Message extends MessageModel
 
     #[ORM\Column(
         name: 'search_vector',
-        type: 'string',
+        type: Types::TEXT,
         nullable: true,
         insertable: false,
         updatable: false,

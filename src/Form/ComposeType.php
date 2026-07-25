@@ -14,11 +14,13 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 
 class ComposeType extends AbstractType
 {
     public function __construct(
-        private readonly RouterInterface $router,
+        private readonly RouterInterface   $router,
+        private readonly AccountRepository $accountRepository,
     ) {
     }
 
@@ -28,28 +30,18 @@ class ComposeType extends AbstractType
         $user = $options['user'];
 
         $builder
-            // Unmapped: Message has no account column — the controller reads
-            // this field and wires the Drafts label + IMAP drafts mailbox via
-            // applyAccount(). Pre-set on render with $form->get('account')->setData().
-            ->add('account', EntityType::class, [
-                'label' => false,
-                'mapped' => false,
-                'class' => Account::class,
-                'choice_label' => fn(Account $account) => sprintf(
-                    '%s <%s>',
-                    $account->getName(),
-                    $account->getEmail(),
-                ),
-                'query_builder' => function (AccountRepository $repo) use ($user): QueryBuilder {
-                    return $repo->createQueryBuilder('account')
-                        ->where('account.usr = :usr')
-                        ->andWhere('account.isActive = :isActive')
-                        ->setParameter('usr', $user)
-                        ->setParameter('isActive', true)
-                        ->orderBy('account.sortOrder', 'ASC')
-                        ->addOrderBy('account.email', 'ASC');
-                },
-                'attr' => ['class' => 'compose-from-select'],
+            // Unmapped. Value is a "accountId|address" token: the option the
+            // user picks resolves BOTH the sending account (Drafts label +
+            // IMAP drafts mailbox, via applyAccount()) and the exact From
+            // address. One option per sendable alias; accounts with no aliases
+            // yet contribute a single option for their display address.
+            // Pre-set on render with ->setData($this->senderToken($account)).
+            ->add('account', ChoiceType::class, [
+                'label'        => false,
+                'mapped'       => false,
+                'choices'      => $this->fromChoices($user),
+                'choice_value' => static fn (?string $token): string => $token ?? '',
+                'attr'         => ['class' => 'compose-from-select'],
             ])
 
             ->add('toAddresses', ContactAutocompleteField::class, [
@@ -81,6 +73,46 @@ class ComposeType extends AbstractType
                     'data-compose-target' => 'body',
                 ],
             ]);
+    }
+
+    /**
+     * @return array<string,string>  label => "accountId|address" token
+     */
+    private function fromChoices(UserInterface $user): array
+    {
+        $choices = [];
+
+        foreach ($this->accountRepository->findForUserOrdered($user) as $account) {
+            if (false === (bool) $account->isActive()) {
+                continue;
+            }
+
+            $sendable = $account->getSendableAliases();
+
+            if (count($sendable) === 0) {
+                $address = $account->getDisplayAddress() ?? $account->getEmail();
+
+                if (null !== $address && '' !== $address) {
+                    $choices[$this->fromLabel($address, $account->getName())] = $account->getId() . '|' . $address;
+                }
+
+                continue;
+            }
+
+            foreach ($sendable as $alias) {
+                $choices[$this->fromLabel($alias->address, $alias->displayName ?? $account->getName())]
+                    = $account->getId() . '|' . $alias->address;
+            }
+        }
+
+        return $choices;
+    }
+
+    private function fromLabel(string $address, ?string $name): string
+    {
+        $name = null !== $name ? trim($name) : '';
+
+        return '' !== $name ? sprintf('%s <%s>', $name, $address) : $address;
     }
 
     public function configureOptions(OptionsResolver $resolver): void

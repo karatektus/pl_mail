@@ -1,0 +1,45 @@
+{% if manageableAccounts is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+        {{ 'settings.accounts.empty'|trans }}
+    </p>
+{% else %}
+    <div class="divide-y divide-line">
+        {% for account in manageableAccounts %}
+            <div class="px-4 py-3.5">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <p class="text-xs font-semibold text-ink-faint uppercase tracking-wider truncate">
+                        {{ account.displayAddress }}
+                    </p>
+                    <form method="post" action="{{ path('app_alias_refresh', { id: account.id }) }}"
+                          data-turbo-stream>
+                        <button type="submit"
+                                class="shrink-0 inline-flex items-center gap-1.5 text-xs text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
+                            <i class="fa-solid fa-rotate text-[11px]" aria-hidden="true"></i>
+                            {{ 'settings.aliases.refresh'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+                <ul class="space-y-1 mb-3">
+                    {% for alias in account.aliases %}
+                        {% include 'alias/_row.html.twig' with { account: account, alias: alias } %}
+                    {% else %}
+                        <li class="text-xs text-ink-faint italic py-1">{{ 'settings.aliases.empty'|trans }}</li>
+                    {% endfor %}
+                </ul>
+
+                <form method="post" action="{{ path('app_alias_add', { id: account.id }) }}"
+                      data-turbo-stream class="flex items-center gap-2">
+                    <input type="email" name="address" required
+                           placeholder="{{ 'settings.aliases.add_placeholder'|trans }}"
+                           class="flex-1 h-9 px-3 rounded-lg bg-zinc-500/5 border border-line text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent">
+                    <button type="submit"
+                            class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                        {{ 'settings.aliases.add'|trans }}
+                    </button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

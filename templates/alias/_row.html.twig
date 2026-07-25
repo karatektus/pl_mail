@@ -1,0 +1,46 @@
+{% set isPrimary  = alias.status.value == 'primary' %}
+{% set isInactive = alias.status.value == 'inactive' %}
+{% set isSystem   = alias.source.value == 'system' %}
+
+<li class="flex items-center gap-3 py-1">
+    <span class="w-2 h-2 rounded-full shrink-0 {{ isInactive ? 'bg-ink-faint' : 'bg-green-400' }}"
+          aria-hidden="true"></span>
+
+    <span class="flex-1 min-w-0 truncate text-sm {{ isInactive ? 'text-ink-faint line-through' : 'text-ink' }}">
+        {{ alias.address }}
+        {% if isSystem %}
+            <span class="ml-1 text-[11px] text-ink-faint">({{ 'settings.aliases.system'|trans }})</span>
+        {% endif %}
+    </span>
+
+    {% if isPrimary %}
+        <span class="shrink-0 inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+            {{ 'settings.aliases.primary'|trans }}
+        </span>
+    {% else %}
+        <form method="post" action="{{ path('app_alias_primary', { id: account.id, aliasId: alias.id }) }}"
+              data-turbo-stream class="shrink-0">
+            <button type="submit" class="text-[11px] text-ink-faint hover:text-accent transition-colors cursor-pointer">
+                {{ 'settings.aliases.make_primary'|trans }}
+            </button>
+        </form>
+
+        <form method="post" action="{{ path('app_alias_status', { id: account.id, aliasId: alias.id }) }}"
+              data-turbo-stream class="shrink-0">
+            <input type="hidden" name="status" value="{{ isInactive ? 'active' : 'inactive' }}">
+            <button type="submit" class="text-[11px] text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
+                {{ isInactive ? 'settings.aliases.enable'|trans : 'settings.aliases.disable'|trans }}
+            </button>
+        </form>
+
+        {% if alias.source.value == 'manual' %}
+            <form method="post" action="{{ path('app_alias_delete', { id: account.id, aliasId: alias.id }) }}"
+                  data-turbo-stream class="shrink-0">
+                <button type="submit" class="text-[11px] text-ink-faint hover:text-red-500 transition-colors cursor-pointer"
+                        aria-label="{{ 'settings.aliases.delete'|trans }}">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                </button>
+            </form>
+        {% endif %}
+    {% endif %}
+</li>

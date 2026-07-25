@@ -37,7 +37,7 @@ class Label
     public private(set) ?int $id = null;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     public private(set) ?Account $account = null;
 
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]

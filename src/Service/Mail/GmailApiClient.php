@@ -270,6 +270,53 @@ final class GmailApiClient
     }
 
     /**
+     * All send-as addresses for a Gmail account — the primary plus any verified
+     * custom send-as aliases — from the settings API. This is Gmail's analogue
+     * of the Graph profile emails. Covered by the https://mail.google.com/ scope
+     * we already hold; an empty/failed result is treated as "nothing to seed".
+     *
+     * @return list<array{address: string, displayName: ?string, isDefault: bool}>
+     */
+    public function listSendAs(Account $account): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        try {
+            $response = $this->httpClient->request('GET', self::BASE . '/settings/sendAs', [
+                'auth_bearer' => $token,
+            ]);
+
+            if (200 !== $response->getStatusCode()) {
+                return [];
+            }
+
+            $entries = $response->toArray(false)['sendAs'] ?? [];
+        } catch (HttpException) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($entries as $entry) {
+            $address = strtolower(trim((string) ($entry['sendAsEmail'] ?? '')));
+
+            if ('' === $address) {
+                continue;
+            }
+
+            $displayName = trim((string) ($entry['displayName'] ?? ''));
+
+            $result[] = [
+                'address'     => $address,
+                'displayName' => '' !== $displayName ? $displayName : null,
+                'isDefault'   => true === ($entry['isDefault'] ?? false),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Download a single attachment's bytes.
      */
     public function getAttachment(Account $account, string $messageId, string $attachmentId): string
@@ -287,6 +334,7 @@ final class GmailApiClient
 
         return base64_decode(strtr($data, '-_', '+/'));
     }
+
 
     // ── Batch helpers ─────────────────────────────────────────────────────────
 

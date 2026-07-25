@@ -70,6 +70,21 @@
                                 <div>
                                     {% if section == 'appearance' %}
                                         {% include 'settings/_appearance.html.twig' %}
+                                    {% elseif section == 'alias' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.aliases.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.aliases.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                <div id="settings-alias-list">
+                                                    {% include 'settings/_aliases.html.twig' with {
+                                                        manageableAccounts: manageableAccounts,
+                                                    } %}
+                                                </div>
+                                            </div>
+                                        </section>
                                     {% elseif section == 'labels' %}
                                         <section>
                                             <div class="mb-4">

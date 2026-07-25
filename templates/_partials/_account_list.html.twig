@@ -11,7 +11,7 @@
              data-action="click->account-expand#toggle">
             <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-ink-muted">
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
-                <span class="truncate text-sm">{{ account.email ?: account.username }}</span>
+                <span class="truncate text-sm">{{ account.displayAddress }}</span>
             </div>
             <button
                 type="button"

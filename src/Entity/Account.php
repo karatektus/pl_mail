@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Domain\Enum\MailProvider;
 use App\Domain\Model\AccountModel;
+use App\Domain\Enum\EmailAliasStatus;
 use App\Enum\AuthType;
 use App\Repository\AccountRepository;
 use DateTimeImmutable;
@@ -106,6 +107,12 @@ class Account extends AccountModel
     private ?string $gmailWatchResourceName = null;
 
     /**
+     * @var Collection<int, EmailAlias>
+     */
+    #[ORM\OneToMany(targetEntity: EmailAlias::class, mappedBy: 'account', cascade: ['persist'], orphanRemoval: true)]
+    private Collection $aliases;
+
+    /**
      * @var Collection<int, Mailbox>
      */
     #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
@@ -163,6 +170,7 @@ class Account extends AccountModel
 
     public function __construct()
     {
+        $this->aliases = new ArrayCollection();
         $this->mailboxes = new ArrayCollection();
         $this->messageThreads = new ArrayCollection();
         $this->setCreatedAt(new DateTimeImmutable());
@@ -678,5 +686,110 @@ class Account extends AccountModel
         }
 
         return $expiry > new \DateTimeImmutable();
+    }
+
+    /**
+     * @return Collection<int, EmailAlias>
+     */
+    public function getAliases(): Collection
+    {
+        return $this->aliases;
+    }
+
+    public function addAlias(EmailAlias $alias): static
+    {
+        if (false === $this->aliases->contains($alias)) {
+            $this->aliases->add($alias);
+        }
+
+        return $this;
+    }
+
+    public function removeAlias(EmailAlias $alias): static
+    {
+        $this->aliases->removeElement($alias);
+
+        return $this;
+    }
+
+    public function getPrimaryAlias(): ?EmailAlias
+    {
+        foreach ($this->aliases as $alias) {
+            if (EmailAliasStatus::Primary === $alias->status) {
+                return $alias;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The address to show in the UI and default the From to. Falls back to the
+     * legacy email/username while an account has no aliases yet (pre-seed).
+     */
+    public function getDisplayAddress(): ?string
+    {
+        $primary = $this->getPrimaryAlias();
+
+        if (null !== $primary) {
+            return $primary->address;
+        }
+
+        return $this->getEmail() ?? $this->getUsername();
+    }
+
+    /**
+     * Sendable aliases (Primary first), for the From dropdown.
+     *
+     * @return list<EmailAlias>
+     */
+    public function getSendableAliases(): array
+    {
+        $sendable = [];
+
+        foreach ($this->aliases as $alias) {
+            if (true === $alias->status->isSendable()) {
+                $sendable[] = $alias;
+            }
+        }
+
+        usort(
+            $sendable,
+            static fn (EmailAlias $a, EmailAlias $b): int
+            => (EmailAliasStatus::Primary === $b->status ? 1 : 0)
+                - (EmailAliasStatus::Primary === $a->status ? 1 : 0),
+        );
+
+        return $sendable;
+    }
+
+    /**
+     * Lowercased addresses that count as "this account" for ownership matching
+     * and reply self-exclusion. Once any alias exists it is authoritative
+     * (so an Inactive alias genuinely stops being claimed); before seeding it
+     * falls back to the legacy email/username so behaviour is unchanged.
+     *
+     * @return list<string>
+     */
+    public function getOwnedAddresses(): array
+    {
+        $owned = [];
+
+        foreach ($this->aliases as $alias) {
+            if (true === $alias->status->countsForOwnership()) {
+                $owned[] = $alias->address;
+            }
+        }
+
+        if (count($owned) > 0) {
+            return array_values(array_unique($owned));
+        }
+
+        $fallback = array_filter([
+            null !== $this->getEmail() ? strtolower($this->getEmail()) : null,
+            null !== $this->getUsername() ? strtolower($this->getUsername()) : null,
+        ]);
+
+        return array_values(array_unique($fallback));
     }
 }

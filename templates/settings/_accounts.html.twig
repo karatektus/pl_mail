@@ -27,7 +27,7 @@
 
                 <div class="min-w-0 flex-1">
                     <p class="flex items-center gap-2 min-w-0">
-                        <span class="truncate text-sm font-medium text-ink">{{ account.email ?: account.username }}</span>
+                        <span class="truncate text-sm font-medium text-ink">{{ account.displayAddress }}</span>
                         {% if loop.first %}
                             <span class="shrink-0 inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                                 {{ 'settings.accounts.primary'|trans }}
@@ -72,7 +72,7 @@
                     </form>
 
                     <form method="post" action="{{ path('app_account_delete', { id: account.id }) }}"
-                          data-turbo-confirm="{{ 'settings.accounts.delete_confirm'|trans({ '%account%': account.email ?: account.username }) }}">
+                          data-turbo-confirm="{{ 'settings.accounts.delete_confirm'|trans({ '%account%': account.displayAddress }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ account.id) }}">
                         <button
                             type="submit"

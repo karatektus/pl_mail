@@ -36,6 +36,7 @@ class OAuthController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
         private readonly PushSubscriptionRegistry $pushRegistry,
+        private readonly \App\Service\Mail\AliasSeeder $aliasSeeder,
     ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
@@ -118,8 +119,9 @@ class OAuthController extends AbstractController
         $account = $this->upsertAccount($mailProvider, $email, $token);
 
         $this->registerPush($account);
+        $this->aliasSeeder->seed($account);
 
-        return $this->redirectToRoute('app_default_index');
+        return $this->redirectToRoute('app_settings_index');
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -213,11 +215,21 @@ class OAuthController extends AbstractController
         }
     }
     /**
+     * Resolve the mailbox address from the provider's resource-owner payload.
+     *
+     * Order matters. For Microsoft the Azure resource owner merges the id_token
+     * claims with the Graph /me response: the OIDC `email` claim is the *sign-in*
+     * identity , while Graph `mail` is the actual mailbox
+     * SMTP address — the one that matches synced
+     * messages' to_address. We want the mailbox, so `mail` is tried first.
+     * `userPrincipalName` stays last for org accounts exposing no distinct `mail`.
+     * Google has no `mail` key, so it falls through to `email` unchanged.
+     *
      * @param array<string,mixed> $ownerData
      */
     private function extractEmail(array $ownerData): ?string
     {
-        foreach (['email', 'mail', 'userPrincipalName'] as $key) {
+        foreach (['mail', 'email', 'userPrincipalName'] as $key) {
             if (
                 true === array_key_exists($key, $ownerData)
                 && true === is_string($ownerData[$key])

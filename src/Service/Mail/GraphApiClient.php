@@ -623,7 +623,60 @@ final class GraphApiClient
 
         return false;
     }
+// ── Profile (beta) ───────────────────────────────────────────────────────
 
+    /**
+     * All addresses Graph knows for this mailbox, via the beta Profile API.
+     *
+     * This is the only Graph surface that returns a personal account's extra
+     * addresses — /me, proxyAddresses and otherMails omit them entirely. Beta,
+     * so an empty/failed result is treated as "nothing extra to seed", never an
+     * error. Note it still does NOT expose a friendly outlook.com alias — only
+     * the custom-domain primary and the internal canonical outlook_… address —
+     * so friendly aliases have to be added by hand.
+     *
+     * @return list<array{address: string, displayName: ?string, type: ?string}>
+     */
+    public function listProfileEmails(Account $account): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        try {
+            $response = $this->httpClient->request(
+                'GET',
+                'https://graph.microsoft.com/beta/me/profile/emails',
+                ['auth_bearer' => $token],
+            );
+
+            if (200 !== $response->getStatusCode()) {
+                return [];
+            }
+
+            $entries = $response->toArray(false)['value'] ?? [];
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $emails = [];
+
+        foreach ($entries as $entry) {
+            $address = strtolower(trim((string) ($entry['address'] ?? '')));
+
+            if ('' === $address) {
+                continue;
+            }
+
+            $displayName = trim((string) ($entry['displayName'] ?? ''));
+
+            $emails[] = [
+                'address'     => $address,
+                'displayName' => '' !== $displayName ? $displayName : null,
+                'type'        => isset($entry['type']) ? (string) $entry['type'] : null,
+            ];
+        }
+
+        return $emails;
+    }
     // ── Private ──────────────────────────────────────────────────────────────
 
     /**

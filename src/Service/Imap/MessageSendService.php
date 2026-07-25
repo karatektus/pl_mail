@@ -111,8 +111,14 @@ class MessageSendService
             $subject = '';
         }
 
+        $fromAddress = $message->getFromAddress();
+
+        if (null === $fromAddress || '' === $fromAddress) {
+            $fromAddress = $account->getDisplayAddress() ?? $account->getEmail() ?? '';
+        }
+
         $email = new Email()
-            ->from(new Address($account->getEmail(), $fromName))
+            ->from(new Address($fromAddress, $fromName))
             ->subject($subject);
 
         $toAddresses = $message->getToAddresses();

@@ -252,6 +252,19 @@ toolbar:
         next: Older
 
 settings:
+    aliases:
+        heading: 'Email addresses'
+        subheading: 'Addresses this account sends and receives as.'
+        primary: 'Primary'
+        make_primary: 'Make primary'
+        enable: 'Enable'
+        disable: 'Disable'
+        delete: 'Remove'
+        system: 'system'
+        empty: 'No addresses yet.'
+        refresh: 'Refresh from provider'
+        add: 'Add'
+        add_placeholder: 'Add another address…'
     labels:
         heading: Labels
         subheading: Choose which labels appear in the sidebar.
@@ -386,3 +399,12 @@ oauth:
             bad_credentials: >-
                 plMail's Microsoft credentials are invalid or expired. This is a
                 server configuration problem, not something you can fix.
+alias:
+    added: 'Address added.'
+    deleted: 'Address removed.'
+    primary_set: 'Primary address updated.'
+    status_set: 'Address updated.'
+    status_blocked: "The primary address can't be disabled — make another primary first."
+    refreshed: 'Refreshed from provider.'
+    invalid: "That doesn't look like a valid email address."
+    duplicate: 'That address is already on this account.'

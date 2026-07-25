@@ -1,0 +1,30 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-alias-list">
+    <template>
+        <div id="settings-alias-list">
+            {% include 'settings/_aliases.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>
+
+{# Display address may have changed — refresh sidebar + settings account list. #}
+<turbo-stream action="replace" target="account-list">
+    <template>
+        <div id="account-list" class="space-y-0.5">
+            {% include '_partials/_account_list.html.twig' %}
+        </div>
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-account-list">
+    <template>
+        <div id="settings-account-list">
+            {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>

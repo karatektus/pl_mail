@@ -71,7 +71,7 @@ class ComposeController extends AbstractController
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
-        $form->get('account')->setData($account);
+        $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $message);
 
         return $this->render('compose/_window.html.twig', [
@@ -92,7 +92,7 @@ class ComposeController extends AbstractController
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
-        $form->get('account')->setData($account);
+        $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
@@ -113,7 +113,7 @@ class ComposeController extends AbstractController
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
-        $form->get('account')->setData($account);
+        $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
@@ -134,7 +134,7 @@ class ComposeController extends AbstractController
             'user' => $this->getUser(),
             'validation_groups' => ['Default'],
         ]);
-        $form->get('account')->setData($account);
+        $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $original);
 
         return $this->render('compose/_window.html.twig', [
@@ -171,6 +171,9 @@ class ComposeController extends AbstractController
             if (null === $account) {
                 throw $this->createNotFoundException('No active account to compose from.');
             }
+
+            $message->setFromAddress($this->resolveFromAddress($form, $account));
+            $message->setFromName($account->getName() ?? '');
 
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
@@ -221,8 +224,12 @@ class ComposeController extends AbstractController
                 throw $this->createNotFoundException('No active account to send from.');
             }
 
+            $message->setFromAddress($this->resolveFromAddress($form, $account));
+            $message->setFromName($account->getName() ?? '');
+
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
+
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
                 [new DelayStamp(10_000)],
@@ -262,18 +269,61 @@ class ComposeController extends AbstractController
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Submitted From account, falling back to the message's current account,
-     * then the user's default.
+     * Submitted From token → the sending account, falling back to the
+     * message's current account, then the user's default.
      */
     private function resolveAccount(FormInterface $form, Message $message): ?Account
     {
-        $account = $form->get('account')->getData();
+        $parsed = $this->parseSenderToken($form->get('account')->getData());
 
-        if (null !== $account) {
-            return $account;
+        if (null !== $parsed) {
+            return $parsed[0];
         }
 
         return $message->getAccount() ?? $this->defaultAccount();
+    }
+
+    /**
+     * The exact From address the user picked, falling back to the account's
+     * display address when the token is absent or points elsewhere.
+     */
+    private function resolveFromAddress(FormInterface $form, Account $account): string
+    {
+        $parsed = $this->parseSenderToken($form->get('account')->getData());
+
+        if (null !== $parsed && $parsed[0] === $account) {
+            return $parsed[1];
+        }
+
+        return $account->getDisplayAddress() ?? $account->getEmail() ?? '';
+    }
+
+    /**
+     * @return array{0: Account, 1: string}|null
+     */
+    private function parseSenderToken(mixed $token): ?array
+    {
+        if (false === is_string($token) || false === str_contains($token, '|')) {
+            return null;
+        }
+
+        [$id, $address] = explode('|', $token, 2);
+        $account = $this->accountRepository->find((int) $id);
+
+        if (
+            null === $account
+            || $account->getUsr() !== $this->getUser()
+            || false === (bool) $account->isActive()
+        ) {
+            return null;
+        }
+
+        return [$account, $address];
+    }
+
+    private function senderToken(Account $account): string
+    {
+        return sprintf('%d|%s', $account->getId(), $account->getDisplayAddress() ?? $account->getEmail() ?? '');
     }
 
     private function defaultAccount(): ?Account
@@ -376,13 +426,13 @@ class ComposeController extends AbstractController
 
         $cc = [];
         if (true === $replyAll) {
-            $ownAddress = strtolower($account->getEmail() ?? '');
+            $ownAddresses = $account->getOwnedAddresses();
             $candidates = array_merge(
                 $original->getToAddresses() ?? [],
                 $original->getCcAddresses() ?? [],
             );
             foreach ($candidates as $addr) {
-                if (strtolower($addr['address'] ?? '') !== $ownAddress) {
+                if (false === in_array(strtolower($addr['address'] ?? ''), $ownAddresses, true)) {
                     $cc[] = $addr;
                 }
             }

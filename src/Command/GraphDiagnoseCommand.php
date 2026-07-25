@@ -78,7 +78,74 @@ final class GraphDiagnoseCommand extends Command
 
             return Command::FAILURE;
         }
+        // ── Identity payload dump ─────────────────────────────────────────────
+        // Personal accounts often report the primary alias in mail/UPN while the
+        // address mail is actually delivered to lives only as a secondary
+        // `smtp:` proxy entry. Print everything so we can see where it is.
+        $identity = $this->httpClient->request('GET', self::BASE . '/me', [
+            'auth_bearer' => $token,
+            'query'       => [
+                '$select' => 'email,mail,userPrincipalName,proxyAddresses,otherMails,displayName, mailboxSettings',
+            ],
+        ])->toArray(false);
 
+        $io->section('Identity payload');
+        $io->definitionList(
+            ['email'              => $identity['email']              ?? '(null)'],
+            ['mail'              => $identity['mail']              ?? '(null)'],
+            ['userPrincipalName' => $identity['userPrincipalName'] ?? '(null)'],
+            ['displayName'       => $identity['displayName']       ?? '(null)'],
+        );
+
+        $proxies = $identity['proxyAddresses'] ?? [];
+        $others  = $identity['otherMails']     ?? [];
+
+        $io->writeln('proxyAddresses:');
+
+        if (count($proxies) === 0) {
+            $io->writeln('  (empty)');
+        }
+
+        foreach ($proxies as $proxy) {
+            $io->writeln('  ' . $proxy);
+        }
+
+        $io->writeln('otherMails:');
+
+        if (count($others) === 0) {
+            $io->writeln('  (empty)');
+        }
+
+        foreach ($others as $other) {
+            $io->writeln('  ' . $other);
+        }
+
+        // ── Profile emails (beta) ─────────────────────────────────────────────
+        // The only Graph surface that exposes secondary aliases for a personal
+        // account: /me and proxyAddresses hide them, /beta/me/profile/emails
+        // lists the full set. Beta, so best-effort only.
+        $profileEmails = $this->httpClient->request(
+            'GET',
+            'https://graph.microsoft.com/beta/me/profile/emails',
+            ['auth_bearer' => $token],
+        )->toArray(false);
+
+        $io->section('Profile emails (beta)');
+
+        $entries = $profileEmails['value'] ?? [];
+
+        if (count($entries) === 0) {
+            $io->writeln('  (none returned — or the beta endpoint refused this account)');
+        }
+
+        foreach ($entries as $entry) {
+            $io->writeln(sprintf(
+                '  %s  [type: %s]  %s',
+                $entry['address']     ?? '(no address)',
+                $entry['type']        ?? '(no type)',
+                $entry['displayName'] ?? '',
+            ));
+        }
         // Ordered by increasing privilege: identity, then mailbox existence,
         // then read, then the optional extras. The first failure localises the
         // problem.
@@ -91,6 +158,7 @@ final class GraphDiagnoseCommand extends Command
             ['folders',    'Mail — folder list (delta)', self::BASE . '/me/mailFolders/delta',           [], true],
             ['messages',   'Mail — first message',       self::BASE . '/me/messages?$top=1&$select=id',  ['Prefer' => 'IdType="ImmutableId"'], true],
             ['categories', 'Categories — master list',   self::BASE . '/me/outlook/masterCategories',    [], false],
+            ['Me', 'Infos about met',   self::BASE . '/me?$select=mail,userPrincipalName,proxyAddresses,otherMails,displayName',    [], false],
         ];
 
         $rows    = [];
