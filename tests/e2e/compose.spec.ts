@@ -18,7 +18,7 @@ const dock = "#compose_dock";
 test.beforeAll(() => {
     const cmd =
         process.env.E2E_SEED_CMD ??
-        "php bin/console app:test:seed-mail && php bin/console app:test:seed-draft";
+        "php bin/console app:test:seed-mail";
     execSync(cmd, { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } });
 });
 
@@ -57,11 +57,23 @@ test.describe("compose window", () => {
     });
 
     test("restores the recipient when a draft is reopened", async ({ page }) => {
-        // Isolates the server-side render: open the draft directly and assert the
-        // recipient is present in the To field markup (independent of Tom Select).
-        const id = readFileSync("var/e2e-draft-id", "utf8").trim();
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
 
-        await page.goto(`/compose/edit/${id}`);
+        const dockEl = page.locator(dock);
+        const toControl = dockEl.locator(".ts-control").first();
+        await toControl.locator("input").fill(RECIPIENT);
+        await toControl.locator("input").press("Enter");
+        await expect(toControl.locator(".item")).toContainText(RECIPIENT);
+
+        await dockEl.locator('input[name="compose[subject]"]').fill("E2E Draft");
+
+        await page.waitForResponse((r) =>
+            r.url().includes("/compose/draft") && r.request().method() === "POST"
+        );
+
+        await page.goto("/mail/drafts");
+        await page.getByRole("link", { name: "E2E Draft" }).click();
 
         await expect(page.locator(dock)).toContainText(RECIPIENT);
     });
