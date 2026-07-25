@@ -26,6 +26,13 @@
                     {% else %}
                         <li class="text-xs text-ink-faint italic py-1">{{ 'settings.aliases.empty'|trans }}</li>
                     {% endfor %}
+                    {% if account.isMicrosoft  %}
+                        <p class="mt-0.5 text-[11px] text-ink-faint leading-snug">
+                            {{ 'settings.aliases.ms_sender_hint'|trans }}
+                            <a href="https://account.live.com/names/manage" target="_blank" rel="noopener"
+                               class="text-accent hover:underline">{{ 'settings.aliases.ms_sender_hint_link'|trans }}</a>
+                        </p>
+                    {% endif %}
                 </ul>
 
                 <form method="post" action="{{ path('app_alias_add', { id: account.id }) }}"
@@ -40,6 +47,8 @@
                     </button>
                 </form>
             </div>
+
         {% endfor %}
+
     </div>
 {% endif %}

@@ -6,12 +6,14 @@
     <span class="w-2 h-2 rounded-full shrink-0 {{ isInactive ? 'bg-ink-faint' : 'bg-green-400' }}"
           aria-hidden="true"></span>
 
-    <span class="flex-1 min-w-0 truncate text-sm {{ isInactive ? 'text-ink-faint line-through' : 'text-ink' }}">
-        {{ alias.address }}
-        {% if isSystem %}
-            <span class="ml-1 text-[11px] text-ink-faint">({{ 'settings.aliases.system'|trans }})</span>
-        {% endif %}
-    </span>
+    <div class="flex-1 min-w-0">
+        <span class="block truncate text-sm {{ isInactive ? 'text-ink-faint line-through' : 'text-ink' }}">
+            {{ alias.address }}
+            {% if isSystem %}
+                <span class="ml-1 text-[11px] text-ink-faint">({{ 'settings.aliases.system'|trans }})</span>
+            {% endif %}
+        </span>
+    </div>
 
     {% if isPrimary %}
         <span class="shrink-0 inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">

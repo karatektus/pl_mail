@@ -63,6 +63,7 @@ final readonly class GraphFolderSyncer
         'recoverableitemsdeletions',
         'serverfailures',
         'syncissues',
+
     ];
 
     /**
@@ -86,7 +87,7 @@ final readonly class GraphFolderSyncer
         'drafts'        => LabelRole::Drafts,
         'deleteditems'  => LabelRole::Trash,
         'junkemail'     => LabelRole::Spam,
-        // 'archive'    => LabelRole::Archive,  // enable if LabelRole::Archive exists
+        'archive'    => LabelRole::Archive,  // enable if LabelRole::Archive exists
     ];
 
     public function __construct(

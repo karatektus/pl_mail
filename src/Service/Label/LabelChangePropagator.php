@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\Label;
 
+use App\Domain\Enum\LabelRole;
+use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
 use App\Message\ApplyGmailLabelsMessage;
+use App\Message\ApplyGraphChangesMessage;
 use App\Message\ApplyImapFlagsMessage;
+use App\Repository\LabelRepository;
 use App\Repository\MailboxRepository;
+use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -40,6 +45,8 @@ final readonly class LabelChangePropagator
     public function __construct(
         private MessageBusInterface $bus,
         private MailboxRepository   $mailboxRepository,
+        private LabelRepository     $labelRepository,
+        private GraphLabelPolicy    $labelPolicy,
         private LoggerInterface     $logger,
     ) {}
 
@@ -56,6 +63,7 @@ final readonly class LabelChangePropagator
 
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailStarPayload($starred));
+        $this->dispatchGraph($messages);
     }
 
     /**
@@ -71,6 +79,7 @@ final readonly class LabelChangePropagator
 
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailReadPayload($read));
+        $this->dispatchGraph($messages);
     }
 
     /**
@@ -83,6 +92,7 @@ final readonly class LabelChangePropagator
     {
         $this->dispatchFlags($messages, 'archive');
         $this->dispatchGmail($messages, ['add' => [], 'remove' => ['INBOX']]);
+        $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Archive));
     }
 
     /**
@@ -92,6 +102,7 @@ final readonly class LabelChangePropagator
     {
         $this->dispatchFlags($messages, 'trash');
         $this->dispatchGmail($messages, ['add' => ['TRASH'], 'remove' => ['INBOX']]);
+        $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Trash));
     }
 
     /**
@@ -103,6 +114,7 @@ final readonly class LabelChangePropagator
         // Gmail: permanent delete requires the full mail scope; TRASH is the
         // Gmail-native equivalent of what the UI exposes.
         $this->dispatchGmail($messages, ['add' => ['TRASH'], 'remove' => []]);
+        $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Trash));
     }
 
     /**
@@ -114,6 +126,14 @@ final readonly class LabelChangePropagator
     public function attachLabel(iterable $messages, Label $label): void
     {
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
+
+        // Graph: a folder-backed label is a move into that folder; a plain
+        // (category) label is derived from DB state by the handler.
+        if (true === $this->labelPolicy->pushesAsFolder($label)) {
+            $this->dispatchGraph($messages, static fn (): ?int => $label->id);
+        } else {
+            $this->dispatchGraph($messages);
+        }
     }
 
     /**
@@ -128,6 +148,7 @@ final readonly class LabelChangePropagator
     public function detachLabel(iterable $messages, Label $label): void
     {
         $this->dispatchGmail($messages, ['add' => [], 'remove' => [(string) $label->id]]);
+        $this->dispatchGraph($messages);
 
         // ── IMAP location handling ────────────────────────────────────────
         /** @var array<string, array<int,int>> $moves  destinationPath → messageId => sourceMailboxId */
@@ -151,6 +172,7 @@ final readonly class LabelChangePropagator
 
             if (null === $destinationMailbox) {
                 // Rule 3: nothing folder-backed remains — archive.
+                $archives[] = $message;
                 $archives[] = $message;
                 continue;
             }
@@ -281,7 +303,60 @@ final readonly class LabelChangePropagator
             ));
         }
     }
+    /**
+     * @param iterable<Message>        $messages
+     * @param (callable(Account): ?int)|null $moveToLabelResolver  per-account
+     *        destination-label resolver, or null for a state-only push
+     */
+    private function dispatchGraph(iterable $messages, ?callable $moveToLabelResolver = null): void
+    {
+        /** @var array<int, int[]> $byAccount */
+        $byAccount = [];
+        /** @var array<int, Account> $accounts */
+        $accounts = [];
 
+        foreach ($messages as $message) {
+            $graphId = $message->getGraphId();
+
+            if (null === $graphId || '' === $graphId) {
+                continue;
+            }
+
+            $account = $this->accountOf($message);
+
+            if (null === $account || false === $account->isMicrosoft()) {
+                continue;
+            }
+
+            $accountId               = (int) $account->getId();
+            $byAccount[$accountId][] = (int) $message->getId();
+            $accounts[$accountId]    = $account;
+        }
+
+        foreach ($byAccount as $accountId => $messageIds) {
+            $moveToLabel = null !== $moveToLabelResolver
+                ? $moveToLabelResolver($accounts[$accountId])
+                : null;
+
+            $this->bus->dispatch(new ApplyGraphChangesMessage($accountId, $messageIds, $moveToLabel));
+        }
+    }
+
+    private function graphDestinationLabelId(Account $account, LabelRole $role): ?int
+    {
+        $label = $this->labelRepository->findOneBy(['account' => $account, 'role' => $role]);
+
+        if (null === $label) {
+            $this->logger->warning('LabelChangePropagator: no destination label for Graph move', [
+                'accountId' => $account->getId(),
+                'role'      => $role->value,
+            ]);
+
+            return null;
+        }
+
+        return $label->id;
+    }
     private function accountOf(Message $message): ?\App\Entity\Account
     {
         $mailbox = $message->getMailbox();
