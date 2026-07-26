@@ -92,4 +92,5 @@ RUN set -eux; \
     composer dump-env prod; \
     composer run-script --no-dev post-install-cmd; \
     php bin/console tailwind:build --minify; \
+    php bin/console asset-map:compile; \
     chmod +x bin/console; sync;
