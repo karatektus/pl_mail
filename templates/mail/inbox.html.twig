@@ -1,6 +1,8 @@
 {# mail/inbox.html.twig #}
 {% extends '_layout/_mailbox.html.twig' %}
 
+{% block list_scope %}inbox{% endblock %}
+
 {% block title %}
     {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'Inbox'|trans }} — {{ 'app.name'|trans }}

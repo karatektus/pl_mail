@@ -1,0 +1,10 @@
+{# mail/mailbox.html.twig — direct load / refresh / bookmark of a single message #}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block title %}{{ selectedMessage.subject ?: ('thread.no_subject'|trans) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block message_list %}{% endblock %}
+{% block inbox_tabs %}{% endblock %}
+{% block pane_open %}true{% endblock %}
+{% block list_hidden %}hidden{% endblock %}
+{% block reading_hidden %}{% endblock %}

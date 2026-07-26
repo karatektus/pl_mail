@@ -1,6 +1,8 @@
 {# mail/archive.html.twig #}
 {% extends "_layout/_mailbox.html.twig" %}
 
+{% block list_scope %}archive{% endblock %}
+
 {% block title %}{{ "sidebar.nav.archive"|trans }} — {{ "app.name"|trans }}{% endblock %}
 
 {% block message_list %}

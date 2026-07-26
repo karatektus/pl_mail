@@ -1,9 +1,13 @@
-{% macro unread_badge(count) %}
-    {% if count > 0 %}
-        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white">
-            {{ count }}
-        </span>
-    {% endif %}
+{#
+The badge is always rendered — hidden at zero rather than omitted — so the
+sidebar controller can patch its text in place after a Mercure sync without
+having to re-render the markup. `key` must match a key from
+app_mail_sidebar_counts.
+#}
+{% macro unread_badge(count, key) %}
+    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white{{ count > 0 ? '' : ' hidden' }}"
+          data-sidebar-target="badge"
+          data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
 
 {% macro label_dot(color) %}
@@ -38,7 +42,7 @@
                    data-sidebar-target="link"
                    data-action="{{ drawerClose }}">
                     <span class="truncate">{{ node.name }}</span>
-                    {{ macros.unread_badge(sidebarCounts.forNode(node)) }}
+                    {{ macros.unread_badge(sidebarCounts.forNode(node), 'node:' ~ node.path) }}
                 </a>
             </summary>
             <div class="space-y-0.5">
@@ -57,7 +61,7 @@
             {{ macros.label_dot(node.color) }}
             <span class="flex-1 flex items-center justify-between gap-2 truncate">
                 <span class="truncate">{{ node.name }}</span>
-                {{ macros.unread_badge(sidebarCounts.forNode(node)) }}
+                {{ macros.unread_badge(sidebarCounts.forNode(node), 'node:' ~ node.path) }}
             </span>
         </a>
     {% endif %}
@@ -74,6 +78,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="sidebar"
+       data-sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
        class="flex flex-col w-56 h-full flex-shrink-0 pane">
 
     {# Compose #}
@@ -99,7 +104,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.inbox'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox)) }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox), 'role:inbox') }}
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
@@ -111,7 +116,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.starred'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forStarred()) }}
+            {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred') }}
         </a>
 
         <a href="{{ path('app_mail_sent') }}"
@@ -123,7 +128,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.sent'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Sent)) }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Sent), 'role:sent') }}
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
@@ -135,7 +140,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.drafts'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Drafts)) }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Drafts), 'role:drafts') }}
         </a>
         {% if sidebarCounts.hasVisibleArchive %}
             <a href="{{ path('app_mail_archive') }}"
@@ -145,7 +150,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-box-archive w-4 text-sm" aria-hidden="true"></i>
                 <span class="flex-1 flex items-center justify-between gap-2">
             <span>{{ 'sidebar.nav.archive'|trans }}</span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive)) }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive), 'role:archive') }}
         </span>
             </a>
         {% endif %}
@@ -158,7 +163,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
                 {{ 'sidebar.nav.trash'|trans }}
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Trash)) }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Trash), 'role:trash') }}
         </a>
 
         {# Labels section #}

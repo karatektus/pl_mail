@@ -8,7 +8,10 @@
     >
         <i class="fa-solid fa-arrow-left w-4 h-4" aria-hidden="true"></i>
     </button>
-    <span class="text-sm text-ink-faint truncate">{{ message.mailbox.name }}</span>
+    {# Gmail-style accounts are label-only, so mailbox is null — fall back to the account. #}
+    <span class="text-sm text-ink-faint truncate">
+        {{ message.mailbox ? message.mailbox.name : message.thread.account.email }}
+    </span>
 </div>
 
 <div class="flex-1 overflow-y-auto">

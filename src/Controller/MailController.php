@@ -12,7 +12,9 @@ use App\Repository\LabelRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Repository\MessageThreadRepository;
+use App\Twig\SidebarCounts;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -226,6 +228,45 @@ final class MailController extends AbstractController
             'account' => $account,
             'labels'  => $labels,
         ]);
+    }
+
+    /**
+     * Unread badge counts for the sidebar, keyed the same way the badges are
+     * (see the unread_badge macro in _partials/_sidebar.html.twig).
+     *
+     * The desktop sidebar is data-turbo-permanent, so a Turbo visit carries
+     * the old element over and its badges would otherwise go stale. The
+     * sidebar controller polls this after a Mercure sync and patches the
+     * badges in place, which keeps scroll position and open label trees.
+     */
+    #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
+    public function sidebarCounts(SidebarCounts $counts): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        $payload = ['starred' => $counts->forStarred()];
+
+        foreach (LabelRole::cases() as $role) {
+            $payload['role:' . $role->value] = $counts->forRole($role);
+        }
+
+        // Merged tree nodes for the label section, plus the individual label
+        // rows behind the lazily loaded per-account folder frames.
+        $collectNodes = static function (array $nodes) use (&$collectNodes, &$payload, $counts): void {
+            foreach ($nodes as $node) {
+                $payload['node:' . $node->path] = $counts->forNode($node);
+
+                $collectNodes($node->children);
+            }
+        };
+
+        $collectNodes($counts->userLabelTree());
+
+        foreach ($this->labelRepository->findVisibleForUser($this->getUser()) as $label) {
+            $payload['label:' . $label->id] = $counts->forLabel($label);
+        }
+
+        return $this->json($payload);
     }
 
     #[Route('/message/{id}', name: 'message')]

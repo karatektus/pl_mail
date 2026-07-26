@@ -7,6 +7,9 @@ Subclasses can override these blocks:
   inbox_tabs      — tabs / heading row above the toolbar (renders before toolbar)
   inbox_toolbar   — override the entire toolbar (rarely needed)
   message_list    — the <li> items inside the <ul>
+  list_scope      — space-separated special-use roles this view shows, so a
+                    Mercure mailbox.synced update knows whether to refresh
+                    ("inbox", "sent", … or "*" for every mailbox; default "*")
   reading_pane    — the reading pane content
   pane_open       — "true"/"false" string (default false)
   list_hidden     — extra CSS classes to hide list on direct-load pages
@@ -67,7 +70,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     {# List pane #}
                     <div
                         id="message-list"
-                        data-mailbox-id="{{ mailbox is defined ? [mailbox.id]|json_encode : mailboxIds is defined ? mailboxIds|json_encode : []|json_encode }}"
+                        data-sync-scope="{% block list_scope %}*{% endblock %}"
                         data-mail-pane-target="list"
                         class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >

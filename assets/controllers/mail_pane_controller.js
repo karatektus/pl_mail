@@ -1,5 +1,16 @@
 import { Controller } from "@hotwired/stimulus";
 
+// MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
+// the data-sync-scope tokens used by the list templates.
+const SYNC_SCOPES = {
+    "\\Inbox": "inbox",
+    "\\Sent": "sent",
+    "\\Trash": "trash",
+    "\\Drafts": "drafts",
+    "\\Junk": "junk",
+    "\\Archive": "archive",
+};
+
 export default class extends Controller {
     static targets = ["list", "reading"];
     static values = { open: Boolean , mailBoxId: Number};
@@ -88,13 +99,26 @@ export default class extends Controller {
 
     onMailboxSynced(event) {
         const data = event.detail;
-        const list = document.getElementById("message-list");
-        this.dispatch("new-mail", { detail: data });
-        console.log("[mail-pane] mailbox syncing", data.mailboxId, list.dataset.mailboxId);
-        // If we're currently viewing the affected mailbox, refresh the list
-        if (list.dataset.mailboxId && true === JSON.parse(list.dataset.mailboxId).includes(data.mailboxId)) {
+
+        // The list views are unified across accounts, so a synced mailbox is
+        // relevant when its special-use role matches what the view shows.
+        // Views that span every mailbox (label, search, starred) use "*".
+        if (this._affectsCurrentView(data)) {
             this._refreshList();
         }
+    }
+
+    _affectsCurrentView(data) {
+        if (!this.hasListTarget) {
+            return false;
+        }
+
+        const scope = this.listTarget.dataset.syncScope || "*";
+        if (scope === "*") {
+            return true;
+        }
+
+        return scope.split(" ").includes(SYNC_SCOPES[data.specialUse] ?? "");
     }
 
     _refreshList() {
