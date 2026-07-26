@@ -1,0 +1,17 @@
+{#
+compose/_discard.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The draft is gone: drop its row from the conversation and empty the window's
+frame. For an in-place draft the frame lives inside the row, so the remove
+already takes it with it.
+
+Variables: messageId, frame, inline
+#}
+{% if inline %}
+    <turbo-stream action="remove" target="thread_message_{{ messageId }}">
+    </turbo-stream>
+{% endif %}
+
+<turbo-stream action="update" target="{{ frame }}">
+    <template></template>
+</turbo-stream>
