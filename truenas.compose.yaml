@@ -1,0 +1,183 @@
+# plMail — TrueNAS SCALE custom app (Apps > Discover > ⋮ > Install via YAML)
+#
+# TrueNAS's YAML installer does NOT support ${VAR} interpolation, so all config is
+# hoisted into the x-config anchor block below and aliased (*name) into the services.
+# Edit ONLY the x-config block, then create the host dataset dirs (see NOTE at bottom).
+#
+# Values below are pre-generated. Change them (at least slightly) before real use.
+
+name: plmail
+
+# NOTE — before installing, from the TrueNAS shell (replace "tank" with your pool):
+#   mkdir -p /mnt/tank/apps/plmail/{database_data,caddy_data,caddy_config,mercure_data,mercure_config}
+#   chown -R 999:999 /mnt/tank/apps/plmail/database_data   # postgres runs as uid 999
+# Better: create tank/apps/plmail as a dataset so it gets its own ZFS snapshots.
+
+# READ THE COMMENT ABOVE!
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EDIT EVERYTHING IN THIS BLOCK — nothing below needs touching.
+# ─────────────────────────────────────────────────────────────────────────────
+x-config:
+    # -- Secrets --
+    app_secret:           &app_secret           ""
+    app_encryption_key:   &app_encryption_key   ""   # base64 libsodium secretbox key (32 bytes)
+    db_password:          &db_password          ""
+    mercure_jwt:          &mercure_jwt          ""
+    # The password below MUST equal db_password (an anchor can't be spliced mid-string):
+    database_url:         &database_url         "postgresql://app:PASSWORD@database:5432/app?serverVersion=18&charset=utf8"
+
+    # -- Public origin (your reverse-proxy hostname) --
+    mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
+
+    # -- Gmail (leave blank for IMAP-only) --
+    google_client_id:     &google_client_id     ""
+    google_client_secret: &google_client_secret ""
+    gmail_pubsub_topic:   &gmail_pubsub_topic   "projects/plMail/topics/gmail-push"
+
+    graph_client_id:      &graph_client_id      ""
+    graph_client_secret:  &graph_client_secret  ""
+    # -- Image & host port --
+    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
+    http_port:            &http_port            30080
+
+    # -- Host paths (create these as datasets first) --
+    path_db:              &path_db              /mnt/yourPool/yourDataSet/postgres
+    path_caddy_data:      &path_caddy_data      /mnt/yourPool/yourDataSet/caddy-data
+    path_caddy_config:    &path_caddy_config    /mnt/yourPool/yourDataSet/caddy-config
+    path_mercure_data:    &path_mercure_data    /mnt/yourPool/yourDataSet/mercure-data
+    path_mercure_config:  &path_mercure_config  /mnt/yourPool/yourDataSet/mercure-config
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-app-env: &app-env
+    APP_ENV: prod
+    APP_SECRET: *app_secret
+    APP_ENCRYPTION_KEY: *app_encryption_key
+    DATABASE_URL: *database_url
+    MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+    MERCURE_URL: "http://mercure/.well-known/mercure"
+    MERCURE_PUBLIC_URL: *mercure_public_url
+    MERCURE_JWT_SECRET: *mercure_jwt
+    GOOGLE_OAUTH_CLIENT_ID: *google_client_id
+    GOOGLE_OAUTH_CLIENT_SECRET: *google_client_secret
+    GMAIL_PUBSUB_TOPIC: *gmail_pubsub_topic
+    MICROSOFT_OAUTH_CLIENT_ID: *graph_client_id
+    MICROSOFT_OAUTH_CLIENT_SECRET: *graph_client_secret
+    MICROSOFT_OAUTH_TENANT: common
+    TRUSTED_PROXIES:
+
+services:
+    php:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        environment:
+            <<: *app-env
+            # ":80" = FrankenPHP serves plain HTTP; terminate TLS at your reverse proxy (recommended).
+            # For a domain forwarded straight to :443 here, set this to that hostname and re-add the 443 ports.
+            SERVER_NAME: ":80"
+            MAILER_DSN: "null://null"
+            APP_CONTAINER_NAME: web
+        ports:
+            - target: 80
+              published: *http_port
+              protocol: tcp
+        volumes:
+            - type: bind
+              source: *path_caddy_data       # holds TLS certs/keys — persist this
+              target: /data
+            - type: bind
+              source: *path_caddy_config
+              target: /config
+        depends_on:
+            database:
+                condition: service_healthy
+
+    imap-supervisor:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        command: php bin/console app:imap:supervise
+        stop_grace_period: 30s
+        environment:
+            <<: *app-env
+            APP_CONTAINER_NAME: imap-supervisor
+        healthcheck:
+            disable: true
+        depends_on:
+            database:
+                condition: service_healthy
+
+    messenger-worker:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+        stop_grace_period: 15s
+        environment:
+            <<: *app-env
+            APP_CONTAINER_NAME: messenger-worker
+        healthcheck:
+            disable: true
+        depends_on:
+            database:
+                condition: service_healthy
+
+    # OPTIONAL — runs scheduled jobs (app:mail:sync, app:gmail:renew-watches,
+    # app:monitoring:prune) inside the app. Requires Symfony Scheduler wired to a
+    # "scheduler" transport; adjust the name, then uncomment.
+    # scheduler:
+    #   image: *image
+    #   restart: unless-stopped
+    #   command: php bin/console messenger:consume scheduler_default --time-limit=3600
+    #   environment:
+    #     <<: *app-env
+    #     APP_CONTAINER_NAME: scheduler
+    #   depends_on:
+    #     database:
+    #       condition: service_healthy
+
+    database:
+        image: postgres:18-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: app
+            POSTGRES_USER: app
+            POSTGRES_PASSWORD: *db_password
+        healthcheck:
+            test: ["CMD", "pg_isready", "-d", "app", "-U", "app"]
+            timeout: 5s
+            retries: 5
+            start_period: 60s
+        volumes:
+            - type: bind
+              source: *path_db
+              target: /var/lib/postgresql/18/docker
+        command:
+            - "postgres"
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.track=top"
+
+    mercure:
+        image: dunglas/mercure
+        restart: unless-stopped
+        environment:
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: *mercure_jwt
+            MERCURE_SUBSCRIBER_JWT_KEY: *mercure_jwt
+        command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+            timeout: 5s
+            retries: 5
+            start_period: 60s
+        volumes:
+            - type: bind
+              source: *path_mercure_data
+              target: /data
+            - type: bind
+              source: *path_mercure_config
+              target: /config
