@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Domain\Enum\MessageCategory;
+use App\Domain\Enum\MessageFlag;
 use App\Domain\Model\MessageModel;
 use App\Repository\MessageRepository;
 use DateTimeImmutable;
@@ -626,5 +627,10 @@ class Message extends MessageModel
         $this->headers = $headers;
 
         return $this;
+    }
+
+    public function hasFlag(MessageFlag $flag): bool
+    {
+        return in_array($flag->value, $this->flags, true);
     }
 }

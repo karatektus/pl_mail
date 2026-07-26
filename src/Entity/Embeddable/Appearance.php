@@ -29,18 +29,24 @@ final class Appearance
 
     #[ORM\Column(type: 'float', options: ['default' => 0.7])]
     public private(set) float $paneAlpha = 0.7 {
-        set { $this->paneAlpha = max(0.15, min(1.0, $value)); }
+        set {
+            $this->paneAlpha = max(0.15, min(1.0, $value));
+        }
     }
 
     #[ORM\Column(type: 'smallint', options: ['default' => 24])]
     public private(set) int $paneBlur = 24 {
-        set { $this->paneBlur = max(0, min(60, $value)); }
+        set {
+            $this->paneBlur = max(0, min(60, $value));
+        }
     }
 
     /** Corner radius in rem. */
     #[ORM\Column(type: 'float', options: ['default' => 1.0])]
     public private(set) float $radius = 1.0 {
-        set { $this->radius = max(0.0, min(2.0, $value)); }
+        set {
+            $this->radius = max(0.0, min(2.0, $value));
+        }
     }
 
     #[ORM\Column(type: 'string', length: 16, enumType: Density::class, options: ['default' => 'comfortable'])]
@@ -61,8 +67,46 @@ final class Appearance
 
     #[ORM\Column(type: 'float', options: ['default' => 0.0])]
     public private(set) float $scrimAlpha = 0.0 {
-        set { $this->scrimAlpha = max(0.0, min(0.7, $value)); }
+        set {
+            $this->scrimAlpha = max(0.0, min(0.7, $value));
+        }
     }
+
+    #[ORM\Column(type: 'string', length: 7, nullable: true)]
+    public private(set) ?string $inkColor = null {
+        set {
+            $this->inkColor = self::normaliseHex($value);
+        }
+    }
+
+    #[ORM\Column(type: 'string', length: 7, nullable: true)]
+    public private(set) ?string $inkMuted = null {
+        set {
+            $this->inkMuted = self::normaliseHex($value);
+        }
+    }
+
+    #[ORM\Column(type: 'string', length: 7, nullable: true)]
+    public private(set) ?string $inkFaint = null {
+        set {
+            $this->inkFaint = self::normaliseHex($value);
+        }
+    }
+
+    #[ORM\Column(type: 'string', length: 7, nullable: true)]
+    public private(set) ?string $mainTint = null {
+        set {
+            $this->mainTint = self::normaliseHex($value);
+        }
+    }
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    public private(set) ?float $mainAlpha = null {
+        set {
+            $this->mainAlpha = null === $value ? null : max(0.15, min(1.0, $value));
+        }
+    }
+
 
     public function setTheme(Theme $theme): static
     {
@@ -141,23 +185,72 @@ final class Appearance
         return $this;
     }
 
+    public function setInkColor(?string $inkColor): static
+    {
+        $this->inkColor = $inkColor;
+
+        return $this;
+    }
+
+    public function setInkMuted(?string $inkMuted): static
+    {
+        $this->inkMuted = $inkMuted;
+
+        return $this;
+    }
+
+    public function setInkFaint(?string $inkFaint): static
+    {
+        $this->inkFaint = $inkFaint;
+
+        return $this;
+    }
+
+    public function setMainTint(?string $mainTint): static
+    {
+        $this->mainTint = $mainTint;
+
+        return $this;
+    }
+
+    public function setMainAlpha(?float $mainAlpha): static
+    {
+        $this->mainAlpha = $mainAlpha;
+
+        return $this;
+    }
+
+    private static function normaliseHex(?string $value): ?string
+    {
+        if (null === $value || '' === $value) {
+            return null;
+        }
+
+        return 1 === preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? strtolower($value) : null;
+    }
+
     /** Export payload — background file is deliberately excluded, it is not portable. */
     public function toArray(): array
     {
         return [
-            'version'         => 1,
-            'theme'           => $this->theme->value,
-            'accent'          => $this->accent,
-            'paneAlpha'       => $this->paneAlpha,
-            'paneBlur'        => $this->paneBlur,
-            'radius'          => $this->radius,
-            'density'         => $this->density->value,
-            'backgroundKind'  => BackgroundKind::Custom === $this->backgroundKind
+            'version' => 1,
+            'theme' => $this->theme->value,
+            'accent' => $this->accent,
+            'paneAlpha' => $this->paneAlpha,
+            'paneBlur' => $this->paneBlur,
+            'radius' => $this->radius,
+            'density' => $this->density->value,
+            'backgroundKind' => BackgroundKind::Custom === $this->backgroundKind
                 ? BackgroundKind::Theme->value
                 : $this->backgroundKind->value,
             'backgroundPreset' => $this->backgroundPreset?->value,
-            'backgroundSolid'  => $this->backgroundSolid,
-            'scrimAlpha'       => $this->scrimAlpha,
+            'backgroundSolid' => $this->backgroundSolid,
+            'scrimAlpha' => $this->scrimAlpha,
+            'inkColor' => $this->inkColor,
+            'inkMuted' => $this->inkMuted,
+            'inkFaint' => $this->inkFaint,
+            'mainTint' => $this->mainTint,
+            'mainAlpha' => $this->mainAlpha,
         ];
     }
 
@@ -192,7 +285,7 @@ final class Appearance
         }
 
         if (true === array_key_exists('backgroundPreset', $data)) {
-            $this->setBackgroundPreset(BackgroundPreset::tryFrom( $data['backgroundPreset']));
+            $this->setBackgroundPreset(BackgroundPreset::tryFrom($data['backgroundPreset']));
         }
 
         if (true === array_key_exists('backgroundSolid', $data)) {
@@ -204,6 +297,26 @@ final class Appearance
             $this->setScrimAlpha(floatval($data['scrimAlpha']));
         }
 
+        if (true === array_key_exists('inkColor', $data)) {
+            $this->setInkColor(is_string($data['inkColor']) ? $data['inkColor'] : null);
+        }
+
+        if (true === array_key_exists('inkMuted', $data)) {
+            $this->setInkMuted(is_string($data['inkMuted']) ? $data['inkMuted'] : null);
+        }
+
+        if (true === array_key_exists('inkFaint', $data)) {
+            $this->setInkFaint(is_string($data['inkFaint']) ? $data['inkFaint'] : null);
+        }
+
+        if (true === array_key_exists('mainTint', $data)) {
+            $this->setMainTint(is_string($data['mainTint']) ? $data['mainTint'] : null);
+        }
+
+        if (true === array_key_exists('mainAlpha', $data)) {
+            $raw = $data['mainAlpha'];
+            $this->setMainAlpha('' === $raw || null === $raw ? null : floatval($raw));
+        }
         return $this;
     }
 }

@@ -25,3 +25,4 @@
 
 # Docker override
 docker-compose.override.yml
+truenas.compose.yaml

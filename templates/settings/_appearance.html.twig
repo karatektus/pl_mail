@@ -32,7 +32,42 @@
         </div>
         <input type="hidden" data-appearance-target="theme" data-appearance-field="theme" value="{{ a.theme.value }}">
     </section>
+    {# ── Main pane ─────────────────────────────────────────────────────── #}
+    <section class="space-y-4">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.main.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.main.subheading'|trans }}</p>
+        </div>
 
+        <label class="flex items-center justify-between gap-3">
+            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.main.tint'|trans }}</span>
+            <span class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
+                    <input type="checkbox" data-appearance-target="mainTintDefault"
+                           data-action="change->appearance#toggleMainTintDefault"
+                           {{ a.mainTint is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                    {{ 'settings.appearance.main.default'|trans }}
+                </label>
+                <input type="color" value="{{ a.mainTint ?? '#ffffff' }}"
+                       data-appearance-target="mainTint" data-action="input->appearance#pickMainTint"
+                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+            </span>
+            <input type="hidden" data-appearance-field="mainTint" data-appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
+        </label>
+
+        <div>
+            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer mb-2">
+                <input type="checkbox" data-appearance-target="mainAlphaMatch"
+                       data-action="change->appearance#toggleMainAlphaMatch"
+                    {{ a.mainAlpha is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                {{ 'settings.appearance.main.matchGlass'|trans }}
+            </label>
+            <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
+                   data-appearance-target="mainAlpha" data-action="input->appearance#slideMainAlpha"
+                   class="w-full accent-accent cursor-pointer {{ a.mainAlpha is null ? 'opacity-40 pointer-events-none' : '' }}">
+            <input type="hidden" data-appearance-field="mainAlpha" data-appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
+        </div>
+    </section>
     {# ── Glass ─────────────────────────────────────────────────────────── #}
     <section class="space-y-5">
         <div>
@@ -61,7 +96,49 @@
             </label>
         {% endfor %}
     </section>
+    {# ── Text ──────────────────────────────────────────────────────────── #}
+    <section class="space-y-4">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.text.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.text.subheading'|trans }}</p>
+        </div>
 
+        <label class="flex items-center justify-between gap-3">
+            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.color'|trans }}</span>
+            <span class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
+                    <input type="checkbox" data-appearance-target="inkDefault"
+                           data-action="change->appearance#toggleInkDefault"
+                           {{ a.inkColor is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                    {{ 'settings.appearance.text.default'|trans }}
+                </label>
+                <input type="color" value="{{ a.inkColor ?? '#27272a' }}"
+                       data-appearance-target="inkColor" data-action="input->appearance#pickInk"
+                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+            </span>
+            <input type="hidden" data-appearance-field="inkColor" data-appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
+        </label>
+
+        <div data-appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.muted'|trans }} / {{ 'settings.appearance.text.faint'|trans }}</span>
+                <button type="button" data-action="click->appearance#resetInkDerived"
+                        class="text-[11px] text-accent hover:underline cursor-pointer">
+                    {{ 'settings.appearance.text.autoDerive'|trans }}
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <input type="color" value="{{ a.inkMuted ?? '#71717a' }}"
+                       data-appearance-target="inkMuted" data-action="input->appearance#pickInkMuted"
+                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                <input type="hidden" data-appearance-field="inkMuted" data-appearance-target="inkMutedField" value="{{ a.inkMuted ?? '' }}">
+                <input type="color" value="{{ a.inkFaint ?? '#a1a1aa' }}"
+                       data-appearance-target="inkFaint" data-action="input->appearance#pickInkFaint"
+                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                <input type="hidden" data-appearance-field="inkFaint" data-appearance-target="inkFaintField" value="{{ a.inkFaint ?? '' }}">
+            </div>
+        </div>
+    </section>
     {# ── Accent ────────────────────────────────────────────────────────── #}
     <section>
         <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.accent.heading'|trans }}</h2>

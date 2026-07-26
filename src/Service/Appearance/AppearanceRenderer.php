@@ -41,11 +41,33 @@ final readonly class AppearanceRenderer
             $variables['--app-bg'] = $background;
         }
 
+        if (null !== $appearance->inkColor) {
+            $variables['--rgb-ink']       = self::channels($appearance->inkColor);
+            $variables['--rgb-ink-soft']  = self::blendToGrey($appearance->inkColor, 0.22);
+            $variables['--rgb-ink-muted'] = null !== $appearance->inkMuted
+                ? self::channels($appearance->inkMuted)
+                : self::blendToGrey($appearance->inkColor, 0.40);
+            $variables['--rgb-ink-faint'] = null !== $appearance->inkFaint
+                ? self::channels($appearance->inkFaint)
+                : self::blendToGrey($appearance->inkColor, 0.62);
+        }
+
+        if (null !== $appearance->mainTint) {
+            $variables['--rgb-main'] = self::channels($appearance->mainTint);
+        }
+
+        if (null !== $appearance->mainAlpha) {
+            $variables['--main-alpha'] = rtrim(rtrim(number_format($appearance->mainAlpha, 3, '.', ''), '0'), '.');
+        }
+
         if (BackgroundKind::Theme !== $appearance->backgroundKind) {
             // Photos need an opacity floor or panel text becomes unreadable.
             $variables['--pane-alpha'] = (string) max(0.45, $appearance->paneAlpha);
-        }
 
+            if (true === isset($variables['--main-alpha'])) {
+                $variables['--main-alpha'] = (string) max(0.45, $appearance->mainAlpha);
+            }
+        }
         $parts = [];
 
         foreach ($variables as $name => $value) {
@@ -60,6 +82,18 @@ final readonly class AppearanceRenderer
         [$r, $g, $b] = self::rgb($hex);
 
         return sprintf('%d %d %d', $r, $g, $b);
+    }
+
+    private static function blendToGrey(string $hex, float $factor): string
+    {
+        [$r, $g, $b] = self::rgb($hex);
+
+        return sprintf(
+            '%d %d %d',
+            (int) round($r + ($factor * (128 - $r))),
+            (int) round($g + ($factor * (128 - $g))),
+            (int) round($b + ($factor * (128 - $b))),
+        );
     }
 
     private static function contrastChannels(string $hex): string

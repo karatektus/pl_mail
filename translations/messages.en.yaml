@@ -324,6 +324,20 @@ settings:
             mode_push: Push
             mode_pull: Scheduled
     appearance:
+        text:
+            heading: Text
+            subheading: Adjust text colour for legibility against your background.
+            color: Text colour
+            muted: Muted
+            faint: Faint
+            default: Theme default
+            autoDerive: Auto-derive
+        main:
+            heading: Main pane
+            subheading: Tint and opacity for the main content area, independent of the sidebar.
+            tint: Background tint
+            matchGlass: Match glass opacity
+            default: Theme default
         theme:
             heading: Theme
             subheading: Colour scheme for the whole interface.

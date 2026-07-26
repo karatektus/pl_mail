@@ -8,10 +8,17 @@ export default class extends Controller {
         resetUrl: String,
     };
 
-    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput'];
+    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput',
+        'inkColor', 'inkColorField', 'inkDefault', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
+        'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch'];
+
     connect() {
         this.root = document.documentElement;
         this.pending = null;
+
+        if (this.hasInkColorFieldTarget && this.inkColorFieldTarget.value !== '') {
+            this.applyInk();
+        }
     }
 
     disconnect() {
@@ -165,5 +172,122 @@ export default class extends Controller {
         const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
         return luminance > 0.6 ? '24 24 27' : '255 255 255';
+    }
+
+    /* ── Text ─────────────────────────────────────────────────────────────── */
+
+    pickInk(event) {
+        this.inkColorFieldTarget.value = event.currentTarget.value;
+        this.inkDefaultTarget.checked = false;
+        this.inkDerivedTarget.classList.remove('opacity-40', 'pointer-events-none');
+        this.applyInk();
+        this.queue();
+    }
+
+    pickInkMuted(event) {
+        this.inkMutedFieldTarget.value = event.currentTarget.value;
+        this.applyInk();
+        this.queue();
+    }
+
+    pickInkFaint(event) {
+        this.inkFaintFieldTarget.value = event.currentTarget.value;
+        this.applyInk();
+        this.queue();
+    }
+
+    resetInkDerived() {
+        this.inkMutedFieldTarget.value = '';
+        this.inkFaintFieldTarget.value = '';
+        this.applyInk();
+        this.queue();
+    }
+
+    toggleInkDefault(event) {
+        if (event.currentTarget.checked === true) {
+            this.inkColorFieldTarget.value = '';
+            this.inkMutedFieldTarget.value = '';
+            this.inkFaintFieldTarget.value = '';
+            this.root.style.removeProperty('--rgb-ink');
+            this.root.style.removeProperty('--rgb-ink-soft');
+            this.root.style.removeProperty('--rgb-ink-muted');
+            this.root.style.removeProperty('--rgb-ink-faint');
+            this.inkDerivedTarget.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            this.inkColorFieldTarget.value = this.inkColorTarget.value;
+            this.inkDerivedTarget.classList.remove('opacity-40', 'pointer-events-none');
+            this.applyInk();
+        }
+        this.queue();
+    }
+
+    applyInk() {
+        const base = this.inkColorFieldTarget.value || this.inkColorTarget.value;
+        const muted = this.inkMutedFieldTarget.value;
+        const faint = this.inkFaintFieldTarget.value;
+
+        this.root.style.setProperty('--rgb-ink', this.channels(base));
+        this.root.style.setProperty('--rgb-ink-soft', this.blendToGrey(base, 0.22));
+        this.root.style.setProperty('--rgb-ink-muted', muted !== '' ? this.channels(muted) : this.blendToGrey(base, 0.40));
+        this.root.style.setProperty('--rgb-ink-faint', faint !== '' ? this.channels(faint) : this.blendToGrey(base, 0.62));
+
+        if (muted === '') {
+            this.inkMutedTarget.value = this.rgbToHex(this.blendToGrey(base, 0.40));
+        }
+        if (faint === '') {
+            this.inkFaintTarget.value = this.rgbToHex(this.blendToGrey(base, 0.62));
+        }
+    }
+
+    /* ── Main pane ────────────────────────────────────────────────────────── */
+
+    pickMainTint(event) {
+        this.mainTintFieldTarget.value = event.currentTarget.value;
+        this.mainTintDefaultTarget.checked = false;
+        this.root.style.setProperty('--rgb-main', this.channels(event.currentTarget.value));
+        this.queue();
+    }
+
+    toggleMainTintDefault(event) {
+        if (event.currentTarget.checked === true) {
+            this.mainTintFieldTarget.value = '';
+            this.root.style.removeProperty('--rgb-main');
+        } else {
+            this.mainTintFieldTarget.value = this.mainTintTarget.value;
+            this.root.style.setProperty('--rgb-main', this.channels(this.mainTintTarget.value));
+        }
+        this.queue();
+    }
+
+    slideMainAlpha(event) {
+        this.mainAlphaFieldTarget.value = event.currentTarget.value;
+        this.mainAlphaMatchTarget.checked = false;
+        this.root.style.setProperty('--main-alpha', event.currentTarget.value);
+        this.queue();
+    }
+
+    toggleMainAlphaMatch(event) {
+        if (event.currentTarget.checked === true) {
+            this.mainAlphaFieldTarget.value = '';
+            this.root.style.removeProperty('--main-alpha');
+            this.mainAlphaTarget.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            this.mainAlphaFieldTarget.value = this.mainAlphaTarget.value;
+            this.root.style.setProperty('--main-alpha', this.mainAlphaTarget.value);
+            this.mainAlphaTarget.classList.remove('opacity-40', 'pointer-events-none');
+        }
+        this.queue();
+    }
+
+    /* ── Colour helpers ───────────────────────────────────────────────────── */
+
+    blendToGrey(hex, factor) {
+        const h = hex.replace('#', '');
+        const mix = (c) => Math.round(c + factor * (128 - c));
+        return `${mix(parseInt(h.slice(0, 2), 16))} ${mix(parseInt(h.slice(2, 4), 16))} ${mix(parseInt(h.slice(4, 6), 16))}`;
+    }
+
+    rgbToHex(triplet) {
+        return '#' + triplet.split(' ').map((n) => parseInt(n, 10).toString(16).padStart(2, '0')).join('');
     }
 }

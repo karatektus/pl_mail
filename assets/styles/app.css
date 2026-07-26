@@ -31,6 +31,7 @@
     --rgb-inverse-ink:  255 255 255;
     --rgb-info:          37  99 235;
 
+
     --border-alpha: 0.6;
     --line-alpha:   0.06;
     --raised-alpha: 0.04;
@@ -46,6 +47,8 @@
     --scrim-alpha: 0;
 
     /* user-tunable — overwritten inline on <html> by AppearanceRenderer */
+    --rgb-main:   var(--rgb-surface);
+    --main-alpha: var(--pane-alpha);
     --pane-alpha:    0.7;
     --pane-blur:     24px;
     --app-radius:    1rem;
@@ -113,7 +116,7 @@
 
 /* Accessibility: never force glass on people who opted out. */
 @media (prefers-reduced-transparency: reduce) {
-    :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; }
+    :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
 /* ═══ Semantic tokens → Tailwind utilities ══════════════════════════════════
@@ -173,6 +176,16 @@
     -webkit-backdrop-filter: blur(var(--pane-blur));
     border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
     border-radius: var(--app-radius);
+}
+
+@utility main-pane {
+    background-color: rgb(var(--rgb-main) / var(--main-alpha));
+    backdrop-filter: blur(var(--pane-blur));
+    -webkit-backdrop-filter: blur(var(--pane-blur));
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: var(--app-radius);
+    box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
+    0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
 }
 
 @utility app-bg {
