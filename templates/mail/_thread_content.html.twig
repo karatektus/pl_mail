@@ -12,6 +12,10 @@ self-contained: no {% extends %}, no block dependencies.
     {% set threadLabelIds = threadLabelIds|merge([label.id]) %}
 {% endfor %}
 
+{# The whole pane is a white sheet while a conversation is open (see the
+   mail-sheet utility in assets/styles/app.css). #}
+<div class="mail-sheet flex flex-col flex-1 min-h-0">
+
 {# ── Toolbar ─────────────────────────────────────────────────────────────── #}
 <div class="flex items-center gap-1 px-3 py-2 border-b border-line flex-shrink-0">
     <button
@@ -136,8 +140,7 @@ self-contained: no {% extends %}, no block dependencies.
                 {# ── Body — full pane width ─────────────────────────────── #}
                 <div data-thread-message-target="body" class="{{ isExpanded ? '' : 'hidden' }} mt-4">
                     {% if message.bodyHtmlSafe %}
-                        {# Full-bleed: the negative margins cancel the wrapper padding. #}
-                        <div class="bg-white text-gray-900 -mx-4 md:-mx-6 px-4 md:px-6 py-4 overflow-x-auto">
+                        <div class="text-sm overflow-x-auto">
                             {{ message.bodyHtmlSafe|raw }}
                         </div>
                     {% else %}
@@ -223,3 +226,5 @@ self-contained: no {% extends %}, no block dependencies.
 
     </div>
 </div>
+
+</div>{# /mail-sheet #}

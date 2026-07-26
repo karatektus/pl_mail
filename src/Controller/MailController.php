@@ -308,15 +308,10 @@ final class MailController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // Get the latest message in the thread to display in the reading pane
-        $messages = $thread->getMessages();
-        $latestMessage = null;
-        if (!$messages->isEmpty()) {
-            // Assuming messages are ordered by receivedAt;
-            // if not, we'd typically sort them or pick the one with max date.
-            // For this implementation, we'll grab the last one in the collection.
-            $latestMessage = $messages->last();
-        }
+        // The association is ordered by receivedAt ASC, so the last entry is
+        // the newest message.
+        $messages      = $thread->getMessages();
+        $latestMessage = false === $messages->isEmpty() ? $messages->last() : null;
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             return $this->render('mail/_thread_content.html.twig', [

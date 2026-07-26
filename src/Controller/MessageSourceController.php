@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\Account;
 use App\Entity\Message;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -103,17 +102,9 @@ final class MessageSourceController extends AbstractController
         return $results;
     }
 
-    /**
-     * Gmail/Graph messages have no mailbox — the thread carries the account.
-     */
     private function assertOwnership(Message $message): void
     {
-        $mailbox = $message->getMailbox();
-        $account = null !== $mailbox
-            ? $mailbox->getAccount()
-            : $message->getThread()?->getAccount();
-
-        if (false === $account instanceof Account || $account->getUsr() !== $this->getUser()) {
+        if ($message->getAccount()->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

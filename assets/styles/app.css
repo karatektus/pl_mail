@@ -208,6 +208,38 @@
     }
 }
 
+/*
+   The reading pane is a white sheet, like Gmail: mail arrives authored for a
+   light background, so the whole pane switches to light rather than just the
+   body. Re-declaring the channels (not the utilities) is what makes every
+   token-based class inside — text-ink, border-line, hover:bg-hover … —
+   resolve to its light value whatever theme the app is in.
+*/
+@utility mail-sheet {
+    --rgb-surface:      255 255 255;
+    --rgb-line:           0   0   0;
+    --rgb-raised:         0   0   0;
+    --rgb-ink:           32  33  36;
+    --rgb-ink-muted:    113 113 122;
+    --rgb-ink-faint:    128 134 139;
+    --rgb-ink-soft:      55  65  81;
+    --rgb-sunken:       243 244 246;
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+    --rgb-danger:       220  38  38;
+    --rgb-shadow:         0   0   0;
+
+    --line-alpha:   0.10;
+    --raised-alpha: 0.04;
+    --hover-alpha:  0.05;
+    --sunken-alpha: 1;
+    --shadow-alpha: 0.08;
+    --danger-soft-alpha: 0.08;
+
+    background-color: rgb(var(--rgb-surface));
+    color: rgb(var(--rgb-ink));
+}
+
 @utility row-y {
     padding-block: var(--density-row-y);
 }

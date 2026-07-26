@@ -24,7 +24,9 @@ final class AttachmentController extends AbstractController
     #[Route('/mail/attachment/{id}', name: 'app_mail_attachment', methods: ['GET'])]
     public function serve(MessagePart $part, Request $request): Response
     {
-        $account = $part->getMessage()->getMailbox()->getAccount();
+        // Not via the mailbox: Gmail/Graph messages are label-only and have
+        // none. The message itself always carries the account.
+        $account = $part->getMessage()->getAccount();
 
         if ($account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();

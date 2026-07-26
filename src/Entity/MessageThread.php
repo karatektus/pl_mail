@@ -47,6 +47,7 @@ class MessageThread
      * @var Collection<int, Message>
      */
     #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['receivedAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $messages;
 
     /**

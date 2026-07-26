@@ -93,7 +93,7 @@ class ComposeController extends AbstractController
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $original);
+        $this->hydrateAddressFields($form, $draft);
 
         return $this->render('compose/_window.html.twig', [
             'form' => $form,
@@ -114,7 +114,7 @@ class ComposeController extends AbstractController
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $original);
+        $this->hydrateAddressFields($form, $draft);
 
         return $this->render('compose/_window.html.twig', [
             'form' => $form,
@@ -135,7 +135,7 @@ class ComposeController extends AbstractController
             'validation_groups' => ['Default'],
         ]);
         $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $original);
+        $this->hydrateAddressFields($form, $draft);
 
         return $this->render('compose/_window.html.twig', [
             'form' => $form,
