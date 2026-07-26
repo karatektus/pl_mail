@@ -25,7 +25,7 @@ final class AccountResolver
             throw new MethodException('invalidArguments', 'A string "accountId" is required.');
         }
 
-        foreach ($user->getMailAccounts() as $account) {
+        foreach ($user->getAccounts() as $account) {
             if ((string) $account->getId() === $accountId) {
                 return $account;
             }
