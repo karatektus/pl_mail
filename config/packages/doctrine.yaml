@@ -21,6 +21,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
+            Jmap:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Jmap/State'
+                prefix: 'App\Jmap\State'
+                alias: Jmap
 
 when@test:
     doctrine:

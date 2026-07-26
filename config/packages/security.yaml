@@ -14,6 +14,11 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+        jmap:
+            pattern: ^/(jmap|\.well-known/jmap)
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
         main:
             lazy: true
             provider: app_user_provider
@@ -26,6 +31,8 @@ security:
     access_control:
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
         - { path: ^/webhook/graph, roles: PUBLIC_ACCESS }
+        - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/jmap, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }

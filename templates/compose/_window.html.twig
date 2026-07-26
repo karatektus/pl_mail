@@ -23,6 +23,8 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
 <turbo-frame id="{{ frame }}">
     <div data-controller="compose compose-toolbar"
          data-compose-inline-value="{{ inline ? 'true' : 'false' }}"
+         data-compose-min-chars-value="{{ min_chars|default(5) }}"
+         {% if thread is not null %}data-compose-thread-value="{{ thread }}"{% endif %}
         {% if null == message.id %}
             data-compose-draft-url-value="{{ path('app_compose_form_new', ctx) }}"
             data-compose-send-url-value="{{ path('app_compose_mail_send', ctx) }}"
@@ -99,7 +101,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                     </button>
                 {% endif %}
 
-                <button type="button" title="Save draft and close"
+                <button type="button" title="{{ 'compose.save_and_close'|trans }}"
                         data-action="compose#saveDraft compose#close"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
                                text-ink-muted hover:text-ink
@@ -370,8 +372,8 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                     <div class="flex-1"></div>
 
                     <button type="button"
-                            data-action="compose#close"
-                            title="Discard draft"
+                            data-action="compose#discard"
+                            title="{{ 'compose.discard'|trans }}"
                             class="{{ ic }} hover:text-danger">
                         <i class="fa-regular fa-trash-can"></i>
                     </button>

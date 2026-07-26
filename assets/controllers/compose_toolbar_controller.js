@@ -416,21 +416,23 @@ export default class extends Controller {
     }
 
     /**
-     * Never let dev-tooling markup ride along into a saved draft — the debug
-     * toolbar used to end up quoted inside the body. Scripts go too: nothing
-     * executable belongs in a mail we are about to send.
+     * Never let dev-tooling markup or editor chrome ride along into a saved
+     * draft: the debug toolbar used to end up quoted inside the body, and the
+     * "show quoted text" toggle is a UI affordance, not part of the mail.
+     * Scripts go too — nothing executable belongs in a mail we're sending.
      */
     _cleanHtml() {
         const html = this.editorTarget.innerHTML;
 
-        if (!/sf-toolbar|<script|sfwdt/i.test(html)) {
+        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle/i.test(html)) {
             return html;
         }
 
         const clone = this.editorTarget.cloneNode(true);
 
-        clone.querySelectorAll('script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve]')
-            .forEach((node) => node.remove());
+        clone.querySelectorAll(
+            'script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve], [data-quote-toggle]',
+        ).forEach((node) => node.remove());
 
         return clone.innerHTML;
     }

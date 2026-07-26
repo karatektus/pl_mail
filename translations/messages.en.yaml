@@ -213,6 +213,8 @@ compose:
     no_recipients: No recipients
     empty_draft: (empty draft)
     continue_editing: Continue editing
+    save_and_close: Save draft and close
+    discard: Delete draft
 
 thread:
     no_subject: (no subject)

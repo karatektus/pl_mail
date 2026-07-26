@@ -16,33 +16,40 @@ Variables:
 {# A draft has no body worth reading — clicking it opens the editor in the
    reply zone, which then hides this row for as long as it is open. #}
 {% if isDraft %}
-    {% set composeParams = message.thread is not null
-        ? { frame: 'compose_inline', thread: message.thread.id }
+    {# The row is its own turbo-frame, so the editor opens right here rather
+       than at the foot of the thread. compose#close navigates it back. #}
+    {% set threaded = message.thread is not null %}
+    {% set draftFrame = threaded ? 'compose_draft_' ~ message.id : 'compose_dock' %}
+    {% set composeParams = threaded
+        ? { frame: draftFrame, thread: message.thread.id }
         : {} %}
+    {% set snippet = message.bodyText ? message.bodyText|striptags|trim : '' %}
 
     <div id="thread_message_{{ message.id }}" class="border-b border-line last:border-b-0 py-4 first:pt-0">
-        <a
-            href="{{ path('app_compose_edit', composeParams|merge({ id: message.id })) }}"
-            data-turbo-frame="{{ message.thread is not null ? 'compose_inline' : 'compose_dock' }}"
-            class="flex items-center gap-3 cursor-pointer group"
-        >
-            <div class="w-9 h-9 rounded-full bg-sunken border border-line flex-shrink-0 flex items-center justify-center text-ink-faint text-sm">
-                <i class="fa-regular fa-pen-to-square text-xs" aria-hidden="true"></i>
-            </div>
-
-            <div class="flex-1 min-w-0">
-                <div class="flex items-baseline gap-2">
-                    <span class="text-sm font-medium text-danger">{{ 'message.draft'|trans }}</span>
-                    <span class="text-xs text-ink-muted truncate">
-                        {{ message.bodyText ? message.bodyText|striptags|slice(0, 120) : ('compose.empty_draft'|trans) }}
-                    </span>
+        <turbo-frame id="{{ draftFrame }}">
+            <a
+                href="{{ path('app_compose_edit', composeParams|merge({ id: message.id })) }}"
+                data-turbo-frame="{{ draftFrame }}"
+                class="flex items-center gap-3 cursor-pointer group"
+            >
+                <div class="w-9 h-9 rounded-full bg-sunken border border-line flex-shrink-0 flex items-center justify-center text-ink-faint text-sm">
+                    <i class="fa-regular fa-pen-to-square text-xs" aria-hidden="true"></i>
                 </div>
-            </div>
 
-            <span class="text-xs text-ink-faint whitespace-nowrap group-hover:text-ink-soft transition-colors">
-                {{ 'compose.continue_editing'|trans }}
-            </span>
-        </a>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-sm font-medium text-danger">{{ 'message.draft'|trans }}</span>
+                        <span class="text-xs text-ink-muted truncate">
+                            {{ snippet ?: (message.subject ?: ('compose.empty_draft'|trans)) }}
+                        </span>
+                    </div>
+                </div>
+
+                <span class="text-xs text-ink-faint whitespace-nowrap group-hover:text-ink-soft transition-colors">
+                    {{ 'compose.continue_editing'|trans }}
+                </span>
+            </a>
+        </turbo-frame>
     </div>
 {% else %}
 

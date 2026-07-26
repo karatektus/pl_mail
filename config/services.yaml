@@ -52,6 +52,13 @@ services:
     App\Service\Mail\MailSenderRegistry:
         arguments:
             $senders: !tagged_iterator app.mail_sender
+
+    App\Jmap\Method\MethodRegistry:
+        arguments:
+            $methods: !tagged_iterator app.jmap_method
+
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
+        App\Jmap\Method\JmapMethod:
+            tags: ['app.jmap_method']

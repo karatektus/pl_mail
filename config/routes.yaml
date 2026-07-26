@@ -9,3 +9,9 @@
 
 controllers:
     resource: routing.controllers
+
+jmap:
+    resource:
+        path: ../src/Jmap/Controller/
+        namespace: App\Jmap\Controller
+    type: attribute

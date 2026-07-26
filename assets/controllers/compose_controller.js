@@ -13,13 +13,12 @@ export default class extends Controller {
         // floating dock: no fullscreen, no mobile auto-expand, pop-out button,
         // and the address/subject rows start folded away.
         inline:       { type: Boolean, default: false },
+        // Body characters needed before an autosave may create a draft —
+        // every stray keystroke used to mint one.
+        minChars:     { type: Number, default: 5 },
+        // The conversation this window belongs to, for the draft row.
+        thread:       Number,
     }
-
-    /**
-     * Minimum body length before an autosave is allowed to create or update a
-     * draft. Every stray keystroke used to mint a draft in the thread.
-     */
-    static MIN_AUTOSAVE_CHARS = 5;
 
     #autosaveTimer = null
 
@@ -58,15 +57,11 @@ export default class extends Controller {
             this._focusCursorAtTop();
         }
 
-        // Inline: the thread's reply buttons step aside while we're open, and
-        // the draft's own row in the conversation gives way to this editor.
-        // Both are cached — by the time disconnect() runs the card is already
-        // detached and closest() would find nothing.
+        // Inline: the thread's reply buttons step aside while we're open.
+        // Cached — by the time disconnect() runs the card is already detached
+        // and closest() would find nothing.
         this._zone = this._replyZone();
         this._zone?.classList.add('composing');
-
-        this._draftRow = this._threadRow();
-        this._draftRow?.classList.add('hidden');
     }
 
     disconnect() {
@@ -77,7 +72,6 @@ export default class extends Controller {
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
         document.body.style.overflow = '';
         this._zone?.classList.remove('composing');
-        this._draftRow?.classList.remove('hidden');
     }
 
     /** The thread reply zone this card lives in, when rendered inline. */
@@ -90,13 +84,6 @@ export default class extends Controller {
     /** The message id this window is editing, once the draft exists. */
     _messageId() {
         return this.sendUrlValue.match(/\/send\/(\d+)/)?.[1] ?? null;
-    }
-
-    /** This draft's row in the open conversation, if it is rendered there. */
-    _threadRow() {
-        const id = true === this.inlineValue ? this._messageId() : null;
-
-        return null === id ? null : document.getElementById(`thread_message_${id}`);
     }
 
     // ── Address / subject fields ──────────────────────────────────────
@@ -148,6 +135,7 @@ export default class extends Controller {
             const toggle = document.createElement('button');
             toggle.type = 'button';
             toggle.contentEditable = 'false';
+            toggle.dataset.quoteToggle = '1';
             toggle.textContent = '··· (show quoted text)';
             toggle.style.cssText = [
                 'display: inline-block',
@@ -369,9 +357,100 @@ export default class extends Controller {
 
     // ── Close ─────────────────────────────────────────────────────────
 
-    close() {
+    async close() {
         document.body.style.overflow = '';
-        this.element.closest('turbo-frame').innerHTML = '';
+
+        const frame = this.element.closest('turbo-frame');
+        const id    = this._messageId();
+
+        // In-place draft: the frame IS the row, so put the row markup back
+        // rather than leaving a hole in the conversation. Rendered server
+        // side so the snippet reflects what was just saved.
+        if (null !== id && frame?.id.startsWith('compose_draft_')) {
+            const row = frame.closest('[id^="thread_message_"]');
+            const html = await this._fetchRow(id);
+
+            if (null !== row && null !== html) {
+                row.outerHTML = html;
+
+                return;
+            }
+        }
+
+        // Reply box: a draft the autosave created has no row yet — add one,
+        // otherwise it only turns up after a reload.
+        if (null !== id && true === this.inlineValue) {
+            this._insertDraftRow(id);
+        }
+
+        frame.innerHTML = '';
+    }
+
+    /**
+     * Really delete the draft — the trash button used to just close the
+     * window and leave it behind.
+     */
+    async discard() {
+        const id = this._messageId();
+
+        if (null === id) {
+            this.close();
+
+            return;
+        }
+
+        clearTimeout(this.#autosaveTimer);
+
+        const frame  = this.element.closest('turbo-frame');
+        const params = new URLSearchParams({ frame: frame?.id ?? 'compose_dock' });
+
+        if (this.hasThreadValue) {
+            params.set('thread', String(this.threadValue));
+        }
+
+        const response = await fetch(`/compose/discard/${id}?${params}`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        if (false === response.ok) {
+            console.error('[compose] discard failed', response.status);
+
+            return;
+        }
+
+        Turbo.renderStreamMessage(await response.text());
+    }
+
+    _rowUrl(id) {
+        const params = this.hasThreadValue ? `?thread=${this.threadValue}` : '';
+
+        return `/compose/draft-row/${id}${params}`;
+    }
+
+    async _fetchRow(id) {
+        const response = await fetch(this._rowUrl(id), {
+            headers: { 'X-Requested-With': 'fetch' },
+        });
+
+        return true === response.ok ? await response.text() : null;
+    }
+
+    /** Append the row for a freshly created draft to the open conversation. */
+    async _insertDraftRow(id) {
+        const list = this.hasThreadValue
+            ? document.getElementById(`thread_messages_${this.threadValue}`)
+            : null;
+
+        if (null === list || null !== document.getElementById(`thread_message_${id}`)) {
+            return;
+        }
+
+        const html = await this._fetchRow(id);
+
+        if (null !== html) {
+            list.insertAdjacentHTML('beforeend', html);
+        }
     }
 
     /**
@@ -397,6 +476,17 @@ export default class extends Controller {
 
     _scheduleAutosave() {
         clearTimeout(this.#autosaveTimer);
+
+        if (false === this._worthSaving()) {
+            this._reportPending();
+
+            return;
+        }
+
+        if (this.hasSaveStatusTarget && this.saveStatusTarget.textContent.includes('to save')) {
+            this.saveStatusTarget.textContent = '';
+        }
+
         this.#autosaveTimer = setTimeout(
             () => this.saveDraft(),
             this.autosaveDelayValue,
@@ -415,6 +505,12 @@ export default class extends Controller {
         if (!form) { return; }
 
         if (false === force && null === event && false === this._worthSaving()) {
+            return;
+        }
+
+        // Nothing written and nothing saved yet: closing an untouched reply
+        // box must not leave an empty draft behind.
+        if (0 === this._typedLength() && null === this._messageId()) {
             return;
         }
 
@@ -478,12 +574,43 @@ export default class extends Controller {
             return true;
         }
 
+        return this._typedLength() >= this.minCharsValue;
+    }
+
+    /** Characters the user has actually written, quote excluded. */
+    _typedLength() {
+        if (false === this.hasBodyTarget) {
+            return 0;
+        }
+
         const clone = this.bodyTarget.cloneNode(true);
 
-        clone.querySelectorAll('[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"]')
-            .forEach((node) => node.remove());
+        // The last two selectors cover drafts written before buildQuotedHtml
+        // marked the quote with data-quoted.
+        clone.querySelectorAll(
+            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+        ).forEach((node) => node.remove());
 
-        return clone.textContent.trim().length >= this.constructor.MIN_AUTOSAVE_CHARS;
+        return clone.textContent.trim().length;
+    }
+
+    /**
+     * Below the threshold the status line counts down instead of going quiet,
+     * so it is obvious the draft is not being kept yet.
+     */
+    _reportPending() {
+        if (false === this.hasSaveStatusTarget) {
+            return;
+        }
+
+        const missing = this.minCharsValue - this._typedLength();
+        const status  = this.saveStatusTarget;
+
+        status.classList.remove('text-danger', 'text-success');
+        status.classList.add('text-ink-faint');
+        status.textContent = missing <= 0
+            ? ''
+            : `${missing} more character${1 === missing ? '' : 's'} to save`;
     }
 
     _handleSubmit(event) {

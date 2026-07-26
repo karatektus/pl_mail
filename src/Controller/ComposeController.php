@@ -280,6 +280,63 @@ class ComposeController extends AbstractController
         ]);
     }
 
+    /**
+     * The conversation row for a draft, as its own turbo-frame. Used to put
+     * the row back after the in-place editor closes, and to materialise the
+     * row for a draft the autosave created while the reply box was open.
+     */
+    #[Route('/draft-row/{id}', name: 'draft_row', methods: ['GET'])]
+    public function draftRow(Message $message): Response
+    {
+        $this->assertOwnership($message);
+
+        return $this->render('mail/_thread_message.html.twig', [
+            'message'  => $message,
+            'expanded' => false,
+        ]);
+    }
+
+    /**
+     * Discard: the trash button in the compose window really deletes the
+     * draft instead of just closing the window on top of it.
+     */
+    #[Route('/discard/{id}', name: 'discard', methods: ['POST'])]
+    public function discard(Request $request, Message $message): Response
+    {
+        $this->assertOwnership($message);
+
+        if (false === $message->isDraft() || null !== $message->getSentAt()) {
+            throw $this->createAccessDeniedException('Only unsent drafts can be discarded.');
+        }
+
+        $ctx       = $this->composeContext($request);
+        $messageId = $message->getId();
+        $thread    = $message->getThread();
+
+        $this->em->remove($message);
+
+        // Recount from the association, never from the stored counter — it
+        // drifts, and the thread cascades removes to every message in it.
+        // An emptied thread is left in place: harmless, and the sync layer
+        // reuses it if the conversation comes back.
+        if (null !== $thread) {
+            $thread->setMessageCount(max(0, $thread->getMessages()->count() - 1));
+        }
+
+        $this->em->flush();
+
+        if (null !== $thread) {
+            $this->threadLabelSynchronizer->sync($thread);
+            $this->em->flush();
+        }
+
+        return $this->turboStream('compose/_discard.stream.html.twig', [
+            'messageId' => $messageId,
+            'frame'     => $ctx['frame'],
+            'inline'    => $ctx['inline'],
+        ]);
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
@@ -297,12 +354,15 @@ class ComposeController extends AbstractController
      */
     private function composeContext(Request $request): array
     {
-        $frame  = (string) $request->query->get('frame', self::DOCK_FRAME);
-        $inline = self::DOCK_FRAME !== $frame;
+        $frame = (string) $request->query->get('frame', self::DOCK_FRAME);
+
+        // compose_inline is the reply box at the foot of the thread;
+        // compose_draft_{id} is a draft being edited in place, in its own row.
+        $inline = 1 === preg_match('/^compose_(inline|draft_\d+)$/', $frame);
 
         return [
             'inline'  => $inline,
-            'frame'   => $inline ? self::INLINE_FRAME : self::DOCK_FRAME,
+            'frame'   => $inline ? $frame : self::DOCK_FRAME,
             'thread'  => $request->query->has('thread') ? $request->query->getInt('thread') : null,
             'replyTo' => $request->query->has('reply_to') ? $request->query->getInt('reply_to') : null,
         ];
@@ -401,6 +461,36 @@ class ComposeController extends AbstractController
             'thread'    => $ctx['thread'],
             'urlParams' => $this->urlParams($ctx),
         ]);
+    }
+
+    /**
+     * The user's own writing as plain text: everything before the quoted
+     * original (marked with data-quoted by buildQuotedHtml). Drives the draft
+     * snippet in the conversation and the message list.
+     */
+    private function plainTextBody(?string $html): ?string
+    {
+        if (null === $html || '' === trim($html)) {
+            return null;
+        }
+
+        // data-quoted is the current marker; the other two cut drafts written
+        // before it existed (attribution div / bare blockquote).
+        $ownPart = preg_split(
+            '/<div[^>]*data-quote|<div[^>]*font-size:0\.85em|<blockquote/i',
+            $html,
+            2,
+        )[0];
+
+        $text = html_entity_decode(
+            strip_tags(preg_replace('/<(br|\/p|\/div)[^>]*>/i', "\n", $ownPart) ?? $ownPart),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8',
+        );
+
+        $text = trim(preg_replace('/[ \t]*\R\s*/u', "\n", $text) ?? $text);
+
+        return '' === $text ? null : $text;
     }
 
     private function turboStream(string $template, array $params): Response
@@ -711,6 +801,7 @@ class ComposeController extends AbstractController
         // the message it becomes) renders blank in the conversation until the
         // sent copy comes back from IMAP.
         $this->bodySanitizer->sanitize($message);
+        $message->setBodyText($this->plainTextBody($message->getBodyHtml()));
 
         $this->em->persist($message);
 
