@@ -44,6 +44,8 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: imap-supervisor
+    healthcheck:
+      disable: true
     depends_on:
       database:
         condition: service_healthy
@@ -56,6 +58,8 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: messenger-worker
+    healthcheck:
+      disable: true
     depends_on:
       database:
         condition: service_healthy
