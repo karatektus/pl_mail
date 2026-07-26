@@ -224,4 +224,40 @@ class LabelRepository extends ServiceEntityRepository
             'account'  => $account,
         ]);
     }
+
+    /**
+     * @return list<Label>
+     */
+    public function findByAccountOrdered(int $accountId): array
+    {
+        return $this->createQueryBuilder('l')
+            ->where('l.account = :account')
+            ->setParameter('account', $accountId)
+            ->orderBy('l.sortOrder', 'ASC')
+            ->addOrderBy('l.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Label>
+     */
+    public function findByAccountAndIds(int $accountId, array $ids): array
+    {
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('l')
+            ->where('l.account = :account')
+            ->andWhere('l.id IN (:ids)')
+            ->setParameter('account', $accountId)
+            ->setParameter('ids', $ids)
+            ->orderBy('l.sortOrder', 'ASC')
+            ->addOrderBy('l.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
