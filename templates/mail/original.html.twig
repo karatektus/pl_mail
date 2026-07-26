@@ -1,0 +1,105 @@
+{#
+mail/original.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Standalone "show original" page (opened in a new tab). Deliberately plain and
+independent of the app layout; the source is printed escaped, never |raw.
+#}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ 'message.actions.show_original'|trans }} — {{ message.subject ?: ('thread.no_subject'|trans) }}</title>
+    <style>
+        :root { color-scheme: light dark; }
+        body {
+            margin: 0;
+            padding: 24px;
+            font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #fff;
+            color: #202124;
+        }
+        h1 { font-size: 18px; font-weight: 500; margin: 0 0 16px; }
+        table.summary { border-collapse: collapse; margin-bottom: 20px; }
+        table.summary th {
+            text-align: left; font-weight: 400; color: #5f6368;
+            padding: 3px 24px 3px 0; vertical-align: top; white-space: nowrap;
+        }
+        table.summary td { padding: 3px 0; word-break: break-word; }
+        .verdict { text-transform: uppercase; font-size: 12px; letter-spacing: .03em; }
+        .pass { color: #188038; }
+        .fail { color: #c5221f; }
+        .actions { margin-bottom: 16px; }
+        button {
+            font: inherit; padding: 6px 14px; border: 1px solid #dadce0;
+            border-radius: 4px; background: #fff; color: #1a73e8; cursor: pointer;
+        }
+        button:hover { background: #f8f9fa; }
+        pre.source {
+            white-space: pre-wrap; word-break: break-word;
+            font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 4px;
+            padding: 16px; margin: 0;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background: #202124; color: #e8eaed; }
+            table.summary th { color: #9aa0a6; }
+            pre.source { background: #292a2d; border-color: #3c4043; }
+            button { background: #292a2d; border-color: #3c4043; color: #8ab4f8; }
+            button:hover { background: #35363a; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>{{ 'message.original.heading'|trans }}</h1>
+
+<table class="summary">
+    <tr>
+        <th>Message ID</th>
+        <td>{{ message.messageId ?: '—' }}</td>
+    </tr>
+    <tr>
+        <th>Created at</th>
+        <td>{{ (message.sentAt ?? message.receivedAt) ? (message.sentAt ?? message.receivedAt)|date('D, M j, Y \\a\\t g:i a (T)') : '—' }}</td>
+    </tr>
+    <tr>
+        <th>From</th>
+        <td>{{ message.fromName ? message.fromName ~ ' <' ~ message.fromAddress ~ '>' : message.fromAddress }}</td>
+    </tr>
+    <tr>
+        <th>To</th>
+        <td>
+            {%- for entry in message.toAddresses ?? [] -%}
+                {{ entry.address }}{{ not loop.last ? ', ' : '' }}
+            {%- else -%}
+                —
+            {%- endfor -%}
+        </td>
+    </tr>
+    <tr>
+        <th>Subject</th>
+        <td>{{ message.subject ?: ('thread.no_subject'|trans) }}</td>
+    </tr>
+    {% for mechanism, verdict in auth %}
+        <tr>
+            <th>{{ mechanism }}</th>
+            <td class="verdict {{ verdict == 'pass' ? 'pass' : 'fail' }}">{{ verdict }}</td>
+        </tr>
+    {% endfor %}
+</table>
+
+<div class="actions">
+    <button type="button" id="copy">{{ 'message.original.copy'|trans }}</button>
+</div>
+
+<pre class="source" id="source">{{ source }}</pre>
+
+<script>
+    document.getElementById('copy').addEventListener('click', async (event) => {
+        await navigator.clipboard.writeText(document.getElementById('source').textContent);
+        event.currentTarget.textContent = {{ 'message.original.copied'|trans|json_encode|raw }};
+    });
+</script>
+
+</body>
+</html>

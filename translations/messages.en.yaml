@@ -171,6 +171,41 @@ thread_row:
 message:
     back: Back
     attachments: Attachments
+    details:
+        label: Details
+        me: me
+        to: "to %name%"
+        from: from
+        reply_to: reply-to
+        to_label: to
+        cc: cc
+        bcc: bcc
+        date: date
+        subject: subject
+        mailed_by: mailed-by
+        signed_by: signed-by
+        show_all_headers: Show all headers
+        hide_all_headers: Hide all headers
+    actions:
+        more: More
+        expand: Expand or collapse this message
+        star: Star
+        unstar: Remove star
+        mark_unread: Mark as unread
+        archive: Archive
+        delete: Delete this message
+        show_original: Show original
+        print: Print
+    original:
+        heading: Original message
+        copy: Copy to clipboard
+        copied: Copied
+
+compose:
+    reply: Reply
+    reply_all: Reply all
+    forward: Forward
+    reply_placeholder: "Reply to %name%"
 
 thread:
     no_subject: (no subject)

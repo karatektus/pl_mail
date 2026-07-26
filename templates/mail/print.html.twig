@@ -1,0 +1,68 @@
+{#
+mail/print.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Standalone printable view of a single message (opened in a new tab, fires the
+print dialog on load). Only the sanitized body is rendered as markup.
+#}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ message.subject ?: ('thread.no_subject'|trans) }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 32px;
+            font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #fff;
+            color: #202124;
+        }
+        h1 { font-size: 18px; font-weight: 600; margin: 0 0 12px; }
+        .meta { border-bottom: 1px solid #e0e0e0; padding-bottom: 12px; margin-bottom: 20px; }
+        .meta p { margin: 2px 0; }
+        .meta .muted { color: #5f6368; font-size: 12px; }
+        .body { word-break: break-word; }
+        .body img { max-width: 100%; height: auto; }
+        .attachments { margin-top: 24px; border-top: 1px solid #e0e0e0; padding-top: 12px; font-size: 12px; color: #5f6368; }
+        @media print {
+            body { padding: 0; }
+            @page { margin: 1.5cm; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>{{ message.subject ?: ('thread.no_subject'|trans) }}</h1>
+
+<div class="meta">
+    <p><strong>{{ message.fromName ?: message.fromAddress }}</strong>
+        {% if message.fromName %}<span class="muted">&lt;{{ message.fromAddress }}&gt;</span>{% endif %}
+    </p>
+    <p class="muted">
+        {{ 'message.details.to_label'|trans }}:
+        {%- for entry in message.toAddresses ?? [] %} {{ entry.address }}{{ not loop.last ? ',' : '' }}{% else %} —{% endfor %}
+    </p>
+    <p class="muted">
+        {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, g:i a') : '' }}
+    </p>
+</div>
+
+<div class="body">
+    {% if message.bodyHtmlSafe %}
+        {{ message.bodyHtmlSafe|raw }}
+    {% else %}
+        <pre style="white-space: pre-wrap; font: inherit;">{{ message.bodyText }}</pre>
+    {% endif %}
+</div>
+
+{% if message.hasAttachments %}
+    <div class="attachments">
+        {{ 'message.attachments'|trans }}:
+        {% for part in message.messageParts %}{% if not part.isInline %}{{ part.filename ?: 'attachment' }}{{ not loop.last ? ', ' : '' }}{% endif %}{% endfor %}
+    </div>
+{% endif %}
+
+<script>window.addEventListener('load', () => window.print());</script>
+
+</body>
+</html>

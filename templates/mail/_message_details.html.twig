@@ -1,0 +1,157 @@
+{#
+mail/_message_details.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Gmail-style "to me ▾" trigger plus the details popover for a single message.
+
+Variables:
+  message  Message
+
+Everything is derived from the stored `message.headers` map (original-case
+keys, values are string|string[]), since there is no raw RFC822 blob and no
+replyTo column on the entity.
+#}
+{% import _self as details %}
+
+{% macro addresses(list) %}
+    {%- for entry in list -%}
+        {%- if entry.name is defined and entry.name -%}
+            {{ entry.name }} &lt;{{ entry.address }}&gt;
+        {%- else -%}
+            {{ entry.address }}
+        {%- endif -%}
+        {{- not loop.last ? ', ' : '' -}}
+    {%- endfor -%}
+{% endmacro %}
+
+{# Case-insensitive header lookup; multi-value headers collapse to one string. #}
+{% set rawHeaders = message.headers ?? {} %}
+{% set h = {} %}
+{% for key, value in rawHeaders %}
+    {% set h = h|merge({ (key|lower): (value is iterable ? value|join("\n") : value) }) %}
+{% endfor %}
+
+{% set selfEmail   = message.account.email|default(null) %}
+{% set toList      = message.toAddresses ?? [] %}
+{% set ccList      = message.ccAddresses ?? [] %}
+{% set bccList     = message.bccAddresses ?? [] %}
+{% set replyTo     = h['reply-to']|default(null) %}
+{% set returnPath  = h['return-path']|default('') %}
+{% set mailedBy    = '@' in returnPath ? returnPath|split('@')|last|trim('<> ') : null %}
+{% set dkimParts   = (h['dkim-signature']|default(''))|split(';')|map(p => p|trim)|filter(p => p starts with 'd=') %}
+{% set signedBy    = dkimParts is not empty ? (dkimParts|first)|slice(2) : null %}
+
+{# Trigger label: "to me", "to Alice", "to Alice, +2" #}
+{% set firstTo = toList|first %}
+{% set toLabel = '' %}
+{% if firstTo %}
+    {% set toLabel = firstTo.address == selfEmail
+        ? ('message.details.me'|trans)
+        : (firstTo.name|default('') ?: firstTo.address) %}
+{% endif %}
+{% set extraCount = (toList|length + ccList|length) - 1 %}
+
+<div class="relative inline-flex" data-controller="message-details">
+    <button
+        type="button"
+        data-action="click->message-details#toggle"
+        aria-label="{{ 'message.details.label'|trans }}"
+        class="inline-flex items-center gap-1 rounded px-1 -mx-1 py-0.5
+               text-xs text-ink-faint hover:text-ink-soft hover:bg-hover
+               transition-colors cursor-pointer"
+    >
+        <span class="truncate max-w-[16rem]">
+            {%- if toLabel -%}
+                {{ 'message.details.to'|trans({ '%name%': toLabel }) }}{{ extraCount > 0 ? ', +' ~ extraCount : '' }}
+            {%- else -%}
+                {{ 'message.details.label'|trans }}
+            {%- endif -%}
+        </span>
+        <i data-message-details-target="caret"
+           class="fa-solid fa-caret-down text-[10px] transition-transform duration-150"
+           aria-hidden="true"></i>
+    </button>
+
+    <div
+        data-message-details-target="panel"
+        class="hidden absolute left-0 top-full mt-1 z-30 w-[28rem] max-w-[85vw]
+               rounded-xl bg-pane-soft backdrop-blur-sm
+               border border-line shadow-pop
+               text-xs cursor-default"
+    >
+        <dl class="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 px-4 py-3">
+            <dt class="text-ink-faint text-right">{{ 'message.details.from'|trans }}</dt>
+            <dd class="text-ink-soft break-words">
+                {{ message.fromName ? message.fromName ~ ' <' ~ message.fromAddress ~ '>' : message.fromAddress }}
+            </dd>
+
+            {% if replyTo %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.reply_to'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ replyTo }}</dd>
+            {% endif %}
+
+            {% if toList is not empty %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.to_label'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ details.addresses(toList) }}</dd>
+            {% endif %}
+
+            {% if ccList is not empty %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.cc'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ details.addresses(ccList) }}</dd>
+            {% endif %}
+
+            {% if bccList is not empty %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.bcc'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ details.addresses(bccList) }}</dd>
+            {% endif %}
+
+            <dt class="text-ink-faint text-right">{{ 'message.details.date'|trans }}</dt>
+            <dd class="text-ink-soft">
+                {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, g:i a') : '—' }}
+            </dd>
+
+            <dt class="text-ink-faint text-right">{{ 'message.details.subject'|trans }}</dt>
+            <dd class="text-ink-soft break-words">{{ message.subject ?: ('thread.no_subject'|trans) }}</dd>
+
+            {% if mailedBy %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.mailed_by'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ mailedBy }}</dd>
+            {% endif %}
+
+            {% if signedBy %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.signed_by'|trans }}</dt>
+                <dd class="text-ink-soft break-words">{{ signedBy }}</dd>
+            {% endif %}
+        </dl>
+
+        {% if rawHeaders is not empty %}
+            <div class="border-t border-line">
+                <button
+                    type="button"
+                    data-action="click->message-details#toggleAll"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-left
+                           text-ink-faint hover:text-ink-soft hover:bg-hover
+                           transition-colors cursor-pointer"
+                >
+                    <i class="fa-solid fa-list w-3.5" aria-hidden="true"></i>
+                    <span
+                        data-message-details-target="allHeadersLabel"
+                        data-more="{{ 'message.details.show_all_headers'|trans }}"
+                        data-less="{{ 'message.details.hide_all_headers'|trans }}"
+                    >{{ 'message.details.show_all_headers'|trans }}</span>
+                </button>
+
+                <div
+                    data-message-details-target="allHeaders"
+                    class="hidden max-h-72 overflow-y-auto border-t border-line px-4 py-3"
+                >
+                    <dl class="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1 font-mono text-[11px] leading-relaxed">
+                        {% for key, value in rawHeaders %}
+                            <dt class="text-ink-faint break-words">{{ key }}</dt>
+                            <dd class="text-ink-soft break-all whitespace-pre-wrap">{{ value is iterable ? value|join("\n") : value }}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>

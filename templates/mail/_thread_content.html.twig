@@ -1,202 +1,225 @@
-{# mail/_thread_content.html.twig #}
+{#
+mail/_thread_content.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The conversation view. Rendered both as a full page (mail/thread.html.twig)
+and injected as a bare fragment by mail_pane_controller — so it must stay
+self-contained: no {% extends %}, no block dependencies.
+#}
+{% from '_partials/_list_toolbar.html.twig' import tbtn %}
 
-<div class="flex items-center gap-2 px-4 py-2 border-b border-line">
+{% set threadLabelIds = [] %}
+{% for label in thread.labels %}
+    {% set threadLabelIds = threadLabelIds|merge([label.id]) %}
+{% endfor %}
+
+{# ── Toolbar ─────────────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-1 px-3 py-2 border-b border-line flex-shrink-0">
     <button
         type="button"
         data-action="click->mail-pane#close"
-        class="p-2 rounded-lg text-gray-400 hover:text-ink-soft hover:bg-hover transition-colors"
+        aria-label="{{ 'message.back'|trans }}"
+        class="flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
     >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-        </svg>
+        <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
     </button>
-    <span class="text-sm text-ink-faint truncate">{{ thread.subject ?: ('thread.no_subject'|trans) }}</span>
+
+    <div
+        class="flex items-center gap-1"
+        data-controller="message-actions"
+        data-message-actions-entity-id-value="{{ thread.id }}"
+        data-message-actions-entity-type-value="thread"
+    >
+        {{ tbtn('click->message-actions#archive', 'fa-solid fa-box-archive', 'toolbar.actions.archive'|trans) }}
+        {{ tbtn('click->message-actions#trash', 'fa-solid fa-trash', 'toolbar.actions.delete'|trans) }}
+        {{ tbtn('click->message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
+    </div>
+
+    {% include '_partials/_label_menu.html.twig' with {
+        labels:       sidebarCounts.flattenedUserLabels(),
+        targetType:   'thread',
+        targetId:     thread.id,
+        activeLabels: threadLabelIds,
+    } only %}
+
+    <span class="ml-2 text-sm text-ink-faint truncate min-w-0">
+        {{ thread.subject ?: ('thread.no_subject'|trans) }}
+    </span>
 </div>
 
+{# ── Conversation ────────────────────────────────────────────────────────── #}
 <div class="flex-1 overflow-y-auto"
      data-controller="thread-read"
      data-thread-read-mark-url-value="{{ path('app_status_mark_read', {'type': 'thread', 'id': thread.id}) }}"
      data-thread-read-id-value="{{ thread.id }}"
      data-thread-read-delay-value="0"
 >
-    <div class="max-w-3xl mx-auto px-6 py-6">
-        <h1 class="text-xl font-semibold text-ink mb-8">
-            {{ thread.subject ?: ('thread.no_subject'|trans) }}
-        </h1>
+    <div class="w-full px-4 md:px-6 py-5">
 
-        <div class="space-y-6">
-            {% for message in thread.messages|reverse %}
-                {% set isLatest  = loop.first %}
-                {% set isRead    = message.seenAt is not null %}
-                {% set isExpanded = isLatest or not isRead %}
+        <div class="flex items-baseline gap-3 mb-6">
+            <h1 class="text-xl font-semibold text-ink min-w-0 break-words">
+                {{ thread.subject ?: ('thread.no_subject'|trans) }}
+            </h1>
+            {% if thread.messageCount > 1 %}
+                <span class="text-sm text-ink-faint flex-shrink-0">{{ thread.messageCount }}</span>
+            {% endif %}
+        </div>
 
-                <div class="relative">
+        {% for message in thread.messages|reverse %}
+            {% set isLatest   = loop.first %}
+            {% set isRead     = message.seenAt is not null %}
+            {% set isExpanded = isLatest or not isRead %}
 
-                {# Thread connection line #}
-                {% if not loop.last %}
-                    <div class="absolute left-[19px] top-4 bottom-[-24px] w-0.5 bg-line -z-0"></div>
-                {% endif %}
-
-                <div class="flex items-start gap-3 relative z-10">
-
-                {# Avatar #}
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 flex items-center justify-center text-white text-sm font-medium shadow-sm">
-                    {{ message.fromName|default(message.fromAddress)|slice(0,1)|upper }}
-                </div>
-
-                {# Bubble #}
             <div
-                class="flex-1 min-w-0"
+                class="{{ not loop.last ? 'border-b border-line' : '' }} py-4 first:pt-0"
                 data-controller="thread-message"
                 data-thread-message-expanded-value="{{ isExpanded ? 'true' : 'false' }}"
             >
-                {# Header row #}
-                <div
-                    class="flex items-baseline justify-between mb-1 {{ not isLatest ? 'cursor-pointer' : '' }}"
-                    {{ not isLatest ? 'data-action="click->thread-message#toggle"' : '' }}
-                >
-                    <div class="flex items-baseline gap-2">
-                            <span class="text-sm font-semibold text-ink">
-                                {{ message.fromName ?: message.fromAddress }}
-                            </span>
-                        <span class="text-xs text-ink-faint">
-                                {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
-                            </span>
+                {# ── Header row ─────────────────────────────────────────── #}
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                        {{ message.fromName|default(message.fromAddress)|slice(0,1)|upper }}
                     </div>
 
-                    {% if not isLatest %}
-                        <button
-                            type="button"
-                            data-action="click->thread-message#toggle:stop"
-                            data-thread-message-target="toggleBtn"
-                            class="p-1 text-gray-400 hover:bg-hover rounded transition-colors"
-                        >
-                            <svg
-                                data-thread-message-target="chevron"
-                                class="w-4 h-4 transition-transform duration-150 {{ isExpanded ? 'rotate-180' : '' }}"
-                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                            >
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </button>
-                    {% endif %}
-                </div>
-
-                {# Snippet — collapsed #}
-                <div
-                    data-thread-message-target="snippet"
-                    data-action="click->thread-message#toggle"
-                    class="text-xs text-ink-muted truncate py-1 cursor-pointer {{ isExpanded ? 'hidden' : '' }}"
-                >
-                    {{ message.bodyText|striptags|slice(0, 150) }}…
-                </div>
-
-                {# Body — expanded #}
-                <div
-                    data-thread-message-target="body"
-                    class="{{ isExpanded ? '' : 'hidden' }}"
-                >
-                    <div class="text-sm text-ink-soft mb-4">
-                        <div class="mb-4">
-                            {% if message.bodyHtmlSafe %}
-                                <div class="rounded-lg bg-white text-gray-900 p-4 overflow-x-auto">
-                                    {{ message.bodyHtmlSafe|raw }}
-                                </div>
-                            {% else %}
-                                <pre class="whitespace-pre-wrap font-sans text-sm text-ink-soft">{{ message.bodyText }}</pre>
+                    <div
+                        class="flex-1 min-w-0 {{ not isLatest ? 'cursor-pointer' : '' }}"
+                        {{ not isLatest ? 'data-action="click->thread-message#toggle"' : '' }}
+                    >
+                        <div class="flex items-baseline gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-ink truncate">
+                                {{ message.fromName ?: message.fromAddress }}
+                            </span>
+                            {% if message.fromName %}
+                                <span class="text-xs text-ink-faint truncate">&lt;{{ message.fromAddress }}&gt;</span>
                             {% endif %}
+                        </div>
+
+                        {# The details popover must not toggle the message, so it
+                           stops the click itself (see message_details#toggle). #}
+                        <div data-thread-message-target="recipients" class="{{ isExpanded ? '' : 'hidden' }}">
+                            {% include 'mail/_message_details.html.twig' with { message: message } only %}
+                        </div>
+
+                        {# Snippet — collapsed #}
+                        <div
+                            data-thread-message-target="snippet"
+                            class="text-xs text-ink-muted truncate py-0.5 {{ isExpanded ? 'hidden' : '' }}"
+                        >
+                            {{ message.bodyText|striptags|slice(0, 200) }}…
                         </div>
                     </div>
 
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                        <span class="text-xs text-ink-faint whitespace-nowrap">
+                            {{ message.receivedAt ? message.receivedAt|date('M j, g:i a') : '' }}
+                        </span>
+
+                        {% include 'mail/_message_actions.html.twig' with { message: message } only %}
+
+                        {% if not isLatest %}
+                            <button
+                                type="button"
+                                data-action="click->thread-message#toggle:stop"
+                                data-thread-message-target="toggleBtn"
+                                aria-label="{{ 'message.actions.expand'|trans }}"
+                                class="flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
+                            >
+                                <i
+                                    data-thread-message-target="chevron"
+                                    class="fa-solid fa-chevron-down text-xs transition-transform duration-150 {{ isExpanded ? 'rotate-180' : '' }}"
+                                    aria-hidden="true"
+                                ></i>
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── Body — full pane width ─────────────────────────────── #}
+                <div data-thread-message-target="body" class="{{ isExpanded ? '' : 'hidden' }} mt-4">
+                    {% if message.bodyHtmlSafe %}
+                        {# Full-bleed: the negative margins cancel the wrapper padding. #}
+                        <div class="bg-white text-gray-900 -mx-4 md:-mx-6 px-4 md:px-6 py-4 overflow-x-auto">
+                            {{ message.bodyHtmlSafe|raw }}
+                        </div>
+                    {% else %}
+                        <pre class="whitespace-pre-wrap break-words font-sans text-sm text-ink-soft">{{ message.bodyText }}</pre>
+                    {% endif %}
+
                     {% if message.hasAttachments %}
-                        <div class="mt-3 p-3 border border-line rounded-lg bg-sunken">
-                            <p class="text-xs font-medium text-gray-400 mb-2">{{ 'message.attachments'|trans }}</p>
-                            <div class="flex gap-2">
-                                {# TODO: iterate message.parts filtered by disposition = attachment #}
+                        <div class="mt-4 pt-4 border-t border-line">
+                            <p class="text-xs font-medium text-ink-faint mb-2">{{ 'message.attachments'|trans }}</p>
+                            <div class="flex flex-wrap gap-2">
+                                {% for part in message.messageParts %}
+                                    {% if not part.isInline %}
+                                        <a
+                                            href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                                            class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+                                                   bg-sunken border border-line text-ink-soft
+                                                   hover:bg-hover transition-colors"
+                                        >
+                                            <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+                                            <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
                         </div>
                     {% endif %}
 
-                    {# ── Reply / Reply-all / Forward actions ──────────────── #}
-                    <div class="flex items-center gap-1 mt-4 pt-3 border-t border-line/50">
-
-                        {# Reply #}
+                    {# ── Reply / Reply-all / Forward ────────────────────── #}
+                    {% set hasMultipleParticipants = ((message.toAddresses ?? [])|length + (message.ccAddresses ?? [])|length) > 1 %}
+                    <div class="flex items-center gap-1 mt-4">
                         <a
                             href="{{ path('app_compose_reply', { id: message.id }) }}"
                             data-turbo-frame="compose_dock"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                                       text-ink-soft
-                                       bg-sunken
-                                       border border-line
-                                       hover:bg-hover
-                                       transition-colors"
+                                   text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
                         >
                             <i class="fa-solid fa-reply text-[11px]" aria-hidden="true"></i>
                             {{ 'compose.reply'|trans }}
                         </a>
 
-                        {# Reply-all (only if thread has multiple participants) #}
-                        {% set hasMultipleParticipants = (message.toAddresses|length + (message.ccAddresses is not empty ? message.ccAddresses|length : 0)) > 1 %}
                         {% if hasMultipleParticipants %}
                             <a
                                 href="{{ path('app_compose_reply_all', { id: message.id }) }}"
                                 data-turbo-frame="compose_dock"
                                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                                           text-ink-soft
-                                           bg-sunken
-                                           border border-line
-                                           hover:bg-hover
-                                           transition-colors"
+                                       text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
                             >
                                 <i class="fa-solid fa-reply-all text-[11px]" aria-hidden="true"></i>
                                 {{ 'compose.reply_all'|trans }}
                             </a>
                         {% endif %}
 
-                        {# Forward #}
                         <a
                             href="{{ path('app_compose_forward', { id: message.id }) }}"
                             data-turbo-frame="compose_dock"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                                       text-ink-soft
-                                       bg-sunken
-                                       border border-line
-                                       hover:bg-hover
-                                       transition-colors"
+                                   text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
                         >
                             <i class="fa-solid fa-share text-[11px]" aria-hidden="true"></i>
                             {{ 'compose.forward'|trans }}
                         </a>
-
                     </div>
-
                 </div>
+            </div>
+        {% endfor %}
 
-                </div>{# /bubble #}
-                </div>{# /flex items-start #}
-                </div>{# /relative #}
-            {% endfor %}
-        </div>
-
-        {# ── Quick reply bar at the bottom of the thread ─────────────────────── #}
-        <div class="mt-8 pt-4 border-t border-line">
-            {% set lastMessage = thread.messages|last %}
-            {% if lastMessage is not null %}
+        {# ── Quick reply bar ─────────────────────────────────────────────── #}
+        {% set lastMessage = thread.messages|last %}
+        {% if lastMessage is not null %}
+            <div class="mt-6">
                 <a
                     href="{{ path('app_compose_reply', { id: lastMessage.id }) }}"
                     data-turbo-frame="compose_dock"
                     class="flex items-center gap-3 w-full px-4 py-3 rounded-xl
-                           border border-line
-                           bg-raised
-                           hover:bg-hover
-                           text-sm text-ink-faint
-                           transition-colors cursor-text"
+                           border border-line bg-raised hover:bg-hover
+                           text-sm text-ink-faint transition-colors cursor-text"
                 >
                     <i class="fa-solid fa-reply text-xs text-ink-faint" aria-hidden="true"></i>
                     {{ 'compose.reply_placeholder'|trans({ '%name%': (lastMessage.fromName ?: lastMessage.fromAddress) }) }}
                 </a>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
 
     </div>
 </div>
