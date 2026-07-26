@@ -408,8 +408,30 @@ export default class extends Controller {
     // ── Sync contenteditable → hidden input ───────────────────────────
 
     _syncHiddenInput() {
-        if (this.hasEditorTarget && this.hasHiddenInputTarget) {
-            this.hiddenInputTarget.value = this.editorTarget.innerHTML;
+        if (!this.hasEditorTarget || !this.hasHiddenInputTarget) {
+            return;
         }
+
+        this.hiddenInputTarget.value = this._cleanHtml();
+    }
+
+    /**
+     * Never let dev-tooling markup ride along into a saved draft — the debug
+     * toolbar used to end up quoted inside the body. Scripts go too: nothing
+     * executable belongs in a mail we are about to send.
+     */
+    _cleanHtml() {
+        const html = this.editorTarget.innerHTML;
+
+        if (!/sf-toolbar|<script|sfwdt/i.test(html)) {
+            return html;
+        }
+
+        const clone = this.editorTarget.cloneNode(true);
+
+        clone.querySelectorAll('script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve]')
+            .forEach((node) => node.remove());
+
+        return clone.innerHTML;
     }
 }

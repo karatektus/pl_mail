@@ -171,6 +171,7 @@ thread_row:
 message:
     back: Back
     attachments: Attachments
+    draft: "Draft"
     details:
         label: Details
         me: me
@@ -206,6 +207,12 @@ compose:
     reply_all: Reply all
     forward: Forward
     reply_placeholder: "Reply to %name%"
+    pop_out: Open in compose window
+    sending: "Sending…"
+    click_to_cancel: click to cancel
+    no_recipients: No recipients
+    empty_draft: (empty draft)
+    continue_editing: Continue editing
 
 thread:
     no_subject: (no subject)

@@ -1,0 +1,43 @@
+{#
+compose/_inline_undo.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Cancelling an inline send: take the message back out of the conversation and
+re-open the draft in the inline editor with its text intact.
+
+Variables: form, message, threadEntity (MessageThread|null), frame, urlParams
+#}
+<turbo-stream action="remove" target="thread_message_{{ message.id }}">
+</turbo-stream>
+
+{% if threadEntity is not null %}
+    {# Back to being a draft in the conversation. The editor below hides this
+       row while it is open, and restores it on close. #}
+    <turbo-stream action="append" target="thread_messages_{{ threadEntity.id }}">
+        <template>
+            {% include 'mail/_thread_message.html.twig' with { message: message, expanded: false } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+{% if threadEntity is not null %}
+    <turbo-stream action="replace" target="reply_zone_{{ threadEntity.id }}">
+        <template>
+            {% include 'mail/_reply_zone.html.twig' with { thread: threadEntity } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+{# The window's own root is <turbo-frame id="compose_inline">, so replacing
+   the empty frame the reply zone just rendered swaps the editor back in. #}
+<turbo-stream action="replace" target="{{ frame }}">
+    <template>
+        {% include 'compose/_window.html.twig' with {
+            form:      form,
+            message:   message,
+            inline:    true,
+            frame:     frame,
+            thread:    threadEntity is not null ? threadEntity.id : null,
+            urlParams: urlParams,
+        } only %}
+    </template>
+</turbo-stream>

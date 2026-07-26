@@ -43,6 +43,15 @@ export default class extends Controller {
         document.addEventListener("click", this._boundClose, { capture: true });
     }
 
+    /**
+     * Dismiss the panel without swallowing the click: the links in here are
+     * Turbo frame navigations, and Turbo only sees clicks that reach the
+     * document — stopPropagation() would turn them into full page loads.
+     */
+    dismiss() {
+        this._close();
+    }
+
     async star(event) {
         event.stopPropagation();
         this._close();

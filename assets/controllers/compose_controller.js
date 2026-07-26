@@ -2,14 +2,24 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow'];
+    static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron'];
     static values = {
         draftUrl: String,
         sendUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
+        // Rendered inline at the bottom of a thread rather than in the
+        // floating dock: no fullscreen, no mobile auto-expand, pop-out button,
+        // and the address/subject rows start folded away.
+        inline:       { type: Boolean, default: false },
     }
+
+    /**
+     * Minimum body length before an autosave is allowed to create or update a
+     * draft. Every stray keystroke used to mint a draft in the thread.
+     */
+    static MIN_AUTOSAVE_CHARS = 5;
 
     #autosaveTimer = null
 
@@ -37,8 +47,9 @@ export default class extends Controller {
         // Close from-dropdown when clicking outside
         this._boundCloseDropdown = this._closeFromDropdown.bind(this);
 
-        // Auto-expand on mobile
-        if (window.innerWidth < 768) {
+        // Auto-expand on mobile — the dock only; an inline card must not
+        // take over the viewport or lock the thread's scroll.
+        if (false === this.inlineValue && window.innerWidth < 768) {
             this.expandedValue = true;
         }
 
@@ -46,6 +57,16 @@ export default class extends Controller {
             this._collapseQuotedContent();
             this._focusCursorAtTop();
         }
+
+        // Inline: the thread's reply buttons step aside while we're open, and
+        // the draft's own row in the conversation gives way to this editor.
+        // Both are cached — by the time disconnect() runs the card is already
+        // detached and closest() would find nothing.
+        this._zone = this._replyZone();
+        this._zone?.classList.add('composing');
+
+        this._draftRow = this._threadRow();
+        this._draftRow?.classList.add('hidden');
     }
 
     disconnect() {
@@ -55,6 +76,45 @@ export default class extends Controller {
             form.removeEventListener('submit', this._boundHandleSubmit);
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
         document.body.style.overflow = '';
+        this._zone?.classList.remove('composing');
+        this._draftRow?.classList.remove('hidden');
+    }
+
+    /** The thread reply zone this card lives in, when rendered inline. */
+    _replyZone() {
+        return true === this.inlineValue
+            ? this.element.closest('[data-reply-zone]')
+            : null;
+    }
+
+    /** The message id this window is editing, once the draft exists. */
+    _messageId() {
+        return this.sendUrlValue.match(/\/send\/(\d+)/)?.[1] ?? null;
+    }
+
+    /** This draft's row in the open conversation, if it is rendered there. */
+    _threadRow() {
+        const id = true === this.inlineValue ? this._messageId() : null;
+
+        return null === id ? null : document.getElementById(`thread_message_${id}`);
+    }
+
+    // ── Address / subject fields ──────────────────────────────────────
+
+    /**
+     * Inline replies keep From/To/Cc/Bcc/Subject folded away — you rarely
+     * retarget a reply — behind the recipient summary in the header.
+     */
+    toggleFields() {
+        if (false === this.hasFieldsTarget) {
+            return;
+        }
+
+        const hidden = this.fieldsTarget.classList.toggle('hidden');
+
+        if (this.hasFieldsChevronTarget) {
+            this.fieldsChevronTarget.classList.toggle('rotate-180', false === hidden);
+        }
     }
 
     // ── Quoted content ────────────────────────────────────────────────
@@ -66,8 +126,10 @@ export default class extends Controller {
     _collapseQuotedContent() {
         const editor = this.bodyTarget;
 
+        // [data-quoted] is what buildQuotedHtml emits today; the other two
+        // match drafts saved before that marker existed.
         const quoted = Array.from(editor.querySelectorAll(
-            ':scope > blockquote, :scope > div[style*="border-top"]',
+            ':scope > [data-quoted], :scope > blockquote, :scope > div[style*="border-top"]',
         ));
 
         if (quoted.length === 0) {
@@ -131,7 +193,14 @@ export default class extends Controller {
      */
     _focusCursorAtTop() {
         const editor = this.bodyTarget;
-        editor.focus();
+
+        // preventScroll: inside the thread pane, a plain focus() yanks the
+        // conversation to the top the moment the card mounts.
+        editor.focus({ preventScroll: true });
+
+        if (true === this.inlineValue) {
+            this.element.scrollIntoView({ block: 'nearest' });
+        }
 
         const firstNode = this._firstEditableNode(editor);
         if (firstNode === null) {
@@ -210,6 +279,10 @@ export default class extends Controller {
     }
 
     expandedValueChanged() {
+        if (true === this.inlineValue) {
+            return;
+        }
+
         const expanded = this.expandedValue;
         const el = this.element;
 
@@ -301,6 +374,25 @@ export default class extends Controller {
         this.element.closest('turbo-frame').innerHTML = '';
     }
 
+    /**
+     * Move the inline draft into the floating dock. The draft has to be saved
+     * first so the dock can load it by id — saveDraft() rewrites sendUrlValue
+     * to /compose/send/{id}, which is where the id comes from.
+     */
+    async popOut() {
+        await this.saveDraft(null, { force: true });
+
+        const id = this.sendUrlValue.match(/\/send\/(\d+)/)?.[1];
+        const dock = document.querySelector('turbo-frame#compose_dock');
+
+        if (undefined === id || null === dock) {
+            return;
+        }
+
+        dock.src = `/compose/edit/${id}`;
+        this.element.closest('turbo-frame').innerHTML = '';
+    }
+
     // ── Save draft ────────────────────────────────────────────────────
 
     _scheduleAutosave() {
@@ -311,11 +403,20 @@ export default class extends Controller {
         );
     }
 
-    async saveDraft(event = null) {
+    /**
+     * `force` covers the deliberate saves — the close button (which passes its
+     * click event) and pop-out — so only the debounced autosave is gated on
+     * the body having real content.
+     */
+    async saveDraft(event = null, { force = false } = {}) {
         event?.preventDefault();
 
         const form = this.element.querySelector('form');
         if (!form) { return; }
+
+        if (false === force && null === event && false === this._worthSaving()) {
+            return;
+        }
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
@@ -366,6 +467,23 @@ export default class extends Controller {
                 status.classList.add('text-danger');
             }
         }
+    }
+
+    /**
+     * Typed body length, ignoring the quoted original — replying to a mail
+     * always starts with a screenful of quote that isn't the user's writing.
+     */
+    _worthSaving() {
+        if (false === this.hasBodyTarget) {
+            return true;
+        }
+
+        const clone = this.bodyTarget.cloneNode(true);
+
+        clone.querySelectorAll('[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"]')
+            .forEach((node) => node.remove());
+
+        return clone.textContent.trim().length >= this.constructor.MIN_AUTOSAVE_CHARS;
     }
 
     _handleSubmit(event) {

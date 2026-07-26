@@ -1,0 +1,29 @@
+{#
+compose/_inline_send.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Response to sending from the inline reply card. No toast: the message joins
+the open conversation and the reply bar turns into a cancel countdown.
+
+Variables: message, thread (MessageThread|null), undoUrl, delay
+#}
+{% if thread is not null %}
+    {# Editing an existing draft: its row is already in the conversation, so
+       drop it first and re-append — the sent message belongs at the end. #}
+    <turbo-stream action="remove" target="thread_message_{{ message.id }}">
+    </turbo-stream>
+
+    <turbo-stream action="append" target="thread_messages_{{ thread.id }}">
+        <template>
+            {% include 'mail/_thread_message.html.twig' with { message: message, expanded: true, draft: false } only %}
+        </template>
+    </turbo-stream>
+
+    <turbo-stream action="replace" target="reply_zone_{{ thread.id }}">
+        <template>
+            {% include 'mail/_reply_zone.html.twig' with {
+                thread:  thread,
+                sending: { undoUrl: undoUrl, delay: delay },
+            } only %}
+        </template>
+    </turbo-stream>
+{% endif %}

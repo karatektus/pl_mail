@@ -1,0 +1,82 @@
+{#
+mail/_reply_zone.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Bottom of the conversation: the Reply / Reply all / Forward buttons and the
+turbo-frame the inline compose card loads into.
+
+Replaced wholesale by a Turbo Stream after an inline send, which is why the
+outer #reply_zone_{id} element is part of this template.
+
+Variables:
+  thread   MessageThread
+  sending  null | { messageId, undoUrl, delay }  — post-send countdown state
+
+The action buttons hide themselves while a compose card is open; see the
+[data-reply-zone] rule in assets/styles/app.css.
+#}
+{% set sending = sending|default(null) %}
+{% set last    = thread.messages|last %}
+{% set frame   = 'compose_inline' %}
+{% set params  = { frame: frame, thread: thread.id } %}
+
+<div id="reply_zone_{{ thread.id }}" class="mt-6" data-reply-zone>
+
+    {% if last is not null %}
+        {% set hasMultipleParticipants = ((last.toAddresses ?? [])|length + (last.ccAddresses ?? [])|length) > 1 %}
+
+        <div data-reply-actions class="flex items-center gap-2 {{ sending ? 'hidden' : '' }}">
+            <a
+                href="{{ path('app_compose_reply', params|merge({ id: last.id })) }}"
+                data-turbo-frame="{{ frame }}"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                       text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
+            >
+                <i class="fa-solid fa-reply text-xs" aria-hidden="true"></i>
+                {{ 'compose.reply'|trans }}
+            </a>
+
+            {% if hasMultipleParticipants %}
+                <a
+                    href="{{ path('app_compose_reply_all', params|merge({ id: last.id })) }}"
+                    data-turbo-frame="{{ frame }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                           text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
+                >
+                    <i class="fa-solid fa-reply-all text-xs" aria-hidden="true"></i>
+                    {{ 'compose.reply_all'|trans }}
+                </a>
+            {% endif %}
+
+            <a
+                href="{{ path('app_compose_forward', params|merge({ id: last.id })) }}"
+                data-turbo-frame="{{ frame }}"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                       text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
+            >
+                <i class="fa-solid fa-share text-xs" aria-hidden="true"></i>
+                {{ 'compose.forward'|trans }}
+            </a>
+        </div>
+    {% endif %}
+
+    {% if sending %}
+        <div data-controller="inline-send"
+             data-inline-send-url-value="{{ sending.undoUrl }}"
+             data-inline-send-delay-value="{{ sending.delay }}">
+            <button
+                type="button"
+                data-action="click->inline-send#cancel"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                       text-accent bg-accent-soft border border-accent/30
+                       hover:bg-accent hover:text-white transition-colors cursor-pointer"
+            >
+                <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i>
+                <span>{{ 'compose.sending'|trans }}</span>
+                <span class="tabular-nums" data-inline-send-target="countdown">{{ (sending.delay / 1000)|round }}</span><span>s</span>
+                <span class="opacity-70">— {{ 'compose.click_to_cancel'|trans }}</span>
+            </button>
+        </div>
+    {% endif %}
+
+    <turbo-frame id="{{ frame }}"></turbo-frame>
+</div>

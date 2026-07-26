@@ -1,50 +1,104 @@
 {# templates/compose/_window.html.twig #}
 {% form_theme form '_layout/form/compose_theme.html.twig' %}
 
-{% import _self as m %}
+{#
+Renders in two places:
+  • the floating dock (default) — turbo-frame "compose_dock"
+  • inline at the bottom of a thread — frame "compose_inline", `inline` true
 
-<turbo-frame id="compose_dock">
+Everything below the header is shared verbatim. The frame id and the form
+name travel back to the server on every POST via the `frame`/`thread` query
+params baked into draftUrl/sendUrl, which is what keeps the named inline form
+("compose_inline_*" ids) from colliding with the dock's.
+
+Variables: form, message, inline (bool), frame (string), thread (int|null)
+#}
+{% set inline = inline|default(false) %}
+{% set frame  = frame|default('compose_dock') %}
+{% set thread = thread|default(null) %}
+{# Query params the server needs back on every POST: which frame rendered us,
+   which conversation we're in, and which message we're answering. #}
+{% set ctx    = urlParams|default({}) %}
+
+<turbo-frame id="{{ frame }}">
     <div data-controller="compose compose-toolbar"
+         data-compose-inline-value="{{ inline ? 'true' : 'false' }}"
         {% if null == message.id %}
-            data-compose-draft-url-value="{{ path('app_compose_form_new') }}"
-            data-compose-send-url-value="{{ path('app_compose_mail_send') }}"
+            data-compose-draft-url-value="{{ path('app_compose_form_new', ctx) }}"
+            data-compose-send-url-value="{{ path('app_compose_mail_send', ctx) }}"
         {% else %}
-            data-compose-draft-url-value="{{ path('app_compose_form_edit', {'id': message.id}) }}"
-            data-compose-send-url-value="{{ path('app_compose_mail_send_draft', {'id': message.id}) }}"
+            data-compose-draft-url-value="{{ path('app_compose_form_edit', ctx|merge({'id': message.id})) }}"
+            data-compose-send-url-value="{{ path('app_compose_mail_send_draft', ctx|merge({'id': message.id})) }}"
         {% endif %}
-         class="max-h-[90vh]
-       w-[520px] rounded-pane shadow-float
-       pane-flat
-       border border-line
-       flex flex-col mb-4">
+         class="{% if inline %}
+       w-full rounded-xl border border-line bg-surface shadow-sm mt-3
+       flex flex-col
+       {% else %}
+       max-h-[90vh] w-[520px] rounded-pane shadow-float
+       pane-flat border border-line flex flex-col mb-4
+       {% endif %}">
         {{ form_start(form, { attr: { novalidate: 'novalidate', class: 'flex flex-col flex-1 min-h-0' } }) }}
 
         {# ── Header ───────────────────────────────────────────────── #}
         <div class="flex items-center justify-between px-4 py-2.5
-                    bg-sunken
-                    rounded-t-2xl select-none shrink-0"
-             data-action="dblclick->compose#toggleMinimize">
-            <span class="text-sm font-semibold text-ink cursor-pointer truncate max-w-[260px]"
-                  data-compose-target="title"
-                  data-action="click->compose#toggleMinimize">New Message</span>
+                    {{ inline ? 'border-b border-line' : 'bg-sunken rounded-t-2xl' }}
+                    select-none shrink-0"
+             {% if not inline %}data-action="dblclick->compose#toggleMinimize"{% endif %}>
+            {% if inline %}
+                {# Replying rarely means retargeting: the address and subject
+                   rows stay folded behind this summary. #}
+                {% set recipients = [] %}
+                {% for entry in message.toAddresses ?? [] %}
+                    {% set recipients = recipients|merge([entry.name|default('') ?: entry.address]) %}
+                {% endfor %}
+
+                <button type="button"
+                        data-action="click->compose#toggleFields"
+                        class="flex items-center gap-2 min-w-0 text-sm text-ink-soft
+                               hover:text-ink transition-colors cursor-pointer">
+                    <span class="text-xs text-ink-faint shrink-0">{{ 'message.details.to_label'|trans }}</span>
+                    <span class="truncate max-w-[420px]">
+                        {{- recipients is empty ? ('compose.no_recipients'|trans) : recipients|join(', ') -}}
+                    </span>
+                    <i data-compose-target="fieldsChevron"
+                       class="fa-solid fa-chevron-down text-[10px] text-ink-faint shrink-0 transition-transform duration-150"></i>
+                </button>
+                <span class="hidden" data-compose-target="title"></span>
+            {% else %}
+                <span class="text-sm font-semibold text-ink truncate max-w-[260px] cursor-pointer"
+                      data-compose-target="title"
+                      data-action="click->compose#toggleMinimize">New Message</span>
+            {% endif %}
             <div class="flex items-center gap-1">
                 <span data-compose-target="saveStatus"
                       class="text-xs text-ink-muted mr-2 transition-colors"></span>
-                <button type="button" title="Minimize"
-                        data-action="click->compose#toggleMinimize"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-ink-muted hover:text-ink
-                               hover:bg-hover transition-colors">
-                    <i data-compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
-                </button>
-                <button type="button" title="Expand"
-                        data-action="click->compose#toggleExpand"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg
-                               text-ink-muted hover:text-ink
-                               hover:bg-hover transition-colors">
-                    <i data-compose-target="expandIcon"
-                       class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
-                </button>
+
+                {% if inline %}
+                    <button type="button" title="{{ 'compose.pop_out'|trans }}"
+                            data-action="click->compose#popOut"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg
+                                   text-ink-muted hover:text-ink
+                                   hover:bg-hover transition-colors">
+                        <i class="fa-solid fa-up-right-from-square text-xs"></i>
+                    </button>
+                {% else %}
+                    <button type="button" title="Minimize"
+                            data-action="click->compose#toggleMinimize"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg
+                                   text-ink-muted hover:text-ink
+                                   hover:bg-hover transition-colors">
+                        <i data-compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
+                    </button>
+                    <button type="button" title="Expand"
+                            data-action="click->compose#toggleExpand"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg
+                                   text-ink-muted hover:text-ink
+                                   hover:bg-hover transition-colors">
+                        <i data-compose-target="expandIcon"
+                           class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
+                    </button>
+                {% endif %}
+
                 <button type="button" title="Save draft and close"
                         data-action="compose#saveDraft compose#close"
                         class="w-7 h-7 flex items-center justify-center rounded-lg
@@ -71,6 +125,9 @@
                     </option>
                 {% endfor %}
             </select>
+
+            {# ── Addresses + subject (folded away inline) ──────────── #}
+            <div data-compose-target="fields" class="{{ inline ? 'hidden' : '' }}">
 
             {# ── From ─────────────────────────────────────────────── #}
             <div class="relative shrink-0">
@@ -174,6 +231,8 @@
             </div>
             <div class="mx-4 border-t border-line shrink-0"></div>
 
+            </div>
+
             {# ── Body ─────────────────────────────────────────────── #}
             <input type="hidden"
                    id="{{ form.bodyHtml.vars.id }}"
@@ -182,7 +241,7 @@
                    value="{{ form.bodyHtml.vars.value|e('html_attr') ?: '' }}">
 
             <div class="flex-1 overflow-y-auto min-h-[180px] px-4 py-3">
-                <div id="compose-editor"
+                <div id="{{ form.bodyHtml.vars.id }}_editor"
                      data-compose-toolbar-target="editor"
                      data-compose-target="body"
                      contenteditable="true"
@@ -321,7 +380,7 @@
 
         </div>{# end collapsible #}
 
-        <input type="hidden" name="compose[_token]" value="{{ csrf_token('compose') }}">
+        <input type="hidden" name="{{ form.vars.full_name }}[_token]" value="{{ csrf_token('compose') }}">
         {{ form_end(form, { render_rest: false }) }}
 
     </div>

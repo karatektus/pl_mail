@@ -119,6 +119,25 @@
     :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
+/* ═══ Base ═════════════════════════════════════════════════════════════════
+   Tailwind v4's preflight dropped `cursor: pointer` on buttons, so anything
+   clickable that isn't an <a href> looks inert unless every single tag
+   remembers `cursor-pointer` — 46 of the 102 buttons in templates/ didn't.
+   Restore it once here; a `cursor-*` utility on the element still wins.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer base {
+    button,
+    summary,
+    [role="button"] {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    [role="button"][aria-disabled="true"] {
+        cursor: not-allowed;
+    }
+}
+
 /* ═══ Semantic tokens → Tailwind utilities ══════════════════════════════════
    `inline` is required: it bakes rgb(var(--rgb-*)) into each utility so the
    utility re-resolves when a theme block changes the channel.
@@ -236,6 +255,12 @@
     --shadow-alpha: 0.08;
     --danger-soft-alpha: 0.08;
 
+    /* Own stacking context: the pane above it is backdrop-filtered, and
+       without isolation Chrome re-samples the app background through the
+       sheet at some viewport sizes, flashing the whole pane dark. */
+    position: relative;
+    isolation: isolate;
+
     background-color: rgb(var(--rgb-surface));
     color: rgb(var(--rgb-ink));
 }
@@ -287,6 +312,17 @@
     color: rgb(var(--rgb-ink-soft));
 }
 @layer utilities {
+    /*
+       Thread reply zone: hide the Reply/Forward buttons while an inline
+       compose card is open. The `composing` class is toggled by the compose
+       controller — a :has() selector here worked, but its invalidation made
+       Chrome repaint the surrounding .mail-sheet without its var()-based
+       background, flashing the whole pane dark.
+    */
+    [data-reply-zone].composing > [data-reply-actions] {
+        display: none;
+    }
+
     .compose-address-row {
         display: flex;
         align-items: center;

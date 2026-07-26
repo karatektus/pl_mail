@@ -9,6 +9,13 @@ Variables:
 {% set toCount = (message.toAddresses ?? [])|length + (message.ccAddresses ?? [])|length %}
 {% set starred = message.starredAt is not null %}
 
+{# Replies open inline at the bottom of the conversation; the dock is only
+   used when this message somehow isn't threaded. #}
+{% set composeFrame  = message.thread is not null ? 'compose_inline' : 'compose_dock' %}
+{% set composeParams = message.thread is not null
+    ? { frame: 'compose_inline', thread: message.thread.id }
+    : {} %}
+
 <div
     class="relative"
     data-controller="message-actions"
@@ -33,27 +40,27 @@ Variables:
                rounded-xl bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop py-1 text-sm"
     >
-        <a href="{{ path('app_compose_reply', { id: message.id }) }}"
-           data-turbo-frame="compose_dock"
-           data-action="click->message-actions#toggle"
+        <a href="{{ path('app_compose_reply', composeParams|merge({ id: message.id })) }}"
+           data-turbo-frame="{{ composeFrame }}"
+           data-action="click->message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-reply w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'compose.reply'|trans }}
         </a>
 
         {% if toCount > 1 %}
-            <a href="{{ path('app_compose_reply_all', { id: message.id }) }}"
-               data-turbo-frame="compose_dock"
-           data-action="click->message-actions#toggle"
+            <a href="{{ path('app_compose_reply_all', composeParams|merge({ id: message.id })) }}"
+               data-turbo-frame="{{ composeFrame }}"
+           data-action="click->message-actions#dismiss"
                class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
                 <i class="fa-solid fa-reply-all w-4 text-ink-faint" aria-hidden="true"></i>
                 {{ 'compose.reply_all'|trans }}
             </a>
         {% endif %}
 
-        <a href="{{ path('app_compose_forward', { id: message.id }) }}"
-           data-turbo-frame="compose_dock"
-           data-action="click->message-actions#toggle"
+        <a href="{{ path('app_compose_forward', composeParams|merge({ id: message.id })) }}"
+           data-turbo-frame="{{ composeFrame }}"
+           data-action="click->message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-share w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'compose.forward'|trans }}
@@ -97,7 +104,7 @@ Variables:
 
         <a href="{{ path('app_mail_message_original', { id: message.id }) }}"
            target="_blank" rel="noopener"
-           data-action="click->message-actions#toggle"
+           data-action="click->message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-code w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.show_original'|trans }}
@@ -105,7 +112,7 @@ Variables:
 
         <a href="{{ path('app_mail_message_print', { id: message.id }) }}"
            target="_blank" rel="noopener"
-           data-action="click->message-actions#toggle"
+           data-action="click->message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-print w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.print'|trans }}

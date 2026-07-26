@@ -16,6 +16,7 @@ use App\Repository\MessageRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\MailBodySanitizer;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +39,13 @@ class ComposeController extends AbstractController
 {
     use ParsesAddressFields;
 
+    private const string DOCK_FRAME   = 'compose_dock';
+    private const string INLINE_FRAME = 'compose_inline';
+    private const string INLINE_FORM  = 'compose_inline';
+
+    /** Matches the DelayStamp on the send job — the cancel window. */
+    private const int SEND_DELAY_MS = 10_000;
+
     public function __construct(
         private readonly EntityManagerInterface  $em,
         private readonly MailboxRepository       $mailboxRepository,
@@ -48,14 +56,17 @@ class ComposeController extends AbstractController
         private readonly MessageThreader         $threader,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly ContactRepository       $contactRepository,
+        private readonly MailBodySanitizer       $bodySanitizer,
     )
     {
     }
 
     #[Route('/new', name: 'new', methods: ['GET'])]
     #[Route('/edit/{id}', name: 'edit', methods: ['GET'])]
-    public function compose(?Message $message = null): Response
+    public function compose(Request $request, ?Message $message = null): Response
     {
+        $ctx = $this->composeContext($request);
+
         if (null === $message) {
             $account = $this->defaultAccount();
             $message = new Message()
@@ -67,80 +78,61 @@ class ComposeController extends AbstractController
             $account = $message->getAccount();
         }
 
-        $form = $this->createForm(ComposeType::class, $message, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
+        $form = $this->composeForm($message, $ctx);
         $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $message);
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $message,
-        ]);
+        return $this->renderWindow($form, $message, $ctx);
     }
 
     #[Route('/reply/{id}', name: 'reply', methods: ['GET'])]
-    public function reply(Message $original): Response
+    public function reply(Request $request, Message $original): Response
     {
         $this->assertOwnership($original);
 
-        $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft = $this->buildReply($original, replyAll: false, account: $account);
+        $ctx            = $this->composeContext($request);
+        $ctx['replyTo'] = $original->getId();
+        $account        = $original->getAccount() ?? $this->defaultAccount();
+        $draft          = $this->buildReply($original, replyAll: false, account: $account);
 
-        $form = $this->createForm(ComposeType::class, $draft, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
+        $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $draft);
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $draft,
-        ]);
+        return $this->renderWindow($form, $draft, $ctx);
     }
 
     #[Route('/reply-all/{id}', name: 'reply_all', methods: ['GET'])]
-    public function replyAll(Message $original): Response
+    public function replyAll(Request $request, Message $original): Response
     {
         $this->assertOwnership($original);
 
-        $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft = $this->buildReply($original, replyAll: true, account: $account);
+        $ctx            = $this->composeContext($request);
+        $ctx['replyTo'] = $original->getId();
+        $account        = $original->getAccount() ?? $this->defaultAccount();
+        $draft          = $this->buildReply($original, replyAll: true, account: $account);
 
-        $form = $this->createForm(ComposeType::class, $draft, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
+        $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $draft);
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $draft,
-        ]);
+        return $this->renderWindow($form, $draft, $ctx);
     }
 
     #[Route('/forward/{id}', name: 'forward', methods: ['GET'])]
-    public function forwardMessage(Message $original): Response
+    public function forwardMessage(Request $request, Message $original): Response
     {
         $this->assertOwnership($original);
 
+        $ctx     = $this->composeContext($request);
         $account = $original->getAccount() ?? $this->defaultAccount();
-        $draft = $this->buildForward($original);
+        $draft   = $this->buildForward($original);
 
-        $form = $this->createForm(ComposeType::class, $draft, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
+        $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
         $this->hydrateAddressFields($form, $draft);
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $draft,
-        ]);
+        return $this->renderWindow($form, $draft, $ctx);
     }
 
     #[Route('/draft', name: 'form_new', methods: ['POST'])]
@@ -155,10 +147,9 @@ class ComposeController extends AbstractController
             $this->assertOwnership($message);
         }
 
-        $form = $this->createForm(ComposeType::class, $message, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
+        $ctx  = $this->composeContext($request);
+        $this->applyReplyContext($message, $ctx);
+        $form = $this->composeForm($message, $ctx);
 
         $form->handleRequest($request);
 
@@ -178,17 +169,10 @@ class ComposeController extends AbstractController
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
 
-            return $this->render('compose/_window.html.twig', [
-                'form' => $form,
-                'message' => $message,
-                'saved' => true,
-            ]);
+            return $this->renderWindow($form, $message, $ctx, ['saved' => true]);
         }
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $message,
-        ]);
+        return $this->renderWindow($form, $message, $ctx);
     }
 
     #[Route('/send', name: 'mail_send', methods: ['POST'])]
@@ -201,10 +185,9 @@ class ComposeController extends AbstractController
             $this->assertOwnership($message);
         }
 
-        $form = $this->createForm(ComposeType::class, $message, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default', 'send'],
-        ]);
+        $ctx  = $this->composeContext($request);
+        $this->applyReplyContext($message, $ctx);
+        $form = $this->composeForm($message, $ctx, ['Default', 'send']);
 
         $form->handleRequest($request);
 
@@ -213,9 +196,7 @@ class ComposeController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             if (null !== $message->getSentAt()) {
-                return $this->render('compose/_send_toast.html.twig', [
-                    'message' => $message,
-                ], new Response('', 200, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+                return $this->sendResponse($message, $ctx);
             }
 
             $account = $this->resolveAccount($form, $message);
@@ -232,33 +213,41 @@ class ComposeController extends AbstractController
 
             $this->bus->dispatch(
                 new SendMessageMessage($message->getId()),
-                [new DelayStamp(10_000)],
+                [new DelayStamp(self::SEND_DELAY_MS)],
             );
 
-            return $this->render('compose/_send_toast.html.twig', [
-                'message' => $message,
-            ], new Response('', 200, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+            return $this->sendResponse($message, $ctx);
         }
 
-        return $this->render('compose/_window.html.twig', [
-            'form' => $form,
-            'message' => $message,
-        ]);
+        return $this->renderWindow($form, $message, $ctx);
     }
 
     #[Route('/undo/{id}', name: 'mail_undo', methods: ['POST'])]
-    public function undo(Message $message): Response
+    public function undo(Request $request, Message $message): Response
     {
         $this->assertOwnership($message);
 
         $message->setCancelled(true);
         $this->em->flush();
 
-        $form = $this->createForm(ComposeType::class, $message, [
-            'user' => $this->getUser(),
-            'validation_groups' => ['Default'],
-        ]);
-        $form->get('account')->setData($message->getAccount());
+        $ctx  = $this->composeContext($request);
+        $form = $this->composeForm($message, $ctx);
+        $form->get('account')->setData($this->senderToken($message->getAccount()));
+        $this->hydrateAddressFields($form, $message);
+
+        // Inline: pull the message back out of the thread and re-open the
+        // editor where it was. Dock: the original toast + re-docked window.
+        if (true === $ctx['inline']) {
+            return $this->turboStream('compose/_inline_undo.stream.html.twig', [
+                'form'         => $form,
+                'message'      => $message,
+                'thread'       => $ctx['thread'],
+                'inline'       => true,
+                'frame'        => $ctx['frame'],
+                'urlParams'    => $this->urlParams($ctx),
+                'threadEntity' => $message->getThread(),
+            ]);
+        }
 
         return $this->render('compose/_undo_toast.html.twig', [
             'form' => $form,
@@ -266,7 +255,160 @@ class ComposeController extends AbstractController
         ]);
     }
 
+    /**
+     * Inline sends skip the toast: the message is appended to the open thread
+     * and the reply bar becomes a countdown the user can click to cancel.
+     *
+     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     */
+    private function sendResponse(Message $message, array $ctx): Response
+    {
+        if (false === $ctx['inline']) {
+            return $this->turboStream('compose/_send_toast.html.twig', [
+                'message' => $message,
+            ]);
+        }
+
+        return $this->turboStream('compose/_inline_send.stream.html.twig', [
+            'message' => $message,
+            'thread'  => $message->getThread(),
+            'undoUrl' => $this->generateUrl(
+                'app_compose_mail_undo',
+                $this->urlParams($ctx) + ['id' => $message->getId()],
+            ),
+            'delay'   => self::SEND_DELAY_MS,
+        ]);
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Where this compose window lives. The dock is the default; the thread
+     * view passes ?frame=compose_inline&thread={id} on every URL it hands to
+     * the client (open, autosave, send, undo) so the round trip stays
+     * self-describing — the autosave fetch sends no Turbo-Frame header.
+     *
+     * `replyTo` is the message being answered. It has to survive the round
+     * trip because the first autosave POSTs to /compose/draft with no id, so
+     * the server builds a brand new Message that would otherwise have lost
+     * the thread and In-Reply-To the reply was created with.
+     *
+     * @return array{inline: bool, frame: string, thread: int|null, replyTo: int|null}
+     */
+    private function composeContext(Request $request): array
+    {
+        $frame  = (string) $request->query->get('frame', self::DOCK_FRAME);
+        $inline = self::DOCK_FRAME !== $frame;
+
+        return [
+            'inline'  => $inline,
+            'frame'   => $inline ? self::INLINE_FRAME : self::DOCK_FRAME,
+            'thread'  => $request->query->has('thread') ? $request->query->getInt('thread') : null,
+            'replyTo' => $request->query->has('reply_to') ? $request->query->getInt('reply_to') : null,
+        ];
+    }
+
+    /**
+     * Query params to bake into the draft/send URLs the window reports back.
+     *
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null} $ctx
+     *
+     * @return array<string, int|string>
+     */
+    private function urlParams(array $ctx): array
+    {
+        $params = [];
+
+        if (true === $ctx['inline']) {
+            $params['frame'] = $ctx['frame'];
+
+            if (null !== $ctx['thread']) {
+                $params['thread'] = $ctx['thread'];
+            }
+        }
+
+        if (null !== $ctx['replyTo']) {
+            $params['reply_to'] = $ctx['replyTo'];
+        }
+
+        return $params;
+    }
+
+    /**
+     * Re-attach a freshly created draft to the conversation it answers.
+     *
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null} $ctx
+     */
+    private function applyReplyContext(Message $message, array $ctx): void
+    {
+        if (null !== $message->getThread() || null === $ctx['replyTo']) {
+            return;
+        }
+
+        $original = $this->messageRepository->find($ctx['replyTo']);
+
+        if (null === $original || $original->getAccount()->getUsr() !== $this->getUser()) {
+            return;
+        }
+
+        $message->setThread($original->getThread());
+
+        if ([] === ($message->getInReplyTo() ?? [])) {
+            $references = array_merge(
+                $original->getReferences() ?? [],
+                array_filter([$original->getMessageId()]),
+            );
+
+            $message
+                ->setInReplyTo(array_filter([$original->getMessageId()]))
+                ->setReferences(array_values(array_unique($references)));
+        }
+    }
+
+    /**
+     * Inline windows get their own form name so their DOM ids can't collide
+     * with a dock window open at the same time (compose_inline_subject vs
+     * compose_subject). The CSRF token id is shared, so tokens interchange.
+     *
+     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     * @param list<string>                                         $groups
+     */
+    private function composeForm(Message $message, array $ctx, array $groups = ['Default']): FormInterface
+    {
+        $options = [
+            'user'              => $this->getUser(),
+            'validation_groups' => $groups,
+        ];
+
+        if (false === $ctx['inline']) {
+            return $this->createForm(ComposeType::class, $message, $options);
+        }
+
+        return $this->container->get('form.factory')
+            ->createNamed(self::INLINE_FORM, ComposeType::class, $message, $options);
+    }
+
+    /**
+     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     */
+    private function renderWindow(FormInterface $form, Message $message, array $ctx, array $extra = []): Response
+    {
+        return $this->render('compose/_window.html.twig', $extra + [
+            'form'      => $form,
+            'message'   => $message,
+            'inline'    => $ctx['inline'],
+            'frame'     => $ctx['frame'],
+            'thread'    => $ctx['thread'],
+            'urlParams' => $this->urlParams($ctx),
+        ]);
+    }
+
+    private function turboStream(string $template, array $params): Response
+    {
+        return $this->render($template, $params, new Response(
+            headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
+        ));
+    }
 
     /**
      * Submitted From token → the sending account, falling back to the
@@ -513,15 +655,20 @@ class ComposeController extends AbstractController
         $bodyText = trim($original->getBodyText() ?? '');
         $innerBody = $bodyHtml !== '' ? $bodyHtml : nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
 
+        // data-quoted marks the whole quoted block — attribution line
+        // included — so the editor can collapse it and the autosave guard can
+        // tell the user's own writing from the mail they are answering.
         if ('reply' === $mode) {
             return <<<HTML
                 <p><br></p>
-                <div style="font-size:0.85em;color:#555;margin-bottom:0.25em">
-                    On {$dateStr}, {$fromLine} wrote:
+                <div data-quoted="1">
+                    <div style="font-size:0.85em;color:#555;margin-bottom:0.25em">
+                        On {$dateStr}, {$fromLine} wrote:
+                    </div>
+                    <blockquote style="border-left:2px solid #e0e0e0;margin:0;padding-left:0.75em;color:#555">
+                        {$innerBody}
+                    </blockquote>
                 </div>
-                <blockquote style="border-left:2px solid #e0e0e0;margin:0;padding-left:0.75em;color:#555">
-                    {$innerBody}
-                </blockquote>
                 HTML;
         }
 
@@ -537,7 +684,7 @@ class ComposeController extends AbstractController
 
         return <<<HTML
             <p><br></p>
-            <div style="border-top:1px solid #e0e0e0;padding-top:0.75em;margin-top:0.5em;font-size:0.85em;color:#555">
+            <div data-quoted="1" style="border-top:1px solid #e0e0e0;padding-top:0.75em;margin-top:0.5em;font-size:0.85em;color:#555">
                 <p style="margin:0 0 0.25em"><strong>---------- Forwarded message ----------</strong></p>
                 <p style="margin:0 0 0.1em"><strong>From:</strong> {$fromLine}</p>
                 <p style="margin:0 0 0.1em"><strong>Date:</strong> {$dateStr}</p>
@@ -559,6 +706,11 @@ class ComposeController extends AbstractController
             ->setHasAttachments(false)
             ->setSeenAt($message->getSeenAt() ?? $now)
             ->setUpdatedAt($now);
+
+        // Only the sync layer sanitizes bodies, so without this a draft (and
+        // the message it becomes) renders blank in the conversation until the
+        // sent copy comes back from IMAP.
+        $this->bodySanitizer->sanitize($message);
 
         $this->em->persist($message);
 
