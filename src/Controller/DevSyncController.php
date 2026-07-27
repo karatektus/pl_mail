@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Account;
 use App\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
 use App\Repository\MailboxRepository;
@@ -102,7 +103,7 @@ final class DevSyncController extends AbstractController
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * @return list<\App\Entity\Account>
+     * @return list<Account>
      */
     private function activeAccounts(): array
     {

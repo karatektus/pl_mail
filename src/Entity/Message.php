@@ -12,7 +12,17 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Index(name: 'idx_message_gmail_id', columns: ['gmail_id'])]
+// Remote-id uniqueness per account: one row per Gmail/Graph message. The
+// batch handlers dedup in PHP before inserting, but that check is a read on
+// stale data — this is the guard that actually holds when batches overlap
+// across runs or retries. Provider id leads the column list so the indexes
+// also serve the id-only lookups (findOneBy(['gmailId'|'graphId'])).
+#[ORM\UniqueConstraint(name: 'uniq_message_gmail_id_account', columns: ['gmail_id', 'account_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_message_graph_id_account', columns: ['graph_id', 'account_id'])]
+// IMAP UIDs are unique within a mailbox, so this is the guard for the sync
+// path. Mailbox leads: it matches how the syncer reads them back (all UIDs
+// for one mailbox), and no query looks up a bare UID.
+#[ORM\UniqueConstraint(name: 'uniq_message_mailbox_imap_uid', columns: ['mailbox_id', 'imap_uid'])]
 #[ORM\Index(name: 'idx_message_search_vector', columns: ['search_vector'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 class Message extends MessageModel

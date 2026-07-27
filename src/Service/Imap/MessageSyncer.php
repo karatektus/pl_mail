@@ -101,6 +101,17 @@ class MessageSyncer
         foreach ($batch as $imapMessage) {
             $uid = $imapMessage->getUid();
 
+            // A `lastSeenUid+1:*` range still returns the highest-UID message when
+            // nothing newer exists (`*` clamps to it), so every run re-delivers the
+            // newest mail. Skip anything this mailbox already holds.
+            if (true === isset($syncedUids[$uid])) {
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
+                }
+
+                continue;
+            }
+
             // Gmailify history claim: a Gmail-imported copy of this exact message
             // (same RFC Message-ID, gmailId set, no IMAP location yet) gets linked
             // to this mailbox/UID instead of inserting a duplicate row. From here
