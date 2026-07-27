@@ -44,8 +44,20 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		fi
 	fi
 
-	setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var
-	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var
+	# POSIX ACLs are a convenience, not a requirement: this image runs as root,
+	# so it can already write everything under var/.
+	#
+	# They MUST NOT be able to stop the container from starting. var/attachments,
+	# var/raw and var/uploads are bind-mounted from host storage, and on ZFS
+	# (TrueNAS) — or NFS, or a Docker Desktop virtiofs share — setfacl fails with
+	# "Operation not supported" because those filesystems use NFSv4 ACLs rather
+	# than POSIX ones. With `set -e` at the top of this script, that aborted the
+	# entrypoint before it ever reached exec.
+	if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var 2>/dev/null; then
+		echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/.'
+	fi
+
+	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var 2>/dev/null || true
 fi
 
 exec docker-php-entrypoint "$@"

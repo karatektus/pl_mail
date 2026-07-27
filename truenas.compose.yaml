@@ -50,6 +50,15 @@ x-config:
     # Mail data written by the workers and READ BY THE WEB CONTAINER. All three
     # services must bind the same host paths or downloads 404: the sync workers
     # write attachments and raw messages, the web container serves them.
+    #
+    # These may be subdirectories of a single dataset — Docker creates any that
+    # do not exist, owned by root, which is what the container runs as. No
+    # chown needed.
+    #
+    # ZFS uses NFSv4 ACLs, so the entrypoint's setfacl on var/ cannot apply here
+    # and logs "Operation not supported". That is expected and harmless; the
+    # entrypoint no longer treats it as fatal (see frankenphp/docker-entrypoint.sh).
+    # It does mean this fix only takes effect once the image is rebuilt.
     path_attachments:     &path_attachments     /mnt/yourPool/yourDataSet/attachments
     path_raw:             &path_raw             /mnt/yourPool/yourDataSet/raw
     path_uploads:         &path_uploads         /mnt/yourPool/yourDataSet/uploads
