@@ -109,6 +109,8 @@ final class ImapSuperviseCommand extends Command
 
         $this->shutdownAllChildren($io);
 
+        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_SUPERVISE, 'main');
+
         $io->success('IMAP supervisor stopped cleanly');
 
         return Command::SUCCESS;
@@ -153,6 +155,31 @@ final class ImapSuperviseCommand extends Command
                 $io->text('Mailbox ' . $trackedMailboxId . ' no longer IDLE-enabled, stopping process');
                 $this->stopChild($trackedMailboxId);
             }
+        }
+
+        $this->reapHeartbeats($io, $activeMailboxIds);
+    }
+
+    /**
+     * The supervisor is the only process that knows the full set of mailboxes
+     * that should be idling, so it owns cleanup of heartbeat rows left behind
+     * by mailboxes that are gone (or children that were killed hard). Rows for
+     * still-active mailboxes are left alone even when their child is down —
+     * those should show up stale on the dashboard, not silently vanish.
+     *
+     * @param list<int> $activeMailboxIds
+     */
+    private function reapHeartbeats(SymfonyStyle $io, array $activeMailboxIds): void
+    {
+        $orphans = $this->heartbeats->clearOrphans(
+            ProcessHeartbeatService::TYPE_IMAP_IDLE,
+            array_map(strval(...), $activeMailboxIds),
+        );
+
+        $stale = $this->heartbeats->pruneStale();
+
+        if ($orphans > 0 || $stale > 0) {
+            $io->text(sprintf('Reaped %d orphaned and %d stale heartbeat(s)', $orphans, $stale));
         }
     }
 
@@ -253,6 +280,9 @@ final class ImapSuperviseCommand extends Command
         unset($this->startedAt[$mailboxId]);
         unset($this->backoff[$mailboxId]);
         unset($this->restartNotBefore[$mailboxId]);
+
+        // The child was told to stop, so its row is not "stale", it is done.
+        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
     }
 
     private function shutdownAllChildren(SymfonyStyle $io): void
@@ -264,6 +294,7 @@ final class ImapSuperviseCommand extends Command
 
         foreach ($this->processes as $mailboxId => $process) {
             $process->wait();
+            $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
         }
 
         $this->processes = [];

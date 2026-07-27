@@ -15,15 +15,6 @@ use Doctrine\DBAL\Connection;
  */
 final class AdminMonitoringService
 {
-    /** Seconds after which a heartbeat counts as stale, per process type. */
-    private const array STALE_THRESHOLDS = [
-        ProcessHeartbeatService::TYPE_IMAP_IDLE        => 2100, // just over the 29-min IDLE reissue
-        ProcessHeartbeatService::TYPE_IMAP_SUPERVISE   => 300,
-        ProcessHeartbeatService::TYPE_MESSENGER_WORKER => 120,  // listener beats every 30s
-    ];
-
-    private const int DEFAULT_STALE_THRESHOLD = 600;
-
     public function __construct(
         private readonly ProcessHeartbeatRepository $heartbeatRepository,
         private readonly AccountRepository          $accountRepository,
@@ -44,7 +35,7 @@ final class AdminMonitoringService
                 $ageSeconds = max(0, time() - $heartbeat->lastBeatAt->getTimestamp());
             }
 
-            $threshold = self::STALE_THRESHOLDS[$heartbeat->type] ?? self::DEFAULT_STALE_THRESHOLD;
+            $threshold = ProcessHeartbeatService::staleThreshold($heartbeat->type);
 
             $rows[] = [
                 'type'       => $heartbeat->type,

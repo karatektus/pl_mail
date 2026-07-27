@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use App\Service\Monitoring\ProcessHeartbeatService;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Messenger\Event\WorkerRunningEvent;
+use Symfony\Component\Messenger\Event\WorkerStoppedEvent;
 
 /**
- * Beats a heartbeat for every running messenger worker, keyed by hostname
- * (one container = one worker in this setup). WorkerRunningEvent fires on
- * every loop iteration — including idle polls — so it is throttled here.
+ * Beats a heartbeat for every running messenger worker (one container = one
+ * worker in this setup). WorkerRunningEvent fires on every loop iteration —
+ * including idle polls — so it is throttled here.
+ *
+ * Keyed by APP_CONTAINER_NAME rather than the hostname: workers exit on
+ * --time-limit and a recreated container gets a fresh hostname, which left a
+ * new stale row behind on every cycle. The container name is stable across
+ * restarts, so a worker reclaims its own row. The row is dropped again on a
+ * clean stop, and ProcessHeartbeatService::pruneStale() is the backstop for
+ * rows left behind by hard kills.
  *
  * Self-contained: no changes to the worker service or its command needed.
  */
-#[AsEventListener(event: WorkerRunningEvent::class)]
 final class WorkerHeartbeatListener
 {
     private const int INTERVAL_SECONDS = 30;
@@ -24,9 +32,12 @@ final class WorkerHeartbeatListener
 
     public function __construct(
         private readonly ProcessHeartbeatService $heartbeats,
+        #[Autowire(env: 'APP_CONTAINER_NAME')]
+        private readonly string $containerName = 'worker',
     ) {}
 
-    public function __invoke(WorkerRunningEvent $event): void
+    #[AsEventListener(event: WorkerRunningEvent::class)]
+    public function onWorkerRunning(WorkerRunningEvent $event): void
     {
         $now = time();
 
@@ -36,12 +47,30 @@ final class WorkerHeartbeatListener
 
         $this->lastBeatAt = $now;
 
-        $hostname = gethostname();
-
         $this->heartbeats->beat(
             ProcessHeartbeatService::TYPE_MESSENGER_WORKER,
-            false !== $hostname ? $hostname : 'worker',
+            $this->beatKey(),
             ['idle' => $event->isWorkerIdle()],
         );
+    }
+
+    #[AsEventListener(event: WorkerStoppedEvent::class)]
+    public function onWorkerStopped(WorkerStoppedEvent $event): void
+    {
+        $this->heartbeats->clear(
+            ProcessHeartbeatService::TYPE_MESSENGER_WORKER,
+            $this->beatKey(),
+        );
+    }
+
+    private function beatKey(): string
+    {
+        if ('' !== $this->containerName) {
+            return $this->containerName;
+        }
+
+        $hostname = gethostname();
+
+        return false !== $hostname ? $hostname : 'worker';
     }
 }

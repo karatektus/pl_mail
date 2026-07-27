@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Repository\LogEntryRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
+use DateTimeImmutable;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -40,15 +41,16 @@ final class PruneMonitoringDataCommand extends Command
         $heartbeatDays = max(1, (int) $input->getOption('heartbeat-days'));
 
         $prunedLogs = $this->logEntryRepository->pruneOlderThan(
-            new \DateTimeImmutable(sprintf('-%d days', $logDays)),
+            new DateTimeImmutable(sprintf('-%d days', $logDays)),
         );
 
-        $prunedHeartbeats = $this->heartbeats->pruneOlderThan(
-            new \DateTimeImmutable(sprintf('-%d days', $heartbeatDays)),
-        );
+        $prunedHeartbeats = $this->heartbeats->pruneStale()
+            + $this->heartbeats->pruneOlderThan(
+                new DateTimeImmutable(sprintf('-%d days', $heartbeatDays)),
+            );
 
         $io->success(sprintf(
-            'Pruned %d log entries (older than %dd) and %d dead heartbeats (older than %dd).',
+            'Pruned %d log entries (older than %dd) and %d dead heartbeats (long-stale, or older than %dd).',
             $prunedLogs,
             $logDays,
             $prunedHeartbeats,

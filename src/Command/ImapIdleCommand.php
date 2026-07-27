@@ -118,6 +118,8 @@ class ImapIdleCommand extends Command
             }
         }
 
+        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
+
         $io->text(sprintf('[%s] Stopped cleanly.', date('H:i:s')));
 
         return Command::SUCCESS;
