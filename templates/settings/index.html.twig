@@ -43,9 +43,9 @@
                            the nav and ONE content wrapper. A third child wraps
                            into the 180px nav column on the next grid row. #}
                         <div class="flex-1 overflow-y-auto">
-                            <div class="max-w-3xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-8">
+                            <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
 
-                                <nav class="space-y-1">
+                                <nav class="flex md:flex-col gap-1 flex-wrap">
                                     {% set navActive   = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-raised text-ink' %}
                                     {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
 
@@ -87,7 +87,7 @@
                                 </nav>
 
                                 {# Single content wrapper — second (and last) grid child #}
-                                <div>
+                                <div class="min-w-0">
                                     {% if section == 'appearance' %}
                                         {% include 'settings/_appearance.html.twig' %}
                                     {% elseif section == 'general' %}
