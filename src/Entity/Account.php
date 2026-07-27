@@ -535,6 +535,9 @@ class Account extends AccountModel
         return $this;
     }
 
+    /** Settings-bag key for the provider label-sync toggle. */
+    public const string SETTING_LABEL_SYNC = 'labels.sync_to_provider';
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -629,6 +632,32 @@ class Account extends AccountModel
         return AuthType::OAuth2->value === $this->authType
             && MailProvider::Google->value === $this->oauthProvider;
     }
+    /**
+     * Whether label create/rename/delete is mirrored to the provider.
+     *
+     * Lives in the free-form settings bag rather than its own column: it is a
+     * user preference with a safe default, not something queried or indexed.
+     */
+    public function isLabelSyncEnabled(): bool
+    {
+        return true === $this->getSetting(self::SETTING_LABEL_SYNC, false);
+    }
+
+    public function setLabelSyncEnabled(bool $enabled): static
+    {
+        return $this->setSetting(self::SETTING_LABEL_SYNC, $enabled);
+    }
+
+    /**
+     * Only Gmail and Microsoft can mirror label structure. On plain IMAP a
+     * label is a physical folder, so create/delete would move real mail —
+     * a different and riskier operation than this toggle promises.
+     */
+    public function supportsLabelSync(): bool
+    {
+        return true === $this->isGmail() || true === $this->isMicrosoft();
+    }
+
     public function isPushEnabled(): bool
     {
         return $this->pushEnabled;

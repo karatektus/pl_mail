@@ -44,6 +44,41 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         }
     }
 
+    /**
+     * Map account ids to the id of the user that owns them.
+     *
+     * Push subscriptions belong to a user but changes are recorded per
+     * account, so delivery has to resolve one to the other. One query rather
+     * than hydrating an Account per changed id.
+     *
+     * @param list<int> $accountIds
+     *
+     * @return array<int,int> accountId => userId
+     */
+    public function findOwnersOfAccounts(array $accountIds): array
+    {
+        if (count($accountIds) === 0) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('a.id AS accountId', 'u.id AS userId')
+            ->from(\App\Entity\Account::class, 'a')
+            ->join('a.usr', 'u')
+            ->where('a.id IN (:ids)')
+            ->setParameter('ids', $accountIds)
+            ->getQuery()
+            ->getScalarResult();
+
+        $owners = [];
+
+        foreach ($rows as $row) {
+            $owners[(int) $row['accountId']] = (int) $row['userId'];
+        }
+
+        return $owners;
+    }
+
     public function countUndeleted(): int
     {
         return $this->createQueryBuilder('user')

@@ -175,6 +175,37 @@ final class GmailApiClient
         return $response->toArray();
     }
 
+    /**
+     * Fetch the original RFC822 bytes of a message.
+     *
+     * A separate call from getMessage(): format=raw returns the whole message
+     * base64url-encoded and omits the parsed payload the sync path needs, so
+     * the two cannot be combined. Only called on demand, never during sync.
+     */
+    public function getRawMessage(Account $account, string $messageId): string
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request(
+            'GET',
+            self::BASE . '/messages/' . urlencode($messageId),
+            [
+                'auth_bearer' => $token,
+                'query'       => ['format' => 'raw'],
+            ],
+        );
+
+        $body = $response->toArray();
+        $raw  = (string) ($body['raw'] ?? '');
+
+        if ('' === $raw) {
+            return '';
+        }
+
+        // Gmail uses base64url, which strtr() converts to standard base64.
+        return (string) base64_decode(strtr($raw, '-_', '+/'), true);
+    }
+
     // ── history ───────────────────────────────────────────────────────────────
 
     /**
@@ -488,6 +519,37 @@ final class GmailApiClient
         ]);
 
         return $response->toArray();
+    }
+
+    /**
+     * Rename an existing label. Gmail carries hierarchy in the name itself
+     * ("Work/Invoices"), so a move to a different parent is also a rename.
+     *
+     * @return array<string,mixed>  the updated label resource
+     */
+    public function patchLabel(Account $account, string $labelId, string $name): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('PATCH', self::BASE . '/labels/' . rawurlencode($labelId), [
+            'auth_bearer' => $token,
+            'json'        => ['name' => $name],
+        ]);
+
+        return $response->toArray();
+    }
+
+    /**
+     * Delete a label. Gmail removes it from every message it was on; the
+     * messages themselves survive.
+     */
+    public function deleteLabel(Account $account, string $labelId): void
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $this->httpClient->request('DELETE', self::BASE . '/labels/' . rawurlencode($labelId), [
+            'auth_bearer' => $token,
+        ])->getStatusCode();
     }
 
     /**

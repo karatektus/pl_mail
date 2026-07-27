@@ -270,6 +270,18 @@ final class GraphApiClient
     }
 
     /**
+     * Fetch the original MIME bytes of a message.
+     *
+     * $value returns the raw message rather than the JSON resource, so unlike
+     * every other call here the response is not decoded.
+     */
+    public function getRawMessage(Account $account, string $messageId): string
+    {
+        return $this->request($account, 'GET', self::ME . '/messages/' . rawurlencode($messageId) . '/$value')
+            ->getContent();
+    }
+
+    /**
      * Update mutable message state (isRead, flag, categories).
      *
      * @param array<string,mixed> $properties
@@ -505,6 +517,60 @@ final class GraphApiClient
                 'color'       => 'preset0',
             ],
         ])->toArray();
+    }
+
+    /**
+     * Rename a category. Graph keys category membership on displayName, so a
+     * rename here does NOT re-tag existing messages — the sync layer reconciles
+     * them on the next pass.
+     */
+    public function patchMasterCategory(Account $account, string $categoryId, string $displayName): void
+    {
+        $this->request($account, 'PATCH', self::ME . '/outlook/masterCategories/' . rawurlencode($categoryId), [
+            'json' => ['displayName' => $displayName],
+        ])->getContent();
+    }
+
+    public function deleteMasterCategory(Account $account, string $categoryId): void
+    {
+        $this->request($account, 'DELETE', self::ME . '/outlook/masterCategories/' . rawurlencode($categoryId))
+            ->getContent();
+    }
+
+    // ── Mail folders ─────────────────────────────────────────────────────────
+
+    /**
+     * Create a mail folder, optionally nested under an existing one.
+     *
+     * @return array<string,mixed>  the created folder resource (id, displayName, …)
+     */
+    public function createFolder(Account $account, string $displayName, ?string $parentFolderId = null): array
+    {
+        $url = null === $parentFolderId
+            ? self::ME . '/mailFolders'
+            : self::ME . '/mailFolders/' . rawurlencode($parentFolderId) . '/childFolders';
+
+        return $this->request($account, 'POST', $url, [
+            'json' => ['displayName' => $displayName],
+        ])->toArray();
+    }
+
+    public function patchFolder(Account $account, string $folderId, string $displayName): void
+    {
+        $this->request($account, 'PATCH', self::ME . '/mailFolders/' . rawurlencode($folderId), [
+            'json' => ['displayName' => $displayName],
+        ])->getContent();
+    }
+
+    /**
+     * Delete a mail folder. Graph deletes the messages inside it too, which is
+     * why the caller must refuse to do this for a folder-backed label that
+     * still holds mail.
+     */
+    public function deleteFolder(Account $account, string $folderId): void
+    {
+        $this->request($account, 'DELETE', self::ME . '/mailFolders/' . rawurlencode($folderId))
+            ->getContent();
     }
 
     // ── Subscriptions (push) ─────────────────────────────────────────────────

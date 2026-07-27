@@ -296,6 +296,20 @@ toolbar:
         next: Older
 
 settings:
+    notifications:
+        heading: Notifications
+        subheading: >-
+            Get notified of new mail on this device, even when plMail is closed.
+        this_device: This device
+        toggle: Enable notifications
+        state_unknown: Checking…
+        unconfigured: >-
+            Push is not configured on this server — no VAPID keys are set.
+            Run "bin/console app:push:generate-vapid-keys".
+        ios_hint: >-
+            On iPhone and iPad, notifications only work once plMail is added to
+            the Home Screen: open it in Safari, tap Share, then "Add to Home
+            Screen", and enable notifications from there.
     app_passwords:
         heading: App passwords
         subheading: >-
@@ -349,6 +363,7 @@ settings:
         appearance: Appearance
         aliases: Aliases
         app_passwords: App passwords
+        notifications: Notifications
     accounts:
         primary: Primary
         reorder: Drag to reorder
@@ -367,6 +382,14 @@ settings:
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
+        label_sync:
+            title: Sync labels to provider
+            on_hint: >-
+                Labels you create, rename or delete are mirrored to this
+                provider. Existing labels are left alone.
+            off_hint: >-
+                Labels stay local to plMail. Turn this on to mirror new label
+                changes to this provider.
         push:
             not_configured: >-
                 Push isn't available on this server — it needs a public HTTPS

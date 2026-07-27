@@ -183,6 +183,14 @@
       <path value="$PROJECT_DIR$/vendor/thenetworg/oauth2-azure" />
       <path value="$PROJECT_DIR$/vendor/firebase/php-jwt" />
       <path value="$PROJECT_DIR$/vendor/lexik/jwt-authentication-bundle" />
+      <path value="$PROJECT_DIR$/vendor/php-http/httplug" />
+      <path value="$PROJECT_DIR$/vendor/php-http/promise" />
+      <path value="$PROJECT_DIR$/vendor/php-http/discovery" />
+      <path value="$PROJECT_DIR$/vendor/web-token/jwt-library" />
+      <path value="$PROJECT_DIR$/vendor/minishlink/web-push" />
+      <path value="$PROJECT_DIR$/vendor/brick/math" />
+      <path value="$PROJECT_DIR$/vendor/spomky-labs/pki-framework" />
+      <path value="$PROJECT_DIR$/vendor/spomky-labs/base64url" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.4">

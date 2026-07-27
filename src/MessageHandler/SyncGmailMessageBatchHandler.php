@@ -217,6 +217,22 @@ final readonly class SyncGmailMessageBatchHandler
             }
         }
 
+        // Threads exist only after assignThread() above, so this runs as a
+        // second pass rather than inside the loop.
+        $threadIdsByAccount = [];
+
+        foreach ($built as $item) {
+            $thread = $item['message']->getThread();
+
+            if (null !== $thread) {
+                $threadIdsByAccount[(int) $item['account']->getId()][] = (int) $thread->getId();
+            }
+        }
+
+        foreach ($threadIdsByAccount as $threadAccountId => $threadIds) {
+            $this->stateManager->recordThreadsTouched($threadAccountId, $threadIds);
+        }
+
         $this->em->flush();
 
         if (count($built) > 0) {
@@ -260,12 +276,23 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
 
+        // Enrichment rewrites the message's labels, i.e. Email.mailboxIds — a
+        // change a JMAP client must see. The row already has an id, so this is
+        // safe to record before the batch flush.
+        $this->stateManager->recordUpdated(
+            (int) $target->getId(),
+            JmapObjectType::Email,
+            (string) $existing->getId(),
+        );
+
         $thread = $existing->getThread();
 
         if (null !== $thread) {
             foreach ($existing->getLabels() as $label) {
                 $thread->addLabel($label);
             }
+
+            $this->stateManager->recordThreadsTouched((int) $target->getId(), [(int) $thread->getId()]);
         }
     }
 

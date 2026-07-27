@@ -57,6 +57,7 @@
                         </button>
                     {% endif %}
                     {% if account.microsoft or account.gmail %}
+                        {{ include('settings/accounts/_label_sync_control.html.twig', {account: account}) }}
                         {{ include('settings/accounts/_push_control.html.twig', {account: account, failed: false}) }}
                     {% endif %}
                     <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">

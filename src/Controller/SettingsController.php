@@ -8,6 +8,7 @@ use App\Repository\AccountRepository;
 use App\Repository\ApiTokenRepository;
 use App\Repository\LabelRepository;
 use App\Service\Push\PushSubscriptionRegistry;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,13 +19,15 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords'];
+    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords', 'notifications'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly ApiTokenRepository $apiTokenRepository,
+        #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
+        private readonly string $vapidPublicKey,
     ) {
     }
 
@@ -50,6 +53,7 @@ final class SettingsController extends AbstractController
             'manageableAccounts' => $manageableAccounts,
             'labelsByAccount'    => $labelsByAccount,
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
+            'vapidPublicKey'     => $this->vapidPublicKey,
         ]);
     }
 }

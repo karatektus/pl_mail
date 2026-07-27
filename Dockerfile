@@ -13,7 +13,14 @@ FROM frankenphp_upstream AS frankenphp_base
 
 WORKDIR /app
 
-VOLUME /app/var/
+# NOTE: there is deliberately no `VOLUME /app/var/` here.
+#
+# It gave every container its own anonymous volume at /app/var, so attachments
+# and raw messages written by the sync workers were invisible to the web
+# container that serves them — downloads 404'd, and the data vanished on every
+# container recreate. The durable paths are now bound explicitly per service
+# (var/attachments, var/raw, var/uploads); see compose.override.yaml and
+# truenas.compose.yaml. Re-adding this line silently breaks blob download again.
 
 # persistent / runtime deps
 # hadolint ignore=DL3008
@@ -34,6 +41,7 @@ RUN set -eux; \
 		pdo_pgsql \
         pgsql \
         pcntl \
+        gmp \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser

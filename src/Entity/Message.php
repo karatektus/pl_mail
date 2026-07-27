@@ -116,6 +116,17 @@ class Message extends MessageModel
     #[ORM\Column(nullable: true)]
     private ?DateTimeImmutable $syncedAt = null;
 
+    /**
+     * Path (relative to the project root) of the original RFC822 bytes.
+     *
+     * Null means "not stored yet", not "unavailable": for Gmail and Graph the
+     * bytes are fetched on first access and this is filled in then. Plain-IMAP
+     * messages get it written during sync, where the raw message is already in
+     * hand.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $rawPath = null;
+
     #[ORM\Column]
     private array $flags = [];
 
@@ -455,6 +466,18 @@ class Message extends MessageModel
     public function setHasAttachments(?bool $hasAttachments): static
     {
         $this->hasAttachments = $hasAttachments;
+
+        return $this;
+    }
+
+    public function getRawPath(): ?string
+    {
+        return $this->rawPath;
+    }
+
+    public function setRawPath(?string $rawPath): static
+    {
+        $this->rawPath = $rawPath;
 
         return $this;
     }

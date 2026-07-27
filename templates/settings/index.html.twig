@@ -64,6 +64,11 @@
                                         <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.labels'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'notifications' }) }}"
+                                       class="{{ section == 'notifications' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-bell w-4 {{ section == 'notifications' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.notifications'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'app-passwords' }) }}"
                                        class="{{ section == 'app-passwords' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-key w-4 {{ section == 'app-passwords' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -96,6 +101,20 @@
 
                                             </div>
                                         </section>
+                                    {% elseif section == 'notifications' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.notifications.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.notifications.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                {% include 'settings/_notifications.html.twig' with {
+                                                    vapidPublicKey: vapidPublicKey,
+                                                } %}
+                                            </div>
+                                        </section>
+
                                     {% elseif section == 'app-passwords' %}
                                         <section>
                                             <div class="mb-4">

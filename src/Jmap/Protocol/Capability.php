@@ -14,6 +14,13 @@ final class Capability
     public const string SUBMISSION = 'urn:ietf:params:jmap:submission';
 
     /**
+     * Vendor extension: carries the VAPID public key a client needs before it
+     * can create a PushSubscription. RFC 8620 defines no standard place for
+     * it, and a client cannot call pushManager.subscribe() without it.
+     */
+    public const string PUSH = 'urn:plmail:params:jmap:push';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *

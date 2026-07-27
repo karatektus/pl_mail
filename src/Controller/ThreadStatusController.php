@@ -282,14 +282,26 @@ class ThreadStatusController extends AbstractController
      */
     private function recordJmapUpdates(array $messages): void
     {
+        $threadIdsByAccount = [];
+
         foreach ($messages as $message) {
-            $account = $message->getAccount();
+            $accountId = (int) $message->getAccount()->getId();
 
             $this->stateManager->recordUpdated(
-                (int) $account->getId(),
+                $accountId,
                 JmapObjectType::Email,
                 (string) $message->getId(),
             );
+
+            $thread = $message->getThread();
+
+            if (null !== $thread) {
+                $threadIdsByAccount[$accountId][] = (int) $thread->getId();
+            }
+        }
+
+        foreach ($threadIdsByAccount as $accountId => $threadIds) {
+            $this->stateManager->recordThreadsTouched($accountId, $threadIds);
         }
     }
 

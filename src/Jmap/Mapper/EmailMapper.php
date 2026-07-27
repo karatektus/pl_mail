@@ -7,6 +7,7 @@ namespace App\Jmap\Mapper;
 use App\Domain\Enum\MessageFlag;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Jmap\Blob\BlobId;
 
 /**
  * Maps a plMail Message onto a JMAP Email object (RFC 8621 §4).
@@ -81,7 +82,7 @@ final class EmailMapper
 
         return [
             'id' => (string) $message->getId(),
-            'blobId' => (string) $message->getId(),
+            'blobId' => (string) BlobId::forMessage((int) $message->getId()),
             'threadId' => $this->threadId($message),
             'mailboxIds' => $this->mailboxIds($message),
             'keywords' => $this->keywords($message),
@@ -307,7 +308,7 @@ final class EmailMapper
 
         return [$this->bodyPart(
             self::TEXT_PART_ID,
-            (string) $message->getId(),
+            (string) BlobId::forMessage((int) $message->getId()),
             'text/plain',
             strlen($text),
             $bodyProperties,
@@ -332,7 +333,7 @@ final class EmailMapper
 
         return [$this->bodyPart(
             self::HTML_PART_ID,
-            (string) $message->getId(),
+            (string) BlobId::forMessage((int) $message->getId()),
             'text/html',
             strlen($html),
             $bodyProperties,
@@ -355,7 +356,7 @@ final class EmailMapper
 
             $attachment = $this->bodyPart(
                 (string) $part->getId(),
-                (string) $part->getId(),
+                (string) BlobId::forPart((int) $part->getId()),
                 $part->getContentType() ?? 'application/octet-stream',
                 $part->getSize() ?? 0,
                 $bodyProperties,

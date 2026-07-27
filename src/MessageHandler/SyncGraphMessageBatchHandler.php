@@ -116,6 +116,11 @@ final readonly class SyncGraphMessageBatchHandler
                 if (null !== $existing) {
                     // Already have it under a previous (or rotated) address —
                     // re-point the locator and move on.
+                    //
+                    // Deliberately NOT recorded as a JMAP change: graphId is an
+                    // internal locator that appears in no Email property, so a
+                    // push here would wake every client for nothing. Label and
+                    // flag changes arrive via GraphApiSyncer, which does record.
                     $existing->setGraphId($graphId);
                     continue;
                 }
@@ -169,6 +174,20 @@ final readonly class SyncGraphMessageBatchHandler
                 ]);
             }
         }
+
+        // Threads exist only after assignThread() above, so this runs as a
+        // second pass rather than inside the loop.
+        $threadIds = [];
+
+        foreach ($built as $entity) {
+            $thread = $entity->getThread();
+
+            if (null !== $thread) {
+                $threadIds[] = (int) $thread->getId();
+            }
+        }
+
+        $this->stateManager->recordThreadsTouched((int) $account->getId(), $threadIds);
 
         $this->em->flush();
 

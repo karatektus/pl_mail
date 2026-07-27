@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
+use App\Domain\Enum\EmailAliasSource;
+use App\Domain\Enum\EmailAliasStatus;
 use App\Entity\Account;
 use App\Entity\EmailAlias;
 use App\Jmap\Account\AccountResolver;
@@ -66,9 +68,7 @@ final class IdentityGetMethod implements JmapMethod
 
         return [
             'accountId' => (string) $accountId,
-            // Identities have no change log of their own; they move only when
-            // the account configuration does, which is what sessionState tracks.
-            'state' => $this->stateManager->stateFor($accountId, JmapObjectType::Mailbox),
+            'state' => $this->stateManager->stateFor($accountId, JmapObjectType::Identity),
             'list' => $list,
             'notFound' => $notFound,
         ];
@@ -107,9 +107,11 @@ final class IdentityGetMethod implements JmapMethod
             'bcc' => null,
             'textSignature' => '',
             'htmlSignature' => '',
-            // Aliases are derived from provider/account configuration, not
-            // owned by the JMAP client, so none of them are client-deletable.
-            'mayDelete' => false,
+            // Only aliases the user added by hand are theirs to remove. Ones
+            // discovered from the provider come back on the next sync, and the
+            // primary address is what the account sends as.
+            'mayDelete' => EmailAliasSource::Manual === $alias->source
+                && EmailAliasStatus::Primary !== $alias->status,
         ];
     }
 

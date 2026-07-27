@@ -22,6 +22,12 @@ services:
     App\Domain\Helper\AttachmentStorageHelper:
         arguments:
             $projectDir: '%kernel.project_dir%'
+    App\Domain\Helper\RawMessageStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+    App\Domain\Helper\UploadStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
     App\Service\OAuth\OAuthProviderFactory:
         arguments:
             $googleClientId: '%env(GOOGLE_OAUTH_CLIENT_ID)%'
@@ -60,6 +66,16 @@ services:
         decorates: lexik_jwt_authentication.extractor.authorization_header_extractor
         arguments:
             $inner: '@.inner'
+
+    App\Jmap\Session\SessionBuilder:
+        arguments:
+            $vapidPublicKey: '%env(VAPID_PUBLIC_KEY)%'
+
+    App\Jmap\Push\WebPushSender:
+        arguments:
+            $vapidSubject: '%env(VAPID_SUBJECT)%'
+            $vapidPublicKey: '%env(VAPID_PUBLIC_KEY)%'
+            $vapidPrivateKey: '%env(VAPID_PRIVATE_KEY)%'
 
     App\Jmap\Method\MethodRegistry:
         arguments:

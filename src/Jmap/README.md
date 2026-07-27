@@ -1,114 +1,255 @@
-# plMail JMAP — phases 1–5
+# plMail JMAP
 
-A conformant JMAP subset: the core envelope, the state/change foundation every
-`/changes` method builds on, and the Mailbox / Email / Thread / Identity /
-EmailSubmission object methods on top of it.
+A conformant JMAP subset (RFC 8620 core, RFC 8621 mail): the request envelope,
+the state/change engine every `/changes` method builds on, the Mailbox / Email /
+Thread / Identity / EmailSubmission object methods, blob upload and download,
+and push over both EventSource and Web Push.
 
-## What's here
+**18 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+Mail (Basic).
 
-**Protocol (the dispatch machinery — built once)**
-- `Protocol/Invocation`, `JmapRequest`, `JmapResponse` — the request/response envelope.
-- `Protocol/JmapProcessor` — runs each method call in order; a failing call
-  yields an inline error and does not abort the rest.
-- `Protocol/ReferenceResolver` — resolves `#foo` result references against
-  earlier results via a restricted JSON Pointer, including the `/*` wildcard.
-- `Protocol/JmapContext` — per-request user + accumulated responses + createdIds.
-- `Protocol/Capability` — advertised capability URNs (grow `SUPPORTED` as you go).
+| | |
+|---|---|
+| `Core/` | `echo`, `PushSubscription/get\|set` |
+| `Mailbox/` | `get`, `query`, `changes`, `set` |
+| `Email/` | `get`, `query`, `changes`, `set` |
+| `Thread/` | `get`, `changes` |
+| `Identity/` | `get`, `set` |
+| `EmailSubmission/` | `get`, `set`, `changes` |
 
-**Methods (each object type is a thin plug-in)**
-- `Method/JmapMethod` — the interface; implementations are tagged and indexed
-  by `name()` in `MethodRegistry`.
-- `Method/Core/CoreEchoMethod` — `Core/echo`, a spec-compliant smoke test.
-- `Method/Mail/Mailbox{Get,Query,Changes}` — Mailbox is plMail's `Label`.
-- `Method/Mail/Email{Get,Query,Changes,Set}`, `ThreadGet`, `IdentityGet`.
-- `Method/Mail/EmailSubmission{Set,Get}` — sending.
+---
 
-**Mail (phase 4/5 domain glue)**
-- `Mapper/EmailMapper` — `Message` -> JMAP `Email`.
+## Layout
+
+**Protocol — the dispatch machinery, built once**
+- `Protocol/Invocation`, `JmapRequest`, `JmapResponse` — the envelope.
+- `Protocol/JmapProcessor` — runs each call in order; a failing call yields an
+  inline error and does not abort the rest.
+- `Protocol/ReferenceResolver` — `#foo` result references via restricted JSON
+  Pointer, including the `/*` wildcard (arrays only — not object maps).
+- `Protocol/JmapContext` — per-request user, accumulated responses, createdIds.
+  `resolveId()` implements `#creationId` anywhere an Id is expected.
+- `Protocol/StateChangeBuilder` — the `StateChange` object shared by EventSource
+  and Web Push, plus the snapshot/diff used to detect what moved.
+- `Protocol/Capability` — advertised URNs. `SUPPORTED` gates what a client may
+  declare in `using`.
+
+**Methods** — `Method/JmapMethod` is the interface; implementations are tagged
+`app.jmap_method` and indexed by `name()` in `MethodRegistry`. Adding a method
+means adding one class.
+
+**Endpoints beyond `/jmap/api`**
+- `Controller/JmapSessionController` — `/jmap/session`, `/.well-known/jmap`.
+- `Controller/JmapDownloadController` — blob download.
+- `Controller/JmapUploadController` — blob upload into `uploaded_blob`.
+- `Controller/JmapEventSourceController` — SSE `StateChange` stream.
+
+**Blobs** — `Blob/BlobId` namespaces every blobId by what it points at:
+`m-` message (RFC822 source), `p-` attachment part, `u-` client upload. Without
+the prefix a bare id is ambiguous across three tables. `Blob/BlobResolver`
+scopes every lookup to the account, so a foreign blob resolves to `notFound`
+rather than leaking.
+
+**Mail glue**
+- `Mapper/EmailMapper` — `Message` → JMAP `Email`.
 - `Mapper/MailboxCounts{,Provider}` — all four Mailbox counts for an account in
-  two grouped queries, so Mailbox/get is not an N+1.
-- `Query/EmailFilterCompiler`, `EmailQueryRunner`, `CompiledFilter`,
-  `EmailQueryResult` — Email/query's filter/sort/collapse engine.
-- `Mail/EmailPatchApplier` — the keyword/mailbox patch semantics shared by
-  Email/set update and EmailSubmission/set onSuccessUpdateEmail.
-- `Mail/JmapDraftWriter` — Email/set create, mirroring the web composer's
-  draft path.
+  two grouped queries, so `Mailbox/get` is not an N+1.
+- `Query/EmailFilterCompiler` + `EmailQueryRunner` — `Email/query`'s
+  filter/sort/collapse engine, compiled to SQL (the method returns ids only, so
+  nothing is hydrated).
+- `Mail/EmailPatchApplier` — keyword/mailbox patch semantics, shared by
+  `Email/set update` and `EmailSubmission/set onSuccessUpdateEmail`.
+- `Mail/JmapDraftWriter` — `Email/set create`, mirroring the web composer.
 
-**Session**
-- `Session/SessionBuilder` — the Session object. One JMAP account per connected
-  mail account. **This is the only file coupled to the mail-account entity.**
-
-**State (phase 2 — the sync engine)**
-- `State/ChangeLog` (entity) — append-only log; autoincrement PK *is* the state token.
-- `State/ChangeLogRepository` — scan/aggregate/prune queries.
-- `State/StateManager` — the façade the app calls: `recordCreated/Updated/Destroyed`
-  on the write side, `stateFor` and `changesSince` on the read side.
+**State — the sync engine**
+- `State/ChangeLog` (entity) — append-only; the autoincrement PK *is* the state
+  token.
+- `State/StateManager` — `recordCreated/Updated/Destroyed` on the write side,
+  `stateFor`/`changesSince` on the read side, plus `drainDirty()` for push.
 - `State/ChangeSet`, `JmapObjectType`, `ChangeType`.
 
-## Integration points (resolved — see `wiring.md` for what was applied)
+**Push** — `Push/WebPushSender` (RFC 8030/8291/8292 via `minishlink/web-push`),
+`Push/PushDispatcher` (fan out to a user's devices). Draining is driven by
+`App\EventSubscriber\JmapPushSubscriber`.
 
-- **Mail-account shape** — `SessionBuilder` and `StateManager::sessionState()`
-  iterate `User::getAccounts()` and call `Account::getId()` /
-  `Account::getEmail()`. A JMAP `accountId` is the `App\Entity\Account` id as a
-  string. These two files are the only ones coupled to the account entity.
-- **User class** — controllers/`JmapContext` typehint `App\Entity\User`.
-- **Auth** — `lexik/jwt-authentication-bundle` on a stateless `jmap` firewall
-  ahead of `main`. Any bearer authenticator resolving `#[CurrentUser]` works.
-- **Labels** — `message_label` (the `Message::$labels` M2M) is authoritative for
-  `Email.mailboxIds`. `thread_label` is NOT used for it: `ThreadLabelSynchronizer`
-  derives that table as the union of a thread's messages' labels, so reading it
-  would report a mailbox for every message in the thread.
-- **Read/flagged state** — `seen_at` / `starred_at` are authoritative, not the
-  `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the plain-IMAP
-  sync path populates, and is a strict subset of `seen_at`. flags remains
+**Session** — `Session/SessionBuilder`. One JMAP account per connected mail
+account; a unified inbox is a client-side concern.
+
+---
+
+## Things outside this directory that belong to it
+
+| Concern | Where |
+|---|---|
+| App-password auth | `App\Entity\ApiToken`, `App\Security\ApiTokenAuthenticator`, `App\Security\JwtBearerTokenExtractor` |
+| Push subscriptions | `App\Entity\PushSubscription`, `App\EventSubscriber\JmapPushSubscriber` |
+| Uploaded blobs | `App\Entity\UploadedBlob`, `App\Domain\Helper\UploadStorage` |
+| Raw message bytes | `App\Domain\Helper\RawMessageStorage`, `App\Service\Mail\RawMessageResolver` |
+| Label structure sync | `App\Service\Label\LabelStructurePropagator` |
+| PWA | `public/manifest.webmanifest`, `public/sw.js`, `assets/controllers/web_push_controller.js`, `App\Controller\Settings\WebPushController` |
+| Settings UI | `App\Controller\ApiTokenController`, `Settings\AccountLabelSyncController` |
+
+Commands: `app:jmap:prune-uploads`, `app:push:generate-vapid-keys`.
+
+---
+
+## Load-bearing facts
+
+Get these wrong and things fail quietly rather than loudly.
+
+- **`accountId` is the `App\Entity\Account` id** as a string. `SessionBuilder`
+  and `StateManager::sessionState()` are the only files coupled to that entity.
+- **`message_label` is authoritative for `Email.mailboxIds`.** `thread_label` is
+  NOT: `ThreadLabelSynchronizer` derives it as the union of a thread's messages'
+  labels, so reading it would report a mailbox for every message in the thread.
+- **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
+  the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
+  plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
   authoritative for `$draft` / `$answered`, which have no column.
-- **Full-text** — the `text` filter must use `websearch_to_tsquery('english', …)`
-  to match how `Message::$searchVector` is generated. A mismatched config
-  silently returns nothing.
-- **Writes** — every mutation goes through `LabelChangePropagator`, the seam the
-  web UI uses, so JMAP changes reach Gmail/IMAP/Graph identically. Its ordering
-  contract (mutate, propagate, flush last) is load-bearing.
+- **Full-text must use `websearch_to_tsquery('english', …)`** to match how
+  `Message::$searchVector` is generated. A mismatched config returns nothing at
+  all, silently.
+- **The change log's PK is one sequence shared by every (account, objectType)**,
+  so the first row of a type can sit at any number. `changesSince()` must treat
+  `sinceState: "0"` as always answerable — otherwise every freshly-connected
+  client is told to resync.
+- **Writes go through `LabelChangePropagator`**, the same seam the web UI uses,
+  so a JMAP change reaches Gmail/IMAP/Graph identically. Its ordering contract —
+  mutate, propagate, flush last — is load-bearing: `detachLabel` reads
+  `getMailbox()` before it is re-pointed.
+- **Web Push silently drops the payload without encryption keys**
+  (`WebPush.php` guards on `!empty($userPublicKey) && !empty($userAuthToken)`),
+  which is why `keys.p256dh` and `keys.auth` are required even though RFC 8620
+  marks them optional — a bodiless push cannot carry the verification code.
+- **`var/attachments`, `var/raw` and `var/uploads` must be shared storage.** The
+  workers write them, the web container serves them. `php` overlays `/app/var`
+  with a private volume for cache/logs, so those three paths are bound
+  explicitly in every service — see `compose.override.yaml` and
+  `truenas.compose.yaml`. The Dockerfile deliberately no longer declares
+  `VOLUME /app/var/`; it gave each container its own anonymous volume there,
+  which made downloads 404 and lost the data on every container recreate.
+- **Every path that changes a JMAP-visible property must call
+  `StateManager::record*`** — including the ones that mutate an *existing* row
+  rather than creating one: `GraphApiSyncer::attach/detachFolderLabel` (a folder
+  move in Outlook), `SyncGmailMessageBatchHandler::enrichExisting`, and the
+  Gmailify claim in `MessageSyncer`. Internal-only writes are deliberately not
+  recorded — re-pointing `graphId` changes no Email property, and pushing for it
+  would wake every client for nothing.
+- **Restart `messenger-worker` and `imap-supervisor` after any DI change.**
+  Long-running workers hold a stale compiled container and fail with "Too few
+  arguments" or skip new event subscribers entirely.
+
+---
+
+## Auth
+
+Two credential types share the stateless `jmap` firewall:
+
+- **App passwords** (`plmail_…`) — long-lived, per-device, created in
+  Settings → App passwords. Accepted as `Authorization: Bearer` *and*
+  `Basic email:password`, because ltt.rs sends the first and Sterna the second.
+  Only a SHA-256 hash is stored.
+- **JWT** (lexik) — short-lived, for the future first-party app.
+
+Both arrive as a Bearer token, and Symfony runs *every* authenticator that
+supports a request — so `JwtBearerTokenExtractor` hides prefixed app passwords
+from the JWT authenticator. Without it an app password authenticates correctly
+and is then overwritten by the JWT authenticator's failure response.
+
+---
+
+## Push
+
+JMAP never pushes mail content. It pushes a `StateChange`:
+
+```json
+{"@type":"StateChange","changed":{"4":{"Email":"199","Thread":"200"}}}
+```
+
+The client then calls `Email/changes`. Tokens come from
+`StateManager::stateFor()`, so a push and a subsequent `/changes` cannot
+disagree.
+
+**EventSource** (`/jmap/eventsource`) is the foreground path. Each connection
+holds a PHP worker for its lifetime — a hard capacity limit under FrankenPHP —
+so it is capped at 5 minutes and clients reconnect.
+
+**PushSubscription + Web Push** is the background path, and the same
+implementation serves every platform:
+
+| Platform | How |
+|---|---|
+| Android | UnifiedPush distributor (ntfy, Conversations…) — its endpoint is Web Push compatible. No FCM, no Google. |
+| iOS | The PWA, **added to the Home Screen** (16.4+). Safari tabs do not get push. |
+| Desktop | Browser push service, via the same PWA flow. |
+
+FCM/APNs directly are not options for third-party clients: pushing through them
+requires *the client app's* credentials, which a self-hosted server does not
+have.
+
+The **verification handshake is mandatory** (RFC 8620 §7.2.2) and is what stops
+this being an open relay: on create the server POSTs a `PushVerification` to the
+supplied URL, and the subscription receives nothing until the client echoes the
+code back. plMail's own PWA is not exempt — `public/sw.js` posts the code to
+`/settings/push/verify`.
+
+`StateManager` collapses dirty `(account, type)` pairs in memory and
+`JmapPushSubscriber` drains them once per request (`kernel.terminate`) or per
+worker message, so a sync importing 50 messages sends **one** notification.
+
+---
 
 ## Deliberate limitations
 
 - `Email/set destroy` moves to Trash and keeps the row. plMail has no
-  hard-delete path anywhere, so deleting would discard the local copy of mail
-  the provider still holds.
-- `canCalculateChanges` is `false` — there is no `Email/queryChanges` yet.
-- `Email/query` has no anchor-based paging; use `position`.
-- Only `$seen` / `$flagged` are settable keywords; `$draft` / `$answered` are
-  owned by the sync layer.
-- An `EmailSubmission` id IS the Email id — there is no submission table. Safe
-  because a draft is sent at most once, but it means no submission history.
-- Blob download/upload (`downloadUrl`/`uploadUrl` in the Session) is not
-  implemented; `blobId` is the message or part id, ready for it.
+  hard-delete path anywhere; deleting would discard the local copy of mail the
+  provider still holds.
+- `Mailbox/set` mirrors to Gmail/Microsoft only when the per-account toggle is
+  on (`Account::isLabelSyncEnabled`, off by default). Graph folder *deletion* is
+  refused outright — Graph deletes the messages inside the folder with it.
+- `Identity/set` stores a name and address only. replyTo, bcc and signatures are
+  rejected rather than silently dropped, since there is nowhere to keep them.
+- `canCalculateChanges` is `false`; there is no `queryChanges`. Clients re-run
+  the query, which is spec-legal.
+- `Email/query` has no anchor paging; use `position`.
+- Only `$seen` / `$flagged` are settable keywords.
+- An `EmailSubmission` id IS the Email id — no submission table, so no history.
+  Safe because a draft sends at most once.
+- An `m-` blob is the original RFC822 bytes when available (IMAP stores them at
+  sync time; Gmail/Graph fetch on first access) and a **reconstruction**
+  otherwise. `MessageSourceBuilder` is the fallback, not the primary path, and
+  its output will not verify a DKIM signature.
+- Not implemented: `Email/copy|import|parse`, `SearchSnippet/get`,
+  `VacationResponse/*`, `Blob/copy`.
+
+---
 
 ## Smoke test
 
-Mint a token, then run the two calls:
-
 ```bash
-docker compose exec php php bin/console lexik:jwt:generate-token mail@pluetzner.de
+docker compose exec php php bin/console lexik:jwt:generate-token you@example.com
 ```
 
 ```bash
 curl -sk https://localhost/jmap/session -H "Authorization: Bearer $TOKEN"
-
-curl -sk https://localhost/jmap/api \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"using":["urn:ietf:params:jmap:core"],
-       "methodCalls":[["Core/echo",{"hello":"world"},"c0"]]}'
 ```
 
-Expected: the session object, then
-`{"methodResponses":[["Core/echo",{"hello":"world"},"c0"]],"sessionState":"..."}`.
+```bash
+curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],"methodCalls":[["Email/query",{"accountId":"1","limit":2},"q"],["Email/get",{"accountId":"1","#ids":{"resultOf":"q","name":"Email/query","path":"/ids/*"},"properties":["subject","from","keywords"]},"g"]]}'
+```
+
+An app password works in place of the JWT, as `Bearer plmail_…` or
+`-u you@example.com:plmail_…`.
+
+---
 
 ## Next
 
-- Wire `StateManager::recordUpdated` into the remaining flag/label mutation
-  paths not yet covered (the Gmail/Graph *enrichment* branches update existing
-  rows without recording).
-- `Email/queryChanges` + `Mailbox/set`, then blob download/upload.
-- Long-lived `ApiToken` (Bearer + Basic) so third-party clients survive past the
-  1h JWT expiry — see the three-tier auth plan.
+- `Email/queryChanges` and `Mailbox/queryChanges` — they need the previous query
+  result to diff against, which the change log does not store.
+- `Email/copy|import`, `SearchSnippet/get`, `Email/parse`, `VacationResponse/*`.
+- OAuth-as-provider (tier 3 of the auth plan).
+- Mailbox counts change whenever an Email moves, but only Mailbox
+  create/rename/destroy is recorded. `Mailbox/changes` returns
+  `updatedProperties: null`, so a client that cares re-fetches; a count-only
+  change does not currently wake anyone.

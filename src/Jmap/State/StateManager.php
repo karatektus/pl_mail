@@ -25,6 +25,13 @@ final class StateManager
      */
     private const int DEFAULT_MAX_CHANGES = 256;
 
+    /**
+     * (account, type) pairs mutated during this request, pending a push.
+     *
+     * @var array<int,array<string,bool>>
+     */
+    private array $dirty = [];
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ChangeLogRepository $changeLogRepository,
@@ -46,9 +53,80 @@ final class StateManager
         $this->record($accountId, $type, ChangeType::Destroyed, $entityId);
     }
 
+    /**
+     * Record that a set of Threads was touched, de-duplicated.
+     *
+     * A Thread has no mutations of its own — it changes because one of its
+     * Emails did — so callers that touch Emails in a batch collect the affected
+     * thread ids and pass them here once, rather than logging a row per message.
+     *
+     * Everything is reported as "updated" rather than "created": distinguishing
+     * a brand-new thread from a grown one would mean asking whether every one
+     * of its messages is also new, and RFC 8620 §5.2 already requires clients
+     * to fetch an id in "updated" that they do not yet hold.
+     *
+     * Takes ids, not entities, to keep this class free of entity-class coupling
+     * (see the class docblock) — callers already hold the ids.
+     *
+     * @param iterable<int|string> $threadIds
+     */
+    public function recordThreadsTouched(int $accountId, iterable $threadIds): void
+    {
+        $seen = [];
+
+        foreach ($threadIds as $threadId) {
+            $threadId = (string) $threadId;
+
+            if ('' === $threadId || true === array_key_exists($threadId, $seen)) {
+                continue;
+            }
+
+            $seen[$threadId] = true;
+            $this->recordUpdated($accountId, JmapObjectType::Thread, $threadId);
+        }
+    }
+
     private function record(int $accountId, JmapObjectType $type, ChangeType $changeType, string $entityId): void
     {
         $this->entityManager->persist(new ChangeLog($accountId, $type, $entityId, $changeType));
+
+        // Remember WHAT moved, not how often. A Gmail batch calls this
+        // hundreds of times; push wants one notification per (account, type),
+        // so the set is collapsed here and drained once at the end of the
+        // request or handler by JmapPushSubscriber.
+        $this->dirty[$accountId][$type->value] = true;
+    }
+
+    /**
+     * The (account, type) pairs touched since the last drain, with their
+     * current state tokens, emptying the buffer.
+     *
+     * Tokens are read AFTER the caller's flush, so they are the values a
+     * client will actually see from /changes — reading them at record() time
+     * would push a state that does not exist yet.
+     *
+     * @return array<int,array<string,string>> accountId => type => state
+     */
+    public function drainDirty(): array
+    {
+        $dirty = $this->dirty;
+        $this->dirty = [];
+
+        $changed = [];
+
+        foreach ($dirty as $accountId => $types) {
+            foreach (array_keys($types) as $type) {
+                $objectType = JmapObjectType::tryFrom((string) $type);
+
+                if (null === $objectType) {
+                    continue;
+                }
+
+                $changed[$accountId][(string) $type] = $this->stateFor($accountId, $objectType);
+            }
+        }
+
+        return $changed;
     }
 
     /**
@@ -101,7 +179,19 @@ final class StateManager
 
         $oldest = $this->changeLogRepository->oldestSequence($accountId, $type);
 
-        if (0 !== $oldest && $since < $oldest - 1) {
+        // "0" means the client holds nothing yet, which is always answerable —
+        // it is not a token that could have predated a prune.
+        //
+        // The guard MUST skip it: the change log's PK is one sequence shared by
+        // every (account, objectType), so the first row of a given type can sit
+        // at any number. Mailbox's first row here is 93 and Thread's is 181, so
+        // without this every freshly-connected client — which by definition
+        // starts at "0" — was told to resync instead of getting its changes.
+        //
+        // For a non-zero token the guard is sound: stateFor() only ever hands
+        // out sequences belonging to this type, so a token below the oldest
+        // retained row genuinely means the history was pruned.
+        if (0 !== $since && 0 !== $oldest && $since < $oldest - 1) {
             throw new MethodException('cannotCalculateChanges', 'State token predates retained history.');
         }
 

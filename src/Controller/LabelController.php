@@ -7,7 +7,10 @@ namespace App\Controller;
 use App\Entity\Label;
 use App\Form\LabelType;
 use App\Repository\AccountRepository;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\LabelRepository;
+use App\Service\Label\LabelStructurePropagator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -37,6 +40,8 @@ final class LabelController extends AbstractController
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
         private readonly AccountRepository      $accountRepository,
+        private readonly LabelStructurePropagator $structurePropagator,
+        private readonly StateManager           $stateManager,
     ) {}
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -62,6 +67,16 @@ final class LabelController extends AbstractController
                 );
             } else {
                 $this->em->persist($label);
+                $this->em->flush();
+
+                // Same seam Mailbox/set uses, so a label made in the browser
+                // and one made from a JMAP client behave identically.
+                $this->structurePropagator->created($label);
+                $this->stateManager->recordCreated(
+                    (int) $label->account->getId(),
+                    JmapObjectType::Mailbox,
+                    (string) $label->id,
+                );
                 $this->em->flush();
 
                 return $this->render('label/_saved.stream.html.twig', [
@@ -92,6 +107,14 @@ final class LabelController extends AbstractController
             $label->setUpdatedAt(new \DateTimeImmutable());
             $this->em->flush();
 
+            $this->structurePropagator->renamed($label);
+            $this->stateManager->recordUpdated(
+                (int) $label->account->getId(),
+                JmapObjectType::Mailbox,
+                (string) $label->id,
+            );
+            $this->em->flush();
+
             return $this->render('label/_saved.stream.html.twig', [
                 'label' => $label,
             ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
@@ -107,6 +130,15 @@ final class LabelController extends AbstractController
     public function delete(Label $label): Response
     {
         $this->assertOwnedUserLabel($label);
+
+        // Dispatch before removal: the propagator reads the remote id and
+        // name off the entity, and there is nothing to read afterwards.
+        $this->structurePropagator->deleted($label);
+        $this->stateManager->recordDestroyed(
+            (int) $label->account->getId(),
+            JmapObjectType::Mailbox,
+            (string) $label->id,
+        );
 
         // parent FK cascades — children go with it. message_label /
         // thread_label rows cascade too; the messages themselves stay.

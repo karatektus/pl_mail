@@ -8,6 +8,7 @@ use App\Domain\Enum\LabelRole;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Jmap\Account\AccountResolver;
+use App\Jmap\Blob\BlobId;
 use App\Jmap\Mail\EmailPatchApplier;
 use App\Jmap\Mail\JmapDraftWriter;
 use App\Jmap\Method\JmapMethod;
@@ -141,7 +142,7 @@ final class EmailSetMethod implements JmapMethod
             // requires them back on the created object.
             $created[$creationId] = [
                 'id' => $id,
-                'blobId' => $id,
+                'blobId' => (string) BlobId::forMessage((int) $message->getId()),
                 'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->getId(),
                 'size' => $message->getSize() ?? 0,
             ];
@@ -185,6 +186,7 @@ final class EmailSetMethod implements JmapMethod
             }
 
             $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->recordThread($account, $message);
             // null = "no properties changed beyond what the client asked for".
             $updated[$id] = null;
         }
@@ -236,9 +238,25 @@ final class EmailSetMethod implements JmapMethod
 
             $this->threadLabelSynchronizer->sync($message->getThread());
             $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->recordThread($account, $message);
 
             $destroyed[] = $id;
         }
+    }
+
+    /**
+     * An Email mutation is also a Thread mutation — Thread/changes reads the
+     * same log.
+     */
+    private function recordThread(Account $account, Message $message): void
+    {
+        $thread = $message->getThread();
+
+        if (null === $thread) {
+            return;
+        }
+
+        $this->stateManager->recordThreadsTouched((int) $account->getId(), [(int) $thread->getId()]);
     }
 
     private function findOne(Account $account, string $id): ?Message

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Entity\Account;
+use App\Entity\Message;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Message\SyncGraphMessageBatchMessage;
 use App\Repository\MessageRepository;
 use App\Service\Mail\GraphApiClient;
@@ -39,6 +42,7 @@ final class GraphApiSyncer
         private readonly GraphFolderResolver    $folderResolver,
         private readonly MessageRepository      $messageRepository,
         private readonly EntityManagerInterface $em,
+        private readonly StateManager           $stateManager,
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
     ) {}
@@ -165,6 +169,11 @@ final class GraphApiSyncer
 
         $message->addLabel($label);
 
+        // A folder move on the Microsoft side changes Email.mailboxIds, which
+        // is the single most visible thing a JMAP client watches for. Without
+        // this the message silently moves in Outlook and never in ltt.rs.
+        $this->recordMoved($account, $message);
+
         $thread = $message->getThread();
 
         if (null !== $thread) {
@@ -187,6 +196,25 @@ final class GraphApiSyncer
         }
 
         $message->removeLabel($label);
+        $this->recordMoved($account, $message);
+    }
+
+    /**
+     * The message's mailbox membership changed, so both it and its thread moved
+     * as far as a JMAP client is concerned. record() only persists; these rows
+     * commit on the caller's existing flush.
+     */
+    private function recordMoved(Account $account, Message $message): void
+    {
+        $accountId = (int) $account->getId();
+
+        $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $message->getId());
+
+        $thread = $message->getThread();
+
+        if (null !== $thread) {
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+        }
     }
 
     /**

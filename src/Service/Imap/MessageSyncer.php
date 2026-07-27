@@ -14,6 +14,7 @@ use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MessageCategorizer;
+use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,7 @@ class MessageSyncer
         private readonly MessageCategorizer      $categorizer,
         private readonly ContactRepository       $contactRepository,
         private readonly StateManager            $stateManager,
+        private readonly RawMessageResolver      $rawResolver,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -95,6 +97,9 @@ class MessageSyncer
     ): void {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
+        // Parallel to $messages: the original bytes, which are only in hand
+        // here and are written to disk in pass 2 once the rows have ids.
+        $rawBodies = [];
         $maxUid   = 0;
 
         // Pass 1 — build + persist Message rows (no threading yet)
@@ -134,6 +139,24 @@ class MessageSyncer
                     if (null !== $mailboxLabel) {
                         $claimable->addLabel($mailboxLabel);
                         $claimable->getThread()?->addLabel($mailboxLabel);
+
+                        // Claiming a Gmail-imported row for this mailbox adds a
+                        // label, so mailboxIds changed even though no message
+                        // was created.
+                        $this->stateManager->recordUpdated(
+                            (int) $accountId,
+                            JmapObjectType::Email,
+                            (string) $claimable->getId(),
+                        );
+
+                        $claimedThread = $claimable->getThread();
+
+                        if (null !== $claimedThread) {
+                            $this->stateManager->recordThreadsTouched(
+                                (int) $accountId,
+                                [(int) $claimedThread->getId()],
+                            );
+                        }
                     }
 
                     $syncedUids[$uid] = true;
@@ -150,6 +173,7 @@ class MessageSyncer
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
                 $messages[]        = $message;
+                $rawBodies[]       = $this->rawOf($imapMessage);
                 $syncedUids[$uid]  = true; // mark within this run
 
                 if (true === ($uid > $maxUid)) {
@@ -168,8 +192,13 @@ class MessageSyncer
 
         $correspondents = $this->contactRepository->findCorrespondentEmails($mailbox->getAccount()->getUsr());
         // Pass 2 — assign threads now that all messages exist in DB
-        foreach ($messages as $message) {
+        foreach ($messages as $index => $message) {
             $this->sanitizer->sanitize($message);
+
+            // Store the original bytes now that the row has an id. IMAP is the
+            // only provider that gets this for free — Gmail and Graph need a
+            // second API call, so they are fetched lazily by RawMessageResolver.
+            $this->rawResolver->store($message, $rawBodies[$index] ?? '');
 
             // JMAP state: the ids exist after the flush above. record() only
             // persists, so these rows ride along on the flush below.
@@ -193,11 +222,40 @@ class MessageSyncer
             }
         }
 
+        // Threads exist only after assignThread() above, so this runs as a
+        // second pass rather than inside the loop.
+        $threadIds = [];
+
+        foreach ($messages as $message) {
+            $thread = $message->getThread();
+
+            if (null !== $thread) {
+                $threadIds[] = (int) $thread->getId();
+            }
+        }
+
+        $this->stateManager->recordThreadsTouched((int) $accountId, $threadIds);
+
         if (true === ($maxUid > 0)) {
             $mailbox->setLastSeenUid($maxUid);
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * Reassemble the message as it arrived: raw headers, blank line, raw body.
+     * webklex keeps both around after parsing, so nothing is re-fetched.
+     */
+    private function rawOf(ImapMessage $imapMessage): string
+    {
+        $header = $imapMessage->getHeader();
+
+        if (null === $header || '' === $header->raw) {
+            return '';
+        }
+
+        return rtrim($header->raw, "\r\n") . "\r\n\r\n" . $imapMessage->getRawBody();
     }
 
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message

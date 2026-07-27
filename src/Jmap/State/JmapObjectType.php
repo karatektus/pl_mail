@@ -14,4 +14,5 @@ enum JmapObjectType: string
     case Email = 'Email';
     case Thread = 'Thread';
     case EmailSubmission = 'EmailSubmission';
+    case Identity = 'Identity';
 }

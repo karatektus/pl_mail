@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Message;
+use App\Service\Mail\MessageSourceBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,6 +22,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class MessageSourceController extends AbstractController
 {
+    public function __construct(
+        private readonly MessageSourceBuilder $sourceBuilder,
+    ) {}
+
     #[Route('/original', name: 'original', methods: ['GET'])]
     public function original(Message $message): Response
     {
@@ -28,7 +33,7 @@ final class MessageSourceController extends AbstractController
 
         return $this->render('mail/original.html.twig', [
             'message' => $message,
-            'source'  => $this->buildSource($message),
+            'source'  => $this->sourceBuilder->build($message),
             'auth'    => $this->authenticationResults($message),
         ]);
     }
@@ -44,29 +49,6 @@ final class MessageSourceController extends AbstractController
     }
 
     // ---------------------------------------------------------------- helpers
-
-    /**
-     * "Key: value" header lines, a blank line, then the body — i.e. the shape
-     * of the original message as far as we can reproduce it.
-     */
-    private function buildSource(Message $message): string
-    {
-        $lines = [];
-
-        foreach ($message->getHeaders() ?? [] as $key => $value) {
-            foreach (true === is_array($value) ? $value : [$value] as $single) {
-                $lines[] = $key.': '.$single;
-            }
-        }
-
-        $body = $message->getBodyText();
-
-        if (null === $body || '' === $body) {
-            $body = $message->getBodyHtml() ?? '';
-        }
-
-        return implode("\n", $lines)."\n\n".$body;
-    }
 
     /**
      * SPF / DKIM / DMARC verdicts, parsed out of Authentication-Results when

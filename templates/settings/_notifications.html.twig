@@ -1,0 +1,39 @@
+{# Browser/PWA push registration. The controller resolves its own state on
+   connect, so the markup below is only the initial (pessimistic) rendering. #}
+
+<div class="px-4 py-3.5"
+     data-controller="web-push"
+     data-web-push-vapid-key-value="{{ vapidPublicKey }}"
+     data-web-push-subscribe-url-value="{{ path('app_web_push_subscribe') }}"
+     data-web-push-unsubscribe-url-value="{{ path('app_web_push_unsubscribe') }}"
+     data-web-push-status-url-value="{{ url('app_web_push_status', {deviceClientId: '_'})|slice(0, -2) }}">
+
+    <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+            <p class="text-sm text-ink">{{ 'settings.notifications.this_device'|trans }}</p>
+            <p class="text-[11px] text-ink-faint mt-0.5" data-web-push-target="state">
+                {{ 'settings.notifications.state_unknown'|trans }}
+            </p>
+        </div>
+
+        <button type="button"
+                data-web-push-target="toggle"
+                data-action="click->web-push#toggle"
+                class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                       bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer
+                       disabled:cursor-not-allowed disabled:opacity-40">
+            <i class="fa-solid fa-bell text-xs" aria-hidden="true"></i>
+            {{ 'settings.notifications.toggle'|trans }}
+        </button>
+    </div>
+
+    {% if vapidPublicKey is empty %}
+        <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
+            {{ 'settings.notifications.unconfigured'|trans }}
+        </p>
+    {% endif %}
+
+    <p class="mt-3 text-[11px] text-ink-faint leading-relaxed">
+        {{ 'settings.notifications.ios_hint'|trans }}
+    </p>
+</div>

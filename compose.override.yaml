@@ -6,6 +6,14 @@ services:
     volumes:
       - ./:/app
       - app_var:/app/var
+      # Durable mail data must be visible to BOTH the web container (which
+      # serves downloads) and the workers (which write during sync). php
+      # overlays /app/var with the private app_var volume to keep cache/logs
+      # off the bind mount, which otherwise hides these two directories from
+      # everything else.
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
       - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
       - ./frankenphp/conf.d/20-app.dev.ini:/usr/local/etc/php/conf.d/20-app.dev.ini:ro
     environment:
@@ -21,6 +29,14 @@ services:
       target: frankenphp_dev
     volumes:
       - ./:/app
+      # Durable mail data must be visible to BOTH the web container (which
+      # serves downloads) and the workers (which write during sync). php
+      # overlays /app/var with the private app_var volume to keep cache/logs
+      # off the bind mount, which otherwise hides these two directories from
+      # everything else.
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
     environment:
       APP_ENV: ${APP_ENV:-dev}
 
@@ -30,6 +46,14 @@ services:
       target: frankenphp_dev
     volumes:
       - ./:/app
+      # Durable mail data must be visible to BOTH the web container (which
+      # serves downloads) and the workers (which write during sync). php
+      # overlays /app/var with the private app_var volume to keep cache/logs
+      # off the bind mount, which otherwise hides these two directories from
+      # everything else.
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
     environment:
       APP_ENV: ${APP_ENV:-dev}
 
@@ -72,3 +96,6 @@ services:
 ###< symfony/mercure-bundle ###
 volumes:
   app_var:
+  app_attachments:
+  app_raw:
+  app_uploads:

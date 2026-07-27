@@ -26,6 +26,7 @@ final class SessionBuilder
     public function __construct(
         private readonly StateManager $stateManager,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly string $vapidPublicKey,
     ) {
     }
 
@@ -79,6 +80,7 @@ final class SessionBuilder
                 Capability::CORE => $this->coreCapabilities(),
                 Capability::MAIL => new \stdClass(),
                 Capability::SUBMISSION => new \stdClass(),
+                Capability::PUSH => $this->pushCapabilities(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -125,6 +127,18 @@ final class SessionBuilder
             'emailQuerySortOptions' => ['receivedAt', 'from', 'to', 'subject', 'size'],
             'mayCreateTopLevelMailbox' => true,
         ];
+    }
+
+    /**
+     * The VAPID public key clients pass as applicationServerKey when creating
+     * a browser push subscription. Empty when Web Push is unconfigured, which
+     * is a client's signal not to offer push at all.
+     *
+     * @return array<string,mixed>
+     */
+    private function pushCapabilities(): array
+    {
+        return ['vapidPublicKey' => $this->vapidPublicKey];
     }
 
     /**
