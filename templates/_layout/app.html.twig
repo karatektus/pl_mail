@@ -4,6 +4,14 @@
       style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">
+    {# Without this the browser assumes a ~980px desktop canvas and scales the
+       whole app down. `viewport-fit=cover` lets the gradient run under the
+       notch; the safe-area padding in app.css keeps content clear of it.
+       Zoom is pinned so the app behaves like an installed PWA rather than a
+       page — see the 16px form-control rule in app.css, which is what actually
+       stops iOS zooming on focus (it ignores user-scalable). #}
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>{% block title %}Welcome!{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%221em%22 font-size=%2224%22>✉️</text></svg>">
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it

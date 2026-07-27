@@ -136,6 +136,51 @@
     [role="button"][aria-disabled="true"] {
         cursor: not-allowed;
     }
+
+    /* ── Mobile viewport ───────────────────────────────────────────────────
+       The meta tag pins the scale, but iOS ignores user-scalable and zooms
+       in whenever a focused control renders below 16px — which every
+       text-sm/text-xs field here does. Setting the *computed* size to 16px
+       on small screens is the only thing that actually suppresses it.
+       ────────────────────────────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        select,
+        textarea {
+            font-size: 16px;
+        }
+    }
+
+    html {
+        /* Pinch-zoom and rubber-band scrolling both let the fixed-height
+           shell drift away from the viewport, leaving the app half off
+           screen with no way back. */
+        touch-action: pan-x pan-y;
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    /* `dvh`, not `vh`: mobile Safari and Chrome measure 100vh against the
+       viewport with the URL bar *hidden*, so a 100vh shell hangs its bottom
+       row — the compose dock, the toolbar — under the browser chrome.
+
+       Height lives here rather than on the shells so the safe-area padding
+       below is subtracted exactly once. The shells ask for `h-full`. */
+    html,
+    body {
+        height: 100dvh;
+    }
+
+    body {
+        /* viewport-fit=cover puts us under the notch and home indicator. */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                 env(safe-area-inset-bottom) env(safe-area-inset-left);
+        overscroll-behavior: none;
+        /* Nothing in a mail client should scroll the page sideways; panes
+           scroll their own overflow. */
+        overflow-x: hidden;
+    }
 }
 
 /* ═══ Semantic tokens → Tailwind utilities ══════════════════════════════════
