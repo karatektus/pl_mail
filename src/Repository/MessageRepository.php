@@ -197,4 +197,31 @@ class MessageRepository extends ServiceEntityRepository
 
         return array_values(array_map('strval', array_column($rows, 'graphId')));
     }
+
+    /**
+     * JMAP Email/get: fetch by id, scoped to the account so a foreign id can
+     * never resolve. Labels and parts are eager-joined because the mapper
+     * touches both for every message.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByAccountAndIds(int $accountId, array $ids): array
+    {
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->addSelect('l', 'p')
+            ->leftJoin('m.labels', 'l')
+            ->leftJoin('m.messageParts', 'p')
+            ->where('m.account = :account')
+            ->andWhere('m.id IN (:ids)')
+            ->setParameter('account', $accountId)
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
 }

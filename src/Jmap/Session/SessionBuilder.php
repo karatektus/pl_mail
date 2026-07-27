@@ -50,6 +50,7 @@ final class SessionBuilder
                 'isReadOnly' => false,
                 'accountCapabilities' => [
                     Capability::MAIL => $this->mailAccountCapabilities(),
+                    Capability::SUBMISSION => $this->submissionCapabilities(),
                 ],
             ];
         }
@@ -77,6 +78,7 @@ final class SessionBuilder
             'capabilities' => [
                 Capability::CORE => $this->coreCapabilities(),
                 Capability::MAIL => new \stdClass(),
+                Capability::SUBMISSION => new \stdClass(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -122,6 +124,20 @@ final class SessionBuilder
             'maxSizeAttachmentsPerEmail' => 50_000_000,
             'emailQuerySortOptions' => ['receivedAt', 'from', 'to', 'subject', 'size'],
             'mayCreateTopLevelMailbox' => true,
+        ];
+    }
+
+    /**
+     * Sending is queued on the messenger bus with no scheduling support, so
+     * there is no future-send window to advertise.
+     *
+     * @return array<string,mixed>
+     */
+    private function submissionCapabilities(): array
+    {
+        return [
+            'maxDelayedSend' => 0,
+            'submissionExtensions' => new \stdClass(),
         ];
     }
 }

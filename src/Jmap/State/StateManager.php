@@ -92,6 +92,13 @@ final class StateManager
             return new ChangeSet((string) $since, (string) $latest, false, [], [], []);
         }
 
+        // A token ahead of the log cannot have come from this server (a restored
+        // backup, a client bug, a token from another account). Reporting "no
+        // changes" would leave that client permanently stale, so make it resync.
+        if ($since > $latest) {
+            throw new MethodException('cannotCalculateChanges', 'State token is ahead of the change log.');
+        }
+
         $oldest = $this->changeLogRepository->oldestSequence($accountId, $type);
 
         if (0 !== $oldest && $since < $oldest - 1) {

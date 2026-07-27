@@ -59,6 +59,23 @@ final class JmapContext
     }
 
     /**
+     * RFC 8620 §5.3 allows "#creationId" anywhere an Id is expected, referring
+     * to an object created earlier in the same request. Ids that do not start
+     * with "#" pass through untouched.
+     *
+     * Returns null for an unknown creation id so callers can report it the way
+     * their method requires (notFound, invalidProperties, ...).
+     */
+    public function resolveId(string $id): ?string
+    {
+        if (false === str_starts_with($id, '#')) {
+            return $id;
+        }
+
+        return $this->resolveCreationId(substr($id, 1));
+    }
+
+    /**
      * @return array<string,string>
      */
     public function createdIds(): array

@@ -17,9 +17,9 @@ final class MailboxMapper
     /**
      * @return array<string,mixed>
      */
-    public function toJmap(Label $label): array
+    public function toJmap(Label $label, MailboxCounts $counts): array
     {
-        $counts = $this->counts($label);
+        $resolved = $counts->forLabel($label->id);
 
         return [
             'id' => (string) $label->id,
@@ -27,10 +27,10 @@ final class MailboxMapper
             'parentId' => $this->parentId($label),
             'role' => $this->roleOf($label),
             'sortOrder' => $label->sortOrder ?? 0,
-            'totalEmails' => $counts['totalEmails'],
-            'unreadEmails' => $counts['unreadEmails'],
-            'totalThreads' => $counts['totalThreads'],
-            'unreadThreads' => $counts['unreadThreads'],
+            'totalEmails' => $resolved['totalEmails'],
+            'unreadEmails' => $resolved['unreadEmails'],
+            'totalThreads' => $resolved['totalThreads'],
+            'unreadThreads' => $resolved['unreadThreads'],
             'myRights' => $this->rights($label),
             'isSubscribed' => $label->isVisible,
         ];
@@ -41,9 +41,9 @@ final class MailboxMapper
      *
      * @return array<string,mixed>
      */
-    public function toJmapWithProperties(Label $label, ?array $properties): array
+    public function toJmapWithProperties(Label $label, MailboxCounts $counts, ?array $properties): array
     {
-        $full = $this->toJmap($label);
+        $full = $this->toJmap($label, $counts);
 
         if (null === $properties) {
             return $full;
@@ -115,22 +115,6 @@ final class MailboxMapper
             'mayRename' => $mutable,
             'mayDelete' => $mutable,
             'maySubmit' => true,
-        ];
-    }
-
-    /**
-     * @return array{totalEmails:int,unreadEmails:int,totalThreads:int,unreadThreads:int}
-     */
-    private function counts(Label $label): array
-    {
-        // Phase 4: replace with a grouped COUNT over the message<->label join
-        // (total + unread, plus thread-collapsed variants). Zero is a valid
-        // placeholder that lets clients render the folder tree in the meantime.
-        return [
-            'totalEmails' => 0,
-            'unreadEmails' => 0,
-            'totalThreads' => 0,
-            'unreadThreads' => 0,
         ];
     }
 }

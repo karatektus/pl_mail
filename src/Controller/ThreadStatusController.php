@@ -8,6 +8,8 @@ use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MessageFlag;
 use App\Entity\Label;
 use App\Entity\Message;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\LabelRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
@@ -45,6 +47,7 @@ class ThreadStatusController extends AbstractController
         private readonly LabelResolver           $labelResolver,
         private readonly LabelChangePropagator   $propagator,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
+        private readonly StateManager            $stateManager,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -68,6 +71,7 @@ class ThreadStatusController extends AbstractController
         }
 
         $this->propagator->star($messages, $starred);
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
@@ -104,6 +108,7 @@ class ThreadStatusController extends AbstractController
         }
 
         $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
@@ -140,6 +145,7 @@ class ThreadStatusController extends AbstractController
         }
 
         $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
@@ -188,6 +194,7 @@ class ThreadStatusController extends AbstractController
         }
 
         $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_label.stream.html.twig', [
@@ -219,6 +226,7 @@ class ThreadStatusController extends AbstractController
         }
 
         $thread->setSnoozedUntil($until);
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
@@ -251,6 +259,7 @@ class ThreadStatusController extends AbstractController
 
         $thread->setUnreadCount($unread);
         $this->propagator->markRead($messages, $markAsRead);
+        $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [
@@ -264,6 +273,26 @@ class ThreadStatusController extends AbstractController
     /**
      * @return Message[]
      */
+    /**
+     * Record a web-UI mutation in the JMAP change log so connected JMAP
+     * clients see it on their next Email/changes. record() only persists, so
+     * these rows commit on the caller's existing flush().
+     *
+     * @param list<Message> $messages
+     */
+    private function recordJmapUpdates(array $messages): void
+    {
+        foreach ($messages as $message) {
+            $account = $message->getAccount();
+
+            $this->stateManager->recordUpdated(
+                (int) $account->getId(),
+                JmapObjectType::Email,
+                (string) $message->getId(),
+            );
+        }
+    }
+
     private function resolveMessages(string $type, int $id): array
     {
         $messages = [];

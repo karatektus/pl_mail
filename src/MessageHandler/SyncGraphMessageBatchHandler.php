@@ -6,6 +6,8 @@ namespace App\MessageHandler;
 
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Message\SyncGraphMessageBatchMessage;
 use App\Repository\AccountRepository;
 use App\Repository\ContactRepository;
@@ -56,6 +58,7 @@ final readonly class SyncGraphMessageBatchHandler
         private MessageBusInterface    $bus,
         private MailBodySanitizer      $sanitizer,
         private EntityManagerInterface $em,
+        private StateManager           $stateManager,
         private LoggerInterface        $logger,
     ) {}
 
@@ -146,6 +149,14 @@ final readonly class SyncGraphMessageBatchHandler
 
         foreach ($built as $entity) {
             $this->sanitizer->sanitize($entity);
+
+            // JMAP state: the ids exist after the flush above. record() only
+            // persists, so these rows ride along on the flush below.
+            $this->stateManager->recordCreated(
+                (int) $account->getId(),
+                JmapObjectType::Email,
+                (string) $entity->getId(),
+            );
 
             $entity->setCategory($this->categorizer->categorize($entity, $correspondents));
 

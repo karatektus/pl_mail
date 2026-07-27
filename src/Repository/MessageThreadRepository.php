@@ -529,4 +529,29 @@ class MessageThreadRepository extends ServiceEntityRepository
             ['accountId' => $account->getId()],
         );
     }
+
+    /**
+     * JMAP Thread/get: fetch by id, scoped to the account. Messages are
+     * eager-joined because a Thread object is nothing but its email id list.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<MessageThread>
+     */
+    public function findByAccountAndIds(int $accountId, array $ids): array
+    {
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->addSelect('m')
+            ->leftJoin('t.messages', 'm')
+            ->where('t.account = :account')
+            ->andWhere('t.id IN (:ids)')
+            ->setParameter('account', $accountId)
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
 }

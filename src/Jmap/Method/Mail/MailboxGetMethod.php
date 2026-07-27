@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Mail;
 
 use App\Jmap\Account\AccountResolver;
+use App\Jmap\Mapper\MailboxCountsProvider;
 use App\Jmap\Mapper\MailboxMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -23,6 +24,7 @@ final class MailboxGetMethod implements JmapMethod
         private readonly AccountResolver $accountResolver,
         private readonly LabelRepository $labelRepository,
         private readonly MailboxMapper $mapper,
+        private readonly MailboxCountsProvider $countsProvider,
         private readonly StateManager $stateManager,
     ) {
     }
@@ -66,10 +68,11 @@ final class MailboxGetMethod implements JmapMethod
             $notFound = array_values(array_diff($requestedIds, $found));
         }
 
+        $counts = $this->countsProvider->forAccount($accountId);
         $list = [];
 
         foreach ($labels as $label) {
-            $list[] = $this->mapper->toJmapWithProperties($label, $properties);
+            $list[] = $this->mapper->toJmapWithProperties($label, $counts, $properties);
         }
 
         return [

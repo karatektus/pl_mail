@@ -22,5 +22,6 @@ final class Capability
     public const array SUPPORTED = [
         self::CORE,
         self::MAIL,
+        self::SUBMISSION,
     ];
 }

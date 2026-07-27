@@ -7,6 +7,8 @@ namespace App\MessageHandler;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Message;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Message\SyncGmailMessageBatchMessage;
 use App\Repository\AccountRepository;
 use App\Repository\ContactRepository;
@@ -45,6 +47,7 @@ final readonly class SyncGmailMessageBatchHandler
         private MessageBusInterface    $bus,
         private MailBodySanitizer      $sanitizer,
         private EntityManagerInterface $em,
+        private StateManager           $stateManager,
         private LoggerInterface        $logger,
     ) {}
 
@@ -194,6 +197,14 @@ final readonly class SyncGmailMessageBatchHandler
 
         foreach ($built as $item) {
             $this->sanitizer->sanitize($item['message']);
+
+            // JMAP state: the ids exist after the flush above. record() only
+            // persists, so these rows ride along on the flush below.
+            $this->stateManager->recordCreated(
+                (int) $item['account']->getId(),
+                JmapObjectType::Email,
+                (string) $item['message']->getId(),
+            );
 
             $item['message']->setCategory($this->categorizer->categorize($item['message'], $correspondents));
             try {

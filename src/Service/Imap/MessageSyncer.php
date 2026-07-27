@@ -7,6 +7,8 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
@@ -32,6 +34,7 @@ class MessageSyncer
         private readonly MailBodySanitizer       $sanitizer,
         private readonly MessageCategorizer      $categorizer,
         private readonly ContactRepository       $contactRepository,
+        private readonly StateManager            $stateManager,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -156,6 +159,15 @@ class MessageSyncer
         // Pass 2 — assign threads now that all messages exist in DB
         foreach ($messages as $message) {
             $this->sanitizer->sanitize($message);
+
+            // JMAP state: the ids exist after the flush above. record() only
+            // persists, so these rows ride along on the flush below.
+            $this->stateManager->recordCreated(
+                (int) $accountId,
+                JmapObjectType::Email,
+                (string) $message->getId(),
+            );
+
             $message->setCategory($this->categorizer->categorize($message, $correspondents));
             try {
                 $this->messageThreader->assignThread(

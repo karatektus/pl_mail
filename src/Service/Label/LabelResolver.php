@@ -7,6 +7,8 @@ namespace App\Service\Label;
 use App\Domain\Enum\LabelRole;
 use App\Entity\Account;
 use App\Entity\Label;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -33,7 +35,23 @@ final class LabelResolver
     public function __construct(
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
+        private readonly StateManager           $stateManager,
     ) {}
+
+    /**
+     * A new Label is a new JMAP Mailbox. This is the single find-or-create
+     * choke point for both system and custom labels, so recording here covers
+     * every sync path that mints one. The row is persisted but not flushed;
+     * it commits on the caller's next flush.
+     */
+    private function recordCreated(int $accountId, Label $label): void
+    {
+        $this->stateManager->recordCreated(
+            $accountId,
+            JmapObjectType::Mailbox,
+            (string) $label->id,
+        );
+    }
 
     public function systemLabel(LabelRole $role, Account $account): Label
     {
@@ -60,6 +78,8 @@ final class LabelResolver
 
             $this->em->persist($label);
             $this->em->flush();
+
+            $this->recordCreated($accountId, $label);
         }
 
         $this->roleIdCache[$accountId][$role->value] = (int) $label->id;
@@ -108,6 +128,8 @@ final class LabelResolver
 
                 $this->em->persist($label);
                 $this->em->flush();
+
+                $this->recordCreated($accountId, $label);
             }
 
             $parent = $label;
