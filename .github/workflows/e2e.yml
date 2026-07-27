@@ -38,6 +38,21 @@
 #        steps:
 #            - uses: actions/checkout@v4
 #
+#            - name: Setup PHP extension cache
+#              id: php-extension-cache
+#              uses: shivammathur/cache-extensions@v1
+#              with:
+#                  php-version: "8.4"
+#                  extensions: ctype, iconv, pcntl, pdo_pgsql, pgsql, intl, sodium, mbstring, xml, curl, zip
+#                  key: php-extensions-v1
+#
+#            - name: Cache PHP extensions
+#              uses: actions/cache@v4
+#              with:
+#                  path: ${{ steps.php-extension-cache.outputs.dir }}
+#                  key: ${{ steps.php-extension-cache.outputs.key }}
+#                  restore-keys: ${{ steps.php-extension-cache.outputs.key }}
+#
 #            - name: Setup PHP
 #              uses: shivammathur/setup-php@v2
 #              with:
@@ -72,8 +87,25 @@
 #            - name: Install Node dependencies
 #              run: npm ci
 #
+#            - name: Resolve Playwright version
+#              id: playwright-version
+#              run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+#
+#            - name: Cache Playwright browsers
+#              id: playwright-cache
+#              uses: actions/cache@v4
+#              with:
+#                  path: ~/.cache/ms-playwright
+#                  key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+#
 #            - name: Install Playwright browsers
+#              if: steps.playwright-cache.outputs.cache-hit != 'true'
 #              run: npx playwright install --with-deps chromium
+#
+#            # Browsers came from cache; the apt libs they link against did not.
+#            - name: Install Playwright system dependencies
+#              if: steps.playwright-cache.outputs.cache-hit == 'true'
+#              run: npx playwright install-deps chromium
 #
 #            - name: Build frontend assets
 #              run: |
