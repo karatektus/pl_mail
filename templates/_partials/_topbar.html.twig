@@ -88,6 +88,22 @@
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
+        {# TEMPORARY: manual sync trigger (app:mail:sync) #}
+        <button
+            type="button"
+            data-controller="sync-now"
+            data-sync-now-url-value="{{ path('app_dev_sync_run') }}"
+            data-sync-now-status-url-value="{{ path('app_dev_sync_status') }}"
+            data-action="click->sync-now#run"
+            class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+                   text-ink-muted hover:bg-hover transition-colors flex-shrink-0
+                   disabled:cursor-default disabled:opacity-60"
+            aria-label="Sync now"
+            title="Sync now"
+        >
+            <i class="fa-solid fa-rotate text-base" data-sync-now-target="icon" aria-hidden="true"></i>
+        </button>
+
         {# User menu #}
         <div class="relative ml-1" data-controller="user-menu">
             <button id="user-menu-btn"
