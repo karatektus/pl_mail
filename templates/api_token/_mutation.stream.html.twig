@@ -1,0 +1,16 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: toastType } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-app-password-list">
+    <template>
+        <div id="settings-app-password-list">
+            {% include 'settings/_app_passwords.html.twig' with {
+                apiTokens: apiTokens,
+                newSecret: newSecret,
+            } %}
+        </div>
+    </template>
+</turbo-stream>

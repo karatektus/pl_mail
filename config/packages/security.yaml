@@ -18,6 +18,13 @@ security:
             pattern: ^/(jmap|\.well-known/jmap)
             stateless: true
             provider: app_user_provider
+            # Two credential types share this firewall: long-lived app
+            # passwords (third-party clients, Bearer or Basic) and short-lived
+            # JWTs (the future first-party app). ApiTokenAuthenticator::supports()
+            # claims only Basic and prefixed Bearer, so JWT gets the rest.
+            custom_authenticators:
+                - App\Security\ApiTokenAuthenticator
+            entry_point: App\Security\ApiTokenAuthenticator
             jwt: ~
         main:
             lazy: true

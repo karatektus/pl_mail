@@ -53,6 +53,14 @@ services:
         arguments:
             $senders: !tagged_iterator app.mail_sender
 
+    # App passwords and JWTs share the JMAP firewall and both arrive as a
+    # Bearer token. This keeps the JWT authenticator from claiming (and then
+    # failing) an app password.
+    App\Security\JwtBearerTokenExtractor:
+        decorates: lexik_jwt_authentication.extractor.authorization_header_extractor
+        arguments:
+            $inner: '@.inner'
+
     App\Jmap\Method\MethodRegistry:
         arguments:
             $methods: !tagged_iterator app.jmap_method

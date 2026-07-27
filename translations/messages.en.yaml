@@ -296,6 +296,28 @@ toolbar:
         next: Older
 
 settings:
+    app_passwords:
+        heading: App passwords
+        subheading: >-
+            Sign in to third-party mail apps that speak JMAP. Each app gets its
+            own password you can revoke on its own.
+        empty: No app passwords yet. Generate one to connect a mail app.
+        generate: Generate
+        name_placeholder: 'What is it for? e.g. iPhone — Sterna'
+        revoke: Revoke
+        revoke_confirm: 'Revoke "%name%"? Any app using it will be signed out immediately.'
+        last_used: 'Last used %date%'
+        never_used: Never used
+        copy: Copy
+        copy_now: Here is your new app password
+        copy_now_hint: >-
+            Copy it now — it is not stored and cannot be shown again. If you
+            lose it, revoke it and generate another.
+        setup_heading: Connecting an app
+        setup_hint: >-
+            Use your email address as the username and the app password as the
+            password. If the app asks for a server or JMAP URL, give it this —
+            not the /jmap/api address, which only accepts POST.
     aliases:
         heading: 'Email addresses'
         subheading: 'Addresses this account sends and receives as.'
@@ -326,6 +348,7 @@ settings:
         labels: Labels
         appearance: Appearance
         aliases: Aliases
+        app_passwords: App passwords
     accounts:
         primary: Primary
         reorder: Drag to reorder

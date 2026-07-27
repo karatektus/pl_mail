@@ -64,6 +64,11 @@
                                         <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.labels'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'app-passwords' }) }}"
+                                       class="{{ section == 'app-passwords' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-key w-4 {{ section == 'app-passwords' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.app_passwords'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'appearance' }) }}"
                                        class="{{ section == 'appearance' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-palette w-4 {{ section == 'appearance' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
@@ -91,6 +96,30 @@
 
                                             </div>
                                         </section>
+                                    {% elseif section == 'app-passwords' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.app_passwords.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.app_passwords.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                <div id="settings-app-password-list">
+                                                    {% include 'settings/_app_passwords.html.twig' with {
+                                                        apiTokens: apiTokens,
+                                                    } %}
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-4 rounded-pane border border-line px-4 py-3.5">
+                                                <h3 class="text-xs font-semibold text-ink mb-1">{{ 'settings.app_passwords.setup_heading'|trans }}</h3>
+                                                <p class="text-[11px] text-ink-muted leading-relaxed">
+                                                    {{ 'settings.app_passwords.setup_hint'|trans }}
+                                                </p>
+                                                <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ app.request.schemeAndHttpHost }}/jmap/session</code>
+                                            </div>
+                                        </section>
+
                                     {% elseif section == 'labels' %}
                                         <section>
                                             <div class="mb-4">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\AccountRepository;
+use App\Repository\ApiTokenRepository;
 use App\Repository\LabelRepository;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,12 +18,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases'];
+    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
+        private readonly ApiTokenRepository $apiTokenRepository,
     ) {
     }
 
@@ -47,6 +49,7 @@ final class SettingsController extends AbstractController
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
             'labelsByAccount'    => $labelsByAccount,
+            'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
         ]);
     }
 }
