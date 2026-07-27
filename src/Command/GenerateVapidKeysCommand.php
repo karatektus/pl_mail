@@ -34,7 +34,7 @@ final class GenerateVapidKeysCommand extends Command
 
         $keys = VAPID::createVapidKeys();
 
-        $io->section('Add to .env.local (never to .env — it is tracked)');
+        $io->section('Local development — add to .env.local (never .env, it is tracked)');
         $io->writeln('###> plmail/web-push ###');
         $io->writeln('VAPID_SUBJECT=mailto:you@example.com');
         $io->writeln('VAPID_PUBLIC_KEY='.$keys['publicKey']);
@@ -46,6 +46,14 @@ final class GenerateVapidKeysCommand extends Command
             'Rotating these invalidates every existing PushSubscription.',
             'Devices bind to the public key at registration and must re-register.',
         ]);
+
+        $io->section('Container deployment — set as environment variables instead');
+        $io->writeln('There is no .env.local to edit in a container image. Pass these as env');
+        $io->writeln('vars on the php, messenger-worker and imap-supervisor services; a real');
+        $io->writeln('environment variable overrides the .env.local.php that "composer');
+        $io->writeln('dump-env prod" bakes into the image. On TrueNAS they live in the');
+        $io->writeln('x-config block of truenas.compose.yaml.');
+        $io->newLine();
 
         $io->note('VAPID_SUBJECT must be a mailto: or https: URL identifying you, per RFC 8292.');
 

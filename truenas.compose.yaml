@@ -30,6 +30,18 @@ x-config:
     # -- Public origin (your reverse-proxy hostname) --
     mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
 
+    # -- Web Push (browser/PWA notifications + JMAP PushSubscription) --
+    # Generate a keypair once, on any machine with the image:
+    #   docker run --rm ghcr.io/karatektus/pl_mail:latest php bin/console app:push:generate-vapid-keys
+    # then paste the two keys below. Leave them blank to disable push entirely —
+    # the app detects that and hides the notification toggle.
+    # Rotating them invalidates every existing subscription; every device has to
+    # re-enable notifications afterwards.
+    # vapid_subject must be a mailto: or https: URL identifying you (RFC 8292).
+    vapid_subject:        &vapid_subject        "mailto:you@yourdomain.com"
+    vapid_public_key:     &vapid_public_key     ""
+    vapid_private_key:    &vapid_private_key    ""
+
     # -- Gmail (leave blank for IMAP-only) --
     google_client_id:     &google_client_id     ""
     google_client_secret: &google_client_secret ""
@@ -47,18 +59,6 @@ x-config:
     path_caddy_config:    &path_caddy_config    /mnt/yourPool/yourDataSet/caddy-config
     path_mercure_data:    &path_mercure_data    /mnt/yourPool/yourDataSet/mercure-data
     path_mercure_config:  &path_mercure_config  /mnt/yourPool/yourDataSet/mercure-config
-    # Mail data written by the workers and READ BY THE WEB CONTAINER. All three
-    # services must bind the same host paths or downloads 404: the sync workers
-    # write attachments and raw messages, the web container serves them.
-    #
-    # These may be subdirectories of a single dataset — Docker creates any that
-    # do not exist, owned by root, which is what the container runs as. No
-    # chown needed.
-    #
-    # ZFS uses NFSv4 ACLs, so the entrypoint's setfacl on var/ cannot apply here
-    # and logs "Operation not supported". That is expected and harmless; the
-    # entrypoint no longer treats it as fatal (see frankenphp/docker-entrypoint.sh).
-    # It does mean this fix only takes effect once the image is rebuilt.
     path_attachments:     &path_attachments     /mnt/yourPool/yourDataSet/attachments
     path_raw:             &path_raw             /mnt/yourPool/yourDataSet/raw
     path_uploads:         &path_uploads         /mnt/yourPool/yourDataSet/uploads
@@ -73,6 +73,9 @@ x-app-env: &app-env
     MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
     MERCURE_URL: "http://mercure/.well-known/mercure"
     MERCURE_PUBLIC_URL: *mercure_public_url
+    VAPID_SUBJECT: *vapid_subject
+    VAPID_PUBLIC_KEY: *vapid_public_key
+    VAPID_PRIVATE_KEY: *vapid_private_key
     MERCURE_JWT_SECRET: *mercure_jwt
     GOOGLE_OAUTH_CLIENT_ID: *google_client_id
     GOOGLE_OAUTH_CLIENT_SECRET: *google_client_secret

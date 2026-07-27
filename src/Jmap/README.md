@@ -193,6 +193,14 @@ supplied URL, and the subscription receives nothing until the client echoes the
 code back. plMail's own PWA is not exempt — `public/sw.js` posts the code to
 `/settings/push/verify`.
 
+VAPID keys come from `VAPID_SUBJECT` / `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`
+(`app:push:generate-vapid-keys` mints a pair). Locally they go in `.env.local`;
+in a container there is no such file, so they are set as environment variables —
+a real env var overrides the `.env.local.php` baked in by `composer dump-env
+prod`. Blank keys disable push cleanly: `WebPushSender::isConfigured()` returns
+false, the Session advertises an empty `vapidPublicKey`, and the settings UI
+hides the toggle.
+
 `StateManager` collapses dirty `(account, type)` pairs in memory and
 `JmapPushSubscriber` drains them once per request (`kernel.terminate`) or per
 worker message, so a sync importing 50 messages sends **one** notification.
