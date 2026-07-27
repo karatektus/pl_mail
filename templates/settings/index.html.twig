@@ -54,6 +54,11 @@
                                         <i class="fa-solid fa-at w-4 {{ section == 'accounts' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.accounts'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'general' }) }}"
+                                       class="{{ section == 'general' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-sliders w-4 {{ section == 'general' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.general'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'aliases' }) }}"
                                        class="{{ section == 'aliases' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-palette w-4 {{ section == 'aliases' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
@@ -85,6 +90,20 @@
                                 <div>
                                     {% if section == 'appearance' %}
                                         {% include 'settings/_appearance.html.twig' %}
+                                    {% elseif section == 'general' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.language.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.language.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                {% include 'settings/_language.html.twig' with {
+                                                    locales: locales,
+                                                    activeLocale: activeLocale,
+                                                } %}
+                                            </div>
+                                        </section>
                                     {% elseif section == 'aliases' %}
                                         <section>
                                             <div class="mb-4">

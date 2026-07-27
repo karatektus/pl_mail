@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Enum\AppLocale;
 use App\Repository\AccountRepository;
 use App\Repository\ApiTokenRepository;
 use App\Repository\LabelRepository;
@@ -19,7 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords', 'notifications'];
+    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -28,6 +29,8 @@ final class SettingsController extends AbstractController
         private readonly ApiTokenRepository $apiTokenRepository,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
         private readonly string $vapidPublicKey,
+        #[Autowire('%kernel.default_locale%')]
+        private readonly string $defaultLocale,
     ) {
     }
 
@@ -54,6 +57,10 @@ final class SettingsController extends AbstractController
             'labelsByAccount'    => $labelsByAccount,
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'vapidPublicKey'     => $this->vapidPublicKey,
+            'locales'            => AppLocale::cases(),
+            'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->getLocale())
+                ?? AppLocale::tryFromRequest($this->defaultLocale)
+                ?? AppLocale::English,
         ]);
     }
 }

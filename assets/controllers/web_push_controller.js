@@ -20,6 +20,9 @@ export default class extends Controller {
         subscribeUrl: String,
         unsubscribeUrl: String,
         statusUrl: String,
+        // state name -> human text, translated server-side so this controller
+        // carries no copy of its own.
+        labels: Object,
     };
 
     connect() {
@@ -136,8 +139,13 @@ export default class extends Controller {
                 credentials: "same-origin",
             });
 
+            // Returning silently here would leave the pane on "Checking…"
+            // indefinitely, which looks identical to a hung request and hides
+            // the actual failure.
             if (false === response.ok) {
-                return;
+                this._setState("error");
+
+                return null;
             }
 
             const status = await response.json();
@@ -145,7 +153,7 @@ export default class extends Controller {
             if (false === status.configured) {
                 this._setState("unconfigured");
 
-                return;
+                return status;
             }
 
             this._enabled = status.verified;
@@ -153,6 +161,8 @@ export default class extends Controller {
 
             return status;
         } catch (e) {
+            this._setState("error");
+
             return null;
         }
     }
@@ -160,6 +170,12 @@ export default class extends Controller {
     /** Verification is asynchronous, so give it a few seconds before giving up. */
     _pollStatus(attemptsLeft) {
         if (attemptsLeft <= 0) {
+            // Verification never arrived — the push reached no service worker.
+            // Say so rather than leaving an indefinite "waiting" state.
+            if ("on" !== this.stateTarget?.dataset.pushState) {
+                this._setState("error");
+            }
+
             return;
         }
 
@@ -177,12 +193,23 @@ export default class extends Controller {
     _setState(state) {
         if (true === this.hasStateTarget) {
             this.stateTarget.dataset.pushState = state;
+            // The data attribute alone is invisible — the label has to be
+            // written, or the pane sits on its server-rendered "Checking…"
+            // forever no matter what the real state is.
+            this.stateTarget.textContent = this._label(state);
         }
 
         if (true === this.hasToggleTarget) {
             this.toggleTarget.dataset.pushState = state;
             this.toggleTarget.disabled = ["unsupported", "unconfigured", "working"].includes(state);
+            this.toggleTarget.textContent = this._label("on" === state ? "action_disable" : "action_enable");
         }
+    }
+
+    _label(key) {
+        const labels = this.hasLabelsValue ? this.labelsValue : {};
+
+        return labels[key] ?? key;
     }
 
     _supported() {

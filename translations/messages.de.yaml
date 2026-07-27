@@ -1,0 +1,547 @@
+account:
+    add_title: Konto hinzufügen
+    added: Konto wurde hinzugefügt
+    disabled: Konto deaktiviert
+    enabled: Konto aktiviert
+    form:
+        email: E-Mail-Adresse
+        encryption: Verschlüsselung
+        imap:
+            heading: Eingehend — IMAP
+            host: Server
+        password: Passwort
+        port: Port
+        preset:
+            label: Anbieter
+            placeholder: Anbieter wählen…
+        smtp:
+            heading: Ausgehend — SMTP
+            host: Server
+        username: Benutzername
+    oauth:
+        google: Weiter mit Google
+        info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
+        microsoft: Weiter mit Microsoft
+    removed: Konto entfernt
+    tabs:
+        imap: IMAP / SMTP
+        oauth: OAuth
+    test:
+        button: Verbindung testen
+        imap: IMAP
+        smtp: SMTP
+    updated: Konto aktualisiert
+
+admin:
+    accounts:
+        account: 'Konto'
+        heading: 'Konten'
+        last_activity: 'Letzte Aktivität'
+        messages: 'Nachrichten'
+        threads: 'Konversationen'
+    ago: 'her'
+    db:
+        active:
+            empty: 'Zurzeit keine aktiven Abfragen.'
+            heading: 'Live-Aktivität'
+        cache_hit: 'Cache-Trefferquote'
+        col:
+            calls: 'Aufrufe'
+            hit: 'Cache'
+            max: 'Max. ms'
+            mean: 'Ø ms'
+            query: 'Abfrage'
+            rows: 'Zeilen'
+            total: 'Gesamt'
+        connections: 'Verbindungen'
+        deadlocks: 'Deadlocks'
+        extension_missing: 'pg_stat_statements ist nicht aktiviert — die Auswertung langsamer Abfragen steht nicht zur Verfügung. Einmalig aktivieren:'
+        heavy_total:
+            heading: 'Aufwendigste Abfragen (nach Gesamtzeit)'
+            hint: 'Kumulierte Zeit über alle Aufrufe — wofür die Datenbank ihre Zeit insgesamt aufwendet.'
+        reset: 'Statistik zurücksetzen'
+        reset_confirm: 'Alle gesammelten Abfragestatistiken zurücksetzen?'
+        rollback_ratio: 'Rollback-Quote'
+        slow_mean:
+            empty: 'Noch keine Abfragen oberhalb des Schwellwerts.'
+            heading: 'Langsamste Abfragen (nach Durchschnittszeit)'
+            hint: 'Abfragen mit durchschnittlich ≥ 5 ms, aktuelle Datenbank.'
+    failed:
+        delete: 'Löschen'
+        delete_confirm: 'Diese fehlgeschlagene Nachricht endgültig verwerfen?'
+        empty: 'Der Failure-Transport ist leer. 🎉'
+        heading: 'Fehlgeschlagene Nachrichten'
+        retry: 'Wiederholen'
+    loading: 'Wird geladen…'
+    logs:
+        all_channels: 'Alle Kanäle'
+        empty: 'Auf dieser Stufe wurde nichts protokolliert.'
+        entries: 'Einträge'
+        heading: 'Protokolle'
+        newer: 'Neuer'
+        older: 'Älter'
+        page: 'Seite'
+        refresh: 'Aktualisieren'
+    nav:
+        database: Datenbank
+        logs: Protokolle
+        system: System
+    processes:
+        empty: 'Noch keine Heartbeats — Prozesse melden sich hier nach ihrem ersten Lebenszeichen.'
+        heading: 'Prozesse'
+        key: 'Instanz'
+        last_beat: 'Letztes Lebenszeichen'
+        pid: 'PID'
+        type: 'Typ'
+    queues:
+        empty: 'Keine wartenden Nachrichten.'
+        heading: 'Messenger-Warteschlangen'
+        oldest: 'Am längsten wartend'
+        pending: 'Ausstehend'
+        queue: 'Warteschlange'
+    refresh_hint: 'Live-Bereiche aktualisieren sich alle 10 s'
+    tables:
+        heading: 'Tabellengrößen'
+    title: 'Administration'
+    tokens:
+        empty: 'Noch keine Token-Erneuerungen erfasst.'
+        heading: 'Zustand der OAuth-Token'
+    webhooks:
+        empty: 'Keine Gmail-Konten mit Watch-Status.'
+        heading: 'Gmail-Webhooks'
+        history_id: 'History-ID'
+        last_push: 'Letzter Push'
+        never: 'nie'
+        none: 'nicht registriert'
+        watch_expiry: 'Watch läuft ab'
+
+alias:
+    added: 'Adresse hinzugefügt.'
+    deleted: 'Adresse entfernt.'
+    duplicate: 'Diese Adresse ist bereits in diesem Konto vorhanden.'
+    invalid: 'Das sieht nicht nach einer gültigen E-Mail-Adresse aus.'
+    primary_set: 'Hauptadresse aktualisiert.'
+    refreshed: 'Vom Anbieter aktualisiert.'
+    status_blocked: 'Die Hauptadresse kann nicht deaktiviert werden — lege zuerst eine andere als Hauptadresse fest.'
+    status_set: 'Adresse aktualisiert.'
+
+app:
+    name: Mail
+
+compose:
+    click_to_cancel: zum Abbrechen klicken
+    continue_editing: Weiter bearbeiten
+    discard: Entwurf löschen
+    empty_draft: (leerer Entwurf)
+    forward: Weiterleiten
+    no_recipients: Keine Empfänger
+    pop_out: In eigenem Fenster öffnen
+    reply: Antworten
+    reply_all: Allen antworten
+    reply_placeholder: "An %name% antworten"
+    save_and_close: Entwurf speichern und schließen
+    sending: "Wird gesendet…"
+
+drafts:
+    empty: Keine Entwürfe.
+    heading: Entwürfe
+
+errors:
+    access_denied: Du hast keinen Zugriff auf diese Ressource.
+    not_found: Die angeforderte Ressource wurde nicht gefunden.
+
+form:
+    cancel: Abbrechen
+    submit: Speichern
+
+header:
+    labels:
+        add: Label erstellen
+        heading: Labels
+        none: Noch keine Labels
+    search:
+        placeholder: E-Mails durchsuchen…
+    user_menu:
+        admin: Administration
+        label: Benutzermenü für %email%
+        settings: Einstellungen
+        sign_out: Abmelden
+        signed_in_as: Angemeldet als
+
+inbox:
+    empty: Keine Nachrichten in diesem Tab.
+
+label:
+    color:
+        amber: Bernstein
+        blue: Blau
+        gray: Grau
+        green: Grün
+        orange: Orange
+        pink: Rosa
+        red: Rot
+        teal: Petrol
+        violet: Violett
+    empty: Keine Konversationen mit diesem Label.
+    error:
+        duplicate: Hier gibt es bereits ein Label mit diesem Namen.
+    form:
+        account: Konto
+        color: Farbe
+        delete: Label löschen
+        name: Name
+        no_color: '— keine —'
+        no_parent: '— oberste Ebene —'
+        parent: Einordnen unter
+    menu:
+        create: Neu erstellen
+        empty: Noch keine Labels.
+    visibility:
+        hidden: Label ist jetzt ausgeblendet.
+        shown: Label ist jetzt sichtbar.
+
+login:
+    form:
+        email: E-Mail-Adresse
+        forgot_password: Passwort vergessen?
+        password: Passwort
+        submit: Anmelden
+    page_title: Anmelden
+    register:
+        coming_soon: Registrierung folgt in Kürze.
+        link: Konto erstellen
+        prompt: Noch kein Konto?
+    tagline: Melde dich bei deinem Konto an
+
+message:
+    actions:
+        archive: Archivieren
+        delete: Diese Nachricht löschen
+        expand: Diese Nachricht auf- oder zuklappen
+        mark_unread: Als ungelesen markieren
+        more: Mehr
+        print: Drucken
+        show_original: Original anzeigen
+        star: Markieren
+        unstar: Markierung entfernen
+    attachments: Anhänge
+    back: Zurück
+    details:
+        bcc: BCC
+        cc: CC
+        date: Datum
+        from: von
+        hide_all_headers: Alle Kopfzeilen ausblenden
+        label: Details
+        mailed_by: gesendet über
+        me: mich
+        reply_to: Antwort an
+        show_all_headers: Alle Kopfzeilen anzeigen
+        signed_by: signiert von
+        subject: Betreff
+        to: "an %name%"
+        to_label: an
+    draft: "Entwurf"
+    original:
+        copied: Kopiert
+        copy: In die Zwischenablage kopieren
+        heading: Originalnachricht
+
+modal:
+    close: Schließen
+    loading: Wird geladen…
+
+oauth:
+    error:
+        generic: Dieses Konto konnte nicht verbunden werden. Bitte versuche es erneut.
+        microsoft:
+            admin_consent_required: >-
+                Deine Organisation verlangt, dass ein Administrator plMail
+                freigibt, bevor du dieses Konto verbinden kannst. Bitte deinen
+                Microsoft-Administrator um die Freigabe.
+            app_not_found: >-
+                plMail ist in deiner Microsoft-Organisation nicht registriert.
+            bad_credentials: >-
+                Die Microsoft-Zugangsdaten von plMail sind ungültig oder
+                abgelaufen. Das ist ein Problem der Serverkonfiguration und
+                nichts, was du selbst beheben kannst.
+            blocked_by_policy: >-
+                Eine Sicherheitsrichtlinie deiner Organisation hat diese
+                Anmeldung blockiert.
+            consent_declined: >-
+                Verbindung abgebrochen — plMail wurde kein Zugriff gewährt.
+            tenant_mismatch: >-
+                Dieser Kontotyp kann sich mit der aktuellen Konfiguration nicht
+                bei plMail anmelden. Prüfe die Einstellung
+                MICROSOFT_OAUTH_TENANT.
+
+sent:
+    empty: Keine gesendeten Nachrichten.
+    heading: Gesendet
+
+settings:
+    accounts:
+        delete: Konto entfernen
+        delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
+        disable: Konto deaktivieren
+        edit: Konto bearbeiten
+        empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
+        enable: Konto aktivieren
+        heading: E-Mail-Konten
+        label_sync:
+            off_hint: >-
+                Labels bleiben lokal in plMail. Aktiviere dies, um künftige
+                Label-Änderungen zu diesem Anbieter zu spiegeln.
+            on_hint: >-
+                Labels, die du anlegst, umbenennst oder löschst, werden zu
+                diesem Anbieter gespiegelt. Bestehende Labels bleiben
+                unverändert.
+            title: Labels zum Anbieter synchronisieren
+        password_help: Leer lassen, um das aktuelle Passwort zu behalten.
+        primary: Primär
+        push:
+            degraded_hint: >-
+                Push ist registriert, aber es kam zuletzt nichts an. Das
+                Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
+                oder zeigt woanders hin. E-Mails werden weiterhin nach Zeitplan
+                synchronisiert.
+            failed: >-
+                Push konnte nicht aktiviert werden — Microsoft muss diesen
+                Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
+                APP_PUBLIC_URL. Das Konto wird weiterhin nach Zeitplan
+                synchronisiert.
+            health:
+                active: Push
+                degraded: Push (liefert nicht)
+                inactive: Nach Zeitplan
+            mode_pull: Nach Zeitplan
+            mode_push: Push
+            not_configured: >-
+                Push ist auf diesem Server nicht verfügbar — dafür werden eine
+                öffentliche HTTPS-Adresse und, für Gmail, ein Cloud-Pub/Sub-Topic
+                benötigt.
+            off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
+            on_hint: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
+            renews: Abonnement wird vor dem %date% erneuert.
+            reregister: Push neu registrieren
+            title: Sofortige Zustellung
+        reorder: Zum Umsortieren ziehen
+        status:
+            active: Aktiv
+            disabled: Deaktiviert
+        subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
+        type:
+            imap: IMAP
+            oauth: '%provider% (OAuth)'
+    aliases:
+        add: 'Hinzufügen'
+        add_placeholder: 'Weitere Adresse hinzufügen…'
+        delete: 'Entfernen'
+        disable: 'Deaktivieren'
+        empty: 'Noch keine Adressen.'
+        enable: 'Aktivieren'
+        heading: 'E-Mail-Adressen'
+        make_primary: 'Als Hauptadresse festlegen'
+        ms_sender_hint: 'Outlook versendet unabhängig von der hier gewählten Adresse immer über den primären Alias deines Kontos — ändere ihn in deinen'
+        ms_sender_hint_link: 'Microsoft-Kontoeinstellungen'
+        primary: 'Primär'
+        refresh: 'Vom Anbieter aktualisieren'
+        subheading: 'Adressen, unter denen dieses Konto sendet und empfängt.'
+        system: 'System'
+    app_passwords:
+        copy: Kopieren
+        copy_now: Hier ist dein neues App-Passwort
+        copy_now_hint: >-
+            Kopiere es jetzt — es wird nicht gespeichert und kann nicht erneut
+            angezeigt werden. Wenn du es verlierst, widerrufe es und erzeuge ein
+            neues.
+        empty: Noch keine App-Passwörter. Erzeuge eines, um eine Mail-App zu verbinden.
+        generate: Erzeugen
+        heading: App-Passwörter
+        last_used: 'Zuletzt verwendet %date%'
+        name_placeholder: 'Wofür ist es? z. B. iPhone — Sterna'
+        never_used: Nie verwendet
+        revoke: Widerrufen
+        revoke_confirm: '"%name%" widerrufen? Jede App, die es verwendet, wird sofort abgemeldet.'
+        setup_heading: Eine App verbinden
+        setup_hint: >-
+            Verwende deine E-Mail-Adresse als Benutzernamen und das App-Passwort
+            als Passwort. Fragt die App nach einem Server oder einer JMAP-URL,
+            gib diese an — nicht die Adresse /jmap/api, die nur POST annimmt.
+        subheading: >-
+            Melde dich bei Mail-Apps von Drittanbietern an, die JMAP sprechen.
+            Jede App bekommt ein eigenes Passwort, das du einzeln widerrufen
+            kannst.
+    appearance:
+        accent:
+            heading: Akzentfarbe
+        background:
+            heading: Hintergrund
+            theme: Theme-Standard
+            upload: Bild hochladen
+        density:
+            comfortable: Komfortabel
+            compact: Kompakt
+            cosy: Gemütlich
+            heading: Dichte
+        export: Theme exportieren
+        glass:
+            heading: Glas
+            paneAlpha: Deckkraft
+            paneBlur: Weichzeichnen
+            radius: Eckenradius
+            scrimAlpha: Hintergrundabdunklung
+            subheading: Wie viel vom Hintergrund durch deine Flächen scheint.
+        import: Theme importieren
+        main:
+            default: Theme-Standard
+            heading: Hauptbereich
+            matchGlass: An Glas-Deckkraft angleichen
+            subheading: Farbton und Deckkraft des Hauptbereichs, unabhängig von der Seitenleiste.
+            tint: Hintergrundfarbton
+        reset: Auf Standard zurücksetzen
+        text:
+            autoDerive: Automatisch ableiten
+            color: Textfarbe
+            default: Theme-Standard
+            faint: Sehr blass
+            heading: Text
+            muted: Gedämpft
+            subheading: Passe die Textfarbe für bessere Lesbarkeit auf deinem Hintergrund an.
+        theme:
+            dark: Dunkel
+            dusk: Dämmerung
+            heading: Theme
+            light: Hell
+            nord: Nord
+            solar: Solar
+            subheading: Farbschema für die gesamte Oberfläche.
+            system: System
+    back: Zurück zum Posteingang
+    labels:
+        empty: Noch keine Labels — sie erscheinen nach der ersten Synchronisierung.
+        heading: Labels
+        hide: Label ausblenden
+        show: Label anzeigen
+        subheading: Wähle, welche Labels in der Seitenleiste erscheinen.
+        system: System
+    language:
+        heading: Sprache
+        subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
+    nav:
+        accounts: E-Mail-Konten
+        aliases: Aliase
+        app_passwords: App-Passwörter
+        appearance: Darstellung
+        general: Allgemein
+        labels: Labels
+        notifications: Benachrichtigungen
+    notifications:
+        heading: Benachrichtigungen
+        ios_hint: >-
+            Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn
+            plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
+            Teilen tippen, dann "Zum Home-Bildschirm", und dort
+            Benachrichtigungen aktivieren.
+        state_denied: >-
+            In deinen Browser-Einstellungen blockiert. Erlaube
+            Benachrichtigungen für diese Seite und versuche es erneut.
+        state_error: Etwas ist schiefgelaufen. Versuche es erneut.
+        state_off: 'Aus — dieses Gerät wird nicht benachrichtigt.'
+        state_on: An — dieses Gerät wird über neue E-Mails benachrichtigt.
+        state_pending: Warten auf die Bestätigung dieses Geräts…
+        state_unconfigured: Push ist auf diesem Server nicht konfiguriert.
+        state_unknown: Wird geprüft…
+        state_unsupported: >-
+            Dieser Browser kann keine Benachrichtigungen empfangen. Füge plMail
+            auf iPhone und iPad zuerst zum Home-Bildschirm hinzu.
+        state_working: Wird ausgeführt…
+        subheading: >-
+            Lass dich auf diesem Gerät über neue E-Mails benachrichtigen, auch
+            wenn plMail geschlossen ist.
+        this_device: Dieses Gerät
+        toggle: Benachrichtigungen aktivieren
+        toggle_off: Benachrichtigungen deaktivieren
+        unconfigured: >-
+            Push ist auf diesem Server nicht konfiguriert — es sind keine
+            VAPID-Schlüssel hinterlegt. Führe
+            "bin/console app:push:generate-vapid-keys" aus.
+    title: Einstellungen
+
+sidebar:
+    accounts:
+        add: Konto hinzufügen
+        heading: Konten
+        loading: Wird geladen…
+        none: Noch keine Konten
+        toggle: Kontoordner ein-/ausklappen
+    compose: Schreiben
+    labels:
+        add: Label erstellen
+        heading: Labels
+        none: Noch keine Labels
+    nav:
+        archive: Archiv
+        drafts: Entwürfe
+        inbox: Posteingang
+        sent: Gesendet
+        starred: Markiert
+        trash: Papierkorb
+
+starred:
+    empty: Keine markierten Nachrichten.
+    heading: Markiert
+
+tabs:
+    forums: Foren
+    primary: Allgemein
+    promotions: Werbung
+    social: Soziale Netzwerke
+    updates: Updates
+
+thread:
+    no_subject: (kein Betreff)
+
+thread_row:
+    actions:
+        archive: Archivieren
+        delete: Löschen
+        mark_read: Als gelesen markieren
+        mark_unread: Als ungelesen markieren
+        snooze: Zurückstellen
+    message_count: "({ count })"
+    no_subject: (kein Betreff)
+    select: Auswählen
+    star: Diese Nachricht markieren
+    unstar: Markierung dieser Nachricht entfernen
+
+toast:
+    dismiss: Schließen
+    error:
+        no_archive_mailbox: Es gibt kein Archiv-Postfach.
+
+toolbar:
+    actions:
+        archive: Archivieren
+        delete: Löschen
+        label: Label vergeben
+        mark_read: Als gelesen markieren
+        mark_unread: Als ungelesen markieren
+        snooze: Zurückstellen
+    pagination:
+        next: Älter
+        of: von
+        prev: Neuer
+    refresh: Aktualisieren
+    select:
+        all: Alle
+        none: Keine
+        read: Gelesene
+        starred: Markierte
+        unread: Ungelesene
+    select_all: Alle Konversationen auswählen
+    select_menu: Weitere Auswahloptionen
+
+trash:
+    empty: Keine gelöschten Nachrichten.
+    heading: Papierkorb

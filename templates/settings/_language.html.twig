@@ -1,0 +1,39 @@
+{#
+settings/_language.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Interface language picker. One POST per locale — the redirect that follows
+re-renders the whole document in the chosen language.
+
+Variables:
+  locales       AppLocale[]
+  activeLocale  AppLocale
+#}
+<ul class="divide-y divide-line">
+    {% for locale in locales %}
+        {% set isActive = locale == activeLocale %}
+        <li>
+            <form method="post" action="{{ path('app_settings_locale_update') }}" data-turbo="false">
+                <input type="hidden" name="_token" value="{{ csrf_token('settings-locale') }}">
+                <input type="hidden" name="locale" value="{{ locale.value }}">
+
+                <button type="submit"
+                        {{ isActive ? 'aria-current="true" disabled' : '' }}
+                        class="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+                               {{ isActive ? 'bg-raised' : 'hover:bg-hover cursor-pointer' }}">
+                    <span class="text-base leading-none shrink-0" aria-hidden="true">{{ locale.emoji }}</span>
+
+                    <span class="flex-1 min-w-0">
+                        <span class="block truncate text-sm {{ isActive ? 'text-ink font-medium' : 'text-ink-muted' }}">
+                            {{ locale.nativeLabel }}
+                        </span>
+                        <span class="block text-[11px] text-ink-faint font-mono">{{ locale.value }}</span>
+                    </span>
+
+                    {% if isActive %}
+                        <i class="fa-solid fa-check text-xs text-accent shrink-0" aria-hidden="true"></i>
+                    {% endif %}
+                </button>
+            </form>
+        </li>
+    {% endfor %}
+</ul>

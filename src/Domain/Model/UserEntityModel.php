@@ -45,11 +45,6 @@ class UserEntityModel
         throw new LogicException();
     }
 
-    public function getLocale(): string
-    {
-        return 'de';
-    }
-
     public function getPlainPassword(): ?string
     {
         return $this->plainPassword;

@@ -1,230 +1,27 @@
-app:
-    name: Mail
-admin:
-    title: 'Admin'
-    refresh_hint: 'Live panels refresh every 10s'
-    loading: 'Loading…'
-    ago: 'ago'
-    processes:
-        heading: 'Processes'
-        empty: 'No heartbeats yet — processes report here after their first beat.'
-        type: 'Type'
-        key: 'Instance'
-        pid: 'PID'
-        last_beat: 'Last beat'
-    webhooks:
-        heading: 'Gmail webhooks'
-        empty: 'No Gmail accounts with watch state.'
-        watch_expiry: 'Watch expiry'
-        last_push: 'Last push'
-        history_id: 'History ID'
-        none: 'not registered'
-        never: 'never'
-    tokens:
-        heading: 'OAuth token health'
-        empty: 'No token refreshes recorded yet.'
-    queues:
-        heading: 'Messenger queues'
-        empty: 'No pending messages.'
-        queue: 'Queue'
-        pending: 'Pending'
-        oldest: 'Oldest waiting'
-    failed:
-        heading: 'Failed messages'
-        empty: 'Failure transport is empty. 🎉'
-        retry: 'Retry'
-        delete: 'Delete'
-        delete_confirm: 'Permanently drop this failed message?'
-    accounts:
-        heading: 'Accounts'
-        account: 'Account'
-        threads: 'Threads'
-        messages: 'Messages'
-        last_activity: 'Last activity'
-    tables:
-        heading: 'Table sizes'
-    logs:
-        heading: 'Logs'
-        entries: 'entries'
-        all_channels: 'All channels'
-        refresh: 'Refresh'
-        empty: 'Nothing logged at this level.'
-        page: 'Page'
-        newer: 'Newer'
-        older: 'Older'
-    db:
-        connections: 'Connections'
-        cache_hit: 'Cache hit'
-        rollback_ratio: 'Rollback ratio'
-        deadlocks: 'Deadlocks'
-        extension_missing: 'pg_stat_statements is not enabled — slow-query aggregation is unavailable. Enable it once:'
-        reset: 'Reset stats'
-        reset_confirm: 'Reset all collected query statistics?'
-        slow_mean:
-            heading: 'Slowest queries (by mean time)'
-            hint: 'Statements averaging ≥ 5ms, current database.'
-            empty: 'No statements above the threshold yet.'
-        heavy_total:
-            heading: 'Heaviest queries (by total time)'
-            hint: 'Cumulative time across all calls — where the DB spends its time overall.'
-        active:
-            heading: 'Live activity'
-            empty: 'No active queries right now.'
-        col:
-            query: 'Query'
-            calls: 'Calls'
-            mean: 'Mean ms'
-            max: 'Max ms'
-            total: 'Total'
-            rows: 'Rows'
-            hit: 'Cache'
-    nav:
-        system: System
-        database: Database
-        logs: Logs
-login:
-    page_title: Sign in
-    tagline: Sign in to your account
-    form:
-        email: Email address
-        password: Password
-        forgot_password: Forgot password?
-        submit: Sign in
-    register:
-        prompt: Don't have an account?
-        link: Create one
-        coming_soon: Registration coming soon.
-
-header:
-    labels:
-        heading: Labels
-        add: Create label
-        none: No labels yet
-    search:
-        placeholder: Search mail…
-    user_menu:
-        label: User menu for %email%
-        signed_in_as: Signed in as
-        settings: Settings
-        admin: Admin
-        sign_out: Sign out
-
-sidebar:
-    labels:
-        heading: Labels
-        add: Create label
-        none: No labels yet
-    compose: Compose
-    nav:
-        inbox: Inbox
-        starred: Starred
-        sent: Sent
-        drafts: Drafts
-        trash: Trash
-        archive: Archive
-    accounts:
-        heading: Accounts
-        add: Add account
-        toggle: Toggle account folders
-        loading: Loading…
-        none: No accounts yet
-
-tabs:
-    primary: Primary
-    promotions: Promotions
-    updates: Updates
-    social: Social
-    forums: Forums
-
-inbox:
-    empty: No messages in this tab.
-
-starred:
-    heading: Starred
-    empty: No starred messages.
-
-sent:
-    heading: Sent
-    empty: No sent messages.
-
-drafts:
-    heading: Drafts
-    empty: No drafts.
-
-trash:
-    heading: Trash
-    empty: No deleted messages.
-
-thread_row:
-    no_subject: (no subject)
-    select: Select
-    message_count: "({ count })"
-    star: Star this message
-    unstar: Unstar this message
-    actions:
-        archive: Archive
-        delete: Delete
-        snooze: Snooze
-        mark_read: Mark as read
-        mark_unread: Mark as unread
-
-message:
-    back: Back
-    attachments: Attachments
-    draft: "Draft"
-    details:
-        label: Details
-        me: me
-        to: "to %name%"
-        from: from
-        reply_to: reply-to
-        to_label: to
-        cc: cc
-        bcc: bcc
-        date: date
-        subject: subject
-        mailed_by: mailed-by
-        signed_by: signed-by
-        show_all_headers: Show all headers
-        hide_all_headers: Hide all headers
-    actions:
-        more: More
-        expand: Expand or collapse this message
-        star: Star
-        unstar: Remove star
-        mark_unread: Mark as unread
-        archive: Archive
-        delete: Delete this message
-        show_original: Show original
-        print: Print
-    original:
-        heading: Original message
-        copy: Copy to clipboard
-        copied: Copied
-
-compose:
-    reply: Reply
-    reply_all: Reply all
-    forward: Forward
-    reply_placeholder: "Reply to %name%"
-    pop_out: Open in compose window
-    sending: "Sending…"
-    click_to_cancel: click to cancel
-    no_recipients: No recipients
-    empty_draft: (empty draft)
-    continue_editing: Continue editing
-    save_and_close: Save draft and close
-    discard: Delete draft
-
-thread:
-    no_subject: (no subject)
-
 account:
     add_title: Add account
     added: Account added successfully
-    updated: Account updated
-    enabled: Account enabled
     disabled: Account disabled
+    enabled: Account enabled
+    form:
+        email: Email address
+        encryption: Encryption
+        imap:
+            heading: Incoming — IMAP
+            host: Host
+        password: Password
+        port: Port
+        preset:
+            label: Provider
+            placeholder: Choose a provider…
+        smtp:
+            heading: Outgoing — SMTP
+            host: Host
+        username: Username
+    oauth:
+        google: Continue with Google
+        info: Sign in with your provider — no password stored.
+        microsoft: Continue with Microsoft
     removed: Account removed
     tabs:
         imap: IMAP / SMTP
@@ -233,259 +30,227 @@ account:
         button: Test connection
         imap: IMAP
         smtp: SMTP
-    form:
-        email: Email address
-        username: Username
-        password: Password
-        port: Port
-        encryption: Encryption
-        imap:
-            heading: Incoming — IMAP
-            host: Host
-        smtp:
-            heading: Outgoing — SMTP
-            host: Host
-        preset:
-            label: Provider
-            placeholder: Choose a provider…
-    oauth:
-        info: Sign in with your provider — no password stored.
-        google: Continue with Google
-        microsoft: Continue with Microsoft
+    updated: Account updated
 
-modal:
-    close: Close
-    loading: Loading…
+admin:
+    accounts:
+        account: 'Account'
+        heading: 'Accounts'
+        last_activity: 'Last activity'
+        messages: 'Messages'
+        threads: 'Threads'
+    ago: 'ago'
+    db:
+        active:
+            empty: 'No active queries right now.'
+            heading: 'Live activity'
+        cache_hit: 'Cache hit'
+        col:
+            calls: 'Calls'
+            hit: 'Cache'
+            max: 'Max ms'
+            mean: 'Mean ms'
+            query: 'Query'
+            rows: 'Rows'
+            total: 'Total'
+        connections: 'Connections'
+        deadlocks: 'Deadlocks'
+        extension_missing: 'pg_stat_statements is not enabled — slow-query aggregation is unavailable. Enable it once:'
+        heavy_total:
+            heading: 'Heaviest queries (by total time)'
+            hint: 'Cumulative time across all calls — where the DB spends its time overall.'
+        reset: 'Reset stats'
+        reset_confirm: 'Reset all collected query statistics?'
+        rollback_ratio: 'Rollback ratio'
+        slow_mean:
+            empty: 'No statements above the threshold yet.'
+            heading: 'Slowest queries (by mean time)'
+            hint: 'Statements averaging ≥ 5ms, current database.'
+    failed:
+        delete: 'Delete'
+        delete_confirm: 'Permanently drop this failed message?'
+        empty: 'Failure transport is empty. 🎉'
+        heading: 'Failed messages'
+        retry: 'Retry'
+    loading: 'Loading…'
+    logs:
+        all_channels: 'All channels'
+        empty: 'Nothing logged at this level.'
+        entries: 'entries'
+        heading: 'Logs'
+        newer: 'Newer'
+        older: 'Older'
+        page: 'Page'
+        refresh: 'Refresh'
+    nav:
+        database: Database
+        logs: Logs
+        system: System
+    processes:
+        empty: 'No heartbeats yet — processes report here after their first beat.'
+        heading: 'Processes'
+        key: 'Instance'
+        last_beat: 'Last beat'
+        pid: 'PID'
+        type: 'Type'
+    queues:
+        empty: 'No pending messages.'
+        heading: 'Messenger queues'
+        oldest: 'Oldest waiting'
+        pending: 'Pending'
+        queue: 'Queue'
+    refresh_hint: 'Live panels refresh every 10s'
+    tables:
+        heading: 'Table sizes'
+    title: 'Admin'
+    tokens:
+        empty: 'No token refreshes recorded yet.'
+        heading: 'OAuth token health'
+    webhooks:
+        empty: 'No Gmail accounts with watch state.'
+        heading: 'Gmail webhooks'
+        history_id: 'History ID'
+        last_push: 'Last push'
+        never: 'never'
+        none: 'not registered'
+        watch_expiry: 'Watch expiry'
 
-form:
-    submit: Save
-    cancel: Cancel
+alias:
+    added: 'Address added.'
+    deleted: 'Address removed.'
+    duplicate: 'That address is already on this account.'
+    invalid: "That doesn't look like a valid email address."
+    primary_set: 'Primary address updated.'
+    refreshed: 'Refreshed from provider.'
+    status_blocked: "The primary address can't be disabled — make another primary first."
+    status_set: 'Address updated.'
 
-toast:
-    error:
-        no_archive_mailbox: There is no archive mailbox.
-    dismiss: Dismiss
+app:
+    name: Mail
+
+compose:
+    click_to_cancel: click to cancel
+    continue_editing: Continue editing
+    discard: Delete draft
+    empty_draft: (empty draft)
+    forward: Forward
+    no_recipients: No recipients
+    pop_out: Open in compose window
+    reply: Reply
+    reply_all: Reply all
+    reply_placeholder: "Reply to %name%"
+    save_and_close: Save draft and close
+    sending: "Sending…"
+
+drafts:
+    empty: No drafts.
+    heading: Drafts
 
 errors:
     access_denied: You do not have access to this resource.
     not_found: The requested resource could not be found.
 
-toolbar:
-    refresh: Refresh
-    select_all: Select all conversations
-    select_menu: More selection options
+form:
+    cancel: Cancel
+    submit: Save
 
-    select:
-        all: All
-        none: None
-        read: Read
-        unread: Unread
-        starred: Starred
-
-    actions:
-        label: Label as
-        archive: Archive
-        delete: Delete
-        mark_read: Mark as read
-        mark_unread: Mark as unread
-        snooze: Snooze
-
-    pagination:
-        of: of
-        prev: Newer
-        next: Older
-
-settings:
-    notifications:
-        heading: Notifications
-        subheading: >-
-            Get notified of new mail on this device, even when plMail is closed.
-        this_device: This device
-        toggle: Enable notifications
-        state_unknown: Checking…
-        unconfigured: >-
-            Push is not configured on this server — no VAPID keys are set.
-            Run "bin/console app:push:generate-vapid-keys".
-        ios_hint: >-
-            On iPhone and iPad, notifications only work once plMail is added to
-            the Home Screen: open it in Safari, tap Share, then "Add to Home
-            Screen", and enable notifications from there.
-    app_passwords:
-        heading: App passwords
-        subheading: >-
-            Sign in to third-party mail apps that speak JMAP. Each app gets its
-            own password you can revoke on its own.
-        empty: No app passwords yet. Generate one to connect a mail app.
-        generate: Generate
-        name_placeholder: 'What is it for? e.g. iPhone — Sterna'
-        revoke: Revoke
-        revoke_confirm: 'Revoke "%name%"? Any app using it will be signed out immediately.'
-        last_used: 'Last used %date%'
-        never_used: Never used
-        copy: Copy
-        copy_now: Here is your new app password
-        copy_now_hint: >-
-            Copy it now — it is not stored and cannot be shown again. If you
-            lose it, revoke it and generate another.
-        setup_heading: Connecting an app
-        setup_hint: >-
-            Use your email address as the username and the app password as the
-            password. If the app asks for a server or JMAP URL, give it this —
-            not the /jmap/api address, which only accepts POST.
-    aliases:
-        heading: 'Email addresses'
-        subheading: 'Addresses this account sends and receives as.'
-        primary: 'Primary'
-        make_primary: 'Make primary'
-        enable: 'Enable'
-        disable: 'Disable'
-        delete: 'Remove'
-        system: 'system'
-        empty: 'No addresses yet.'
-        refresh: 'Refresh from provider'
-        add: 'Add'
-        add_placeholder: 'Add another address…'
-        ms_sender_hint: 'Outlook sends as your account’s primary alias regardless of the address chosen here — change it in your'
-        ms_sender_hint_link: 'Microsoft account settings'
+header:
     labels:
+        add: Create label
         heading: Labels
-        subheading: Choose which labels appear in the sidebar.
-        empty: No labels yet — they appear after the first sync.
-        system: System
-        show: Show label
-        hide: Hide label
-    title: Settings
-    back: Back to inbox
-    nav:
-        accounts: Mail accounts
-        general: General
-        labels: Labels
-        appearance: Appearance
-        aliases: Aliases
-        app_passwords: App passwords
-        notifications: Notifications
-    accounts:
-        primary: Primary
-        reorder: Drag to reorder
-        heading: Mail accounts
-        subheading: Add, edit, enable, or remove the mailboxes you sync.
-        empty: No accounts yet. Add one to start syncing mail.
-        edit: Edit account
-        enable: Enable account
-        disable: Disable account
-        delete: Remove account
-        delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
-        password_help: Leave blank to keep the current password.
-        status:
-            active: Active
-            disabled: Disabled
-        type:
-            imap: IMAP
-            oauth: '%provider% (OAuth)'
-        label_sync:
-            title: Sync labels to provider
-            on_hint: >-
-                Labels you create, rename or delete are mirrored to this
-                provider. Existing labels are left alone.
-            off_hint: >-
-                Labels stay local to plMail. Turn this on to mirror new label
-                changes to this provider.
-        push:
-            not_configured: >-
-                Push isn't available on this server — it needs a public HTTPS
-                address and, for Gmail, a Cloud Pub/Sub topic.
-            degraded_hint: >-
-                Push is registered but nothing has arrived recently. The Pub/Sub
-                push subscription in Google Cloud may be missing or pointing
-                elsewhere. Mail is still syncing on a schedule.
-            reregister: Re-register push
-            health:
-                active: Push
-                degraded: Push (not delivering)
-                inactive: Scheduled
-            title: Instant delivery
-            on_hint: New mail arrives immediately via Microsoft push notifications.
-            off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
-            renews: Subscription renews before %date%.
-            failed: >-
-                Push couldn't be enabled — Microsoft needs to reach this server
-                over HTTPS. Check your reverse proxy and APP_PUBLIC_URL. The
-                account is still syncing on a schedule.
-            mode_push: Push
-            mode_pull: Scheduled
-    appearance:
-        text:
-            heading: Text
-            subheading: Adjust text colour for legibility against your background.
-            color: Text colour
-            muted: Muted
-            faint: Faint
-            default: Theme default
-            autoDerive: Auto-derive
-        main:
-            heading: Main pane
-            subheading: Tint and opacity for the main content area, independent of the sidebar.
-            tint: Background tint
-            matchGlass: Match glass opacity
-            default: Theme default
-        theme:
-            heading: Theme
-            subheading: Colour scheme for the whole interface.
-            system: System
-            light: Light
-            dark: Dark
-            nord: Nord
-            dusk: Dusk
-            solar: Solar
-        glass:
-            heading: Glass
-            subheading: How much of the background shows through your panels.
-            paneAlpha: Opacity
-            paneBlur: Blur
-            radius: Corner radius
-            scrimAlpha: Background dimming
-        accent:
-            heading: Accent colour
-        density:
-            heading: Density
-            comfortable: Comfortable
-            cosy: Cosy
-            compact: Compact
-        background:
-            heading: Background
-            theme: Theme default
-            upload: Upload image
-        export: Export theme
-        import: Import theme
-        reset: Reset to defaults
+        none: No labels yet
+    search:
+        placeholder: Search mail…
+    user_menu:
+        admin: Admin
+        label: User menu for %email%
+        settings: Settings
+        sign_out: Sign out
+        signed_in_as: Signed in as
+
+inbox:
+    empty: No messages in this tab.
+
 label:
+    color:
+        amber: Amber
+        blue: Blue
+        gray: Gray
+        green: Green
+        orange: Orange
+        pink: Pink
+        red: Red
+        teal: Teal
+        violet: Violet
     empty: No conversations with this label.
-    menu:
-        empty: No labels yet.
-        create: Create new
-    form:
-        name: Name
-        account: Account
-        parent: Nest under
-        no_parent: '— top level —'
-        color: Color
-        no_color: '— none —'
-        delete: Delete label
     error:
         duplicate: A label with this name already exists here.
-    color:
-        gray: Gray
-        red: Red
-        orange: Orange
-        amber: Amber
-        green: Green
-        teal: Teal
-        blue: Blue
-        violet: Violet
-        pink: Pink
+    form:
+        account: Account
+        color: Color
+        delete: Delete label
+        name: Name
+        no_color: '— none —'
+        no_parent: '— top level —'
+        parent: Nest under
+    menu:
+        create: Create new
+        empty: No labels yet.
     visibility:
-        shown: Label is now visible.
         hidden: Label is now hidden.
+        shown: Label is now visible.
+
+login:
+    form:
+        email: Email address
+        forgot_password: Forgot password?
+        password: Password
+        submit: Sign in
+    page_title: Sign in
+    register:
+        coming_soon: Registration coming soon.
+        link: Create one
+        prompt: Don't have an account?
+    tagline: Sign in to your account
+
+message:
+    actions:
+        archive: Archive
+        delete: Delete this message
+        expand: Expand or collapse this message
+        mark_unread: Mark as unread
+        more: More
+        print: Print
+        show_original: Show original
+        star: Star
+        unstar: Remove star
+    attachments: Attachments
+    back: Back
+    details:
+        bcc: bcc
+        cc: cc
+        date: date
+        from: from
+        hide_all_headers: Hide all headers
+        label: Details
+        mailed_by: mailed-by
+        me: me
+        reply_to: reply-to
+        show_all_headers: Show all headers
+        signed_by: signed-by
+        subject: subject
+        to: "to %name%"
+        to_label: to
+    draft: "Draft"
+    original:
+        copied: Copied
+        copy: Copy to clipboard
+        heading: Original message
+
+modal:
+    close: Close
+    loading: Loading…
+
 oauth:
     error:
         generic: We couldn't connect that account. Please try again.
@@ -494,24 +259,277 @@ oauth:
                 Your organisation requires an administrator to approve plMail
                 before you can connect this account. Please ask your Microsoft
                  administrator to grant access.
-            tenant_mismatch: >-
-                This account type can't sign in to plMail with the current
-                configuration. Check the MICROSOFT_OAUTH_TENANT setting.
             app_not_found: >-
                 plMail isn't registered in your Microsoft organisation.
+            bad_credentials: >-
+                plMail's Microsoft credentials are invalid or expired. This is a
+                server configuration problem, not something you can fix.
             blocked_by_policy: >-
                 A security policy in your organisation blocked this sign-in.
             consent_declined: >-
                 Connection cancelled — plMail wasn't granted access.
-            bad_credentials: >-
-                plMail's Microsoft credentials are invalid or expired. This is a
-                server configuration problem, not something you can fix.
-alias:
-    added: 'Address added.'
-    deleted: 'Address removed.'
-    primary_set: 'Primary address updated.'
-    status_set: 'Address updated.'
-    status_blocked: "The primary address can't be disabled — make another primary first."
-    refreshed: 'Refreshed from provider.'
-    invalid: "That doesn't look like a valid email address."
-    duplicate: 'That address is already on this account.'
+            tenant_mismatch: >-
+                This account type can't sign in to plMail with the current
+                configuration. Check the MICROSOFT_OAUTH_TENANT setting.
+
+sent:
+    empty: No sent messages.
+    heading: Sent
+
+settings:
+    accounts:
+        delete: Remove account
+        delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
+        disable: Disable account
+        edit: Edit account
+        empty: No accounts yet. Add one to start syncing mail.
+        enable: Enable account
+        heading: Mail accounts
+        label_sync:
+            off_hint: >-
+                Labels stay local to plMail. Turn this on to mirror new label
+                changes to this provider.
+            on_hint: >-
+                Labels you create, rename or delete are mirrored to this
+                provider. Existing labels are left alone.
+            title: Sync labels to provider
+        password_help: Leave blank to keep the current password.
+        primary: Primary
+        push:
+            degraded_hint: >-
+                Push is registered but nothing has arrived recently. The Pub/Sub
+                push subscription in Google Cloud may be missing or pointing
+                elsewhere. Mail is still syncing on a schedule.
+            failed: >-
+                Push couldn't be enabled — Microsoft needs to reach this server
+                over HTTPS. Check your reverse proxy and APP_PUBLIC_URL. The
+                account is still syncing on a schedule.
+            health:
+                active: Push
+                degraded: Push (not delivering)
+                inactive: Scheduled
+            mode_pull: Scheduled
+            mode_push: Push
+            not_configured: >-
+                Push isn't available on this server — it needs a public HTTPS
+                address and, for Gmail, a Cloud Pub/Sub topic.
+            off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
+            on_hint: New mail arrives immediately via Microsoft push notifications.
+            renews: Subscription renews before %date%.
+            reregister: Re-register push
+            title: Instant delivery
+        reorder: Drag to reorder
+        status:
+            active: Active
+            disabled: Disabled
+        subheading: Add, edit, enable, or remove the mailboxes you sync.
+        type:
+            imap: IMAP
+            oauth: '%provider% (OAuth)'
+    aliases:
+        add: 'Add'
+        add_placeholder: 'Add another address…'
+        delete: 'Remove'
+        disable: 'Disable'
+        empty: 'No addresses yet.'
+        enable: 'Enable'
+        heading: 'Email addresses'
+        make_primary: 'Make primary'
+        ms_sender_hint: 'Outlook sends as your account’s primary alias regardless of the address chosen here — change it in your'
+        ms_sender_hint_link: 'Microsoft account settings'
+        primary: 'Primary'
+        refresh: 'Refresh from provider'
+        subheading: 'Addresses this account sends and receives as.'
+        system: 'system'
+    app_passwords:
+        copy: Copy
+        copy_now: Here is your new app password
+        copy_now_hint: >-
+            Copy it now — it is not stored and cannot be shown again. If you
+            lose it, revoke it and generate another.
+        empty: No app passwords yet. Generate one to connect a mail app.
+        generate: Generate
+        heading: App passwords
+        last_used: 'Last used %date%'
+        name_placeholder: 'What is it for? e.g. iPhone — Sterna'
+        never_used: Never used
+        revoke: Revoke
+        revoke_confirm: 'Revoke "%name%"? Any app using it will be signed out immediately.'
+        setup_heading: Connecting an app
+        setup_hint: >-
+            Use your email address as the username and the app password as the
+            password. If the app asks for a server or JMAP URL, give it this —
+            not the /jmap/api address, which only accepts POST.
+        subheading: >-
+            Sign in to third-party mail apps that speak JMAP. Each app gets its
+            own password you can revoke on its own.
+    appearance:
+        accent:
+            heading: Accent colour
+        background:
+            heading: Background
+            theme: Theme default
+            upload: Upload image
+        density:
+            comfortable: Comfortable
+            compact: Compact
+            cosy: Cosy
+            heading: Density
+        export: Export theme
+        glass:
+            heading: Glass
+            paneAlpha: Opacity
+            paneBlur: Blur
+            radius: Corner radius
+            scrimAlpha: Background dimming
+            subheading: How much of the background shows through your panels.
+        import: Import theme
+        main:
+            default: Theme default
+            heading: Main pane
+            matchGlass: Match glass opacity
+            subheading: Tint and opacity for the main content area, independent of the sidebar.
+            tint: Background tint
+        reset: Reset to defaults
+        text:
+            autoDerive: Auto-derive
+            color: Text colour
+            default: Theme default
+            faint: Faint
+            heading: Text
+            muted: Muted
+            subheading: Adjust text colour for legibility against your background.
+        theme:
+            dark: Dark
+            dusk: Dusk
+            heading: Theme
+            light: Light
+            nord: Nord
+            solar: Solar
+            subheading: Colour scheme for the whole interface.
+            system: System
+    back: Back to inbox
+    labels:
+        empty: No labels yet — they appear after the first sync.
+        heading: Labels
+        hide: Hide label
+        show: Show label
+        subheading: Choose which labels appear in the sidebar.
+        system: System
+    language:
+        heading: Language
+        subheading: The language plMail's interface is shown in. Your mail is left as it was written.
+    nav:
+        accounts: Mail accounts
+        aliases: Aliases
+        app_passwords: App passwords
+        appearance: Appearance
+        general: General
+        labels: Labels
+        notifications: Notifications
+    notifications:
+        heading: Notifications
+        ios_hint: >-
+            On iPhone and iPad, notifications only work once plMail is added to
+            the Home Screen: open it in Safari, tap Share, then "Add to Home
+            Screen", and enable notifications from there.
+        state_denied: >-
+            Blocked in your browser settings. Allow notifications for this site,
+            then try again.
+        state_error: Something went wrong. Try again.
+        state_off: 'Off — this device will not be notified.'
+        state_on: On — this device gets notified of new mail.
+        state_pending: Waiting for this device to confirm…
+        state_unconfigured: Push is not configured on this server.
+        state_unknown: Checking…
+        state_unsupported: >-
+            This browser cannot receive notifications. On iPhone and iPad, add
+            plMail to the Home Screen first.
+        state_working: Working…
+        subheading: >-
+            Get notified of new mail on this device, even when plMail is closed.
+        this_device: This device
+        toggle: Enable notifications
+        toggle_off: Disable notifications
+        unconfigured: >-
+            Push is not configured on this server — no VAPID keys are set.
+            Run "bin/console app:push:generate-vapid-keys".
+    title: Settings
+
+sidebar:
+    accounts:
+        add: Add account
+        heading: Accounts
+        loading: Loading…
+        none: No accounts yet
+        toggle: Toggle account folders
+    compose: Compose
+    labels:
+        add: Create label
+        heading: Labels
+        none: No labels yet
+    nav:
+        archive: Archive
+        drafts: Drafts
+        inbox: Inbox
+        sent: Sent
+        starred: Starred
+        trash: Trash
+
+starred:
+    empty: No starred messages.
+    heading: Starred
+
+tabs:
+    forums: Forums
+    primary: Primary
+    promotions: Promotions
+    social: Social
+    updates: Updates
+
+thread:
+    no_subject: (no subject)
+
+thread_row:
+    actions:
+        archive: Archive
+        delete: Delete
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+        snooze: Snooze
+    message_count: "({ count })"
+    no_subject: (no subject)
+    select: Select
+    star: Star this message
+    unstar: Unstar this message
+
+toast:
+    dismiss: Dismiss
+    error:
+        no_archive_mailbox: There is no archive mailbox.
+
+toolbar:
+    actions:
+        archive: Archive
+        delete: Delete
+        label: Label as
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+        snooze: Snooze
+    pagination:
+        next: Older
+        of: of
+        prev: Newer
+    refresh: Refresh
+    select:
+        all: All
+        none: None
+        read: Read
+        starred: Starred
+        unread: Unread
+    select_all: Select all conversations
+    select_menu: More selection options
+
+trash:
+    empty: No deleted messages.
+    heading: Trash

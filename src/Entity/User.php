@@ -43,6 +43,12 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $avatar = null;
 
+    /**
+     * Preferred interface locale. Null means "follow the server default".
+     */
+    #[ORM\Column(length: 16, nullable: true)]
+    private ?string $locale = null;
+
     #[ORM\Column(length: 255)]
     private ?string $nameFirst = null;
 
@@ -155,6 +161,18 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function setAvatar(string $avatar): self
     {
         $this->avatar = $avatar;
+
+        return $this;
+    }
+
+    public function getLocale(): ?string
+    {
+        return $this->locale;
+    }
+
+    public function setLocale(?string $locale): self
+    {
+        $this->locale = $locale;
 
         return $this;
     }

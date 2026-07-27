@@ -6,7 +6,19 @@
      data-web-push-vapid-key-value="{{ vapidPublicKey }}"
      data-web-push-subscribe-url-value="{{ path('app_web_push_subscribe') }}"
      data-web-push-unsubscribe-url-value="{{ path('app_web_push_unsubscribe') }}"
-     data-web-push-status-url-value="{{ url('app_web_push_status', {deviceClientId: '_'})|slice(0, -2) }}">
+     data-web-push-status-url-value="{{ url('app_web_push_status', {deviceClientId: '_'})|slice(0, -2) }}"
+     data-web-push-labels-value="{{ {
+         on:            'settings.notifications.state_on'|trans,
+         off:           'settings.notifications.state_off'|trans,
+         pending:       'settings.notifications.state_pending'|trans,
+         working:       'settings.notifications.state_working'|trans,
+         denied:        'settings.notifications.state_denied'|trans,
+         error:         'settings.notifications.state_error'|trans,
+         unsupported:   'settings.notifications.state_unsupported'|trans,
+         unconfigured:  'settings.notifications.state_unconfigured'|trans,
+         action_enable: 'settings.notifications.toggle'|trans,
+         action_disable:'settings.notifications.toggle_off'|trans,
+     }|json_encode|e('html_attr') }}">
 
     <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">

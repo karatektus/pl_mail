@@ -1,0 +1,535 @@
+account:
+    add_title: Sign on a new crew member
+    added: Crew member signed on, arr!
+    disabled: Ship's papers revoked
+    enabled: Ship's papers restored
+    form:
+        email: Parrot address
+        encryption: Cipher
+        imap:
+            heading: Incomin' — IMAP
+            host: Port o' call
+        password: Secret word
+        port: Berth number
+        preset:
+            label: Harbourmaster
+            placeholder: Pick yer harbour…
+        smtp:
+            heading: Outgoin' — SMTP
+            host: Port o' call
+        username: Name ye go by
+    oauth:
+        google: Sail on with Google
+        info: Sign on with yer harbourmaster — no secret word be kept aboard.
+        microsoft: Sail on with Microsoft
+    removed: Crew member put ashore
+    tabs:
+        imap: IMAP / SMTP
+        oauth: OAuth
+    test:
+        button: Test the riggin'
+        imap: IMAP
+        smtp: SMTP
+    updated: Ship's papers amended
+
+admin:
+    accounts:
+        account: 'Crew member'
+        heading: 'Th'' crew'
+        last_activity: 'Last sighted'
+        messages: 'Bottles'
+        threads: 'Yarns'
+    ago: 'ago'
+    db:
+        active:
+            empty: 'No queries afoot right now.'
+            heading: 'Live doings'
+        cache_hit: 'Cache booty'
+        col:
+            calls: 'Hails'
+            hit: 'Cache'
+            max: 'Worst ms'
+            mean: 'Middlin'' ms'
+            query: 'Query'
+            rows: 'Rows'
+            total: 'All told'
+        connections: 'Grapplin'' lines'
+        deadlocks: 'Standoffs'
+        extension_missing: 'pg_stat_statements ain''t hoisted — sluggish-query tallies be unavailable. Hoist it once:'
+        heavy_total:
+            heading: 'Heaviest queries (by total time)'
+            hint: 'All the hours across every hail — where th'' database squanders its watch.'
+        reset: 'Scuttle the tally'
+        reset_confirm: 'Scuttle every query tally ye have gathered?'
+        rollback_ratio: 'Comin''-about ratio'
+        slow_mean:
+            empty: 'No queries above the waterline yet.'
+            heading: 'Slowest queries (by middlin'' time)'
+            hint: 'Queries averagin'' ≥ 5ms, this here database.'
+    failed:
+        delete: 'Feed to the fishes'
+        delete_confirm: 'Send this lost bottle to Davy Jones for good?'
+        empty: 'The wreck hold be empty. 🎉'
+        heading: 'Bottles lost at sea'
+        retry: 'Try again'
+    loading: 'Haulin'' aboard…'
+    logs:
+        all_channels: 'All channels'
+        empty: 'Naught scribbled at this depth.'
+        entries: 'entries'
+        heading: 'Ship''s log'
+        newer: 'Fresher'
+        older: 'Saltier'
+        page: 'Page'
+        refresh: 'Refresh'
+    nav:
+        database: Database
+        logs: Ship's log
+        system: Ship
+    processes:
+        empty: 'No heartbeats yet — hands report here after their first beat.'
+        heading: 'Hands on deck'
+        key: 'Post'
+        last_beat: 'Last heartbeat'
+        pid: 'PID'
+        type: 'Rank'
+    queues:
+        empty: 'No bottles waitin''.'
+        heading: 'Messenger queues'
+        oldest: 'Longest waitin'''
+        pending: 'Waitin'''
+        queue: 'Queue'
+    refresh_hint: 'Live panels be redrawn every 10s'
+    tables:
+        heading: 'Table sizes'
+    title: 'Cap''n''s quarters'
+    tokens:
+        empty: 'No token refreshes writ down yet.'
+        heading: 'OAuth token health'
+    webhooks:
+        empty: 'No Gmail crew keepin'' watch.'
+        heading: 'Gmail webhooks'
+        history_id: 'History ID'
+        last_push: 'Last cannon shot'
+        never: 'never'
+        none: 'not on the roster'
+        watch_expiry: 'Watch ends'
+
+alias:
+    added: 'Address added, arr!'
+    deleted: 'Address struck from the roster.'
+    duplicate: 'That address already sails with this crew member.'
+    invalid: 'That don''t look like a proper parrot address.'
+    primary_set: 'Flagship address changed.'
+    refreshed: 'Fetched anew from the harbourmaster.'
+    status_blocked: 'The flagship address can''t be struck — name another flagship first.'
+    status_set: 'Address amended.'
+
+app:
+    name: Mail
+
+compose:
+    click_to_cancel: click to belay it
+    continue_editing: Keep scribblin'
+    discard: Burn this scroll
+    empty_draft: (blank scroll)
+    forward: Pass it along
+    no_recipients: Nobody to send it to
+    pop_out: Open in its own cabin
+    reply: Answer
+    reply_all: Answer the whole crew
+    reply_placeholder: "Answer %name%"
+    save_and_close: Stow the scroll and close
+    sending: "Castin' off…"
+
+drafts:
+    empty: No scrolls in the works.
+    heading: Scrolls in the works
+
+errors:
+    access_denied: Ye have no leave to enter here.
+    not_found: That be nowhere on the charts.
+
+form:
+    cancel: Belay that
+    submit: Stow it
+
+header:
+    labels:
+        add: Hoist a new flag
+        heading: Flags
+        none: No flags yet
+    search:
+        placeholder: Search the hold…
+    user_menu:
+        admin: Cap'n's quarters
+        label: Crew menu for %email%
+        settings: Riggin'
+        sign_out: Go ashore
+        signed_in_as: Aboard as
+
+inbox:
+    empty: No bottles in this here tab.
+
+label:
+    color:
+        amber: Amber
+        blue: Blue
+        gray: Gray
+        green: Green
+        orange: Orange
+        pink: Pink
+        red: Red
+        teal: Teal
+        violet: Violet
+    empty: No yarns flyin' this flag.
+    error:
+        duplicate: A flag by that name already flies here.
+    form:
+        account: Crew member
+        color: Colour
+        delete: Strike this flag
+        name: Name
+        no_color: '— none —'
+        no_parent: '— top o'' the mast —'
+        parent: Fly beneath
+    menu:
+        create: Hoist a new one
+        empty: No flags yet.
+    visibility:
+        hidden: That flag be lowered.
+        shown: That flag flies again.
+
+login:
+    form:
+        email: Parrot address
+        forgot_password: Forgot yer secret word?
+        password: Secret word
+        submit: Come aboard
+    page_title: Come aboard
+    register:
+        coming_soon: Signin' on be comin' soon.
+        link: Sign the articles
+        prompt: Not yet on the roster?
+    tagline: Come aboard yer own ship
+
+message:
+    actions:
+        archive: Stow in the hold
+        delete: Send this bottle to Davy Jones
+        expand: Unfurl or furl this bottle
+        mark_unread: Mark as unread
+        more: More
+        print: Print
+        show_original: Show the original scroll
+        star: Mark with an X
+        unstar: Rub out the X
+    attachments: Cargo
+    back: Back
+    details:
+        bcc: bcc
+        cc: cc
+        date: date
+        from: from
+        hide_all_headers: Furl all headers
+        label: Particulars
+        mailed_by: carried by
+        me: me
+        reply_to: answer to
+        show_all_headers: Unfurl all headers
+        signed_by: sealed by
+        subject: subject
+        to: "to %name%"
+        to_label: to
+    draft: "Scroll"
+    original:
+        copied: Copied
+        copy: Copy to the slate
+        heading: The original scroll
+
+modal:
+    close: Batten it down
+    loading: Haulin' aboard…
+
+oauth:
+    error:
+        generic: We couldn't tie up that crew member. Try again, matey.
+        microsoft:
+            admin_consent_required: >-
+                Yer fleet requires an admiral to approve plMail afore ye can tie
+                up this crew member. Ask yer Microsoft admiral for leave.
+            app_not_found: >-
+                plMail ain't on the roster of yer Microsoft fleet.
+            bad_credentials: >-
+                plMail's Microsoft papers be forged or expired. That be trouble
+                below decks, not somethin' ye can mend.
+            blocked_by_policy: >-
+                A standin' order in yer fleet blocked this boardin'.
+            consent_declined: >-
+                Boardin' called off — plMail were granted no leave.
+            tenant_mismatch: >-
+                That kind o' crew member can't board plMail as she be rigged
+                now. Check the MICROSOFT_OAUTH_TENANT settin'.
+
+sent:
+    empty: No bottles cast off.
+    heading: Cast off
+
+settings:
+    accounts:
+        delete: Put this crew member ashore
+        delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
+        disable: Revoke the papers
+        edit: Amend the papers
+        empty: No crew yet. Sign one on to start haulin' mail aboard.
+        enable: Restore the papers
+        heading: Th' crew
+        label_sync:
+            off_hint: >-
+                Flags stay aboard plMail alone. Turn this on to run new flag
+                changes up the harbourmaster's mast too.
+            on_hint: >-
+                Flags ye hoist, rename or strike be run up the harbourmaster's
+                mast as well. Old flags be left be.
+            title: Run flags up the harbourmaster's mast
+        password_help: Leave it blank to keep the secret word ye have.
+        primary: Flagship
+        push:
+            degraded_hint: >-
+                The cannon be loaded but naught has been heard lately. The
+                Pub/Sub push subscription in Google Cloud may be missin' or
+                aimed elsewhere. Mail still comes aboard on the watch bell.
+            failed: >-
+                The cannon couldn't be readied — Microsoft must reach this ship
+                over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL. Mail
+                still comes aboard on the watch bell.
+            health:
+                active: Cannon
+                degraded: Cannon (misfirin')
+                inactive: On the bell
+            mode_pull: On the bell
+            mode_push: Cannon
+            not_configured: >-
+                No cannon on this ship — she needs a public HTTPS berth and, for
+                Gmail, a Cloud Pub/Sub topic.
+            off_hint: Mail comes aboard on the watch bell. Load the cannon for word the moment it lands.
+            on_hint: New mail lands the instant Microsoft fires the cannon.
+            renews: Yer watch be renewed afore %date%.
+            reregister: Load the cannon again
+            title: Word the moment it lands
+        reorder: Drag to reorder the line
+        status:
+            active: Sailin'
+            disabled: Beached
+        subheading: Sign on, amend, restore or put ashore the crew ye sail with.
+        type:
+            imap: IMAP
+            oauth: '%provider% (OAuth)'
+    aliases:
+        add: 'Add'
+        add_placeholder: 'Add another address…'
+        delete: 'Strike it'
+        disable: 'Furl it'
+        empty: 'No addresses yet.'
+        enable: 'Unfurl it'
+        heading: 'Parrot addresses'
+        make_primary: 'Make it the flagship'
+        ms_sender_hint: 'Outlook always sails under yer crew member''s flagship alias, whatever ye pick here — change it in yer'
+        ms_sender_hint_link: 'Microsoft account settings'
+        primary: 'Flagship'
+        refresh: 'Fetch from the harbourmaster'
+        subheading: 'Addresses this crew member sends and receives under.'
+        system: 'ship''s own'
+    app_passwords:
+        copy: Copy
+        copy_now: Here be yer new spare key
+        copy_now_hint: >-
+            Copy it now — it be kept nowhere and shown never again. Lose it and
+            ye must scuttle it and cut another.
+        empty: No spare keys yet. Cut one to tie up a mail app.
+        generate: Cut a key
+        heading: Spare keys
+        last_used: 'Last turned %date%'
+        name_placeholder: 'What be it for? e.g. iPhone — Sterna'
+        never_used: Never turned
+        revoke: Scuttle it
+        revoke_confirm: 'Scuttle "%name%"? Any app usin'' it be thrown overboard at once.'
+        setup_heading: Tyin' up an app
+        setup_hint: >-
+            Use yer parrot address as the name ye go by and the spare key as the
+            secret word. If the app asks for a ship or JMAP URL, give it this
+            one — not the /jmap/api berth, which takes naught but POST.
+        subheading: >-
+            Board third-party mail apps that speak JMAP. Every app gets its own
+            key ye can scuttle on its own.
+    appearance:
+        accent:
+            heading: Accent colour
+        background:
+            heading: Backdrop
+            theme: Theme default
+            upload: Hoist an image
+        density:
+            comfortable: Roomy
+            compact: Cramped
+            cosy: Snug
+            heading: Quarters
+        export: Export theme
+        glass:
+            heading: Spyglass
+            paneAlpha: Opacity
+            paneBlur: Sea fog
+            radius: Corner radius
+            scrimAlpha: Backdrop dimmin'
+            subheading: How much o' the backdrop shows through yer panels.
+        import: Import theme
+        main:
+            default: Theme default
+            heading: Main deck
+            matchGlass: Match the spyglass
+            subheading: Tint and opacity for the main deck, apart from the sidebar.
+            tint: Backdrop tint
+        reset: Back to how she came
+        text:
+            autoDerive: Work it out for me
+            color: Text colour
+            default: Theme default
+            faint: Faint
+            heading: Text
+            muted: Muted
+            subheading: Adjust text colour so it reads against yer backdrop.
+        theme:
+            dark: Dark
+            dusk: Dusk
+            heading: Theme
+            light: Light
+            nord: Nord
+            solar: Solar
+            subheading: Colour scheme for the whole ship.
+            system: Ship's own
+    back: Back to the hold
+    labels:
+        empty: No flags yet — they turn up after the first haul.
+        heading: Flags
+        hide: Lower this flag
+        show: Fly this flag
+        subheading: Choose which flags fly in the sidebar.
+        system: Ship's own
+    language:
+        heading: Tongue
+        subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
+    nav:
+        accounts: Th' crew
+        aliases: Aliases
+        app_passwords: Spare keys
+        appearance: Look o' the ship
+        general: General
+        labels: Flags
+        notifications: Word from the crow's nest
+    notifications:
+        heading: Word from the crow's nest
+        ios_hint: >-
+            On iPhone and iPad, the lookout only calls once plMail be added to
+            the Home Screen: open her in Safari, tap Share, then "Add to Home
+            Screen", and allow the callin' from there.
+        state_denied: >-
+            Barred in yer browser settin's. Allow the lookout to call for this
+            site, then try again.
+        state_error: Somethin' went sideways. Try again.
+        state_off: 'Off — this here device gets no word.'
+        state_on: On — this here device gets word o' new mail.
+        state_pending: Waitin' on this device to answer the hail…
+        state_unconfigured: No cannon rigged on this ship.
+        state_unknown: Takin' a look…
+        state_unsupported: >-
+            This browser can't hear the lookout. On iPhone and iPad, add plMail
+            to the Home Screen first.
+        state_working: Workin' the riggin'…
+        subheading: >-
+            Get word o' new mail on this here device, even when plMail be
+            battened down.
+        this_device: This here device
+        toggle: Send up the lookout
+        toggle_off: Call down the lookout
+        unconfigured: >-
+            No cannon rigged on this ship — no VAPID keys be set. Run
+            "bin/console app:push:generate-vapid-keys".
+    title: Riggin'
+
+sidebar:
+    accounts:
+        add: Sign on a crew member
+        heading: Th' crew
+        loading: Haulin' aboard…
+        none: No crew yet
+        toggle: Open or close the crew's lockers
+    compose: Scribble
+    labels:
+        add: Hoist a new flag
+        heading: Flags
+        none: No flags yet
+    nav:
+        archive: The hold
+        drafts: Scrolls in the works
+        inbox: Bottles washed ashore
+        sent: Cast off
+        starred: Marked with an X
+        trash: Davy Jones' locker
+
+starred:
+    empty: Naught marked with an X.
+    heading: Marked with an X
+
+tabs:
+    forums: Taverns
+    primary: Main deck
+    promotions: Peddlers
+    social: Shipmates
+    updates: Dispatches
+
+thread:
+    no_subject: (no subject)
+
+thread_row:
+    actions:
+        archive: Stow in the hold
+        delete: Feed to the fishes
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+        snooze: Let it drift
+    message_count: "({ count })"
+    no_subject: (no subject)
+    select: Pick it
+    star: Mark this bottle with an X
+    unstar: Rub out the X
+
+toast:
+    dismiss: Away with ye
+    error:
+        no_archive_mailbox: There be no hold on this ship.
+
+toolbar:
+    actions:
+        archive: Stow in the hold
+        delete: Feed to the fishes
+        label: Fly a flag
+        mark_read: Mark as read
+        mark_unread: Mark as unread
+        snooze: Let it drift
+    pagination:
+        next: Saltier
+        of: of
+        prev: Fresher
+    refresh: Refresh
+    select:
+        all: All hands
+        none: None
+        read: Read
+        starred: Marked
+        unread: Unread
+    select_all: Pick every yarn
+    select_menu: More ways to pick
+
+trash:
+    empty: Naught fed to the fishes.
+    heading: Davy Jones' locker
