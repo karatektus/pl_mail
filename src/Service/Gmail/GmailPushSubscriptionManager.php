@@ -11,6 +11,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 
 /**
  * Gmail side of the provider-agnostic push contract.
@@ -85,9 +86,16 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
         try {
             $this->watchService->watch($account);
         } catch (\Throwable $e) {
+            // The exception message carries only the status line; Google puts the
+            // reason a watch was rejected — bad topicName, missing publisher
+            // grant — in the response body, so it has to be pulled out here.
             $this->logger->error('GmailPushSubscriptionManager: watch failed, falling back to polling', [
                 'accountId' => $account->getId(),
+                'topic'     => $this->pubSubTopicName,
                 'error'     => $e->getMessage(),
+                'body'      => $e instanceof HttpExceptionInterface
+                    ? $e->getResponse()->getContent(false)
+                    : null,
             ]);
 
             return false;
