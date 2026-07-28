@@ -5,7 +5,7 @@ having to re-render the markup. `key` must match a key from
 app_mail_sidebar_counts.
 #}
 {% macro unread_badge(count, key) %}
-    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white{{ count > 0 ? '' : ' hidden' }}"
+    <span class="rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white{{ count > 0 ? '' : ' hidden' }}"
           data-sidebar-target="badge"
           data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
@@ -75,20 +75,29 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
 #}
 {% set _drawerClose = _drawerMode is defined and _drawerMode ? 'click->sidebar-drawer#close' : '' %}
 
+{#
+`shell-chrome` marks this as shell furniture rather than content, so a Layout
+can restyle it (see .layout-flat in app.css). The drawer copy is deliberately
+excluded: it floats over a dim backdrop and must stay an opaque card whatever
+the layout.
+#}
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="sidebar"
        data-sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
-       class="flex flex-col w-56 h-full flex-shrink-0 pane">
+       class="flex flex-col w-56 h-full flex-shrink-0 overflow-hidden pane
+              transition-[width] duration-200
+              {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
     {# Compose #}
     <div class="px-3 py-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.compose'|trans }}"
            class="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-row transition-colors">
             <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
-            {{ 'sidebar.compose'|trans }}
+            <span class="rail-hide">{{ 'sidebar.compose'|trans }}</span>
         </a>
     </div>
 
@@ -99,10 +108,11 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.inbox'|trans }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
-                {{ 'sidebar.nav.inbox'|trans }}
+                <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox), 'role:inbox') }}
         </a>
@@ -111,10 +121,11 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.starred'|trans }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
-                {{ 'sidebar.nav.starred'|trans }}
+                <span class="rail-hide">{{ 'sidebar.nav.starred'|trans }}</span>
             </span>
             {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred') }}
         </a>
@@ -123,10 +134,11 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.sent'|trans }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
-                {{ 'sidebar.nav.sent'|trans }}
+                <span class="rail-hide">{{ 'sidebar.nav.sent'|trans }}</span>
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Sent), 'role:sent') }}
         </a>
@@ -135,10 +147,11 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.drafts'|trans }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
-                {{ 'sidebar.nav.drafts'|trans }}
+                <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Drafts), 'role:drafts') }}
         </a>
@@ -146,28 +159,30 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
             <a href="{{ path('app_mail_archive') }}"
                class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
                data-sidebar-target="link"
-               data-action="{{ _drawerClose }}">
-                <i class="fa-solid fa-box-archive w-4 text-sm" aria-hidden="true"></i>
-                <span class="flex-1 flex items-center justify-between gap-2">
-            <span>{{ 'sidebar.nav.archive'|trans }}</span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive), 'role:archive') }}
-        </span>
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.archive'|trans }}">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
+                </span>
+                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive), 'role:archive') }}
             </a>
         {% endif %}
         <a href="{{ path('app_mail_trash') }}"
            class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.trash'|trans }}"
         >
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
-                {{ 'sidebar.nav.trash'|trans }}
+                <span class="rail-hide">{{ 'sidebar.nav.trash'|trans }}</span>
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Trash), 'role:trash') }}
         </a>
 
         {# Labels section #}
-        <div class="pt-4 pb-1 px-3 flex items-center justify-between">
+        <div class="rail-hide pt-4 pb-1 px-3 flex items-center justify-between">
             <span class="text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.labels.heading'|trans }}</span>
             <button
                 data-controller="modal"
@@ -181,7 +196,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
             </button>
         </div>
 
-        <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="space-y-0.5">
+        <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="rail-hide space-y-0.5">
             {% set labelTree = sidebarCounts.userLabelTree() %}
             {% if labelTree|length == 0 %}
                 <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
@@ -193,7 +208,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
         </div>
 
         {# Accounts section #}
-        <div class="pt-4 pb-1 px-3 flex items-center justify-between">
+        <div class="rail-hide pt-4 pb-1 px-3 flex items-center justify-between">
             <span class="text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
             <button
                 data-controller="modal"
@@ -207,7 +222,7 @@ When true, nav links also dispatch a close action to the parent sidebar-drawer c
             </button>
         </div>
 
-        <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="space-y-0.5">
+        <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="rail-hide space-y-0.5">
             {% include '_partials/_account_list.html.twig' with { _drawerClose: _drawerClose } %}
         </div>
 

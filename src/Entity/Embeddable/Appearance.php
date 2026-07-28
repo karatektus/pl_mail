@@ -7,6 +7,7 @@ namespace App\Entity\Embeddable;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
+use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\Theme;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -17,6 +18,9 @@ final class Appearance
 
     #[ORM\Column(type: 'string', length: 16, enumType: Theme::class, options: ['default' => 'system'])]
     public private(set) Theme $theme = Theme::System;
+
+    #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'boxed'])]
+    public private(set) Layout $layout = Layout::Boxed;
 
     #[ORM\Column(type: 'string', length: 7, options: ['default' => self::DEFAULT_ACCENT])]
     public private(set) string $accent = self::DEFAULT_ACCENT {
@@ -113,6 +117,24 @@ final class Appearance
         $this->theme = $theme;
 
         return $this;
+    }
+
+    public function setLayout(Layout $layout): static
+    {
+        $this->layout = $layout;
+
+        return $this;
+    }
+
+    /**
+     * Switch layout and seed its knob defaults. The settings pane sends the
+     * seeded values itself (so the sliders and the payload stay in step); this
+     * is for callers that only have a layout — importing an export written
+     * before a knob existed, for instance.
+     */
+    public function applyLayout(Layout $layout): static
+    {
+        return $this->setLayout($layout)->applyArray($layout->defaults());
     }
 
     public function setAccent(string $accent): static
@@ -235,6 +257,7 @@ final class Appearance
         return [
             'version' => 1,
             'theme' => $this->theme->value,
+            'layout' => $this->layout->value,
             'accent' => $this->accent,
             'paneAlpha' => $this->paneAlpha,
             'paneBlur' => $this->paneBlur,
@@ -256,6 +279,12 @@ final class Appearance
 
     public function applyArray(array $data): static
     {
+        // First: a layout seeds the knobs, so any explicit knob value in the
+        // same payload has to be applied after it to win.
+        if (true === isset($data['layout'])) {
+            $this->setLayout(Layout::tryFrom($data['layout']) ?? $this->layout);
+        }
+
         if (true === isset($data['theme'])) {
             $this->setTheme(Theme::tryFrom($data['theme']) ?? $this->theme);
         }

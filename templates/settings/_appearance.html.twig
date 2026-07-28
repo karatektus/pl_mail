@@ -32,6 +32,29 @@
         </div>
         <input type="hidden" data-appearance-target="theme" data-appearance-field="theme" value="{{ a.theme.value }}">
     </section>
+    {# ── Layout ────────────────────────────────────────────────────────────
+       The second axis: the theme picks the palette, the layout picks how it
+       is painted. Each option carries its own preset so the numbers live in
+       PHP only (Layout::defaults) — picking one moves the sliders below. #}
+    <section>
+        <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
+        <p class="text-xs text-ink-faint mt-0.5 mb-3">{{ 'settings.appearance.layout.subheading'|trans }}</p>
+
+        <select data-appearance-field="layout"
+                data-action="change->appearance#pickLayout"
+                class="w-full sm:w-64 px-3 h-9 text-sm rounded-pane
+                       bg-field border border-field-border text-ink cursor-pointer
+                       focus:outline-none focus:ring-2 focus:ring-accent transition-colors">
+            {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
+                <option value="{{ layout.value }}"
+                        data-layout-class="{{ layout.htmlClass ?? '' }}"
+                        data-layout-defaults="{{ layout.defaults|json_encode }}"
+                        {{ a.layout == layout ? 'selected' : '' }}>
+                    {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
+                </option>
+            {% endfor %}
+        </select>
+    </section>
     {# ── Main pane ─────────────────────────────────────────────────────── #}
     <section class="space-y-4">
         <div>

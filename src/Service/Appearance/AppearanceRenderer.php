@@ -15,11 +15,18 @@ final readonly class AppearanceRenderer
 
     public function htmlClass(Appearance $appearance): string
     {
-        if (true === $appearance->theme->followsSystem()) {
-            return '';
+        $classes = [];
+
+        // A system theme is resolved client-side by the no-flash script.
+        if (false === $appearance->theme->followsSystem() && true === $appearance->theme->isDark()) {
+            $classes[] = 'dark';
         }
 
-        return true === $appearance->theme->isDark() ? 'dark' : '';
+        if (null !== $layoutClass = $appearance->layout->htmlClass()) {
+            $classes[] = $layoutClass;
+        }
+
+        return implode(' ', $classes);
     }
 
     public function cssVariables(Appearance $appearance, ?int $userId = null): string

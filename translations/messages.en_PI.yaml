@@ -393,6 +393,11 @@ settings:
             scrimAlpha: Backdrop dimmin'
             subheading: How much o' the backdrop shows through yer panels.
         import: Import theme
+        layout:
+            boxed: Crates
+            flat: Flat as a calm sea
+            heading: Riggin'
+            subheading: How the deck be framed. Crates float every panel like cargo; flat lays the top rail an' side riggin' straight on the backdrop an' leaves only the main deck boxed.
         main:
             default: Theme default
             heading: Main deck
@@ -485,6 +490,7 @@ sidebar:
         sent: Cast off
         starred: Marked with an X
         trash: Davy Jones' locker
+    toggle: Raise or lower th' side riggin'
 
 starred:
     empty: Naught marked with an X.

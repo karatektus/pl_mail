@@ -387,6 +387,53 @@
     }
 }
 
+/* ═══ Shell chrome ═════════════════════════════════════════════════════════
+   Unlayered on purpose (same reason as the channel block at the top): these
+   rules have to beat the `pane` utility, and unlayered declarations outrank
+   anything in Tailwind's cascade layers.
+
+   `shell-chrome` marks the topbar and the inline sidebar — furniture, as
+   opposed to the main content pane. The `flat` layout drops their card so
+   they sit straight on the app background, Gmail-style, leaving `main-pane`
+   as the only box. The mobile drawer never carries the marker: it floats
+   over a dim backdrop and would be unreadable transparent.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.layout-flat .shell-chrome {
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* ═══ Collapsed sidebar (icon rail) ════════════════════════════════════════
+   Toggled by sidebar_drawer_controller and pre-applied from localStorage in
+   app.html.twig. Only `#sidebar` is targeted, which is the inline copy — the
+   drawer copy is `#sidebar-drawer-inner`, so the rail can never affect it.
+   Below md the class is inert; the burger opens the drawer instead.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+    .sidebar-rail #sidebar {
+        width: 3.5rem;
+    }
+
+    .sidebar-rail #sidebar .rail-hide {
+        display: none;
+    }
+
+    /* Nothing left but the icon — centre it, and drop the padding that was
+       there to make room for the label. */
+    .sidebar-rail #sidebar nav {
+        padding-inline: 0.5rem;
+    }
+
+    .sidebar-rail #sidebar nav > a,
+    .sidebar-rail #sidebar nav > a > span {
+        justify-content: center;
+        padding-inline: 0;
+    }
+}
+
 /* ═══ Scrollbars — now token-driven ════════════════════════════════════════ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

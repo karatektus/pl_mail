@@ -405,6 +405,11 @@ settings:
             scrimAlpha: Hintergrundabdunklung
             subheading: Wie viel vom Hintergrund durch deine Flächen scheint.
         import: Theme importieren
+        layout:
+            boxed: Kacheln
+            flat: Flach
+            heading: Layout
+            subheading: Wie die Oberfläche gerahmt ist. „Kacheln“ zeigt jede Fläche als eigene Karte; „Flach“ setzt Kopf- und Seitenleiste direkt auf den Hintergrund und lässt nur den Hauptbereich als Karte stehen.
         main:
             default: Theme-Standard
             heading: Hauptbereich
@@ -499,6 +504,7 @@ sidebar:
         sent: Gesendet
         starred: Markiert
         trash: Papierkorb
+    toggle: Seitenleiste ein-/ausblenden
 
 starred:
     empty: Keine markierten Nachrichten.

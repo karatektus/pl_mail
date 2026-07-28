@@ -1,13 +1,14 @@
-<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 pane relative z-20">
+<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 pane shell-chrome relative z-20">
 
-    {# Burger — mobile only #}
+    {# Burger — opens the drawer on mobile, collapses to the icon rail on md+ #}
     <button
         type="button"
-        class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg
+        class="flex items-center justify-center w-9 h-9 rounded-lg
                text-ink-muted
                hover:bg-hover
                transition-colors flex-shrink-0"
-        aria-label="{{ 'sidebar.nav.inbox'|trans }}"
+        aria-label="{{ 'sidebar.toggle'|trans }}"
+        title="{{ 'sidebar.toggle'|trans }}"
         data-action="click->sidebar-drawer#toggle"
     >
         <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>

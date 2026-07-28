@@ -27,6 +27,14 @@
             window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
+
+        // Collapsed-sidebar state lives in localStorage, so it has to be applied
+        // before first paint or the wide sidebar flashes on every load.
+        try {
+            if (localStorage.getItem('plmail:sidebarRail') === '1') {
+                document.documentElement.classList.add('sidebar-rail');
+            }
+        } catch (e) {}
     </script>
 
     {% block stylesheets %}

@@ -394,6 +394,11 @@ settings:
             scrimAlpha: Background dimming
             subheading: How much of the background shows through your panels.
         import: Import theme
+        layout:
+            boxed: Boxed
+            flat: Flat
+            heading: Layout
+            subheading: How the interface is framed. Boxed floats every panel as a card; flat puts the top bar and sidebar straight on the background and keeps only the main pane boxed.
         main:
             default: Theme default
             heading: Main pane
@@ -485,6 +490,7 @@ sidebar:
         sent: Sent
         starred: Starred
         trash: Trash
+    toggle: Show or hide the sidebar
 
 starred:
     empty: No starred messages.

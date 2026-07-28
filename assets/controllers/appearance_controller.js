@@ -53,6 +53,64 @@ export default class extends Controller {
         this.queue();
     }
 
+    pickLayout(event) {
+        const option = event.currentTarget.selectedOptions[0];
+
+        // Exactly one layout class may be on <html> at a time, so clear every
+        // known one before adding this layout's (the default layout has none).
+        event.currentTarget.querySelectorAll('[data-layout-class]').forEach((candidate) => {
+            if (candidate.dataset.layoutClass !== '') {
+                this.root.classList.remove(candidate.dataset.layoutClass);
+            }
+        });
+
+        if (option.dataset.layoutClass !== '') {
+            this.root.classList.add(option.dataset.layoutClass);
+        }
+
+        this.applyDefaults(JSON.parse(option.dataset.layoutDefaults));
+        this.queue(0);
+    }
+
+    /*
+     * Seed the knobs a layout ships with. The controls are driven rather than
+     * bypassed: the sliders visibly move, and save() then picks the values up
+     * from the DOM like any manual change. Each slider already carries the CSS
+     * variable it maps to, so nothing is hardcoded here.
+     */
+    applyDefaults(defaults) {
+        Object.entries(defaults).forEach(([field, value]) => {
+            if (field === 'density') {
+                const radio = this.element.querySelector(
+                    `[data-appearance-field="density"][value="${value}"]`,
+                );
+
+                if (radio) {
+                    radio.checked = true;
+                    this.root.style.setProperty('--density-row-y', radio.dataset.rowY);
+                    this.root.style.setProperty('--density-gap', radio.dataset.gap);
+                }
+
+                return;
+            }
+
+            const input = this.element.querySelector(`[data-appearance-field="${field}"]`);
+
+            if (!input) {
+                return;
+            }
+
+            input.value = value;
+
+            if (input.dataset.cssVariable) {
+                this.root.style.setProperty(
+                    input.dataset.cssVariable,
+                    `${value}${input.dataset.cssSuffix || ''}`,
+                );
+            }
+        });
+    }
+
     pickAccent(event) {
         const hex = event.currentTarget.value || event.currentTarget.dataset.accent;
         this.accentTarget.value = hex;
