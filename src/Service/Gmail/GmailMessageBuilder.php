@@ -9,6 +9,7 @@ use App\Entity\Label;
 use App\Entity\Message;
 use App\Entity\MessagePart;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -38,6 +39,7 @@ final class GmailMessageBuilder
         private readonly EntityManagerInterface $em,
         private readonly GmailLabelResolver     $labelResolver,
         private readonly LabelResolver          $localLabelResolver,
+        private readonly InlineAttachmentDetector $inlineDetector,
     )
     {
     }
@@ -137,14 +139,18 @@ final class GmailMessageBuilder
 
         // ── Body + attachments ────────────────────────────────────────────────
 
-        [$bodyText, $bodyHtml, $hasAttachments] = $this->extractBody(
+        // Attachment parts are collected first and persisted afterwards: the
+        // inline/attachment decision needs the HTML body, which the same walk
+        // is still assembling.
+        [$bodyText, $bodyHtml, $attachmentParts] = $this->extractBody(
             $payload['payload'] ?? [],
-            $message,
         );
 
         $message->setBodyText($bodyText);
         $message->setBodyHtml($bodyHtml);
-        $message->setHasAttachments($hasAttachments);
+        $message->setHasAttachments(
+            $this->persistAttachmentStubs($attachmentParts, $message, $bodyHtml)
+        );
         $message->setSyncedAt(new DateTimeImmutable());
 
         return $message;
@@ -210,16 +216,13 @@ final class GmailMessageBuilder
      * Walk the MIME tree and extract text/html body parts and attachments.
      *
      * @param array<string,mixed> $part
-     * @return array{string, string, bool}  [bodyText, bodyHtml, hasAttachments]
+     * @return array{string, string, list<array<string,mixed>>}  [bodyText, bodyHtml, attachmentParts]
      */
-    private function extractBody(
-        array   $part,
-        Message $message,
-    ): array
+    private function extractBody(array $part): array
     {
         $bodyText = '';
         $bodyHtml = '';
-        $hasAttachments = false;
+        $attachmentParts = [];
 
         $mimeType = strtolower((string)($part['mimeType'] ?? ''));
 
@@ -239,65 +242,68 @@ final class GmailMessageBuilder
             $hasContentId = '' !== trim(($partHeaders['content-id'] ?? ''), '<> ');
 
             if ('' !== $filename || true === $hasContentId) {
-                $isInline = $this->persistAttachmentStub($part, $message);
-
-                if (false === $isInline) {
-                    $hasAttachments = true;
-                }
+                $attachmentParts[] = $part;
             }
         }
 
         foreach ($part['parts'] ?? [] as $subPart) {
-            [$t, $h, $a] = $this->extractBody($subPart, $message);
+            [$t, $h, $a] = $this->extractBody($subPart);
             if ('' === $bodyText) {
                 $bodyText = $t;
             }
             if ('' === $bodyHtml) {
                 $bodyHtml = $h;
             }
-            if (true === $a) {
+
+            $attachmentParts = array_merge($attachmentParts, $a);
+        }
+
+        return [$bodyText, $bodyHtml, $attachmentParts];
+    }
+
+    /**
+     * Persist MessagePart stubs for the collected attachment parts. Bytes are
+     * fetched lazily by AttachmentResolver on first access.
+     *
+     * @param list<array<string,mixed>> $parts
+     * @return bool  true if at least one part is a real (non-inline) attachment
+     */
+    private function persistAttachmentStubs(array $parts, Message $message, string $bodyHtml): bool
+    {
+        $hasAttachments = false;
+
+        foreach ($parts as $part) {
+            $partHeaders = $this->indexHeaders($part['headers'] ?? []);
+            $filename = (string)($part['filename'] ?? 'attachment');
+            $contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
+            $attachmentId = (string)($part['body']['attachmentId'] ?? '');
+            $size = (int)($part['body']['size'] ?? 0);
+
+            $contentId = $this->inlineDetector->normalizeContentId($partHeaders['content-id'] ?? null);
+            $isInline = $this->inlineDetector->isInline(
+                $partHeaders['content-disposition'] ?? null,
+                $contentId,
+                $bodyHtml,
+            );
+
+            $mp = new MessagePart()
+                ->setMessage($message)
+                ->setContentType($contentType)
+                ->setFilename($filename)
+                ->setContentId('' !== $contentId ? $contentId : null)
+                ->setDisposition($isInline ? 'inline' : 'attachment')
+                ->setSize($size)
+                ->setStoragePath('gmail://' . $attachmentId)
+                ->setIsInline($isInline);
+
+            $this->em->persist($mp);
+
+            if (false === $isInline) {
                 $hasAttachments = true;
             }
         }
 
-        return [$bodyText, $bodyHtml, $hasAttachments];
-    }
-
-    /**
-     * Persist a MessagePart stub for an attachment. Bytes are fetched lazily by
-     * AttachmentResolver on first access.
-     *
-     * @param array<string,mixed> $part
-     * @return bool  true if the part is inline (referenced from the body)
-     */
-    private function persistAttachmentStub(
-        array   $part,
-        Message $message,
-    ): bool
-    {
-        $partHeaders = $this->indexHeaders($part['headers'] ?? []);
-        $filename = (string)($part['filename'] ?? 'attachment');
-        $contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
-        $attachmentId = (string)($part['body']['attachmentId'] ?? '');
-        $size = (int)($part['body']['size'] ?? 0);
-
-        $contentId = trim($partHeaders['content-id'] ?? '', '<> ');
-        $disposition = strtolower($partHeaders['content-disposition'] ?? '');
-        $isInline = true === str_contains($disposition, 'inline') || '' !== $contentId;
-
-        $mp = new MessagePart()
-            ->setMessage($message)
-            ->setContentType($contentType)
-            ->setFilename($filename)
-            ->setContentId('' !== $contentId ? $contentId : null)
-            ->setDisposition($isInline ? 'inline' : 'attachment')
-            ->setSize($size)
-            ->setStoragePath('gmail://' . $attachmentId)
-            ->setIsInline($isInline);
-
-        $this->em->persist($mp);
-
-        return $isInline;
+        return $hasAttachments;
     }
 
     private function decodeMimeHeader(string $value): string

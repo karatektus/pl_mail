@@ -34,6 +34,8 @@ inside the reading pane.
     {% set draft = latest and latest.isDraft and item.messageCount == 1 %}
     {% set draftId = draft ? latest.id : null %}
 
+    {% set hasAttachment = item.attachmentCount > 0 %}
+
     {% set href = path('app_mail_thread', { id: item.id }) %}
     {% set rowId = item.id %}
 {% else %}
@@ -45,6 +47,8 @@ inside the reading pane.
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
     {% set snippet = (item.bodyText ?? '')|striptags|slice(0, 100) %}
+
+    {% set hasAttachment = item.hasAttachments %}
 
     {% set draft = item.isDraft %}
     {% set draftId = item.id %}
@@ -109,7 +113,6 @@ inside the reading pane.
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-600 dark:text-gray-400' }}">
                     {{ sender }}
                 </span>
-
                 {# Date — mobile only (top-right), hidden on desktop #}
                 <span class="md:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
                     {% if date %}
@@ -135,13 +138,19 @@ inside the reading pane.
                 </span>
                 <span class="text-gray-400 dark:text-gray-600"> — {{ snippet }}</span>
             </span>
-
         </div>
 
         {# Date + hover actions slot — desktop only #}
         <div class="hidden md:flex flex-shrink-0 w-36 relative h-full items-center">
 
             <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-gray-400 dark:text-gray-600">
+                                       {% if hasAttachment %}
+                                           <span class="flex-shrink-0 mr-2 text-gray-400 dark:text-gray-600"
+                                                 title="{{ 'thread_row.has_attachment'|trans }}">
+                    <i class="fa-solid fa-paperclip text-[12px]" aria-hidden="true"></i>
+                    <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                </span>
+                                       {% endif %}
                 {% if date %}
                     {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                         {{ date|date('g:i a') }}

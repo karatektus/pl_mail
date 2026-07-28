@@ -509,6 +509,7 @@ thread_row:
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
         snooze: Zurückstellen
+    has_attachment: Enthält Anhang
     message_count: "({ count })"
     no_subject: (kein Betreff)
     select: Auswählen

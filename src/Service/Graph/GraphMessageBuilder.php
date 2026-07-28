@@ -7,6 +7,7 @@ namespace App\Service\Graph;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -46,6 +47,7 @@ final class GraphMessageBuilder
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly GraphFolderResolver    $folderResolver,
+        private readonly InlineAttachmentDetector $inlineDetector,
     ) {}
 
     /**
@@ -210,8 +212,12 @@ final class GraphMessageBuilder
                 continue;
             }
 
-            $contentId = trim((string) ($attachment['contentId'] ?? ''), '<> ');
-            $isInline  = true === ($attachment['isInline'] ?? false) || '' !== $contentId;
+            $contentId = $this->inlineDetector->normalizeContentId($attachment['contentId'] ?? null);
+            $isInline  = $this->inlineDetector->isInline(
+                true === ($attachment['isInline'] ?? false) ? 'inline' : 'attachment',
+                $contentId,
+                $message->getBodyHtml(),
+            );
 
             $part = new MessagePart()
                 ->setMessage($message)

@@ -497,6 +497,7 @@ thread_row:
         mark_read: Mark as read
         mark_unread: Mark as unread
         snooze: Snooze
+    has_attachment: Has attachment
     message_count: "({ count })"
     no_subject: (no subject)
     select: Select

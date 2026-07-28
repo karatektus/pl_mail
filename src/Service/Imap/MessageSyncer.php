@@ -12,6 +12,7 @@ use App\Jmap\State\StateManager;
 use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;
 use App\Repository\MessageRepository;
+use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\RawMessageResolver;
@@ -37,6 +38,7 @@ class MessageSyncer
         private readonly ContactRepository       $contactRepository,
         private readonly StateManager            $stateManager,
         private readonly RawMessageResolver      $rawResolver,
+        private readonly InlineAttachmentDetector $inlineDetector,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -335,18 +337,26 @@ class MessageSyncer
 
         // Attachments
         $attachments = $imapMessage->getAttachments();
-        $message->setHasAttachments($attachments->isNotEmpty());
         $message->setSyncedAt(new DateTimeImmutable());
 
+        $hasAttachments = false;
+
         foreach ($attachments as $attachment) {
-            $this->persistAttachment($attachment, $message, $accountId);
+            if (false === $this->persistAttachment($attachment, $message, $accountId)) {
+                $hasAttachments = true;
+            }
         }
+
+        $message->setHasAttachments($hasAttachments);
 
 
         return $message;
     }
 
-    private function persistAttachment(mixed $attachment, Message $message, int $accountId): void
+    /**
+     * @return bool  true if the part is inline (embedded in the HTML body)
+     */
+    private function persistAttachment(mixed $attachment, Message $message, int $accountId): bool
     {
         $filename = $attachment->getFilename() ?? ('attachment_' . uniqid());
         $content  = $attachment->getContent();
@@ -363,19 +373,25 @@ class MessageSyncer
         $part->setMessage($message);
         $part->setContentType($attachment->getContentType() ?? 'application/octet-stream');
         $part->setFilename($filename);
-        $part->setDisposition($attachment->getDisposition() ?? 'attachment');
         $part->setSize(strlen($content));
         $part->setStoragePath($storagePath);
 
-        $contentId     = $attachment->getId();
-        $normalizedCid = null !== $contentId ? trim((string) $contentId, '<> ') : '';
-        $part->setContentId('' !== $normalizedCid ? $normalizedCid : null);
-
-        $part->setIsInline(
-            ($attachment->getDisposition() ?? '') === 'inline' || '' !== $normalizedCid
+        // getId() falls back to a content hash when the part has no Content-ID,
+        // so it only counts as a cid when the HTML body actually references it.
+        $normalizedCid = $this->inlineDetector->normalizeContentId((string) $attachment->getId());
+        $isInline      = $this->inlineDetector->isInline(
+            $attachment->getDisposition(),
+            $normalizedCid,
+            $message->getBodyHtml(),
         );
 
+        $part->setContentId('' !== $normalizedCid ? $normalizedCid : null);
+        $part->setDisposition($isInline ? 'inline' : 'attachment');
+        $part->setIsInline($isInline);
+
         $this->em->persist($part);
+
+        return $isInline;
     }
 
     private function formatAddresses(mixed $attribute): array
