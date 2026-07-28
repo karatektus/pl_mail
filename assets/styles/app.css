@@ -448,23 +448,34 @@
 
     /* No label to run into: the pill stays a centred, evenly-rounded square
        rather than bleeding off the left edge. */
-    .sidebar-rail #sidebar .nav-item.is-active {
+    .sidebar-rail #sidebar .nav-item.is-active,
+    .sidebar-rail #sidebar .nav-item:hover {
         margin-inline-start: 0;
         padding-inline-start: 0;
         border-radius: 0.5rem;
     }
 }
 
-/* Active nav row, Gmail-style: the pill runs off the left edge of the sidebar
-   and caps with a full radius on the right. `is-active` is applied by
-   sidebar_controller; the colours ride along as utilities, only the shape
-   lives here — it needs to cancel the nav's own padding, which a utility
-   cannot do without leaking into every other row. */
+/* Active and hovered nav rows, Gmail-style: the pill runs off the left edge
+   and caps with a full radius on the right. Hover and active share the shape
+   and differ only in colour, which rides along as utilities — the shape lives
+   here because it has to cancel the nav's own padding, and a utility cannot
+   do that without leaking into every other row. */
 #sidebar .nav-item.is-active,
-#sidebar-drawer-inner .nav-item.is-active {
+#sidebar .nav-item:hover,
+#sidebar-drawer-inner .nav-item.is-active,
+#sidebar-drawer-inner .nav-item:hover {
     margin-inline-start: -0.5rem;   /* cancel nav's px-2 … */
     padding-inline-start: 1.25rem;  /* … without moving the icon */
     border-radius: 0 9999px 9999px 0;
+}
+
+/* Flat has no card to respect: the sidebar sits straight against the window,
+   so the shell's own left gutter goes too and the pill reaches the browser
+   edge. Boxed keeps the gutter — a pill bleeding off a floating card would
+   just look broken. */
+.layout-flat .shell-frame {
+    padding-inline-start: 0;
 }
 
 /* ═══ Scrollbars — now token-driven ════════════════════════════════════════ */

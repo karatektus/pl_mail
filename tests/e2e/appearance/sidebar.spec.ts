@@ -22,6 +22,10 @@ const railed = (page: Page) =>
     );
 
 test.beforeEach(async ({ page }) => {
+    // The pill's geometry depends on the layout, which is persisted per user.
+    const reset = await page.request.post("/settings/appearance/reset");
+    expect(reset.ok()).toBe(true);
+
     // The rail is remembered per browser; start every test expanded.
     await page.goto("/mail/inbox");
     await page.evaluate(() => localStorage.removeItem("plmail:sidebarRail"));
@@ -89,23 +93,41 @@ test.describe("sidebar rail (desktop)", () => {
         expect(box!.width).toBeGreaterThanOrEqual(box!.height);
     });
 
-    test("runs the active row's highlight off the left edge of the sidebar", async ({
+    test("runs the active row's highlight to the window edge under the flat layout", async ({
         page,
     }) => {
         await page.goto("/mail/inbox");
 
-        const sidebar = page.locator("#sidebar");
-        const active = sidebar.locator(".nav-item.is-active");
+        const active = page.locator("#sidebar .nav-item.is-active");
         await expect(active).toHaveCount(1);
 
-        const sidebarBox = await sidebar.boundingBox();
+        const box = await active.boundingBox();
+
+        // Flat puts the sidebar against the window, so the pill reaches it too
+        // — only the sidebar's own (transparent) 1px border sits in between.
+        expect(box!.x).toBeLessThanOrEqual(1);
+
+        // …and it is capped on the right rather than squared off.
+        await expect(active).toHaveCSS("border-top-right-radius", "9999px");
+    });
+
+    test("gives a hovered row the same shape as the active one", async ({
+        page,
+    }) => {
+        await page.goto("/mail/inbox");
+
+        // Any row but the active one, so the two states can't be confused.
+        const hovered = page.locator("#sidebar .nav-item").nth(1);
+        const active = page.locator("#sidebar .nav-item.is-active");
+
+        await hovered.hover();
+
+        const hoveredBox = await hovered.boundingBox();
         const activeBox = await active.boundingBox();
 
-        // Flush to the sidebar's own edge, with only its border in between.
-        expect(activeBox!.x - sidebarBox!.x).toBeLessThanOrEqual(1);
-
-        // …and capped on the right rather than squared off.
-        await expect(active).toHaveCSS("border-top-right-radius", "9999px");
+        expect(hoveredBox!.x).toBeCloseTo(activeBox!.x, 0);
+        expect(hoveredBox!.width).toBeCloseTo(activeBox!.width, 0);
+        await expect(hovered).toHaveCSS("border-top-right-radius", "9999px");
     });
 });
 

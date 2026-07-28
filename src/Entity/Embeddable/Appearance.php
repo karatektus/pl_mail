@@ -317,12 +317,16 @@ final class Appearance
         }
 
         if (true === array_key_exists('backgroundPreset', $data)) {
-            $this->setBackgroundPreset(BackgroundPreset::tryFrom($data['backgroundPreset']));
+            // Both "no preset" and "a preset we don't know" mean null, but
+            // tryFrom() only accepts a string — reset and import both send the
+            // key with a null value.
+            $preset = $data['backgroundPreset'];
+            $this->setBackgroundPreset(is_string($preset) ? BackgroundPreset::tryFrom($preset) : null);
         }
 
         if (true === array_key_exists('backgroundSolid', $data)) {
             $solid = $data['backgroundSolid'];
-            $this->setBackgroundSolid(1 === preg_match('/^#[0-9a-fA-F]{6}$/', $solid) ? strtolower($solid) : null);
+            $this->setBackgroundSolid(is_string($solid) && 1 === preg_match('/^#[0-9a-fA-F]{6}$/', $solid) ? strtolower($solid) : null);
         }
 
         if (true === isset($data['scrimAlpha'])) {

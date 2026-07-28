@@ -76,6 +76,7 @@ test.describe("layout", () => {
         await page.goto("/mail/inbox");
         expect(await flat(page)).toBe(false);
 
+        await page.goto(APPEARANCE);
         await pickLayout(page, "flat");
 
         await page.goto("/mail/inbox");
