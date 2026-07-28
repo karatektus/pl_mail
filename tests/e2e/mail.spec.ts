@@ -16,6 +16,32 @@ test.beforeEach(() => {
 });
 
 test.describe("mail UI actions", () => {
+    /**
+     * The row's who column lists everyone who has written in the conversation,
+     * oldest first. It used to show the newest sender, so answering a mail
+     * relabelled the whole conversation as coming from you.
+     */
+    test("keeps the correspondent in the row after you reply", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await expect(row).toContainText("E2E Sender");
+
+        await row.click();
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+        await page
+            .locator('#compose_inline [data-compose-toolbar-target="editor"]')
+            .fill("Reply draft body");
+        await page.waitForResponse((r) =>
+            r.url().includes("/compose/draft") && r.request().method() === "POST"
+        );
+
+        await page.goto("/mail/inbox");
+
+        const replied = mailRow(page, "Re: " + INBOX_SUBJECTS.read);
+        await expect(replied).toContainText("E2E Sender, me");
+    });
+
     test("stars a conversation and it shows in the Starred view", async ({
                                                                              page,
                                                                          }) => {

@@ -563,6 +563,7 @@ thread_row:
         mark_unread: Mark as unread
         snooze: Let it drift
     has_attachment: Carries cargo
+    me: me
     message_count: "({ count })"
     no_subject: (no subject)
     select: Pick it

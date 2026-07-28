@@ -28,7 +28,10 @@ the conversation it answers.
     {% set count = item.messageCount %}
 
     {% set latest = item.messages|last %}
-    {% set sender = latest ? (latest.fromName ?: latest.fromAddress) : '' %}
+    {# Everyone who has written in the conversation, oldest first — not the
+       newest sender, which made every thread you had answered look like it
+       came from you. #}
+    {% set sender = thread_participants(item)|join(', ') %}
     {% set snippet = latest ? (latest.bodyText ?? '')|striptags|slice(0, 100) : '' %}
 
     {# `latest` comes from |last, which yields FALSE (not null) on an empty
