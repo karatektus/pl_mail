@@ -29,7 +29,14 @@ class ContactAutocompleteField extends AbstractType
         // bundle submits entity IDs, so a created option arrives as the raw
         // typed address and the choice loader rejects it. Materialise a
         // Contact first and hand the loader the id it expects.
-        $builder->addEventListener(FormEvents::PRE_SUBMIT, $this->resolveCreatedOptions(...));
+        //
+        // The priority is load-bearing: ChoiceType registers its own PRE_SUBMIT
+        // at 0, which runs every submitted value through the choice list and
+        // drops the ones it does not know — a typed address among them. At the
+        // default priority this listener only ever saw what survived that
+        // filter (an empty array), and the form failed with "The selected
+        // choice is invalid". Running first, it hands the filter ids instead.
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, $this->resolveCreatedOptions(...), 512);
     }
 
     private function resolveCreatedOptions(PreSubmitEvent $event): void
@@ -114,6 +121,21 @@ class ContactAutocompleteField extends AbstractType
                 'closeAfterSelect' => false,
                 'openOnFocus'      => false,
                 'hideSelected'     => true,
+
+                // Tab commits the highlighted suggestion (or the typed
+                // address) instead of leaving the field with it half-entered.
+                // With the dropdown closed Tom Select leaves the keystroke
+                // alone, and compose_controller moves focus on from there.
+                'selectOnTab'      => true,
+
+                // allow_options_create above only reaches Tom Select in newer
+                // releases of the bundle: this one renders it as a valueless
+                // data attribute, which Stimulus reads back as false, so the
+                // "Add …" row never appeared and an address that is not
+                // already a Contact could not be entered at all. Passing it
+                // through here is the same switch, one layer down.
+                'create'           => true,
+                'createFilter'     => '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
 
                 'render' => [
                     // Dropdown suggestion row: avatar initial + name + email

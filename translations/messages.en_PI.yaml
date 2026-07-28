@@ -160,6 +160,8 @@ app:
     name: Mail
 
 compose:
+    attach: Lash on some cargo
+    attachment_remove: Heave the cargo overboard
     click_to_cancel: click to belay it
     continue_editing: Keep scribblin'
     discard: Burn this scroll

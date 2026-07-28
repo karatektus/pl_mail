@@ -220,7 +220,10 @@ final class MessageThreader
             ->setThreadingMethod($threadingMethod)
             ->setMessageCount(0)
             ->setUnreadCount(0)
-            ->setCategory(MessageCategory::Primary)
+            // Seed from the message that opens the thread; attachMessageToThread()
+            // takes over from here. Primary only when the message is uncategorised,
+            // which is the case for locally-composed drafts.
+            ->setCategory($message->getCategory() ?? MessageCategory::Primary)
             ->setAttachmentCount(0);
 
         $this->entityManager->persist($thread);
@@ -254,6 +257,16 @@ final class MessageThreader
 
             if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
                 $thread->setLastMessageAt($occurredAt);
+
+                // Most-recent-wins, the same rule the category backfill applies in
+                // SQL. Without this a thread would keep whatever category it was
+                // created with and the inbox tabs — which filter on the thread, not
+                // the message — would only ever move after a backfill run.
+                $category = $message->getCategory();
+
+                if (null !== $category) {
+                    $thread->setCategory($category);
+                }
             }
         }
     }

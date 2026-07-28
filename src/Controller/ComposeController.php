@@ -5,8 +5,10 @@ namespace App\Controller;
 use App\Domain\Trait\ParsesAddressFields;
 use App\Domain\Enum\LabelRole;
 use App\Domain\Enum\MessageFlag;
+use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
 use App\Entity\Message;
+use App\Entity\MessagePart;
 use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\AccountRepository;
@@ -22,6 +24,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -43,6 +46,9 @@ class ComposeController extends AbstractController
     private const string INLINE_FRAME = 'compose_inline';
     private const string INLINE_FORM  = 'compose_inline';
 
+    /** Per-file ceiling for compose attachments. */
+    private const int MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
     /** Matches the DelayStamp on the send job — the cancel window. */
     private const int SEND_DELAY_MS = 10_000;
 
@@ -57,6 +63,7 @@ class ComposeController extends AbstractController
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly ContactRepository       $contactRepository,
         private readonly MailBodySanitizer       $bodySanitizer,
+        private readonly AttachmentStorageHelper $attachmentStorage,
     )
     {
     }
@@ -297,6 +304,80 @@ class ComposeController extends AbstractController
     }
 
     /**
+     * Attach files to a draft. The window forces a save before uploading, so
+     * there is always a Message to hang the parts off; the sending side
+     * already turns MessageParts into MIME attachments.
+     *
+     * Answers with the attachment strip for the window to swap in.
+     */
+    #[Route('/attachments/{id}', name: 'attachments_add', methods: ['POST'])]
+    public function addAttachments(Request $request, Message $message): Response
+    {
+        $this->assertDraft($message);
+
+        $account = $message->getAccount();
+        $files   = $request->files->all('files');
+
+        foreach ($files as $file) {
+            if (false === $file instanceof UploadedFile || false === $file->isValid()) {
+                continue;
+            }
+
+            if ($file->getSize() > self::MAX_ATTACHMENT_BYTES) {
+                return new Response('Attachment too large.', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+            }
+
+            // Bucketed like synced attachments: account / mailbox (0 where the
+            // account has none) / message. Drafts have no UID, so the message
+            // id keeps one draft's files out of another's directory.
+            $storagePath = $this->attachmentStorage->store(
+                (int) $account->getId(),
+                (int) ($message->getMailbox()?->getId() ?? 0),
+                (int) $message->getId(),
+                (string) $file->getClientOriginalName(),
+                (string) file_get_contents($file->getPathname()),
+            );
+
+            $part = new MessagePart()
+                ->setMessage($message)
+                // Guessed from the bytes, not from the client's header — this
+                // value comes back out as a Content-Type on download.
+                ->setContentType($file->getMimeType() ?? 'application/octet-stream')
+                ->setFilename(basename((string) $file->getClientOriginalName()))
+                ->setDisposition('attachment')
+                ->setSize($file->getSize())
+                ->setStoragePath($storagePath)
+                ->setIsInline(false);
+
+            $message->addMessagePart($part);
+            $this->em->persist($part);
+        }
+
+        $this->syncAttachmentFlag($message);
+        $this->em->flush();
+
+        return $this->render('compose/_attachments.html.twig', ['message' => $message]);
+    }
+
+    #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
+    public function removeAttachment(MessagePart $part): Response
+    {
+        $message = $part->getMessage();
+
+        $this->assertDraft($message);
+
+        $this->attachmentStorage->delete($part->getStoragePath());
+
+        $message->removeMessagePart($part);
+        $this->em->remove($part);
+
+        $this->syncAttachmentFlag($message);
+        $this->em->flush();
+
+        return $this->render('compose/_attachments.html.twig', ['message' => $message]);
+    }
+
+    /**
      * Discard: the trash button in the compose window really deletes the
      * draft instead of just closing the window on top of it.
      */
@@ -313,6 +394,7 @@ class ComposeController extends AbstractController
         $messageId = $message->getId();
         $thread    = $message->getThread();
 
+        $this->deleteStoredAttachments($message);
         $this->em->remove($message);
 
         // Recount from the association, never from the stored counter — it
@@ -793,9 +875,12 @@ class ComposeController extends AbstractController
             ->setFromAddress($account->getEmail())
             ->setFromName($account->getName())
             ->addFlag(MessageFlag::DRAFT)
-            ->setHasAttachments(false)
             ->setSeenAt($message->getSeenAt() ?? $now)
             ->setUpdatedAt($now);
+
+        // Autosave runs on every keystroke: hardcoding false here used to wipe
+        // the flag off a draft that had files attached to it.
+        $this->syncAttachmentFlag($message);
 
         // Only the sync layer sanitizes bodies, so without this a draft (and
         // the message it becomes) renders blank in the conversation until the
@@ -814,6 +899,47 @@ class ComposeController extends AbstractController
         $this->threadLabelSynchronizer->sync($message->getThread());
 
         $this->em->flush();
+    }
+
+    /**
+     * Attachments may only be touched on a draft the user owns that has not
+     * gone out yet — a sent message's parts are a record of what was sent.
+     */
+    private function assertDraft(?Message $message): void
+    {
+        if (null === $message) {
+            throw $this->createNotFoundException();
+        }
+
+        $this->assertOwnership($message);
+
+        if (false === $message->isDraft() || null !== $message->getSentAt()) {
+            throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
+        }
+    }
+
+    /** Keep the attachment flag in step with the parts actually stored. */
+    private function syncAttachmentFlag(Message $message): void
+    {
+        $hasAttachments = false;
+
+        foreach ($message->getMessageParts() as $part) {
+            if (false === (bool) $part->isInline()) {
+                $hasAttachments = true;
+
+                break;
+            }
+        }
+
+        $message->setHasAttachments($hasAttachments);
+    }
+
+    /** Drop the files a discarded draft uploaded; the rows cascade. */
+    private function deleteStoredAttachments(Message $message): void
+    {
+        foreach ($message->getMessageParts() as $part) {
+            $this->attachmentStorage->delete($part->getStoragePath());
+        }
     }
 
     private function assertOwnership(Message $message): void

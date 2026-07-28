@@ -1,0 +1,37 @@
+{# templates/compose/_attachments.html.twig #}
+
+{#
+The attachment strip of a compose window. Rendered with the window and again
+on its own after every upload/removal — compose_controller swaps it into the
+"attachments" target — so it must stay a standalone fragment.
+
+Variables: message
+#}
+{% set parts = message.messageParts|filter(part => not part.isInline) %}
+
+{% if parts|length > 0 %}
+    <div class="flex flex-wrap gap-2 px-4 pb-2">
+        {% for part in parts %}
+            {% set kb = (part.size ?: 0) / 1024 %}
+            <span class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
+                         bg-sunken border border-line text-ink-soft">
+                <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
+                <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                   class="truncate max-w-[11rem] hover:text-accent transition-colors">
+                    {{- part.filename ?: 'attachment' -}}
+                </a>
+                <span class="text-ink-faint shrink-0">
+                    {{- kb >= 1024 ? (kb / 1024)|number_format(1) ~ ' MB' : kb|number_format(0) ~ ' KB' -}}
+                </span>
+                <button type="button"
+                        data-action="click->compose#removeAttachment"
+                        data-part-id="{{ part.id }}"
+                        title="{{ 'compose.attachment_remove'|trans }}"
+                        class="w-5 h-5 flex items-center justify-center rounded
+                               text-ink-faint hover:text-danger hover:bg-hover transition-colors">
+                    <i class="fa-solid fa-xmark text-[10px]"></i>
+                </button>
+            </span>
+        {% endfor %}
+    </div>
+{% endif %}

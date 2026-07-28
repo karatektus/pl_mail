@@ -44,15 +44,90 @@ test.describe("compose window", () => {
         await expect(cc).toBeVisible();
     });
 
-    // KNOWN BROKEN — app bug, not test drift. ContactAutocompleteField sets
-    // `allow_options_create => true`, but the bundle renders that as a valueless
-    // boolean attribute (`data-…-allow-options-create-value=""`), which Stimulus
-    // reads as false. Tom Select is therefore built with `create: null`, so the
-    // "Add <address>" row never renders and a recipient who is not already a
-    // Contact cannot be entered at all. Verified in-browser:
-    //   ts.settings.create === null, dropdown shows only "No results found".
-    // Un-fixme once the create option reaches Tom Select.
-    test.fixme("adds a typed recipient as a chip", async ({ page }) => {
+    test("tabs from the recipients straight to the subject", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const dockEl = page.locator(dock);
+        const toInput = dockEl.locator(".ts-control input").first();
+
+        await toInput.click();
+        // Nothing typed, so Tom Select leaves the keystroke alone — it must
+        // land on the subject rather than on the Cc/Bcc buttons next to To.
+        await toInput.press("Tab");
+
+        await expect(dockEl.locator('input[name="compose[subject]"]')).toBeFocused();
+    });
+
+    test("tabs through a revealed Cc field on the way to the subject", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const dockEl = page.locator(dock);
+        await dockEl.getByRole("button", { name: "Cc", exact: true }).click();
+
+        const toInput = dockEl.locator(".ts-control input").first();
+        await toInput.click();
+        await toInput.press("Tab");
+
+        await expect(
+            page.locator('[data-compose-target="ccField"]').locator(".ts-control input"),
+        ).toBeFocused();
+    });
+
+    test("commits the highlighted suggestion on Tab", async ({ page }) => {
+        // Suggestions come from Contacts, and the suite seeds none — so make
+        // one the way the app does, by saving a draft addressed to it.
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const firstWindow = page.locator(dock);
+        await firstWindow.locator(".ts-control input").first().fill(RECIPIENT);
+        await firstWindow.locator(".ts-control input").first().press("Enter");
+        await firstWindow.locator('[data-compose-toolbar-target="editor"]').fill("Draft body");
+        await page.waitForResponse((r) =>
+            r.url().includes("/compose/draft") && r.request().method() === "POST"
+        );
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const toControl = page.locator(dock).locator(".ts-control").first();
+        const toInput = toControl.locator("input");
+        await toInput.fill(RECIPIENT.split("@")[0]);
+
+        // Wait for the suggestion to be the active option, then commit it.
+        await expect(page.locator(".ts-dropdown .active")).toContainText(RECIPIENT);
+        await toInput.press("Tab");
+
+        await expect(toControl.locator(".item")).toContainText(RECIPIENT);
+    });
+
+    test("attaches a file to the draft", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const dockEl = page.locator(dock);
+
+        await dockEl.locator('input[type="file"]').setInputFiles({
+            name: "e2e-note.txt",
+            mimeType: "text/plain",
+            buffer: Buffer.from("attached by the e2e suite"),
+        });
+
+        const chip = dockEl.getByRole("link", { name: "e2e-note.txt" });
+        await expect(chip).toBeVisible();
+
+        // And it can be taken off again.
+        await dockEl.getByRole("button", { name: "Remove attachment" }).click();
+        await expect(chip).toBeHidden();
+    });
+
+    // `allow_options_create => true` never reached Tom Select — this version of
+    // the bundle renders it as a valueless boolean attribute that Stimulus reads
+    // back as false — so ContactAutocompleteField now passes `create` through
+    // tom_select_options directly. Guards that path.
+    test("adds a typed recipient as a chip", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
 
@@ -64,7 +139,14 @@ test.describe("compose window", () => {
         await expect(toControl.locator(".item")).toContainText("someone@example.test");
     });
 
-    // KNOWN BROKEN — blocked on the same create-option bug as the test above.
+    // KNOWN BROKEN — app bug, not test drift, and no longer the create-option
+    // one above: the draft is saved (row + Drafts label on the message), but
+    // /mail/drafts lists *threads* by label and the new thread carries none.
+    // MessageThreader::attachMessageToThread() copies the message's labels onto
+    // the thread while only setting the owning side of the association, so the
+    // ThreadLabelSynchronizer::sync() that runs straight after sees an empty
+    // $thread->getMessages() and removes them all again. Un-fixme once a fresh
+    // draft thread keeps its Drafts label.
     test.fixme("restores the recipient when a draft is reopened", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
@@ -76,6 +158,10 @@ test.describe("compose window", () => {
         await expect(toControl.locator(".item")).toContainText(RECIPIENT);
 
         await dockEl.locator('input[name="compose[subject]"]').fill("E2E Draft");
+
+        // The autosave only mints a draft once the body clears min-chars, so a
+        // subject on its own would never produce the POST awaited below.
+        await dockEl.locator('[data-compose-toolbar-target="editor"]').fill("Draft body");
 
         await page.waitForResponse((r) =>
             r.url().includes("/compose/draft") && r.request().method() === "POST"

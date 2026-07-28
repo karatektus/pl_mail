@@ -177,7 +177,8 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
             </div>
 
             {# ── To ───────────────────────────────────────────────── #}
-            <div class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
+            <div data-compose-target="toField"
+                 class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
                 <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">To</span>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.toAddresses) }}
@@ -225,6 +226,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                 <input type="text"
                        id="{{ form.subject.vars.id }}"
                        name="{{ form.subject.vars.full_name }}"
+                       data-compose-target="subject"
                        value="{{ form.subject.vars.value ?: '' }}"
                        placeholder="Subject"
                        class="flex-1 bg-transparent outline-none text-sm
@@ -254,6 +256,11 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                             empty:before:content-[attr(data-placeholder)]
                             empty:before:text-ink-faint
                             empty:before:pointer-events-none">{{ form.bodyHtml.vars.value|raw ?: '' }}</div>
+            </div>
+
+            {# ── Attachments ──────────────────────────────────────── #}
+            <div data-compose-target="attachments" class="shrink-0">
+                {{ include('compose/_attachments.html.twig', { message: message }) }}
             </div>
 
             {# ── Toolbar ──────────────────────────────────────────── #}
@@ -360,7 +367,15 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
 
                     {% set ic = "w-8 h-8 flex items-center justify-center rounded-full transition-colors text-ink-muted hover:text-ink hover:bg-hover" %}
                     <button type="button" class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
-                    <button type="button" class="{{ ic }}"><i class="fa-solid fa-paperclip"></i></button>
+                    <button type="button"
+                            data-action="click->compose#openFilePicker"
+                            title="{{ 'compose.attach'|trans }}"
+                            class="{{ ic }}"><i class="fa-solid fa-paperclip"></i></button>
+                    {# No name: never submitted with the form, only read by the
+                       controller and POSTed to the attachment endpoint. #}
+                    <input type="file" multiple class="hidden"
+                           data-compose-target="fileInput"
+                           data-action="change->compose#uploadFiles">
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#insertLink" class="{{ ic }}"><i class="fa-solid fa-link"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-regular fa-face-smile"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-brands fa-google-drive"></i></button>

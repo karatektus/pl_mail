@@ -51,6 +51,28 @@ readonly class AttachmentStorageHelper
         return $this->projectDir . '/' . $relativePath;
     }
 
+    /**
+     * Remove a stored file. Anything that is not one of our own relative
+     * storage paths — provider schemes like gmail:// live in the same column —
+     * is ignored rather than resolved to a filesystem path.
+     */
+    public function delete(?string $relativePath): void
+    {
+        if (null === $relativePath || false === str_starts_with($relativePath, 'var/attachments/')) {
+            return;
+        }
+
+        if (true === str_contains($relativePath, '..')) {
+            return;
+        }
+
+        $path = $this->getAbsolutePath($relativePath);
+
+        if (true === is_file($path)) {
+            unlink($path);
+        }
+    }
+
     private function sanitizeFilename(string $filename): string
     {
         // Decode encoded filenames (e.g. =?UTF-8?B?...?=)

@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['ccField', 'bccField', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments'];
     static values = {
         draftUrl: String,
         sendUrl: String,
@@ -28,7 +28,11 @@ export default class extends Controller {
         this._submitting = false;
         this._boundHandleSubmit = this._handleSubmit.bind(this);
         this._boundAutosave = this._scheduleAutosave.bind(this);
+        this._boundHandleTab = this._handleTab.bind(this);
 
+        // Bubbles up from the Tom Select textboxes, so it runs after Tom
+        // Select's own key handler has had its say — see _handleTab().
+        this.element.addEventListener('keydown', this._boundHandleTab);
 
         const form = this.element.querySelector('form');
 
@@ -66,6 +70,7 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.#autosaveTimer);
+        this.element.removeEventListener('keydown', this._boundHandleTab);
         const form = this.element.querySelector('form');
             form.removeEventListener('input', this._boundAutosave);
             form.removeEventListener('submit', this._boundHandleSubmit);
@@ -102,6 +107,75 @@ export default class extends Controller {
         if (this.hasFieldsChevronTarget) {
             this.fieldsChevronTarget.classList.toggle('rotate-180', false === hidden);
         }
+    }
+
+    // ── Keyboard ──────────────────────────────────────────────────────
+
+    /**
+     * Tab out of an address field.
+     *
+     * With its dropdown open Tom Select consumes the keystroke itself
+     * (selectOnTab: commit the highlighted suggestion, or the typed address)
+     * and calls preventDefault — nothing left to do here. Closed, the browser
+     * would move focus to the little Cc/Bcc buttons that follow the To row in
+     * the DOM, which is never where you want to go next: send it to the next
+     * visible address row, or to the subject.
+     */
+    _handleTab(event) {
+        if ('Tab' !== event.key || true === event.shiftKey || true === event.defaultPrevented) {
+            return;
+        }
+
+        const wrapper = event.target.closest?.('.ts-wrapper');
+
+        if (null === wrapper || undefined === wrapper) {
+            return;
+        }
+
+        if (true === this._focusAfterAddressRow(wrapper)) {
+            event.preventDefault();
+        }
+    }
+
+    /** The To/Cc/Bcc rows, in tab order. */
+    _addressRows() {
+        return [
+            this.hasToFieldTarget ? this.toFieldTarget : null,
+            this.hasCcFieldTarget ? this.ccFieldTarget : null,
+            this.hasBccFieldTarget ? this.bccFieldTarget : null,
+        ].filter((row) => null !== row);
+    }
+
+    /** Focus the first visible address row after `wrapper`, else the subject. */
+    _focusAfterAddressRow(wrapper) {
+        const rows  = this._addressRows();
+        const index = rows.findIndex((row) => row.contains(wrapper));
+
+        if (-1 === index) {
+            return false;
+        }
+
+        for (const row of rows.slice(index + 1)) {
+            if (true === row.classList.contains('hidden')) {
+                continue;
+            }
+
+            const input = row.querySelector('.ts-control input');
+
+            if (null !== input) {
+                input.focus();
+
+                return true;
+            }
+        }
+
+        if (false === this.hasSubjectTarget) {
+            return false;
+        }
+
+        this.subjectTarget.focus();
+
+        return true;
     }
 
     // ── Quoted content ────────────────────────────────────────────────
@@ -496,9 +570,10 @@ export default class extends Controller {
     /**
      * `force` covers the deliberate saves — the close button (which passes its
      * click event) and pop-out — so only the debounced autosave is gated on
-     * the body having real content.
+     * the body having real content. `allowEmpty` additionally lets an empty
+     * draft be created: attaching a file needs a row to hang it off.
      */
-    async saveDraft(event = null, { force = false } = {}) {
+    async saveDraft(event = null, { force = false, allowEmpty = false } = {}) {
         event?.preventDefault();
 
         const form = this.element.querySelector('form');
@@ -510,18 +585,13 @@ export default class extends Controller {
 
         // Nothing written and nothing saved yet: closing an untouched reply
         // box must not leave an empty draft behind.
-        if (0 === this._typedLength() && null === this._messageId()) {
+        if (false === allowEmpty && 0 === this._typedLength() && null === this._messageId()) {
             return;
         }
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
-        const STATUS_CLASSES = ['text-ink-faint', 'text-danger', 'text-success'];
-        if (status) {
-            status.textContent = 'Saving…';
-            status.classList.remove(...STATUS_CLASSES);
-            status.classList.add('text-ink-faint');
-        }
+        this._setStatus('Saving…', 'text-ink-faint');
 
         try {
             const response = await fetch(url, {
@@ -549,20 +619,27 @@ export default class extends Controller {
                         oldForm.action = this.sendUrlValue;
                     }
 
-                    status.textContent = 'Draft saved';
-                    status.classList.remove(...STATUS_CLASSES);
-                    status.classList.add('text-success');
+                    this._setStatus('Draft saved', 'text-success');
                 }
             } else {
                 throw new Error('Server error');
             }
         } catch (_) {
-            if (status) {
-                status.textContent = 'Failed to save';
-                status.classList.remove(...STATUS_CLASSES);
-                status.classList.add('text-danger');
-            }
+            this._setStatus('Failed to save', 'text-danger');
         }
+    }
+
+    /** The status line next to the window controls. */
+    _setStatus(text, className) {
+        if (false === this.hasSaveStatusTarget) {
+            return;
+        }
+
+        const status = this.saveStatusTarget;
+
+        status.textContent = text;
+        status.classList.remove('text-ink-faint', 'text-danger', 'text-success');
+        status.classList.add(className);
     }
 
     /**
@@ -634,6 +711,100 @@ export default class extends Controller {
                 sendBtn.textContent = 'Send';
             }
         }, 15_000);
+    }
+
+    // ── Attachments ───────────────────────────────────────────────────
+
+    openFilePicker() {
+        if (true === this.hasFileInputTarget) {
+            this.fileInputTarget.click();
+        }
+    }
+
+    /**
+     * Attachments are rows hanging off the draft, so an unsaved window has to
+     * become one first — hence the forced save before the upload.
+     */
+    async uploadFiles(event) {
+        const input = event.currentTarget;
+        const files = Array.from(input.files ?? []);
+
+        if (0 === files.length) {
+            return;
+        }
+
+        // Clearing it early keeps the picked files out of every later autosave
+        // (the input sits inside the form) and lets the same file be picked
+        // again after a removal.
+        input.value = '';
+
+        await this.saveDraft(null, { force: true, allowEmpty: true });
+
+        const id = this._messageId();
+
+        if (null === id) {
+            this._setStatus('Could not attach', 'text-danger');
+
+            return;
+        }
+
+        const body = new FormData();
+        files.forEach((file) => body.append('files[]', file));
+
+        this._setStatus('Uploading…', 'text-ink-faint');
+
+        await this._renderAttachments(
+            fetch(`/compose/attachments/${id}`, {
+                method: 'POST',
+                body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            }),
+            'Could not attach',
+        );
+    }
+
+    async removeAttachment(event) {
+        const partId = event.currentTarget.dataset.partId;
+
+        if (undefined === partId) {
+            return;
+        }
+
+        await this._renderAttachments(
+            fetch(`/compose/attachment/${partId}/remove`, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            }),
+            'Could not remove attachment',
+        );
+    }
+
+    /** Swap in the server-rendered attachment strip, or report why not. */
+    async _renderAttachments(request, failureMessage) {
+        let response;
+
+        try {
+            response = await request;
+        } catch (_) {
+            this._setStatus(failureMessage, 'text-danger');
+
+            return;
+        }
+
+        if (false === response.ok) {
+            this._setStatus(
+                413 === response.status ? 'Attachment too large' : failureMessage,
+                'text-danger',
+            );
+
+            return;
+        }
+
+        if (true === this.hasAttachmentsTarget) {
+            this.attachmentsTarget.innerHTML = await response.text();
+        }
+
+        this._setStatus('Draft saved', 'text-success');
     }
 
     // ── Cc / Bcc ──────────────────────────────────────────────────────

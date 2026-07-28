@@ -162,6 +162,8 @@ app:
     name: Mail
 
 compose:
+    attach: Dateien anhängen
+    attachment_remove: Anhang entfernen
     click_to_cancel: zum Abbrechen klicken
     continue_editing: Weiter bearbeiten
     discard: Entwurf löschen

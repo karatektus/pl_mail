@@ -160,6 +160,8 @@ app:
     name: Mail
 
 compose:
+    attach: Attach files
+    attachment_remove: Remove attachment
     click_to_cancel: click to cancel
     continue_editing: Continue editing
     discard: Delete draft
