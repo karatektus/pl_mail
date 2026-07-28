@@ -24,6 +24,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
     <div data-controller="compose compose-toolbar"
          data-compose-inline-value="{{ inline ? 'true' : 'false' }}"
          data-compose-min-chars-value="{{ min_chars|default(5) }}"
+         data-compose-max-attachment-bytes-value="{{ constant('App\\Controller\\ComposeController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose-thread-value="{{ thread }}"{% endif %}
         {% if null == message.id %}
             data-compose-draft-url-value="{{ path('app_compose_form_new', ctx) }}"

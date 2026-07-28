@@ -9,6 +9,7 @@ use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Entity\MessageThread;
 use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\AccountRepository;
@@ -46,8 +47,12 @@ class ComposeController extends AbstractController
     private const string INLINE_FRAME = 'compose_inline';
     private const string INLINE_FORM  = 'compose_inline';
 
-    /** Per-file ceiling for compose attachments. */
-    private const int MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+    /**
+     * Per-file ceiling for compose attachments. Public because the compose
+     * window reads it too, to refuse an oversized file before it is uploaded.
+     * Must stay under upload_max_filesize (frankenphp/conf.d/10-app.ini).
+     */
+    public const int MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
     /** Matches the DelayStamp on the send job — the cancel window. */
     private const int SEND_DELAY_MS = 10_000;
@@ -316,17 +321,30 @@ class ComposeController extends AbstractController
         $this->assertDraft($message);
 
         $account = $message->getAccount();
-        $files   = $request->files->all('files');
+        $files   = array_filter(
+            $request->files->all('files'),
+            static fn (mixed $file): bool => $file instanceof UploadedFile,
+        );
+
+        // Nothing arrived at all. Almost always post_max_size: PHP discards the
+        // whole body, so $_FILES is empty and there is no per-file error to
+        // read — silence here is what made an oversized upload look like a
+        // no-op instead of a refusal.
+        if (0 === count($files)) {
+            return $this->uploadError('Upload too large');
+        }
+
+        // Everything is checked before anything is stored, so a rejected file
+        // cannot leave the ones before it attached.
+        foreach ($files as $file) {
+            $error = $this->attachmentError($file);
+
+            if (null !== $error) {
+                return $this->uploadError($error);
+            }
+        }
 
         foreach ($files as $file) {
-            if (false === $file instanceof UploadedFile || false === $file->isValid()) {
-                continue;
-            }
-
-            if ($file->getSize() > self::MAX_ATTACHMENT_BYTES) {
-                return new Response('Attachment too large.', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
-            }
-
             // Bucketed like synced attachments: account / mailbox (0 where the
             // account has none) / message. Drafts have no UID, so the message
             // id keeps one draft's files out of another's directory.
@@ -357,6 +375,40 @@ class ComposeController extends AbstractController
         $this->em->flush();
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
+    }
+
+    /**
+     * Why this upload cannot be attached, or null when it can. Short enough to
+     * show in the window's status line.
+     */
+    private function attachmentError(UploadedFile $file): ?string
+    {
+        if (UPLOAD_ERR_INI_SIZE === $file->getError() || UPLOAD_ERR_FORM_SIZE === $file->getError()) {
+            return 'File too large';
+        }
+
+        if (false === $file->isValid()) {
+            return 'Upload failed';
+        }
+
+        if ($file->getSize() > self::MAX_ATTACHMENT_BYTES) {
+            return sprintf('File too large (max %d MB)', intdiv(self::MAX_ATTACHMENT_BYTES, 1024 * 1024));
+        }
+
+        return null;
+    }
+
+    /**
+     * Plain text so the window can show the reason as-is; the HTML answer of a
+     * successful upload is the attachment strip.
+     */
+    private function uploadError(string $message): Response
+    {
+        return new Response(
+            $message,
+            Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
+            ['Content-Type' => 'text/plain; charset=utf-8'],
+        );
     }
 
     #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
@@ -401,8 +453,11 @@ class ComposeController extends AbstractController
         // drifts, and the thread cascades removes to every message in it.
         // An emptied thread is left in place: harmless, and the sync layer
         // reuses it if the conversation comes back.
+        $remaining = 0;
+
         if (null !== $thread) {
-            $thread->setMessageCount(max(0, $thread->getMessages()->count() - 1));
+            $remaining = max(0, $thread->getMessages()->count() - 1);
+            $thread->setMessageCount($remaining);
         }
 
         $this->em->flush();
@@ -416,10 +471,50 @@ class ComposeController extends AbstractController
             'messageId' => $messageId,
             'frame'     => $ctx['frame'],
             'inline'    => $ctx['inline'],
+            'threadId'  => $this->rowToDrop($thread, $messageId, $remaining, $request),
         ]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * The thread whose list row the discard should take with it, or null to
+     * leave every row standing.
+     *
+     * List rows stand for threads, so an emptied thread loses its row wherever
+     * it is shown. The Drafts list is the other case: its rows are there
+     * because of a draft, so a conversation that just lost its last one drops
+     * out of that view even though the thread lives on. Which view is asking
+     * comes from the window (`scope`), because the same thread must keep its
+     * row in the Inbox.
+     */
+    private function rowToDrop(?MessageThread $thread, ?int $discardedId, int $remaining, Request $request): ?int
+    {
+        if (null === $thread) {
+            return null;
+        }
+
+        if (0 === $remaining) {
+            return $thread->getId();
+        }
+
+        if ('drafts' !== $request->query->get('scope')) {
+            return null;
+        }
+
+        foreach ($thread->getMessages() as $message) {
+            // The discarded message can still sit in the loaded collection.
+            if ($message->getId() === $discardedId) {
+                continue;
+            }
+
+            if (true === $message->isDraft()) {
+                return null;
+            }
+        }
+
+        return $thread->getId();
+    }
 
     /**
      * Where this compose window lives. The dock is the default; the thread

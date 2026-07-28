@@ -123,6 +123,24 @@ test.describe("compose window", () => {
         await expect(chip).toBeHidden();
     });
 
+    // PHP ships upload_max_filesize=2M / post_max_size=8M, which silently ate
+    // anything bigger before frankenphp/conf.d/10-app.ini raised them.
+    test("attaches a file larger than PHP's stock upload limit", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const dockEl = page.locator(dock);
+
+        await dockEl.locator('input[type="file"]').setInputFiles({
+            name: "e2e-big.bin",
+            mimeType: "application/octet-stream",
+            buffer: Buffer.alloc(3 * 1024 * 1024, 7),
+        });
+
+        await expect(dockEl.getByRole("link", { name: "e2e-big.bin" })).toBeVisible();
+        await expect(dockEl.getByText("3.0 MB")).toBeVisible();
+    });
+
     // `allow_options_create => true` never reached Tom Select — this version of
     // the bundle renders it as a valueless boolean attribute that Stimulus reads
     // back as false — so ContactAutocompleteField now passes `create` through

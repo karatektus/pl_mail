@@ -10,7 +10,12 @@ only when the row IS the draft — i.e. a thread holding a single draft
 message, or a bare Message row flagged as a draft. A real conversation
 carrying an unsent reply still opens the thread; that draft is edited from
 inside the reading pane.
+
+`draft_scope` (the Drafts list) overrides that: every row there is listed
+because of its draft, so it opens that draft even when the thread also holds
+the conversation it answers.
 #}
+{% set draft_scope = draft_scope|default(false) %}
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
@@ -31,8 +36,12 @@ inside the reading pane.
        A thread can legitimately end up with no messages (every message
        expunged provider-side), and this row is rendered for the whole inbox,
        so one such thread would 500 the entire list. #}
-    {% set draft = latest and latest.isDraft and item.messageCount == 1 %}
-    {% set draftId = draft ? latest.id : null %}
+    {# Not `latest`: the collection is not ordered by date, so the draft is
+       looked up by flag rather than assumed to be the last message. #}
+    {% set draftMessage = item.messages|filter(m => m.isDraft)|last %}
+    {% set draft = draftMessage
+        and (draft_scope or item.messageCount == 1) %}
+    {% set draftId = draft ? draftMessage.id : null %}
 
     {% set hasAttachment = item.attachmentCount > 0 %}
 

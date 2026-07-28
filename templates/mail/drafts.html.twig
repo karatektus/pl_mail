@@ -20,7 +20,7 @@
         </li>
     {% else %}
         {% for thread in threads %}
-            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread, draft_scope: true } %}
         {% endfor %}
     {% endif %}
 {% endblock %}

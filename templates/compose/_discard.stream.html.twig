@@ -1,14 +1,23 @@
 {#
 compose/_discard.stream.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-The draft is gone: drop its row from the conversation and empty the window's
+The draft is gone: drop every row that stood for it and empty the window's
 frame. For an in-place draft the frame lives inside the row, so the remove
 already takes it with it.
 
-Variables: messageId, frame, inline
+Both removes address ids that only exist in the view the draft was opened
+from — the conversation row when reading a thread, the list row in Drafts —
+and a turbo-stream remove aimed at an absent id is a no-op, so each view gets
+exactly the one that applies to it.
+
+Variables: messageId, frame, inline, threadId (null unless the thread is now
+empty)
 #}
-{% if inline %}
-    <turbo-stream action="remove" target="thread_message_{{ messageId }}">
+<turbo-stream action="remove" target="thread_message_{{ messageId }}">
+</turbo-stream>
+
+{% if threadId is not null %}
+    <turbo-stream action="remove" target="thread_{{ threadId }}">
     </turbo-stream>
 {% endif %}
 

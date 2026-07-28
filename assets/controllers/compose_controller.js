@@ -18,6 +18,9 @@ export default class extends Controller {
         minChars:     { type: Number, default: 5 },
         // The conversation this window belongs to, for the draft row.
         thread:       Number,
+        // Mirrors ComposeController::MAX_ATTACHMENT_BYTES so an oversized file
+        // is refused here rather than after the whole upload.
+        maxAttachmentBytes: { type: Number, default: 25 * 1024 * 1024 },
     }
 
     #autosaveTimer = null
@@ -482,6 +485,15 @@ export default class extends Controller {
             params.set('thread', String(this.threadValue));
         }
 
+        // Which list is behind the window. The Drafts view shows a row per
+        // draft, so a conversation that loses its last one has to lose its row
+        // there — and only there.
+        const scope = document.getElementById('message-list')?.dataset.syncScope;
+
+        if (undefined !== scope) {
+            params.set('scope', scope);
+        }
+
         const response = await fetch(`/compose/discard/${id}?${params}`, {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -738,6 +750,15 @@ export default class extends Controller {
         // again after a removal.
         input.value = '';
 
+        const tooBig = files.find((file) => file.size > this.maxAttachmentBytesValue);
+
+        if (undefined !== tooBig) {
+            const limit = Math.round(this.maxAttachmentBytesValue / (1024 * 1024));
+            this._setStatus(`${tooBig.name} is over ${limit} MB`, 'text-danger');
+
+            return;
+        }
+
         await this.saveDraft(null, { force: true, allowEmpty: true });
 
         const id = this._messageId();
@@ -792,10 +813,7 @@ export default class extends Controller {
         }
 
         if (false === response.ok) {
-            this._setStatus(
-                413 === response.status ? 'Attachment too large' : failureMessage,
-                'text-danger',
-            );
+            this._setStatus(await this._errorText(response, failureMessage), 'text-danger');
 
             return;
         }
@@ -805,6 +823,21 @@ export default class extends Controller {
         }
 
         this._setStatus('Draft saved', 'text-success');
+    }
+
+    /**
+     * The server states why an upload was refused in plain text. Anything else
+     * — an HTML error page, a proxy cutting the request off — falls back to the
+     * generic message rather than dumping markup into the status line.
+     */
+    async _errorText(response, fallback) {
+        if (false === (response.headers.get('Content-Type') ?? '').startsWith('text/plain')) {
+            return fallback;
+        }
+
+        const detail = (await response.text()).trim();
+
+        return '' === detail ? fallback : detail;
     }
 
     // ── Cc / Bcc ──────────────────────────────────────────────────────
