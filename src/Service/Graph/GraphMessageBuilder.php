@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -39,8 +40,9 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * Note on internetMessageHeaders: Graph returns it only for messages that were
  * received (not for drafts), and truncates it on very large header sets. It is
- * used for In-Reply-To/References, which fall back to conversationId-derived
- * threading when absent.
+ * used for In-Reply-To/References. When absent, threading falls back to
+ * conversationId, which is stored as the provider thread key below and is what
+ * the threader consults first anyway.
  */
 final class GraphMessageBuilder
 {
@@ -62,11 +64,17 @@ final class GraphMessageBuilder
         $graphId = (string) ($payload['id'] ?? '');
         $message->setGraphId($graphId);
 
+        // Graph's own conversation grouping, already selected by MESSAGE_SELECT.
+        // This is the only threading signal available for drafts and for messages
+        // whose internetMessageHeaders came back truncated.
+        $conversationId = trim((string) ($payload['conversationId'] ?? ''));
+        $message->setProviderThreadKey('' !== $conversationId ? $conversationId : null);
+
         // ── Identity ──────────────────────────────────────────────────────────
         // The RFC Message-ID is the dedup key, not the Graph id: Graph ids are
         // locators and can rotate when a message moves. Fall back to the Graph
         // id only when the mailbox genuinely has no Message-ID (drafts).
-        $rfcMessageId = trim((string) ($payload['internetMessageId'] ?? ''));
+        $rfcMessageId = MessageIdHelper::normalise((string) ($payload['internetMessageId'] ?? ''));
         $message->setMessageId('' !== $rfcMessageId ? $rfcMessageId : $graphId);
 
         $message->setSubject((string) ($payload['subject'] ?? ''));
@@ -104,15 +112,8 @@ final class GraphMessageBuilder
 
         $message->setHeaders($rawHeaders);
 
-        $inReplyToRaw  = trim($indexed['in-reply-to'] ?? '');
-        $referencesRaw = trim($indexed['references'] ?? '');
-
-        $message->setInReplyTo(
-            '' !== $inReplyToRaw ? preg_split('/\s+/', $inReplyToRaw) : []
-        );
-        $message->setReferences(
-            '' !== $referencesRaw ? preg_split('/\s+/', $referencesRaw) : []
-        );
+        $message->setInReplyTo(MessageIdHelper::normaliseList($indexed['in-reply-to'] ?? null));
+        $message->setReferences(MessageIdHelper::normaliseList($indexed['references'] ?? null));
 
         // ── Dates ─────────────────────────────────────────────────────────────
         $receivedAt = $this->parseDate($payload['receivedDateTime'] ?? null) ?? new DateTimeImmutable();

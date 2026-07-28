@@ -17,9 +17,14 @@
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 
+    <!-- tests/ holds both suites: PHPUnit mirrors src/ by path, Playwright owns
+         tests/e2e (see playwright.config.ts). The exclusion is what keeps that
+         split deliberate rather than relying on .ts files never matching the
+         *Test.php suffix. -->
     <testsuites>
         <testsuite name="Project Test Suite">
             <directory>tests</directory>
+            <exclude>tests/e2e</exclude>
         </testsuite>
     </testsuites>
 

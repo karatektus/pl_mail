@@ -100,7 +100,13 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
+        ],
+        "test": [
+            "vendor/bin/phpunit"
         ]
+    },
+    "scripts-descriptions": {
+        "test": "Run the PHPUnit suite (unit tests). Browser end-to-end tests live in tests/e2e and run via `npm run test:e2e`."
     },
     "conflict": {
         "symfony/symfony": "*"

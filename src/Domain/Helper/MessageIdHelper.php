@@ -18,4 +18,42 @@ final class MessageIdHelper
     {
         return trim(trim($raw), '<> ');
     }
+
+    /**
+     * Splits a raw In-Reply-To / References header into canonical message-ids.
+     *
+     * Splits on any whitespace rather than a single space: these headers are
+     * routinely folded across lines, so a CRLF sits between ids as often as a
+     * space does. Empty results are dropped so callers never have to re-check.
+     *
+     * @param string|list<string>|null $raw the raw header, or an already-split list
+     *
+     * @return list<string>
+     */
+    public static function normaliseList(string|array|null $raw): array
+    {
+        if (null === $raw) {
+            return [];
+        }
+
+        $parts = is_array($raw)
+            ? $raw
+            : (preg_split('/\s+/', trim($raw)) ?: []);
+
+        $ids = [];
+
+        foreach ($parts as $part) {
+            if (false === is_string($part)) {
+                continue;
+            }
+
+            $id = self::normalise($part);
+
+            if ('' !== $id) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
 }

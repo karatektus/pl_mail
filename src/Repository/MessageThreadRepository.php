@@ -20,13 +20,36 @@ class MessageThreadRepository extends ServiceEntityRepository
         parent::__construct($registry, MessageThread::class);
     }
 
-    public function findMatchingNormalizedSubjectThreadForAccount(string $normalizedSubject, Account $account): ?MessageThread
+    public function findOneByProviderThreadKeyForAccount(string $providerThreadKey, Account $account): ?MessageThread
+    {
+        return $this->createQueryBuilder('thread')
+            ->where('thread.account = :account')
+            ->andWhere('thread.providerThreadKey = :providerThreadKey')
+            ->setParameter('account', $account)
+            ->setParameter('providerThreadKey', $providerThreadKey)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Newest thread with this subject that is still recent enough to be a
+     * plausible parent. The $since bound is what stops a recurring subject
+     * ("Your order has shipped") from accreting into one endless thread.
+     */
+    public function findMatchingNormalizedSubjectThreadForAccount(
+        string             $normalizedSubject,
+        Account            $account,
+        \DateTimeImmutable $since,
+    ): ?MessageThread
     {
         return $this->createQueryBuilder('thread')
             ->where('thread.account = :account')
             ->andWhere('thread.normalizedSubject = :normalizedSubject')
+            ->andWhere('thread.lastMessageAt >= :since')
             ->setParameter('account', $account)
             ->setParameter('normalizedSubject', $normalizedSubject)
+            ->setParameter('since', $since)
             ->orderBy('thread.lastMessageAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()

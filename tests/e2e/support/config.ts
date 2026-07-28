@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { execSync } from "node:child_process";
 
 /**
  * Single source of truth for the seeded test user. Mirrors the
@@ -20,6 +21,31 @@ export const INBOX_SUBJECTS = {
     trash: "E2E Trash Me",
     read: "E2E Read Me",
 } as const;
+
+/**
+ * How to invoke the Symfony console. Override E2E_CONSOLE when `php` is not on
+ * PATH or the app runs elsewhere, e.g.
+ *
+ *   E2E_CONSOLE="docker compose exec -T php php bin/console"
+ *   E2E_CONSOLE="symfony console"
+ *
+ * Each spec names the seed tasks it needs, so the override stays orthogonal to
+ * *which* seeds run — a single "whole command" override could not express that,
+ * and silently dropped label seeding when the label spec used it.
+ */
+const CONSOLE = process.env.E2E_CONSOLE ?? "php bin/console";
+
+/**
+ * Runs `app:test:<task>` for each task, in order, against the test environment.
+ */
+export function seed(...tasks: string[]): void {
+    for (const task of tasks) {
+        execSync(`${CONSOLE} app:test:${task}`, {
+            stdio: "inherit",
+            env: { ...process.env, APP_ENV: "test" },
+        });
+    }
+}
 
 /**
  * The inbox row (`<li id="thread_{id}">`) carrying the given subject.

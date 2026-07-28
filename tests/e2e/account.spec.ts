@@ -45,7 +45,10 @@ test.describe("mail account creation", () => {
         await expect(page.getByText("Account added successfully")).toBeVisible();
 
         const list = page.locator("#settings-account-list");
-        await expect(list).toContainText(label);
+        // The list renders the account's primary alias, and addresses are
+        // normalised to lowercase on save — so match case-insensitively rather
+        // than asserting the casing that happened to be typed.
+        await expect(list).toContainText(new RegExp(label, "i"));
         await expect(list).toContainText(host);
     });
 

@@ -64,12 +64,36 @@ class MessageRepository extends ServiceEntityRepository
 
     public function existsWithFromAddressInThread(string $fromAddress, MessageThread $thread): bool
     {
+        return $this->existsWithAnyFromAddressInThread([$fromAddress], $thread);
+    }
+
+    /**
+     * Does the thread contain a message sent by any of these addresses?
+     *
+     * Threading passes the candidate's sender *and* its recipients: a reply from
+     * someone new to the conversation shares no sender with it, but its To/Cc
+     * almost always names someone who has already posted. Checking senders only
+     * would reject those replies.
+     *
+     * @param list<string> $addresses
+     */
+    public function existsWithAnyFromAddressInThread(array $addresses, MessageThread $thread): bool
+    {
+        $normalized = array_values(array_unique(array_filter(
+            array_map(static fn(string $address): string => mb_strtolower(trim($address)), $addresses),
+            static fn(string $address): bool => '' !== $address,
+        )));
+
+        if (0 === count($normalized)) {
+            return false;
+        }
+
         $result = $this->createQueryBuilder('m')
             ->select('1')
             ->where('m.thread = :thread')
-            ->andWhere('LOWER(m.fromAddress) = :fromAddress')
+            ->andWhere('LOWER(m.fromAddress) IN (:addresses)')
             ->setParameter('thread', $thread)
-            ->setParameter('fromAddress', mb_strtolower($fromAddress))
+            ->setParameter('addresses', $normalized)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

@@ -3,11 +3,21 @@
     "private": true,
     "description": "End-to-end tests for plMail (Playwright). Separate from the app's AssetMapper/importmap frontend.",
     "scripts": {
+        "test:env:up": "docker compose -f compose.test.yaml up -d --wait app",
+        "test:env:down": "docker compose -f compose.test.yaml down",
+        "test:env:reset": "docker compose -f compose.test.yaml down -v",
+        "test:env:logs": "docker compose -f compose.test.yaml logs -f app",
+        "test:unit:docker": "docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-entrypoint app php vendor/bin/phpunit",
+        "test:e2e:docker": "npm run test:env:up && E2E_DOCKER=1 playwright test",
+        "test:e2e:docker:ui": "npm run test:env:up && E2E_DOCKER=1 playwright test --ui",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:headed": "playwright test --headed",
         "test:e2e:report": "playwright show-report",
         "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "engines": {
+        "node": ">=18"
     },
     "devDependencies": {
         "@playwright/test": "^1.55.0",

@@ -31,3 +31,12 @@ truenas.compose.yaml.local
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+
+###> playwright ###
+/node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+# Saved storage state from auth.setup.ts — a real authenticated session.
+/playwright/.auth/
+###< playwright ###

@@ -85,10 +85,11 @@ final class SeedTestLabelCommand extends Command
             return Command::SUCCESS;
         }
 
-        $label = new Label();
-        $label->account = $account;
-        $label->name    = self::LABEL_NAME;
-        $label->color   = 'blue';
+        // Label's properties are private(set); the setters are the only way in.
+        $label = new Label()
+            ->setAccount($account)
+            ->setName(self::LABEL_NAME)
+            ->setColor('blue');
 
         $this->entityManager->persist($label);
         $this->entityManager->flush();

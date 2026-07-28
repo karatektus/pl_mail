@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { execSync } from "node:child_process";
-import { INBOX_SUBJECTS, mailRow } from "./support/config";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
  * Runs authenticated via the shared storage state from auth.setup.ts.
@@ -11,10 +10,7 @@ import { INBOX_SUBJECTS, mailRow } from "./support/config";
 const LABEL_NAME = "E2E Label";
 
 test.beforeEach(() => {
-    const seed =
-        process.env.E2E_SEED_CMD ??
-        "php bin/console app:test:seed-mail && php bin/console app:test:seed-label";
-    execSync(seed, { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } });
+    seed("seed-mail", "seed-label");
 });
 
 test.describe("label as", () => {

@@ -24,6 +24,12 @@ use Doctrine\ORM\Mapping as ORM;
 // for one mailbox), and no query looks up a bare UID.
 #[ORM\UniqueConstraint(name: 'uniq_message_mailbox_imap_uid', columns: ['mailbox_id', 'imap_uid'])]
 #[ORM\Index(name: 'idx_message_search_vector', columns: ['search_vector'])]
+// Threading reads both of these on every synced message. message_id is looked up
+// by value across an account (parent lookup for References threading); the
+// provider key is looked up account-scoped, so account trails it the same way
+// the provider-id constraints above are ordered.
+#[ORM\Index(name: 'idx_message_message_id', columns: ['message_id'])]
+#[ORM\Index(name: 'idx_message_provider_thread_key_account', columns: ['provider_thread_key', 'account_id'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 class Message extends MessageModel
 {
@@ -54,6 +60,13 @@ class Message extends MessageModel
 
     #[ORM\Column(length: 512, nullable: true)]
     private ?string $graphId = null;
+
+    /**
+     * Gmail threadId / Graph conversationId, carried from the sync payload so the
+     * threader can group without a second API call. Null for IMAP.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $providerThreadKey = null;
 
     /**
      * @var list<string>|null
@@ -243,6 +256,18 @@ class Message extends MessageModel
     public function setGraphId(?string $graphId): static
     {
         $this->graphId = $graphId;
+
+        return $this;
+    }
+
+    public function getProviderThreadKey(): ?string
+    {
+        return $this->providerThreadKey;
+    }
+
+    public function setProviderThreadKey(?string $providerThreadKey): static
+    {
+        $this->providerThreadKey = $providerThreadKey;
 
         return $this;
     }

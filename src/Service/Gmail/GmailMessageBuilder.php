@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
@@ -61,12 +62,17 @@ final class GmailMessageBuilder
         $message->setGmailId($gmailId);
         $message->setGmailLabelIds($labelIds);
 
+        // Gmail already grouped this conversation for the user; carrying its
+        // threadId over means our threads match what they see in Gmail itself.
+        $threadId = trim((string) ($payload['threadId'] ?? ''));
+        $message->setProviderThreadKey('' !== $threadId ? $threadId : null);
+
         $this->applyTranslatedLabels($message, $labelIds, $account, $carrierAccount ?? $account);
 
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
 
-        $rfcMessageId = $headers['message-id'] ?? '';
+        $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
         $message->setMessageId('' !== $rfcMessageId ? $rfcMessageId : $gmailId);
         $message->setSubject($this->decodeMimeHeader($headers['subject'] ?? ''));
 
@@ -78,15 +84,8 @@ final class GmailMessageBuilder
         $message->setCcAddresses($this->parseAddressList($headers['cc'] ?? ''));
         $message->setBccAddresses($this->parseAddressList($headers['bcc'] ?? ''));
 
-        $inReplyToRaw = trim($headers['in-reply-to'] ?? '');
-        $referencesRaw = trim($headers['references'] ?? '');
-
-        $message->setInReplyTo(
-            '' !== $inReplyToRaw ? preg_split('/\s+/', $inReplyToRaw) : []
-        );
-        $message->setReferences(
-            '' !== $referencesRaw ? preg_split('/\s+/', $referencesRaw) : []
-        );
+        $message->setInReplyTo(MessageIdHelper::normaliseList($headers['in-reply-to'] ?? null));
+        $message->setReferences(MessageIdHelper::normaliseList($headers['references'] ?? null));
 
         // ── Date ──────────────────────────────────────────────────────────────
         $internalDateMs = (int)($payload['internalDate'] ?? 0);

@@ -57,6 +57,36 @@ On first run, Doctrine migrations run automatically via the entrypoint. Create y
 
 To connect Gmail accounts, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` and `GMAIL_PUBSUB_TOPIC` in `.env.local` first.
 
+## Running the Tests
+
+Two suites: PHPUnit for unit tests (`tests/`, mirroring `src/`) and Playwright for browser
+end-to-end tests (`tests/e2e/`).
+
+Both run against `compose.test.yaml` — a separate compose project with its own Postgres, so it
+never touches the dev stack or the database holding your mail. Playwright itself runs on the host
+(Node 18+; the repo ships an `.nvmrc`).
+
+```bash
+npm ci                      # once
+npx playwright install chromium
+
+npm run test:unit:docker    # PHPUnit
+npm run test:e2e:docker     # Playwright (boots the stack if needed)
+npm run test:e2e:docker:ui  # same, in Playwright's watch UI
+```
+
+| Command | Description |
+|---|---|
+| `npm run test:env:up` | Start the test stack (migrates, builds assets, seeds the E2E user) |
+| `npm run test:env:down` | Stop it, keeping the database volume |
+| `npm run test:env:reset` | Stop it and delete its volumes — next run rebuilds from scratch |
+| `npm run test:env:logs` | Tail the test app's logs |
+
+The app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
+reseed their own fixtures, so tests are independent and re-runnable.
+
+CI runs the same suites without Docker — see [.github/workflows/e2e.yml](.github/workflows/e2e.yml).
+
 ## Console Commands
 
 | Command | Description |

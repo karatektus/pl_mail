@@ -1,0 +1,101 @@
+# Local test stack — PHPUnit and the Playwright E2E suite.
+#
+#   npm run test:unit:docker
+#   npm run test:e2e:docker
+#
+# Deliberately its OWN compose project (see `name:` below) with its OWN Postgres,
+# so it can never reconcile, recreate or restart the dev stack, and can never
+# reach the database holding real mail. `docker compose ...` without -f is
+# untouched by this file.
+#
+# Served by the app's own FrankenPHP image rather than PHP's built-in server:
+# variables_order is GPCS, so `php -S` never exposes APP_ENV to Symfony and the
+# app silently falls back to .env.local and the dev database. A server SAPI puts
+# the environment into $_SERVER, so the values below actually take effect.
+name: pl_mail_test
+
+x-test-app: &test-app
+  # The dev target, not the ghcr image: prod is built with `composer install
+  # --no-dev` (no PHPUnit) and ships a dump-env'd .env.local.php pinning prod.
+  build:
+    context: .
+    target: frankenphp_dev
+  volumes:
+    - ./:/app
+    # A dedicated var volume. Never share the dev stack's `app_var`: it is a
+    # named volume overlaying the bind mount, so sharing it would let the two
+    # environments write each other's caches and built assets.
+    - app_var_test:/app/var
+  environment: &test-env
+    APP_ENV: test
+    APP_DEBUG: "1"
+    # Host is `database`, unlike .env.test which targets 127.0.0.1 for CI.
+    # Doctrine's when@test dbname_suffix (config/packages/doctrine.yaml) turns
+    # this into `app_test` automatically.
+    DATABASE_URL: postgresql://app:app@database:5432/app?serverVersion=18&charset=utf8
+    MESSENGER_TRANSPORT_DSN: in-memory://
+    MAILER_DSN: null://null
+    APP_DEV_USER_EMAIL: e2e@plmail.test
+    APP_DEV_USER_PASSWORD: e2e-password-change-me
+    # Same-origin so a missing hub fails fast instead of raising a cross-origin
+    # TLS error against https://localhost. There is no Mercure hub here; the
+    # suite does not assert on live updates.
+    MERCURE_PUBLIC_URL: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+  depends_on:
+    database:
+      condition: service_healthy
+
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "app", "-U", "app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - database_data_test:/var/lib/postgresql
+
+  # Owns schema, assets and the seed user, then exits. `app` waits for it.
+  app-init:
+    <<: *test-app
+    # The image entrypoint waits on the database and runs migrations *before*
+    # the database exists, so it cannot bootstrap an empty volume. Drop to the
+    # upstream PHP entrypoint and do the ordering here.
+    entrypoint: ["docker-php-entrypoint"]
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        php bin/console doctrine:database:create --if-not-exists
+        php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+        php bin/console importmap:install
+        # Not optional: specs assert toBeVisible()/toBeHidden(), which depend on
+        # Tailwind's `.hidden { display: none }`. Building here also keeps this
+        # stack independent of the dev `tailwind` watcher.
+        php bin/console tailwind:build
+        php bin/console app:test:seed-user
+
+  app:
+    <<: *test-app
+    environment:
+      <<: *test-env
+      # Plain HTTP on 80 inside the container — no TLS, no cert prompts.
+      SERVER_NAME: ":80"
+    ports:
+      - "${TEST_HTTP_PORT:-8001}:80"
+    depends_on:
+      database:
+        condition: service_healthy
+      app-init:
+        condition: service_completed_successfully
+
+volumes:
+  app_var_test:
+  database_data_test:

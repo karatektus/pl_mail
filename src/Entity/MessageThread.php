@@ -10,6 +10,13 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+// One thread per provider conversation per account: Gmail's threadId and Graph's
+// conversationId already express the grouping those backends show their own users,
+// so the key is what we match on first and the constraint is what stops a
+// concurrent batch from creating a second thread for the same conversation.
+#[ORM\UniqueConstraint(name: 'uniq_message_thread_provider_key_account', columns: ['provider_thread_key', 'account_id'])]
+// Serves the subject fallback lookup, which is always account-scoped.
+#[ORM\Index(name: 'idx_message_thread_account_normalized_subject', columns: ['account_id', 'normalized_subject'])]
 #[ORM\Entity(repositoryClass: MessageThreadRepository::class)]
 class MessageThread
 {
@@ -64,8 +71,16 @@ class MessageThread
     #[ORM\Column(enumType: ThreadingMethod::class)]
     private ?ThreadingMethod $threadingMethod = null;
 
-    #[ORM\Column(length: 255)]
+    // TEXT, not VARCHAR: this is derived from `subject`, which is itself TEXT, so
+    // any length cap here is a length cap that can reject a legitimate message.
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $normalizedSubject = null;
+
+    /**
+     * Gmail threadId / Graph conversationId. Null for IMAP, which has no such concept.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $providerThreadKey = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $snoozedUntil = null;
@@ -231,9 +246,16 @@ class MessageThread
         return $this;
     }
 
-    public function isArchived(): bool
+    public function getProviderThreadKey(): ?string
     {
-        return $this->archivedAt !== null;
+        return $this->providerThreadKey;
+    }
+
+    public function setProviderThreadKey(?string $providerThreadKey): static
+    {
+        $this->providerThreadKey = $providerThreadKey;
+
+        return $this;
     }
 
     public function getSnoozedUntil(): ?\DateTimeImmutable

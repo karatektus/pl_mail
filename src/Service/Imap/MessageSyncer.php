@@ -271,7 +271,7 @@ class MessageSyncer
             $message->addLabel($mailboxLabel);
         }
         $message->setImapUid($imapMessage->getUid());
-        $message->setMessageId((string) $imapMessage->getMessageId());
+        $message->setMessageId(MessageIdHelper::normalise((string) $imapMessage->getMessageId()));
         $message->setSubject(
             $this->decodeMimeHeader((string) $imapMessage->getSubject())
         );
@@ -312,10 +312,10 @@ class MessageSyncer
         $references = $imapMessage->getReferences();
 
         $message->setInReplyTo(
-            $inReplyTo->exist() ? explode(' ', trim((string) $inReplyTo)) : []
+            $inReplyTo->exist() ? MessageIdHelper::normaliseList((string) $inReplyTo) : []
         );
         $message->setReferences(
-            $references->exist() ? explode(' ', trim((string) $references)) : []
+            $references->exist() ? MessageIdHelper::normaliseList((string) $references) : []
         );
 
         // Headers

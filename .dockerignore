@@ -4,6 +4,9 @@
 **/*.log
 docker-compose.override.yml
 compose.override.yaml
+compose.test.yaml
+# Local deployment file — contains real secrets, must never reach an image.
+truenas.compose.yaml.local
 .env.local
 .env.*.local
 .env.local.php
@@ -14,6 +17,13 @@ public/bundles/
 assets/vendor/
 .phpunit.cache/
 phpunit.xml
+# Test tooling: the image serves the app, it never runs the browser suite.
+# playwright/ holds .auth/user.json — a real authenticated session.
+node_modules/
+playwright/
+playwright-report/
+blob-report/
+test-results/
 .dockerignore
 Dockerfile
 **/Thumbs.db

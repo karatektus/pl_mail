@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { execSync } from "node:child_process";
-import { INBOX_SUBJECTS, mailRow } from "./support/config";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
  * Runs authenticated via the shared storage state from auth.setup.ts.
@@ -10,15 +9,10 @@ import { INBOX_SUBJECTS, mailRow } from "./support/config";
  * mutations only, no IMAP folder). Per-test reseeding keeps the cases
  * fully independent and retry-safe even though they mutate shared data.
  *
- * Override the seed command with E2E_SEED_CMD if `php` isn't on PATH
- * (e.g. "symfony console app:test:seed-mail").
+ * Override E2E_CONSOLE if `php` isn't on PATH (e.g. "symfony console").
  */
 test.beforeEach(() => {
-    const cmd = process.env.E2E_SEED_CMD ?? "php bin/console app:test:seed-mail";
-    execSync(cmd, {
-        stdio: "inherit",
-        env: { ...process.env, APP_ENV: "test" },
-    });
+    seed("seed-mail");
 });
 
 test.describe("mail UI actions", () => {
