@@ -60,6 +60,7 @@ final class AdminDashboardController extends AbstractController
         return $this->render('admin/_live_frame.html.twig', [
             'heartbeats'      => $this->monitoring->heartbeats(),
             'webhooks'        => $this->monitoring->gmailWebhooks(),
+            'pushDiagnostics' => $this->monitoring->gmailPushDiagnostics(),
             'tokenHealth'     => $this->monitoring->tokenHealth(),
             'queueStats'      => $this->queueMonitor->queueStats(),
             'failedMessages'  => $this->queueMonitor->failedMessages(),

@@ -45,7 +45,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
         private UrlGeneratorInterface  $urlGenerator,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        #[Autowire('env: APP_PUBLIC_URL')]
+        #[Autowire(env: 'APP_PUBLIC_URL')]
         private string                 $publicBaseUrl,
     ) {}
 

@@ -107,12 +107,43 @@ admin:
         empty: 'Noch keine Token-Erneuerungen erfasst.'
         heading: 'Zustand der OAuth-Token'
     webhooks:
+        armed: 'Scharf'
+        delivery:
+            endpoint: 'Push-Endpunkt'
+            endpoint_hint: >-
+                Das Cloud-Pub/Sub-Push-Abonnement muss exakt an diese URL
+                senden, inklusive Token. Eine Abweichung wird mit 403
+                beantwortet und erscheint unten.
+            heading: 'Zustellweg'
+            info_logs_off: >-
+                Erfolgreiche Zustellungen werden auf Info-Level protokolliert
+                und nicht gespeichert. Setze APP_DB_LOG_LEVEL=info, um sie hier
+                zu sehen.
+            no_public_url: >-
+                APP_PUBLIC_URL ist keine https://-Adresse, daher kann Pub/Sub
+                diesen Server nicht erreichen.
+            no_token: >-
+                GMAIL_PUBSUB_VERIFICATION_TOKEN ist nicht gesetzt. Der Endpunkt
+                lehnt im Zweifel ab, daher wird jede Benachrichtigung mit 403
+                zurückgewiesen.
+            topic: 'Pub/Sub-Thema'
         empty: 'Keine Gmail-Konten mit Watch-Status.'
+        health: 'Zustand'
+        health_state:
+            active: 'stellt zu'
+            degraded: 'registriert, stellt nicht zu'
+            inactive: 'aus'
         heading: 'Gmail-Webhooks'
         history_id: 'History-ID'
         last_push: 'Letzter Push'
         never: 'nie'
         none: 'nicht registriert'
+        resource: 'Ressource'
+        state:
+            account_active: 'Konto aktiv'
+            account_inactive: 'Konto deaktiviert'
+            push_off: 'Push aus'
+            push_on: 'Push an'
         watch_expiry: 'Watch läuft ab'
 
 alias:

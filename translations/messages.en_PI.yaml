@@ -107,12 +107,41 @@ admin:
         empty: 'No token refreshes writ down yet.'
         heading: 'OAuth token health'
     webhooks:
+        armed: 'Primed'
+        delivery:
+            endpoint: 'Cannon berth'
+            endpoint_hint: >-
+                The Cloud Pub/Sub push subscription must fire at exactly this
+                URL, token an'' all. A mismatch be answered with 403 and shows
+                below.
+            heading: 'The powder trail'
+            info_logs_off: >-
+                Shots that land be logged at info level and not kept. Set
+                APP_DB_LOG_LEVEL=info to spy them here.
+            no_public_url: >-
+                APP_PUBLIC_URL be no https:// berth, so Pub/Sub cannot reach
+                this ship.
+            no_token: >-
+                GMAIL_PUBSUB_VERIFICATION_TOKEN be not set. The berth bars all
+                comers, so every shot be turned away with 403.
+            topic: 'Pub/Sub topic'
         empty: 'No Gmail crew keepin'' watch.'
+        health: 'Condition'
+        health_state:
+            active: 'firin'' true'
+            degraded: 'primed, but silent'
+            inactive: 'stowed'
         heading: 'Gmail webhooks'
         history_id: 'History ID'
         last_push: 'Last cannon shot'
         never: 'never'
         none: 'not on the roster'
+        resource: 'Resource'
+        state:
+            account_active: 'crew aboard'
+            account_inactive: 'crew ashore'
+            push_off: 'cannon stowed'
+            push_on: 'cannon primed'
         watch_expiry: 'Watch ends'
 
 alias:

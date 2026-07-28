@@ -107,12 +107,41 @@ admin:
         empty: 'No token refreshes recorded yet.'
         heading: 'OAuth token health'
     webhooks:
+        armed: 'Armed'
+        delivery:
+            endpoint: 'Push endpoint'
+            endpoint_hint: >-
+                The Cloud Pub/Sub push subscription must POST to exactly this
+                URL, token included. A mismatch is answered with 403 and shows
+                up below.
+            heading: 'Delivery path'
+            info_logs_off: >-
+                Successful deliveries are logged at info level and not stored.
+                Set APP_DB_LOG_LEVEL=info to see them here.
+            no_public_url: >-
+                APP_PUBLIC_URL is not an https:// address, so Pub/Sub cannot
+                reach this server.
+            no_token: >-
+                GMAIL_PUBSUB_VERIFICATION_TOKEN is not set. The endpoint fails
+                closed, so every notification is rejected with 403.
+            topic: 'Pub/Sub topic'
         empty: 'No Gmail accounts with watch state.'
+        health: 'Health'
+        health_state:
+            active: 'delivering'
+            degraded: 'registered, not delivering'
+            inactive: 'off'
         heading: 'Gmail webhooks'
         history_id: 'History ID'
         last_push: 'Last push'
         never: 'never'
         none: 'not registered'
+        resource: 'Resource'
+        state:
+            account_active: 'account active'
+            account_inactive: 'account disabled'
+            push_off: 'push off'
+            push_on: 'push on'
         watch_expiry: 'Watch expiry'
 
 alias:

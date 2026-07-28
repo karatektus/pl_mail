@@ -74,11 +74,87 @@
                                     <dd>{{ row.lastPushAt ? (row.lastPushAge ~ ' ' ~ 'admin.ago'|trans) : 'admin.webhooks.never'|trans }}</dd>
                                     <dt>{{ 'admin.webhooks.history_id'|trans }}</dt>
                                     <dd class="font-mono">{{ row.historyId ?? '—' }}</dd>
+                                    <dt>{{ 'admin.webhooks.resource'|trans }}</dt>
+                                    <dd class="font-mono break-all">{{ row.resourceName ?? '—' }}</dd>
+                                    <dt>{{ 'admin.webhooks.armed'|trans }}</dt>
+                                    <dd class="{{ (row.pushEnabled and row.accountActive) ? '' : 'text-danger' }}">
+                                        {{ ('admin.webhooks.state.' ~ (row.pushEnabled ? 'push_on' : 'push_off'))|trans }}
+                                        ·
+                                        {{ ('admin.webhooks.state.' ~ (row.accountActive ? 'account_active' : 'account_inactive'))|trans }}
+                                    </dd>
+                                    <dt>{{ 'admin.webhooks.health'|trans }}</dt>
+                                    <dd class="{{ row.health == 'degraded' ? 'text-danger' : '' }}">
+                                        {{ ('admin.webhooks.health_state.' ~ row.health)|trans }}
+                                    </dd>
                                 </dl>
                             </div>
                         {% endfor %}
                     </div>
                 {% endif %}
+
+                {# ── Delivery path ──────────────────────────────────────────
+                   Watch registration and delivery fail independently: the
+                   rows above show the former, everything here explains the
+                   latter, which is otherwise invisible from inside plMail. #}
+                <div class="border-t border-line px-5 py-3">
+                    <h3 class="text-xs font-semibold text-ink-soft">{{ 'admin.webhooks.delivery.heading'|trans }}</h3>
+
+                    <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-muted">
+                        <dt>{{ 'admin.webhooks.delivery.topic'|trans }}</dt>
+                        <dd class="font-mono break-all {{ pushDiagnostics.topicConfigured ? '' : 'text-danger' }}">
+                            {{ pushDiagnostics.topic }}
+                        </dd>
+
+                        <dt>{{ 'admin.webhooks.delivery.endpoint'|trans }}</dt>
+                        <dd class="font-mono break-all {{ (pushDiagnostics.publicUrlUsable and pushDiagnostics.tokenConfigured) ? '' : 'text-danger' }}">
+                            {{ pushDiagnostics.endpoint }}
+                        </dd>
+                    </dl>
+
+                    {% if not pushDiagnostics.tokenConfigured %}
+                        <p class="mt-2 text-xs text-danger">{{ 'admin.webhooks.delivery.no_token'|trans }}</p>
+                    {% elseif not pushDiagnostics.publicUrlUsable %}
+                        <p class="mt-2 text-xs text-danger">{{ 'admin.webhooks.delivery.no_public_url'|trans }}</p>
+                    {% else %}
+                        <p class="mt-2 text-xs text-ink-faint">{{ 'admin.webhooks.delivery.endpoint_hint'|trans }}</p>
+                    {% endif %}
+
+                    {% if pushDiagnostics.lastFailure %}
+                        <div class="mt-3">
+                            <p class="text-xs font-medium text-danger">
+                                {{ pushDiagnostics.lastFailure.message }}
+                                {% if pushDiagnostics.lastFailure.at %}
+                                    <span class="font-normal text-ink-faint">
+                                        · {{ pushDiagnostics.lastFailure.at|date('Y-m-d H:i') }}
+                                    </span>
+                                {% endif %}
+                            </p>
+                            {% if pushDiagnostics.lastFailure.context %}
+                                <pre class="mt-1 overflow-x-auto rounded bg-pane px-2 py-1.5 text-[11px] leading-relaxed font-mono text-ink-muted">{{ pushDiagnostics.lastFailure.context|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES')) }}</pre>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    {% if pushDiagnostics.events|length > 0 %}
+                        <table class="mt-3 w-full text-xs">
+                            <tbody>
+                                {% for event in pushDiagnostics.events %}
+                                    <tr class="text-ink-muted">
+                                        <td class="py-0.5 pr-2 font-mono break-all">{{ event.message }}</td>
+                                        <td class="py-0.5 pr-2 text-right tabular-nums">×{{ event.count }}</td>
+                                        <td class="py-0.5 text-right whitespace-nowrap text-ink-faint">
+                                            {{ event.age }} {{ 'admin.ago'|trans }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+
+                    {% if not pushDiagnostics.deliveryLogged %}
+                        <p class="mt-2 text-xs text-ink-faint">{{ 'admin.webhooks.delivery.info_logs_off'|trans }}</p>
+                    {% endif %}
+                </div>
             </section>
 
             {# ── OAuth token health ────────────────────────────────────── #}
