@@ -8,7 +8,7 @@ use App\Domain\Enum\MessageFlag;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Form\ComposeType;
-use App\Message\SendMessageMessage;
+use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\AccountRepository;
 use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;

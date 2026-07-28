@@ -3,8 +3,8 @@ doctrine:
         url: '%env(resolve:DATABASE_URL)%'
 
         types:
-            # TEXT column, encrypted at rest. See App\Doctrine\Type\EncryptedStringType.
-            encrypted_string: App\Doctrine\Type\EncryptedStringType
+            # TEXT column, encrypted at rest. See App\Infrastructure\Doctrine\Type\EncryptedStringType.
+            encrypted_string: App\Infrastructure\Doctrine\Type\EncryptedStringType
 
 
         # IMPORTANT: You MUST configure your server version,

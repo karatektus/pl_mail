@@ -21,12 +21,12 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
-            App\Message\SyncImapMailboxMessage: async
-            App\Message\SyncAccountMessage: async
-            App\Message\SendMessageMessage: async
-            App\Message\ApplyImapFlagsMessage: async
-            App\Message\HarvestContactsMessage: async
-            App\Message\SyncGmailMessageBatchMessage: async
-            App\Message\SyncGraphMessageBatchMessage: async
-            App\Message\ApplyGraphChangesMessage: async
-            App\Message\ApplyLabelStructureMessage: async
+            App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: async
+            App\Infrastructure\Messaging\Message\SyncAccountMessage: async
+            App\Infrastructure\Messaging\Message\SendMessageMessage: async
+            App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: async
+            App\Infrastructure\Messaging\Message\HarvestContactsMessage: async
+            App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: async
+            App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: async
+            App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: async
+            App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: async

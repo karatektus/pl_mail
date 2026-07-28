@@ -2,11 +2,11 @@
 
 namespace App\Entity;
 
-use App\Doctrine\Type\EncryptedStringType;
+use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Domain\Enum\MailProvider;
 use App\Domain\Model\AccountModel;
 use App\Domain\Enum\EmailAliasStatus;
-use App\Enum\AuthType;
+use App\Domain\Enum\AuthType;
 use App\Repository\AccountRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;

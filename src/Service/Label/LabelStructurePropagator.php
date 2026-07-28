@@ -6,7 +6,7 @@ namespace App\Service\Label;
 
 use App\Entity\Account;
 use App\Entity\Label;
-use App\Message\ApplyLabelStructureMessage;
+use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**

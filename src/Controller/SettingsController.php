@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Enum\AppLocale;
+use App\Domain\Enum\AppLocale;
 use App\Repository\AccountRepository;
 use App\Repository\ApiTokenRepository;
 use App\Repository\LabelRepository;

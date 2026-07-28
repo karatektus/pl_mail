@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Entity\Account;
-use App\Message\SyncGmailMessageBatchMessage;
+use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\MessageRepository;
 use App\Service\Mail\GmailApiClient;
 use Doctrine\ORM\EntityManagerInterface;

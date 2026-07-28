@@ -7,7 +7,7 @@ namespace App\Controller;
 use App\Domain\Enum\MailProvider;
 use App\Entity\Account;
 use App\Entity\User;
-use App\Enum\AuthType;
+use App\Domain\Enum\AuthType;
 use App\Repository\AccountRepository;
 use App\Service\Gmail\GmailWatchService;
 use App\Service\Push\PushSubscriptionRegistry;

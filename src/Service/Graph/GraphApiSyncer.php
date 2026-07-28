@@ -8,7 +8,7 @@ use App\Entity\Account;
 use App\Entity\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Message\SyncGraphMessageBatchMessage;
+use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\MessageRepository;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;

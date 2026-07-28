@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Domain\Helper\ImapConnectionFactory;
-use App\Message\SyncImapMailboxMessage;
+use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Repository\MailboxRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use Symfony\Component\Console\Attribute\AsCommand;

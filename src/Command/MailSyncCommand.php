@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Message\SyncAccountMessage;
+use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

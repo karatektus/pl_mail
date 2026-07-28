@@ -3,7 +3,7 @@
 namespace App\Domain\Helper;
 
 use App\Entity\Account;
-use App\Enum\AuthType;
+use App\Domain\Enum\AuthType;
 use App\Service\OAuth\OAuthTokenManager;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Config;

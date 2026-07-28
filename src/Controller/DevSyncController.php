@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Account;
-use App\Message\SyncAccountMessage;
+use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\AccountRepository;
 use App\Repository\MailboxRepository;
 use Doctrine\DBAL\Connection;
