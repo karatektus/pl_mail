@@ -22,7 +22,10 @@ x-config:
     app_public_url:       &app_public_url       ""
     # -- Secrets --
     app_secret:           &app_secret           ""
-    app_encryption_key:   &app_encryption_key   ""   # base64 libsodium secretbox key (32 bytes)
+    # REQUIRED — the app refuses to start without it. Encrypts mailbox
+    # passwords and OAuth tokens at rest. Generate: openssl rand -base64 32
+    # Back this up separately from the database; losing it loses the credentials.
+    app_encryption_key:   &app_encryption_key   ""
     db_password:          &db_password          ""
     mercure_jwt:          &mercure_jwt          ""
     # The password below MUST equal db_password (an anchor can't be spliced mid-string):

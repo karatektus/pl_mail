@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Doctrine\Type\EncryptedStringType;
 use App\Domain\Enum\MailProvider;
 use App\Domain\Model\AccountModel;
 use App\Domain\Enum\EmailAliasStatus;
@@ -50,7 +51,7 @@ class Account extends AccountModel
     #[ORM\Column(length: 255)]
     private ?string $username = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     private ?string $password = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -68,10 +69,10 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $oauthProvider = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     private ?string $oauthAccessToken = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     private ?string $oauthRefreshToken = null;
 
     #[ORM\Column(nullable: true)]

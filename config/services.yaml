@@ -19,6 +19,12 @@ services:
     App\:
         resource: '../src/'
 
+    # Public because Kernel::boot() fetches it straight from the container to
+    # hand to EncryptedStringType — Doctrine builds types statically, outside
+    # dependency injection, so there is no other seam.
+    App\Encryption\Encryptor:
+        public: true
+
     App\Domain\Helper\AttachmentStorageHelper:
         arguments:
             $projectDir: '%kernel.project_dir%'
