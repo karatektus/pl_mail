@@ -17,8 +17,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * Exists for large mailboxes: backfilling 60k messages takes hours before the
  * UI is useful, and the newest few thousand are what gets read. Raising or
- * clearing the cap lets later runs walk further back; app:reset re-fetches
- * everything from scratch.
+ * clearing the cap lets later runs walk further back — the next sync run picks
+ * it up, it is not applied here; app:reset re-fetches everything from scratch.
  *
  * Not offered for Microsoft — see Account::supportsSyncLimit().
  *
@@ -59,6 +59,14 @@ final class AccountSyncLimitController extends AbstractController
         // Only affects future runs. Lowering it does not delete already-synced
         // mail — that is what app:reset is for.
         $account->setSyncLimit($limit);
+
+        // Raising the cap is a request for more mail now, so clear the
+        // backfill cooldown instead of making the user wait out an hour left
+        // over from an earlier listing. Account::needsBackfill() decides
+        // whether there is actually anything further to fetch.
+        $account->setBackfillRanAt(null);
+        $account->setBackfillAttempts(0);
+
         $this->em->flush();
 
         return $this->render('settings/accounts/_sync_limit_control.html.twig', [

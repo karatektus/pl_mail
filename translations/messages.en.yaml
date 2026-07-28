@@ -378,8 +378,9 @@ settings:
                 Every message on the server is synced. On a large mailbox the
                 first sync can take hours.
             on_hint: >-
-                Only the newest %limit% messages are synced. Raise this later to
-                fetch further back; app:reset re-fetches everything.
+                Only the newest %limit% messages are synced. Raise this later and
+                the next sync run walks further back; app:reset re-fetches
+                everything.
             title: Messages to sync
         type:
             imap: IMAP

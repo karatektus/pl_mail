@@ -34,6 +34,9 @@ services:
     App\Domain\Helper\UploadStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
+    App\Command\PruneBlobsCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
     App\Service\OAuth\OAuthProviderFactory:
         arguments:
             $googleClientId: '%env(GOOGLE_OAUTH_CLIENT_ID)%'

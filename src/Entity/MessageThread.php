@@ -26,7 +26,7 @@ class MessageThread
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageThreads')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Account $account = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -53,7 +53,7 @@ class MessageThread
     /**
      * @var Collection<int, Message>
      */
-    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread')]
     #[ORM\OrderBy(['receivedAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $messages;
 

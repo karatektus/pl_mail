@@ -116,14 +116,28 @@ class Account extends AccountModel
     /**
      * @var Collection<int, Mailbox>
      */
-    #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account')]
     private Collection $mailboxes;
 
     /**
      * @var Collection<int, MessageThread>
      */
-    #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account')]
     private Collection $messageThreads;
+
+    /**
+     * Not every message hangs off a mailbox or a thread (drafts and
+     * partially-synced rows can have both null), so the account owns them
+     * directly too — otherwise deleting it trips message.account_id.
+     *
+     * Deleting an account cascades in the database, not in the ORM: a mailbox
+     * can hold six figures of messages and hydrating them all just to issue
+     * one DELETE each would exhaust memory. See the join columns on Message.
+     *
+     * @var Collection<int, Message>
+     */
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'account')]
+    private Collection $messages;
 
     /**
      * Free-form per-account settings. Empty by default; readers assume their
@@ -174,6 +188,7 @@ class Account extends AccountModel
         $this->aliases = new ArrayCollection();
         $this->mailboxes = new ArrayCollection();
         $this->messageThreads = new ArrayCollection();
+        $this->messages = new ArrayCollection();
         $this->setCreatedAt(new DateTimeImmutable());
         $this->setUpdatedAt(new DateTimeImmutable());
     }
@@ -503,6 +518,14 @@ class Account extends AccountModel
         return $this;
     }
 
+    /**
+     * @return Collection<int, Message>
+     */
+    public function getMessages(): Collection
+    {
+        return $this->messages;
+    }
+
     public function getGmailHistoryId(): ?string
     {
         return $this->gmailHistoryId;
@@ -544,6 +567,19 @@ class Account extends AccountModel
 
     /** Offered in the UI. 0 means no cap. */
     public const array SYNC_LIMIT_CHOICES = [0, 500, 1000, 2000, 5000, 10000, 25000];
+
+    /**
+     * The cap a backfill has actually walked back to, or absent if none has
+     * ever finished. Distinct from SETTING_SYNC_LIMIT, which is what the user
+     * asked for: the gap between the two is what still needs fetching.
+     */
+    public const string SETTING_BACKFILL_TARGET = 'sync.backfill_target';
+
+    /** When the last backfill listing ran, to keep runs from overlapping. */
+    public const string SETTING_BACKFILL_RAN_AT = 'sync.backfill_ran_at';
+
+    /** Consecutive backfill listings that still found unfetched messages. */
+    public const string SETTING_BACKFILL_ATTEMPTS = 'sync.backfill_attempts';
 
     public function getSetting(string $key, mixed $default = null): mixed
     {
@@ -661,9 +697,9 @@ class Account extends AccountModel
      * Backfilling a large mailbox from scratch is the slow case this exists
      * for: a 60k-message Gmail account is hours of API calls before the UI is
      * usable, while the newest couple of thousand are what the user actually
-     * reads. The cap is a ceiling per run, not a one-off — older mail is not
-     * queued for later, it is simply not fetched. Raise or clear the setting
-     * and the next run walks further back; app:reset re-fetches from scratch.
+     * reads. Older mail is not queued for later, it is simply not fetched
+     * yet — raising the cap lets a later run walk further back, tracked by
+     * SETTING_BACKFILL_TARGET.
      */
     public function getSyncLimit(): int
     {
@@ -673,6 +709,80 @@ class Account extends AccountModel
     public function setSyncLimit(int $limit): static
     {
         return $this->setSetting(self::SETTING_SYNC_LIMIT, max(0, $limit));
+    }
+
+    /**
+     * How far back a completed backfill reached: 0 for the whole mailbox, a
+     * positive count for the newest N, null when none has ever finished.
+     */
+    public function getBackfillTarget(): ?int
+    {
+        $target = $this->getSetting(self::SETTING_BACKFILL_TARGET);
+
+        return null === $target ? null : max(0, (int) $target);
+    }
+
+    public function setBackfillTarget(?int $target): static
+    {
+        return $this->setSetting(
+            self::SETTING_BACKFILL_TARGET,
+            null === $target ? null : max(0, $target),
+        );
+    }
+
+    public function getBackfillRanAt(): ?DateTimeImmutable
+    {
+        $timestamp = $this->getSetting(self::SETTING_BACKFILL_RAN_AT);
+
+        if (null === $timestamp) {
+            return null;
+        }
+
+        return (new DateTimeImmutable())->setTimestamp((int) $timestamp);
+    }
+
+    public function setBackfillRanAt(?DateTimeImmutable $ranAt): static
+    {
+        return $this->setSetting(
+            self::SETTING_BACKFILL_RAN_AT,
+            $ranAt?->getTimestamp(),
+        );
+    }
+
+    public function getBackfillAttempts(): int
+    {
+        return max(0, (int) $this->getSetting(self::SETTING_BACKFILL_ATTEMPTS, 0));
+    }
+
+    public function setBackfillAttempts(int $attempts): static
+    {
+        return $this->setSetting(self::SETTING_BACKFILL_ATTEMPTS, max(0, $attempts));
+    }
+
+    /**
+     * Whether a backfill still has ground to cover.
+     *
+     * True until one has completed, and true again whenever the cap is raised
+     * past what the last completed one reached — that is what makes changing
+     * the setting after the first sync do anything at all.
+     */
+    public function needsBackfill(): bool
+    {
+        $completed = $this->getBackfillTarget();
+
+        if (null === $completed) {
+            return true;
+        }
+
+        // A completed uncapped backfill has the whole mailbox; nothing can
+        // widen that.
+        if (0 === $completed) {
+            return false;
+        }
+
+        $limit = $this->getSyncLimit();
+
+        return 0 === $limit || $limit > $completed;
     }
 
     /**

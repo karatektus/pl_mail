@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure\Scheduler;
+
+use Symfony\Component\Console\Messenger\RunCommandMessage;
+use Symfony\Component\Scheduler\Attribute\AsSchedule;
+use Symfony\Component\Scheduler\RecurringMessage;
+use Symfony\Component\Scheduler\Schedule;
+use Symfony\Component\Scheduler\ScheduleProviderInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+
+/**
+ * The recurring jobs that keep a deployment healthy.
+ *
+ * Consumed by `messenger:consume scheduler_default` — see the scheduler
+ * service in compose. Nothing runs these otherwise: without that worker the
+ * commands below simply never fire, which is the state this project was in
+ * before, with logs and orphaned blobs growing without bound.
+ *
+ * Stateful, so a worker that was down over a scheduled run catches up when it
+ * comes back rather than silently skipping the day. Only the last missed run
+ * is replayed — these are all idempotent sweeps, so running yesterday's
+ * backlog five times over would be pure waste.
+ *
+ * Times are spread across the small hours rather than stacked on midnight:
+ * they share a single worker, and a long prune should not hold up a sync.
+ */
+#[AsSchedule]
+final class MaintenanceSchedule implements ScheduleProviderInterface
+{
+    public function __construct(
+        private readonly CacheInterface $cache,
+    ) {
+    }
+
+    public function getSchedule(): Schedule
+    {
+        return (new Schedule())
+            ->stateful($this->cache)
+            ->processOnlyLastMissedRun(true)
+            ->add(
+                // Neither Gmail push nor Graph subscriptions guarantee
+                // delivery, and IDLE connections drop. Polling is the backstop
+                // that notices what the push paths missed.
+                RecurringMessage::cron('*/15 * * * *', new RunCommandMessage('app:mail:sync')),
+
+                // Gmail watches last 7 days, Graph subscriptions ~3. Daily
+                // renewal with the command's own thresholds leaves ample
+                // headroom; --repair also re-registers accounts whose push has
+                // gone degraded.
+                RecurringMessage::cron('0 4 * * *', new RunCommandMessage('app:push:renew --repair')),
+
+                // Log entries and dead heartbeats.
+                RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
+
+                // Expired JMAP uploads and files orphaned by deleted rows.
+                // Weekly: it walks three directory trees, and a week of
+                // orphans is a rounding error on disk.
+                RecurringMessage::cron('0 5 * * 0', new RunCommandMessage('app:prune:blobs')),
+            );
+    }
+}

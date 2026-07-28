@@ -187,19 +187,36 @@ services:
             database:
                 condition: service_healthy
 
-    # OPTIONAL — runs scheduled jobs (app:mail:sync, app:gmail:renew-watches,
-    # app:monitoring:prune) inside the app. Requires Symfony Scheduler wired to a
-    # "scheduler" transport; adjust the name, then uncomment.
-    # scheduler:
-    #   image: *image
-    #   restart: unless-stopped
-    #   command: php bin/console messenger:consume scheduler_default --time-limit=3600
-    #   environment:
-    #     <<: *app-env
-    #     APP_CONTAINER_NAME: scheduler
-    #   depends_on:
-    #     database:
-    #       condition: service_healthy
+    # Runs the scheduled jobs defined in
+    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
+    # renewal, monitoring pruning and the blob sweep. Drop this service and
+    # none of them ever fire.
+    scheduler:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        command: php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=256M
+        stop_grace_period: 15s
+        environment:
+            <<: *app-env
+            APP_CONTAINER_NAME: scheduler
+        volumes:
+            # app:prune:blobs unlinks files across all three stores, so it
+            # needs the same binds as the workers that write them.
+            - type: bind
+              source: *path_attachments
+              target: /app/var/attachments
+            - type: bind
+              source: *path_raw
+              target: /app/var/raw
+            - type: bind
+              source: *path_uploads
+              target: /app/var/uploads
+        healthcheck:
+            disable: true
+        depends_on:
+            database:
+                condition: service_healthy
 
     database:
         image: postgres:18-alpine

@@ -377,8 +377,9 @@ settings:
                 Every bottle in the harbourmaster's hold comes aboard. On a big
                 haul the first run can take watches on end.
             on_hint: >-
-                Only the freshest %limit% bottles come aboard. Raise it later to
-                dredge deeper; app:reset hauls the whole hold anew.
+                Only the freshest %limit% bottles come aboard. Raise it later and
+                the next run dredges deeper; app:reset hauls the whole hold
+                anew.
             title: Bottles to haul aboard
         type:
             imap: IMAP

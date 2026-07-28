@@ -89,7 +89,8 @@ account; a unified inbox is a client-side concern.
 | PWA | `public/manifest.webmanifest`, `public/sw.js`, `assets/controllers/web_push_controller.js`, `App\Controller\Settings\WebPushController` |
 | Settings UI | `App\Controller\ApiTokenController`, `Settings\AccountLabelSyncController` |
 
-Commands: `app:jmap:prune-uploads`, `app:push:generate-vapid-keys`.
+Commands: `app:prune:blobs` (expires staged uploads; replaced
+`app:jmap:prune-uploads`), `app:push:generate-vapid-keys`.
 
 ---
 

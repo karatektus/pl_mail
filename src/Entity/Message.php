@@ -38,12 +38,12 @@ class Message extends MessageModel
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(inversedBy: 'messages')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Account $account;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?Mailbox $mailbox = null;
 
     #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
@@ -155,11 +155,11 @@ class Message extends MessageModel
     /**
      * @var Collection<int, MessagePart>
      */
-    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message')]
     private Collection $messageParts;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?MessageThread $thread = null;
 
     #[ORM\Column(

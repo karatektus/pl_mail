@@ -30,9 +30,17 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
 
         if (null === $account->getGmailHistoryId()) {
             $this->gmailApiSyncer->initialSync($account);
-        } else {
-            $this->gmailApiSyncer->syncIncremental($account);
+
+            return [];
         }
+
+        // New mail first, then any backlog the cap still leaves uncovered.
+        // The backfill is not skipped just because a historyId exists: that
+        // only says where incremental sync resumes, and treating it as "the
+        // mailbox is fully synced" is what used to strand accounts on
+        // whatever the first run happened to fetch.
+        $this->gmailApiSyncer->syncIncremental($account);
+        $this->gmailApiSyncer->backfill($account);
 
         return [];
     }

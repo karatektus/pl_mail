@@ -16,7 +16,7 @@ class MessagePart
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageParts')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Message $message = null;
 
     #[ORM\Column(length: 255)]

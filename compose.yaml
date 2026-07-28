@@ -64,6 +64,22 @@ services:
       database:
         condition: service_healthy
 
+  # Fires the recurring jobs in App\Infrastructure\Scheduler\MaintenanceSchedule.
+  # Separate from messenger-worker so a long prune cannot stall the async queue.
+  scheduler:
+    image: *app-image
+    restart: unless-stopped
+    command: php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=256M
+    stop_grace_period: 15s
+    environment:
+      <<: *app-env
+      APP_CONTAINER_NAME: scheduler
+    healthcheck:
+      disable: true
+    depends_on:
+      database:
+        condition: service_healthy
+
   database:
     image: postgres:${POSTGRES_VERSION:-18}-alpine
     environment:

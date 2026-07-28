@@ -57,6 +57,15 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
 
+  scheduler:
+    build:
+      context: .
+      target: frankenphp_dev
+    volumes:
+      - ./:/app
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+
   database:
     ports:
       - "5432:5432"

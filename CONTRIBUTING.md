@@ -31,8 +31,8 @@ docker compose up --build
 ```
 
 Migrations run automatically via the entrypoint. Create the first user with `app:setup`, or register
-through the UI. The `imap-supervisor` and `messenger-worker` services start with the stack and
-restart on failure.
+through the UI. The `imap-supervisor`, `messenger-worker` and `scheduler` services start with the
+stack and restart on failure.
 
 ## Tests
 
@@ -100,13 +100,17 @@ Never point it at a stack holding real mail.
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |
 | `app:graph:diagnose` | Probe Microsoft Graph access for one account and report what works |
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
-| `app:jmap:prune-uploads` | Delete unreferenced JMAP blob uploads past the retention window |
+| `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:monitoring:prune [--days=N]` | Prune old log entries and dead process heartbeats |
 | `app:reset` | Truncate synced data — useful during development |
 
-Schedule `app:mail:sync`, `app:push:renew` and `app:monitoring:prune` via cron or the Symfony
-Scheduler as needed.
+These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`
+for the cadences (polling sync every 15 min, push renewal and monitoring pruning
+nightly, the blob sweep weekly). They are dispatched by the `scheduler` service in
+compose, which consumes the `scheduler_default` transport; without that container
+running, none of them fire. `php bin/console debug:scheduler` shows the next run of
+each.
 
 ## Roadmap
 

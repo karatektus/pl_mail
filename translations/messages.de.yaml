@@ -391,8 +391,8 @@ settings:
                 dauern.
             on_hint: >-
                 Es werden nur die neuesten %limit% Nachrichten synchronisiert.
-                Erhöhe den Wert später, um weiter zurückzugehen; app:reset holt
-                alles erneut.
+                Erhöhe den Wert später, dann geht der nächste Sync-Lauf weiter
+                zurück; app:reset holt alles erneut.
             title: Zu synchronisierende Nachrichten
         type:
             imap: IMAP

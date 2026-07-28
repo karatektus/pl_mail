@@ -17,7 +17,7 @@ class Mailbox
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'mailboxes')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Account $account = null;
 
     #[ORM\Column(length: 255)]
@@ -66,7 +66,7 @@ class Mailbox
     /**
      * @var Collection<int, Message>
      */
-    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'mailbox', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'mailbox')]
     private Collection $messages;
 
     public function __construct()
