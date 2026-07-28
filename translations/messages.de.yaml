@@ -75,6 +75,8 @@ admin:
     loading: 'Wird geladen…'
     logs:
         all_channels: 'Alle Kanäle'
+        clear: 'Leeren'
+        clear_confirm: 'Die %count% Einträge dieses Filters löschen?'
         empty: 'Auf dieser Stufe wurde nichts protokolliert.'
         entries: 'Einträge'
         heading: 'Protokolle'
@@ -236,6 +238,7 @@ login:
         email: E-Mail-Adresse
         forgot_password: Passwort vergessen?
         password: Passwort
+        remember_me: Angemeldet bleiben
         submit: Anmelden
     page_title: Anmelden
     register:

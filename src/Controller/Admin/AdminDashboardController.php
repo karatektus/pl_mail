@@ -101,6 +101,33 @@ final class AdminDashboardController extends AbstractController
         ]);
     }
 
+    /**
+     * Deletes the entries the log browser is currently showing — same filter,
+     * so what disappears is what was on screen.
+     */
+    #[Route('/logs/clear', name: 'logs_clear', methods: ['POST'])]
+    public function clearLogs(Request $request): Response
+    {
+        $token = (string) $request->request->get('_token', '');
+
+        if (false === $this->isCsrfTokenValid('admin_logs_clear', $token)) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        $minLevel = (int) $request->request->get('level', 300);
+
+        if (false === array_key_exists($minLevel, self::LOG_LEVELS)) {
+            $minLevel = 300;
+        }
+
+        $this->logEntryRepository->deleteSearch(
+            $minLevel,
+            trim((string) $request->request->get('channel', '')),
+        );
+
+        return $this->redirectToRoute('app_admin_dashboard', ['section' => 'logs']);
+    }
+
     #[Route('/db', name: 'db')]
     public function db(): Response
     {

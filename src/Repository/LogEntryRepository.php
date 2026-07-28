@@ -65,6 +65,27 @@ class LogEntryRepository extends ServiceEntityRepository
         return array_values(array_map(static fn (array $row): string => (string) $row['channel'], $rows));
     }
 
+    /**
+     * Deletes exactly what search() would list for the same filter, so the
+     * admin's "clear" button can never remove more than what is on screen.
+     *
+     * @return int Number of deleted entries
+     */
+    public function deleteSearch(int $minLevel, ?string $channel): int
+    {
+        $qb = $this->createQueryBuilder('l')
+            ->delete()
+            ->where('l.level >= :minLevel')
+            ->setParameter('minLevel', $minLevel);
+
+        if (null !== $channel && '' !== $channel) {
+            $qb->andWhere('l.channel = :channel')
+                ->setParameter('channel', $channel);
+        }
+
+        return (int) $qb->getQuery()->execute();
+    }
+
     public function pruneOlderThan(\DateTimeImmutable $cutoff): int
     {
         return (int) $this->createQueryBuilder('l')

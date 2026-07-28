@@ -166,8 +166,32 @@ export default class extends Controller {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+            this.remember();
         } catch (error) {
             console.error('Appearance save failed', error);
+        }
+    }
+
+    /*
+     * Mirror of the snapshot the layout writes on every authenticated render.
+     * This page never reloads, so without it the logged-out screens would keep
+     * showing the appearance as it was when the page was opened.
+     */
+    remember() {
+        // `dark` under a system theme and `sidebar-rail` are applied at runtime
+        // from their own state, so they must not be baked into the snapshot.
+        const classes = [...this.root.classList].filter((name) => (
+            name !== 'sidebar-rail' && (name !== 'dark' || this.root.dataset.theme !== 'system')
+        ));
+
+        try {
+            localStorage.setItem('plmail:appearance', JSON.stringify({
+                class: classes.join(' '),
+                theme: this.root.dataset.theme,
+                style: this.root.getAttribute('style') || '',
+            }));
+        } catch (error) {
+            /* Private mode / storage full — the theme just stays server-side. */
         }
     }
 

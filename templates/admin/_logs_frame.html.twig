@@ -29,6 +29,20 @@
                     {{ 'admin.logs.refresh'|trans }}
                 </button>
             </form>
+
+            {# Deletes the current filter's entries, not the whole table. #}
+            <form method="post" action="{{ path('app_admin_logs_clear') }}" data-turbo-frame="_top"
+                  data-turbo-confirm="{{ 'admin.logs.clear_confirm'|trans({ '%count%': total }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_clear') }}">
+                <input type="hidden" name="level" value="{{ minLevel }}">
+                <input type="hidden" name="channel" value="{{ channel }}">
+                <button type="submit"
+                        {{ total == 0 ? 'disabled' : '' }}
+                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    {{ 'admin.logs.clear'|trans }}
+                </button>
+            </form>
         </div>
 
         {% if entries|length == 0 %}

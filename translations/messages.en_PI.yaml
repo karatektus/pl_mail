@@ -75,6 +75,8 @@ admin:
     loading: 'Haulin'' aboard…'
     logs:
         all_channels: 'All channels'
+        clear: 'Scuttle'
+        clear_confirm: 'Send the %count% entries matchin'' this filter to Davy Jones?'
         empty: 'Naught scribbled at this depth.'
         entries: 'entries'
         heading: 'Ship''s log'
@@ -234,6 +236,7 @@ login:
         email: Parrot address
         forgot_password: Forgot yer secret word?
         password: Secret word
+        remember_me: Keep me aboard
         submit: Come aboard
     page_title: Come aboard
     register:

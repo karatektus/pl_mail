@@ -23,6 +23,39 @@
     <meta name="apple-mobile-web-app-title" content="plMail">
 
     <script>
+        // The appearance is rendered onto <html>, and the server only knows it
+        // once the user is authenticated. Mirror it into localStorage so the
+        // logged-out screens (login above all) already paint in the theme the
+        // user picked instead of the defaults.
+        (function () {
+            const root = document.documentElement;
+            const key = 'plmail:appearance';
+
+            try {
+                {% if app.user %}
+                localStorage.setItem(key, JSON.stringify({
+                    class: root.className,
+                    theme: root.dataset.theme,
+                    style: root.getAttribute('style') || '',
+                }));
+                {% else %}
+                const saved = JSON.parse(localStorage.getItem(key) || 'null');
+
+                if (saved) {
+                    root.className = saved.class;
+                    root.dataset.theme = saved.theme;
+
+                    // A custom background is served from behind the firewall,
+                    // so it would 404 here; every other variable replays fine.
+                    root.setAttribute('style', saved.style
+                        .split(';')
+                        .filter((part) => part.indexOf('/settings/appearance/') === -1)
+                        .join(';'));
+                }
+                {% endif %}
+            } catch (e) {}
+        })();
+
         if (document.documentElement.dataset.theme === 'system' &&
             window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');

@@ -75,6 +75,8 @@ admin:
     loading: 'Loading…'
     logs:
         all_channels: 'All channels'
+        clear: 'Clear'
+        clear_confirm: 'Delete the %count% log entries matching this filter?'
         empty: 'Nothing logged at this level.'
         entries: 'entries'
         heading: 'Logs'
@@ -234,6 +236,7 @@ login:
         email: Email address
         forgot_password: Forgot password?
         password: Password
+        remember_me: Keep me logged in
         submit: Sign in
     page_title: Sign in
     register:

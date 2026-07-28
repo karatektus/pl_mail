@@ -30,6 +30,13 @@ security:
             lazy: true
             provider: app_user_provider
             custom_authenticator: App\Security\LoginFormAuthenticator
+            # Opt-in via the "keep me logged in" checkbox on the login form.
+            # Signature-based tokens: no storage, and changing the password
+            # invalidates every cookie that was issued for it.
+            remember_me:
+                lifetime: 5184000 # 60 days
+                secure: auto
+                samesite: lax
             logout:
                 path: app_logout
 
