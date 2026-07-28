@@ -322,6 +322,16 @@ settings:
             active: Sailin'
             disabled: Beached
         subheading: Sign on, amend, restore or put ashore the crew ye sail with.
+        sync_limit:
+            all: Haul aboard every last bottle
+            newest: 'Freshest %limit%'
+            off_hint: >-
+                Every bottle in the harbourmaster's hold comes aboard. On a big
+                haul the first run can take watches on end.
+            on_hint: >-
+                Only the freshest %limit% bottles come aboard. Raise it later to
+                dredge deeper; app:reset hauls the whole hold anew.
+            title: Bottles to haul aboard
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'

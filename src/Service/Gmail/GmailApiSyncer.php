@@ -42,9 +42,12 @@ final class GmailApiSyncer
      */
     public function initialSync(Account $account): void
     {
+        $limit = $account->getSyncLimit();
+
         $this->logger->info('GmailApiSyncer: planning initial sync', [
             'accountId' => $account->getId(),
             'account'   => $account->getEmail(),
+            'limit'     => 0 === $limit ? 'none' : $limit,
         ]);
 
         $profile          = $this->apiClient->getProfile($account);
@@ -56,9 +59,11 @@ final class GmailApiSyncer
         }
 
         // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
+        // A sync limit stops the listing early: Gmail lists newest-first, so a
+        // capped account never pages through the whole 60k-message backlog.
         $messageRefs = $this->apiClient->listMessages($account, [
             'maxResults' => self::PAGE_SIZE,
-        ]);
+        ], $limit);
 
         $this->dispatchBatches($account, $this->newGmailIds($account, $messageRefs));
     }

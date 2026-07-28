@@ -538,6 +538,12 @@ class Account extends AccountModel
     /** Settings-bag key for the provider label-sync toggle. */
     public const string SETTING_LABEL_SYNC = 'labels.sync_to_provider';
 
+    /** Settings-bag key for the newest-N sync cap. */
+    public const string SETTING_SYNC_LIMIT = 'sync.message_limit';
+
+    /** Offered in the UI. 0 means no cap. */
+    public const array SYNC_LIMIT_CHOICES = [0, 500, 1000, 2000, 5000, 10000, 25000];
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -646,6 +652,37 @@ class Account extends AccountModel
     public function setLabelSyncEnabled(bool $enabled): static
     {
         return $this->setSetting(self::SETTING_LABEL_SYNC, $enabled);
+    }
+
+    /**
+     * How many of the newest messages a sync run may pull, or 0 for no cap.
+     *
+     * Backfilling a large mailbox from scratch is the slow case this exists
+     * for: a 60k-message Gmail account is hours of API calls before the UI is
+     * usable, while the newest couple of thousand are what the user actually
+     * reads. The cap is a ceiling per run, not a one-off — older mail is not
+     * queued for later, it is simply not fetched. Raise or clear the setting
+     * and the next run walks further back; app:reset re-fetches from scratch.
+     */
+    public function getSyncLimit(): int
+    {
+        return max(0, (int) $this->getSetting(self::SETTING_SYNC_LIMIT, 0));
+    }
+
+    public function setSyncLimit(int $limit): static
+    {
+        return $this->setSetting(self::SETTING_SYNC_LIMIT, max(0, $limit));
+    }
+
+    /**
+     * Microsoft is excluded: Graph enumerates a folder through a delta query
+     * whose deltaLink only arrives after the final page, and the pages are not
+     * newest-first. Stopping early would neither give a usable cursor nor the
+     * newest N, so the setting is not offered rather than silently ignored.
+     */
+    public function supportsSyncLimit(): bool
+    {
+        return false === $this->isMicrosoft();
     }
 
     /**

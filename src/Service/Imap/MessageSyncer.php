@@ -20,6 +20,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Client;
+use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
 
 class MessageSyncer
@@ -47,11 +48,13 @@ class MessageSyncer
         $accountId   = $mailbox->getAccount()->getId();
         $lastSeenUid = $mailbox->getLastSeenUid() ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
+        $limit       = $mailbox->getAccount()->getSyncLimit();
 
         $this->logger->info('Syncing mailbox', [
             'mailbox'     => $mailbox->getFullPath(),
             'account'     => $accountId,
             'lastSeenUid' => $lastSeenUid,
+            'limit'       => 0 === $limit ? 'none' : $limit,
         ]);
 
         $folder = $client->getFolder($mailbox->getName());
@@ -59,6 +62,10 @@ class MessageSyncer
         if (null === $folder) {
             $this->logger->error('Folder not found', ['mailbox' => $mailbox->getName()]);
             return;
+        }
+
+        if (true === ($limit > 0)) {
+            $uidRange = $this->cappedUidRange($folder, $uidRange, $limit);
         }
 
         // Load all already-synced UIDs up front so each batch can O(1)-skip them.
@@ -83,6 +90,49 @@ class MessageSyncer
         $mailbox->setUnreadMessages($this->messageRepository->countUnseenForMailbox($mailbox));
         $mailbox->setTotalMessages($this->messageRepository->countTotalForMailbox($mailbox));
         $this->em->flush();
+    }
+
+    /**
+     * Narrow a UID range to the newest $limit messages in the folder.
+     *
+     * Costs one extra SEARCH, which returns UIDs only — no headers or bodies —
+     * so the saving on a large backlog is worth the round-trip. Falls back to
+     * the original range if the search fails: a slow full sync beats no sync.
+     *
+     * The cap applies per run, not just to the first one. A mailbox that gains
+     * more than $limit messages between runs therefore skips the middle, since
+     * lastSeenUid jumps to the newest UID synced. That is the trade the setting
+     * exists to make; clearing it and re-running walks the gap.
+     */
+    private function cappedUidRange(Folder $folder, string $uidRange, int $limit): string
+    {
+        try {
+            $uids = $folder->messages()->where('UID', $uidRange)->search()->all();
+        } catch (\Throwable $e) {
+            $this->logger->warning('Could not apply sync limit, syncing full range', [
+                'range' => $uidRange,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $uidRange;
+        }
+
+        $uids = array_map(intval(...), array_values($uids));
+
+        if (true === (count($uids) <= $limit)) {
+            return $uidRange;
+        }
+
+        sort($uids);
+        $windowStart = $uids[count($uids) - $limit];
+
+        $this->logger->info('Sync limit applied', [
+            'available' => count($uids),
+            'limit'     => $limit,
+            'range'     => $windowStart . ':*',
+        ]);
+
+        return $windowStart . ':*';
     }
 
     /**

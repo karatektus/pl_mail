@@ -35,10 +35,15 @@ final class GmailApiClient
      * Returns the raw `messages` array from the API response.
      * Handles pagination automatically and returns all pages concatenated.
      *
+     * With $limit > 0 pagination stops as soon as that many ids are in hand and
+     * the result is truncated to exactly $limit. Gmail lists newest-first, so
+     * this yields the newest $limit messages without paying for the rest of the
+     * pages — the point of the cap is the API calls it avoids, not the slice.
+     *
      * @param array<string,string|int> $params  e.g. ['maxResults' => 500]
      * @return list<array{id: string, threadId: string}>
      */
-    public function listMessages(Account $account, array $params = []): array
+    public function listMessages(Account $account, array $params = [], int $limit = 0): array
     {
         $token    = $this->tokenManager->getValidAccessToken($account);
         $messages = [];
@@ -61,6 +66,10 @@ final class GmailApiClient
 
             foreach ($body['messages'] ?? [] as $m) {
                 $messages[] = $m;
+            }
+
+            if (true === ($limit > 0) && true === (count($messages) >= $limit)) {
+                return array_slice($messages, 0, $limit);
             }
         } while (null !== $page);
 
