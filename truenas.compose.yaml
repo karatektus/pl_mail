@@ -19,6 +19,7 @@ name: plmail
 # EDIT EVERYTHING IN THIS BLOCK — nothing below needs touching.
 # ─────────────────────────────────────────────────────────────────────────────
 x-config:
+    app_public_url:       &app_public_url       ""
     # -- Secrets --
     app_secret:           &app_secret           ""
     app_encryption_key:   &app_encryption_key   ""   # base64 libsodium secretbox key (32 bytes)
@@ -71,6 +72,7 @@ x-config:
 
 x-app-env: &app-env
     APP_ENV: prod
+    APP_PUBLIC_URL: *app_public_url
     APP_SECRET: *app_secret
     APP_ENCRYPTION_KEY: *app_encryption_key
     DATABASE_URL: *database_url
