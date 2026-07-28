@@ -114,7 +114,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
         // Resolve each thread most-recent-wins from its messages, in one
         // statement. Runs after clear(), so it is pure DBAL.
-        $threads = $this->threadRepository->recomputeCategoriesForAccount($accountId);
+        $threads = $this->threadRepository->recomputeCategoriesForAccount($account);
 
         $io->success(sprintf('Categorised %d message(s), resolved %d thread(s).', $processed, $threads));
     }
