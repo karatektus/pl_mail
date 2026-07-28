@@ -69,7 +69,6 @@ class ResetDataCommand extends Command
             'message_part',
             'message_label',
             'thread_label',
-            'message_thread_mailbox',
             'message',
             'message_thread',
             'jmap_change_log',
@@ -90,7 +89,18 @@ class ResetDataCommand extends Command
             $tables[] = 'process_heartbeat';
         }
 
+        // Truncate against what the database actually has, not what this list
+        // claims. A table dropped by a later migration would otherwise abort the
+        // whole reset mid-way — with FK checks still disabled for the session.
+        $existing = $connection->createSchemaManager()->listTableNames();
+
         foreach ($tables as $table) {
+            if (false === in_array($table, $existing, true)) {
+                $io->text('– '.$table.' (not in schema, skipped)');
+
+                continue;
+            }
+
             $connection->executeStatement(sprintf('TRUNCATE TABLE %s CASCADE', $table));
             $io->text('✓ '.$table);
         }
