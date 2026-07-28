@@ -69,6 +69,11 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
         return '' !== trim($this->pubSubTopicName);
     }
 
+    public function messageKey(): string
+    {
+        return 'gmail';
+    }
+
     public function subscribe(Account $account): bool
     {
         if (true !== $account->isPushEnabled()) {

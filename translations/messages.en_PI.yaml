@@ -295,14 +295,26 @@ settings:
         password_help: Leave it blank to keep the secret word ye have.
         primary: Flagship
         push:
-            degraded_hint: >-
-                The cannon be loaded but naught has been heard lately. The
-                Pub/Sub push subscription in Google Cloud may be missin' or
-                aimed elsewhere. Mail still comes aboard on the watch bell.
-            failed: >-
-                The cannon couldn't be readied — Microsoft must reach this ship
-                over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL. Mail
-                still comes aboard on the watch bell.
+            degraded_hint:
+                gmail: >-
+                    The cannon be loaded but naught has been heard lately. The
+                    Pub/Sub push subscription in Google Cloud may be missin' or
+                    aimed elsewhere. Mail still comes aboard on the watch bell.
+                microsoft: >-
+                    The push subscription has run out and naught be arrivin'.
+                    Load the cannon again to bring word back. Mail still comes
+                    aboard on the watch bell.
+            failed:
+                gmail: >-
+                    The cannon couldn't be readied — Google turned away the
+                    watch. See that GMAIL_PUBSUB_TOPIC names a Pub/Sub topic
+                    that truly exists, and that the topic grants
+                    gmail-api@system.gserviceaccount.com the Pub/Sub Publisher
+                    role. Mail still comes aboard on the watch bell.
+                microsoft: >-
+                    The cannon couldn't be readied — Microsoft must reach this
+                    ship over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL.
+                    Mail still comes aboard on the watch bell.
             health:
                 active: Cannon
                 degraded: Cannon (misfirin')
@@ -313,7 +325,9 @@ settings:
                 No cannon on this ship — she needs a public HTTPS berth and, for
                 Gmail, a Cloud Pub/Sub topic.
             off_hint: Mail comes aboard on the watch bell. Load the cannon for word the moment it lands.
-            on_hint: New mail lands the instant Microsoft fires the cannon.
+            on_hint:
+                gmail: New mail lands the instant Gmail fires the cannon.
+                microsoft: New mail lands the instant Microsoft fires the cannon.
             renews: Yer watch be renewed afore %date%.
             reregister: Load the cannon again
             title: Word the moment it lands

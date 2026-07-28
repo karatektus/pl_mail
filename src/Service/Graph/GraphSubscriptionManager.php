@@ -65,6 +65,11 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
         return $this->isPubliclyRoutable();
     }
 
+    public function messageKey(): string
+    {
+        return 'microsoft';
+    }
+
     public function expiresAt(Account $account): ?DateTimeImmutable
     {
         return $account->getGraphSubscriptionExpiresAt();

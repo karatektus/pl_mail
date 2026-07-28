@@ -36,6 +36,7 @@ final readonly class PushStatusFactory
             configured: $manager->isConfigured(),
             health:     $manager->health($account),
             expiresAt:  $manager->expiresAt($account),
+            provider:   $manager->messageKey(),
         );
     }
 }

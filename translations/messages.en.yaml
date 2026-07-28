@@ -296,14 +296,26 @@ settings:
         password_help: Leave blank to keep the current password.
         primary: Primary
         push:
-            degraded_hint: >-
-                Push is registered but nothing has arrived recently. The Pub/Sub
-                push subscription in Google Cloud may be missing or pointing
-                elsewhere. Mail is still syncing on a schedule.
-            failed: >-
-                Push couldn't be enabled — Microsoft needs to reach this server
-                over HTTPS. Check your reverse proxy and APP_PUBLIC_URL. The
-                account is still syncing on a schedule.
+            degraded_hint:
+                gmail: >-
+                    Push is registered but nothing has arrived recently. The
+                    Pub/Sub push subscription in Google Cloud may be missing or
+                    pointing elsewhere. Mail is still syncing on a schedule.
+                microsoft: >-
+                    The push subscription has lapsed and nothing is arriving.
+                    Re-register it to resume instant delivery. Mail is still
+                    syncing on a schedule.
+            failed:
+                gmail: >-
+                    Push couldn't be enabled — Google rejected the watch
+                    registration. Check that GMAIL_PUBSUB_TOPIC names an
+                    existing Pub/Sub topic and that the topic grants
+                    gmail-api@system.gserviceaccount.com the Pub/Sub Publisher
+                    role. The account is still syncing on a schedule.
+                microsoft: >-
+                    Push couldn't be enabled — Microsoft needs to reach this
+                    server over HTTPS. Check your reverse proxy and
+                    APP_PUBLIC_URL. The account is still syncing on a schedule.
             health:
                 active: Push
                 degraded: Push (not delivering)
@@ -314,7 +326,9 @@ settings:
                 Push isn't available on this server — it needs a public HTTPS
                 address and, for Gmail, a Cloud Pub/Sub topic.
             off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
-            on_hint: New mail arrives immediately via Microsoft push notifications.
+            on_hint:
+                gmail: New mail arrives immediately via Gmail push notifications.
+                microsoft: New mail arrives immediately via Microsoft push notifications.
             renews: Subscription renews before %date%.
             reregister: Re-register push
             title: Instant delivery

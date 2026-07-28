@@ -27,13 +27,13 @@
             : path('settings_account_push_toggle', {id: account.id}) %}
 
         {% if status.failed %}
-            {% set tooltip = 'settings.accounts.push.failed'|trans %}
+            {% set tooltip = ('settings.accounts.push.failed.' ~ status.provider)|trans %}
         {% elseif degraded %}
-            {% set tooltip = 'settings.accounts.push.degraded_hint'|trans %}
+            {% set tooltip = ('settings.accounts.push.degraded_hint.' ~ status.provider)|trans %}
         {% elseif not status.configured and not status.enabled %}
             {% set tooltip = 'settings.accounts.push.not_configured'|trans %}
         {% elseif status.enabled %}
-            {% set tooltip = 'settings.accounts.push.on_hint'|trans %}
+            {% set tooltip = ('settings.accounts.push.on_hint.' ~ status.provider)|trans %}
         {% else %}
             {% set tooltip = 'settings.accounts.push.off_hint'|trans %}
         {% endif %}

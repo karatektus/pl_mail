@@ -45,7 +45,7 @@ x-config:
     # -- Gmail (leave blank for IMAP-only) --
     google_client_id:     &google_client_id     ""
     google_client_secret: &google_client_secret ""
-    gmail_pubsub_topic:   &gmail_pubsub_topic   "projects/plMail/topics/gmail-push"
+    gmail_pubsub_topic:   &gmail_pubsub_topic   "projects/your-project-id/topics/gmail-push"
 
     graph_client_id:      &graph_client_id      ""
     graph_client_secret:  &graph_client_secret  ""

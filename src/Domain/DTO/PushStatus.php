@@ -24,6 +24,8 @@ final readonly class PushStatus
         public PushHealth          $health,
         public ?DateTimeImmutable  $expiresAt = null,
         public bool                $failed = false,
+        /** Provider namespace for user-facing copy; empty when unsupported. */
+        public string              $provider = '',
     ) {}
 
     /**
@@ -62,6 +64,7 @@ final readonly class PushStatus
             health:     $this->health,
             expiresAt:  $this->expiresAt,
             failed:     true,
+            provider:   $this->provider,
         );
     }
 }

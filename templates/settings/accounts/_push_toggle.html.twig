@@ -25,7 +25,7 @@
 
                     <p class="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                         {% if status.enabled %}
-                            {{ 'settings.accounts.push.on_hint'|trans }}
+                            {{ ('settings.accounts.push.on_hint.' ~ status.provider)|trans }}
                             {% if status.expiresAt %}
                                 <span class="block mt-1 text-zinc-400 dark:text-zinc-500">
                                     {{ 'settings.accounts.push.renews'|trans({
@@ -48,18 +48,19 @@
                     {% if status.failed %}
                         <p class="mt-2 flex items-start gap-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
                             <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-                            <span>{{ 'settings.accounts.push.failed'|trans }}</span>
+                            <span>{{ ('settings.accounts.push.failed.' ~ status.provider)|trans }}</span>
                         </p>
                     {% endif %}
 
-                    {# Degraded is the Gmail-specific failure the user cannot otherwise
-                       see: the watch registered fine, but the Cloud Pub/Sub push
-                       subscription never forwards anything. #}
+                    {# Degraded is the failure the user cannot otherwise see: the
+                       registration itself succeeded, but nothing is arriving —
+                       a missing Cloud Pub/Sub push subscription on Gmail, a
+                       lapsed subscription on Graph. #}
                     {% if status.health.value == 'degraded' and not status.failed %}
                         <div class="mt-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
                             <p class="flex items-start gap-2">
                                 <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-                                <span>{{ 'settings.accounts.push.degraded_hint'|trans }}</span>
+                                <span>{{ ('settings.accounts.push.degraded_hint.' ~ status.provider)|trans }}</span>
                             </p>
                             <form method="post"
                                   action="{{ path('settings_account_push_repair', {id: account.id}) }}"

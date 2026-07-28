@@ -56,4 +56,14 @@ interface PushSubscriptionManagerInterface
      * remote failure.
      */
     public function isConfigured(): bool;
+
+    /**
+     * Namespace for the provider's user-facing copy, e.g. 'gmail'.
+     *
+     * The states the control renders — push failed to register, push is on,
+     * push is registered but not delivering — have genuinely different causes
+     * and remedies per provider, so the wording cannot be shared. Templates
+     * suffix their translation keys with this rather than naming a provider.
+     */
+    public function messageKey(): string;
 }

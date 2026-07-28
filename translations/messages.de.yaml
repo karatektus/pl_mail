@@ -300,16 +300,30 @@ settings:
         password_help: Leer lassen, um das aktuelle Passwort zu behalten.
         primary: Primär
         push:
-            degraded_hint: >-
-                Push ist registriert, aber es kam zuletzt nichts an. Das
-                Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
-                oder zeigt woanders hin. E-Mails werden weiterhin nach Zeitplan
-                synchronisiert.
-            failed: >-
-                Push konnte nicht aktiviert werden — Microsoft muss diesen
-                Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
-                APP_PUBLIC_URL. Das Konto wird weiterhin nach Zeitplan
-                synchronisiert.
+            degraded_hint:
+                gmail: >-
+                    Push ist registriert, aber es kam zuletzt nichts an. Das
+                    Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
+                    oder zeigt woanders hin. E-Mails werden weiterhin nach
+                    Zeitplan synchronisiert.
+                microsoft: >-
+                    Das Push-Abonnement ist abgelaufen und es kommt nichts mehr
+                    an. Registriere es neu, um die sofortige Zustellung
+                    fortzusetzen. E-Mails werden weiterhin nach Zeitplan
+                    synchronisiert.
+            failed:
+                gmail: >-
+                    Push konnte nicht aktiviert werden — Google hat die
+                    Watch-Registrierung abgelehnt. Prüfe, ob GMAIL_PUBSUB_TOPIC
+                    ein vorhandenes Pub/Sub-Thema benennt und ob dieses Thema
+                    gmail-api@system.gserviceaccount.com die Rolle
+                    „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
+                    Zeitplan synchronisiert.
+                microsoft: >-
+                    Push konnte nicht aktiviert werden — Microsoft muss diesen
+                    Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
+                    APP_PUBLIC_URL. Das Konto wird weiterhin nach Zeitplan
+                    synchronisiert.
             health:
                 active: Push
                 degraded: Push (liefert nicht)
@@ -321,7 +335,9 @@ settings:
                 öffentliche HTTPS-Adresse und, für Gmail, ein Cloud-Pub/Sub-Topic
                 benötigt.
             off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
-            on_hint: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
+            on_hint:
+                gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
+                microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             renews: Abonnement wird vor dem %date% erneuert.
             reregister: Push neu registrieren
             title: Sofortige Zustellung
