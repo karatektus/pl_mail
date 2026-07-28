@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
@@ -307,13 +308,7 @@ final class GmailMessageBuilder
 
     private function decodeMimeHeader(string $value): string
     {
-        if ('' === $value) {
-            return '';
-        }
-
-        $decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
-
-        return (false === $decoded) ? $value : $decoded;
+        return MimeHeaderHelper::decode($value);
     }
 
     private function translateLabel(Label $label, Account $target): Label

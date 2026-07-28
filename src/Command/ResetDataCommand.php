@@ -27,6 +27,7 @@ class ResetDataCommand extends Command
         $this
             ->addOption('mailboxes', null, InputOption::VALUE_NONE, 'Also delete mailbox structure (folders and labels)')
             ->addOption('contacts', null, InputOption::VALUE_NONE, 'Also delete harvested contacts')
+            ->addOption('accounts', null, InputOption::VALUE_NONE, 'Also delete the accounts themselves, aliases included (implies --mailboxes)')
             ->addOption('keep-monitoring', null, InputOption::VALUE_NONE, 'Keep monitoring data (aggregated logs and process heartbeats)');
     }
 
@@ -36,7 +37,14 @@ class ResetDataCommand extends Command
 
         $io->warning('This will permanently delete synced data from the database.');
 
-        $deleteMailboxes = true === $input->getOption('mailboxes') || (
+        // Accounts are the one thing a plain reset never touches — you would
+        // have to re-enter every password to get back to a syncing app. Flag
+        // only, never a prompt, and it takes the structure with it because a
+        // label without its account is a foreign key violation waiting to
+        // happen.
+        $deleteAccounts = true === $input->getOption('accounts');
+
+        $deleteMailboxes = $deleteAccounts || true === $input->getOption('mailboxes') || (
             $input->isInteractive() && $io->confirm(
                 'Also delete mailbox structure (folders and labels)? If no, only messages and threads will be cleared.',
                 false,
@@ -56,6 +64,17 @@ class ResetDataCommand extends Command
                 true,
             )
         );
+
+        // Without a TTY every confirm() above is skipped and answered "no", so
+        // `docker compose exec -T … app:reset` quietly keeps the structure.
+        // Saying so beats leaving the user to work out why their labels and
+        // accounts are still there.
+        $io->listing([
+            'mailboxes and labels: ' . ($deleteMailboxes ? 'deleted' : 'kept (--mailboxes)'),
+            'contacts: ' . ($deleteContacts ? 'deleted' : 'kept (--contacts)'),
+            'accounts and aliases: ' . ($deleteAccounts ? 'deleted' : 'kept (--accounts)'),
+            'monitoring data: ' . ($resetMonitoring ? 'cleared' : 'kept'),
+        ]);
 
         $io->section('Truncating tables...');
 
@@ -84,6 +103,14 @@ class ResetDataCommand extends Command
             $tables[] = 'contact';
         }
 
+        if (true === $deleteAccounts) {
+            // Every table with an account_id, then the accounts. The user rows
+            // stay: dropping those would lock you out of the app you are
+            // resetting.
+            $tables[] = 'email_alias';
+            $tables[] = 'account';
+        }
+
         if (true === $resetMonitoring) {
             $tables[] = 'log_entry';
             $tables[] = 'process_heartbeat';
@@ -106,13 +133,15 @@ class ResetDataCommand extends Command
         }
 
         // Clear per-account sync cursors so the next run re-syncs from scratch
-        $connection->executeStatement(<<<'SQL'
-            UPDATE account SET
-                gmail_history_id = NULL,
-                graph_delta_links = '{}',
-                last_synced_at = NULL
-            SQL);
-        $io->text('✓ account (sync cursors)');
+        if (false === $deleteAccounts) {
+            $connection->executeStatement(<<<'SQL'
+                UPDATE account SET
+                    gmail_history_id = NULL,
+                    graph_delta_links = '{}',
+                    last_synced_at = NULL
+                SQL);
+            $io->text('✓ account (sync cursors)');
+        }
 
         // Kept mailboxes still carry IMAP cursors; without clearing them nothing would be re-fetched
         if (true !== $deleteMailboxes) {
@@ -128,7 +157,9 @@ class ResetDataCommand extends Command
         // Re-enable FK checks
         $connection->executeStatement('SET session_replication_role = DEFAULT');
 
-        $io->success('Done. Run app:mail:sync to re-sync.');
+        $io->success(true === $deleteAccounts
+            ? 'Done. Add an account to start over.'
+            : 'Done. Run app:mail:sync to re-sync.');
 
         return Command::SUCCESS;
     }

@@ -43,7 +43,7 @@ export default class extends Controller {
                 throw new Error(`Request failed (${response.status}).`);
             }
 
-            const result = await response.json();
+            const result = await this._json(response);
 
             this._toast(`Syncing ${result.dispatched} account${1 === result.dispatched ? "" : "s"}…`, "info");
 
@@ -59,6 +59,20 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * A 200 that is not JSON means the request was answered by something other
+     * than the endpoint — in practice the login page, after fetch quietly
+     * followed the redirect an expired session produces. Say that, rather than
+     * handing the user a JSON parser error about a stray "<".
+     */
+    async _json(response) {
+        if (false === (response.headers.get("Content-Type") ?? "").includes("json")) {
+            throw new Error("Your session has expired — reload the page to sign in again.");
+        }
+
+        return response.json();
+    }
 
     _schedule() {
         this._poll = setTimeout(() => this._check(), this.pollIntervalValue);

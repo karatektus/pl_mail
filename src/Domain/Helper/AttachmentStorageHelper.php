@@ -76,7 +76,7 @@ readonly class AttachmentStorageHelper
     private function sanitizeFilename(string $filename): string
     {
         // Decode encoded filenames (e.g. =?UTF-8?B?...?=)
-        $decoded = iconv_mime_decode($filename);
+        $decoded = MimeHeaderHelper::decode($filename);
 
         // Strip directory traversal and dangerous characters
         $safe = basename($decoded);

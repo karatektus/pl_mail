@@ -66,6 +66,13 @@ final class JmapEventSourceController extends AbstractController
 
     private function emit(User $user, int $ping, bool $closeAfterState): void
     {
+        // php.ini-development caps a request at 30 seconds, and FrankenPHP
+        // counts that as wall clock — so every connection died inside the
+        // sleep() below with a MaxExecutionTimeError, logged CRITICAL, once per
+        // client reconnect. The lifetime this stream is designed for is the one
+        // that should bound it; the margin leaves room for the final write.
+        set_time_limit(self::MAX_LIFETIME_SECONDS + 30);
+
         $started = time();
         $lastPing = $started;
         $known = $this->stateChangeBuilder->snapshot($user);

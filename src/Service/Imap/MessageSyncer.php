@@ -4,6 +4,7 @@ namespace App\Service\Imap;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -468,12 +469,6 @@ class MessageSyncer
 
     private function decodeMimeHeader(string $value): string
     {
-        $decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
-
-        if (false === $decoded) {
-            return $value;
-        }
-
-        return $decoded;
+        return MimeHeaderHelper::decode($value);
     }
 }

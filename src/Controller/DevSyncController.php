@@ -21,7 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * spinning once this user's sync jobs are done.
  */
 #[Route('/dev/sync', name: 'app_dev_sync_')]
-#[IsGranted('IS_AUTHENTICATED_FULLY')]
+// ROLE_USER, not IS_AUTHENTICATED_FULLY: "keep me logged in" survives the
+// session, so a remembered user browses the app normally but fails a FULLY
+// check — the button's fetch followed the redirect to /login and choked on the
+// HTML. Same level as the rest of the app (access_control ^/).
+#[IsGranted('ROLE_USER')]
 final class DevSyncController extends AbstractController
 {
     public function __construct(
