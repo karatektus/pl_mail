@@ -15,15 +15,16 @@ namespace App\Domain\Enum\Theme;
  */
 enum Layout: string
 {
-    case Boxed = 'boxed';
+    // Default first — this order drives the settings dropdown.
     case Flat  = 'flat';
+    case Boxed = 'boxed';
 
-    /** Class added to <html>. The default layout needs no rules, so no class. */
+    /** Class added to <html>. Boxed is the plain stylesheet, so it needs none. */
     public function htmlClass(): ?string
     {
         return match ($this) {
-            self::Boxed => null,
             self::Flat  => 'layout-flat',
+            self::Boxed => null,
         };
     }
 
@@ -39,16 +40,16 @@ enum Layout: string
     public function defaults(): array
     {
         return match ($this) {
-            self::Boxed => [
-                'radius'    => 1.0,
-                'paneBlur'  => 24,
-                'paneAlpha' => 0.7,
-                'density'   => Density::Comfortable->value,
-            ],
             self::Flat => [
                 'radius'    => 0.75,
                 'paneBlur'  => 0,
                 'paneAlpha' => 1.0,
+                'density'   => Density::Comfortable->value,
+            ],
+            self::Boxed => [
+                'radius'    => 1.0,
+                'paneBlur'  => 24,
+                'paneAlpha' => 0.7,
                 'density'   => Density::Comfortable->value,
             ],
         };

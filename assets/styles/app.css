@@ -49,9 +49,9 @@
     /* user-tunable — overwritten inline on <html> by AppearanceRenderer */
     --rgb-main:   var(--rgb-surface);
     --main-alpha: var(--pane-alpha);
-    --pane-alpha:    0.7;
-    --pane-blur:     24px;
-    --app-radius:    1rem;
+    --pane-alpha:    1;
+    --pane-blur:     0px;
+    --app-radius:    0.75rem;
     --density-row-y: 0.875rem;
     --density-gap:   0.75rem;
 
@@ -432,6 +432,39 @@
         justify-content: center;
         padding-inline: 0;
     }
+
+    /* Compose loses its label, so its height has to come down with it — a
+       tall narrow slab reads as a broken button. Wider than high, never
+       taller. */
+    .sidebar-rail #sidebar .compose-wrap {
+        padding-inline: 0.5rem;
+    }
+
+    .sidebar-rail #sidebar .compose-link {
+        padding-block: 0;
+        padding-inline: 0;
+        height: 2.25rem;
+    }
+
+    /* No label to run into: the pill stays a centred, evenly-rounded square
+       rather than bleeding off the left edge. */
+    .sidebar-rail #sidebar .nav-item.is-active {
+        margin-inline-start: 0;
+        padding-inline-start: 0;
+        border-radius: 0.5rem;
+    }
+}
+
+/* Active nav row, Gmail-style: the pill runs off the left edge of the sidebar
+   and caps with a full radius on the right. `is-active` is applied by
+   sidebar_controller; the colours ride along as utilities, only the shape
+   lives here — it needs to cancel the nav's own padding, which a utility
+   cannot do without leaking into every other row. */
+#sidebar .nav-item.is-active,
+#sidebar-drawer-inner .nav-item.is-active {
+    margin-inline-start: -0.5rem;   /* cancel nav's px-2 … */
+    padding-inline-start: 1.25rem;  /* … without moving the icon */
+    border-radius: 0 9999px 9999px 0;
 }
 
 /* ═══ Scrollbars — now token-driven ════════════════════════════════════════ */

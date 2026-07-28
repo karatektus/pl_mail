@@ -90,12 +90,12 @@ the layout.
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
 
     {# Compose #}
-    <div class="px-3 py-3 border-b border-line">
+    <div class="compose-wrap px-3 py-3 border-b border-line">
         <a href="{{ path('app_compose_new') }}"
            data-turbo-frame="compose_dock"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.compose'|trans }}"
-           class="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-row transition-colors">
+           class="compose-link w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-row transition-colors">
             <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
             <span class="rail-hide">{{ 'sidebar.compose'|trans }}</span>
         </a>
@@ -105,7 +105,7 @@ the layout.
     <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-sm">
 
         <a href="{{ path('app_mail_inbox') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.inbox'|trans }}"
@@ -118,7 +118,7 @@ the layout.
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.starred'|trans }}"
@@ -131,7 +131,7 @@ the layout.
         </a>
 
         <a href="{{ path('app_mail_sent') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.sent'|trans }}"
@@ -144,7 +144,7 @@ the layout.
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.drafts'|trans }}"
@@ -157,7 +157,7 @@ the layout.
         </a>
         {% if sidebarCounts.hasVisibleArchive %}
             <a href="{{ path('app_mail_archive') }}"
-               class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
                data-sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.archive'|trans }}">
@@ -169,7 +169,7 @@ the layout.
             </a>
         {% endif %}
         <a href="{{ path('app_mail_trash') }}"
-           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.trash'|trans }}"

@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus";
 
-const ACTIVE_CLASSES   = ["bg-accent-soft", "text-accent", "font-medium"];
+// `is-active` carries no colour of its own — it is the hook the sidebar's
+// Gmail-style pill shape hangs off in app.css.
+const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-medium"];
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["mercure:mailbox-synced", "mercure:account-synced"];
 export default class extends Controller {

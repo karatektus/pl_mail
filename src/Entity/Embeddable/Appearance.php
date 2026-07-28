@@ -19,8 +19,8 @@ final class Appearance
     #[ORM\Column(type: 'string', length: 16, enumType: Theme::class, options: ['default' => 'system'])]
     public private(set) Theme $theme = Theme::System;
 
-    #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'boxed'])]
-    public private(set) Layout $layout = Layout::Boxed;
+    #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'flat'])]
+    public private(set) Layout $layout = Layout::Flat;
 
     #[ORM\Column(type: 'string', length: 7, options: ['default' => self::DEFAULT_ACCENT])]
     public private(set) string $accent = self::DEFAULT_ACCENT {
@@ -31,23 +31,26 @@ final class Appearance
         }
     }
 
-    #[ORM\Column(type: 'float', options: ['default' => 0.7])]
-    public private(set) float $paneAlpha = 0.7 {
+    // The knob defaults below mirror Layout::Flat's preset — the default
+    // layout and the default appearance have to agree, or a fresh account
+    // renders in a state no layout would produce.
+    #[ORM\Column(type: 'float', options: ['default' => 1.0])]
+    public private(set) float $paneAlpha = 1.0 {
         set {
             $this->paneAlpha = max(0.15, min(1.0, $value));
         }
     }
 
-    #[ORM\Column(type: 'smallint', options: ['default' => 24])]
-    public private(set) int $paneBlur = 24 {
+    #[ORM\Column(type: 'smallint', options: ['default' => 0])]
+    public private(set) int $paneBlur = 0 {
         set {
             $this->paneBlur = max(0, min(60, $value));
         }
     }
 
     /** Corner radius in rem. */
-    #[ORM\Column(type: 'float', options: ['default' => 1.0])]
-    public private(set) float $radius = 1.0 {
+    #[ORM\Column(type: 'float', options: ['default' => 0.75])]
+    public private(set) float $radius = 0.75 {
         set {
             $this->radius = max(0.0, min(2.0, $value));
         }
