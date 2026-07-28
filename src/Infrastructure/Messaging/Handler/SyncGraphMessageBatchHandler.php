@@ -176,7 +176,11 @@ final readonly class SyncGraphMessageBatchHandler
         }
 
         // Threads exist only after assignThread() above, so this runs as a
-        // second pass rather than inside the loop.
+        // second pass rather than inside the loop — and only after the flush,
+        // which is where a thread created moments ago gets its id. Reading
+        // them before it published every new thread to JMAP clients as id 0.
+        $this->em->flush();
+
         $threadIds = [];
 
         foreach ($built as $entity) {
@@ -189,6 +193,7 @@ final readonly class SyncGraphMessageBatchHandler
 
         $this->stateManager->recordThreadsTouched((int) $account->getId(), $threadIds);
 
+        // The change-log rows recorded just now.
         $this->em->flush();
 
         $this->harvestService->harvestMessages(

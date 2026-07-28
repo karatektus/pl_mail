@@ -124,7 +124,9 @@ test.describe("compose window", () => {
     });
 
     // PHP ships upload_max_filesize=2M / post_max_size=8M, which silently ate
-    // anything bigger before frankenphp/conf.d/10-app.ini raised them.
+    // anything bigger before frankenphp/conf.d/10-app.ini raised them. That
+    // file is baked into the image, so a container older than the bump still
+    // refuses this upload — `npm run test:env:up` rebuilds before starting.
     test("attaches a file larger than PHP's stock upload limit", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
@@ -157,15 +159,7 @@ test.describe("compose window", () => {
         await expect(toControl.locator(".item")).toContainText("someone@example.test");
     });
 
-    // KNOWN BROKEN — app bug, not test drift, and no longer the create-option
-    // one above: the draft is saved (row + Drafts label on the message), but
-    // /mail/drafts lists *threads* by label and the new thread carries none.
-    // MessageThreader::attachMessageToThread() copies the message's labels onto
-    // the thread while only setting the owning side of the association, so the
-    // ThreadLabelSynchronizer::sync() that runs straight after sees an empty
-    // $thread->getMessages() and removes them all again. Un-fixme once a fresh
-    // draft thread keeps its Drafts label.
-    test.fixme("restores the recipient when a draft is reopened", async ({ page }) => {
+    test("restores the recipient when a draft is reopened", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
 

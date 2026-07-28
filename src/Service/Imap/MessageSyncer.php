@@ -274,8 +274,16 @@ class MessageSyncer
             }
         }
 
+        if (true === ($maxUid > 0)) {
+            $mailbox->setLastSeenUid($maxUid);
+        }
+
         // Threads exist only after assignThread() above, so this runs as a
-        // second pass rather than inside the loop.
+        // second pass rather than inside the loop — and only after the flush,
+        // which is where a thread created moments ago gets its id. Reading
+        // them before it published every new thread to JMAP clients as id 0.
+        $this->em->flush();
+
         $threadIds = [];
 
         foreach ($messages as $message) {
@@ -288,10 +296,7 @@ class MessageSyncer
 
         $this->stateManager->recordThreadsTouched((int) $accountId, $threadIds);
 
-        if (true === ($maxUid > 0)) {
-            $mailbox->setLastSeenUid($maxUid);
-        }
-
+        // The change-log rows recorded just now.
         $this->em->flush();
     }
 

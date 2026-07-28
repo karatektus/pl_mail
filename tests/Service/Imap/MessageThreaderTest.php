@@ -155,17 +155,65 @@ final class MessageThreaderTest extends TestCase
     }
 
     /**
+     * A sync batch threads every message it built and flushes once at the end,
+     * so the repository — which only sees flushed rows — keeps answering null
+     * for a conversation whose thread was created moments earlier in the same
+     * batch. Each message used to make its own thread, and the second INSERT
+     * blew up on uniq_message_thread_provider_key_account, failing the batch.
+     */
+    public function testMessagesOfOneProviderConversationShareASingleThread(): void
+    {
+        $account  = new Account();
+        $threader = $this->threaderWithThreadLookup(null, managed: true);
+
+        $first  = $this->message(MessageCategory::Primary, '2026-07-28 10:00:00');
+        $second = $this->message(MessageCategory::Primary, '2026-07-28 11:00:00');
+
+        $threader->assignThread($first, $account);
+        $threader->assignThread($second, $account);
+
+        self::assertNotNull($first->getThread());
+        self::assertSame($first->getThread(), $second->getThread());
+        self::assertSame(2, $first->getThread()?->getMessageCount());
+    }
+
+    /**
+     * The cache holds entities, and the worker's entity manager is cleared
+     * between messages — a thread it no longer manages must not be handed out.
+     */
+    public function testDetachedThreadIsNotReused(): void
+    {
+        $account  = new Account();
+        $threader = $this->threaderWithThreadLookup(null, managed: false);
+
+        $first  = $this->message(MessageCategory::Primary, '2026-07-28 10:00:00');
+        $second = $this->message(MessageCategory::Primary, '2026-07-28 11:00:00');
+
+        $threader->assignThread($first, $account);
+        $threader->assignThread($second, $account);
+
+        self::assertNotSame($first->getThread(), $second->getThread());
+    }
+
+    /**
      * Routes assignThread() down its first branch — the provider conversation id
      * — so the thread under test is the one the stub hands back (or a fresh one
      * when that is null), and no other collaborator is touched.
+     *
+     * `managed` is what the entity manager says about threads created earlier
+     * in the same run: true while a batch is in flight, false once it has been
+     * cleared.
      */
-    private function threaderWithThreadLookup(?MessageThread $found): MessageThreader
+    private function threaderWithThreadLookup(?MessageThread $found, bool $managed = false): MessageThreader
     {
         $threadRepository = $this->createStub(MessageThreadRepository::class);
         $threadRepository->method('findOneByProviderThreadKeyForAccount')->willReturn($found);
 
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('contains')->willReturn($managed);
+
         return new MessageThreader(
-            $this->createStub(EntityManagerInterface::class),
+            $entityManager,
             $this->createStub(MessageRepository::class),
             $threadRepository,
         );

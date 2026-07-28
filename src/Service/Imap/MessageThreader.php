@@ -28,6 +28,17 @@ final class MessageThreader
      */
     private const string SUBJECT_FALLBACK_WINDOW = '-30 days';
 
+    /** How many provider conversation ids to remember before starting over. */
+    private const int PROVIDER_THREAD_CACHE_LIMIT = 500;
+
+    /**
+     * Threads already handed out for a provider conversation id, keyed by
+     * "accountId|providerThreadKey". See providerThread().
+     *
+     * @var array<string, MessageThread>
+     */
+    private array $providerThreads = [];
+
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageRepository       $messageRepository,
@@ -51,11 +62,10 @@ final class MessageThreader
         $providerThreadKey = $message->getProviderThreadKey();
 
         if (null !== $providerThreadKey && '' !== $providerThreadKey) {
-            $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
-                ?? $this->createThread($message, $account, ThreadingMethod::Provider)
-                    ->setProviderThreadKey($providerThreadKey);
-
-            $this->attachMessageToThread($message, $thread);
+            $this->attachMessageToThread(
+                $message,
+                $this->providerThread($providerThreadKey, $account, $message),
+            );
 
             return;
         }
@@ -107,6 +117,43 @@ final class MessageThreader
 
         $thread = $this->createThread($message, $account, ThreadingMethod::SubjectFallback);
         $this->attachMessageToThread($message, $thread);
+    }
+
+    /**
+     * The thread for a provider conversation id, created on first sight.
+     *
+     * The repository only sees what has been flushed, and a sync batch threads
+     * every message it built before flushing once at the end. Two messages of
+     * the same Gmail/Graph conversation in one batch therefore both missed the
+     * lookup, each made a thread, and the second INSERT hit
+     * uniq_message_thread_provider_key_account — taking the whole batch with
+     * it. Threads handed out here are remembered for exactly as long as the
+     * unit of work still holds them.
+     */
+    private function providerThread(string $providerThreadKey, Account $account, Message $message): MessageThread
+    {
+        $cacheKey = $account->getId() . '|' . $providerThreadKey;
+        $pending  = $this->providerThreads[$cacheKey] ?? null;
+
+        // A worker handles many messages, and the entity manager is cleared
+        // between them — anything it no longer manages is a stale reference.
+        if (null !== $pending && true === $this->entityManager->contains($pending)) {
+            return $pending;
+        }
+
+        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
+            ?? $this->createThread($message, $account, ThreadingMethod::Provider)
+                ->setProviderThreadKey($providerThreadKey);
+
+        // Long-running workers never stop adding keys, and the entries are only
+        // worth anything within one batch, so drop the lot rather than grow.
+        if (count($this->providerThreads) >= self::PROVIDER_THREAD_CACHE_LIMIT) {
+            $this->providerThreads = [];
+        }
+
+        $this->providerThreads[$cacheKey] = $thread;
+
+        return $thread;
     }
 
     /**

@@ -456,7 +456,11 @@ class ComposeController extends AbstractController
         $remaining = 0;
 
         if (null !== $thread) {
-            $remaining = max(0, $thread->getMessages()->count() - 1);
+            // Off the collection as well as out of the database: sync() reads
+            // the thread's labels off the messages it still holds, and a
+            // deleted draft left in there kept the thread in the Drafts list.
+            $thread->removeMessage($message);
+            $remaining = $thread->getMessages()->count();
             $thread->setMessageCount($remaining);
         }
 
@@ -991,7 +995,18 @@ class ComposeController extends AbstractController
             $this->threader->assignThread($message, $account);
         }
         $this->threader->resyncDraftThreadSubject($message);
-        $this->threadLabelSynchronizer->sync($message->getThread());
+
+        $thread = $message->getThread();
+
+        if (null !== $thread) {
+            // The threader only sets the owning side, so the thread does not
+            // know about this message yet — and sync() derives a thread's
+            // labels from the messages it can see. Without this it saw none of
+            // them, stripped the Drafts label the threader had just copied
+            // over, and the new draft never turned up in the Drafts list.
+            $thread->addMessage($message);
+            $this->threadLabelSynchronizer->sync($thread);
+        }
 
         $this->em->flush();
     }

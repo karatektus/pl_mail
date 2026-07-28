@@ -5,19 +5,25 @@ import { test, expect } from "@playwright/test";
  *
  * Not part of the regression suite — it asserts nothing about behaviour, it
  * just drives the UI to the states worth showing and writes PNGs into
- * docs/screenshots/. Run it deliberately:
+ * docs/screenshots/. It also cannot run on the E2E fixtures: it looks for the
+ * demo mailbox by subject and sender, and no seed command in this repo
+ * produces that data, so on the test stack it can only fail and overwrite the
+ * committed PNGs with pictures of an empty inbox.
  *
- *   npx playwright test screenshots.spec.ts --project=chromium
+ * Hence the opt-in. Point the suite at an app holding the demo mailbox and:
  *
- * It expects the demo data to be seeded already; without it the inbox is
- * empty and the shots are useless.
+ *   npm run test:e2e:screenshots
  */
-
 const OUT = "docs/screenshots";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test.describe("README screenshots", () => {
+    test.skip(
+        undefined === process.env.E2E_SCREENSHOTS,
+        'Demo mailbox required — run "npm run test:e2e:screenshots".',
+    );
+
     test("inbox", async ({ page }) => {
         await page.goto("/mail/inbox");
         await expect(page.locator("#message-list li").first()).toBeVisible();
