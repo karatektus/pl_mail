@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Trait;
 
+use App\Domain\Helper\AddressHelper;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -24,12 +25,17 @@ trait ParsesAddressFields
             array_map(static function (string $raw): array {
                 $raw = trim($raw);
 
-                // Handle "Name <email>" format that Tom Select may submit
-                if (preg_match('/^(.+?)\s*<([^>]+)>$/', $raw, $m)) {
-                    return ['name' => trim($m[1]), 'address' => strtolower(trim($m[2]))];
+                // Handle "Name <email>" format that Tom Select may submit. A
+                // pasted address arrives quoted as often as not, and the quotes
+                // then travelled into the sent header and into contacts.
+                if (1 === preg_match('/^(.*)<([^<>]*)>\s*$/', $raw, $m)) {
+                    return [
+                        'name'    => AddressHelper::name($m[1]),
+                        'address' => AddressHelper::email($m[2]),
+                    ];
                 }
 
-                return ['name' => '', 'address' => strtolower($raw)];
+                return ['name' => '', 'address' => AddressHelper::email($raw)];
             }, $values),
             static fn(array $a): bool => $a['address'] !== '',
         ));

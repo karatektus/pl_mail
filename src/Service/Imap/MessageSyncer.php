@@ -2,6 +2,7 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
@@ -348,10 +349,8 @@ class MessageSyncer
         // From
         $from = $imapMessage->getFrom()->first();
         if (null !== $from) {
-            $message->setFromAddress($from->mail ?? '');
-            $message->setFromName(
-                $this->decodeMimeHeader((string) $from->personal)
-            );
+            $message->setFromAddress(AddressHelper::email($from->mail ?? ''));
+            $message->setFromName(AddressHelper::name($from->personal ?? ''));
         }
 
         // Recipients
@@ -470,10 +469,11 @@ class MessageSyncer
         }
 
         $result = [];
+
         foreach ($attribute as $address) {
             $result[] = [
-                'name'    => $address->personal ?? '',
-                'address' => $address->mail ?? '',
+                'name'    => AddressHelper::name($address->personal ?? ''),
+                'address' => AddressHelper::email($address->mail ?? ''),
             ];
         }
 

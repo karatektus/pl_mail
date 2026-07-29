@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Message;
@@ -254,8 +255,8 @@ final class GraphMessageBuilder
         $emailAddress = $recipient['emailAddress'] ?? [];
 
         return [
-            trim((string) ($emailAddress['name'] ?? '')),
-            strtolower(trim((string) ($emailAddress['address'] ?? ''))),
+            AddressHelper::name($emailAddress['name'] ?? null),
+            AddressHelper::email($emailAddress['address'] ?? null),
         ];
     }
 

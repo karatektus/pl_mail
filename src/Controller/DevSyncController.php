@@ -11,6 +11,8 @@ use App\Repository\MailboxRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -36,8 +38,14 @@ final class DevSyncController extends AbstractController
     ) {}
 
     #[Route('', name: 'run', methods: ['POST'])]
-    public function run(): JsonResponse
+    public function run(Request $request): JsonResponse
     {
+        // sync_now_controller.js sends the token from the csrf-token meta tag in
+        // the layout head; the tag is what this check needs to be worth having.
+        if (false === $this->isCsrfTokenValid('ajax', (string) $request->headers->get('X-CSRF-Token'))) {
+            return $this->json(['error' => 'Invalid CSRF token.'], Response::HTTP_FORBIDDEN);
+        }
+
         $accounts = $this->activeAccounts();
 
         foreach ($accounts as $account) {

@@ -2,6 +2,7 @@
 
 namespace App\Form;
 
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Contact;
 use App\Entity\User;
 use App\Repository\ContactRepository;
@@ -60,9 +61,11 @@ class ContactAutocompleteField extends AbstractType
                 continue;
             }
 
-            $email = mb_strtolower(trim((string) $value));
+            $email = AddressHelper::email((string) $value);
 
-            if (false === (bool) filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            // Normalised first: a pasted `"Name" <a@b>` is a perfectly good
+            // address once the wrapper is off, and used to be dropped here.
+            if (false === AddressHelper::isValidEmail($email)) {
                 continue;
             }
 
@@ -90,7 +93,7 @@ class ContactAutocompleteField extends AbstractType
                 continue;
             }
 
-            $email = mb_strtolower(trim((string) $value));
+            $email = AddressHelper::email((string) $value);
 
             // Anything that still doesn't resolve was not a valid address —
             // dropping it here beats failing the whole form on one typo.

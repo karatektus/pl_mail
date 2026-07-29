@@ -157,6 +157,26 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ids of every message, oldest first — the backfill cursor for tasks that
+     * rewrite a column present on every row (address normalisation).
+     *
+     * @return list<int>
+     */
+    public function findIdsAfter(int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
      * @param list<int> $ids
      *
      * @return list<Message>

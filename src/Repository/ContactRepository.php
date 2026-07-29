@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Contact;
 use App\Entity\User;
 use DateTimeImmutable;
@@ -40,15 +41,19 @@ class ContactRepository extends ServiceEntityRepository
         $userId = $user->getId();
 
         foreach ($addresses as $addr) {
-            $email = mb_strtolower(trim($addr['email'] ?? ''));
+            $email = AddressHelper::email($addr['email'] ?? '');
             $isCorrespondent = (bool) ($addr['correspondent'] ?? false);
 
-            if ($email === '') {
+            // A header that failed to parse yields fragments (a bare `"Doe`, an
+            // empty local part). Those used to become contacts of their own and
+            // then turned up in autocomplete.
+            if (false === AddressHelper::isValidEmail($email)) {
                 continue;
             }
 
-            // Sanitize display name: strip empty / same-as-email values.
-            $name = trim($addr['name'] ?? '');
+            // Sanitize display name: strip quoting, then empty / same-as-email
+            // values.
+            $name = AddressHelper::name($addr['name'] ?? null);
 
             if ($name === '' || mb_strtolower($name) === $email) {
                 $name = null;
@@ -82,6 +87,45 @@ class ContactRepository extends ServiceEntityRepository
                 ]
             );
         }
+    }
+
+    /**
+     * Ids of every contact, oldest first — the backfill cursor for address
+     * normalisation.
+     *
+     * @return list<int>
+     */
+    public function findIdsAfter(int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->where('c.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('c.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Contact>
+     */
+    public function findByIds(array $ids): array
+    {
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('c')
+            ->where('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -178,9 +222,9 @@ class ContactRepository extends ServiceEntityRepository
         $now  = new DateTimeImmutable();
 
         foreach ($emails as $email) {
-            $email = mb_strtolower(trim($email));
+            $email = AddressHelper::email($email);
 
-            if ($email === '') {
+            if (false === AddressHelper::isValidEmail($email)) {
                 continue;
             }
 

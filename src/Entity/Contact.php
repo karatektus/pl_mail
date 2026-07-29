@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Domain\Helper\AddressHelper;
 use App\Repository\ContactRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use InvalidArgumentException;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\UniqueConstraint(name: 'uniq_contact_user_email', columns: ['usr_id', 'email'])]
@@ -21,8 +23,29 @@ class Contact
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $usr = null;
 
+    /**
+     * Always a canonical, valid addr-spec. Doctrine hydrates through
+     * `RawValuePropertyAccessor`, which skips hooks, so the normalisation below
+     * runs on application writes only and never re-checks a stored row.
+     *
+     * The sync paths never come through here — they upsert in bulk via
+     * `ContactRepository`, which normalises and drops invalid addresses on the
+     * way in.
+     */
     #[ORM\Column(length: 320)]
-    private ?string $email = null;
+    private ?string $email = null {
+        set (?string $value) {
+            if (null === $value || '' === trim($value)) {
+                throw new InvalidArgumentException('A contact needs an email address.');
+            }
+
+            if (false === AddressHelper::isValidEmail($value)) {
+                throw new InvalidArgumentException(sprintf('"%s" is not a valid email address.', $value));
+            }
+
+            $this->email = AddressHelper::email($value);
+        }
+    }
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $displayName = null;

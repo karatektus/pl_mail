@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Account;
@@ -183,11 +184,11 @@ final class GmailMessageBuilder
     {
         $raw = trim($raw);
 
-        if (preg_match('/^(.+?)\s*<([^>]+)>$/', $raw, $m)) {
-            return [trim($m[1], ' "\''), strtolower(trim($m[2]))];
+        if (1 === preg_match('/^(.*)<([^<>]*)>\s*$/', $raw, $m)) {
+            return [AddressHelper::name($m[1]), AddressHelper::email($m[2])];
         }
 
-        return ['', strtolower($raw)];
+        return ['', AddressHelper::email($raw)];
     }
 
     /**
@@ -197,15 +198,11 @@ final class GmailMessageBuilder
      */
     private function parseAddressList(string $raw): array
     {
-        if ('' === trim($raw)) {
-            return [];
-        }
-
         $result = [];
-        $parts = preg_split('/,(?![^<]*>)/', $raw) ?: [];
 
-        foreach ($parts as $part) {
+        foreach (AddressHelper::splitList($raw) as $part) {
             [$name, $address] = $this->parseAddress($part);
+
             if ('' !== $address) {
                 $result[] = ['name' => $name, 'address' => $address];
             }

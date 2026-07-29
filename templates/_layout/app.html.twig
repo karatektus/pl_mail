@@ -18,6 +18,11 @@
        needs the apple-touch-icon specifically — it ignores the manifest icons. #}
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    {# The token the fetch-based endpoints check. Stimulus controllers that
+       build their own request body cannot carry a form field, so they read this
+       and send it as X-CSRF-Token. Every such endpoint validates against the
+       same 'ajax' id — until this tag existed they all sent an empty string. #}
+    <meta name="csrf-token" content="{{ csrf_token('ajax') }}">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="plMail">
