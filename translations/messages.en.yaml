@@ -222,6 +222,7 @@ label:
         account: Account
         color: Color
         delete: Delete label
+        edit_title: Edit label
         name: Name
         no_color: '— none —'
         no_parent: '— top level —'

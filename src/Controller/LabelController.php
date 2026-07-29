@@ -14,10 +14,12 @@ use App\Service\Label\LabelStructurePropagator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * CRUD for user labels. Rendered inside the existing modal flow (same
@@ -33,7 +35,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *     they appear.
  */
 #[Route('/labels', name: 'app_label_')]
-#[IsGranted('IS_AUTHENTICATED_FULLY')]
+#[IsGranted('IS_AUTHENTICATED')]
 final class LabelController extends AbstractController
 {
     public function __construct(
@@ -42,6 +44,7 @@ final class LabelController extends AbstractController
         private readonly AccountRepository      $accountRepository,
         private readonly LabelStructurePropagator $structurePropagator,
         private readonly StateManager           $stateManager,
+        private readonly TranslatorInterface    $translator,
     ) {}
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -49,7 +52,8 @@ final class LabelController extends AbstractController
     {
         $label = new Label();
         $form  = $this->createForm(LabelType::class, $label, [
-            'user' => $this->getUser(),
+            'action' => $this->generateUrl('app_label_new'),
+            'user'   => $this->getUser(),
         ]);
 
         $form->handleRequest($request);
@@ -62,8 +66,12 @@ final class LabelController extends AbstractController
             );
 
             if (null !== $duplicate) {
+                // Translated here, not in the theme: form_errors renders
+                // error.message verbatim, and validator-produced errors arrive
+                // already translated — re-translating them in the shared theme
+                // would be the riskier fix.
                 $form->get('name')->addError(
-                    new FormError('label.error.duplicate')
+                    new FormError($this->translator->trans('label.error.duplicate'))
                 );
             } else {
                 $this->em->persist($label);
@@ -85,10 +93,7 @@ final class LabelController extends AbstractController
             }
         }
 
-        return $this->render('label/_form.html.twig', [
-            'form'  => $form,
-            'label' => $label,
-        ]);
+        return $this->renderForm($form, $label);
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
@@ -97,6 +102,7 @@ final class LabelController extends AbstractController
         $this->assertOwnedUserLabel($label);
 
         $form = $this->createForm(LabelType::class, $label, [
+            'action'        => $this->generateUrl('app_label_edit', ['id' => $label->id]),
             'user'          => $this->getUser(),
             'edited_label'  => $label,
         ]);
@@ -120,10 +126,7 @@ final class LabelController extends AbstractController
             ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
         }
 
-        return $this->render('label/_form.html.twig', [
-            'form'  => $form,
-            'label' => $label,
-        ]);
+        return $this->renderForm($form, $label);
     }
 
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
@@ -191,6 +194,25 @@ final class LabelController extends AbstractController
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
     }
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * A submitted-but-invalid form must come back as 422, not 200:
+     * modal_controller closes the dialog on any successful turbo:submit-end,
+     * so a 200 here would swallow the errors and look like a silent save.
+     */
+    private function renderForm(FormInterface $form, Label $label): Response
+    {
+        if (true === $form->isSubmitted() && false === $form->isValid()) {
+            $status = Response::HTTP_UNPROCESSABLE_ENTITY;
+        } else {
+            $status = Response::HTTP_OK;
+        }
+
+        return $this->render('label/_form.html.twig', [
+            'form'  => $form,
+            'label' => $label,
+        ], new Response(status: $status));
+    }
 
     private function assertOwnedUserLabel(Label $label): void
     {

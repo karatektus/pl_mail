@@ -222,6 +222,7 @@ label:
         account: Crew member
         color: Colour
         delete: Strike this flag
+        edit_title: Mend this flag
         name: Name
         no_color: '— none —'
         no_parent: '— top o'' the mast —'

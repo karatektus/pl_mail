@@ -224,6 +224,7 @@ label:
         account: Konto
         color: Farbe
         delete: Label löschen
+        edit_title: Label bearbeiten
         name: Name
         no_color: '— keine —'
         no_parent: '— oberste Ebene —'
