@@ -11,6 +11,7 @@ use App\Entity\Label;
 use App\Entity\Message;
 use App\Entity\MessagePart;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,6 +43,7 @@ final class GmailMessageBuilder
         private readonly GmailLabelResolver     $labelResolver,
         private readonly LabelResolver          $localLabelResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
+        private readonly HeaderNormalizer       $headerNormalizer,
     )
     {
     }
@@ -135,7 +137,7 @@ final class GmailMessageBuilder
             $rawHeaders[$name] = (string) ($header['value'] ?? '');
         }
 
-        $message->setHeaders($rawHeaders);
+        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
 
         // ── Body + attachments ────────────────────────────────────────────────
 

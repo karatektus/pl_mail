@@ -15,6 +15,10 @@
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
+        <!-- Most tests here are plain unit tests, but the filter-agreement
+             test boots the kernel: it has to execute the compiler's SQL
+             against a real Postgres, which is the whole point of it. -->
+        <server name="KERNEL_CLASS" value="App\Kernel" />
     </php>
 
     <!-- tests/ holds both suites: PHPUnit mirrors src/ by path, Playwright owns

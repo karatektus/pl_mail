@@ -24,6 +24,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use App\Service\Rule\MailRuleEngine;
 
 /**
  * Imports one chunk of Graph messages.
@@ -60,6 +61,7 @@ final readonly class SyncGraphMessageBatchHandler
         private EntityManagerInterface $em,
         private StateManager           $stateManager,
         private LoggerInterface        $logger,
+        private MailRuleEngine $ruleEngine,
     ) {}
 
     public function __invoke(SyncGraphMessageBatchMessage $message): void
@@ -152,6 +154,9 @@ final readonly class SyncGraphMessageBatchHandler
 
         $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
 
+        /** @var list<\App\Entity\Message> $ruleTargets */
+        $ruleTargets = [];
+
         foreach ($built as $entity) {
             $this->sanitizer->sanitize($entity);
 
@@ -173,7 +178,13 @@ final readonly class SyncGraphMessageBatchHandler
                     'error'     => $e->getMessage(),
                 ]);
             }
+
+            $ruleTargets[] = $entity;
         }
+
+        // One query per rule for the whole batch, after threading so archive
+        // and trash actions can reach each message's thread.
+        $this->ruleEngine->applyToBatch($ruleTargets, $account);
 
         // Threads exist only after assignThread() above, so this runs as a
         // second pass rather than inside the loop — and only after the flush,

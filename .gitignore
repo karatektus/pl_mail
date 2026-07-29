@@ -40,3 +40,4 @@ truenas.compose.yaml.local
 # Saved storage state from auth.setup.ts — a real authenticated session.
 /playwright/.auth/
 ###< playwright ###
+todo.md

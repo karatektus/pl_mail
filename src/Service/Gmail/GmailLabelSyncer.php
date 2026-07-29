@@ -70,9 +70,7 @@ final readonly class GmailLabelSyncer
                 $binding = $this->labelResolver->binding($label, $account);
 
                 if ($binding->gmailLabelId !== $gmailLabelId) {
-                    $binding
-                        ->setGmailLabelId($gmailLabelId)
-                        ->setUpdatedAt(new \DateTimeImmutable());
+                    $binding->gmailLabelId = $gmailLabelId;
                 }
 
                 $synced++;
@@ -99,9 +97,7 @@ final readonly class GmailLabelSyncer
             $binding = $this->labelResolver->binding($label, $account);
 
             if ($binding->gmailLabelId !== $gmailLabelId) {
-                $binding
-                    ->setGmailLabelId($gmailLabelId)
-                    ->setUpdatedAt(new \DateTimeImmutable());
+                $binding->gmailLabelId = $gmailLabelId;
             }
 
             if (true === $firstLink) {

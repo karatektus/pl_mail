@@ -23,6 +23,8 @@ use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use App\Service\Rule\MailRuleEngine;
+use App\Service\Mail\HeaderNormalizer;
 
 class MessageSyncer
 {
@@ -41,6 +43,8 @@ class MessageSyncer
         private readonly StateManager            $stateManager,
         private readonly RawMessageResolver      $rawResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
+        private readonly MailRuleEngine $ruleEngine,
+        private readonly HeaderNormalizer $headerNormalizer,
     ) {}
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
@@ -245,6 +249,9 @@ class MessageSyncer
 
         $correspondents = $this->contactRepository->findCorrespondentEmails($mailbox->getAccount()->getUsr());
         // Pass 2 — assign threads now that all messages exist in DB
+        /** @var list<\App\Entity\Message> $ruleTargets */
+        $ruleTargets = [];
+
         foreach ($messages as $index => $message) {
             $this->sanitizer->sanitize($message);
 
@@ -273,7 +280,13 @@ class MessageSyncer
                     'error'     => $e->getMessage(),
                 ]);
             }
+
+            $ruleTargets[] = $message;
         }
+
+        // One query per rule for the whole batch, after threading so archive
+        // and trash actions can reach each message's thread.
+        $this->ruleEngine->applyToBatch($ruleTargets, $mailbox->getAccount());
 
         if (true === ($maxUid > 0)) {
             $mailbox->setLastSeenUid($maxUid);
@@ -385,7 +398,7 @@ class MessageSyncer
                 : array_map(static fn($v): string => (string) $v, $values);
         }
 
-        $message->setHeaders($rawHeaders);
+        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
 
         // Body
         $message->setBodyText($imapMessage->getTextBody() ?? '');

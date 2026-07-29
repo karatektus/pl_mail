@@ -155,9 +155,7 @@ final class ApplyGmailLabelsHandler
                 return null;
             }
 
-            $binding
-                ->setGmailLabelId($gmailLabelId)
-                ->setUpdatedAt(new \DateTimeImmutable());
+            $binding->gmailLabelId = $gmailLabelId;
             $this->em->flush();
 
             return $gmailLabelId;

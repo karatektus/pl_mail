@@ -186,12 +186,11 @@ final readonly class ApplyLabelStructureHandler
         $binding = $this->labelResolver->binding($label, $account);
 
         if (true === $gmail) {
-            $binding->setGmailLabelId($remoteId);
+            $binding->gmailLabelId = $remoteId;
         } else {
-            $binding->setGraphFolderId($remoteId);
+            $binding->graphFolderId = $remoteId;
         }
 
-        $binding->setUpdatedAt(new \DateTimeImmutable());
 
         $this->em->flush();
     }

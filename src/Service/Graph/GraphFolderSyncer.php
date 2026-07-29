@@ -156,9 +156,7 @@ final readonly class GraphFolderSyncer
             $binding = $this->labelResolver->binding($label, $account);
 
             if ($binding->graphFolderId !== $id) {
-                $binding
-                    ->setGraphFolderId($id)
-                    ->setUpdatedAt(new \DateTimeImmutable());
+                $binding->graphFolderId = $id;
             }
 
             $syncable[] = $id;
@@ -176,9 +174,7 @@ final readonly class GraphFolderSyncer
             }
 
             if (false === array_key_exists($linkedId, $byId)) {
-                $binding
-                    ->setGraphFolderId(null)
-                    ->setUpdatedAt(new \DateTimeImmutable());
+                $binding->graphFolderId = null;
             }
         }
 

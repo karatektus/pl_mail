@@ -8,6 +8,7 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\MessagePart;
+use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,6 +51,7 @@ final class GraphMessageBuilder
         private readonly EntityManagerInterface $em,
         private readonly GraphFolderResolver    $folderResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
+        private readonly HeaderNormalizer       $headerNormalizer,
     ) {}
 
     /**
@@ -110,7 +112,7 @@ final class GraphMessageBuilder
             $rawHeaders[$name] = $value;
         }
 
-        $message->setHeaders($rawHeaders);
+        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
 
         $message->setInReplyTo(MessageIdHelper::normaliseList($indexed['in-reply-to'] ?? null));
         $message->setReferences(MessageIdHelper::normaliseList($indexed['references'] ?? null));

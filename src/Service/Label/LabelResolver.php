@@ -90,9 +90,9 @@ final class LabelResolver
         $binding = $this->bindingRepository->findOneForLabelAndAccount($label, $account);
 
         if (null === $binding) {
-            $binding = new LabelBinding()
-                ->setLabel($label)
-                ->setAccount($account);
+            $binding = new LabelBinding();
+            $binding->label = $label;
+            $binding->account = $account;
 
             $this->em->persist($binding);
             $this->em->flush();
@@ -114,9 +114,7 @@ final class LabelResolver
         $binding = $this->binding($label, $mailbox->getAccount());
 
         if ($binding->mailbox !== $mailbox) {
-            $binding
-                ->setMailbox($mailbox)
-                ->setUpdatedAt(new DateTimeImmutable());
+            $binding->mailbox = $mailbox;
 
             $mailbox->setLabelBinding($binding);
         }

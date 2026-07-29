@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Domain\Trait\TimestampableTrait;
 use App\Repository\LabelBindingRepository;
-use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -27,6 +27,7 @@ use Doctrine\ORM\Mapping as ORM;
  * plMail Account, so the per-account row is what has a stable id there.
  */
 #[ORM\Entity(repositoryClass: LabelBindingRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 #[ORM\Table(name: 'label_binding')]
 #[ORM\UniqueConstraint(name: 'uniq_label_binding_label_account', columns: ['label_id', 'account_id'])]
 #[ORM\Index(name: 'idx_label_binding_gmail_label_id', columns: ['gmail_label_id'])]
@@ -34,18 +35,31 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_label_binding_account', columns: ['account_id'])]
 class LabelBinding
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     public private(set) ?int $id = null;
 
+    /**
+     * Keeps the inverse side in step on assignment. Doctrine hydrates through
+     * RawValuePropertyAccessor, which writes the backed value and deliberately
+     * skips hooks — so this fires on application writes only, and loading a
+     * binding never drags its Label in behind it.
+     */
     #[ORM\ManyToOne(targetEntity: Label::class, inversedBy: 'bindings')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    public private(set) ?Label $label = null;
+    public ?Label $label = null {
+        set {
+            $this->label = $value;
+            $value?->addBinding($this);
+        }
+    }
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    public private(set) ?Account $account = null;
+    public ?Account $account = null;
 
     /**
      * Gmail API label id (e.g. "INBOX", "Label_123"). Null until the label is
@@ -53,10 +67,10 @@ class LabelBinding
      * first use.
      */
     #[ORM\Column(length: 255, nullable: true)]
-    public private(set) ?string $gmailLabelId = null;
+    public ?string $gmailLabelId = null;
 
     #[ORM\Column(length: 512, nullable: true)]
-    public private(set) ?string $graphFolderId = null;
+    public ?string $graphFolderId = null;
 
     /**
      * The IMAP folder this label is fed by on this account. Null for
@@ -64,63 +78,6 @@ class LabelBinding
      */
     #[ORM\OneToOne(inversedBy: 'labelBinding')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    public private(set) ?Mailbox $mailbox = null;
+    public ?Mailbox $mailbox = null;
 
-    #[ORM\Column]
-    public private(set) ?DateTimeImmutable $createdAt = null;
-
-    #[ORM\Column]
-    public private(set) ?DateTimeImmutable $updatedAt = null;
-
-    public function __construct()
-    {
-        $this->createdAt = new DateTimeImmutable();
-        $this->updatedAt = new DateTimeImmutable();
-    }
-
-    public function setLabel(?Label $label): static
-    {
-        $this->label = $label;
-
-        if (null !== $label) {
-            $label->addBinding($this);
-        }
-
-        return $this;
-    }
-
-    public function setAccount(?Account $account): static
-    {
-        $this->account = $account;
-
-        return $this;
-    }
-
-    public function setGmailLabelId(?string $gmailLabelId): static
-    {
-        $this->gmailLabelId = $gmailLabelId;
-
-        return $this;
-    }
-
-    public function setGraphFolderId(?string $graphFolderId): static
-    {
-        $this->graphFolderId = $graphFolderId;
-
-        return $this;
-    }
-
-    public function setMailbox(?Mailbox $mailbox): static
-    {
-        $this->mailbox = $mailbox;
-
-        return $this;
-    }
-
-    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
-    {
-        $this->updatedAt = $updatedAt;
-
-        return $this;
-    }
 }

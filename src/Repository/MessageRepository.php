@@ -8,14 +8,99 @@ use App\Entity\Mailbox;
 use App\Entity\Message;
 use App\Entity\MessageThread;
 use App\Entity\User;
+use App\Jmap\Query\CompiledFilter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 class MessageRepository extends ServiceEntityRepository
 {
+    /**
+     * Which of these messages a compiled filter matches.
+     *
+     * This is the single place a rule's conditions are ever evaluated. Letting
+     * Postgres answer means there is exactly one implementation of what a
+     * filter means — an in-memory twin was tried and deleted, because two
+     * implementations can drift and the symptom is mail quietly filed in the
+     * wrong place. It also makes `text` usable in rules: search_vector is a
+     * STORED generated column, so full-text works here and could never be
+     * reproduced faithfully in PHP.
+     *
+     * The messages must already be flushed — they are, since rules run after
+     * the id-granting flush in every sync path.
+     *
+     * @param list<int> $messageIds
+     *
+     * @return list<int> ids that match, in the order given
+     */
+    public function matchingIds(array $messageIds, CompiledFilter $filter): array
+    {
+        if (0 === count($messageIds)) {
+            return [];
+        }
+
+        $sql = sprintf(
+            'SELECT m.id FROM message m WHERE m.id IN (:ruleMessageIds) AND (%s)',
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleMessageIds'] = $messageIds;
+
+        $types = $filter->parameterTypes();
+        $types['ruleMessageIds'] = ArrayParameterType::INTEGER;
+
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $types)
+            ->fetchFirstColumn();
+
+        return array_map('intval', $rows);
+    }
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Message::class);
+    }
+
+    /**
+     * Ids of messages that have a header bag, oldest first — the backfill
+     * cursor for header normalisation.
+     *
+     * @return list<int>
+     */
+    public function findIdsWithHeaders(int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.headers IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByIds(array $ids): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     public function findSyncedUids(Mailbox $mailbox): array

@@ -129,6 +129,14 @@ final class EmailFilterCompiler
             'to' => $this->jsonAddressLike('m.to_addresses', $value, $parameters),
             'cc' => $this->jsonAddressLike('m.cc_addresses', $value, $parameters),
             'bcc' => $this->jsonAddressLike('m.bcc_addresses', $value, $parameters),
+            // Added for mail rules (see App\Domain\Filter\FilterVocabulary).
+            // hasLabel takes a user-scoped Label id, unlike inMailbox, which
+            // takes a per-account LabelBinding id — rules have no reason to
+            // know about the JMAP id space.
+            'hasLabel' => $this->hasLabel($value, true, $parameters),
+            'notLabel' => $this->hasLabel($value, false, $parameters),
+            'filename' => $this->filename($value, $parameters),
+            'listId' => $this->header('list-id', $value, $parameters),
             default => throw new MethodException('unsupportedFilter', sprintf('Filter condition "%s" is not supported.', $property)),
         };
     }
@@ -173,6 +181,71 @@ final class EmailFilterCompiler
                        AND ml.label_id NOT IN (SELECT lb.label_id FROM label_binding lb WHERE lb.id IN (:%s)))',
             $name,
         );
+    }
+
+    /**
+     * @param array<string,mixed> $parameters
+     */
+    private function hasLabel(mixed $value, bool $present, array &$parameters): string
+    {
+        $name = $this->bind($this->requireIntish($value, 'hasLabel'), $parameters);
+
+        $exists = sprintf(
+            'EXISTS (SELECT 1 FROM message_label ml WHERE ml.message_id = m.id AND ml.label_id = :%s)',
+            $name,
+        );
+
+        if (true === $present) {
+            return $exists;
+        }
+
+        return 'NOT '.$exists;
+    }
+
+    /**
+     * Matches any attachment's filename. message_part rows exist for inline
+     * parts too, but those carry a null filename and so never match.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function filename(mixed $value, array &$parameters): string
+    {
+        if (false === is_string($value) || '' === $value) {
+            throw new MethodException('invalidArguments', '"filename" must be a non-empty string.');
+        }
+
+        $name = $this->bind('%'.$this->escapeLike($value).'%', $parameters);
+
+        return sprintf(
+            'EXISTS (SELECT 1 FROM message_part mp WHERE mp.message_id = m.id AND mp.filename ILIKE :%s)',
+            $name,
+        );
+    }
+
+    /**
+     * Substring match on one header's value.
+     *
+     * Safe to look the key up directly because HeaderNormalizer canonicalises
+     * every header bag at ingest to lowercase, dash-separated names — before
+     * that, the same header arrived as "List-Id" from Gmail and "list_id" from
+     * php-imap, and a lookup like this matched on one provider only.
+     *
+     * The bag holds either a string or an array of strings depending on
+     * whether the header repeated, so the value is cast to text and searched
+     * whole rather than compared.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function header(string $canonicalName, mixed $value, array &$parameters): string
+    {
+        if (false === is_string($value) || '' === $value) {
+            throw new MethodException('invalidArguments', 'Header filters must be non-empty strings.');
+        }
+
+        $key = $this->bind($canonicalName, $parameters);
+        $needle = $this->bind('%'.$this->escapeLike($value).'%', $parameters);
+
+        return sprintf('(m.headers::jsonb -> :%s)::text ILIKE :%s', $key, $needle);
     }
 
     /**
