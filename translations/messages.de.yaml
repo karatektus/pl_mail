@@ -122,11 +122,11 @@ admin:
                 step_redirect: 'Die oben gezeigte Redirect-URI zu den autorisierten Redirect-URIs hinzufügen.'
             google_drive:
                 intro: 'Google Drive nutzt OAuth, plMail muss also vor der ersten Verbindung bei Google registriert werden.'
-                scopes: 'Benötigter Scope: drive.file — damit ist nur Zugriff auf ausgewählte und von plMail erstellte Dateien möglich, nicht auf das gesamte Drive.'
+                scopes: 'Benötigter Scope: der vollständige drive-Scope. drive.file wäre enger, sieht aber nur von plMail selbst erstellte Dateien — ein Browser würde ein leeres Drive zeigen, und Freigabelinks brauchen Schreibzugriff auf die Datei. Es ist ein eingeschränkter Scope: Google verlangt eine App-Überprüfung, bevor Personen außerhalb der Testliste zustimmen können.'
                 step_api: 'Die Google-Drive-API für das Projekt aktivieren.'
             google_photos:
                 intro: 'Google Photos nutzt OAuth und eine eigene API, getrennt von Drive.'
-                scope_warning: 'Die Photos-Library-API liefert ohne den Picker-Scope nur von plMail selbst hochgeladene Medien. Bis dahin bleibt die Bibliothek leer.'
+                scope_warning: 'Google hat die Photos-Lesescopes im März 2025 eingeschränkt. Eine neu registrierte App erhält meist nur appcreateddata und sieht damit ausschließlich von plMail hochgeladene Medien — zum Durchsuchen einer bestehenden Bibliothek braucht es photoslibrary.readonly, das Google im Einzelfall gewährt. Das Speichern von Anhängen funktioniert unabhängig davon.'
                 step_api: 'Die Photos-Library-API für das Projekt aktivieren.'
             immich:
                 intro: 'Immich authentifiziert sich über einen API-Schlüssel pro Person, hier ist also nichts zu registrieren.'
@@ -749,6 +749,8 @@ settings:
             username: Benutzername
         heading: Integrationen
         not_implemented: 'plMail kann diesen Dienst noch nicht ansprechen.'
+        oauth_no_code: 'Der Dienst hat keinen Autorisierungscode zurückgegeben. Bitte erneut versuchen.'
+        oauth_state_mismatch: 'Diese Anmeldung konnte nicht überprüft werden. Bitte neu beginnen.'
         not_oauth: 'Dieser Dienst nutzt diese Anmeldeart nicht.'
         pause: Pausieren
         paused: pausiert

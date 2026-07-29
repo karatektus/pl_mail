@@ -7,6 +7,7 @@ namespace App\Tests\Domain\Enum\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Interface\IntegrationDriverInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -19,20 +20,42 @@ use PHPUnit\Framework\TestCase;
  */
 final class ProviderTest extends TestCase
 {
-    public function testOnlyTheSelfHostedProvidersAreImplemented(): void
+    public function testEveryProviderIsImplemented(): void
     {
-        self::assertSame(
-            [Provider::Nextcloud, Provider::Immich],
-            Provider::implemented(),
-        );
+        self::assertSame(Provider::cases(), Provider::implemented());
+        self::assertCount(6, Provider::cases());
     }
 
-    public function testUnimplementedProvidersAreStillCases(): void
+    /**
+     * Every provider needs a driver class implementing the interface. Whether
+     * it actually claims its provider is asserted in that driver's own test;
+     * this is the cheap check that nobody added a case without a driver, which
+     * would only surface at run time — after the user had already authorised.
+     */
+    public function testEveryProviderHasADriverClass(): void
     {
-        // They are deliberately visible in both the admin and user lists —
-        // deleting a case to "clean up" would remove a tutorial an admin may
-        // already have registered credentials against.
-        self::assertCount(6, Provider::cases());
+        // Keyed by backing value: an enum instance cannot be an array key.
+        $drivers = [
+            'nextcloud'    => 'NextcloudDriver',
+            'immich'       => 'ImmichDriver',
+            'googleDrive'  => 'GoogleDriveDriver',
+            'googlePhotos' => 'GooglePhotosDriver',
+            'oneDrive'     => 'OneDriveDriver',
+            'dropbox'      => 'DropboxDriver',
+        ];
+
+        self::assertSame(
+            array_map(static fn (Provider $p): string => $p->value, Provider::cases()),
+            array_keys($drivers),
+            'a provider has no driver mapped',
+        );
+
+        foreach ($drivers as $shortName) {
+            $class = 'App\\Service\\Integration\\Driver\\'.$shortName;
+
+            self::assertTrue(class_exists($class), $class.' is missing');
+            self::assertContains(IntegrationDriverInterface::class, class_implements($class) ?: []);
+        }
     }
 
     public function testOnlyPhotoServicesLackShareLink(): void

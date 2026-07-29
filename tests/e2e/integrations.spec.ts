@@ -3,14 +3,15 @@ import { login, seed } from "./support/config";
 import { execSync } from "node:child_process";
 
 /**
- * The admin side of integrations: every provider is listed whether or not
- * plMail can talk to it, the setup tutorial is readable inline, and enabling
- * one persists.
+ * The admin side of integrations: every provider is listed with its own
+ * configuration state, the setup tutorial is readable inline, and enabling one
+ * persists.
  *
- * Listing the unimplemented providers is the behaviour worth pinning. They are
- * deliberately visible so the roadmap is on screen and so an admin can
- * register credentials ahead of support landing — a future change that
- * "tidies" them out of the list would be a regression, not a cleanup.
+ * All six providers have drivers now, so the thing worth pinning is that an
+ * unconfigured provider reads as *disabled* — the admin's choice — rather than
+ * as missing. A provider added later without a driver would show as "not
+ * available yet" instead, which is why that string is asserted absent rather
+ * than deleted from the templates.
  *
  * Own admin user and own session, for the same reason admin-panels.spec.ts
  * does it: granting ROLE_ADMIN to the shared e2e user mid-run invalidates
@@ -46,7 +47,7 @@ async function openIntegrations(page: Page) {
 }
 
 test.describe("admin integrations", () => {
-    test("lists every provider, including ones with no driver yet", async ({
+    test("lists every provider with its own configuration state", async ({
         page,
     }) => {
         await openIntegrations(page);
@@ -62,13 +63,29 @@ test.describe("admin integrations", () => {
             await expect(providerRow(page, label)).toHaveCount(1);
         }
 
-        // The four without drivers say so rather than looking configurable.
+        // All six have drivers now, so nothing is "not available yet" —
+        // untouched providers read as disabled, which is the admin's choice
+        // rather than a gap in plMail.
         await expect(
-            providerRow(page, "Google Drive").getByText("Not available yet"),
+            page.locator("#admin-integrations").getByText("Not available yet"),
+        ).toHaveCount(0);
+        await expect(
+            providerRow(page, "Google Drive").getByText("Disabled"),
+        ).toBeVisible();
+
+        // Each row names how it authenticates. Scoped to the summary: the
+        // tutorial body below repeats these words, so an unscoped match hits
+        // two elements and proves nothing about the chip.
+        await expect(
+            providerRow(page, "Google Drive")
+                .locator("summary")
+                .getByText("sign-in", { exact: true }),
         ).toBeVisible();
         await expect(
-            providerRow(page, "Nextcloud").getByText("Not available yet"),
-        ).toHaveCount(0);
+            providerRow(page, "Nextcloud")
+                .locator("summary")
+                .getByText("app password", { exact: true }),
+        ).toBeVisible();
     });
 
     test("the setup tutorial is readable inline", async ({ page }) => {
@@ -172,10 +189,10 @@ test.describe("user integrations", () => {
         ).toBeVisible();
 
         // The unavailable group is the point: a user who was told "we use
-        // Dropbox here" learns whether it is off or simply not built yet,
-        // rather than finding nothing and guessing.
+        // Dropbox here" learns that an admin has not enabled it, rather than
+        // finding nothing and guessing whether the feature exists.
         await expect(frame.getByText("Not available here")).toBeVisible();
-        await expect(frame.getByText("coming soon").first()).toBeVisible();
+        await expect(frame.getByText("not enabled").first()).toBeVisible();
     });
 
     test("a connection whose credentials fail says why, and survives a reload", async ({

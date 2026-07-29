@@ -122,11 +122,11 @@ admin:
                 step_redirect: 'Add th'' return bearing above to th'' authorised redirect URIs.'
             google_drive:
                 intro: 'Google Drive sails under OAuth, so plMail must be registered with Google afore any hand may moor.'
-                scopes: 'Scope needed: drive.file — that grants passage only to files th'' hand picks or plMail creates, not their whole Drive.'
+                scopes: 'Scope needed: th'' full drive scope. drive.file be narrower but sees only what plMail itself made, so th'' hold would look empty — and sharin'' lines need write passage to th'' file. It be a restricted scope: Google wants th'' app inspected afore strangers may consent.'
                 step_api: 'Hoist th'' Google Drive API for th'' project.'
             google_photos:
                 intro: 'Google Photos sails under OAuth with its own API, separate from Drive.'
-                scope_warning: 'Th'' Photos Library API returns only media plMail itself hauled up, unless th'' picker scope be granted. Expect an empty hold until that be rigged.'
+                scope_warning: 'Google battened down th'' Photos readin'' scopes in March 2025. A freshly registered app gets only appcreateddata and sees naught but what plMail hauled up itself — browsin'' an existin'' hold wants photoslibrary.readonly, granted case by case. Stowin'' cargo to Photos works regardless.'
                 step_api: 'Hoist th'' Photos Library API for th'' project.'
             immich:
                 intro: 'Immich checks papers with a key per hand, so there be nothin'' to register here.'
@@ -734,6 +734,8 @@ settings:
             username: Username
         heading: 'Friendly ports'
         not_implemented: 'plMail cannot hail this port yet.'
+        oauth_no_code: 'Th'' port sent back no boardin'' code. Try again.'
+        oauth_state_mismatch: 'That boardin'' could not be vouched for. Start afresh.'
         not_oauth: 'This port does not use that manner o'' boardin''.'
         pause: Slacken
         paused: slackened

@@ -93,12 +93,104 @@ enum Provider: string
         return in_array($capability, $this->capabilities(), true);
     }
 
-    /** Whether a driver exists. False renders the provider as a stub. */
+    /**
+     * Whether a driver exists. False renders the provider as a stub.
+     *
+     * Every case is listed rather than returning true outright: a provider
+     * added later must default to "no driver" and show as a stub, not claim to
+     * work and fail at the registry after the user has already authorised.
+     */
     public function isImplemented(): bool
     {
         return match ($this) {
-            self::Nextcloud, self::Immich => true,
-            default                       => false,
+            self::Nextcloud,
+            self::Immich,
+            self::GoogleDrive,
+            self::GooglePhotos,
+            self::OneDrive,
+            self::Dropbox => true,
+            default       => false,
+        };
+    }
+
+    /**
+     * OAuth scopes to request, empty for app-password providers.
+     *
+     * Google Drive asks for the full `drive` scope rather than `drive.file`.
+     * drive.file only ever sees files the app itself created or the user picked
+     * through Google's own client-side Picker, so a server-rendered browser
+     * would show an empty Drive — and a share link needs write access to the
+     * file being shared, which drive.file cannot grant for a file we did not
+     * create. Both are restricted scopes requiring Google verification; the
+     * tutorial says so.
+     *
+     * @return list<string>
+     */
+    public function scopes(): array
+    {
+        return match ($this) {
+            self::GoogleDrive => [
+                'https://www.googleapis.com/auth/drive',
+            ],
+            self::GooglePhotos => [
+                // readonly is what makes an existing library browsable; see
+                // GooglePhotosDriver for why a new app may not be granted it.
+                'https://www.googleapis.com/auth/photoslibrary.readonly',
+                'https://www.googleapis.com/auth/photoslibrary.appendonly',
+            ],
+            self::OneDrive => [
+                'Files.ReadWrite',
+                'offline_access',
+            ],
+            self::Dropbox => [
+                'files.metadata.read',
+                'files.content.read',
+                'files.content.write',
+                'sharing.write',
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Extra authorization-URL parameters, per provider quirk.
+     *
+     * @return array<string,string>
+     */
+    public function authorizationUrlOptions(): array
+    {
+        return match ($this) {
+            // Without both of these Google issues a refresh token only on the
+            // very first consent, so a reconnect leaves us unable to refresh.
+            self::GoogleDrive, self::GooglePhotos => [
+                'access_type' => 'offline',
+                'prompt'      => 'consent',
+            ],
+            // Dropbox's equivalent: without it every token is short-lived and
+            // there is no refresh token at all.
+            self::Dropbox => [
+                'token_access_type' => 'offline',
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Authorize / token / resource-owner endpoints for providers built on
+     * league's GenericProvider. Null where a dedicated provider class knows
+     * its own endpoints (Google, Azure).
+     *
+     * @return array{urlAuthorize:string,urlAccessToken:string,urlResourceOwnerDetails:string}|null
+     */
+    public function oauthEndpoints(): ?array
+    {
+        return match ($this) {
+            self::Dropbox => [
+                'urlAuthorize'            => 'https://www.dropbox.com/oauth2/authorize',
+                'urlAccessToken'          => 'https://api.dropboxapi.com/oauth2/token',
+                'urlResourceOwnerDetails' => 'https://api.dropboxapi.com/2/users/get_current_account',
+            ],
+            default => null,
         };
     }
 

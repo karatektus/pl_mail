@@ -122,11 +122,11 @@ admin:
                 step_redirect: 'Add the redirect URI shown above to the authorised redirect URIs.'
             google_drive:
                 intro: 'Google Drive uses OAuth, so plMail must be registered with Google before anyone can connect.'
-                scopes: 'Scope needed: drive.file — this grants access only to files the user picks or that plMail creates, not their whole Drive.'
+                scopes: 'Scope needed: the full drive scope. drive.file would be narrower, but it only ever sees files plMail itself created, so a browser would show an empty Drive — and share links need write access to the file being shared. This is a restricted scope: Google requires app verification before users outside your test list can consent.'
                 step_api: 'Enable the Google Drive API for the project.'
             google_photos:
                 intro: 'Google Photos uses OAuth and its own API, separate from Drive.'
-                scope_warning: 'The Photos Library API only returns media plMail itself uploaded unless the picker scope is granted. Expect an empty library until that is configured.'
+                scope_warning: 'Google restricted the Photos read scopes in March 2025. A newly registered app is generally granted only appcreateddata, which sees nothing but media plMail itself uploaded — browsing an existing library needs the photoslibrary.readonly scope, which Google grants case by case. Saving attachments to Photos works either way; browsing may show an empty library until that scope is approved.'
                 step_api: 'Enable the Photos Library API for the project.'
             immich:
                 intro: 'Immich authenticates with a per-user API key, so there is nothing to register here.'
@@ -735,6 +735,8 @@ settings:
             username: Username
         heading: Integrations
         not_implemented: 'plMail cannot talk to this service yet.'
+        oauth_no_code: 'The service did not return an authorisation code. Please try again.'
+        oauth_state_mismatch: 'That sign-in could not be verified. Please start again.'
         not_oauth: 'This service does not use that sign-in method.'
         pause: Pause
         paused: paused
