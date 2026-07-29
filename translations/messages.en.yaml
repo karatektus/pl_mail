@@ -678,6 +678,56 @@ settings:
         then: Then
         when: When
         yes: Yes
+    integrations:
+        ask_admin: 'Your administrator has not enabled this service.'
+        available_heading: 'Connect a service'
+        badge:
+            ask_admin: 'not enabled'
+            soon: 'coming soon'
+        checked: 'checked %date%'
+        connect: Connect
+        disabled: 'Connection paused'
+        disconnect: Disconnect
+        disconnect_confirm: 'Disconnect %name%? Files already attached to mail are unaffected.'
+        disconnected: 'Service disconnected'
+        edit: Edit
+        empty: 'No services connected yet.'
+        enabled: 'Connection resumed'
+        field:
+            base_url: 'Server address'
+            base_url_fixed: 'Connecting to %url%, set by your administrator.'
+            name: Name
+            name_help: 'Only shown to you, so you can tell two connections apart.'
+            secret:
+                dropbox: 'Access token'
+                googleDrive: 'Access token'
+                googlePhotos: 'Access token'
+                immich: 'API key'
+                nextcloud: 'App password'
+                oneDrive: 'Access token'
+            secret_help:
+                dropbox: ''
+                googleDrive: ''
+                googlePhotos: ''
+                immich: 'Create one in Immich under Account Settings → API Keys.'
+                nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
+                oneDrive: ''
+            secret_unchanged: 'Leave blank to keep the stored credential'
+            username: Username
+        heading: Integrations
+        not_implemented: 'plMail cannot talk to this service yet.'
+        not_oauth: 'This service does not use that sign-in method.'
+        pause: Pause
+        paused: paused
+        resume: Resume
+        save_tests: 'Saving checks the connection straight away.'
+        saved: 'Service connected'
+        saved_with_error: 'Saved, but the connection test failed'
+        subheading: 'Attach files from other services, and save attachments to them.'
+        test: Test
+        test_failed: 'Connection test failed'
+        test_ok: 'Connection is working'
+        unavailable_heading: 'Not available here'
     labels:
         count: '%count% labels'
         delete: Delete label "%name%"
@@ -698,6 +748,7 @@ settings:
         appearance: Appearance
         general: General
         filters: Filters
+        integrations: Integrations
         labels: Labels
         notifications: Notifications
     notifications:

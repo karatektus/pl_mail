@@ -74,6 +74,11 @@
                                         <i class="fa-solid fa-filter w-4 {{ section == 'filters' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.filters'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'integrations' }) }}"
+                                       class="{{ section == 'integrations' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.integrations'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'notifications' }) }}"
                                        class="{{ section == 'notifications' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-bell w-4 {{ section == 'notifications' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -186,6 +191,26 @@
                                                 </p>
                                                 <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ app.request.schemeAndHttpHost }}/jmap/session</code>
                                             </div>
+                                        </section>
+
+                                    {% elseif section == 'integrations' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.integrations.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.integrations.subheading'|trans }}</p>
+                                            </div>
+
+                                            {# Loaded through its own frame rather than rendered inline:
+                                               every mutation replaces the frame, and the connect form
+                                               posts a Turbo Stream that needs a stable target. #}
+                                            <turbo-frame id="settings-integrations-frame"
+                                                         src="{{ path('app_settings_integrations_list') }}"
+                                                         loading="lazy"
+                                                         class="block space-y-6">
+                                                <div class="py-10 text-center text-sm text-ink-faint">
+                                                    <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                                </div>
+                                            </turbo-frame>
                                         </section>
 
                                     {% elseif section == 'labels' %}

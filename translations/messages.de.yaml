@@ -692,6 +692,56 @@ settings:
         then: Dann
         when: Wenn
         yes: Ja
+    integrations:
+        ask_admin: 'Ihre Administration hat diesen Dienst nicht freigeschaltet.'
+        available_heading: 'Dienst verbinden'
+        badge:
+            ask_admin: 'nicht freigeschaltet'
+            soon: 'bald verfügbar'
+        checked: 'geprüft %date%'
+        connect: Verbinden
+        disabled: 'Verbindung pausiert'
+        disconnect: Trennen
+        disconnect_confirm: '%name% trennen? Bereits angehängte Dateien bleiben unberührt.'
+        disconnected: 'Dienst getrennt'
+        edit: Bearbeiten
+        empty: 'Noch keine Dienste verbunden.'
+        enabled: 'Verbindung fortgesetzt'
+        field:
+            base_url: 'Serveradresse'
+            base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
+            name: Name
+            name_help: 'Nur für Sie sichtbar, um zwei Verbindungen auseinanderzuhalten.'
+            secret:
+                dropbox: 'Zugriffstoken'
+                googleDrive: 'Zugriffstoken'
+                googlePhotos: 'Zugriffstoken'
+                immich: 'API-Schlüssel'
+                nextcloud: 'App-Passwort'
+                oneDrive: 'Zugriffstoken'
+            secret_help:
+                dropbox: ''
+                googleDrive: ''
+                googlePhotos: ''
+                immich: 'In Immich unter Account Settings → API Keys erzeugen.'
+                nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
+                oneDrive: ''
+            secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
+            username: Benutzername
+        heading: Integrationen
+        not_implemented: 'plMail kann diesen Dienst noch nicht ansprechen.'
+        not_oauth: 'Dieser Dienst nutzt diese Anmeldeart nicht.'
+        pause: Pausieren
+        paused: pausiert
+        resume: Fortsetzen
+        save_tests: 'Beim Speichern wird die Verbindung sofort geprüft.'
+        saved: 'Dienst verbunden'
+        saved_with_error: 'Gespeichert, aber der Verbindungstest ist fehlgeschlagen'
+        subheading: 'Dateien aus anderen Diensten anhängen und Anhänge dorthin speichern.'
+        test: Testen
+        test_failed: 'Verbindungstest fehlgeschlagen'
+        test_ok: 'Verbindung funktioniert'
+        unavailable_heading: 'Hier nicht verfügbar'
     labels:
         count: '%count% Labels'
         delete: Label "%name%" löschen
@@ -712,6 +762,7 @@ settings:
         appearance: Darstellung
         general: Allgemein
         filters: Filter
+        integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
     notifications:

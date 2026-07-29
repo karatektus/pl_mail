@@ -1,0 +1,154 @@
+{#
+The user's integrations, as a Turbo Frame so every mutation can replace it.
+
+Three groups, deliberately all visible:
+  connected — with health, test, edit and disconnect
+  available — admin-enabled and ready to connect
+  elsewhere — enabled nowhere or not built yet, shown greyed
+
+The third group is the one that earns its place. Without it a user who was
+told "we use Nextcloud here" and finds nothing has no idea whether the feature
+is missing, broken, or waiting on an admin. Naming the reason turns a dead end
+into a message they can act on.
+#}
+<turbo-frame id="settings-integrations-frame" class="block space-y-6">
+
+    {# ── Connected ──────────────────────────────────────────────────────────── #}
+    <div class="rounded-pane border border-line overflow-hidden">
+        {% if integrations is empty %}
+            <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+                {{ 'settings.integrations.empty'|trans }}
+            </p>
+        {% else %}
+            <ul class="divide-y divide-line">
+                {% for integration in integrations %}
+                    <li class="flex items-center gap-3 px-4 py-3">
+                        <i class="{{ integration.provider.icon }} text-base w-5 text-center shrink-0
+                                  {{ integration.isActive and integration.isHealthy ? 'text-accent' : 'text-ink-faint' }}"
+                           aria-hidden="true"></i>
+
+                        <div class="flex-1 min-w-0">
+                            <span class="block truncate text-sm text-ink">
+                                {{ integration.name }}
+                                {% if not integration.isActive %}
+                                    <span class="ml-1 text-[11px] text-ink-faint">({{ 'settings.integrations.paused'|trans }})</span>
+                                {% endif %}
+                            </span>
+                            <span class="block text-[11px] text-ink-faint truncate">
+                                {{ integration.provider.label }}
+                                {%- if integration.baseUrl %} · {{ integration.baseUrl }}{% endif -%}
+                                {%- if integration.secretHint %} · ····{{ integration.secretHint }}{% endif -%}
+                            </span>
+
+                            {# The reason a connection stopped working, in full.
+                               Drivers phrase these for a person. #}
+                            {% if not integration.isHealthy %}
+                                <span class="mt-0.5 block text-[11px] text-danger">
+                                    <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ integration.lastError }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <span class="shrink-0 text-[11px] text-ink-faint hidden sm:block">
+                            {% if integration.lastCheckedAt %}
+                                {{ 'settings.integrations.checked'|trans({ '%date%': integration.lastCheckedAt|date('Y-m-d H:i') }) }}
+                            {% endif %}
+                        </span>
+
+                        <div class="shrink-0 flex items-center gap-2">
+                            <form method="post" action="{{ path('app_settings_integrations_test', { id: integration.id }) }}" data-turbo-stream>
+                                <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
+                                <button type="submit" class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                    {{ 'settings.integrations.test'|trans }}
+                                </button>
+                            </form>
+
+                            <button type="button"
+                                    data-controller="modal"
+                                    data-modal-src-value="{{ path('app_settings_integrations_edit', { id: integration.id }) }}"
+                                    data-modal-title-value="{{ integration.name }}"
+                                    data-action="click->modal#open"
+                                    class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                {{ 'settings.integrations.edit'|trans }}
+                            </button>
+
+                            <form method="post" action="{{ path('app_settings_integrations_toggle', { id: integration.id }) }}" data-turbo-stream>
+                                <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
+                                <button type="submit" class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                    {{ integration.isActive ? 'settings.integrations.pause'|trans : 'settings.integrations.resume'|trans }}
+                                </button>
+                            </form>
+
+                            <form method="post" action="{{ path('app_settings_integrations_delete', { id: integration.id }) }}"
+                                  data-turbo-stream
+                                  onsubmit="return confirm('{{ 'settings.integrations.disconnect_confirm'|trans({ '%name%': integration.name })|e('js') }}')">
+                                <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
+                                <button type="submit" class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
+                                    {{ 'settings.integrations.disconnect'|trans }}
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    {# ── Available to connect ───────────────────────────────────────────────── #}
+    {% if available is not empty %}
+        <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
+                {{ 'settings.integrations.available_heading'|trans }}
+            </h3>
+            <div class="flex flex-wrap gap-2">
+                {% for config in available %}
+                    <button type="button"
+                            data-controller="modal"
+                            data-modal-src-value="{{ path('app_settings_integrations_connect', { provider: config.provider.value }) }}"
+                            data-modal-title-value="{{ config.provider.label }}"
+                            data-action="click->modal#open"
+                            class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-medium
+                                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer">
+                        <i class="{{ config.provider.icon }} text-xs" aria-hidden="true"></i>
+                        {{ config.provider.label }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# ── Not available here ─────────────────────────────────────────────────── #}
+    {% set unavailable = [] %}
+    {% for provider in providers %}
+        {% set config = configs[provider.value] ?? null %}
+        {% if config is null or not config.isConnectable %}
+            {% set unavailable = unavailable|merge([provider]) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if unavailable is not empty %}
+        <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
+                {{ 'settings.integrations.unavailable_heading'|trans }}
+            </h3>
+            <div class="flex flex-wrap gap-2">
+                {% for provider in unavailable %}
+                    <span class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm
+                                 text-ink-faint bg-sunken border border-line cursor-default"
+                          title="{{ provider.isImplemented
+                              ? 'settings.integrations.ask_admin'|trans
+                              : 'settings.integrations.not_implemented'|trans }}">
+                        <i class="{{ provider.icon }} text-xs opacity-60" aria-hidden="true"></i>
+                        {{ provider.label }}
+                        <span class="text-[10px]">
+                            {{ provider.isImplemented
+                                ? 'settings.integrations.badge.ask_admin'|trans
+                                : 'settings.integrations.badge.soon'|trans }}
+                        </span>
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+</turbo-frame>

@@ -138,3 +138,102 @@ test.describe("admin integrations", () => {
         ).toBeVisible();
     });
 });
+
+/**
+ * The user side. A user may only connect to what an admin has turned on, so
+ * these run against the provider state the admin tests above leave behind —
+ * Nextcloud enabled and pinned, everything else off.
+ */
+test.describe("user integrations", () => {
+    test.beforeEach(async ({ page }) => {
+        await login(page, ADMIN.email, ADMIN.password);
+
+        // Ensure Nextcloud is on regardless of which admin test ran last.
+        await page.goto("/admin?section=integrations");
+        const row = providerRow(page, "Nextcloud");
+        await row.locator("summary").click();
+        await row.getByRole("button", { name: "Configure" }).click();
+        await page.locator('#modal input[name="isEnabled"]').check();
+        await page
+            .locator('#modal input[name="baseUrl"]')
+            .fill("https://cloud.example.com");
+        await page.locator("#modal").getByRole("button", { name: "Save" }).click();
+        await expect(row.getByText("Enabled")).toBeVisible();
+
+        await page.goto("/settings?section=integrations");
+        await expect(page.locator("#settings-integrations-frame")).toBeVisible();
+    });
+
+    test("offers enabled services and explains the rest", async ({ page }) => {
+        const frame = page.locator("#settings-integrations-frame");
+
+        await expect(
+            frame.getByRole("button", { name: "Nextcloud" }),
+        ).toBeVisible();
+
+        // The unavailable group is the point: a user who was told "we use
+        // Dropbox here" learns whether it is off or simply not built yet,
+        // rather than finding nothing and guessing.
+        await expect(frame.getByText("Not available here")).toBeVisible();
+        await expect(frame.getByText("coming soon").first()).toBeVisible();
+    });
+
+    test("a connection whose credentials fail says why, and survives a reload", async ({
+        page,
+    }) => {
+        const frame = page.locator("#settings-integrations-frame");
+        await frame.getByRole("button", { name: "Nextcloud" }).click();
+
+        const modal = page.locator("#modal");
+        // The admin pinned the address, so the field must not be offered.
+        await expect(modal.locator('input[name="baseUrl"]')).toHaveCount(0);
+
+        await modal.locator('input[name="name"]').fill("Home cloud");
+        await modal.locator('input[name="username"]').fill("alice");
+        await modal.locator('input[name="secret"]').fill("not-a-real-password");
+        await modal.getByRole("button", { name: "Connect" }).click();
+
+        // cloud.example.com is unreachable from the test container, so the
+        // probe fails — which is exactly the path worth pinning: the row is
+        // still saved, and it carries the reason rather than looking healthy.
+        await expect(frame.getByText("Home cloud")).toBeVisible();
+        await expect(
+            frame.locator(".text-danger").first(),
+        ).toBeVisible();
+
+        await page.reload();
+        await expect(
+            page.locator("#settings-integrations-frame").getByText("Home cloud"),
+        ).toBeVisible();
+    });
+
+    test("a connection can be paused and disconnected", async ({ page }) => {
+        const frame = page.locator("#settings-integrations-frame");
+        await frame.getByRole("button", { name: "Nextcloud" }).click();
+
+        const modal = page.locator("#modal");
+        await modal.locator('input[name="name"]').fill("Scratch cloud");
+        await modal.locator('input[name="username"]').fill("bob");
+        await modal.locator('input[name="secret"]').fill("whatever");
+        await modal.getByRole("button", { name: "Connect" }).click();
+
+        const row = frame.locator("li").filter({ hasText: "Scratch cloud" });
+        await expect(row).toBeVisible();
+
+        await row.getByRole("button", { name: "Pause" }).click();
+        await expect(
+            frame.locator("li").filter({ hasText: "Scratch cloud" }).getByText("(paused)"),
+        ).toBeVisible();
+
+        page.once("dialog", (dialog) => dialog.accept());
+        await frame
+            .locator("li")
+            .filter({ hasText: "Scratch cloud" })
+            .getByRole("button", { name: "Disconnect" })
+            .click();
+
+        await expect(
+            frame.locator("li").filter({ hasText: "Scratch cloud" }),
+        ).toHaveCount(0);
+    });
+});

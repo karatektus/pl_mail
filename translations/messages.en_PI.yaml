@@ -677,6 +677,56 @@ settings:
         then: Then
         when: When
         yes: Aye
+    integrations:
+        ask_admin: 'Th'' quartermaster has not opened this port.'
+        available_heading: 'Moor at a port'
+        badge:
+            ask_admin: 'not opened'
+            soon: 'soon'
+        checked: 'sounded %date%'
+        connect: Moor
+        disabled: 'Line slackened'
+        disconnect: 'Cast off'
+        disconnect_confirm: 'Cast off from %name%? Cargo already hauled aboard stays put.'
+        disconnected: 'Cast off'
+        edit: Edit
+        empty: 'No ports moored yet.'
+        enabled: 'Line hauled taut'
+        field:
+            base_url: 'Port address'
+            base_url_fixed: 'Sailin'' to %url%, set by th'' quartermaster.'
+            name: Name
+            name_help: 'Only ye see it, to tell two moorings apart.'
+            secret:
+                dropbox: 'Access token'
+                googleDrive: 'Access token'
+                googlePhotos: 'Access token'
+                immich: 'API key'
+                nextcloud: 'App password'
+                oneDrive: 'Access token'
+            secret_help:
+                dropbox: ''
+                googleDrive: ''
+                googlePhotos: ''
+                immich: 'Mint one in Immich under Account Settings → API Keys.'
+                nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
+                oneDrive: ''
+            secret_unchanged: 'Leave blank to keep th'' stored papers'
+            username: Username
+        heading: 'Friendly ports'
+        not_implemented: 'plMail cannot hail this port yet.'
+        not_oauth: 'This port does not use that manner o'' boardin''.'
+        pause: Slacken
+        paused: slackened
+        resume: 'Haul taut'
+        save_tests: 'Stowin'' sounds th'' passage at once.'
+        saved: Moored
+        saved_with_error: 'Stowed, but th'' soundin'' came back foul'
+        subheading: 'Haul cargo aboard from other ports, and stow cargo to them.'
+        test: Sound
+        test_failed: 'Soundin'' came back foul'
+        test_ok: 'Passage be clear'
+        unavailable_heading: 'No passage from here'
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"
@@ -697,6 +747,7 @@ settings:
         appearance: Look o' the ship
         general: General
         filters: Sieves
+        integrations: 'Friendly ports'
         labels: Flags
         notifications: Word from the crow's nest
     notifications:

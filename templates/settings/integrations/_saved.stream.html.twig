@@ -1,0 +1,25 @@
+{#
+Response to every integration mutation: refresh the list, confirm with a toast.
+
+The toast type is derived from the message key rather than passed separately —
+a save that stored fine but failed its connection probe must not look like a
+success, and the reason is already spelled out on the row itself.
+#}
+{% set isFailure = toastMessage ends with '_failed' or toastMessage ends with '_with_error' %}
+
+{% if toastMessage is not empty %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with {
+                message: toastMessage|trans,
+                type: isFailure ? 'error' : 'success',
+            } %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+<turbo-stream action="replace" target="settings-integrations-frame">
+    <template>
+        {% include 'settings/integrations/_list_frame.html.twig' %}
+    </template>
+</turbo-stream>
