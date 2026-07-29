@@ -45,8 +45,8 @@ security:
     access_control:
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
         - { path: ^/webhook/graph, roles: PUBLIC_ACCESS }
-        - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED_FULLY }
-        - { path: ^/jmap, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED }
+        - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }

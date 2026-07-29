@@ -35,7 +35,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * optimistically so the sync layer stays coherent.
  */
 #[Route('/status/{type}/{id}', name: 'app_status_')]
-#[IsGranted('IS_AUTHENTICATED_FULLY')]
+#[IsGranted('IS_AUTHENTICATED')]
 class ThreadStatusController extends AbstractController
 {
     public function __construct(
