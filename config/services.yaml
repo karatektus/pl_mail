@@ -90,8 +90,14 @@ services:
         arguments:
             $methods: !tagged_iterator app.jmap_method
 
+    App\Service\Integration\IntegrationDriverRegistry:
+        arguments:
+            $drivers: !tagged_iterator app.integration_driver
+
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
+        App\Domain\Interface\IntegrationDriverInterface:
+            tags: ['app.integration_driver']
         App\Jmap\Method\JmapMethod:
             tags: ['app.jmap_method']

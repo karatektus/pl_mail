@@ -27,4 +27,11 @@ enum Capability: string
 
     /** Can mint a public URL for an existing file. */
     case ShareLink = 'shareLink';
+
+    /**
+     * Can render a cheap preview image without fetching the original. The
+     * picker shows a grid of these instead of a list of filenames, which is
+     * the difference between usable and useless on a photo service.
+     */
+    case Thumbnail = 'thumbnail';
 }

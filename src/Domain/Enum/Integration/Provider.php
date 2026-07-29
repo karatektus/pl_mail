@@ -76,12 +76,14 @@ enum Provider: string
                 Capability::Browse,
                 Capability::Download,
                 Capability::Upload,
+                Capability::Thumbnail,
             ],
             default => [
                 Capability::Browse,
                 Capability::Download,
                 Capability::Upload,
                 Capability::ShareLink,
+                Capability::Thumbnail,
             ],
         };
     }
