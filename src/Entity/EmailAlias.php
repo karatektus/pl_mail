@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Domain\Enum\EmailAliasSource;
-use App\Domain\Enum\EmailAliasStatus;
+use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Trait\TimestampableTrait;
 use App\Repository\EmailAliasRepository;
 use Doctrine\ORM\Mapping as ORM;

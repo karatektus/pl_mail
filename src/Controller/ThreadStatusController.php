@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label;
 use App\Entity\Message;
 use App\Jmap\State\JmapObjectType;

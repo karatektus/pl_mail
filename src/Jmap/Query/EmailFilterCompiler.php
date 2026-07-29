@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Query;
 
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Jmap\Protocol\Exception\MethodException;
 
 /**

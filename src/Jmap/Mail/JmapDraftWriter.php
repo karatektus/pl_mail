@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Jmap\Protocol\Exception\MethodException;

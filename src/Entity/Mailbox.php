@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Domain\Enum\MailboxSpecialUse;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Repository\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

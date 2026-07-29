@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Domain\Enum\RuleRunState;
+use App\Domain\Enum\Mail\RuleRunState;
 use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use App\Repository\MailRuleRepository;

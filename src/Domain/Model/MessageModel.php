@@ -2,7 +2,7 @@
 
 namespace App\Domain\Model;
 
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Message;
 
 class MessageModel

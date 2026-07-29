@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
-use App\Domain\Enum\LabelRole;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label;
 use App\Repository\LabelRepository;
 use App\Repository\MessageThreadRepository;

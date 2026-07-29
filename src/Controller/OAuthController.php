@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Domain\Enum\MailProvider;
+use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Account;
 use App\Entity\User;
-use App\Domain\Enum\AuthType;
+use App\Domain\Enum\Account\AuthType;
 use App\Repository\AccountRepository;
 use App\Service\Gmail\GmailWatchService;
 use App\Service\Push\PushSubscriptionRegistry;

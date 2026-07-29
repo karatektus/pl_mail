@@ -6,7 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Filter\FilterAstValidator;
 use App\Domain\Filter\InvalidFilterException;
-use App\Domain\Enum\RuleRunState;
+use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\MailRule;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Entity\User;

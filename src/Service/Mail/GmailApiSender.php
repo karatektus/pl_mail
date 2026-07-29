@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\MailProvider;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Account;
-use App\Domain\Enum\AuthType;
+use App\Domain\Enum\Account\AuthType;
 use App\Service\OAuth\OAuthTokenManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mime\Email;

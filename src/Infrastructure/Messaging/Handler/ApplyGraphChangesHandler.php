@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;

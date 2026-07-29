@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageCategory;
-use App\Domain\Enum\ThreadingMethod;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Entity\MessageThread;

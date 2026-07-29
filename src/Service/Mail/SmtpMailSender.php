@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Account;
-use App\Domain\Enum\AuthType;
+use App\Domain\Enum\Account\AuthType;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\Transport;

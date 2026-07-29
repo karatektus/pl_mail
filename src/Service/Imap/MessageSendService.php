@@ -2,8 +2,8 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Account;

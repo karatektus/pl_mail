@@ -2,8 +2,8 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Enum\MessageCategory;
-use App\Domain\Enum\ThreadingMethod;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Account;
 use App\Entity\Message;

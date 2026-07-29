@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Rule;
 
-use App\Domain\Enum\RuleRunState;
+use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\MailRule;

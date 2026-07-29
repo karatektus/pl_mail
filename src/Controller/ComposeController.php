@@ -3,8 +3,8 @@
 namespace App\Controller;
 
 use App\Domain\Trait\ParsesAddressFields;
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
 use App\Entity\Message;

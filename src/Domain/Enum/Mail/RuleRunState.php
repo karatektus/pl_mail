@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Enum;
+namespace App\Domain\Enum\Mail;
 
 /**
  * Where a rule's "apply to existing mail" run has got to.

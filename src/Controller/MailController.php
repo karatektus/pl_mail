@@ -2,8 +2,8 @@
 
 namespace App\Controller;
 
-use App\Domain\Enum\LabelRole;
-use App\Domain\Enum\MessageCategory;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;

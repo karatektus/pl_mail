@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Domain\Enum\LabelRole;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Account;
 use App\Repository\LabelRepository;
 use App\Service\Label\LabelResolver;

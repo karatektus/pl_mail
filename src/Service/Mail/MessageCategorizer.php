@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\MessageCategory;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Message;
 
 /**

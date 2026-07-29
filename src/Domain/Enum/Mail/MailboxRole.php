@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Enum;
+namespace App\Domain\Enum\Mail;
 
 /**
  * Special-use role of a mailbox, mapped from the RFC 6154 SPECIAL-USE

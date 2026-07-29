@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Enum;
+namespace App\Domain\Enum\Mail;
 
 /**
  * System role of a Label. User-created labels have a null role.

@@ -2,8 +2,8 @@
 
 namespace App\Entity;
 
-use App\Domain\Enum\MessageCategory;
-use App\Domain\Enum\MessageFlag;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Model\MessageModel;
 use App\Repository\MessageRepository;
 use DateTimeImmutable;

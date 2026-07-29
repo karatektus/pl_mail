@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Enum;
+namespace App\Domain\Enum\Account;
 
 /**
  * How credentials for an {@see \App\Entity\Account} are presented to the server.

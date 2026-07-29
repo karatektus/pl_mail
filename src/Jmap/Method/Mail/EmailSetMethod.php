@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Domain\Enum\LabelRole;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Account;
 use App\Entity\Message;
 use App\Jmap\Account\AccountResolver;

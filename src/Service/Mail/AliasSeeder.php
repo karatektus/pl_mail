@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\EmailAliasSource;
-use App\Domain\Enum\EmailAliasStatus;
+use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Account;
 use App\Entity\EmailAlias;
 use App\Repository\EmailAliasRepository;

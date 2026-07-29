@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Enum;
+namespace App\Domain\Enum\Mail;
 
 /**
  * The Gmail inbox category ("tab"). Stored per-message (raw signal) and

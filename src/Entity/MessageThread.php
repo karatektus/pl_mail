@@ -2,8 +2,8 @@
 
 namespace App\Entity;
 
-use App\Domain\Enum\MessageCategory;
-use App\Domain\Enum\ThreadingMethod;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Repository\MessageThreadRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Domain\Enum\LabelRole;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Repository\LabelRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;

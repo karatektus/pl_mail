@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\OAuth;
 
-use App\Domain\Enum\MailProvider;
+use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

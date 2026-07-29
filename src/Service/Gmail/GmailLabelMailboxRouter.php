@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Domain\Enum\MailboxSpecialUse;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Account;
 use App\Entity\Mailbox;
 use App\Repository\MailboxRepository;

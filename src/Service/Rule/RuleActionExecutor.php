@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Rule;
 
-use App\Domain\Enum\LabelRole;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\MailRule;
 use App\Entity\Message;
 use App\Repository\LabelRepository;

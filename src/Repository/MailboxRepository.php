@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Domain\Enum\MailboxSpecialUse;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Account;
 use App\Entity\Mailbox;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
