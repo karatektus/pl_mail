@@ -5,11 +5,16 @@ Folder navigation is plain <a> links inside the modal frame, so Turbo handles
 it with no client-side routing. Only the picking is JavaScript, and it posts
 once, at the end.
 
-Per file the user chooses copy or link. The choice is constrained by two
-things the server already knows, so the UI never offers something that would
-then fail: files over the attachment cap cannot be copied, and services that
-cannot share a single file (Immich) cannot link. A file that is both over the
-cap and on such a service is genuinely unattachable and says so.
+Per file the user chooses copy or link. Copy is blocked only when the size is
+*known* to exceed the cap; services that report no size at all (Immich, Google
+Photos) are given the benefit of the doubt, because the attach endpoint checks
+the real size once it has the bytes. Link is unavailable on services that cannot
+share a single file (Immich), so a photo genuinely over the cap there cannot be
+attached and says so.
+
+Search, paging and folder navigation are all plain links and a GET form inside
+the modal frame — Turbo swaps the results in, and none of it needs JavaScript.
+Only the picking is scripted, and it posts once, at the end.
 #}
 {% extends '_layout/app.html.twig' %}
 
@@ -30,6 +35,29 @@ cap and on such a service is genuinely unattachable and says so.
                 </div>
             {% else %}
 
+                {# ── Search ──
+                   A plain GET form inside the modal frame, so Turbo swaps the
+                   results in with no JavaScript. Submitting an empty box is how
+                   you get back out of a search. #}
+                {% if canSearch %}
+                    <form method="get" action="{{ path('app_integration_browse', { id: integration.id }) }}"
+                          class="flex items-center gap-2 px-5 py-3 border-b border-line shrink-0">
+                        <input type="hidden" name="draft" value="{{ draftId }}">
+                        <div class="relative flex-1 min-w-0">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint" aria-hidden="true"></i>
+                            <input type="search" name="q" value="{{ query }}"
+                                   placeholder="{{ ('integration.picker.search_placeholder.' ~ integration.provider.value)|trans }}"
+                                   class="w-full h-9 pl-8 pr-3 rounded-lg text-sm bg-field border border-field text-ink
+                                          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        </div>
+                        <button type="submit"
+                                class="shrink-0 inline-flex items-center h-9 px-3 rounded-lg text-sm font-medium
+                                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                            {{ 'integration.picker.search'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+
                 {# ── Breadcrumb ── #}
                 <nav class="flex items-center gap-1 flex-wrap px-5 py-3 border-b border-line text-xs text-ink-muted shrink-0">
                     {% for crumb in listing.breadcrumb %}
@@ -47,7 +75,8 @@ cap and on such a service is genuinely unattachable and says so.
                 <div class="px-5 py-3 overflow-y-auto max-h-[55vh]">
                     {% if listing.entries is empty %}
                         <p class="py-8 text-center text-sm text-ink-faint italic">
-                            {{ 'integration.picker.empty'|trans }}
+                            {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
+                                     : 'integration.picker.empty'|trans }}
                         </p>
                     {% else %}
                         <ul class="divide-y divide-line">
@@ -62,18 +91,26 @@ cap and on such a service is genuinely unattachable and says so.
                                         </a>
                                     </li>
                                 {% else %}
-                                    {# Unknown size (Immich before EXIF extraction) is treated as
-                                       possibly-too-big rather than assumed to fit — a copy that
-                                       fails at the cap after downloading wastes the round trip. #}
-                                    {% set tooBig = entry.size is null or entry.size > maxBytes %}
-                                    {% set canCopy = not tooBig %}
+                                    {# Only a *known* oversize blocks a copy. Services that report
+                                       no size — Immich, Google Photos — would otherwise have every
+                                       file treated as too big, and with no share link to fall back
+                                       on that made every photo unselectable. The attach endpoint
+                                       re-checks the real size after downloading and reports what it
+                                       skipped, so being optimistic here costs one wasted fetch in
+                                       the rare case and is the difference between a usable picker
+                                       and a dead one. #}
+                                    {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
+                                    {% set canCopy = not knownTooBig %}
                                     {% set unattachable = not canCopy and not canLink %}
 
                                     <li class="flex items-center gap-3 py-2.5 {{ unattachable ? 'opacity-50' : '' }}">
                                         {% if canThumb %}
+                                            {# Larger than an icon on purpose: on a photo service the
+                                               preview is how you recognise the file, and a filename
+                                               like IMG_4821.jpg tells you nothing. #}
                                             <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
                                                  alt="" loading="lazy"
-                                                 class="w-9 h-9 rounded object-cover bg-sunken shrink-0"
+                                                 class="w-12 h-12 rounded object-cover bg-sunken shrink-0"
                                                  onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-9 h-9 flex items-center justify-center shrink-0'}))">
                                         {% else %}
                                             <i class="fa-solid fa-file text-ink-faint w-5 text-center shrink-0" aria-hidden="true"></i>
@@ -128,6 +165,27 @@ cap and on such a service is genuinely unattachable and says so.
                                 {% endif %}
                             {% endfor %}
                         </ul>
+
+                        {# Paging. Replaces the list rather than appending, like
+                           folder navigation does — the selection is submitted at
+                           the end, so a page change would lose ticks either way
+                           and a link keeps this JavaScript-free. #}
+                        {% if listing.nextCursor %}
+                            <div class="pt-3 text-center">
+                                <a href="{{ path('app_integration_browse', {
+                                       id: integration.id,
+                                       folder: folderId,
+                                       draft: draftId,
+                                       q: query,
+                                       cursor: listing.nextCursor,
+                                   }) }}"
+                                   class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                                          text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                    {{ 'integration.picker.more'|trans }}
+                                    <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                                </a>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </div>
 

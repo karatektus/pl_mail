@@ -8,6 +8,7 @@ use App\Controller\ComposeController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -79,9 +80,18 @@ final class FilePickerController extends AbstractController
 
         $folderId = $request->query->get('folder');
         $draftId = $request->query->getInt('draft');
+        $cursor = $this->blankToNull($request->query->get('cursor'));
+        $query = $this->blankToNull($request->query->get('q'));
+
+        $driver = $this->drivers->forIntegration($integration);
+        $canSearch = $integration->supports(Capability::Search) && $driver instanceof SearchableDriverInterface;
 
         try {
-            $listing = $this->drivers->forIntegration($integration)->list($integration, $folderId);
+            // A query wins over a folder: search crosses folders, so being
+            // "inside" one while searching would be a lie.
+            $listing = null !== $query && true === $canSearch
+                ? $driver->search($integration, $query, $cursor)
+                : $driver->list($integration, $folderId, $cursor);
             $error = null;
         } catch (IntegrationException $e) {
             $integration->recordFailure($e->getMessage());
@@ -97,9 +107,11 @@ final class FilePickerController extends AbstractController
             'error'       => $error,
             'folderId'    => $folderId,
             'draftId'     => $draftId,
+            'query'       => $query,
             'maxBytes'    => ComposeController::MAX_ATTACHMENT_BYTES,
             'canLink'     => $integration->supports(Capability::ShareLink),
             'canThumb'    => $integration->supports(Capability::Thumbnail),
+            'canSearch'   => $canSearch,
         ]);
     }
 
@@ -334,6 +346,17 @@ final class FilePickerController extends AbstractController
      * one whose provider cannot do the thing is refused here rather than
      * merely omitted from a menu.
      */
+    private function blankToNull(mixed $value): ?string
+    {
+        if (false === is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return '' === $trimmed ? null : $trimmed;
+    }
+
     private function assertUsable(Integration $integration, Capability $capability): void
     {
         if ($integration->usr !== $this->getUser()) {

@@ -10,6 +10,7 @@ use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\IntegrationDriverInterface;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration;
 use App\Repository\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
@@ -24,22 +25,31 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 /**
  * Immich, the self-hosted photo library.
  *
- * A photo library has no directory tree, so the picker's two levels are
- * albums and then the assets inside one. The root listing is the album list;
- * there is no deeper nesting and no cursor, because the album endpoint returns
- * all of its assets in one response.
+ * A photo library has no directory tree, so the root is a set of entry points
+ * rather than a folder: a Timeline covering the whole library, then one folder
+ * per album. Browsing albums alone was the original design and it was too
+ * narrow — most photos a person wants to attach were never filed into an album.
+ *
+ * Search goes through Immich's own smart search, which is CLIP-based and takes
+ * natural language ("beach at sunset"). When the ML service is not running that
+ * endpoint fails, so it falls back to metadata search on the filename — a
+ * worse search, but a working one, and the picker never has to know.
  *
  * Immich cannot make a public URL for a single asset — sharing is album-level
  * and creating an album as a side effect of attaching a photo would be a far
- * bigger action than the user asked for. So Provider::Immich omits ShareLink,
- * shareLink() here returns null, and the picker offers "attach a copy" only.
- * A photo over the attachment cap therefore cannot be attached at all, which
- * is the honest outcome rather than a link that goes nowhere.
+ * bigger action than the user asked for. So Provider::Immich omits ShareLink
+ * and shareLink() returns null; the picker offers "attach a copy" only.
+ *
+ * Sizes come from exifInfo, which Immich omits until it has processed an asset.
+ * A null size therefore means "not known yet", and the picker treats it as
+ * attachable — the attach endpoint re-checks the real size once the bytes are
+ * in hand. Treating unknown as oversize, which is what this driver did first,
+ * made every photo unselectable.
  *
  * Auth is an API key in x-api-key, generated per user in Immich's account
  * settings. Entry ids are Immich's own UUIDs, opaque to everything else.
  */
-final readonly class ImmichDriver implements IntegrationDriverInterface
+final readonly class ImmichDriver implements IntegrationDriverInterface, SearchableDriverInterface
 {
     private const string API = '/api';
 
@@ -48,6 +58,15 @@ final readonly class ImmichDriver implements IntegrationDriverInterface
      * the picker grid wants.
      */
     private const string THUMBNAIL_SIZE = 'thumbnail';
+
+    /**
+     * Virtual folder id for the whole library. Immich album ids are UUIDs, so a
+     * bare word cannot collide with one.
+     */
+    private const string TIMELINE = 'timeline';
+
+    /** Assets per page, for both the timeline and search results. */
+    private const int PAGE_SIZE = 100;
 
     public function __construct(
         private HttpClientInterface                 $httpClient,
@@ -70,10 +89,51 @@ final readonly class ImmichDriver implements IntegrationDriverInterface
     public function list(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
     {
         if (null === $folderId || '' === $folderId) {
-            return new Listing($this->albums($integration), $this->breadcrumb());
+            return $this->root($integration);
         }
 
-        return $this->albumAssets($integration, $folderId);
+        if (self::TIMELINE === $folderId) {
+            return $this->timeline($integration, $cursor);
+        }
+
+        return $this->albumAssets($integration, $folderId, $cursor);
+    }
+
+    /**
+     * Immich's own search.
+     *
+     * Smart search first, because that is what people actually want from Immich
+     * — it understands "dog on a beach" with none of those words in a filename.
+     * It needs the machine-learning service, which is optional in an Immich
+     * deployment, so a failure falls back to metadata search on the filename:
+     * a worse search, but a working one, and the picker never has to know.
+     */
+    public function search(Integration $integration, string $query, ?string $cursor = null): Listing
+    {
+        $query = trim($query);
+
+        if ('' === $query) {
+            return $this->root($integration);
+        }
+
+        $page = $this->pageFrom($cursor);
+
+        try {
+            $payload = $this->json($integration, 'POST', $this->url($integration, '/search/smart'), [
+                'json' => ['query' => $query, 'size' => self::PAGE_SIZE, 'page' => $page],
+            ]);
+        } catch (IntegrationException) {
+            $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
+                'json' => ['originalFileName' => $query, 'size' => self::PAGE_SIZE, 'page' => $page],
+            ]);
+        }
+
+        return $this->fromAssetsPayload($payload, [
+            Entry::folder('', 'Immich'),
+            // The trail names the search rather than a location, since results
+            // cross every album.
+            Entry::folder(self::TIMELINE, sprintf('“%s”', $query)),
+        ]);
     }
 
     public function download(Integration $integration, string $fileId): RemoteFile
@@ -189,6 +249,107 @@ final readonly class ImmichDriver implements IntegrationDriverInterface
 
     // ── Listings ──────────────────────────────────────────────────────────────
 
+    /**
+     * The root: the whole library first, then the albums.
+     *
+     * Timeline leads because it is the answer most of the time — a photo worth
+     * attaching usually was never filed into an album, and offering only albums
+     * made the picker look empty for anyone who does not curate.
+     */
+    private function root(Integration $integration): Listing
+    {
+        return new Listing(
+            [Entry::folder(self::TIMELINE, 'All photos'), ...$this->albums($integration)],
+            $this->breadcrumb(),
+        );
+    }
+
+    /**
+     * Every asset, newest first.
+     *
+     * Uses metadata search with no filter rather than a timeline endpoint:
+     * search returns plain paged assets with exifInfo attached, which is exactly
+     * the shape the picker needs, and it is the same code path search results
+     * come back through.
+     */
+    private function timeline(Integration $integration, ?string $cursor): Listing
+    {
+        $page = $this->pageFrom($cursor);
+
+        $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
+            'json' => ['size' => self::PAGE_SIZE, 'page' => $page, 'order' => 'desc'],
+        ]);
+
+        return $this->fromAssetsPayload($payload, [
+            ...$this->breadcrumb(),
+            Entry::folder(self::TIMELINE, 'All photos'),
+        ]);
+    }
+
+    /**
+     * Turn a search/metadata or search/smart response into a listing.
+     *
+     * Both wrap their results in `assets: { items, nextPage }`. Paging is by
+     * page number, so the cursor is just the next page — Immich reports
+     * nextPage itself, and its absence is the end.
+     *
+     * @param array<mixed> $payload
+     * @param list<Entry>  $breadcrumb
+     */
+    private function fromAssetsPayload(array $payload, array $breadcrumb): Listing
+    {
+        $bucket = $payload['assets'] ?? [];
+        $items = is_array($bucket) ? ($bucket['items'] ?? []) : [];
+        $entries = [];
+
+        if (true === is_array($items)) {
+            foreach ($items as $asset) {
+                if (true === is_array($asset)) {
+                    $entry = $this->asset($asset);
+
+                    if (null !== $entry) {
+                        $entries[] = $entry;
+                    }
+                }
+            }
+        }
+
+        $next = is_array($bucket) ? ($bucket['nextPage'] ?? null) : null;
+
+        return new Listing(
+            $entries,
+            $breadcrumb,
+            null === $next || '' === $next ? null : (string) $next,
+        );
+    }
+
+    /**
+     * One asset as a picker entry, or null if it has no usable id.
+     *
+     * @param array<string,mixed> $asset
+     */
+    private function asset(array $asset): ?Entry
+    {
+        $id = $this->stringOrNull($asset['id'] ?? null);
+
+        if (null === $id) {
+            return null;
+        }
+
+        return new Entry(
+            id: $id,
+            name: (string) ($asset['originalFileName'] ?? $id),
+            isFolder: false,
+            // Immich keeps size under exifInfo and omits it until it has
+            // processed the asset. Null means "not known yet"; the picker treats
+            // that as attachable and the attach endpoint checks the real size
+            // once the bytes are in hand.
+            size: $this->intOrNull($asset['exifInfo']['fileSizeInByte'] ?? null),
+            mime: $this->stringOrNull($asset['originalMimeType'] ?? null),
+            modifiedAt: $this->parseDate($asset['fileCreatedAt'] ?? null),
+        );
+    }
+
     /** @return list<Entry> */
     private function albums(Integration $integration): array
     {
@@ -220,42 +381,56 @@ final readonly class ImmichDriver implements IntegrationDriverInterface
         return $albums;
     }
 
-    private function albumAssets(Integration $integration, string $albumId): Listing
+    /**
+     * One album's contents.
+     *
+     * Goes through metadata search filtered by album rather than reading the
+     * album endpoint's embedded assets: search pages, carries exifInfo, and
+     * shares the parsing with the timeline. The album endpoint returns every
+     * asset in one response, which is fine for a holiday album and not fine for
+     * one with ten thousand photos in it.
+     */
+    private function albumAssets(Integration $integration, string $albumId, ?string $cursor): Listing
     {
-        $album = $this->get($integration, '/albums/'.rawurlencode($albumId));
-        $assets = $album['assets'] ?? [];
-        $entries = [];
+        $page = $this->pageFrom($cursor);
 
-        if (true === is_array($assets)) {
-            foreach ($assets as $asset) {
-                if (false === is_array($asset)) {
-                    continue;
-                }
+        $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
+            'json' => ['albumIds' => [$albumId], 'size' => self::PAGE_SIZE, 'page' => $page, 'order' => 'desc'],
+        ]);
 
-                $id = (string) ($asset['id'] ?? '');
+        return $this->fromAssetsPayload($payload, [
+            ...$this->breadcrumb(),
+            Entry::folder($albumId, $this->albumName($integration, $albumId)),
+        ]);
+    }
 
-                if ('' === $id) {
-                    continue;
-                }
-
-                $entries[] = new Entry(
-                    id: $id,
-                    name: (string) ($asset['originalFileName'] ?? $id),
-                    isFolder: false,
-                    // Immich reports size under exifInfo, and omits it entirely
-                    // on assets whose metadata has not been extracted yet. Null
-                    // means "unknown", which the picker treats as "cannot
-                    // promise this fits" rather than "empty".
-                    size: $this->intOrNull($asset['exifInfo']['fileSizeInByte'] ?? null),
-                    mime: $this->stringOrNull($asset['originalMimeType'] ?? null),
-                    modifiedAt: $this->parseDate($asset['fileCreatedAt'] ?? null),
-                );
-            }
+    /**
+     * An album's title. Requested without its assets — this is only for the
+     * breadcrumb, and the contents come from search.
+     */
+    private function albumName(Integration $integration, string $albumId): string
+    {
+        try {
+            $album = $this->get($integration, '/albums/'.rawurlencode($albumId), ['withoutAssets' => 'true']);
+        } catch (IntegrationException) {
+            return 'Album';
         }
 
-        $name = (string) ($album['albumName'] ?? 'Album');
+        return (string) ($album['albumName'] ?? 'Album');
+    }
 
-        return new Listing($entries, [...$this->breadcrumb(), Entry::folder($albumId, $name)]);
+    /**
+     * Immich pages by number and reports the next one itself, so a cursor is
+     * just that number. Anything unparseable starts from the beginning rather
+     * than failing — a hand-edited URL should not 500.
+     */
+    private function pageFrom(?string $cursor): int
+    {
+        if (null === $cursor || false === ctype_digit($cursor)) {
+            return 1;
+        }
+
+        return max(1, (int) $cursor);
     }
 
     private function addToAlbum(Integration $integration, string $albumId, string $assetId): void
@@ -280,11 +455,15 @@ final readonly class ImmichDriver implements IntegrationDriverInterface
     // ── HTTP ──────────────────────────────────────────────────────────────────
 
     /**
+     * @param array<string,scalar> $query
+     *
      * @return array<mixed>
      */
-    private function get(Integration $integration, string $path): array
+    private function get(Integration $integration, string $path, array $query = []): array
     {
-        $response = $this->request($integration, 'GET', $this->url($integration, $path));
+        $response = $this->request($integration, 'GET', $this->url($integration, $path), [
+            'query' => $query,
+        ]);
 
         try {
             return $response->toArray();

@@ -34,4 +34,13 @@ enum Capability: string
      * the difference between usable and useless on a photo service.
      */
     case Thumbnail = 'thumbnail';
+
+    /**
+     * Can find files by a text query rather than only by walking folders.
+     *
+     * Gates the picker's search box. A driver declaring this must implement
+     * SearchableDriverInterface — the capability is what the UI asks, the
+     * interface is what the code calls.
+     */
+    case Search = 'search';
 }
