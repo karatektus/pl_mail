@@ -121,6 +121,16 @@ enum Provider: string
         return $this->value;
     }
 
+    /**
+     * snake_case form, for filenames — the tutorial partials are included by
+     * this rather than by a match arm, so adding a provider is a new template
+     * and nothing else.
+     */
+    public function slug(): string
+    {
+        return strtolower((string) preg_replace('/([a-z])([A-Z])/', '$1_$2', $this->value));
+    }
+
     /** @return list<self> */
     public static function implemented(): array
     {

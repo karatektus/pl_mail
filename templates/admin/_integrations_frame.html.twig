@@ -1,0 +1,131 @@
+{#
+admin/_integrations_frame.html.twig — every integration provider and its state.
+
+Lists all Provider cases, not just the configured ones. A provider with no
+driver still appears, greyed, with its setup tutorial readable — the list
+doubles as the roadmap, and shipping a driver later needs no edit here.
+
+Each row is a <details> so the tutorial is inline rather than behind another
+navigation step: an admin filling in a client secret wants the instructions on
+the same screen as the field.
+#}
+<turbo-frame id="admin-integrations" class="block space-y-3">
+
+    <p class="text-sm text-ink-muted">
+        {{ 'admin.integrations.intro'|trans }}
+    </p>
+
+    {% for provider in providers %}
+        {% set config = configs[provider.value] ?? null %}
+        {% set connectable = config is not null and config.isConnectable %}
+        {% set users = userCounts[provider.value] ?? 0 %}
+
+        <details class="group/int rounded-pane border border-line bg-pane-soft overflow-hidden">
+
+            <summary class="flex items-center gap-3 px-5 h-14 cursor-pointer list-none hover:bg-hover transition-colors select-none">
+                <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
+                          transition-transform group-open/int:rotate-90" aria-hidden="true"></i>
+
+                <i class="{{ provider.icon }} text-base w-5 text-center {{ connectable ? 'text-accent' : 'text-ink-faint' }}" aria-hidden="true"></i>
+
+                <span class="text-sm font-semibold text-ink">{{ provider.label }}</span>
+
+                {# Status chip. Three states, and they are not the same thing:
+                   "not available yet" is on us, "disabled" is the admin's
+                   choice, "needs credentials" is a half-finished setup. #}
+                {% if not provider.isImplemented %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                        {{ 'admin.integrations.status.unimplemented'|trans }}
+                    </span>
+                {% elseif connectable %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                        {{ 'admin.integrations.status.enabled'|trans }}
+                    </span>
+                {% elseif config is not null and config.isEnabled %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                        {{ 'admin.integrations.status.incomplete'|trans }}
+                    </span>
+                {% else %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                        {{ 'admin.integrations.status.disabled'|trans }}
+                    </span>
+                {% endif %}
+
+                <span class="ml-auto flex items-center gap-3 text-xs text-ink-faint">
+                    {% if users > 0 %}
+                        <span>{{ 'admin.integrations.connected_users'|trans({'%count%': users}) }}</span>
+                    {% endif %}
+                    <span class="hidden sm:inline">{{ ('settings.integrations.auth.' ~ provider.authKind.value)|trans }}</span>
+                </span>
+            </summary>
+
+            <div class="border-t border-line px-5 py-4 space-y-4">
+
+                {# Current setup, read-only. The secret is never rendered — only
+                   whether one is on file. #}
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                    <dt class="text-ink-faint">{{ 'admin.integrations.field.base_url'|trans }}</dt>
+                    <dd class="text-ink truncate">
+                        {% if config is not null and config.baseUrl %}
+                            <code class="text-xs">{{ config.baseUrl }}</code>
+                            <span class="text-xs text-ink-faint">— {{ 'admin.integrations.base_url_pinned'|trans }}</span>
+                        {% elseif provider.needsBaseUrl %}
+                            <span class="text-ink-faint">{{ 'admin.integrations.base_url_per_user'|trans }}</span>
+                        {% else %}
+                            <span class="text-ink-faint">—</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if provider.authKind.value == 'oauth2' %}
+                        <dt class="text-ink-faint">{{ 'admin.integrations.field.client_id'|trans }}</dt>
+                        <dd class="text-ink truncate">
+                            {% if config is not null and config.clientId %}
+                                <code class="text-xs">{{ config.clientId }}</code>
+                            {% else %}
+                                <span class="text-ink-faint">{{ 'admin.integrations.not_set'|trans }}</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="text-ink-faint">{{ 'admin.integrations.field.client_secret'|trans }}</dt>
+                        <dd>
+                            {% if config is not null and config.hasClientSecret %}
+                                <span class="text-emerald-500 text-xs">
+                                    <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>{{ 'admin.integrations.secret_stored'|trans }}
+                                </span>
+                            {% else %}
+                                <span class="text-ink-faint">{{ 'admin.integrations.not_set'|trans }}</span>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+                </dl>
+
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            data-controller="modal"
+                            data-modal-src-value="{{ path('app_admin_integrations_edit', { provider: provider.value }) }}"
+                            data-modal-title-value="{{ provider.label }}"
+                            data-action="click->modal#open"
+                            class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                        <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
+                        {{ 'admin.integrations.configure'|trans }}
+                    </button>
+                </div>
+
+                {# Setup tutorial. Written for every provider including the
+                   unimplemented ones, so the instructions are ready the day a
+                   driver lands. #}
+                <div class="rounded-lg border border-line bg-sunken px-4 py-3">
+                    <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
+                        {{ 'admin.integrations.tutorial_heading'|trans }}
+                    </h3>
+                    <div class="prose-integration text-sm text-ink-muted space-y-2">
+                        {% include 'admin/integrations/tutorial/_' ~ provider.slug ~ '.html.twig' ignore missing with { provider: provider } only %}
+                    </div>
+                </div>
+
+            </div>
+        </details>
+    {% endfor %}
+
+</turbo-frame>

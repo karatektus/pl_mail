@@ -4,7 +4,7 @@
 {% block list_scope %}inbox{% endblock %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox) %}
+    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'Inbox'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
 

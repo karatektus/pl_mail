@@ -1,0 +1,20 @@
+{#
+OneDrive rides the same Microsoft Graph registration as mail, but the mail app
+registration is configured separately in env vars — so this needs either new
+Files scopes added there or, more cleanly, its own app registration. Either way
+the redirect URI below is the one to add.
+#}
+<p>{{ 'admin.integrations.tutorial.one_drive.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.one_drive.step_register'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.one_drive.step_redirect'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.one_drive.step_permissions'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.one_drive.step_secret'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.one_drive.step_paste'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.one_drive.tenant_note'|trans }}
+</p>

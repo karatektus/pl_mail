@@ -76,6 +76,80 @@ admin:
         retry: 'Wiederholen'
         retry_all: 'Alle wiederholen'
         retry_all_confirm: 'Alle fehlgeschlagenen Nachrichten erneut zustellen?'
+    integrations:
+        base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
+        base_url_pinned: 'für alle festgelegt'
+        clear_secret: 'Gespeichertes Client-Secret entfernen'
+        configure: 'Konfigurieren'
+        connected_users: '%count% verbunden'
+        connected_users_one: '1 verbunden'
+        copy_redirect_uri: 'Redirect-URI kopieren'
+        field:
+            base_url: 'Serveradresse'
+            base_url_help_saas: 'Leer lassen. Dieser Dienst hat eine feste Adresse.'
+            base_url_help_selfhosted: 'Optional. Festlegen, um alle auf einen Server zu binden; leer lassen, damit jede Person ihre eigene Adresse einträgt.'
+            client_id: 'Client-ID'
+            client_secret: 'Client-Secret'
+            enabled: 'Diesen Dienst anbieten'
+            enabled_help: 'Ausgeschaltet kann sich niemand verbinden und der Dienst bleibt in den Verfassen- und Speichern-Menüs verborgen.'
+            redirect_uri: 'Redirect-URI'
+            redirect_uri_help: 'Genau so in die Konsole des Anbieters eintragen. Eine spätere Änderung bricht alle bestehenden Verbindungen.'
+        intro: 'Dienste, aus denen Dateien angehängt und in die Anhänge gespeichert werden können. Alle Dienste stehen hier, auch die, die plMail noch nicht ansprechen kann.'
+        not_set: 'Nicht gesetzt'
+        saved: 'Integrationseinstellungen gespeichert'
+        secret_none: 'Kein Secret gespeichert'
+        secret_stored: 'Gespeichert'
+        secret_unchanged: 'Leer lassen, um das gespeicherte Secret zu behalten'
+        status:
+            disabled: 'Deaktiviert'
+            enabled: 'Aktiviert'
+            incomplete: 'Zugangsdaten fehlen'
+            unimplemented: 'Noch nicht verfügbar'
+        tutorial:
+            dropbox:
+                intro: 'Dropbox benötigt eine App in der Dropbox-Entwicklerkonsole.'
+                refresh_note: 'Den App-Typ „scoped access“ wählen und Offline-Zugriff anfordern, sonst brechen Verbindungen nach wenigen Stunden ab.'
+                step_app: 'Unter dropbox.com/developers/apps eine App mit scoped access auf die gesamte Dropbox anlegen.'
+                step_paste: 'App-Key und App-Secret oben eintragen.'
+                step_permissions: 'Unter Permissions files.metadata.read, files.content.read und files.content.write aktivieren.'
+                step_redirect: 'Unter Settings die oben gezeigte Redirect-URI zu den OAuth-2-Redirect-URIs hinzufügen.'
+            google:
+                separate_from_gmail: 'Diese Zugangsdaten sind unabhängig von den Gmail-Daten in der Umgebungsdatei. Dasselbe Cloud-Projekt kann verwendet werden, der Zustimmungsbildschirm muss aber die zusätzlichen Scopes aufführen.'
+                step_consent: 'Den OAuth-Zustimmungsbildschirm einrichten und die unten genannten Scopes hinzufügen.'
+                step_credentials: 'Eine OAuth-2.0-Client-ID vom Typ Webanwendung anlegen.'
+                step_paste: 'Client-ID und Client-Secret oben eintragen.'
+                step_project: 'console.cloud.google.com öffnen und ein Projekt auswählen oder anlegen.'
+                step_redirect: 'Die oben gezeigte Redirect-URI zu den autorisierten Redirect-URIs hinzufügen.'
+            google_drive:
+                intro: 'Google Drive nutzt OAuth, plMail muss also vor der ersten Verbindung bei Google registriert werden.'
+                scopes: 'Benötigter Scope: drive.file — damit ist nur Zugriff auf ausgewählte und von plMail erstellte Dateien möglich, nicht auf das gesamte Drive.'
+                step_api: 'Die Google-Drive-API für das Projekt aktivieren.'
+            google_photos:
+                intro: 'Google Photos nutzt OAuth und eine eigene API, getrennt von Drive.'
+                scope_warning: 'Die Photos-Library-API liefert ohne den Picker-Scope nur von plMail selbst hochgeladene Medien. Bis dahin bleibt die Bibliothek leer.'
+                step_api: 'Die Photos-Library-API für das Projekt aktivieren.'
+            immich:
+                intro: 'Immich authentifiziert sich über einen API-Schlüssel pro Person, hier ist also nichts zu registrieren.'
+                no_share_links: 'Immich kann keinen öffentlichen Link für ein einzelnes Foto erzeugen — geteilt werden nur Alben. Fotos über der Anhangsgrenze lassen sich daher gar nicht anhängen.'
+                step_base_url: 'Optional die Serveradresse festlegen, etwa https://photos.example.com.'
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_key: 'Jede Person erzeugt in Immich unter Account Settings → API Keys einen Schlüssel und trägt ihn in ihre eigenen Integrationseinstellungen ein.'
+            nextcloud:
+                intro: 'Nextcloud authentifiziert sich über ein App-Passwort pro Person, hier ist also nichts zu registrieren.'
+                security: 'Es sollte ein App-Passwort verwendet werden, nicht das Anmeldepasswort: App-Passwörter lassen sich einzeln widerrufen und funktionieren mit Zwei-Faktor-Authentifizierung.'
+                step_base_url: 'Optional die Serveradresse festlegen, etwa https://cloud.example.com.'
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_user: 'Jede Person erzeugt in Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen ein App-Passwort und trägt es in ihre eigenen Integrationseinstellungen ein.'
+            one_drive:
+                intro: 'OneDrive nutzt Microsoft Graph, dieselbe API wie Microsoft-Mailkonten, benötigt aber Files-Berechtigungen, die die Mail-Registrierung nicht abdeckt.'
+                step_paste: 'Anwendungs-ID (Client) und Secret-Wert oben eintragen.'
+                step_permissions: 'Unter API-Berechtigungen die delegierten Microsoft-Graph-Berechtigungen Files.ReadWrite und offline_access hinzufügen.'
+                step_redirect: 'Unter Authentifizierung die oben gezeigte Redirect-URI als Web-Plattform-Redirect hinzufügen.'
+                step_register: 'Im Azure-Portal unter Microsoft Entra ID → App-Registrierungen eine Anwendung registrieren.'
+                step_secret: 'Unter Zertifikate & Geheimnisse ein Client-Secret erstellen und den Wert sofort kopieren — er wird nur einmal angezeigt.'
+                tenant_note: 'Für private Microsoft-Konten den Tenant „common“ verwenden, oder die eigene Tenant-ID, um den Zugriff auf die Organisation zu beschränken.'
+        tutorial_heading: 'Einrichtung'
+        unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
     loading: 'Wird geladen…'
     maintenance:
         heading: Wartung
@@ -107,6 +181,7 @@ admin:
         refresh: 'Aktualisieren'
     nav:
         database: Datenbank
+        integrations: Integrationen
         logs: Protokolle
         system: System
     processes:

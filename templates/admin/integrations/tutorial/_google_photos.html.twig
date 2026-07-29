@@ -1,0 +1,21 @@
+{#
+Google Photos shares the Cloud Console project with Drive but needs its own API
+enabled and its own scopes — and its API only sees media the app itself
+created unless the picker scope is granted, which is worth flagging before an
+admin spends an hour wondering why the library looks empty.
+#}
+<p>{{ 'admin.integrations.tutorial.google_photos.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.google.step_project'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.google_photos.step_api'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.google.step_consent'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.google.step_credentials'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.google.step_redirect'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.google.step_paste'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.google_photos.scope_warning'|trans }}
+</p>

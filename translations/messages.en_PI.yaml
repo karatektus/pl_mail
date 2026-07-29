@@ -76,6 +76,80 @@ admin:
         retry: 'Try again'
         retry_all: 'Try the lot again'
         retry_all_confirm: 'Cast every lost bottle back out to sea?'
+    integrations:
+        base_url_per_user: 'Every hand names their own port.'
+        base_url_pinned: 'set fast for all hands'
+        clear_secret: 'Throw the stored secret overboard'
+        configure: 'Set the rigging'
+        connected_users: '%count% hands moored'
+        connected_users_one: '1 hand moored'
+        copy_redirect_uri: 'Copy th'' return bearing'
+        field:
+            base_url: 'Port address'
+            base_url_help_saas: 'Leave it empty. This port never moves.'
+            base_url_help_selfhosted: 'Optional. Set it to moor every hand at one port; leave it empty and each names their own.'
+            client_id: 'Client ID'
+            client_secret: 'Client secret'
+            enabled: 'Offer this port to th'' crew'
+            enabled_help: 'Struck down, none may moor there and it stays hidden from th'' writin'' desk and th'' stowin'' menus.'
+            redirect_uri: 'Return bearing'
+            redirect_uri_help: 'Paste this into th'' harbourmaster''s ledger exactly as writ. Change it later and every moored line snaps.'
+        intro: 'Ports th'' crew may haul cargo from and stow cargo to. Every port be listed here, even them plMail cannot yet hail.'
+        not_set: 'Not set'
+        saved: 'Port settings stowed'
+        secret_none: 'No secret stored'
+        secret_stored: 'Stored'
+        secret_unchanged: 'Leave blank to keep th'' stored secret'
+        status:
+            disabled: 'Struck down'
+            enabled: 'Open'
+            incomplete: 'Wants papers'
+            unimplemented: 'Not yet charted'
+        tutorial:
+            dropbox:
+                intro: 'Dropbox wants an app registered in th'' Dropbox developer console.'
+                refresh_note: 'Choose th'' scoped access app type and ask for offline access, or th'' line parts after a few hours.'
+                step_app: 'Create an app at dropbox.com/developers/apps with scoped access to th'' full Dropbox.'
+                step_paste: 'Copy th'' app key and app secret into th'' fields above.'
+                step_permissions: 'Under Permissions, hoist files.metadata.read, files.content.read and files.content.write.'
+                step_redirect: 'Under Settings, add th'' return bearing above to th'' OAuth 2 redirect URIs.'
+            google:
+                separate_from_gmail: 'These papers be separate from th'' Gmail ones in yer environment file. Same Cloud project be fine, but th'' consent screen must list th'' extra scopes.'
+                step_consent: 'Rig th'' OAuth consent screen and add th'' scopes listed below.'
+                step_credentials: 'Create an OAuth 2.0 Client ID of type Web application.'
+                step_paste: 'Copy th'' client ID and client secret into th'' fields above.'
+                step_project: 'Open console.cloud.google.com and pick or create a project.'
+                step_redirect: 'Add th'' return bearing above to th'' authorised redirect URIs.'
+            google_drive:
+                intro: 'Google Drive sails under OAuth, so plMail must be registered with Google afore any hand may moor.'
+                scopes: 'Scope needed: drive.file — that grants passage only to files th'' hand picks or plMail creates, not their whole Drive.'
+                step_api: 'Hoist th'' Google Drive API for th'' project.'
+            google_photos:
+                intro: 'Google Photos sails under OAuth with its own API, separate from Drive.'
+                scope_warning: 'Th'' Photos Library API returns only media plMail itself hauled up, unless th'' picker scope be granted. Expect an empty hold until that be rigged.'
+                step_api: 'Hoist th'' Photos Library API for th'' project.'
+            immich:
+                intro: 'Immich checks papers with a key per hand, so there be nothin'' to register here.'
+                no_share_links: 'Immich cannot cut a public line for a single picture — only whole albums. Pictures over th'' cargo limit therefore cannot be hauled aboard at all.'
+                step_base_url: 'Optionally set th'' port address fast, say https://photos.example.com.'
+                step_enable: 'Hoist "Offer this port to th'' crew" above.'
+                step_key: 'Every hand mints a key in Immich under Account Settings → API Keys and stows it in their own port settings.'
+            nextcloud:
+                intro: 'Nextcloud checks papers with an app password per hand, so there be nothin'' to register here.'
+                security: 'Hands should mint an app password, not hand over their login password: app passwords be revoked one at a time and sail fine with two-factor.'
+                step_base_url: 'Optionally set th'' port address fast, say https://cloud.example.com.'
+                step_enable: 'Hoist "Offer this port to th'' crew" above.'
+                step_user: 'Every hand mints an app password in Nextcloud under Settings → Security → Devices & sessions and stows it in their own port settings.'
+            one_drive:
+                intro: 'OneDrive rides Microsoft Graph, th'' same API as Microsoft mail, but wants Files papers th'' mail registration never granted.'
+                step_paste: 'Copy th'' application (client) ID and th'' secret value into th'' fields above.'
+                step_permissions: 'Under API permissions, add th'' delegated Microsoft Graph permissions Files.ReadWrite and offline_access.'
+                step_redirect: 'Under Authentication, add th'' return bearing above as a Web platform redirect.'
+                step_register: 'Open th'' Azure portal and register an application under Microsoft Entra ID → App registrations.'
+                step_secret: 'Under Certificates & secrets, mint a client secret and copy its value at once — it be shown but once.'
+                tenant_note: 'Use th'' common tenant for personal Microsoft accounts, or yer tenant ID to keep it to yer own crew.'
+        tutorial_heading: 'Riggin'''
+        unimplemented_notice: 'plMail cannot hail this port yet. Stow th'' papers now — they be used th'' moment passage opens.'
     loading: 'Haulin'' aboard…'
     maintenance:
         heading: Shipkeepin'
@@ -107,6 +181,7 @@ admin:
         refresh: 'Refresh'
     nav:
         database: Database
+        integrations: 'Friendly ports'
         logs: Ship's log
         system: Ship
     processes:

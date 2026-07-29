@@ -146,7 +146,7 @@ the layout.
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Inbox), 'role:inbox') }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox') }}
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
@@ -172,7 +172,7 @@ the layout.
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.sent'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Sent), 'role:sent') }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent), 'role:sent') }}
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
@@ -185,7 +185,7 @@ the layout.
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Drafts), 'role:drafts') }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
         {% if sidebarCounts.hasVisibleArchive %}
             <a href="{{ path('app_mail_archive') }}"
@@ -197,7 +197,7 @@ the layout.
                     <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
                 </span>
-                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Archive), 'role:archive') }}
+                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
             </a>
         {% endif %}
         <a href="{{ path('app_mail_trash') }}"
@@ -210,7 +210,7 @@ the layout.
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.trash'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\LabelRole').Trash), 'role:trash') }}
+            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
         </a>
 
         {# Labels section #}

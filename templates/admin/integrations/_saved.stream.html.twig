@@ -1,0 +1,20 @@
+{#
+Response to saving a provider config: refresh the list, confirm with a toast.
+
+The whole list is replaced rather than the one row — a config change moves the
+status chip and can change what the *other* rows say about connectability, and
+the list is cheap.
+#}
+{% if toastMessage is not empty %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+<turbo-stream action="replace" target="admin-integrations">
+    <template>
+        {% include 'admin/_integrations_frame.html.twig' %}
+    </template>
+</turbo-stream>

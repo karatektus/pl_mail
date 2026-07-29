@@ -1,0 +1,17 @@
+{#
+Nextcloud needs no application-side registration — each user authenticates with
+their own app password — so the admin's only decisions are whether to offer it
+and whether to pin everyone to one server.
+#}
+<p>{{ 'admin.integrations.tutorial.nextcloud.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.nextcloud.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.nextcloud.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.nextcloud.step_user'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.nextcloud.security'|trans }}
+</p>

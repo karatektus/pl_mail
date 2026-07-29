@@ -76,6 +76,80 @@ admin:
         retry: 'Retry'
         retry_all: 'Retry all'
         retry_all_confirm: 'Re-dispatch every failed message?'
+    integrations:
+        base_url_per_user: 'Each user enters their own server address.'
+        base_url_pinned: 'pinned for all users'
+        clear_secret: 'Remove the stored client secret'
+        configure: 'Configure'
+        connected_users: '%count% connected'
+        connected_users_one: '1 connected'
+        copy_redirect_uri: 'Copy redirect URI'
+        field:
+            base_url: 'Server address'
+            base_url_help_saas: 'Leave empty. This service has one fixed address.'
+            base_url_help_selfhosted: 'Optional. Set this to pin every user to one server; leave it empty to let each user enter their own.'
+            client_id: 'Client ID'
+            client_secret: 'Client secret'
+            enabled: 'Offer this service to users'
+            enabled_help: 'When off, nobody can connect to it and it stays hidden from the compose and save-to menus.'
+            redirect_uri: 'Redirect URI'
+            redirect_uri_help: 'Paste this into the provider''s console exactly as shown. It cannot be changed later without breaking existing connections.'
+        intro: 'Services users can attach files from and save attachments to. Every service is listed here, including the ones plMail cannot talk to yet.'
+        not_set: 'Not set'
+        saved: 'Integration settings saved'
+        secret_none: 'No secret stored'
+        secret_stored: 'Stored'
+        secret_unchanged: 'Leave blank to keep the stored secret'
+        status:
+            disabled: 'Disabled'
+            enabled: 'Enabled'
+            incomplete: 'Needs credentials'
+            unimplemented: 'Not available yet'
+        tutorial:
+            dropbox:
+                intro: 'Dropbox needs an app registered in the Dropbox developer console.'
+                refresh_note: 'Choose the scoped access app type and request offline access, or connections will stop working after a few hours.'
+                step_app: 'Create an app at dropbox.com/developers/apps with scoped access to the full Dropbox.'
+                step_paste: 'Copy the app key and app secret into the fields above.'
+                step_permissions: 'Under Permissions, enable files.metadata.read, files.content.read and files.content.write.'
+                step_redirect: 'Under Settings, add the redirect URI shown above to the OAuth 2 redirect URIs.'
+            google:
+                separate_from_gmail: 'These credentials are separate from the Gmail ones in your environment file. You may reuse the same Cloud project, but the consent screen must list the extra scopes.'
+                step_consent: 'Configure the OAuth consent screen and add the scopes listed below.'
+                step_credentials: 'Create an OAuth 2.0 Client ID of type Web application.'
+                step_paste: 'Copy the client ID and client secret into the fields above.'
+                step_project: 'Open console.cloud.google.com and select or create a project.'
+                step_redirect: 'Add the redirect URI shown above to the authorised redirect URIs.'
+            google_drive:
+                intro: 'Google Drive uses OAuth, so plMail must be registered with Google before anyone can connect.'
+                scopes: 'Scope needed: drive.file — this grants access only to files the user picks or that plMail creates, not their whole Drive.'
+                step_api: 'Enable the Google Drive API for the project.'
+            google_photos:
+                intro: 'Google Photos uses OAuth and its own API, separate from Drive.'
+                scope_warning: 'The Photos Library API only returns media plMail itself uploaded unless the picker scope is granted. Expect an empty library until that is configured.'
+                step_api: 'Enable the Photos Library API for the project.'
+            immich:
+                intro: 'Immich authenticates with a per-user API key, so there is nothing to register here.'
+                no_share_links: 'Immich cannot create a public link for a single photo — sharing is album-level. Photos above the attachment size limit therefore cannot be attached at all.'
+                step_base_url: 'Optionally pin the server address, for example https://photos.example.com.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_key: 'Each user generates an API key in Immich under Account Settings → API Keys and pastes it into their own integration settings.'
+            nextcloud:
+                intro: 'Nextcloud authenticates with a per-user app password, so there is nothing to register here.'
+                security: 'Users should create an app password, not use their login password: app passwords are individually revocable and work with two-factor authentication.'
+                step_base_url: 'Optionally pin the server address, for example https://cloud.example.com.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_user: 'Each user creates an app password in Nextcloud under Settings → Security → Devices & sessions and pastes it into their own integration settings.'
+            one_drive:
+                intro: 'OneDrive uses Microsoft Graph, the same API as Microsoft mail accounts, but needs Files permissions that the mail registration does not grant.'
+                step_paste: 'Copy the application (client) ID and the secret value into the fields above.'
+                step_permissions: 'Under API permissions, add the delegated Microsoft Graph permissions Files.ReadWrite and offline_access.'
+                step_redirect: 'Under Authentication, add the redirect URI shown above as a Web platform redirect.'
+                step_register: 'Open the Azure portal and register an application under Microsoft Entra ID → App registrations.'
+                step_secret: 'Under Certificates & secrets, create a client secret and copy its value immediately — it is shown only once.'
+                tenant_note: 'Use the common tenant for personal Microsoft accounts, or your tenant ID to restrict access to your organisation.'
+        tutorial_heading: 'Setup'
+        unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
     loading: 'Loading…'
     maintenance:
         heading: Maintenance
@@ -107,6 +181,7 @@ admin:
         refresh: 'Refresh'
     nav:
         database: Database
+        integrations: Integrations
         logs: Logs
         system: System
     processes:

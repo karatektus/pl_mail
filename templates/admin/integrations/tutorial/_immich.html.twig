@@ -1,0 +1,17 @@
+{#
+Immich is API-key based, so like Nextcloud there is nothing to register. The
+one thing worth saying up front is the sharing limitation, because it changes
+what users can do with large photos.
+#}
+<p>{{ 'admin.integrations.tutorial.immich.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.immich.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.immich.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.immich.step_key'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.immich.no_share_links'|trans }}
+</p>
