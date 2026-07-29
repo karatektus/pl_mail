@@ -302,6 +302,16 @@ header:
 inbox:
     empty: Keine Nachrichten in diesem Tab.
 
+integration:
+    picker:
+        attach: Anhängen
+        attach_from: 'Aus %name% anhängen'
+        attach_from_service: 'Aus einem Dienst anhängen'
+        copy: Kopie
+        empty: 'Dieser Ordner ist leer.'
+        link: Link
+        too_big: 'Zu groß zum Anhängen'
+
 label:
     color:
         amber: Bernstein

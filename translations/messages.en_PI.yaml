@@ -300,6 +300,16 @@ header:
 inbox:
     empty: No bottles in this here tab.
 
+integration:
+    picker:
+        attach: 'Haul aboard'
+        attach_from: 'Haul from %name%'
+        attach_from_service: 'Haul from a port'
+        copy: Copy
+        empty: 'This hold be empty.'
+        link: Link
+        too_big: 'Too heavy to haul'
+
 label:
     color:
         amber: Amber

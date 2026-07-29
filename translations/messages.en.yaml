@@ -300,6 +300,16 @@ header:
 inbox:
     empty: No messages in this tab.
 
+integration:
+    picker:
+        attach: Attach
+        attach_from: 'Attach from %name%'
+        attach_from_service: 'Attach from a service'
+        copy: Copy
+        empty: 'This folder is empty.'
+        link: Link
+        too_big: 'Too large to attach'
+
 label:
     color:
         amber: Amber

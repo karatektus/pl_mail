@@ -1,0 +1,158 @@
+{#
+integration/_picker.html.twig — browse a service and pick files, in the modal.
+
+Folder navigation is plain <a> links inside the modal frame, so Turbo handles
+it with no client-side routing. Only the picking is JavaScript, and it posts
+once, at the end.
+
+Per file the user chooses copy or link. The choice is constrained by two
+things the server already knows, so the UI never offers something that would
+then fail: files over the attachment cap cannot be copied, and services that
+cannot share a single file (Immich) cannot link. A file that is both over the
+cap and on such a service is genuinely unattachable and says so.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    <turbo-frame id="modal">
+        <template data-modal-frame-title>{{ integration.name }}</template>
+
+        <div data-controller="integration-picker"
+             data-integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
+             data-integration-picker-draft-value="{{ draftId }}"
+             data-integration-picker-token-value="{{ csrf_token('integration-picker') }}"
+             class="flex flex-col min-h-0">
+
+            {% if error is not null %}
+                <div role="alert" class="m-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% else %}
+
+                {# ── Breadcrumb ── #}
+                <nav class="flex items-center gap-1 flex-wrap px-5 py-3 border-b border-line text-xs text-ink-muted shrink-0">
+                    {% for crumb in listing.breadcrumb %}
+                        {% if not loop.last %}
+                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: crumb.id, draft: draftId }) }}"
+                               class="hover:text-ink transition-colors">{{ crumb.name }}</a>
+                            <i class="fa-solid fa-chevron-right text-[8px] text-ink-faint" aria-hidden="true"></i>
+                        {% else %}
+                            <span class="text-ink font-medium">{{ crumb.name }}</span>
+                        {% endif %}
+                    {% endfor %}
+                </nav>
+
+                {# ── Entries ── #}
+                <div class="px-5 py-3 overflow-y-auto max-h-[55vh]">
+                    {% if listing.entries is empty %}
+                        <p class="py-8 text-center text-sm text-ink-faint italic">
+                            {{ 'integration.picker.empty'|trans }}
+                        </p>
+                    {% else %}
+                        <ul class="divide-y divide-line">
+                            {% for entry in listing.entries %}
+                                {% if entry.isFolder %}
+                                    <li>
+                                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+                                           class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
+                                            <i class="fa-solid fa-folder text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
+                                            <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
+                                            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    {# Unknown size (Immich before EXIF extraction) is treated as
+                                       possibly-too-big rather than assumed to fit — a copy that
+                                       fails at the cap after downloading wastes the round trip. #}
+                                    {% set tooBig = entry.size is null or entry.size > maxBytes %}
+                                    {% set canCopy = not tooBig %}
+                                    {% set unattachable = not canCopy and not canLink %}
+
+                                    <li class="flex items-center gap-3 py-2.5 {{ unattachable ? 'opacity-50' : '' }}">
+                                        {% if canThumb %}
+                                            <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
+                                                 alt="" loading="lazy"
+                                                 class="w-9 h-9 rounded object-cover bg-sunken shrink-0"
+                                                 onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-9 h-9 flex items-center justify-center shrink-0'}))">
+                                        {% else %}
+                                            <i class="fa-solid fa-file text-ink-faint w-5 text-center shrink-0" aria-hidden="true"></i>
+                                        {% endif %}
+
+                                        <div class="flex-1 min-w-0">
+                                            <span class="block truncate text-sm text-ink">{{ entry.name }}</span>
+                                            <span class="block text-[11px] text-ink-faint">
+                                                {% if entry.size is not null %}
+                                                    {{ (entry.size / 1024)|round }} KB
+                                                {% endif %}
+                                                {%- if entry.modifiedAt %} · {{ entry.modifiedAt|date('Y-m-d') }}{% endif -%}
+                                            </span>
+                                        </div>
+
+                                        {% if unattachable %}
+                                            <span class="shrink-0 text-[11px] text-ink-faint">
+                                                {{ 'integration.picker.too_big'|trans }}
+                                            </span>
+                                        {% else %}
+                                            <div class="shrink-0 flex items-center gap-1">
+                                                {% if canCopy %}
+                                                    <label class="cursor-pointer">
+                                                        <input type="radio" class="peer sr-only"
+                                                               name="mode[{{ entry.id }}]" value="copy"
+                                                               data-integration-picker-target="mode">
+                                                        <span class="inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
+                                                                     text-ink-faint bg-field border border-field
+                                                                     peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
+                                                                     transition-colors">
+                                                            {{ 'integration.picker.copy'|trans }}
+                                                        </span>
+                                                    </label>
+                                                {% endif %}
+
+                                                {% if canLink %}
+                                                    <label class="cursor-pointer">
+                                                        <input type="radio" class="peer sr-only"
+                                                               name="mode[{{ entry.id }}]" value="link"
+                                                               data-integration-picker-target="mode">
+                                                        <span class="inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
+                                                                     text-ink-faint bg-field border border-field
+                                                                     peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
+                                                                     transition-colors">
+                                                            {{ 'integration.picker.link'|trans }}
+                                                        </span>
+                                                    </label>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+            {% endif %}
+
+            {# ── Footer ── #}
+            <div class="flex items-center gap-2 px-5 py-3.5 border-t border-line bg-sunken rounded-b-xl shrink-0">
+                <span class="text-[11px] text-ink-faint" data-integration-picker-target="status"></span>
+
+                <div class="flex-1"></div>
+
+                <button type="button" data-action="click->modal#close"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    {{ 'form.cancel'|trans }}
+                </button>
+                <button type="button"
+                        data-action="click->integration-picker#attach"
+                        data-integration-picker-target="submit"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong transition-colors disabled:opacity-50">
+                    {{ 'integration.picker.attach'|trans }}
+                </button>
+            </div>
+
+        </div>
+    </turbo-frame>
+{% endblock %}

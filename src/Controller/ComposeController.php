@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Domain\Trait\ParsesAddressFields;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Enum\Integration\Capability;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Account;
 use App\Entity\Message;
@@ -15,6 +16,7 @@ use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\AccountRepository;
 use App\Repository\ContactRepository;
 use App\Repository\MailboxRepository;
+use App\Repository\IntegrationRepository;
 use App\Repository\MessageRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
@@ -69,6 +71,7 @@ class ComposeController extends AbstractController
         private readonly ContactRepository       $contactRepository,
         private readonly MailBodySanitizer       $bodySanitizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
+        private readonly IntegrationRepository   $integrationRepository,
     )
     {
     }
@@ -641,6 +644,13 @@ class ComposeController extends AbstractController
             'frame'     => $ctx['frame'],
             'thread'    => $ctx['thread'],
             'urlParams' => $this->urlParams($ctx),
+            // Services this user can pull files out of. Download rather than
+            // Browse is the test that matters: a service you can list but not
+            // fetch from would open a picker that cannot attach anything.
+            'pickerIntegrations' => $this->integrationRepository->findSupportingForUser(
+                $this->getUser(),
+                Capability::Download,
+            ),
         ]);
     }
 

@@ -379,7 +379,41 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                            data-action="change->compose#uploadFiles">
                     <button type="button" data-compose-toolbar-action data-action="click->compose-toolbar#insertLink" class="{{ ic }}"><i class="fa-solid fa-link"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-regular fa-face-smile"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-brands fa-google-drive"></i></button>
+                    {# Attach from a connected service. Sized to what the user
+                       actually has: nothing at all with no connections, the
+                       provider's own button with one, a menu only once there
+                       is a choice to make. #}
+                    {% if pickerIntegrations|length == 1 %}
+                        {% set only = pickerIntegrations|first %}
+                        <button type="button"
+                                data-controller="modal"
+                                data-modal-title-value="{{ only.name }}"
+                                data-integration-id="{{ only.id }}"
+                                data-action="click->compose#openIntegrationPicker"
+                                title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
+                                class="{{ ic }}"><i class="{{ only.provider.icon }}"></i></button>
+                    {% elseif pickerIntegrations|length > 1 %}
+                        <div class="relative" data-controller="dropdown">
+                            <button type="button"
+                                    data-action="click->dropdown#toggle"
+                                    title="{{ 'integration.picker.attach_from_service'|trans }}"
+                                    class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
+                            <div data-dropdown-target="menu" hidden
+                                 class="absolute bottom-full mb-1 left-0 z-20 min-w-48 rounded-lg border border-line bg-pane shadow-float py-1">
+                                {% for integration in pickerIntegrations %}
+                                    <button type="button"
+                                            data-controller="modal"
+                                            data-modal-title-value="{{ integration.name }}"
+                                            data-integration-id="{{ integration.id }}"
+                                            data-action="click->compose#openIntegrationPicker click->dropdown#close"
+                                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors text-left">
+                                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
+                                        <span class="truncate">{{ integration.name }}</span>
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
                     <button type="button" class="{{ ic }}"><i class="fa-regular fa-image"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-solid fa-lock"></i></button>
                     <button type="button" class="{{ ic }}"><i class="fa-solid fa-pen-nib"></i></button>

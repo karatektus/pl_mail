@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { login } from "./support/config";
+import { login, seed } from "./support/config";
 import { execSync } from "node:child_process";
 
 /**
@@ -235,5 +235,90 @@ test.describe("user integrations", () => {
         await expect(
             frame.locator("li").filter({ hasText: "Scratch cloud" }),
         ).toHaveCount(0);
+    });
+});
+
+/**
+ * Compose picks up connected services.
+ *
+ * cloud.example.com is unreachable from the test container, so the picker
+ * cannot list anything — which still exercises everything between the button
+ * and the driver, and pins the failure path: an unreachable service reports
+ * why instead of opening an empty file list that looks like an empty folder.
+ */
+test.describe("compose integration picker", () => {
+    const dock = "#compose_dock";
+
+    // Composing needs a mail account, which the admin user does not have — so
+    // these run as the seeded mail user. Enabling a provider is admin-only,
+    // but connecting to one is not, which is exactly the split being tested.
+    test.beforeAll(() => {
+        seed("seed-mail");
+    });
+
+    async function enableNextcloudAsAdmin(page: Page) {
+        await login(page, ADMIN.email, ADMIN.password);
+        await page.goto("/admin?section=integrations");
+
+        const row = providerRow(page, "Nextcloud");
+        await row.locator("summary").click();
+        await row.getByRole("button", { name: "Configure" }).click();
+        await page.locator('#modal input[name="isEnabled"]').check();
+        await page
+            .locator('#modal input[name="baseUrl"]')
+            .fill("https://cloud.example.com");
+        await page.locator("#modal").getByRole("button", { name: "Save" }).click();
+        await expect(row.getByText("Enabled")).toBeVisible();
+    }
+
+    async function connectAsMailUser(page: Page, name: string) {
+        // Still signed in as the admin, and /login redirects an authenticated
+        // visitor straight back to the inbox — so the session has to go before
+        // the second login can happen.
+        await page.context().clearCookies();
+        await login(page);
+        await page.goto("/settings?section=integrations");
+
+        const frame = page.locator("#settings-integrations-frame");
+        await frame.getByRole("button", { name: "Nextcloud" }).click();
+        await page.locator('#modal input[name="name"]').fill(name);
+        await page.locator('#modal input[name="username"]').fill("alice");
+        await page.locator('#modal input[name="secret"]').fill("app-password");
+        await page.locator("#modal").getByRole("button", { name: "Connect" }).click();
+        await expect(frame.getByText(name)).toBeVisible();
+    }
+
+    test("no button at all when nothing is connected", async ({ page }) => {
+        await login(page);
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        await expect(page.locator(dock).getByText("New Message")).toBeVisible();
+        await expect(page.locator(`${dock} [data-integration-id]`)).toHaveCount(0);
+    });
+
+    test("one connection gets a direct button that opens the picker", async ({
+        page,
+    }) => {
+        await enableNextcloudAsAdmin(page);
+        await connectAsMailUser(page, "Home cloud");
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        // One connection means a button, not a menu.
+        const button = page.locator(`${dock} [data-integration-id]`);
+        await expect(button).toHaveCount(1);
+
+        await button.click();
+
+        // The draft is force-saved on the way in, so the picker knows which
+        // message to attach to before it renders. cloud.example.com is
+        // unreachable here, so the picker must say so rather than render an
+        // empty list that reads as an empty folder — matching the driver's own
+        // wording, not just the provider name, which is also in the title.
+        await expect(page.locator("#modal")).toContainText(
+            /Could not reach the Nextcloud server/i,
+        );
     });
 });

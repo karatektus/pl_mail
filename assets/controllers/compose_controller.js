@@ -37,6 +37,12 @@ export default class extends Controller {
         // Select's own key handler has had its say — see _handleTab().
         this.element.addEventListener('keydown', this._boundHandleTab);
 
+        // The integration picker lives in the modal frame, which is outside
+        // this element entirely, so it reports back on window rather than
+        // through the DOM tree.
+        this._boundIntegrationAttached = this._handleIntegrationAttached.bind(this);
+        window.addEventListener('plmail:integration-attached', this._boundIntegrationAttached);
+
         const form = this.element.querySelector('form');
 
         form.action = this.sendUrlValue;
@@ -74,6 +80,7 @@ export default class extends Controller {
     disconnect() {
         clearTimeout(this.#autosaveTimer);
         this.element.removeEventListener('keydown', this._boundHandleTab);
+        window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
         const form = this.element.querySelector('form');
             form.removeEventListener('input', this._boundAutosave);
             form.removeEventListener('submit', this._boundHandleSubmit);
@@ -731,6 +738,99 @@ export default class extends Controller {
         if (true === this.hasFileInputTarget) {
             this.fileInputTarget.click();
         }
+    }
+
+    /**
+     * Open a connected service's file picker.
+     *
+     * The draft is force-saved first for the same reason uploadFiles() does
+     * it: attachments are rows hanging off a Message, so one has to exist
+     * before the picker can add to it. Saving here rather than inside the
+     * picker keeps the id in the URL correct from the moment the modal opens.
+     */
+    async openIntegrationPicker(event) {
+        const button = event.currentTarget;
+        const integrationId = button.dataset.integrationId;
+
+        if (undefined === integrationId) {
+            return;
+        }
+
+        await this.saveDraft(null, { force: true, allowEmpty: true });
+
+        const id = this._messageId();
+
+        if (null === id) {
+            this._setStatus('Could not attach', 'text-danger');
+
+            return;
+        }
+
+        // The modal controller takes its URL from the trigger's own values, and
+        // the draft id is only known once the save above has run — so the
+        // button carries data-controller="modal" and gets pointed at the right
+        // URL here, immediately before being opened.
+        button.dataset.modalSrcValue = `/integrations/${integrationId}/browse?draft=${id}`;
+
+        this.application
+            .getControllerForElementAndIdentifier(button, 'modal')
+            ?.open();
+    }
+
+    /**
+     * Result of an integration pick: the re-rendered attachment strip, plus
+     * any share links to drop into the body.
+     *
+     * Every open compose window hears this, so windows that are not the one
+     * that opened the picker have to ignore it — the picker names the draft it
+     * acted on and that is the only window allowed to act.
+     */
+    _handleIntegrationAttached(event) {
+        const { attachmentsHtml, links, draftId } = event.detail ?? {};
+
+        if (undefined !== draftId && String(draftId) !== String(this._messageId())) {
+            return;
+        }
+
+        if (undefined !== attachmentsHtml && true === this.hasAttachmentsTarget) {
+            this.attachmentsTarget.innerHTML = attachmentsHtml;
+        }
+
+        if (0 < (links ?? []).length) {
+            this._insertLinks(links);
+        }
+
+        this._setStatus('Draft saved', 'text-success');
+
+        // The links went into the body directly, so the form has not fired an
+        // input event — without this the draft would keep the pre-link body
+        // until the next keystroke.
+        this.saveDraft(null, { force: true, allowEmpty: true });
+    }
+
+    /** Append share links as anchors at the top of the user's own writing. */
+    _insertLinks(links) {
+        if (false === this.hasBodyTarget) {
+            return;
+        }
+
+        const block = document.createElement('div');
+
+        links.forEach(({ name, url }) => {
+            const line = document.createElement('div');
+            const anchor = document.createElement('a');
+
+            anchor.href = url;
+            anchor.textContent = name;
+            anchor.rel = 'noopener noreferrer';
+
+            line.append(anchor);
+            block.append(line);
+        });
+
+        // Before any quoted original, so the links sit with the reply rather
+        // than being buried under the thread history.
+        this.bodyTarget.prepend(block);
     }
 
     /**
