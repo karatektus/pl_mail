@@ -783,10 +783,7 @@ class ComposeController extends AbstractController
 
         $message->addLabel($draftsLabel);
 
-        $message->setMailbox($this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label' => $draftsLabel,
-        ]));
+        $message->setMailbox($draftsLabel->bindingFor($account)?->mailbox);
     }
 
     /**

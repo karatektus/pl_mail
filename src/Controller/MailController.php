@@ -62,9 +62,10 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Merged label view: one sidebar entry may aggregate same-named labels
-     * from several accounts; this resolves the path back to every matching
-     * Label and lists threads across all of them.
+     * Label view by path ("Work/Invoices"). One label now spans every account,
+     * so the path resolves to a single Label and the thread list is naturally
+     * cross-account — this used to fan out to one Label per account and union
+     * the results.
      *
      * Declared before the id-based route so "/label/path/…" never collides
      * with "/label/{id}".
@@ -72,35 +73,27 @@ final class MailController extends AbstractController
     #[Route('/label/path/{path}', name: 'label_path', requirements: ['path' => '.+'])]
     public function labelPathView(string $path, Request $request): Response
     {
-        $labels = $this->labelRepository->findByPathForUser($this->getUser(), $path);
+        $label = $this->labelRepository->findOneByPathForUser($this->getUser(), $path);
 
-        if (count($labels) === 0) {
+        if (null === $label) {
             throw $this->createNotFoundException();
         }
 
-        $page    = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForLabels($labels, $page);
-        $total   = $this->threadRepository->countForLabels($labels);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/label.html.twig', [
-            'label'    => $labels[0],
-            'labels'   => $labels,
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderLabel($label, $request);
     }
 
     #[Route('/label/{id}', name: 'label')]
     public function labelView(Label $label, Request $request): Response
     {
-        if ($label->account?->getUsr() !== $this->getUser()) {
+        if ($label->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
+        return $this->renderLabel($label, $request);
+    }
+
+    private function renderLabel(Label $label, Request $request): Response
+    {
         $page    = max(1, (int) $request->query->get('page', 1));
         $threads = $this->threadRepository->findForLabel($label, $page);
         $total   = $this->threadRepository->countForLabel($label);
@@ -219,8 +212,11 @@ final class MailController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
+        // Labels materialized on this account — the per-account folder frame
+        // is the one place bindings surface, since it answers "what does this
+        // account actually have".
         $labels = array_values(array_filter(
-            $this->labelRepository->findForAccount($account),
+            $this->labelRepository->findBoundToAccount($account),
             static fn(Label $label): bool => true === $label->isVisible,
         ));
 
@@ -250,18 +246,8 @@ final class MailController extends AbstractController
             $payload['role:' . $role->value] = $counts->forRole($role);
         }
 
-        // Merged tree nodes for the label section, plus the individual label
-        // rows behind the lazily loaded per-account folder frames.
-        $collectNodes = static function (array $nodes) use (&$collectNodes, &$payload, $counts): void {
-            foreach ($nodes as $node) {
-                $payload['node:' . $node->path] = $counts->forNode($node);
-
-                $collectNodes($node->children);
-            }
-        };
-
-        $collectNodes($counts->userLabelTree());
-
+        // One key per label now that the sidebar renders labels directly —
+        // this used to also emit "node:<path>" keys for the merged tree.
         foreach ($this->labelRepository->findVisibleForUser($this->getUser()) as $label) {
             $payload['label:' . $label->id] = $counts->forLabel($label);
         }

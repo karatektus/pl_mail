@@ -14,26 +14,26 @@
 <turbo-stream action="replace" target="settings-label-list">
     <template>
         <div id="settings-label-list">
-            {% include 'settings/_labels.html.twig' with {
-                manageableAccounts: manageableAccounts,
-                labelsByAccount: labelsByAccount,
-            } %}
+            {% include 'settings/_labels.html.twig' with { labels: labels } %}
         </div>
     </template>
 </turbo-stream>
 
-<turbo-stream action="replace" target="label-list">
-    <template>
-        <div id="label-list" class="space-y-0.5">
-            {% import '_partials/_sidebar.html.twig' as sidebar %}
-            {% set labelTree = sidebarCounts.userLabelTree() %}
-            {% if labelTree|length == 0 %}
-                <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
-            {% else %}
-                {% for node in labelTree %}
-                    {{ sidebar.label_node(node, 0, '') }}
-                {% endfor %}
-            {% endif %}
-        </div>
-    </template>
-</turbo-stream>
+{% import '_partials/_sidebar.html.twig' as sidebar %}
+{% set labelTree = sidebarCounts.userLabelTree() %}
+
+{% for target, drawerClose in { 'label-list': '', 'label-list-drawer': 'click->sidebar-drawer#close' } %}
+    <turbo-stream action="replace" target="{{ target }}">
+        <template>
+            <div id="{{ target }}" class="rail-hide space-y-0.5">
+                {% if labelTree|length == 0 %}
+                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
+                {% else %}
+                    {% for label in labelTree %}
+                        {{ sidebar.label_node(label, 0, drawerClose) }}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </template>
+    </turbo-stream>
+{% endfor %}

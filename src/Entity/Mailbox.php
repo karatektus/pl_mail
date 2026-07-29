@@ -50,9 +50,14 @@ class Mailbox
     #[ORM\Column]
     private bool $isIdleEnabled = false;
 
-    #[ORM\ManyToOne(targetEntity: Label::class)]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?Label $label = null;
+    /**
+     * Which label this folder feeds is recorded on LabelBinding, alongside the
+     * Gmail and Graph ids for the same label — one row per (label, account)
+     * describes every provider. Mailbox reads through it and does not carry a
+     * Label FK of its own.
+     */
+    #[ORM\OneToOne(targetEntity: LabelBinding::class, mappedBy: 'mailbox')]
+    private ?LabelBinding $labelBinding = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $syncedAt = null;
@@ -211,16 +216,25 @@ class Mailbox
         $this->isIdleEnabled = $isIdleEnabled;
         return $this;
     }
-    public function getLabel(): ?Label
+    public function getLabelBinding(): ?LabelBinding
     {
-        return $this->label;
+        return $this->labelBinding;
     }
 
-    public function setLabel(?Label $label): static
+    public function setLabelBinding(?LabelBinding $labelBinding): static
     {
-        $this->label = $label;
+        $this->labelBinding = $labelBinding;
 
         return $this;
+    }
+
+    /**
+     * The label this folder feeds, read through its binding. Derived and
+     * read-only — bind a folder via LabelResolver::bindMailbox().
+     */
+    public function getLabel(): ?Label
+    {
+        return $this->labelBinding?->label;
     }
     public function getSyncedAt(): ?\DateTimeImmutable
     {

@@ -26,42 +26,47 @@ app_mail_sidebar_counts.
           aria-hidden="true"></span>
 {% endmacro %}
 
-{% macro label_node(node, depth, drawerClose) %}
+{#
+Takes a Label directly — labels are user-scoped, so there is no per-account
+merging left to do and no view model between the entity and the template.
+#}
+{% macro label_node(label, depth, drawerClose) %}
     {% import _self as macros %}
+    {% set children = sidebarCounts.visibleChildrenOf(label) %}
 
-    {% if node.children|length > 0 %}
+    {% if children|length > 0 %}
         <details class="group/tree" open>
             <summary class="flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer list-none
                             hover:bg-hover transition-colors"
                      style="padding-left: {{ 12 + depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
-                {{ macros.label_dot(node.color) }}
-                <a href="{{ path('app_mail_label_path', { path: node.path }) }}"
+                {{ macros.label_dot(label.color) }}
+                <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-sidebar-target="link"
                    data-action="{{ drawerClose }}">
-                    <span class="truncate">{{ node.name }}</span>
-                    {{ macros.unread_badge(sidebarCounts.forNode(node), 'node:' ~ node.path) }}
+                    <span class="truncate">{{ label.name }}</span>
+                    {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
                 </a>
             </summary>
             <div class="space-y-0.5">
-                {% for child in node.children %}
+                {% for child in children %}
                     {{ macros.label_node(child, depth + 1, drawerClose) }}
                 {% endfor %}
             </div>
         </details>
     {% else %}
-        <a href="{{ path('app_mail_label_path', { path: node.path }) }}"
+        <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
            class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
                   hover:bg-hover"
            style="padding-left: {{ 12 + depth * 14 + 16 }}px"
            data-sidebar-target="link"
            data-action="{{ drawerClose }}">
-            {{ macros.label_dot(node.color) }}
+            {{ macros.label_dot(label.color) }}
             <span class="flex-1 flex items-center justify-between gap-2 truncate">
-                <span class="truncate">{{ node.name }}</span>
-                {{ macros.unread_badge(sidebarCounts.forNode(node), 'node:' ~ node.path) }}
+                <span class="truncate">{{ label.name }}</span>
+                {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
             </span>
         </a>
     {% endif %}

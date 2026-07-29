@@ -95,6 +95,9 @@ class ResetDataCommand extends Command
         ];
 
         if (true === $deleteMailboxes) {
+            // Before label: label_binding FKs both, and mailbox is referenced
+            // by binding.mailbox_id.
+            $tables[] = 'label_binding';
             $tables[] = 'label';
             $tables[] = 'mailbox';
         }

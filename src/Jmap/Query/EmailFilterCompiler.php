@@ -140,8 +140,12 @@ final class EmailFilterCompiler
     {
         $name = $this->bind($this->requireIntish($value, 'inMailbox'), $parameters);
 
+        // A JMAP Mailbox id is a label_binding id; message_label stores label
+        // ids. The subquery bridges the two id spaces.
         return sprintf(
-            'EXISTS (SELECT 1 FROM message_label ml WHERE ml.message_id = m.id AND ml.label_id = :%s)',
+            'EXISTS (SELECT 1 FROM message_label ml
+                     WHERE ml.message_id = m.id
+                       AND ml.label_id = (SELECT lb.label_id FROM label_binding lb WHERE lb.id = :%s))',
             $name,
         );
     }
@@ -164,7 +168,9 @@ final class EmailFilterCompiler
         $name = $this->bind($ids, $parameters);
 
         return sprintf(
-            'EXISTS (SELECT 1 FROM message_label ml WHERE ml.message_id = m.id AND ml.label_id NOT IN (:%s))',
+            'EXISTS (SELECT 1 FROM message_label ml
+                     WHERE ml.message_id = m.id
+                       AND ml.label_id NOT IN (SELECT lb.label_id FROM label_binding lb WHERE lb.id IN (:%s)))',
             $name,
         );
     }

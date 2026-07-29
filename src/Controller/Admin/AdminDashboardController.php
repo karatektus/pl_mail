@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Entity\User;
 use App\Repository\LogEntryRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\QueueMonitor;
+use App\Service\Monitoring\WorkerRestartSignal;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,6 +37,7 @@ final class AdminDashboardController extends AbstractController
         private readonly QueueMonitor           $queueMonitor,
         private readonly LogEntryRepository     $logEntryRepository,
         private readonly DbPerformanceService   $dbPerformance,
+        private readonly WorkerRestartSignal    $restartSignal,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -57,7 +60,16 @@ final class AdminDashboardController extends AbstractController
     #[Route('/live', name: 'live')]
     public function live(): Response
     {
+        $restartRequestedAt = $this->restartSignal->requestedAt();
+
         return $this->render('admin/_live_frame.html.twig', [
+            // Seconds since a restart was asked for, or null. The Processes
+            // card needs it because a restart clears heartbeat rows instead of
+            // reddening them, so rows vanishing is expected, not an outage.
+            'restartRequestedAgo' => null === $restartRequestedAt
+                ? null
+                : (int) (microtime(true) - $restartRequestedAt),
+            'collapsedPanels' => $this->collapsedPanels(),
             'heartbeats'      => $this->monitoring->heartbeats(),
             'webhooks'        => $this->monitoring->gmailWebhooks(),
             'pushDiagnostics' => $this->monitoring->gmailPushDiagnostics(),
@@ -132,6 +144,7 @@ final class AdminDashboardController extends AbstractController
     public function db(): Response
     {
         return $this->render('admin/_db_frame.html.twig', [
+            'collapsedPanels'         => $this->collapsedPanels(),
             'statStatementsAvailable' => $this->dbPerformance->isStatStatementsAvailable(),
             'slowestByMean'           => $this->dbPerformance->slowestByMean(),
             'heaviestByTotal'         => $this->dbPerformance->heaviestByTotal(),
@@ -175,6 +188,21 @@ final class AdminDashboardController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Panels this user has collapsed. Rendered server-side rather than
+     * restored by JavaScript, so the page never flashes every panel open
+     * before collapsing them.
+     *
+     * @return list<string>
+     */
+    private function collapsedPanels(): array
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        return $user->getCollapsedAdminPanels();
+    }
 
     private function validateCsrf(Request $request, string $id): void
     {

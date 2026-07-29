@@ -85,16 +85,15 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
         $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForAccount(LabelRole::Inbox, $account);
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
 
         // Propagate BEFORE re-pointing mailboxes so the IMAP job captures
         // the correct source folders.
         $this->propagator->archive($messages);
 
-        $archiveMailbox = $this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label'   => $this->labelResolver->systemLabel(LabelRole::Archive, $account),
-        ]);
+        $archiveMailbox = $this->labelResolver
+            ->systemLabel(LabelRole::Archive, $account)
+            ->bindingFor($account)?->mailbox;
 
         foreach ($messages as $message) {
             if (null !== $inboxLabel) {
@@ -122,15 +121,12 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
         $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForAccount(LabelRole::Inbox, $account);
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
 
         $this->propagator->trash($messages);
 
-        $trashMailbox = $this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label'   => $trashLabel,
-        ]);
+        $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
 
         foreach ($messages as $message) {
             $message->addLabel($trashLabel);
@@ -168,7 +164,7 @@ class ThreadStatusController extends AbstractController
 
         $label = $this->labelRepository->find($labelId);
 
-        if (null === $label || $label->account?->getUsr() !== $this->getUser()) {
+        if (null === $label || $label->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 

@@ -18,6 +18,14 @@ framework:
             messenger.bus.default: []
 
         routing:
+            # Admin "run now" buttons dispatch this; the scheduler dispatches
+            # it too, but on its own transport. Routing matters: unrouted, a
+            # RunCommandMessage executes synchronously in whatever process
+            # dispatched it — for the admin panel that means a maintenance
+            # sweep running inside the HTTP request, under the web container's
+            # time and memory limits. The tradeoff of routing it here is that a
+            # long sweep occupies the async consumer while it runs.
+            Symfony\Component\Console\Messenger\RunCommandMessage: async
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async

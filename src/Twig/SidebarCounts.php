@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Enum\LabelRole;
-use App\Domain\Model\LabelTreeNode;
 use App\Entity\Label;
 use App\Repository\LabelRepository;
 use App\Repository\MessageThreadRepository;
@@ -14,10 +13,11 @@ use Symfony\Bundle\SecurityBundle\Security;
 /**
  * Per-request cache of sidebar counts and the user label tree.
  *
- * Since labels are per-account rows, the sidebar merges same-named labels
- * across all active accounts into one LabelTreeNode per path — two Gmail
- * accounts each carrying "Templates" render as a single entry whose unread
- * badge sums both.
+ * Labels are user-scoped, so the tree is read straight from the repository.
+ * This class used to merge same-named labels across accounts into a
+ * LabelTreeNode per path — reconstructing at render time the unified label the
+ * data model did not have. LabelBinding made that entity real, so the merge,
+ * the node DTO and the id-summing counters are gone.
  */
 class SidebarCounts
 {
@@ -55,23 +55,6 @@ class SidebarCounts
         return $this->labelCounts[(int) $label->id] ?? 0;
     }
 
-    /**
-     * Unread total of a merged tree node — the sum over every underlying
-     * Label row across accounts.
-     */
-    public function forNode(LabelTreeNode $node): int
-    {
-        $this->loadLabelCounts();
-
-        $sum = 0;
-
-        foreach ($node->labelIds as $labelId) {
-            $sum += $this->labelCounts[$labelId] ?? 0;
-        }
-
-        return $sum;
-    }
-
     public function forStarred(): int
     {
         if (null === $this->starredCount) {
@@ -88,10 +71,10 @@ class SidebarCounts
     }
 
     /**
-     * Merged user label tree (custom labels only) across all active
-     * accounts, one node per path, sorted case-insensitively per level.
+     * Visible custom labels as a root-level list; children hang off
+     * Label::$children and the template recurses.
      *
-     * @return LabelTreeNode[]
+     * @return Label[]
      */
     public function userLabelTree(): array
     {
@@ -103,20 +86,45 @@ class SidebarCounts
                     continue;
                 }
 
-                $this->mergeInto($roots, $label, '');
+                $roots[] = $label;
             }
 
-            $this->sortNodes($roots);
+            usort($roots, function (Label $a, Label $b): int {
+                return mb_strtolower((string) $a->name) <=> mb_strtolower((string) $b->name);
+            });
 
-            $this->userLabelTree = array_values($roots);
+            $this->userLabelTree = $roots;
         }
 
         return $this->userLabelTree;
     }
 
     /**
-     * True when at least one account has its Archive label switched
-     * visible — controls the Archive entry in the system nav block.
+     * Visible children of a label, alphabetically — the template's recursion
+     * step. Keeps the "hidden labels stay hidden" rule in one place.
+     *
+     * @return Label[]
+     */
+    public function visibleChildrenOf(Label $label): array
+    {
+        $children = [];
+
+        foreach ($label->children as $child) {
+            if (true === $child->isVisible) {
+                $children[] = $child;
+            }
+        }
+
+        usort($children, function (Label $a, Label $b): int {
+            return mb_strtolower((string) $a->name) <=> mb_strtolower((string) $b->name);
+        });
+
+        return $children;
+    }
+
+    /**
+     * True when the user's Archive label is switched visible — controls the
+     * Archive entry in the system nav block.
      */
     public function hasVisibleArchive(): bool
     {
@@ -140,11 +148,7 @@ class SidebarCounts
     {
         $flat = [];
 
-        foreach ($this->getVisibleLabels() as $label) {
-            if (true === $label->isSystem || null !== $label->parent) {
-                continue;
-            }
-
+        foreach ($this->userLabelTree() as $label) {
             $this->flattenInto($flat, $label);
         }
 
@@ -187,60 +191,13 @@ class SidebarCounts
     }
 
     /**
-     * @param array<string, LabelTreeNode> $bucket
-     */
-    private function mergeInto(array &$bucket, Label $label, string $parentPath): void
-    {
-        $name = (string) $label->name;
-        $key  = mb_strtolower($name);
-        $path = '' !== $parentPath ? $parentPath . '/' . $name : $name;
-
-        if (false === array_key_exists($key, $bucket)) {
-            $bucket[$key] = new LabelTreeNode($name, $path);
-        }
-
-        $node = $bucket[$key];
-
-        $node->labelIds[] = (int) $label->id;
-
-        if (null === $node->color && null !== $label->color) {
-            $node->color = $label->color;
-        }
-
-        foreach ($label->children as $child) {
-            if (true !== $child->isVisible) {
-                continue;
-            }
-
-            $this->mergeInto($node->children, $child, $node->path);
-        }
-    }
-
-    /**
-     * @param array<string, LabelTreeNode> $nodes
-     */
-    private function sortNodes(array &$nodes): void
-    {
-        ksort($nodes);
-
-        foreach ($nodes as $node) {
-            $this->sortNodes($node->children);
-            $node->children = array_values($node->children);
-        }
-    }
-
-    /**
      * @param Label[] $flat
      */
     private function flattenInto(array &$flat, Label $label): void
     {
         $flat[] = $label;
 
-        foreach ($label->children as $child) {
-            if (true !== $child->isVisible) {
-                continue;
-            }
-
+        foreach ($this->visibleChildrenOf($label) as $child) {
             $this->flattenInto($flat, $child);
         }
     }

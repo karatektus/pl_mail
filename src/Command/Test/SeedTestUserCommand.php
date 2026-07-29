@@ -48,7 +48,8 @@ final class SeedTestUserCommand extends Command
     {
         $this
             ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Override the seeded email')
-            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Override the seeded password');
+            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Override the seeded password')
+            ->addOption('admin', null, InputOption::VALUE_NONE, 'Seed with ROLE_ADMIN as well');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -69,6 +70,16 @@ final class SeedTestUserCommand extends Command
             ?? $_SERVER['APP_DEV_USER_PASSWORD']
             ?? 'e2e-password-change-me';
 
+        // Seeded up front rather than promoted later: changing a user's roles
+        // makes Symfony consider the token stale and deauthenticates every
+        // existing session, so promoting mid-suite would log out the shared
+        // storage state the other specs run on.
+        $roles = [User::ROLE_USER];
+
+        if (true === $input->getOption('admin')) {
+            $roles[] = User::ROLE_ADMIN;
+        }
+
         $user = $this->userRepository->findOneBy(['email' => $email]);
         $created = false;
 
@@ -77,11 +88,12 @@ final class SeedTestUserCommand extends Command
             $user
                 ->setEmail($email)
                 ->setNameFirst('E2E')
-                ->setNameLast('Tester')
-                ->setRoles([User::ROLE_USER]);
+                ->setNameLast('Tester');
 
             $created = true;
         }
+
+        $user->setRoles($roles);
 
         $user->setPassword(
             $this->passwordHasher->hashPassword($user, $plainPassword)

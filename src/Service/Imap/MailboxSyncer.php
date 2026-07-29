@@ -91,8 +91,12 @@ readonly class MailboxSyncer
             ['\\Inbox', '\\Junk'],
             true,
         ));
-        $this->hydrate($mailbox, $folder, $account);
+        // Persist before hydrate: hydrate() binds the folder to a label, and
+        // LabelResolver flushes to mint the binding id — the mailbox has to be
+        // managed by then or the binding's FK points at nothing. Every
+        // non-nullable column is set inside hydrate() before that flush.
         $this->em->persist($mailbox);
+        $this->hydrate($mailbox, $folder, $account);
     }
 
     private function update(Mailbox $mailbox, Folder $folder, Account $account): void
@@ -115,8 +119,9 @@ readonly class MailboxSyncer
         $specialUse = $mailbox->getSpecialUse();
 
         if (null !== $specialUse) {
-            $mailbox->setLabel(
-                $this->labelResolver->systemLabel(LabelRole::fromSpecialUse($specialUse), $account)
+            $this->labelResolver->bindMailbox(
+                $this->labelResolver->systemLabel(LabelRole::fromSpecialUse($specialUse), $account),
+                $mailbox,
             );
 
             return;
@@ -131,7 +136,11 @@ readonly class MailboxSyncer
             $segments = [(string) $mailbox->getName()];
         }
 
-        $mailbox->setLabel($this->labelResolver->customChain($segments, $account));
+        $label = $this->labelResolver->customChain($segments, $account);
+
+        if (null !== $label) {
+            $this->labelResolver->bindMailbox($label, $mailbox);
+        }
     }
 
     private function detectSpecialUse(Folder $folder): ?MailboxSpecialUse

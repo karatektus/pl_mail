@@ -311,30 +311,21 @@ final class GmailMessageBuilder
         return MimeHeaderHelper::decode($value);
     }
 
+    /**
+     * Labels are user-scoped, so a label resolved against the carrier account
+     * IS the label the target account should carry — there is nothing to
+     * translate. What the target still needs is its own binding, so the label
+     * knows it is materialized there too.
+     *
+     * This used to rebuild the label under the target account by role or by
+     * full path, which is precisely the per-account duplication the unified
+     * model removes.
+     */
     private function translateLabel(Label $label, Account $target): Label
     {
-        if ($label->account === $target) {
-            return $label;
-        }
+        $this->localLabelResolver->binding($label, $target);
 
-        if (null !== $label->role) {
-            return $this->localLabelResolver->systemLabel($label->role, $target);
-        }
-
-        $translated = $this->localLabelResolver->customChain(
-            explode('/', (string) $label->fullName),
-            $target,
-        );
-
-        if (null === $translated) {
-            throw new \LogicException(sprintf(
-                'Could not translate label "%s" onto account %d',
-                (string) $label->fullName,
-                (int) $target->getId(),
-            ));
-        }
-
-        return $translated;
+        return $label;
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Repository\AccountRepository;
 use App\Repository\LabelRepository;
 use App\Repository\MessageRepository;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -32,6 +33,7 @@ final class ApplyGmailLabelsHandler
         private readonly MessageRepository      $messageRepository,
         private readonly LabelRepository        $labelRepository,
         private readonly GmailApiClient         $apiClient,
+        private readonly LabelResolver          $labelResolver,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface        $logger,
     ) {}
@@ -112,8 +114,8 @@ final class ApplyGmailLabelsHandler
 
             $label = $this->labelRepository->find((int) $entry);
 
-            if (null === $label || $label->account !== $account) {
-                $this->logger->warning('ApplyGmailLabelsHandler: label not found for account', [
+            if (null === $label || $label->usr !== $account->getUsr()) {
+                $this->logger->warning('ApplyGmailLabelsHandler: label not found for user', [
                     'labelId'   => $entry,
                     'accountId' => $account->getId(),
                 ]);
@@ -137,8 +139,12 @@ final class ApplyGmailLabelsHandler
      */
     private function ensureRemoteLabel(Label $label, Account $account): ?string
     {
-        if (null !== $label->gmailLabelId) {
-            return $label->gmailLabelId;
+        // Per-account: the same label may already be pushed to one Gmail
+        // account and still be local-only on another.
+        $binding = $this->labelResolver->binding($label, $account);
+
+        if (null !== $binding->gmailLabelId) {
+            return $binding->gmailLabelId;
         }
 
         try {
@@ -149,7 +155,9 @@ final class ApplyGmailLabelsHandler
                 return null;
             }
 
-            $label->setGmailLabelId($gmailLabelId);
+            $binding
+                ->setGmailLabelId($gmailLabelId)
+                ->setUpdatedAt(new \DateTimeImmutable());
             $this->em->flush();
 
             return $gmailLabelId;

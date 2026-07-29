@@ -128,12 +128,16 @@ final readonly class LabelChangePropagator
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
 
         // Graph: a folder-backed label is a move into that folder; a plain
-        // (category) label is derived from DB state by the handler.
-        if (true === $this->labelPolicy->pushesAsFolder($label)) {
-            $this->dispatchGraph($messages, static fn (): ?int => $label->id);
-        } else {
-            $this->dispatchGraph($messages);
-        }
+        // (category) label is derived from DB state by the handler. Folder
+        // backing is per-account (it lives on the binding), so the decision
+        // is made once per account group rather than once per call.
+        $this->dispatchGraph($messages, function (Account $account) use ($label): ?int {
+            if (true === $this->labelPolicy->pushesAsFolder($label, $account)) {
+                return $label->id;
+            }
+
+            return null;
+        });
     }
 
     /**
@@ -230,10 +234,8 @@ final readonly class LabelChangePropagator
         }
 
         foreach ($candidates as $candidate) {
-            $mailbox = $this->mailboxRepository->findOneBy([
-                'account' => $account,
-                'label'   => $candidate,
-            ]);
+            // The binding for this account is the folder link — no query.
+            $mailbox = $candidate->bindingFor($account)?->mailbox;
 
             if (null !== $mailbox) {
                 return $mailbox;
@@ -287,7 +289,7 @@ final readonly class LabelChangePropagator
 
             $account = $this->accountOf($message);
 
-            if (null === $account || false === $account->isGmail()) {
+            if (false === $account->isGmail()) {
                 continue;
             }
 
@@ -324,7 +326,7 @@ final readonly class LabelChangePropagator
 
             $account = $this->accountOf($message);
 
-            if (null === $account || false === $account->isMicrosoft()) {
+            if (false === $account->isMicrosoft()) {
                 continue;
             }
 
@@ -344,7 +346,7 @@ final readonly class LabelChangePropagator
 
     private function graphDestinationLabelId(Account $account, LabelRole $role): ?int
     {
-        $label = $this->labelRepository->findOneBy(['account' => $account, 'role' => $role]);
+        $label = $this->labelRepository->findOneByRoleForUser($role, $account->getUsr());
 
         if (null === $label) {
             $this->logger->warning('LabelChangePropagator: no destination label for Graph move', [
@@ -357,26 +359,15 @@ final readonly class LabelChangePropagator
 
         return $label->id;
     }
-    private function accountOf(Message $message): ?\App\Entity\Account
+    /**
+     * Message::$account is non-null, so this is direct now. It used to fall
+     * back to an attached label's account, which stopped being meaningful
+     * once labels became user-scoped — and was never needed, since every
+     * message has carried its own account all along.
+     */
+    private function accountOf(Message $message): Account
     {
-        $mailbox = $message->getMailbox();
-
-        if (null !== $mailbox) {
-            return $mailbox->getAccount();
-        }
-
-        // Gmail-API messages have no mailbox — resolve via any attached label.
-        foreach ($message->getLabels() as $label) {
-            if (null !== $label->account) {
-                return $label->account;
-            }
-        }
-
-        $this->logger->warning('LabelChangePropagator: message has no resolvable account', [
-            'messageId' => $message->getId(),
-        ]);
-
-        return null;
+        return $message->getAccount();
     }
 
     /**

@@ -5,22 +5,31 @@
     <span class="inline-block w-2 h-2 rounded-full {{ healthy ? 'bg-emerald-500' : 'bg-red-500' }}" aria-hidden="true"></span>
 {% endmacro %}
 
-{% macro card_open(icon, title) %}
-    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
-            <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
-        </div>
-{% endmacro %}
-
 {% import _self as ui %}
+{% import 'admin/_cards.html.twig' as cards %}
 
 <turbo-frame id="admin-live">
 
     <div class="space-y-6">
 
         {# ── Processes ─────────────────────────────────────────────────── #}
-        {{ ui.card_open('fa-heart-pulse', 'admin.processes.heading'|trans) }}
+        {{ cards.open('fa-heart-pulse', 'admin.processes.heading'|trans, 'processes', collapsedPanels) }}
+            {#
+            A restart CLEARS heartbeat rows rather than reddening them —
+            WorkerHeartbeatListener drops the row on clean shutdown. Without
+            this banner the table just loses rows for ~30s, which reads as an
+            outage rather than the restart the admin just asked for.
+            #}
+            {# 150s, not 30: measured worst case is the IMAP supervisor, which
+               only checks the signal once per 60s reconcile poll, plus its
+               children's shutdown and the container coming back. #}
+            {% if restartRequestedAgo is not null and restartRequestedAgo < 150 %}
+                <div class="flex items-start gap-2.5 px-5 py-3 border-b border-line alert-info text-sm text-accent">
+                    <i class="fa-solid fa-arrows-rotate mt-0.5 shrink-0 text-accent/70" aria-hidden="true"></i>
+                    <p>{{ 'admin.maintenance.restart_pending'|trans({ '%seconds%': restartRequestedAgo }) }}</p>
+                </div>
+            {% endif %}
+
             {% if heartbeats|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.processes.empty'|trans }}</p>
             {% else %}
@@ -49,12 +58,71 @@
                     </tbody>
                 </table>
             {% endif %}
-        </section>
+        {{ cards.close() }}
+
+        {# ── Maintenance ───────────────────────────────────────────────── #}
+        {{ cards.open('fa-screwdriver-wrench', 'admin.maintenance.heading'|trans, 'maintenance', collapsedPanels) }}
+            <div class="px-5 py-4 space-y-4">
+
+                <div>
+                    <p class="text-sm text-ink">{{ 'admin.maintenance.restart_title'|trans }}</p>
+                    <p class="mt-0.5 text-xs text-ink-faint">{{ 'admin.maintenance.restart_help'|trans }}</p>
+
+                    <form method="post" action="{{ path('app_admin_system_restart_workers') }}" data-turbo-frame="_top"
+                          data-turbo-confirm="{{ 'admin.maintenance.restart_confirm'|trans }}" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_restart_workers') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+                            {{ 'admin.maintenance.restart'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+                <div class="pt-4 border-t border-line">
+                    <p class="text-sm text-ink">{{ 'admin.maintenance.run_title'|trans }}</p>
+                    <p class="mt-0.5 text-xs text-ink-faint">{{ 'admin.maintenance.run_help'|trans }}</p>
+
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        {% for task, label in {
+                            'mail-sync':        'admin.maintenance.task.mail_sync',
+                            'push-renew':       'admin.maintenance.task.push_renew',
+                            'monitoring-prune': 'admin.maintenance.task.monitoring_prune',
+                            'prune-blobs':      'admin.maintenance.task.prune_blobs',
+                        } %}
+                            <form method="post" action="{{ path('app_admin_system_run', { task: task }) }}" data-turbo-frame="_top">
+                                <input type="hidden" name="_token" value="{{ csrf_token('admin_run_' ~ task) }}">
+                                <button type="submit"
+                                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-play text-[10px]" aria-hidden="true"></i>
+                                    {{ label|trans }}
+                                </button>
+                            </form>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-line">
+                    <p class="text-sm text-ink">{{ 'admin.maintenance.heartbeats_title'|trans }}</p>
+                    <p class="mt-0.5 text-xs text-ink-faint">{{ 'admin.maintenance.heartbeats_help'|trans }}</p>
+
+                    <form method="post" action="{{ path('app_admin_system_heartbeats_prune') }}" data-turbo-frame="_top" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_heartbeats_prune') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                            {{ 'admin.maintenance.heartbeats_prune'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        {{ cards.close() }}
 
         <div class="grid md:grid-cols-2 gap-6">
 
             {# ── Gmail webhooks ────────────────────────────────────────── #}
-            {{ ui.card_open('fa-satellite-dish', 'admin.webhooks.heading'|trans) }}
+            {{ cards.open('fa-satellite-dish', 'admin.webhooks.heading'|trans, 'webhooks', collapsedPanels) }}
                 {% if webhooks|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
                 {% else %}
@@ -155,10 +223,10 @@
                         <p class="mt-2 text-xs text-ink-faint">{{ 'admin.webhooks.delivery.info_logs_off'|trans }}</p>
                     {% endif %}
                 </div>
-            </section>
+            {{ cards.close() }}
 
             {# ── OAuth token health ────────────────────────────────────── #}
-            {{ ui.card_open('fa-key', 'admin.tokens.heading'|trans) }}
+            {{ cards.open('fa-key', 'admin.tokens.heading'|trans, 'tokens', collapsedPanels) }}
                 {% if tokenHealth|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
                 {% else %}
@@ -179,12 +247,12 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-            </section>
+            {{ cards.close() }}
 
         </div>
 
         {# ── Messenger queues ──────────────────────────────────────────── #}
-        {{ ui.card_open('fa-list-check', 'admin.queues.heading'|trans) }}
+        {{ cards.open('fa-list-check', 'admin.queues.heading'|trans, 'queues', collapsedPanels) }}
             {% if queueStats|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
             {% else %}
@@ -215,13 +283,36 @@
                     </tbody>
                 </table>
             {% endif %}
-        </section>
+        {{ cards.close() }}
 
         {# ── Failed messages ───────────────────────────────────────────── #}
-        {{ ui.card_open('fa-triangle-exclamation', 'admin.failed.heading'|trans) }}
+        {{ cards.open('fa-triangle-exclamation', 'admin.failed.heading'|trans, 'failed', collapsedPanels) }}
             {% if failedMessages|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
             {% else %}
+                {# Bulk actions: a bad deploy fails messages by the hundred,
+                   and the per-row buttons are not a recovery path. #}
+                <div class="flex items-center justify-end gap-2 px-5 py-2.5 border-b border-line bg-sunken">
+                    <form method="post" action="{{ path('app_admin_system_failed_retry_all') }}" data-turbo-frame="_top"
+                          data-turbo-confirm="{{ 'admin.failed.retry_all_confirm'|trans }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_failed_retry_all') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                            {{ 'admin.failed.retry_all'|trans }}
+                        </button>
+                    </form>
+                    <form method="post" action="{{ path('app_admin_system_failed_purge') }}" data-turbo-frame="_top"
+                          data-turbo-confirm="{{ 'admin.failed.purge_confirm'|trans }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_failed_purge') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer">
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                            {{ 'admin.failed.purge'|trans }}
+                        </button>
+                    </form>
+                </div>
+
                 <div class="divide-y divide-line">
                     {% for row in failedMessages %}
                         <div class="px-5 py-3 text-sm">
@@ -259,12 +350,12 @@
                     {% endfor %}
                 </div>
             {% endif %}
-        </section>
+        {{ cards.close() }}
 
         <div class="grid md:grid-cols-2 gap-6">
 
             {# ── Accounts ──────────────────────────────────────────────── #}
-            {{ ui.card_open('fa-at', 'admin.accounts.heading'|trans) }}
+            {{ cards.open('fa-at', 'admin.accounts.heading'|trans, 'accounts', collapsedPanels) }}
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
@@ -285,10 +376,10 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </section>
+            {{ cards.close() }}
 
             {# ── Table sizes ───────────────────────────────────────────── #}
-            {{ ui.card_open('fa-database', 'admin.tables.heading'|trans) }}
+            {{ cards.open('fa-database', 'admin.tables.heading'|trans, 'tables', collapsedPanels) }}
                 <table class="w-full text-sm">
                     <tbody>
                         {% for row in tableSizes %}
@@ -299,7 +390,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </section>
+            {{ cards.close() }}
 
         </div>
 

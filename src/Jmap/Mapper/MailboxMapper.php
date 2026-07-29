@@ -6,25 +6,35 @@ namespace App\Jmap\Mapper;
 
 use App\Domain\Enum\LabelRole;
 use App\Entity\Label;
+use App\Entity\LabelBinding;
 
 /**
- * Maps a plMail Label onto a JMAP Mailbox object (RFC 8621 §2). JMAP models
- * hierarchy via parentId, so "name" is the leaf name (Label::$name), not the
- * full path.
+ * Maps a plMail LabelBinding onto a JMAP Mailbox object (RFC 8621 §2). JMAP
+ * models hierarchy via parentId, so "name" is the leaf name (Label::$name),
+ * not the full path.
+ *
+ * The JMAP id is the BINDING id, not the label id. A JMAP account is a plMail
+ * Account, and labels are user-scoped — so the per-account binding is the
+ * thing that has a stable identity within one JMAP account. Counts are still
+ * keyed by label id, since that is what the message_label join stores.
  */
 final class MailboxMapper
 {
     /**
+     * @param array<int,int> $bindingIdByLabelId  label id => binding id, for
+     *        this account; used to express parentId in the binding id space
+     *
      * @return array<string,mixed>
      */
-    public function toJmap(Label $label, MailboxCounts $counts): array
+    public function toJmap(LabelBinding $binding, MailboxCounts $counts, array $bindingIdByLabelId = []): array
     {
+        $label    = $binding->label;
         $resolved = $counts->forLabel($label->id);
 
         return [
-            'id' => (string) $label->id,
+            'id' => (string) $binding->id,
             'name' => (string) $label->name,
-            'parentId' => $this->parentId($label),
+            'parentId' => $this->parentId($label, $bindingIdByLabelId),
             'role' => $this->roleOf($label),
             'sortOrder' => $label->sortOrder ?? 0,
             'totalEmails' => $resolved['totalEmails'],
@@ -38,12 +48,13 @@ final class MailboxMapper
 
     /**
      * @param list<string>|null $properties
+     * @param array<int,int>    $bindingIdByLabelId
      *
      * @return array<string,mixed>
      */
-    public function toJmapWithProperties(Label $label, MailboxCounts $counts, ?array $properties): array
+    public function toJmapWithProperties(LabelBinding $binding, MailboxCounts $counts, ?array $properties, array $bindingIdByLabelId = []): array
     {
-        $full = $this->toJmap($label, $counts);
+        $full = $this->toJmap($binding, $counts, $bindingIdByLabelId);
 
         if (null === $properties) {
             return $full;
@@ -61,13 +72,28 @@ final class MailboxMapper
         return $filtered;
     }
 
-    public function parentId(Label $label): ?string
+    /**
+     * The parent expressed as a binding id. A parent the account has no
+     * binding for is not a visible Mailbox there, so the child reports as
+     * top-level rather than pointing at an id the client cannot resolve.
+     *
+     * @param array<int,int> $bindingIdByLabelId
+     */
+    public function parentId(Label $label, array $bindingIdByLabelId = []): ?string
     {
-        if (null === $label->parent) {
+        $parent = $label->parent;
+
+        if (null === $parent) {
             return null;
         }
 
-        return (string) $label->parent->id;
+        $parentBindingId = $bindingIdByLabelId[(int) $parent->id] ?? null;
+
+        if (null === $parentBindingId) {
+            return null;
+        }
+
+        return (string) $parentBindingId;
     }
 
     /**

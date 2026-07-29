@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use App\Repository\AccountRepository;
 use App\Repository\LabelRepository;
 use App\Service\Graph\GraphLabelPolicy;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +35,7 @@ final readonly class ApplyLabelStructureHandler
         private GmailApiClient         $gmailApiClient,
         private GraphApiClient         $graphApiClient,
         private GraphLabelPolicy       $labelPolicy,
+        private LabelResolver          $labelResolver,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -95,7 +97,7 @@ final readonly class ApplyLabelStructureHandler
         }
 
         $created = $this->gmailApiClient->createLabel($account, $message->fullName);
-        $this->storeRemoteId($message->labelId, (string) ($created['id'] ?? ''), true);
+        $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), true);
     }
 
     private function applyGraph(Account $account, ApplyLabelStructureMessage $message): void
@@ -104,7 +106,7 @@ final readonly class ApplyLabelStructureHandler
 
         // A folder-backed label is a real mail folder; anything else is a
         // category. GraphLabelPolicy already owns that decision.
-        $asFolder = null !== $label && true === $this->labelPolicy->pushesAsFolder($label);
+        $asFolder = null !== $label && true === $this->labelPolicy->pushesAsFolder($label, $account);
 
         if (ApplyLabelStructureMessage::ACTION_DELETE === $message->action) {
             $this->deleteGraph($account, $message, $asFolder);
@@ -131,13 +133,13 @@ final readonly class ApplyLabelStructureHandler
                 $message->parentRemoteId,
             );
 
-            $this->storeRemoteId($message->labelId, (string) ($created['id'] ?? ''), false);
+            $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), false);
 
             return;
         }
 
         $created = $this->graphApiClient->createMasterCategory($account, $message->fullName);
-        $this->storeRemoteId($message->labelId, (string) ($created['id'] ?? ''), false);
+        $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), false);
     }
 
     private function deleteGraph(Account $account, ApplyLabelStructureMessage $message, bool $asFolder): void
@@ -164,8 +166,12 @@ final readonly class ApplyLabelStructureHandler
     /**
      * Write the provider's id back so the next inbound sync matches this label
      * instead of creating a duplicate.
+     *
+     * It lands on the binding, not the label: the id belongs to the
+     * (label, account) pair, and the same label pushed to two Gmail accounts
+     * gets two different ids.
      */
-    private function storeRemoteId(?int $labelId, string $remoteId, bool $gmail): void
+    private function storeRemoteId(Account $account, ?int $labelId, string $remoteId, bool $gmail): void
     {
         if (null === $labelId || '' === $remoteId) {
             return;
@@ -177,11 +183,15 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
+        $binding = $this->labelResolver->binding($label, $account);
+
         if (true === $gmail) {
-            $label->setGmailLabelId($remoteId);
+            $binding->setGmailLabelId($remoteId);
         } else {
-            $label->setGraphFolderId($remoteId);
+            $binding->setGraphFolderId($remoteId);
         }
+
+        $binding->setUpdatedAt(new \DateTimeImmutable());
 
         $this->em->flush();
     }

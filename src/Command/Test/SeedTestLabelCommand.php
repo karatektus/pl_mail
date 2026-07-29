@@ -8,6 +8,7 @@ use App\Entity\Label;
 use App\Repository\AccountRepository;
 use App\Repository\LabelRepository;
 use App\Repository\UserRepository;
+use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -38,6 +39,7 @@ final class SeedTestLabelCommand extends Command
         private readonly UserRepository         $userRepository,
         private readonly AccountRepository      $accountRepository,
         private readonly LabelRepository        $labelRepository,
+        private readonly LabelResolver          $labelResolver,
         #[Autowire('%kernel.environment%')]
         private readonly string                 $environment,
     ) {
@@ -75,11 +77,16 @@ final class SeedTestLabelCommand extends Command
         }
 
         $existing = $this->labelRepository->findOneBy([
-            'account' => $account,
-            'name'    => self::LABEL_NAME,
+            'usr'  => $user,
+            'name' => self::LABEL_NAME,
         ]);
 
         if (null !== $existing) {
+            // Still ensure the binding, so a re-seed after the account was
+            // recreated leaves the label materialized on it.
+            $this->labelResolver->binding($existing, $account);
+            $this->entityManager->flush();
+
             $io->success(sprintf('Custom label "%s" already present.', self::LABEL_NAME));
 
             return Command::SUCCESS;
@@ -87,11 +94,15 @@ final class SeedTestLabelCommand extends Command
 
         // Label's properties are private(set); the setters are the only way in.
         $label = new Label()
-            ->setAccount($account)
+            ->setUsr($user)
             ->setName(self::LABEL_NAME)
             ->setColor('blue');
 
         $this->entityManager->persist($label);
+        $this->entityManager->flush();
+
+        // Labels are user-scoped; the binding is what puts it on this account.
+        $this->labelResolver->binding($label, $account);
         $this->entityManager->flush();
 
         $io->success(sprintf('Seeded custom label "%s".', self::LABEL_NAME));

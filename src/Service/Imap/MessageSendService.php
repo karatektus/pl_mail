@@ -58,7 +58,7 @@ class MessageSendService
         }
 
         $sentLabel   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
-        $draftsLabel = $this->labelRepository->findOneByRoleForAccount(LabelRole::Drafts, $account);
+        $draftsLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Drafts, $account->getUsr());
 
         $message->addLabel($sentLabel);
 
@@ -70,10 +70,7 @@ class MessageSendService
         $message->setSentAt(new DateTimeImmutable());
 
         // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
-        $message->setMailbox($this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label'   => $sentLabel,
-        ]));
+        $message->setMailbox($sentLabel->bindingFor($account)?->mailbox);
 
         $this->em->flush();
 

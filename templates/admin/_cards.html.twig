@@ -1,0 +1,42 @@
+{#
+Admin panel chrome, shared by _live_frame and _db_frame (each used to carry its
+own copy of card_open).
+
+Cards are native <details>: collapsing needs no JavaScript, and the summary is
+keyboard-operable and screen-reader-labelled for free. The Stimulus controller
+only persists the state — if it fails or never loads, the panel still opens and
+closes, it just forgets.
+
+Collapsed state is stored per user, server-side, so it survives a new browser.
+Panels are keyed by a stable slug, and the *collapsed* set is what is stored —
+so a panel added later defaults to open without backfilling anyone's settings.
+
+Usage:
+    {% import 'admin/_cards.html.twig' as cards %}
+    {{ cards.open('fa-heart-pulse', 'Processes'|trans, 'processes', collapsedPanels) }}
+        …body…
+    {{ cards.close() }}
+#}
+
+{% macro open(icon, title, key, collapsedPanels) %}
+    <details
+        class="group/card rounded-pane border border-line bg-pane-soft overflow-hidden"
+        {% if key not in collapsedPanels %}open{% endif %}
+        data-controller="admin-panel"
+        data-admin-panel-key-value="{{ key }}"
+        data-admin-panel-url-value="{{ path('app_admin_panel_toggle') }}"
+        data-admin-panel-csrf-value="{{ csrf_token('admin_panel_' ~ key) }}"
+        data-action="toggle->admin-panel#persist"
+    >
+        <summary class="flex items-center gap-2.5 px-5 h-11 border-b border-line cursor-pointer list-none
+                        hover:bg-hover transition-colors select-none">
+            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
+                      transition-transform group-open/card:rotate-90" aria-hidden="true"></i>
+            <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+        </summary>
+{% endmacro %}
+
+{% macro close() %}
+    </details>
+{% endmacro %}

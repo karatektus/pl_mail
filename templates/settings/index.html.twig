@@ -167,10 +167,7 @@
 
                                             <div class="rounded-pane border border-line overflow-hidden">
                                                 <div id="settings-label-list">
-                                                    {% include 'settings/_labels.html.twig' with {
-                                                        manageableAccounts: manageableAccounts,
-                                                        labelsByAccount: labelsByAccount,
-                                                    } %}
+                                                    {% include 'settings/_labels.html.twig' with { labels: labels } %}
                                                 </div>
                                             </div>
                                         </section>

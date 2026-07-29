@@ -66,10 +66,13 @@ final readonly class GmailLabelSyncer
             }
 
             if (true === array_key_exists($gmailLabelId, self::SYSTEM_MAP)) {
-                $label = $this->labelResolver->systemLabel(self::SYSTEM_MAP[$gmailLabelId], $account);
+                $label   = $this->labelResolver->systemLabel(self::SYSTEM_MAP[$gmailLabelId], $account);
+                $binding = $this->labelResolver->binding($label, $account);
 
-                if ($label->gmailLabelId !== $gmailLabelId) {
-                    $label->setGmailLabelId($gmailLabelId);
+                if ($binding->gmailLabelId !== $gmailLabelId) {
+                    $binding
+                        ->setGmailLabelId($gmailLabelId)
+                        ->setUpdatedAt(new \DateTimeImmutable());
                 }
 
                 $synced++;
@@ -93,8 +96,12 @@ final readonly class GmailLabelSyncer
                 continue;
             }
 
-            if ($label->gmailLabelId !== $gmailLabelId) {
-                $label->setGmailLabelId($gmailLabelId);
+            $binding = $this->labelResolver->binding($label, $account);
+
+            if ($binding->gmailLabelId !== $gmailLabelId) {
+                $binding
+                    ->setGmailLabelId($gmailLabelId)
+                    ->setUpdatedAt(new \DateTimeImmutable());
             }
 
             if (true === $firstLink) {

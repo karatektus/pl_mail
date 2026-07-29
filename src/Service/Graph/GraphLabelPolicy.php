@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Entity\Account;
 use App\Entity\Label;
 use App\Entity\Message;
 
@@ -25,22 +26,25 @@ use App\Entity\Message;
  * without one is plMail-local, and categories are the only many-to-many
  * primitive Exchange offers.
  *
- * The discriminator needs no new column — it is already in the data.
+ * The discriminator needs no new column — it is already in the data. It does
+ * need an ACCOUNT, though: graphFolderId lives on LabelBinding since labels
+ * became user-scoped, so the same label can be folder-backed on one Exchange
+ * account and category-only on another.
  */
 final readonly class GraphLabelPolicy
 {
-    public function pushesAsFolder(Label $label): bool
+    public function pushesAsFolder(Label $label, Account $account): bool
     {
         if (null !== $label->role) {
             return true;
         }
 
-        return null !== $label->graphFolderId;
+        return null !== $label->bindingFor($account)?->graphFolderId;
     }
 
-    public function pushesAsCategory(Label $label): bool
+    public function pushesAsCategory(Label $label, Account $account): bool
     {
-        return false === $this->pushesAsFolder($label);
+        return false === $this->pushesAsFolder($label, $account);
     }
 
     /**
@@ -63,6 +67,7 @@ final readonly class GraphLabelPolicy
         usort($candidates, function (Label $a, Label $b): int {
             return $a->sortOrder <=> $b->sortOrder;
         });
+
 
         return $candidates[0];
     }
@@ -93,10 +98,11 @@ final readonly class GraphLabelPolicy
      */
     public function categoryNames(Message $message): array
     {
-        $names = [];
+        $names   = [];
+        $account = $message->getAccount();
 
         foreach ($message->getLabels() as $label) {
-            if (true === $this->pushesAsFolder($label)) {
+            if (true === $this->pushesAsFolder($label, $account)) {
                 continue;
             }
 
@@ -115,10 +121,11 @@ final readonly class GraphLabelPolicy
      */
     private function folderLabels(Message $message): array
     {
-        $labels = [];
+        $labels  = [];
+        $account = $message->getAccount();
 
         foreach ($message->getLabels() as $label) {
-            if (true === $this->pushesAsFolder($label)) {
+            if (true === $this->pushesAsFolder($label, $account)) {
                 $labels[] = $label;
             }
         }

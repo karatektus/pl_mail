@@ -6,13 +6,16 @@ namespace App\Jmap\Method\Mail;
 
 use App\Entity\Account;
 use App\Entity\Label;
+use App\Entity\LabelBinding;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
+use App\Repository\LabelBindingRepository;
 use App\Repository\LabelRepository;
+use App\Service\Label\LabelResolver;
 use App\Service\Label\LabelStructurePropagator;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -33,6 +36,8 @@ final class MailboxSetMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver $accountResolver,
         private readonly LabelRepository $labelRepository,
+        private readonly LabelBindingRepository $bindingRepository,
+        private readonly LabelResolver $labelResolver,
         private readonly LabelStructurePropagator $propagator,
         private readonly StateManager $stateManager,
         private readonly EntityManagerInterface $entityManager,
@@ -126,7 +131,7 @@ final class MailboxSetMethod implements JmapMethod
             }
 
             $label = new Label()
-                ->setAccount($account)
+                ->setUsr($account->getUsr())
                 ->setParent($parent)
                 ->setName($name)
                 ->setIsVisible(true !== ($properties['isSubscribed'] ?? true) ? false : true);
@@ -140,12 +145,16 @@ final class MailboxSetMethod implements JmapMethod
             // Mailbox state token must move before this method returns.
             $this->entityManager->flush();
 
+            // A JMAP Mailbox is a binding, so creating one materializes the
+            // label on this account; the binding's id is the Mailbox id.
+            // LabelResolver::binding() records the state change itself.
+            $binding = $this->labelResolver->binding($label, $account);
+
             $this->propagator->created($label);
-            $this->stateManager->recordCreated($account->getId(), JmapObjectType::Mailbox, (string) $label->id);
-            $context->recordCreatedId($creationId, (string) $label->id);
+            $context->recordCreatedId($creationId, (string) $binding->id);
 
             $created[$creationId] = [
-                'id' => (string) $label->id,
+                'id' => (string) $binding->id,
                 'sortOrder' => $label->sortOrder ?? 0,
                 'role' => null,
                 'totalEmails' => 0,
@@ -183,12 +192,14 @@ final class MailboxSetMethod implements JmapMethod
                 continue;
             }
 
-            $label = $this->findLabel($account, $context->resolveId($id) ?? $id);
+            $binding = $this->findBinding($account, $context->resolveId($id) ?? $id);
 
-            if (null === $label) {
+            if (null === $binding) {
                 $notUpdated[$id] = ['type' => 'notFound', 'description' => 'No such Mailbox in this account.'];
                 continue;
             }
+
+            $label = $binding->label;
 
             try {
                 $renamed = $this->applyPatch($account, $label, $patch, $context);
@@ -201,7 +212,7 @@ final class MailboxSetMethod implements JmapMethod
                 $this->propagator->renamed($label);
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Mailbox, (string) $label->id);
+            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
             $updated[$id] = null;
         }
     }
@@ -280,12 +291,14 @@ final class MailboxSetMethod implements JmapMethod
 
         foreach ($destroy as $id) {
             $id = (string) $id;
-            $label = $this->findLabel($account, $context->resolveId($id) ?? $id);
+            $binding = $this->findBinding($account, $context->resolveId($id) ?? $id);
 
-            if (null === $label) {
+            if (null === $binding) {
                 $notDestroyed[$id] = ['type' => 'notFound', 'description' => 'No such Mailbox in this account.'];
                 continue;
             }
+
+            $label = $binding->label;
 
             if (true === $label->isSystem) {
                 $notDestroyed[$id] = [
@@ -316,13 +329,53 @@ final class MailboxSetMethod implements JmapMethod
             }
 
             // Dispatch before removal: the propagator reads the remote id and
-            // name off the entity, and there is nothing to read afterwards.
+            // name off the bindings, and there is nothing to read afterwards.
             $this->propagator->deleted($label);
-            $this->stateManager->recordDestroyed($account->getId(), JmapObjectType::Mailbox, (string) $label->id);
+            $this->stateManager->recordDestroyed($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
 
-            $this->entityManager->remove($label);
+            // A Mailbox is per-account, so destroying one un-materializes the
+            // label HERE — it must not vanish from the user's other accounts.
+            // The label row only goes when its last binding does; that is also
+            // what drops the message_label rows, so mail stays labelled as long
+            // as any account still uses the label.
+            $this->detachAccountMessages($account, $label);
+            $this->entityManager->remove($binding);
+            $label->removeBinding($binding);
+
+            if (count($label->bindings) === 0) {
+                $this->entityManager->remove($label);
+            }
+
             $destroyed[] = $id;
         }
+    }
+
+    /**
+     * Detach a label from every message of one account, leaving the other
+     * accounts' messages labelled. Raw SQL because this is a bulk delete on a
+     * join table with no entity of its own.
+     */
+    private function detachAccountMessages(Account $account, Label $label): void
+    {
+        $connection = $this->entityManager->getConnection();
+
+        $connection->executeStatement(
+            'DELETE FROM message_label ml
+             USING message m
+             WHERE ml.message_id = m.id
+               AND ml.label_id = :labelId
+               AND m.account_id = :accountId',
+            ['labelId' => $label->id, 'accountId' => $account->getId()],
+        );
+
+        $connection->executeStatement(
+            'DELETE FROM thread_label tl
+             USING message_thread t
+             WHERE tl.message_thread_id = t.id
+               AND tl.label_id = :labelId
+               AND t.account_id = :accountId',
+            ['labelId' => $label->id, 'accountId' => $account->getId()],
+        );
     }
 
     private function requireName(mixed $name): string
@@ -378,7 +431,7 @@ final class MailboxSetMethod implements JmapMethod
      */
     private function assertNameFree(Account $account, ?Label $parent, string $name, ?Label $ignore = null): void
     {
-        $existing = $this->labelRepository->findOneChildByName($account, $parent, $name);
+        $existing = $this->labelRepository->findOneChildByName($account->getUsr(), $parent, $name);
 
         if (null === $existing) {
             return;
@@ -408,14 +461,23 @@ final class MailboxSetMethod implements JmapMethod
         }
     }
 
-    private function findLabel(Account $account, string $id): ?Label
+    /**
+     * JMAP Mailbox ids are LabelBinding ids, so an id only resolves when the
+     * label is actually materialized on the requesting account.
+     */
+    private function findBinding(Account $account, string $id): ?LabelBinding
     {
         if (false === ctype_digit($id)) {
             return null;
         }
 
-        $labels = $this->labelRepository->findByAccountAndIds($account->getId(), [(int) $id]);
+        $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->getId(), [(int) $id]);
 
-        return $labels[0] ?? null;
+        return $bindings[0] ?? null;
+    }
+
+    private function findLabel(Account $account, string $id): ?Label
+    {
+        return $this->findBinding($account, $id)?->label;
     }
 }

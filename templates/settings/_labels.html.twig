@@ -1,78 +1,67 @@
 {#
 settings/_labels.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Per-account label list with show/hide toggles.
+Label list with show/hide toggles.
+
+One flat list, not one section per account: labels are user-scoped, so
+"Receipts" is a single row regardless of how many accounts it is materialized
+on. Which accounts those are lives on LabelBinding and is deliberately not
+surfaced here.
 
 Variables:
-  manageableAccounts  Account[]
-  labelsByAccount     array<int, Label[]>  accountId → tree-ordered labels
+  labels  Label[]  tree-ordered (system block first, then the custom tree)
 #}
-{% if manageableAccounts is empty %}
+{% if labels is empty %}
     <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
-        {{ 'settings.accounts.empty'|trans }}
+        {{ 'settings.labels.empty'|trans }}
     </p>
 {% else %}
-    <div class="divide-y divide-line">
-        {% for account in manageableAccounts %}
-            {% set accountLabels = labelsByAccount[account.id]|default([]) %}
-            <div>
-                <p class="px-4 pt-3 pb-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">
-                    {{ account.displayAddress }}
-                </p>
+    <ul class="py-2 divide-y divide-line">
+        {% for label in labels %}
+            <li class="flex items-center gap-3 pr-4 py-1.5"
+                style="padding-left: {{ 16 + label.depth * 14 }}px">
 
-                {% if accountLabels|length == 0 %}
-                    <p class="px-4 pb-3 text-xs text-ink-faint italic">{{ 'settings.labels.empty'|trans }}</p>
+                {% if label.isSystem %}
+                    <i class="fa-solid fa-inbox w-3.5 text-xs text-ink-faint shrink-0" aria-hidden="true"></i>
                 {% else %}
-                    <ul class="pb-2">
-                        {% for label in accountLabels %}
-                            <li class="flex items-center gap-3 pr-4 py-1.5"
-                                style="padding-left: {{ 16 + label.depth * 14 }}px">
-
-                                {% if label.isSystem %}
-                                    <i class="fa-solid fa-inbox w-3.5 text-xs text-ink-faint shrink-0" aria-hidden="true"></i>
-                                {% else %}
-                                    <span class="w-2.5 h-2.5 rounded-full shrink-0
-                                        {{ {
-                                            'gray':   'bg-ink-faint',
-                                            'red':    'bg-red-500',
-                                            'orange': 'bg-orange-500',
-                                            'amber':  'bg-amber-500',
-                                            'green':  'bg-green-500',
-                                            'teal':   'bg-teal-500',
-                                            'blue':   'bg-accent',
-                                            'violet': 'bg-violet-500',
-                                            'pink':   'bg-pink-500',
-                                        }[label.color ?? 'gray'] ?? 'bg-ink-faint' }}"
-                                        aria-hidden="true"></span>
-                                {% endif %}
-
-                                <span class="flex-1 min-w-0 flex items-center gap-2">
-                                    <span class="truncate text-sm {{ label.isVisible ? 'text-ink' : 'text-ink-faint' }}">
-                                        {{ label.name }}
-                                    </span>
-                                    {% if label.isSystem %}
-                                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted">
-                                            {{ 'settings.labels.system'|trans }}
-                                        </span>
-                                    {% endif %}
-                                </span>
-
-                                <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
-                                    <button
-                                        type="submit"
-                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
-                                        aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
-                                        title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
-                                    >
-                                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
-                                    </button>
-                                </form>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0
+                        {{ {
+                            'gray':   'bg-ink-faint',
+                            'red':    'bg-red-500',
+                            'orange': 'bg-orange-500',
+                            'amber':  'bg-amber-500',
+                            'green':  'bg-green-500',
+                            'teal':   'bg-teal-500',
+                            'blue':   'bg-accent',
+                            'violet': 'bg-violet-500',
+                            'pink':   'bg-pink-500',
+                        }[label.color ?? 'gray'] ?? 'bg-ink-faint' }}"
+                        aria-hidden="true"></span>
                 {% endif %}
-            </div>
+
+                <span class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="truncate text-sm {{ label.isVisible ? 'text-ink' : 'text-ink-faint' }}">
+                        {{ label.name }}
+                    </span>
+                    {% if label.isSystem %}
+                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted">
+                            {{ 'settings.labels.system'|trans }}
+                        </span>
+                    {% endif %}
+                </span>
+
+                <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
+                    <button
+                        type="submit"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                        title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                    >
+                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </li>
         {% endfor %}
-    </div>
+    </ul>
 {% endif %}

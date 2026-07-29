@@ -6,6 +6,7 @@ namespace App\Service\Label;
 
 use App\Entity\Account;
 use App\Entity\Label;
+use App\Entity\LabelBinding;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -56,28 +57,38 @@ final readonly class LabelStructurePropagator
         $this->dispatch($label, ApplyLabelStructureMessage::ACTION_DELETE);
     }
 
+    /**
+     * A label is now one user-level row materialized on N accounts, so a
+     * structure change fans out to one job per binding — each account gets its
+     * own remote id and its own labelSyncEnabled check.
+     *
+     * A label with no bindings has never been used on any account and has
+     * nothing to propagate.
+     */
     private function dispatch(Label $label, string $action): void
     {
-        $account = $label->account;
-
-        if (null === $account || false === $this->isEnabled($account)) {
-            return;
-        }
-
         // System labels map onto provider built-ins (INBOX, SENT, …) that
         // cannot be created, renamed or deleted through the API.
         if (true === $label->isSystem) {
             return;
         }
 
-        $this->bus->dispatch(new ApplyLabelStructureMessage(
-            accountId: (int) $account->getId(),
-            action: $action,
-            labelId: $label->id,
-            fullName: $label->fullName,
-            remoteId: $this->remoteIdOf($label),
-            parentRemoteId: null === $label->parent ? null : $this->remoteIdOf($label->parent),
-        ));
+        foreach ($label->bindings as $binding) {
+            $account = $binding->account;
+
+            if (null === $account || false === $this->isEnabled($account)) {
+                continue;
+            }
+
+            $this->bus->dispatch(new ApplyLabelStructureMessage(
+                accountId: (int) $account->getId(),
+                action: $action,
+                labelId: $label->id,
+                fullName: $label->fullName,
+                remoteId: $this->remoteIdOf($binding),
+                parentRemoteId: $this->remoteIdOf($label->parent?->bindingFor($account)),
+            ));
+        }
     }
 
     private function isEnabled(Account $account): bool
@@ -85,8 +96,8 @@ final readonly class LabelStructurePropagator
         return true === $account->isLabelSyncEnabled();
     }
 
-    private function remoteIdOf(Label $label): ?string
+    private function remoteIdOf(?LabelBinding $binding): ?string
     {
-        return $label->gmailLabelId ?? $label->graphFolderId;
+        return $binding?->gmailLabelId ?? $binding?->graphFolderId;
     }
 }

@@ -69,10 +69,7 @@ final class JmapDraftWriter
         $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
 
         $message->addLabel($draftsLabel);
-        $message->setMailbox($this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label' => $draftsLabel,
-        ]));
+        $message->setMailbox($draftsLabel->bindingFor($account)?->mailbox);
     }
 
     /**

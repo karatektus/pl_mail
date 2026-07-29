@@ -16,19 +16,25 @@ use Doctrine\ORM\Mapping as ORM;
  * Mailbox is demoted to pure IMAP sync infrastructure and links to the
  * Label it feeds via Mailbox::$label.
  *
+ * A Label belongs to the USER, not to an account. Where a label is
+ * materialized provider-side is recorded per account on LabelBinding, so one
+ * "Receipts" spans every account instead of existing once per account and
+ * being re-merged by name at render time. That merge used to live in
+ * SidebarCounts; the unified inbox falls out of this model rather than being
+ * reconstructed on top of it.
+ *
  * System labels carry a LabelRole; user-created labels have role = null.
  * Nesting is modelled via the parent self-reference (Gmail "Work/Invoices"
  * semantics; IMAP subfolder hierarchy maps onto the same tree).
  *
- * Name uniqueness per (account, parent) is enforced at the service layer
- * (find-or-create), not by a DB constraint — a partial/COALESCE unique
- * index cannot be expressed in Doctrine attributes and would cause
- * schema-diff drift.
+ * Name uniqueness per (usr, parent) is enforced at the service layer
+ * (find-or-create), not by a DB constraint — a partial/COALESCE unique index
+ * cannot be expressed in Doctrine attributes and would cause schema-diff
+ * drift.
  */
 #[ORM\Entity(repositoryClass: LabelRepository::class)]
 #[ORM\Table(name: 'label')]
-#[ORM\Index(name: 'idx_label_account', columns: ['account_id'])]
-#[ORM\Index(name: 'idx_label_gmail_label_id', columns: ['gmail_label_id'])]
+#[ORM\Index(name: 'idx_label_usr', columns: ['usr_id'])]
 class Label
 {
     #[ORM\Id]
@@ -38,7 +44,7 @@ class Label
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    public private(set) ?Account $account = null;
+    public private(set) ?User $usr = null;
 
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
@@ -61,18 +67,14 @@ class Label
     public private(set) ?LabelRole $role = null;
 
     /**
-     * Gmail API label id (e.g. "INBOX", "Label_123"). Null for labels on
-     * plain IMAP accounts and for local-only labels not yet pushed.
+     * Per-account materialization. Provider ids (Gmail label id, Graph folder
+     * id) live here, not on the label itself — the same label can exist on a
+     * Gmail account and an IMAP account at once.
+     *
+     * @var Collection<int, LabelBinding>
      */
-    #[ORM\Column(length: 255, nullable: true)]
-    public private(set) ?string $gmailLabelId = null;
-
-    #[ORM\Column(length: 512, nullable: true)]
-    public ?string $graphFolderId = null {
-        set (?string $value) {
-            $this->graphFolderId = $value;
-        }
-    }
+    #[ORM\OneToMany(targetEntity: LabelBinding::class, mappedBy: 'label', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    public private(set) Collection $bindings;
 
     /**
      * Optional UI color (Tailwind token or hex, decided in Phase 5).
@@ -129,13 +131,46 @@ class Label
     public function __construct()
     {
         $this->children = new ArrayCollection();
+        $this->bindings = new ArrayCollection();
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
     }
 
-    public function setAccount(?Account $account): static
+    public function setUsr(?User $usr): static
     {
-        $this->account = $account;
+        $this->usr = $usr;
+
+        return $this;
+    }
+
+    /**
+     * The materialization of this label on one account, or null when the
+     * label has never been used there. LabelResolver::binding() is the
+     * find-or-create counterpart.
+     */
+    public function bindingFor(Account $account): ?LabelBinding
+    {
+        foreach ($this->bindings as $binding) {
+            if ($binding->account === $account) {
+                return $binding;
+            }
+        }
+
+        return null;
+    }
+
+    public function addBinding(LabelBinding $binding): static
+    {
+        if (false === $this->bindings->contains($binding)) {
+            $this->bindings->add($binding);
+        }
+
+        return $this;
+    }
+
+    public function removeBinding(LabelBinding $binding): static
+    {
+        $this->bindings->removeElement($binding);
 
         return $this;
     }
@@ -178,20 +213,6 @@ class Label
     public function setRole(?LabelRole $role): static
     {
         $this->role = $role;
-
-        return $this;
-    }
-
-    public function setGmailLabelId(?string $gmailLabelId): static
-    {
-        $this->gmailLabelId = $gmailLabelId;
-
-        return $this;
-    }
-
-    public function setGraphFolderId(?string $graphFolderId): static
-    {
-        $this->graphFolderId = $graphFolderId;
 
         return $this;
     }

@@ -45,16 +45,10 @@ final class SettingsController extends AbstractController
 
         $manageableAccounts = $this->accountRepository->findForUserOrderedByName($this->getUser());
 
-        $labelsByAccount = [];
-
-        foreach ($manageableAccounts as $account) {
-            $labelsByAccount[$account->getId()] = $this->labelRepository->findForAccountTreeOrdered($account);
-        }
-
         return $this->render('settings/index.html.twig', [
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
-            'labelsByAccount'    => $labelsByAccount,
+            'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),

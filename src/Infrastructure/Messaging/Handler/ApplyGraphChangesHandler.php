@@ -153,19 +153,21 @@ final class ApplyGraphChangesHandler
             return [];
         }
 
-        if (false === $this->labelPolicy->pushesAsFolder($label)) {
+        if (false === $this->labelPolicy->pushesAsFolder($label, $account)) {
             $this->logger->warning('ApplyGraphChangesHandler: move requested onto a non-folder label', [
-                'labelId' => $moveToLabel,
+                'labelId'   => $moveToLabel,
+                'accountId' => $account->getId(),
             ]);
 
             return [];
         }
 
-        $folderId = $label->graphFolderId;
+        $folderId = $label->bindingFor($account)?->graphFolderId;
 
         if (null === $folderId || '' === $folderId) {
-            $this->logger->warning('ApplyGraphChangesHandler: folder label has no graphFolderId', [
-                'labelId' => $moveToLabel,
+            $this->logger->warning('ApplyGraphChangesHandler: folder label has no graphFolderId on this account', [
+                'labelId'   => $moveToLabel,
+                'accountId' => $account->getId(),
             ]);
 
             return [];

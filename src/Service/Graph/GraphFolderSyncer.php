@@ -6,7 +6,7 @@ namespace App\Service\Graph;
 
 use App\Domain\Enum\LabelRole;
 use App\Entity\Account;
-use App\Repository\LabelRepository;
+use App\Repository\LabelBindingRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -93,7 +93,7 @@ final readonly class GraphFolderSyncer
     public function __construct(
         private GraphApiClient         $apiClient,
         private LabelResolver          $labelResolver,
-        private LabelRepository        $labelRepository,
+        private LabelBindingRepository $bindingRepository,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -153,26 +153,32 @@ final readonly class GraphFolderSyncer
             }
 
             // Folder ids are mutable, so re-link whenever it has drifted.
-            if ($label->graphFolderId !== $id) {
-                $label->setGraphFolderId($id);
+            $binding = $this->labelResolver->binding($label, $account);
+
+            if ($binding->graphFolderId !== $id) {
+                $binding
+                    ->setGraphFolderId($id)
+                    ->setUpdatedAt(new \DateTimeImmutable());
             }
 
             $syncable[] = $id;
             $synced++;
         }
 
-        // Drop stale links: a label pointing at a folder that no longer exists
-        // keeps its row (the user may have local mail filed under it) but loses
-        // the dead id so it cannot mis-resolve.
-        foreach ($this->labelRepository->findWithGraphFolderIdForAccount($account) as $label) {
-            $linkedId = $label->graphFolderId;
+        // Drop stale links: a binding pointing at a folder that no longer
+        // exists keeps its row (the user may have local mail filed under the
+        // label) but loses the dead id so it cannot mis-resolve.
+        foreach ($this->bindingRepository->findWithGraphFolderIdForAccount($account) as $binding) {
+            $linkedId = $binding->graphFolderId;
 
             if (null === $linkedId) {
                 continue;
             }
 
             if (false === array_key_exists($linkedId, $byId)) {
-                $label->setGraphFolderId(null);
+                $binding
+                    ->setGraphFolderId(null)
+                    ->setUpdatedAt(new \DateTimeImmutable());
             }
         }
 

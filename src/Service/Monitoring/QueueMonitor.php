@@ -133,7 +133,64 @@ final class QueueMonitor
         return true;
     }
 
+    /**
+     * Re-dispatch every failed message. A bad deploy fails messages in bulk,
+     * and clearing that one row at a time is not a realistic recovery.
+     *
+     * The envelope list is materialised before anything is dispatched:
+     * retried messages can fail again and land straight back in this
+     * transport, so iterating the live receiver could keep finding work and
+     * never terminate.
+     *
+     * @return int messages re-dispatched
+     */
+    public function retryAll(): int
+    {
+        $retried = 0;
+
+        foreach ($this->allFailed() as $envelope) {
+            $this->bus->dispatch($envelope->getMessage());
+            $this->failureTransport->reject($envelope);
+            $retried++;
+        }
+
+        return $retried;
+    }
+
+    /**
+     * Drop every failed message without re-dispatching. Destructive: the
+     * messages are gone, so the UI guards this with a confirmation.
+     *
+     * @return int messages dropped
+     */
+    public function purgeAll(): int
+    {
+        $purged = 0;
+
+        foreach ($this->allFailed() as $envelope) {
+            $this->failureTransport->reject($envelope);
+            $purged++;
+        }
+
+        return $purged;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Every envelope currently in the failure transport, as a materialised
+     * list. See retryAll() for why this must not stay lazy.
+     *
+     * @return list<Envelope>
+     */
+    private function allFailed(): array
+    {
+        if (false === $this->failureTransport instanceof ListableReceiverInterface) {
+            return [];
+        }
+
+        return iterator_to_array($this->failureTransport->all(), false);
+    }
 
     private function find(string $id): ?Envelope
     {

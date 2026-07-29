@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Entity\Label;
+use App\Entity\LabelBinding;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Mapper\MailboxMapper;
 use App\Jmap\Method\JmapMethod;
@@ -12,7 +12,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelRepository;
+use App\Repository\LabelBindingRepository;
 
 /**
  * "Mailbox/query" (RFC 8621 §2.3). Returns the ordered id list for the account.
@@ -24,7 +24,7 @@ final class MailboxQueryMethod implements JmapMethod
 {
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly LabelRepository $labelRepository,
+        private readonly LabelBindingRepository $bindingRepository,
         private readonly MailboxMapper $mapper,
         private readonly StateManager $stateManager,
     ) {
@@ -40,7 +40,8 @@ final class MailboxQueryMethod implements JmapMethod
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
         $accountId = $account->getId();
 
-        $labels = $this->labelRepository->findByAccountOrdered($accountId);
+        $bindings           = $this->bindingRepository->findForAccountOrdered($accountId);
+        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);
 
         $filter = $arguments['filter'] ?? null;
 
@@ -49,13 +50,13 @@ final class MailboxQueryMethod implements JmapMethod
                 throw new MethodException('invalidArguments', '"filter" must be an object.');
             }
 
-            $labels = $this->applyFilter($labels, $filter);
+            $bindings = $this->applyFilter($bindings, $filter, $bindingIdByLabelId);
         }
 
         $ids = [];
 
-        foreach ($labels as $label) {
-            $ids[] = (string) $label->id;
+        foreach ($bindings as $binding) {
+            $ids[] = (string) $binding->id;
         }
 
         $total = count($ids);
@@ -98,14 +99,15 @@ final class MailboxQueryMethod implements JmapMethod
     }
 
     /**
-     * @param list<Label>         $labels
+     * @param list<LabelBinding>  $bindings
      * @param array<string,mixed> $filter
+     * @param array<int,int>      $bindingIdByLabelId
      *
-     * @return list<Label>
+     * @return list<LabelBinding>
      */
-    private function applyFilter(array $labels, array $filter): array
+    private function applyFilter(array $bindings, array $filter, array $bindingIdByLabelId): array
     {
-        $result = $labels;
+        $result = $bindings;
 
         if (true === array_key_exists('parentId', $filter)) {
             $wanted = null;
@@ -116,7 +118,7 @@ final class MailboxQueryMethod implements JmapMethod
 
             $result = array_values(array_filter(
                 $result,
-                fn (Label $label): bool => $this->mapper->parentId($label) === $wanted,
+                fn (LabelBinding $binding): bool => $this->mapper->parentId($binding->label, $bindingIdByLabelId) === $wanted,
             ));
         }
 
@@ -124,7 +126,7 @@ final class MailboxQueryMethod implements JmapMethod
             $wanted = $filter['role'];
             $result = array_values(array_filter(
                 $result,
-                fn (Label $label): bool => $this->mapper->roleOf($label) === $wanted,
+                fn (LabelBinding $binding): bool => $this->mapper->roleOf($binding->label) === $wanted,
             ));
         }
 

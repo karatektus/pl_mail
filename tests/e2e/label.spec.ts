@@ -9,17 +9,6 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  */
 const LABEL_NAME = "E2E Label";
 
-/**
- * The account seed-label attaches LABEL_NAME to, as shown in the label form's
- * account select (LabelType uses Account::email as the choice label).
- *
- * Pinned explicitly because labels are per-account: the select defaults to the
- * alphabetically first account, which is whichever throwaway IMAP account the
- * account spec left behind — so a test that skips this would create a label on
- * the wrong account instead of colliding with the seeded one.
- */
-const LABEL_ACCOUNT = "E2E Mailbox";
-
 test.beforeEach(() => {
     seed("seed-mail", "seed-label");
 });
@@ -43,7 +32,6 @@ test.describe("create label", () => {
         await expect(modal.locator("#modal input[type='text']")).toBeVisible();
 
         await modal.getByLabel("Name").fill(created);
-        await modal.getByLabel("Account").selectOption({ label: LABEL_ACCOUNT });
         await modal.getByRole("button", { name: "Save" }).click();
 
         await expect(modal).toBeHidden();
@@ -65,9 +53,11 @@ test.describe("create label", () => {
         const modal = page.locator("#modal-backdrop");
         await expect(modal).toBeVisible();
 
-        // LABEL_NAME is seeded by seed-label on LABEL_ACCOUNT, so this collides.
+        // LABEL_NAME is seeded by seed-label, so this collides. No account to
+        // pick: labels are user-scoped, so the name alone decides — this used
+        // to need the account pinned, because the same name on two accounts
+        // was two different labels.
         await modal.getByLabel("Name").fill(LABEL_NAME);
-        await modal.getByLabel("Account").selectOption({ label: LABEL_ACCOUNT });
         await modal.getByRole("button", { name: "Save" }).click();
 
         // A 200 here would let modal_controller close the dialog on

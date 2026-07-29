@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Repository\MailboxRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
+use App\Service\Monitoring\WorkerRestartSignal;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -44,6 +45,7 @@ final class ImapSuperviseCommand extends Command
     public function __construct(
         private readonly MailboxRepository $mailboxRepository,
         private readonly ProcessHeartbeatService $heartbeats,
+        private readonly WorkerRestartSignal $restartSignal,
         private readonly LoggerInterface $logger,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
@@ -79,7 +81,8 @@ final class ImapSuperviseCommand extends Command
 
         $this->reconcile($io);
 
-        $lastPollAt = microtime(true);
+        $startedAt  = microtime(true);
+        $lastPollAt = $startedAt;
 
         while ($this->shouldStop === false) {
             if (function_exists('pcntl_signal_dispatch')) {
@@ -96,6 +99,21 @@ final class ImapSuperviseCommand extends Command
             $elapsedSincePoll = $now - $lastPollAt;
 
             if ($elapsedSincePoll >= $pollInterval) {
+                // Checked on the reconcile cadence, not the 500ms loop: this
+                // hits a shared cache pool, and an admin waiting one poll
+                // interval for a restart is fine.
+                //
+                // The supervisor is not a Messenger worker, so Symfony's
+                // StopWorkerOnRestartSignalListener never sees it — reading
+                // the same signal here is what makes one "restart workers"
+                // button cover all three long-running containers.
+                if (true === $this->restartSignal->isRequestedSince($startedAt)) {
+                    $io->text('Restart requested by an administrator, shutting down…');
+                    $this->shouldStop = true;
+
+                    break;
+                }
+
                 $this->reconcile($io);
                 $lastPollAt = microtime(true);
             }

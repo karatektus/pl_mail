@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Form;
 
-use App\Entity\Account;
 use App\Entity\Label;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
@@ -41,20 +40,9 @@ final class LabelType extends AbstractType
             ->add('name', TextType::class, [
                 'label' => 'label.form.name',
             ])
-            ->add('account', EntityType::class, [
-                'label'         => 'label.form.account',
-                'class'         => Account::class,
-                'choice_label'  => 'email',
-                'disabled'      => null !== $editedLabel,
-                'query_builder' => function (EntityRepository $repository) use ($user) {
-                    return $repository->createQueryBuilder('account')
-                        ->where('account.usr = :usr')
-                        ->andWhere('account.isActive = :isActive')
-                        ->setParameter('usr', $user)
-                        ->setParameter('isActive', true)
-                        ->orderBy('account.email', 'ASC');
-                },
-            ])
+            // No account field: a label belongs to the user and spans every
+            // account. Which accounts it is materialized on is decided by use,
+            // and recorded on LabelBinding.
             ->add('parent', EntityType::class, [
                 'label'         => 'label.form.parent',
                 'class'         => Label::class,
@@ -63,8 +51,7 @@ final class LabelType extends AbstractType
                 'placeholder'   => 'label.form.no_parent',
                 'query_builder' => function (EntityRepository $repository) use ($user) {
                     return $repository->createQueryBuilder('label')
-                        ->innerJoin('label.account', 'account')
-                        ->where('account.usr = :usr')
+                        ->where('label.usr = :usr')
                         ->andWhere('label.role IS NULL')
                         ->setParameter('usr', $user)
                         ->orderBy('label.name', 'ASC');

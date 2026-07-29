@@ -1,19 +1,13 @@
 {# Bare frame — src + auto-refresh live on the placeholder in index.html.twig
    (a src on the returned frame causes a refetch loop). #}
 
-{% macro card_open(icon, title) %}
-    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
-            <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
-        </div>
-{% endmacro %}
 
 {% macro duration_ms(ms) %}
     {% if ms >= 1000 %}{{ (ms / 1000)|number_format(2) }}s{% else %}{{ ms|number_format(2) }}ms{% endif %}
 {% endmacro %}
 
 {% import _self as ui %}
+{% import 'admin/_cards.html.twig' as cards %}
 
 <turbo-frame id="admin-db">
 
@@ -44,7 +38,7 @@
         </div>
 
         {# ── Slowest by mean ───────────────────────────────────────────── #}
-        {{ ui.card_open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans) }}
+        {{ cards.open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans, 'db-slow', collapsedPanels) }}
             <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
                 <span class="text-xs text-ink-faint">{{ 'admin.db.slow_mean.hint'|trans }}</span>
                 {% if statStatementsAvailable %}
@@ -74,18 +68,18 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
             {% else %}
                 {{ _self.statement_table(slowestByMean, 'meanMs') }}
             {% endif %}
-        </section>
+        {{ cards.close() }}
 
         {# ── Heaviest by total time ────────────────────────────────────── #}
         {% if statStatementsAvailable and heaviestByTotal|length > 0 %}
-            {{ ui.card_open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans) }}
+            {{ cards.open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans, 'db-heavy', collapsedPanels) }}
                 <p class="px-5 py-2 border-b border-line text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
                 {{ _self.statement_table(heaviestByTotal, 'totalMs') }}
-            </section>
+            {{ cards.close() }}
         {% endif %}
 
         {# ── Live activity ─────────────────────────────────────────────── #}
-        {{ ui.card_open('fa-bolt', 'admin.db.active.heading'|trans) }}
+        {{ cards.open('fa-bolt', 'admin.db.active.heading'|trans, 'db-active', collapsedPanels) }}
             {% if activeQueries|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
             {% else %}
@@ -107,7 +101,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                     {% endfor %}
                 </div>
             {% endif %}
-        </section>
+        {{ cards.close() }}
 
     </div>
 

@@ -207,11 +207,8 @@ final class EmailSetMethod implements JmapMethod
         }
 
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
-        $inboxLabel = $this->labelRepository->findOneByRoleForAccount(LabelRole::Inbox, $account);
-        $trashMailbox = $this->mailboxRepository->findOneBy([
-            'account' => $account,
-            'label' => $trashLabel,
-        ]);
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
 
         foreach ($destroy as $id) {
             $id = (string) $id;

@@ -109,7 +109,7 @@ final class GraphFolderResolver
                 continue;
             }
 
-            $label = $this->labelRepository->findOneByFullNameForAccount($name, $account);
+            $label = $this->labelRepository->findOneByFullNameForUser($name, $account->getUsr());
 
             if (null === $label) {
                 $this->categoryIdCache[$accountId][$name] = null;

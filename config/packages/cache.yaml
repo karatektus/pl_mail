@@ -15,5 +15,21 @@ framework:
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            # The restart-workers signal MUST be shared between containers.
+            #
+            # php, messenger-worker, scheduler and imap-supervisor all run the
+            # same image with no shared volume for var/ (see compose.yaml —
+            # only php mounts anything, and that is Caddy's). The default
+            # filesystem adapter therefore writes into each container's own
+            # layer, so the admin panel would write the signal where nothing
+            # else can read it and "Restart workers" would silently do nothing.
+            #
+            # The database is the one backend every container already shares.
+            # Overriding the framework's own pool id (rather than adding our
+            # own) is deliberate: Symfony's StopWorkerOnRestartSignalListener
+            # reads this exact pool, so this is what makes Messenger workers
+            # see the signal at all.
+            cache.messenger.restart_workers_signal:
+                adapter: cache.adapter.doctrine_dbal
+                provider: doctrine.dbal.default_connection

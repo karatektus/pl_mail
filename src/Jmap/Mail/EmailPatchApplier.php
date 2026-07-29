@@ -132,8 +132,10 @@ final class EmailPatchApplier
                 throw new MethodException('invalidProperties', sprintf('No such Mailbox "%s".', $mailboxId));
             }
 
-            $labels = $this->labelRepository->findByAccountAndIds($account->getId(), [(int) $mailboxId]);
-            $label = $labels[0] ?? null;
+            // Mailbox ids are binding ids — resolving through the binding is
+            // also what keeps a client from naming another account's mailbox.
+            $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->getId(), [(int) $mailboxId]);
+            $label = ($bindings[0] ?? null)?->label;
 
             if (null === $label) {
                 throw new MethodException('invalidProperties', sprintf('No such Mailbox "%s".', $mailboxId));

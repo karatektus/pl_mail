@@ -59,8 +59,10 @@ final class LabelController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
+            $label->setUsr($this->getUser());
+
             $duplicate = $this->labelRepository->findOneChildByName(
-                $label->account,
+                $this->getUser(),
                 $label->parent,
                 (string) $label->name,
             );
@@ -79,12 +81,12 @@ final class LabelController extends AbstractController
 
                 // Same seam Mailbox/set uses, so a label made in the browser
                 // and one made from a JMAP client behave identically.
+                //
+                // No JMAP state to record and nothing to propagate yet: a new
+                // label has no bindings, so it exists on no account until it is
+                // first applied to mail. LabelResolver::binding() records the
+                // Mailbox creation at that point.
                 $this->structurePropagator->created($label);
-                $this->stateManager->recordCreated(
-                    (int) $label->account->getId(),
-                    JmapObjectType::Mailbox,
-                    (string) $label->id,
-                );
                 $this->em->flush();
 
                 return $this->render('label/_saved.stream.html.twig', [
@@ -114,11 +116,7 @@ final class LabelController extends AbstractController
             $this->em->flush();
 
             $this->structurePropagator->renamed($label);
-            $this->stateManager->recordUpdated(
-                (int) $label->account->getId(),
-                JmapObjectType::Mailbox,
-                (string) $label->id,
-            );
+            $this->recordForEveryBinding($label, 'updated');
             $this->em->flush();
 
             return $this->render('label/_saved.stream.html.twig', [
@@ -135,16 +133,16 @@ final class LabelController extends AbstractController
         $this->assertOwnedUserLabel($label);
 
         // Dispatch before removal: the propagator reads the remote id and
-        // name off the entity, and there is nothing to read afterwards.
+        // name off the bindings, and there is nothing to read afterwards.
         $this->structurePropagator->deleted($label);
-        $this->stateManager->recordDestroyed(
-            (int) $label->account->getId(),
-            JmapObjectType::Mailbox,
-            (string) $label->id,
-        );
+        $this->recordForEveryBinding($label, 'destroyed');
 
-        // parent FK cascades — children go with it. message_label /
-        // thread_label rows cascade too; the messages themselves stay.
+        // parent FK cascades — children go with it, and so do the bindings.
+        // message_label / thread_label rows cascade too; the messages stay.
+        //
+        // Deleting here removes the label from EVERY account, which is what
+        // the unified sidebar shows. JMAP's Mailbox/set destroy is the
+        // per-account operation and only drops one binding.
         $this->em->remove($label);
         $this->em->flush();
 
@@ -161,7 +159,7 @@ final class LabelController extends AbstractController
     #[Route('/{id}/toggle-visibility', name: 'toggle_visibility', methods: ['POST'])]
     public function toggleVisibility(Request $request, Label $label): Response
     {
-        if ($label->account?->getUsr() !== $this->getUser()) {
+        if ($label->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -180,20 +178,36 @@ final class LabelController extends AbstractController
             $toastMessage = 'label.visibility.hidden';
         }
 
-        $manageableAccounts = $this->accountRepository->findForUserOrderedByName($this->getUser());
-        $labelsByAccount    = [];
-
-        foreach ($manageableAccounts as $account) {
-            $labelsByAccount[(int) $account->getId()] = $this->labelRepository->findForAccountTreeOrdered($account);
-        }
+        $this->recordForEveryBinding($label, 'updated');
+        $this->em->flush();
 
         return $this->render('label/_visibility.stream.html.twig', [
-            'toastMessage'       => $toastMessage,
-            'manageableAccounts' => $manageableAccounts,
-            'labelsByAccount'    => $labelsByAccount,
+            'toastMessage' => $toastMessage,
+            'labels'       => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
     }
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * A label change is one JMAP Mailbox change per account it is bound to,
+     * because JMAP state is tracked per account and a Mailbox id is a binding
+     * id. A label with no bindings has no JMAP presence to update.
+     *
+     * @param 'updated'|'destroyed' $kind
+     */
+    private function recordForEveryBinding(Label $label, string $kind): void
+    {
+        foreach ($label->bindings as $binding) {
+            $accountId = (int) $binding->account->getId();
+            $bindingId = (string) $binding->id;
+
+            if ('destroyed' === $kind) {
+                $this->stateManager->recordDestroyed($accountId, JmapObjectType::Mailbox, $bindingId);
+            } else {
+                $this->stateManager->recordUpdated($accountId, JmapObjectType::Mailbox, $bindingId);
+            }
+        }
+    }
 
     /**
      * A submitted-but-invalid form must come back as 422, not 200:
@@ -216,7 +230,7 @@ final class LabelController extends AbstractController
 
     private function assertOwnedUserLabel(Label $label): void
     {
-        if ($label->account?->getUsr() !== $this->getUser()) {
+        if ($label->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 

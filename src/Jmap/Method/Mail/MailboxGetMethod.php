@@ -12,7 +12,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelRepository;
+use App\Repository\LabelBindingRepository;
 
 /**
  * "Mailbox/get" (RFC 8621 §2.1). ids = null returns every mailbox for the
@@ -22,7 +22,7 @@ final class MailboxGetMethod implements JmapMethod
 {
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly LabelRepository $labelRepository,
+        private readonly LabelBindingRepository $bindingRepository,
         private readonly MailboxMapper $mapper,
         private readonly MailboxCountsProvider $countsProvider,
         private readonly StateManager $stateManager,
@@ -49,7 +49,7 @@ final class MailboxGetMethod implements JmapMethod
         $notFound = [];
 
         if (null === $requestedIds) {
-            $labels = $this->labelRepository->findByAccountOrdered($accountId);
+            $bindings = $this->bindingRepository->findForAccountOrdered($accountId);
         } else {
             if (false === is_array($requestedIds)) {
                 throw new MethodException('invalidArguments', '"ids" must be an array or null.');
@@ -57,22 +57,25 @@ final class MailboxGetMethod implements JmapMethod
 
             $requestedIds = array_values(array_map('strval', $requestedIds));
             $intIds = array_map('intval', $requestedIds);
-            $labels = $this->labelRepository->findByAccountAndIds($accountId, $intIds);
+            $bindings = $this->bindingRepository->findForAccountAndIds($accountId, $intIds);
 
             $found = [];
 
-            foreach ($labels as $label) {
-                $found[] = (string) $label->id;
+            foreach ($bindings as $binding) {
+                $found[] = (string) $binding->id;
             }
 
             $notFound = array_values(array_diff($requestedIds, $found));
         }
 
         $counts = $this->countsProvider->forAccount($accountId);
+        // parentId is expressed in binding ids, and a requested subset may not
+        // contain the parents — so the map always covers the whole account.
+        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);
         $list = [];
 
-        foreach ($labels as $label) {
-            $list[] = $this->mapper->toJmapWithProperties($label, $counts, $properties);
+        foreach ($bindings as $binding) {
+            $list[] = $this->mapper->toJmapWithProperties($binding, $counts, $properties, $bindingIdByLabelId);
         }
 
         return [

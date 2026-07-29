@@ -49,6 +49,17 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(length: 16, nullable: true)]
     private ?string $locale = null;
 
+    /**
+     * Free-form per-user preferences, mirroring Account::$settings. For UI
+     * state that is worth remembering but does not deserve a column of its
+     * own — readers assume their defaults at the call site.
+     *
+     * Appearance stays in its own embeddable: it is a fixed, validated set the
+     * theme system reads on every render. This is the bag for the long tail.
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    private array $settings = [];
+
     #[ORM\Column(length: 255)]
     private ?string $nameFirst = null;
 
@@ -175,6 +186,61 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->locale = $locale;
 
         return $this;
+    }
+
+    /** Admin panels the user has collapsed, as a list of panel keys. */
+    public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
+
+    public function getSetting(string $key, mixed $default = null): mixed
+    {
+        if (true === array_key_exists($key, $this->settings)) {
+            return $this->settings[$key];
+        }
+
+        return $default;
+    }
+
+    public function setSetting(string $key, mixed $value): static
+    {
+        $this->settings[$key] = $value;
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getCollapsedAdminPanels(): array
+    {
+        $panels = $this->getSetting(self::SETTING_ADMIN_COLLAPSED_PANELS, []);
+
+        if (false === is_array($panels)) {
+            return [];
+        }
+
+        return array_values(array_filter($panels, 'is_string'));
+    }
+
+    /**
+     * Collapsed is stored rather than expanded so a panel added later shows up
+     * open by default, without having to backfill every user's settings.
+     */
+    public function setAdminPanelCollapsed(string $panel, bool $collapsed): static
+    {
+        $panels = $this->getCollapsedAdminPanels();
+
+        if (true === $collapsed) {
+            if (false === in_array($panel, $panels, true)) {
+                $panels[] = $panel;
+            }
+        } else {
+            $panels = array_values(array_filter(
+                $panels,
+                static fn (string $existing): bool => $existing !== $panel,
+            ));
+        }
+
+        return $this->setSetting(self::SETTING_ADMIN_COLLAPSED_PANELS, $panels);
     }
 
     public function getNameFirst(): ?string
