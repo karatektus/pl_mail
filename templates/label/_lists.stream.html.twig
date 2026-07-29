@@ -1,0 +1,53 @@
+{#
+label/_lists.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The response to every label mutation: create, rename, delete, show/hide.
+
+Three regions render the label list — the desktop sidebar (#label-list), the
+mobile drawer (#label-list-drawer) and the settings page
+(#settings-label-list). All three are refreshed unconditionally: a stream
+whose target is absent is a no-op, so one response serves the sidebar modal
+and the settings page without either needing to know where it was invoked
+from. This replaced three near-identical stream templates.
+
+Variables:
+  labels        Label[]  tree-ordered, for the settings list
+  toastMessage  string|null  translation key
+#}
+{% if toastMessage is not empty %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with {
+                message: toastMessage|trans,
+                type: 'success',
+            } %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+<turbo-stream action="replace" target="settings-label-list">
+    <template>
+        <div id="settings-label-list">
+            {% include 'settings/_labels.html.twig' with { labels: labels } %}
+        </div>
+    </template>
+</turbo-stream>
+
+{% import '_partials/_sidebar.html.twig' as sidebar %}
+{% set labelTree = sidebarCounts.userLabelTree() %}
+
+{% for target, drawerClose in { 'label-list': '', 'label-list-drawer': 'click->sidebar-drawer#close' } %}
+    <turbo-stream action="replace" target="{{ target }}">
+        <template>
+            <div id="{{ target }}" class="rail-hide space-y-0.5">
+                {% if labelTree|length == 0 %}
+                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
+                {% else %}
+                    {% for label in labelTree %}
+                        {{ sidebar.label_node(label, 0, drawerClose) }}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </template>
+    </turbo-stream>
+{% endfor %}

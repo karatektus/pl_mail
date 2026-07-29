@@ -1,16 +1,35 @@
 {#
 settings/_labels.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Label list with show/hide toggles.
+Label management: create, rename, re-parent, recolour, delete, show/hide.
 
 One flat list, not one section per account: labels are user-scoped, so
 "Receipts" is a single row regardless of how many accounts it is materialized
 on. Which accounts those are lives on LabelBinding and is deliberately not
 surfaced here.
 
+System labels (Inbox, Sent, …) map onto provider built-ins that cannot be
+renamed or deleted, so they get the visibility toggle only — the same rule
+LabelController::assertOwnedUserLabel() enforces server-side.
+
 Variables:
   labels  Label[]  tree-ordered (system block first, then the custom tree)
 #}
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
+    <p class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</p>
+
+    <button
+        data-controller="modal"
+        data-action="click->modal#open"
+        data-modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+        data-modal-src-value="{{ path('app_label_new') }}"
+        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
+    >
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'sidebar.labels.add'|trans }}
+    </button>
+</div>
+
 {% if labels is empty %}
     <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
         {{ 'settings.labels.empty'|trans }}
@@ -18,7 +37,7 @@ Variables:
 {% else %}
     <ul class="py-2 divide-y divide-line">
         {% for label in labels %}
-            <li class="flex items-center gap-3 pr-4 py-1.5"
+            <li class="group/label flex items-center gap-3 pr-4 py-1.5"
                 style="padding-left: {{ 16 + label.depth * 14 }}px">
 
                 {% if label.isSystem %}
@@ -50,17 +69,50 @@ Variables:
                     {% endif %}
                 </span>
 
-                <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
-                    <button
-                        type="submit"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
-                        aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
-                        title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
-                    >
-                        <i class="fa-solid {{ label.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
-                    </button>
-                </form>
+                <div class="flex items-center gap-0.5 shrink-0">
+                    {% if not label.isSystem %}
+                        {# Kept reachable without hover: these rows are the only
+                           place a label can be renamed or removed. #}
+                        <button
+                            data-controller="modal"
+                            data-action="click->modal#open"
+                            data-modal-title-value="{{ 'label.form.edit_title'|trans }}"
+                            data-modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label.name }) }}"
+                            title="{{ 'label.form.edit_title'|trans }}"
+                        >
+                            <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                        </button>
+
+                        <form method="post" action="{{ path('app_label_delete', { id: label.id }) }}"
+                              data-turbo-confirm="{{ label.children|length > 0
+                                  ? 'label.delete_confirm_children'|trans({ '%name%': label.name, '%count%': label.children|length })
+                                  : 'label.delete_confirm'|trans({ '%name%': label.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
+                            <button
+                                type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label.name }) }}"
+                                title="{{ 'label.form.delete'|trans }}"
+                            >
+                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
+                        <button
+                            type="submit"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                            title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
+                        >
+                            <i class="fa-solid {{ label.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
             </li>
         {% endfor %}
     </ul>

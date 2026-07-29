@@ -30,13 +30,38 @@ app_mail_sidebar_counts.
 Takes a Label directly — labels are user-scoped, so there is no per-account
 merging left to do and no view model between the entity and the template.
 #}
+{#
+Opens the edit modal for a label. Sits outside the row's <a> rather than
+inside it — a button nested in an anchor is invalid HTML — and inside <summary>
+it relies on modal#open calling preventDefault(), which also stops the
+disclosure toggling.
+
+Hover-revealed, but focus-visible brings it back for keyboard users, and it
+keeps its accessible name either way.
+#}
+{% macro label_edit(label) %}
+    <button
+        data-controller="modal"
+        data-action="click->modal#open"
+        data-modal-title-value="{{ 'label.form.edit_title'|trans }}"
+        data-modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
+        class="shrink-0 w-5 h-5 flex items-center justify-center rounded
+               text-ink-faint hover:text-ink hover:bg-hover
+               opacity-0 group-hover/label:opacity-100 focus-visible:opacity-100
+               transition-opacity cursor-pointer"
+        aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label.name }) }}"
+    >
+        <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+    </button>
+{% endmacro %}
+
 {% macro label_node(label, depth, drawerClose) %}
     {% import _self as macros %}
     {% set children = sidebarCounts.visibleChildrenOf(label) %}
 
     {% if children|length > 0 %}
         <details class="group/tree" open>
-            <summary class="flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer list-none
+            <summary class="group/label flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer list-none
                             hover:bg-hover transition-colors"
                      style="padding-left: {{ 12 + depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
@@ -49,6 +74,7 @@ merging left to do and no view model between the entity and the template.
                     <span class="truncate">{{ label.name }}</span>
                     {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
                 </a>
+                {{ macros.label_edit(label) }}
             </summary>
             <div class="space-y-0.5">
                 {% for child in children %}
@@ -57,18 +83,19 @@ merging left to do and no view model between the entity and the template.
             </div>
         </details>
     {% else %}
-        <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
-           class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
-                  hover:bg-hover"
-           style="padding-left: {{ 12 + depth * 14 + 16 }}px"
-           data-sidebar-target="link"
-           data-action="{{ drawerClose }}">
+        <div class="group/label flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
+                    hover:bg-hover"
+             style="padding-left: {{ 12 + depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
-            <span class="flex-1 flex items-center justify-between gap-2 truncate">
+            <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+               class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"
+               data-sidebar-target="link"
+               data-action="{{ drawerClose }}">
                 <span class="truncate">{{ label.name }}</span>
                 {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
-            </span>
-        </a>
+            </a>
+            {{ macros.label_edit(label) }}
+        </div>
     {% endif %}
 {% endmacro %}
 

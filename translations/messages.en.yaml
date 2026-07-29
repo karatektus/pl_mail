@@ -237,6 +237,10 @@ label:
         teal: Teal
         violet: Violet
     empty: No conversations with this label.
+    created: Label created.
+    delete_confirm: 'Delete the label "%name%"? Messages keep their other labels and are not deleted.'
+    delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? Messages are not deleted.'
+    deleted: Label deleted.
     error:
         duplicate: A label with this name already exists here.
     form:
@@ -251,6 +255,7 @@ label:
     menu:
         create: Create new
         empty: No labels yet.
+    updated: Label updated.
     visibility:
         hidden: Label is now hidden.
         shown: Label is now visible.
@@ -496,11 +501,14 @@ settings:
             system: System
     back: Back to inbox
     labels:
-        empty: No labels yet — they appear after the first sync.
+        count: '%count% labels'
+        delete: Delete label "%name%"
+        edit: Edit label "%name%"
+        empty: No labels yet — create one, or they appear after the first sync.
         heading: Labels
         hide: Hide label
         show: Show label
-        subheading: Choose which labels appear in the sidebar.
+        subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
     language:
         heading: Language

@@ -6,7 +6,6 @@ namespace App\Controller;
 
 use App\Entity\Label;
 use App\Form\LabelType;
-use App\Repository\AccountRepository;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\LabelRepository;
@@ -41,7 +40,6 @@ final class LabelController extends AbstractController
     public function __construct(
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
-        private readonly AccountRepository      $accountRepository,
         private readonly LabelStructurePropagator $structurePropagator,
         private readonly StateManager           $stateManager,
         private readonly TranslatorInterface    $translator,
@@ -89,9 +87,7 @@ final class LabelController extends AbstractController
                 $this->structurePropagator->created($label);
                 $this->em->flush();
 
-                return $this->render('label/_saved.stream.html.twig', [
-                    'label' => $label,
-                ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+                return $this->labelListsStream('label.created');
             }
         }
 
@@ -119,18 +115,22 @@ final class LabelController extends AbstractController
             $this->recordForEveryBinding($label, 'updated');
             $this->em->flush();
 
-            return $this->render('label/_saved.stream.html.twig', [
-                'label' => $label,
-            ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+            return $this->labelListsStream('label.updated');
         }
 
         return $this->renderForm($form, $label);
     }
 
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
-    public function delete(Label $label): Response
+    public function delete(Request $request, Label $label): Response
     {
         $this->assertOwnedUserLabel($label);
+
+        // This is the destructive action of the three and was the only one
+        // without a CSRF check.
+        if (false === $this->isCsrfTokenValid('label-delete' . $label->id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
 
         // Dispatch before removal: the propagator reads the remote id and
         // name off the bindings, and there is nothing to read afterwards.
@@ -146,9 +146,7 @@ final class LabelController extends AbstractController
         $this->em->remove($label);
         $this->em->flush();
 
-        return $this->render('label/_deleted.stream.html.twig', [
-            'labelId' => $label->id,
-        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+        return $this->labelListsStream('label.deleted');
     }
 
     /**
@@ -181,12 +179,23 @@ final class LabelController extends AbstractController
         $this->recordForEveryBinding($label, 'updated');
         $this->em->flush();
 
-        return $this->render('label/_visibility.stream.html.twig', [
+        return $this->labelListsStream($toastMessage);
+    }
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Every label mutation refreshes the same three regions — the desktop
+     * sidebar, the mobile drawer and the settings list — so they all return
+     * this. Streams whose target is absent are no-ops, which is what lets one
+     * response serve the sidebar modal and the settings page alike.
+     */
+    private function labelListsStream(?string $toastMessage = null): Response
+    {
+        return $this->render('label/_lists.stream.html.twig', [
             'toastMessage' => $toastMessage,
             'labels'       => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
     }
-    // ── Private ───────────────────────────────────────────────────────────────
 
     /**
      * A label change is one JMAP Mailbox change per account it is bound to,

@@ -69,6 +69,88 @@ test.describe("create label", () => {
     });
 });
 
+test.describe("manage labels", () => {
+    const SETTINGS_URL = "/settings?section=labels";
+
+    test("renames a label from settings and the sidebar follows", async ({
+        page,
+    }) => {
+        await page.goto(SETTINGS_URL);
+
+        const list = page.locator("#settings-label-list");
+        const row = list.locator("li").filter({ hasText: LABEL_NAME });
+        await expect(row).toBeVisible();
+
+        await row.getByRole("button", { name: `Edit label "${LABEL_NAME}"` }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+
+        const renamed = `E2E Renamed ${Date.now()}`;
+        await modal.getByLabel("Name").fill(renamed);
+        await modal.getByRole("button", { name: "Save" }).click();
+
+        await expect(modal).toBeHidden();
+
+        // Both regions are refreshed by the one stream response.
+        await expect(list.locator("li").filter({ hasText: renamed })).toBeVisible();
+        await expect(
+            page.locator("#label-list").getByRole("link", { name: renamed }),
+        ).toBeVisible();
+    });
+
+    test("deletes a label and it leaves both the settings list and the sidebar", async ({
+        page,
+    }) => {
+        await page.goto(SETTINGS_URL);
+
+        const list = page.locator("#settings-label-list");
+        const row = list.locator("li").filter({ hasText: LABEL_NAME });
+        await expect(row).toBeVisible();
+
+        // data-turbo-confirm surfaces as a native dialog.
+        page.once("dialog", (dialog) => dialog.accept());
+        await row.getByRole("button", { name: `Delete label "${LABEL_NAME}"` }).click();
+
+        await expect(list.locator("li").filter({ hasText: LABEL_NAME })).toHaveCount(0);
+        await expect(
+            page.locator("#label-list").getByRole("link", { name: LABEL_NAME }),
+        ).toHaveCount(0);
+    });
+
+    test("offers no rename or delete for system labels", async ({ page }) => {
+        await page.goto(SETTINGS_URL);
+
+        const inbox = page
+            .locator("#settings-label-list li")
+            .filter({ hasText: "Inbox" })
+            .first();
+        await expect(inbox).toBeVisible();
+
+        // System labels map onto provider built-ins — visibility only.
+        await expect(inbox.getByRole("button", { name: /^Edit label/ })).toHaveCount(0);
+        await expect(inbox.getByRole("button", { name: /^Delete label/ })).toHaveCount(0);
+        await expect(inbox.getByRole("button", { name: /label$/ })).toHaveCount(1);
+    });
+
+    test("rejects a delete without a valid CSRF token", async ({ page, request }) => {
+        await page.goto(SETTINGS_URL);
+
+        const id = await page
+            .locator("#settings-label-list form[action*='/delete']")
+            .first()
+            .getAttribute("action");
+        expect(id).toBeTruthy();
+
+        const response = await request.post(id!, {
+            form: { _token: "not-a-valid-token" },
+            maxRedirects: 0,
+        });
+
+        expect(response.status()).toBe(403);
+    });
+});
+
 test.describe("label as", () => {
     test("attaches a custom label to a conversation", async ({ page }) => {
         await page.goto("/mail/inbox");

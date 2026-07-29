@@ -239,6 +239,10 @@ label:
         teal: Petrol
         violet: Violett
     empty: Keine Konversationen mit diesem Label.
+    created: Label erstellt.
+    delete_confirm: 'Das Label "%name%" löschen? Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
+    delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Nachrichten werden nicht gelöscht.'
+    deleted: Label gelöscht.
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen.
     form:
@@ -253,6 +257,7 @@ label:
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
+    updated: Label aktualisiert.
     visibility:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
@@ -510,11 +515,14 @@ settings:
             system: System
     back: Zurück zum Posteingang
     labels:
-        empty: Noch keine Labels — sie erscheinen nach der ersten Synchronisierung.
+        count: '%count% Labels'
+        delete: Label "%name%" löschen
+        edit: Label "%name%" bearbeiten
+        empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
         heading: Labels
         hide: Label ausblenden
         show: Label anzeigen
-        subheading: Wähle, welche Labels in der Seitenleiste erscheinen.
+        subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
     language:
         heading: Sprache

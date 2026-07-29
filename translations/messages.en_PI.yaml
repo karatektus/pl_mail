@@ -237,6 +237,10 @@ label:
         teal: Teal
         violet: Violet
     empty: No yarns flyin' this flag.
+    created: Flag hoisted.
+    delete_confirm: 'Strike the flag "%name%"? Yarns keep their other flags and be not thrown overboard.'
+    delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? No yarns be thrown overboard.'
+    deleted: Flag struck.
     error:
         duplicate: A flag by that name already flies here.
     form:
@@ -251,6 +255,7 @@ label:
     menu:
         create: Hoist a new one
         empty: No flags yet.
+    updated: Flag mended.
     visibility:
         hidden: That flag be lowered.
         shown: That flag flies again.
@@ -495,11 +500,14 @@ settings:
             system: Ship's own
     back: Back to the hold
     labels:
-        empty: No flags yet — they turn up after the first haul.
+        count: '%count% flags'
+        delete: Strike the flag "%name%"
+        edit: Mend the flag "%name%"
+        empty: No flags yet — hoist one, or they turn up after the first haul.
         heading: Flags
         hide: Lower this flag
         show: Fly this flag
-        subheading: Choose which flags fly in the sidebar.
+        subheading: Hoist, rename and order yer flags, and choose which fly in the sidebar.
         system: Ship's own
     language:
         heading: Tongue
