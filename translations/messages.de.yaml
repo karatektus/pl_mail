@@ -610,6 +610,7 @@ settings:
             markRead: Als gelesen markieren
             markSpam: Als Spam markieren
             removeLabel: Label entfernen
+            saveToIntegration: Anhänge speichern in
             star: Markieren
             trash: In den Papierkorb
         add: Neuer Filter
@@ -664,6 +665,7 @@ settings:
             draft: ein Entwurf
             flagged: markiert
             seen: gelesen
+        integration_missing: '(getrennter Dienst)'
         label_missing: '(gelöschtes Label)'
         move_down: '"%name%" nach hinten'
         move_up: '"%name%" nach vorne'
@@ -672,6 +674,7 @@ settings:
         new_title: Neuer Filter
         no: Nein
         no_actions: Noch keine Aktionen
+        no_integrations: 'Keine Dienste verbunden — zuerst unter Integrationen einrichten.'
         of_the_following: der folgenden
         op:
             all: Alle

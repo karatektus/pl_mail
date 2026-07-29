@@ -595,6 +595,7 @@ settings:
             markRead: Mark as read
             markSpam: Call it bilge
             removeLabel: Strike the flag
+            saveToIntegration: Stow cargo to
             star: Mark it
             trash: Over the side
         add: New sieve
@@ -649,6 +650,7 @@ settings:
             draft: a rough draft
             flagged: marked
             seen: read
+        integration_missing: '(cast-off port)'
         label_missing: '(struck flag)'
         move_down: 'Send "%name%" astern'
         move_up: 'Send "%name%" forrard'
@@ -657,6 +659,7 @@ settings:
         new_title: New sieve
         no: Nay
         no_actions: No orders yet
+        no_integrations: 'No ports moored — make fast to one in Friendly ports first.'
         of_the_following: o the followin
         op:
             all: All

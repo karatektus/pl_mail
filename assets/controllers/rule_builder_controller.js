@@ -45,6 +45,7 @@ export default class extends Controller {
         conditions: Object,
         actions: Array,
         labels: Array,
+        integrations: Array,
         previewUrl: String,
         csrf: String,
         i18n: Object,
@@ -270,6 +271,10 @@ export default class extends Controller {
                     this.actions[i].labelId = this._assignableLabels()[0]?.id
                 }
 
+                if (select.value === "saveToIntegration") {
+                    this.actions[i].integrationId = this.integrationsValue[0]?.id
+                }
+
                 this.renderActions()
                 this.serialise()
                 this.schedulePreview()
@@ -299,6 +304,37 @@ export default class extends Controller {
                 })
 
                 row.append(label)
+            }
+
+            if (action.type === "saveToIntegration") {
+                if (0 === this.integrationsValue.length) {
+                    // Nothing to save to. Said plainly here rather than
+                    // rendering an empty select that would silently store no
+                    // target and do nothing at run time.
+                    const warn = document.createElement("span")
+                    warn.className = "text-xs text-danger"
+                    warn.textContent = this._t("no_integrations")
+                    row.append(warn)
+                } else {
+                    const target = document.createElement("select")
+                    target.className = this._inputClass() + " flex-1 min-w-[9rem]"
+
+                    for (const integration of this.integrationsValue) {
+                        const o = document.createElement("option")
+                        o.value = String(integration.id)
+                        o.textContent = integration.name
+                        o.selected = Number(action.integrationId) === integration.id
+                        target.append(o)
+                    }
+
+                    target.addEventListener("change", () => {
+                        this.actions[i].integrationId = Number(target.value)
+                        this.serialise()
+                        this.schedulePreview()
+                    })
+
+                    row.append(target)
+                }
             }
 
             row.append(this._smallButton("fa-xmark", this._t("remove_action"), () => {

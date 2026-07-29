@@ -19,6 +19,14 @@ Variables:
     {% set labelNames = labelNames|merge({ ('id' ~ label.id): label.fullName }) %}
 {% endfor %}
 
+{# Same map for integrations, taken from the global rather than a passed-in
+   variable: this partial is rendered from three places, and the list is short
+   and already memoised per request. #}
+{% set integrationNames = {} %}
+{% for integration in integrations.forUpload %}
+    {% set integrationNames = integrationNames|merge({ ('id' ~ integration.id): integration.name }) %}
+{% endfor %}
+
 <div data-controller="rule-run" data-rule-run-busy-value="{{ anyRunning ? 'true' : 'false' }}"></div>
 
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
@@ -116,10 +124,14 @@ Variables:
                                         'archive':     'fa-box-archive',
                                         'trash':       'fa-trash',
                                         'markSpam':    'fa-ban',
+                                        'saveToIntegration': 'fa-cloud-arrow-up',
                                     }[action.type] ?? 'fa-bolt' }} text-[9px]" aria-hidden="true"></i>
                                     {{ ('settings.filters.action.' ~ action.type)|trans }}
                                     {%- if action.labelId is defined and labelNames['id' ~ action.labelId] is defined %}
                                         <span class="font-medium" data-action-label>{{ labelNames['id' ~ action.labelId] }}</span>
+                                    {%- endif %}
+                                    {%- if action.integrationId is defined %}
+                                        <span class="font-medium">{{ integrationNames['id' ~ action.integrationId] ?? 'settings.filters.integration_missing'|trans }}</span>
                                     {%- endif %}
                                 </span>
                             {% else %}

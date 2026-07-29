@@ -25,6 +25,7 @@ Variables:
               data-rule-builder-conditions-value="{{ (submittedConditions ?: (rule.conditions ? rule.conditions|json_encode : '{}'))|e('html_attr') }}"
               data-rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
               data-rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
+              data-rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
               data-rule-builder-i18n-value="{{ {
                   all: 'settings.filters.op.all'|trans,
                   any: 'settings.filters.op.any'|trans,
@@ -78,6 +79,8 @@ Variables:
                   'action.archive': 'settings.filters.action.archive'|trans,
                   'action.trash': 'settings.filters.action.trash'|trans,
                   'action.markSpam': 'settings.filters.action.markSpam'|trans,
+                  'action.saveToIntegration': 'settings.filters.action.saveToIntegration'|trans,
+                  no_integrations: 'settings.filters.no_integrations'|trans,
               }|json_encode|e('html_attr') }}">
 
             <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_save') }}">

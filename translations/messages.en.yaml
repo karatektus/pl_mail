@@ -596,6 +596,7 @@ settings:
             markRead: Mark as read
             markSpam: Mark as spam
             removeLabel: Remove label
+            saveToIntegration: Save attachments to
             star: Star it
             trash: Move to trash
         add: New filter
@@ -650,6 +651,7 @@ settings:
             draft: a draft
             flagged: starred
             seen: read
+        integration_missing: '(disconnected service)'
         label_missing: '(deleted label)'
         move_down: Move "%name%" later
         move_up: Move "%name%" earlier
@@ -658,6 +660,7 @@ settings:
         new_title: New filter
         no: No
         no_actions: No actions yet
+        no_integrations: 'No services connected — set one up in Integrations first.'
         of_the_following: of the following
         op:
             all: All

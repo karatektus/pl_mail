@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service\Rule;
 
+use App\Domain\Enum\Integration\Capability;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\MailRule;
 use App\Entity\Message;
+use App\Infrastructure\Messaging\Message\UploadAttachmentsMessage;
+use App\Repository\IntegrationRepository;
 use App\Repository\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Carries out a matched rule's actions on one message.
@@ -34,6 +38,7 @@ final readonly class RuleActionExecutor
     public const string ARCHIVE = 'archive';
     public const string TRASH = 'trash';
     public const string MARK_SPAM = 'markSpam';
+    public const string SAVE_TO_INTEGRATION = 'saveToIntegration';
 
     public const array TYPES = [
         self::APPLY_LABEL,
@@ -43,6 +48,7 @@ final readonly class RuleActionExecutor
         self::ARCHIVE,
         self::TRASH,
         self::MARK_SPAM,
+        self::SAVE_TO_INTEGRATION,
     ];
 
     public function __construct(
@@ -50,6 +56,8 @@ final readonly class RuleActionExecutor
         private LabelResolver           $labelResolver,
         private LabelChangePropagator   $propagator,
         private ThreadLabelSynchronizer $threadSynchronizer,
+        private IntegrationRepository   $integrationRepository,
+        private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
     ) {}
 
@@ -140,6 +148,11 @@ final readonly class RuleActionExecutor
             case self::MARK_SPAM:
                 return $this->moveOutOfInbox($message, LabelRole::Spam);
 
+            case self::SAVE_TO_INTEGRATION:
+                $this->queueUpload($action, $message, $rule);
+
+                return false;
+
             default:
                 $this->logger->warning('RuleActionExecutor: unknown action', [
                     'ruleId' => $rule->id,
@@ -148,6 +161,57 @@ final readonly class RuleActionExecutor
 
                 return false;
         }
+    }
+
+    /**
+     * Hand the message's attachments to a worker.
+     *
+     * Deliberately no HTTP here. This runs inside the sync loop, once per rule
+     * per batch of newly arrived mail, so an upload on this path would put a
+     * network round trip per attachment between the mail arriving and it being
+     * visible — and a service that is down would stall the sync itself. Same
+     * discipline as LabelChangePropagator: decide here, do the I/O elsewhere.
+     *
+     * Messages with no attachments are skipped before dispatch rather than in
+     * the handler, so a rule matching mostly plain mail does not fill the queue
+     * with jobs that have nothing to do.
+     *
+     * @param array<string,mixed> $action
+     */
+    private function queueUpload(array $action, Message $message, MailRule $rule): void
+    {
+        $integrationId = $action['integrationId'] ?? null;
+
+        if (false === is_int($integrationId)) {
+            return;
+        }
+
+        if (true !== $message->hasAttachments()) {
+            return;
+        }
+
+        $integration = $this->integrationRepository->find($integrationId);
+
+        // Re-checked at execution time, not trusted from the stored action: the
+        // connection may have been deleted, paused or handed to another user
+        // since the rule was written.
+        if (null === $integration
+            || $integration->usr !== $rule->usr
+            || false === $integration->supports(Capability::Upload)
+        ) {
+            $this->logger->warning('RuleActionExecutor: saveToIntegration skipped', [
+                'ruleId'        => $rule->id,
+                'integrationId' => $integrationId,
+            ]);
+
+            return;
+        }
+
+        $this->bus->dispatch(new UploadAttachmentsMessage(
+            (int) $message->getId(),
+            $integrationId,
+            is_string($action['folder'] ?? null) ? $action['folder'] : null,
+        ));
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Domain\Enum\Integration\Capability;
 use App\Domain\Filter\FilterAstValidator;
 use App\Domain\Filter\InvalidFilterException;
 use App\Domain\Enum\Mail\RuleRunState;
@@ -12,6 +13,7 @@ use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Entity\User;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\AccountRepository;
+use App\Repository\IntegrationRepository;
 use App\Repository\LabelRepository;
 use App\Repository\MailRuleRepository;
 use App\Repository\MessageRepository;
@@ -46,6 +48,7 @@ final class MailRuleController extends AbstractController
         private readonly MailRuleRepository     $ruleRepository,
         private readonly MessageRepository      $messageRepository,
         private readonly LabelRepository        $labelRepository,
+        private readonly IntegrationRepository  $integrationRepository,
         private readonly AccountRepository      $accountRepository,
         private readonly FilterAstValidator     $validator,
         private readonly EmailFilterCompiler    $compiler,
@@ -295,6 +298,12 @@ final class MailRuleController extends AbstractController
             'labels' => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'accounts' => $this->accountRepository->findForUserOrderedByName($this->getUser()),
             'actionTypes' => RuleActionExecutor::TYPES,
+            // Upload-capable only: a rule cannot save an attachment to a
+            // service that can only be read from.
+            'integrations' => $this->integrationRepository->findSupportingForUser(
+                $this->getUser(),
+                Capability::Upload,
+            ),
         ], new Response(status: $status));
     }
 
@@ -366,6 +375,31 @@ final class MailRuleController extends AbstractController
                 }
 
                 $entry['labelId'] = $labelId;
+            }
+
+            if (RuleActionExecutor::SAVE_TO_INTEGRATION === $type) {
+                $integrationId = $action['integrationId'] ?? null;
+
+                if (false === is_int($integrationId)) {
+                    continue;
+                }
+
+                // Same ownership check as labels — an action is user input, and
+                // an id from another user's account must not be storable even
+                // though the executor re-checks it again at run time.
+                $integration = $this->integrationRepository->find($integrationId);
+
+                if (null === $integration || $integration->usr !== $this->getUser()) {
+                    continue;
+                }
+
+                $entry['integrationId'] = $integrationId;
+
+                $folder = $action['folder'] ?? null;
+
+                if (true === is_string($folder) && '' !== trim($folder)) {
+                    $entry['folder'] = trim($folder);
+                }
             }
 
             $clean[] = $entry;

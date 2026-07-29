@@ -6,6 +6,7 @@ namespace App\Service\Rule;
 
 use App\Domain\Filter\FilterVocabulary;
 use App\Entity\MailRule;
+use App\Repository\IntegrationRepository;
 use App\Repository\LabelRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -30,12 +31,16 @@ final class FilterDescriber
     /** @var array<int, array<int,string>> userId => (labelId => full name) */
     private array $labelNames = [];
 
+    /** @var array<int, array<int,string>> userId => (integrationId => name) */
+    private array $integrationNames = [];
+
     /** Whose labels the sentence currently being built may name. */
     private ?UserInterface $subject = null;
 
     public function __construct(
         private readonly TranslatorInterface $translator,
-        private readonly LabelRepository     $labelRepository,
+        private readonly LabelRepository       $labelRepository,
+        private readonly IntegrationRepository $integrationRepository,
     ) {}
 
     public function describeRule(MailRule $rule): string
@@ -173,7 +178,38 @@ final class FilterDescriber
             return $described . ' ' . $this->labelName($action['labelId']);
         }
 
+        if (true === array_key_exists('integrationId', $action)) {
+            return $described . ' ' . $this->integrationName($action['integrationId']);
+        }
+
         return $described;
+    }
+
+    /**
+     * Named the same way labels are, and missing the same way: a connection
+     * disconnected out from under a rule reads as missing rather than as a
+     * bare id.
+     */
+    private function integrationName(mixed $id): string
+    {
+        if (null === $this->subject || false === is_int($id)) {
+            return $this->translator->trans('settings.filters.integration_missing');
+        }
+
+        $userId = (int) $this->subject->getId();
+
+        if (false === array_key_exists($userId, $this->integrationNames)) {
+            $map = [];
+
+            foreach ($this->integrationRepository->findForUserOrdered($this->subject) as $integration) {
+                $map[(int) $integration->id] = $integration->name;
+            }
+
+            $this->integrationNames[$userId] = $map;
+        }
+
+        return $this->integrationNames[$userId][$id]
+            ?? $this->translator->trans('settings.filters.integration_missing');
     }
 
     private function labelName(mixed $id): string
