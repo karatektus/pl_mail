@@ -38,3 +38,4 @@ framework:
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: async
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: async
             App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: async
+            App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: async

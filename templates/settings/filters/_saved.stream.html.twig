@@ -1,0 +1,34 @@
+{#
+Response to every rule mutation: refresh the list and close the editor.
+
+Closing the editor is deliberate — after saving, the list is the thing that
+answers "did that work", and leaving a stale editor open invites a second save
+of the rule that was just written.
+#}
+{% if toastMessage is not empty %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+{# Replaces the frame, not just its inner div: the frame carries the src that
+   reload() re-fetches while a run is walking the mailbox. #}
+<turbo-stream action="replace" target="settings-filter-frame">
+    <template>
+        <turbo-frame id="settings-filter-frame"
+                     src="{{ path('app_settings_filters_list') }}"
+                     class="block rounded-pane border border-line overflow-hidden">
+            <div id="settings-filter-list">
+                {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
+            </div>
+        </turbo-frame>
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="filter-editor">
+    <template>
+        {% include 'settings/filters/_editor_empty.html.twig' %}
+    </template>
+</turbo-stream>

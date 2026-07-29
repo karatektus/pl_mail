@@ -1,0 +1,192 @@
+{#
+settings/_filters.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The rule list. The editor lives in its own Turbo Frame below, so opening a
+rule never costs the list its scroll position.
+
+Variables:
+  rules   MailRule[]  in execution order
+  labels  Label[]     for rendering action chips without a lookup per row
+#}
+{% set anyRunning = rules|filter(r => r.runState.isBusy)|length > 0 %}
+
+{# id => full name, so an action chip is a lookup rather than a scan per chip.
+   Keys are prefixed strings on purpose: Twig's merge follows array_merge, which
+   RENUMBERS integer keys — with bare ids the map silently became positional and
+   chips named the wrong label. #}
+{% set labelNames = {} %}
+{% for label in labels %}
+    {% set labelNames = labelNames|merge({ ('id' ~ label.id): label.fullName }) %}
+{% endfor %}
+
+<div data-controller="rule-run" data-rule-run-busy-value="{{ anyRunning ? 'true' : 'false' }}"></div>
+
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
+    <p class="text-xs text-ink-faint">{{ 'settings.filters.count'|trans({ '%count%': rules|length }) }}</p>
+
+    <a href="{{ path('app_settings_filters_new') }}"
+       data-turbo-frame="filter-editor"
+       class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'settings.filters.add'|trans }}
+    </a>
+</div>
+
+{% if rules is empty %}
+    <div class="px-4 py-10 text-center">
+        <i class="fa-solid fa-filter text-2xl text-ink-faint/50 mb-3 block" aria-hidden="true"></i>
+        <p class="text-sm text-ink-faint">{{ 'settings.filters.empty'|trans }}</p>
+        <p class="text-xs text-ink-faint/80 mt-1 max-w-sm mx-auto">{{ 'settings.filters.empty_hint'|trans }}</p>
+    </div>
+{% else %}
+    <ul class="divide-y divide-line"
+        data-controller="rule-order"
+        data-rule-order-url-value="{{ path('app_settings_filters_reorder') }}"
+        data-rule-order-csrf-value="{{ csrf_token('mail_rule_reorder') }}"
+        data-rule-order-target="list">
+        {% for rule in rules %}
+            <li class="px-4 py-3 {{ rule.isEnabled ? '' : 'opacity-60' }}" data-rule-id="{{ rule.id }}">
+                <div class="flex items-start gap-3">
+
+                    {# Order matters: rules run top-down and "stop after this
+                       filter" makes the first match final. #}
+                    <div class="flex flex-col items-center shrink-0 pt-0.5">
+                        <button type="button" data-action="rule-order#move" data-direction="up"
+                                class="w-6 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                {{ loop.first ? 'disabled' : '' }}
+                                aria-label="{{ 'settings.filters.move_up'|trans({ '%name%': rule.name }) }}">
+                            <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                        </button>
+
+                        <span class="rule-drag-handle w-6 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                              title="{{ 'settings.filters.reorder'|trans }}" aria-hidden="true">
+                            <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                        </span>
+
+                        <button type="button" data-action="rule-order#move" data-direction="down"
+                                class="w-6 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                {{ loop.last ? 'disabled' : '' }}
+                                aria-label="{{ 'settings.filters.move_down'|trans({ '%name%': rule.name }) }}">
+                            <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[11px] tabular-nums text-ink-faint" data-rule-position>{{ loop.index }}</span>
+                            <span class="text-sm font-medium text-ink truncate">{{ rule.name }}</span>
+
+                            {% if not rule.isEnabled %}
+                                <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted">
+                                    {{ 'settings.filters.disabled'|trans }}
+                                </span>
+                            {% endif %}
+
+                            {% if rule.account %}
+                                <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
+                                    {{ rule.account.displayAddress }}
+                                </span>
+                            {% endif %}
+
+                            {% if rule.stopProcessing %}
+                                <span class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
+                                      title="{{ 'settings.filters.stop_help'|trans }}">
+                                    <i class="fa-solid fa-hand text-[9px]" aria-hidden="true"></i>
+                                    {{ 'settings.filters.stop'|trans }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {# The rule in words. Rendered by the same describer the
+                           editor's live summary uses, so the list and the editor
+                           can never word the same rule differently. #}
+                        <p class="mt-1 text-[11px] text-ink-faint leading-relaxed break-words">
+                            {{ ruleDescriber.describeRule(rule) }}
+                        </p>
+
+                        {# Actions as chips: the "then" half of the rule, which
+                           is what someone scans this list for. #}
+                        <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            {% for action in rule.actions %}
+                                <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] bg-sunken border border-line text-ink-soft">
+                                    <i class="fa-solid {{ {
+                                        'applyLabel':  'fa-tag',
+                                        'removeLabel': 'fa-tag-slash',
+                                        'markRead':    'fa-envelope-open',
+                                        'star':        'fa-star',
+                                        'archive':     'fa-box-archive',
+                                        'trash':       'fa-trash',
+                                        'markSpam':    'fa-ban',
+                                    }[action.type] ?? 'fa-bolt' }} text-[9px]" aria-hidden="true"></i>
+                                    {{ ('settings.filters.action.' ~ action.type)|trans }}
+                                    {%- if action.labelId is defined and labelNames['id' ~ action.labelId] is defined %}
+                                        <span class="font-medium" data-action-label>{{ labelNames['id' ~ action.labelId] }}</span>
+                                    {%- endif %}
+                                </span>
+                            {% else %}
+                                <span class="text-[11px] text-ink-faint italic">{{ 'settings.filters.no_actions'|trans }}</span>
+                            {% endfor %}
+                        </div>
+
+                        {# Run status is rendered from the row, not pushed — a
+                           run outlives the tab that started it. #}
+                        {% if rule.runState.value != 'idle' %}
+                            <p class="mt-1.5 text-[11px] flex items-center gap-1.5
+                                      {{ rule.runState.value == 'failed' ? 'text-danger' : 'text-ink-faint' }}">
+                                {% if rule.runState.isBusy %}
+                                    <i class="fa-solid fa-circle-notch fa-spin text-[9px]" aria-hidden="true"></i>
+                                {% elseif rule.runState.value == 'completed' %}
+                                    <i class="fa-solid fa-check text-[9px] text-emerald-500" aria-hidden="true"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-triangle-exclamation text-[9px]" aria-hidden="true"></i>
+                                {% endif %}
+                                {{ ('settings.filters.run_state.' ~ rule.runState.value)|trans({ '%count%': rule.runProcessed }) }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center gap-0.5 shrink-0">
+                        <form method="post" action="{{ path('app_settings_filters_toggle', { id: rule.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_toggle' ~ rule.id) }}">
+                            <button type="submit"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                                    aria-label="{{ rule.isEnabled ? 'settings.filters.disable'|trans : 'settings.filters.enable'|trans }}"
+                                    title="{{ rule.isEnabled ? 'settings.filters.disable'|trans : 'settings.filters.enable'|trans }}">
+                                <i class="fa-solid {{ rule.isEnabled ? 'fa-toggle-on text-accent' : 'fa-toggle-off' }} text-sm" aria-hidden="true"></i>
+                            </button>
+                        </form>
+
+                        <form method="post" action="{{ path('app_settings_filters_run', { id: rule.id }) }}"
+                              data-turbo-confirm="{{ 'settings.filters.run_confirm'|trans({ '%name%': rule.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_run' ~ rule.id) }}">
+                            <button type="submit" {{ rule.runState.isBusy ? 'disabled' : '' }}
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="{{ 'settings.filters.run'|trans }}"
+                                    title="{{ rule.runState.isBusy ? 'settings.filters.run_state.running'|trans({ '%count%': rule.runProcessed }) : 'settings.filters.run'|trans }}">
+                                <i class="fa-solid fa-play text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+
+                        <a href="{{ path('app_settings_filters_edit', { id: rule.id }) }}"
+                           data-turbo-frame="filter-editor"
+                           class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                           aria-label="{{ 'settings.filters.edit'|trans({ '%name%': rule.name }) }}"
+                           title="{{ 'settings.filters.edit_title'|trans }}">
+                            <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                        </a>
+
+                        <form method="post" action="{{ path('app_settings_filters_delete', { id: rule.id }) }}"
+                              data-turbo-confirm="{{ 'settings.filters.delete_confirm'|trans({ '%name%': rule.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_delete' ~ rule.id) }}">
+                            <button type="submit"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                    aria-label="{{ 'settings.filters.delete'|trans({ '%name%': rule.name }) }}"
+                                    title="{{ 'settings.filters.delete_title'|trans }}">
+                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

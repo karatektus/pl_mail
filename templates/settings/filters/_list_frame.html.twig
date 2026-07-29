@@ -1,0 +1,6 @@
+{# The list as its own frame response — reload() target while a run is going. #}
+<turbo-frame id="settings-filter-frame" class="block rounded-pane border border-line overflow-hidden">
+    <div id="settings-filter-list">
+        {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
+    </div>
+</turbo-frame>

@@ -500,6 +500,109 @@ settings:
             subheading: Colour scheme for the whole interface.
             system: System
     back: Back to inbox
+    filters:
+        account: Account
+        action:
+            applyLabel: Apply label
+            archive: Skip inbox
+            markRead: Mark as read
+            markSpam: Mark as spam
+            removeLabel: Remove label
+            star: Star it
+            trash: Move to trash
+        add: New filter
+        add_action: Add action
+        add_condition: Add condition
+        add_group: Add group
+        all_accounts: All accounts
+        count: '%count% filters'
+        count_capped: 'Matches %count%+ existing messages'
+        count_error: Not a usable filter yet
+        count_exact: 'Matches %count% existing messages'
+        delete: Delete filter "%name%"
+        delete_confirm: 'Delete the filter "%name%"? Mail it already sorted stays where it is.'
+        delete_title: Delete filter
+        deleted: Filter deleted.
+        disable: Disable filter
+        disabled: Off
+        edit: 'Edit filter "%name%"'
+        edit_title: Edit filter
+        empty: No filters yet
+        empty_hint: Filters sort mail as it arrives — label it, skip the inbox, star it, or send it straight to the bin.
+        enable: Enable filter
+        error:
+            action_required: Add at least one action, or the filter would do nothing.
+            name_required: Give the filter a name.
+        field:
+            after: Received after
+            bcc: Bcc contains
+            before: Received before
+            body: Body contains
+            cc: Cc contains
+            filename: Attachment named
+            from: From contains
+            hasAttachment: Has an attachment
+            hasKeyword: Is
+            hasLabel: Has label
+            listId: Mailing list is
+            maxSize: Smaller than (bytes)
+            minSize: Larger than (bytes)
+            notKeyword: Is not
+            notLabel: Does not have label
+            subject: Subject contains
+            text: Anywhere in the message
+            to: To contains
+        heading: Filters
+        join:
+            and: and
+            none: 'none of: %list%'
+            or: or
+        keyword:
+            answered: replied to
+            draft: a draft
+            flagged: starred
+            seen: read
+        label_missing: '(deleted label)'
+        move_down: Move "%name%" later
+        move_up: Move "%name%" earlier
+        name: Name
+        name_placeholder: e.g. Invoices from Acme
+        new_title: New filter
+        no: No
+        no_actions: No actions yet
+        of_the_following: of the following
+        op:
+            all: All
+            any: Any
+            none: None
+        placeholder:
+            date: Pick a date
+            number: 0
+            text: Type a value…
+        already_running: That filter is already running.
+        queued: Queued — applying to existing mail in the background.
+        ran: Filter applied to existing mail.
+        remove_action: Remove action
+        remove_condition: Remove condition
+        remove_group: Remove group
+        reorder: Drag to reorder
+        run: Apply to existing mail
+        run_state:
+            completed: 'Applied to %count% messages'
+            failed: 'Run stopped partway — %count% messages were done'
+            queued: 'Queued…'
+            running: 'Applying… %count% so far'
+        run_confirm: 'Apply "%name%" to mail you already have? This can move and relabel a lot of messages at once.'
+        saved: Filter saved.
+        stop: Stop after this filter
+        stop_help: Later filters are skipped for any message this one matches.
+        subheading: Sort mail automatically as it arrives.
+        summary:
+            full: 'If %conditions% → %actions%'
+            no_actions: 'If %conditions% → (no actions yet)'
+        then: Then
+        when: When
+        yes: Yes
     labels:
         count: '%count% labels'
         delete: Delete label "%name%"
@@ -519,6 +622,7 @@ settings:
         app_passwords: App passwords
         appearance: Appearance
         general: General
+        filters: Filters
         labels: Labels
         notifications: Notifications
     notifications:

@@ -69,6 +69,11 @@
                                         <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.labels'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'filters' }) }}"
+                                       class="{{ section == 'filters' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-filter w-4 {{ section == 'filters' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.filters'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'notifications' }) }}"
                                        class="{{ section == 'notifications' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-bell w-4 {{ section == 'notifications' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -120,6 +125,31 @@
 
                                             </div>
                                         </section>
+                                    {% elseif section == 'filters' %}
+                                        <section>
+                                            <div class="mb-4">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.filters.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.filters.subheading'|trans }}</p>
+                                            </div>
+
+                                            {# A frame, so a run in progress can re-read itself without
+                                               a full navigation. Its src is the same partial the stream
+                                               replaces, so both paths render one template. #}
+                                            <turbo-frame id="settings-filter-frame"
+                                                         src="{{ path('app_settings_filters_list') }}"
+                                                         class="block rounded-pane border border-line overflow-hidden">
+                                                <div id="settings-filter-list">
+                                                    {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
+                                                </div>
+                                            </turbo-frame>
+
+                                            {# The editor opens below the list rather than replacing it, so the
+                                               rule being edited stays visible next to its siblings. #}
+                                            <div class="mt-4">
+                                                {% include 'settings/filters/_editor_empty.html.twig' %}
+                                            </div>
+                                        </section>
+
                                     {% elseif section == 'notifications' %}
                                         <section>
                                             <div class="mb-4">

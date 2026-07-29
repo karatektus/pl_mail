@@ -514,6 +514,109 @@ settings:
             subheading: Farbschema für die gesamte Oberfläche.
             system: System
     back: Zurück zum Posteingang
+    filters:
+        account: Account
+        action:
+            applyLabel: Label vergeben
+            archive: Posteingang überspringen
+            markRead: Als gelesen markieren
+            markSpam: Als Spam markieren
+            removeLabel: Label entfernen
+            star: Markieren
+            trash: In den Papierkorb
+        add: Neuer Filter
+        add_action: Aktion hinzufügen
+        add_condition: Bedingung hinzufügen
+        add_group: Gruppe hinzufügen
+        all_accounts: Alle Konten
+        count: '%count% Filter'
+        count_capped: 'Trifft auf %count%+ vorhandene Nachrichten zu'
+        count_error: Noch kein verwendbarer Filter
+        count_exact: 'Trifft auf %count% vorhandene Nachrichten zu'
+        delete: Filter "%name%" löschen
+        delete_confirm: 'Den Filter "%name%" löschen? Bereits einsortierte Mail bleibt, wo sie ist.'
+        delete_title: Filter löschen
+        deleted: Filter gelöscht.
+        disable: Filter deaktivieren
+        disabled: Aus
+        edit: 'Filter "%name%" bearbeiten'
+        edit_title: Filter bearbeiten
+        empty: Noch keine Filter
+        empty_hint: Filter sortieren Mail beim Eintreffen — Label vergeben, Posteingang überspringen, markieren oder direkt in den Papierkorb.
+        enable: Filter aktivieren
+        error:
+            action_required: Füge mindestens eine Aktion hinzu, sonst tut der Filter nichts.
+            name_required: Gib dem Filter einen Namen.
+        field:
+            after: Empfangen nach
+            bcc: Bcc enthält
+            before: Empfangen vor
+            body: Text enthält
+            cc: Cc enthält
+            filename: Anhang heißt
+            from: Von enthält
+            hasAttachment: Hat einen Anhang
+            hasKeyword: Ist
+            hasLabel: Hat Label
+            listId: Mailingliste ist
+            maxSize: Kleiner als (Bytes)
+            minSize: Größer als (Bytes)
+            notKeyword: Ist nicht
+            notLabel: Hat Label nicht
+            subject: Betreff enthält
+            text: Irgendwo in der Nachricht
+            to: An enthält
+        heading: Filter
+        join:
+            and: und
+            none: 'keines von: %list%'
+            or: oder
+        keyword:
+            answered: beantwortet
+            draft: ein Entwurf
+            flagged: markiert
+            seen: gelesen
+        label_missing: '(gelöschtes Label)'
+        move_down: '"%name%" nach hinten'
+        move_up: '"%name%" nach vorne'
+        name: Name
+        name_placeholder: z. B. Rechnungen von Acme
+        new_title: Neuer Filter
+        no: Nein
+        no_actions: Noch keine Aktionen
+        of_the_following: der folgenden
+        op:
+            all: Alle
+            any: Beliebige
+            none: Keine
+        placeholder:
+            date: Datum wählen
+            number: 0
+            text: Wert eingeben…
+        already_running: Dieser Filter läuft bereits.
+        queued: Eingereiht — wird im Hintergrund auf vorhandene Mail angewendet.
+        ran: Filter auf vorhandene Mail angewendet.
+        remove_action: Aktion entfernen
+        remove_condition: Bedingung entfernen
+        remove_group: Gruppe entfernen
+        reorder: Zum Umsortieren ziehen
+        run: Auf vorhandene Mail anwenden
+        run_state:
+            completed: 'Auf %count% Nachrichten angewendet'
+            failed: 'Lauf vorzeitig gestoppt — %count% Nachrichten waren erledigt'
+            queued: 'In der Warteschlange…'
+            running: 'Wird angewendet… bisher %count%'
+        run_confirm: '"%name%" auf vorhandene Mail anwenden? Das kann viele Nachrichten auf einmal verschieben und neu beschriften.'
+        saved: Filter gespeichert.
+        stop: Nach diesem Filter aufhören
+        stop_help: Für Nachrichten, auf die dieser Filter zutrifft, werden spätere Filter übersprungen.
+        subheading: Mail automatisch beim Eintreffen sortieren.
+        summary:
+            full: 'Wenn %conditions% → %actions%'
+            no_actions: 'Wenn %conditions% → (noch keine Aktionen)'
+        then: Dann
+        when: Wenn
+        yes: Ja
     labels:
         count: '%count% Labels'
         delete: Label "%name%" löschen
@@ -533,6 +636,7 @@ settings:
         app_passwords: App-Passwörter
         appearance: Darstellung
         general: Allgemein
+        filters: Filter
         labels: Labels
         notifications: Benachrichtigungen
     notifications:

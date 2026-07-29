@@ -103,6 +103,12 @@ export default class extends Controller {
             this.dispatch("mailbox-synced", {detail: data});
         } else if (data.type === "account.synced") {
             this.dispatch("account-synced", {detail: data});
+        } else if (data.type === "rule.run") {
+            // Published by RuleRunNotifier while "apply to existing mail"
+            // walks the mailbox. Only a hint to re-read: the run's progress
+            // lives on the MailRule row, so a missed message costs a stale
+            // panel until the next load, never a wrong answer.
+            this.dispatch("rule-run", {detail: data});
         }
     }
 }

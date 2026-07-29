@@ -5,6 +5,7 @@ twig:
     globals:
         accounts: '@App\Twig\AccountsGlobal'
         sidebarCounts: '@App\Twig\SidebarCounts'
+        ruleDescriber: '@App\Service\Rule\FilterDescriber'
 
 when@test:
     twig:

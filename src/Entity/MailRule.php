@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Domain\Enum\RuleRunState;
+use DateTimeImmutable;
 use App\Domain\Trait\TimestampableTrait;
 use App\Repository\MailRuleRepository;
 use Doctrine\DBAL\Types\Types;
@@ -81,6 +83,27 @@ class MailRule
     /** Stop evaluating further rules once this one has matched. */
     #[ORM\Column(options: ['default' => false])]
     public bool $stopProcessing = false;
+
+    /**
+     * Progress of "apply to existing mail", persisted so it survives a reload.
+     *
+     * A run can take minutes over a large mailbox, and the person who started
+     * it will close the tab. Keeping this on the row means the answer to "is it
+     * done?" is whatever the page renders, on any device, at any later time —
+     * Mercure only tells an open page to look again.
+     */
+    #[ORM\Column(length: 16, enumType: RuleRunState::class, options: ['default' => 'idle'])]
+    public RuleRunState $runState = RuleRunState::Idle;
+
+    /** Messages acted on so far in the current or last run. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $runProcessed = 0;
+
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $runStartedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $runFinishedAt = null;
 
     /** True when this rule should be considered for a message of $account. */
     public function appliesTo(Account $account): bool

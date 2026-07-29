@@ -64,6 +64,78 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many of a user's messages a compiled filter matches.
+     *
+     * Powers the live "matches N messages" readout while a rule is being
+     * written. Capped, because the only question being answered is "is this
+     * filter roughly right" — an exact count over a large mailbox costs a full
+     * scan to tell the author something they do not need.
+     *
+     * @return array{count: int, capped: bool}
+     */
+    public function countMatchingForUser(User $user, CompiledFilter $filter, int $cap = 500): array
+    {
+        $sql = sprintf(
+            'SELECT COUNT(*) FROM (
+                 SELECT 1 FROM message m
+                 JOIN account a ON a.id = m.account_id
+                 WHERE a.usr_id = :ruleUserId AND (%s)
+                 LIMIT :ruleCap
+             ) probe',
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleCap'] = $cap + 1;
+
+        $count = (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $filter->parameterTypes())
+            ->fetchOne();
+
+        return [
+            'count' => min($count, $cap),
+            'capped' => $count > $cap,
+        ];
+    }
+
+    /**
+     * One page of a user's messages matching a filter, for applying a rule to
+     * mail that arrived before it existed.
+     *
+     * Keyset pagination rather than a cap: applying a rule must reach every
+     * matching message, and a mailbox can hold more of them than fits in
+     * memory. Paging by id also survives the run's own writes — an OFFSET walk
+     * would skip messages as the rows it already acted on stop matching.
+     *
+     * @return list<int> ascending, empty when the walk is finished
+     */
+    public function findIdsMatchingForUser(User $user, CompiledFilter $filter, int $afterId = 0, int $batchSize = 200): array
+    {
+        $sql = sprintf(
+            'SELECT m.id FROM message m
+             JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :ruleUserId AND m.id > :ruleAfterId AND (%s)
+             ORDER BY m.id ASC
+             LIMIT :ruleBatchSize',
+            $filter->sql,
+        );
+
+        $parameters = $filter->parameters;
+        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleAfterId'] = $afterId;
+        $parameters['ruleBatchSize'] = $batchSize;
+
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $filter->parameterTypes())
+            ->fetchFirstColumn();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
      * Ids of messages that have a header bag, oldest first — the backfill
      * cursor for header normalisation.
      *

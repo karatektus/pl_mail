@@ -1,0 +1,189 @@
+{#
+settings/filters/_editor.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The rule editor, inside its own Turbo Frame.
+
+Layout is one vertical column at every width. The condition tree nests by
+indentation and a left rail, so a phone gets the SAME editor with a tighter
+indent and wrapped control rows rather than a reduced set of options — there is
+nothing here a narrow screen has to give up.
+
+Variables:
+  rule, errors, submitted*, labels, accounts, actionTypes
+#}
+<turbo-frame id="filter-editor">
+    <div class="rounded-pane border border-line overflow-hidden bg-pane-soft">
+
+        {# No data-turbo-frame: the form is inside #filter-editor, so a
+           rejected save (422) re-renders the editor in place with what was
+           typed. A successful save answers with Turbo Streams, which are
+           applied document-wide regardless of the frame. #}
+        <form method="post" action="{{ path('app_settings_filters_save') }}"
+              data-controller="rule-builder"
+              data-rule-builder-preview-url-value="{{ path('app_settings_filters_preview') }}"
+              data-rule-builder-csrf-value="{{ csrf_token('mail_rule_preview') }}"
+              data-rule-builder-conditions-value="{{ (submittedConditions ?: (rule.conditions ? rule.conditions|json_encode : '{}'))|e('html_attr') }}"
+              data-rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
+              data-rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
+              data-rule-builder-i18n-value="{{ {
+                  all: 'settings.filters.op.all'|trans,
+                  any: 'settings.filters.op.any'|trans,
+                  none: 'settings.filters.op.none'|trans,
+                  of_the_following: 'settings.filters.of_the_following'|trans,
+                  add_condition: 'settings.filters.add_condition'|trans,
+                  add_group: 'settings.filters.add_group'|trans,
+                  remove_group: 'settings.filters.remove_group'|trans,
+                  remove_condition: 'settings.filters.remove_condition'|trans,
+                  remove_action: 'settings.filters.remove_action'|trans,
+                  yes: 'settings.filters.yes'|trans,
+                  no: 'settings.filters.no'|trans,
+                  actionTypes: actionTypes,
+                  'join.and': 'settings.filters.join.and'|trans,
+                  'join.or': 'settings.filters.join.or'|trans,
+                  'join.none': 'settings.filters.join.none'|trans,
+                  'summary.full': 'settings.filters.summary.full'|trans,
+                  'summary.no_actions': 'settings.filters.summary.no_actions'|trans,
+                  'count.exact': 'settings.filters.count_exact'|trans,
+                  'count.capped': 'settings.filters.count_capped'|trans,
+                  'count.error': 'settings.filters.count_error'|trans,
+                  'placeholder.text': 'settings.filters.placeholder.text'|trans,
+                  'placeholder.number': 'settings.filters.placeholder.number'|trans,
+                  'placeholder.date': 'settings.filters.placeholder.date'|trans,
+                  'field.from': 'settings.filters.field.from'|trans,
+                  'field.to': 'settings.filters.field.to'|trans,
+                  'field.cc': 'settings.filters.field.cc'|trans,
+                  'field.bcc': 'settings.filters.field.bcc'|trans,
+                  'field.subject': 'settings.filters.field.subject'|trans,
+                  'field.body': 'settings.filters.field.body'|trans,
+                  'field.text': 'settings.filters.field.text'|trans,
+                  'field.filename': 'settings.filters.field.filename'|trans,
+                  'field.listId': 'settings.filters.field.listId'|trans,
+                  'field.hasLabel': 'settings.filters.field.hasLabel'|trans,
+                  'field.notLabel': 'settings.filters.field.notLabel'|trans,
+                  'field.minSize': 'settings.filters.field.minSize'|trans,
+                  'field.maxSize': 'settings.filters.field.maxSize'|trans,
+                  'field.before': 'settings.filters.field.before'|trans,
+                  'field.after': 'settings.filters.field.after'|trans,
+                  'field.hasAttachment': 'settings.filters.field.hasAttachment'|trans,
+                  'field.hasKeyword': 'settings.filters.field.hasKeyword'|trans,
+                  'field.notKeyword': 'settings.filters.field.notKeyword'|trans,
+                  'keyword.seen': 'settings.filters.keyword.seen'|trans,
+                  'keyword.flagged': 'settings.filters.keyword.flagged'|trans,
+                  'keyword.draft': 'settings.filters.keyword.draft'|trans,
+                  'keyword.answered': 'settings.filters.keyword.answered'|trans,
+                  'action.applyLabel': 'settings.filters.action.applyLabel'|trans,
+                  'action.removeLabel': 'settings.filters.action.removeLabel'|trans,
+                  'action.markRead': 'settings.filters.action.markRead'|trans,
+                  'action.star': 'settings.filters.action.star'|trans,
+                  'action.archive': 'settings.filters.action.archive'|trans,
+                  'action.trash': 'settings.filters.action.trash'|trans,
+                  'action.markSpam': 'settings.filters.action.markSpam'|trans,
+              }|json_encode|e('html_attr') }}">
+
+            <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_save') }}">
+            <input type="hidden" name="id" value="{{ rule.id }}">
+            <input type="hidden" name="conditions" data-rule-builder-target="conditions">
+            <input type="hidden" name="actions" data-rule-builder-target="actions">
+
+            {# ── Header ─────────────────────────────────────────────────── #}
+            <div class="flex items-center gap-2 px-4 h-11 border-b border-line bg-sunken">
+                <i class="fa-solid fa-filter text-xs text-zinc-400" aria-hidden="true"></i>
+                <h3 class="text-sm font-semibold text-ink">
+                    {{ rule.id ? 'settings.filters.edit_title'|trans : 'settings.filters.new_title'|trans }}
+                </h3>
+            </div>
+
+            {% if errors|length %}
+                <div role="alert" class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-danger text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <div class="space-y-0.5">
+                        {% for error in errors %}<p class="leading-snug">{{ error|trans }}</p>{% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="px-4 py-4 space-y-5">
+
+                {# ── Name + scope ───────────────────────────────────────── #}
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-1 min-w-0">
+                        <label for="rule-name" class="block text-[13px] font-medium text-ink-soft mb-1.5">
+                            {{ 'settings.filters.name'|trans }}
+                        </label>
+                        <input id="rule-name" name="name" type="text" required
+                               value="{{ submittedName ?? rule.name }}"
+                               placeholder="{{ 'settings.filters.name_placeholder'|trans }}"
+                               class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                    </div>
+
+                    <div class="sm:w-56">
+                        <label for="rule-account" class="block text-[13px] font-medium text-ink-soft mb-1.5">
+                            {{ 'settings.filters.account'|trans }}
+                        </label>
+                        <select id="rule-account" name="account"
+                                class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                            <option value="">{{ 'settings.filters.all_accounts'|trans }}</option>
+                            {% for account in accounts %}
+                                <option value="{{ account.id }}" {{ rule.account and rule.account.id == account.id ? 'selected' : '' }}>
+                                    {{ account.displayAddress }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Conditions ─────────────────────────────────────────── #}
+                <div>
+                    <p class="text-[13px] font-medium text-ink-soft mb-1.5">{{ 'settings.filters.when'|trans }}</p>
+                    <div data-rule-builder-target="tree"></div>
+                </div>
+
+                {# ── Actions ────────────────────────────────────────────── #}
+                <div>
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <p class="text-[13px] font-medium text-ink-soft">{{ 'settings.filters.then'|trans }}</p>
+                        <button type="button" data-action="rule-builder#addAction"
+                                class="inline-flex items-center gap-1.5 px-2 h-7 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+                            {{ 'settings.filters.add_action'|trans }}
+                        </button>
+                    </div>
+                    <div data-rule-builder-target="actionList" class="space-y-2"></div>
+                </div>
+
+                {# ── Live feedback ──────────────────────────────────────── #}
+                <div class="rounded-lg border border-line bg-sunken/60 px-3 py-2.5 space-y-1.5">
+                    <p class="text-xs text-ink-soft leading-relaxed" data-rule-builder-target="summary"></p>
+                    <p class="text-xs font-medium
+                              data-[state=pending]:text-ink-faint
+                              data-[state=ok]:text-accent
+                              data-[state=error]:text-danger"
+                       data-rule-builder-target="count" data-state="pending">&nbsp;</p>
+                </div>
+
+                <label class="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" name="stopProcessing" value="1" {{ rule.stopProcessing ? 'checked' : '' }}
+                           class="mt-0.5 size-4 rounded border-field bg-field text-accent focus:ring-2 focus:ring-accent cursor-pointer">
+                    <span>
+                        <span class="block text-sm text-ink-soft leading-none">{{ 'settings.filters.stop'|trans }}</span>
+                        <span class="block text-xs text-ink-faint mt-1">{{ 'settings.filters.stop_help'|trans }}</span>
+                    </span>
+                </label>
+
+                <input type="hidden" name="isEnabled" value="{{ rule.id and not rule.isEnabled ? '0' : '1' }}">
+            </div>
+
+            {# ── Footer ─────────────────────────────────────────────────── #}
+            <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-line bg-sunken">
+                <a href="{{ path('app_settings_filters_cancel') }}"
+                   class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    {{ 'form.cancel'|trans }}
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                    {{ 'form.submit'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+</turbo-frame>

@@ -499,6 +499,109 @@ settings:
             subheading: Colour scheme for the whole ship.
             system: Ship's own
     back: Back to the hold
+    filters:
+        account: Account
+        action:
+            applyLabel: Fly the flag
+            archive: Skip the hold
+            markRead: Mark as read
+            markSpam: Call it bilge
+            removeLabel: Strike the flag
+            star: Mark it
+            trash: Over the side
+        add: New sieve
+        add_action: Add an order
+        add_condition: Add a test
+        add_group: Add a bundle
+        all_accounts: All crew
+        count: '%count% sieves'
+        count_capped: 'Catches %count%+ yarns already aboard'
+        count_error: Not a workable sieve yet
+        count_exact: 'Catches %count% yarns already aboard'
+        delete: Scuttle the sieve "%name%"
+        delete_confirm: 'Scuttle the sieve "%name%"? Yarns it already sorted stay put.'
+        delete_title: Scuttle sieve
+        deleted: Sieve scuttled.
+        disable: Stow the sieve
+        disabled: Stowed
+        edit: 'Mend the sieve "%name%"'
+        edit_title: Mend sieve
+        empty: No sieves yet
+        empty_hint: Sieves sort yarns as they come aboard — flag them, skip the hold, mark them, or send them over the side.
+        enable: Set the sieve
+        error:
+            action_required: Add at least one order, else the sieve does nothin.
+            name_required: Name the sieve.
+        field:
+            after: Aboard after
+            bcc: Bcc carries
+            before: Aboard before
+            body: Yarn carries
+            cc: Cc carries
+            filename: Cargo named
+            from: From carries
+            hasAttachment: Carries cargo
+            hasKeyword: Be
+            hasLabel: Flies flag
+            listId: Crew list be
+            maxSize: Lighter than (bytes)
+            minSize: Heavier than (bytes)
+            notKeyword: Be not
+            notLabel: Flies not flag
+            subject: Heading carries
+            text: Anywhere in the yarn
+            to: To carries
+        heading: Sieves
+        join:
+            and: and
+            none: 'none o: %list%'
+            or: or
+        keyword:
+            answered: answered
+            draft: a rough draft
+            flagged: marked
+            seen: read
+        label_missing: '(struck flag)'
+        move_down: 'Send "%name%" astern'
+        move_up: 'Send "%name%" forrard'
+        name: Name
+        name_placeholder: e.g. Dues from Acme
+        new_title: New sieve
+        no: Nay
+        no_actions: No orders yet
+        of_the_following: o the followin
+        op:
+            all: All
+            any: Any
+            none: None
+        placeholder:
+            date: Pick a day
+            number: 0
+            text: Type a value…
+        already_running: That sieve be already workin'.
+        queued: Put to the crew — runnin' over the yarns aboard.
+        ran: Sieve run over the yarns aboard.
+        remove_action: Remove order
+        remove_condition: Remove test
+        remove_group: Remove bundle
+        reorder: Haul to reorder
+        run: Run over yarns aboard
+        run_state:
+            completed: 'Run over %count% yarns'
+            failed: 'Run ran aground — %count% yarns were done'
+            queued: 'Awaitin'' the crew…'
+            running: 'Workin''… %count% so far'
+        run_confirm: 'Run "%name%" over the yarns already aboard? It can shift and re-flag a great many at once.'
+        saved: Sieve saved.
+        stop: Stop after this sieve
+        stop_help: Later sieves be skipped for any yarn this one catches.
+        subheading: Sort yarns automatic-like as they come aboard.
+        summary:
+            full: 'If %conditions% → %actions%'
+            no_actions: 'If %conditions% → (no orders yet)'
+        then: Then
+        when: When
+        yes: Aye
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"
@@ -518,6 +621,7 @@ settings:
         app_passwords: Spare keys
         appearance: Look o' the ship
         general: General
+        filters: Sieves
         labels: Flags
         notifications: Word from the crow's nest
     notifications:

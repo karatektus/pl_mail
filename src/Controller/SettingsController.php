@@ -8,6 +8,7 @@ use App\Domain\Enum\AppLocale;
 use App\Repository\AccountRepository;
 use App\Repository\ApiTokenRepository;
 use App\Repository\LabelRepository;
+use App\Repository\MailRuleRepository;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,11 +21,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['accounts', 'labels', 'filters', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
+        private readonly MailRuleRepository $mailRuleRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly ApiTokenRepository $apiTokenRepository,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
@@ -49,6 +51,7 @@ final class SettingsController extends AbstractController
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
+            'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),

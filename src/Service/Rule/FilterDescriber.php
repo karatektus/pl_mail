@@ -1,0 +1,203 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Rule;
+
+use App\Domain\Filter\FilterVocabulary;
+use App\Entity\MailRule;
+use App\Repository\LabelRepository;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+/**
+ * Restates a rule in plain language: "If Subject contains invoice → Apply
+ * label Receipts".
+ *
+ * Reading a filter back in words is how someone catches an AND that should
+ * have been an OR — the tree looks equally correct either way. So the sentence
+ * appears in two places, the rule list and live in the editor, and both come
+ * from here.
+ *
+ * Deliberately server-side only. The editor used to build its own sentence in
+ * JavaScript, which meant two implementations of "what this rule says" that
+ * could drift apart — the same trap the filter engines fell into. The editor
+ * now takes the sentence from the preview response it was already fetching for
+ * the match count, so there is one describer and it is translated properly.
+ */
+final class FilterDescriber
+{
+    /** @var array<int, array<int,string>> userId => (labelId => full name) */
+    private array $labelNames = [];
+
+    /** Whose labels the sentence currently being built may name. */
+    private ?UserInterface $subject = null;
+
+    public function __construct(
+        private readonly TranslatorInterface $translator,
+        private readonly LabelRepository     $labelRepository,
+    ) {}
+
+    public function describeRule(MailRule $rule): string
+    {
+        return $this->describe($rule->conditions, $rule->actions, $rule->usr);
+    }
+
+    /**
+     * The user is required, not inferred: label names are resolved for the
+     * sentence, and resolving them globally would let one user's rule render
+     * another user's label name.
+     *
+     * @param array<string,mixed>       $conditions
+     * @param list<array<string,mixed>> $actions
+     */
+    public function describe(array $conditions, array $actions, ?UserInterface $user): string
+    {
+        $this->subject = $user;
+
+        $when = $this->node($conditions);
+        $then = [];
+
+        foreach ($actions as $action) {
+            $described = $this->action($action);
+
+            if (null !== $described) {
+                $then[] = $described;
+            }
+        }
+
+        if (0 === count($then)) {
+            return $this->translator->trans('settings.filters.summary.no_actions', ['%conditions%' => $when]);
+        }
+
+        return $this->translator->trans('settings.filters.summary.full', [
+            '%conditions%' => $when,
+            '%actions%' => implode(', ', $then),
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed> $node
+     */
+    private function node(array $node): string
+    {
+        if (true === array_key_exists('operator', $node)) {
+            return $this->operator($node);
+        }
+
+        $parts = [];
+
+        foreach ($node as $property => $value) {
+            $parts[] = $this->condition((string) $property, $value);
+        }
+
+        // A condition object is an implicit AND of its properties.
+        return implode(' ' . $this->translator->trans('settings.filters.join.and') . ' ', $parts);
+    }
+
+    /**
+     * @param array<string,mixed> $node
+     */
+    private function operator(array $node): string
+    {
+        $conditions = $node['conditions'] ?? [];
+
+        if (false === is_array($conditions)) {
+            return '';
+        }
+
+        $parts = [];
+
+        foreach ($conditions as $child) {
+            if (true === is_array($child)) {
+                $parts[] = $this->node($child);
+            }
+        }
+
+        if ('NOT' === ($node['operator'] ?? null)) {
+            // Spelled out, because NOT over several conditions means "none of"
+            // and reads to most people as "not all of".
+            return $this->translator->trans('settings.filters.join.none', [
+                '%list%' => implode(' ' . $this->translator->trans('settings.filters.join.or') . ' ', $parts),
+            ]);
+        }
+
+        $joiner = 'OR' === ($node['operator'] ?? null)
+            ? $this->translator->trans('settings.filters.join.or')
+            : $this->translator->trans('settings.filters.join.and');
+
+        $joined = implode(' ' . $joiner . ' ', $parts);
+
+        // Parenthesise only where it changes the reading — a single child needs
+        // no brackets and adding them makes the sentence harder, not clearer.
+        return count($parts) > 1 ? '(' . $joined . ')' : $joined;
+    }
+
+    private function condition(string $property, mixed $value): string
+    {
+        $label = $this->translator->trans('settings.filters.field.' . $property);
+
+        if (true === in_array($property, ['hasLabel', 'notLabel'], true)) {
+            return $label . ' ' . $this->labelName($value);
+        }
+
+        if (true === in_array($property, FilterVocabulary::KEYWORD_CONDITIONS, true)) {
+            return $label . ' ' . $this->translator->trans(
+                'settings.filters.keyword.' . ltrim((string) $value, '$'),
+            );
+        }
+
+        if (true === in_array($property, FilterVocabulary::BOOL_CONDITIONS, true)) {
+            return $label . ' ' . $this->translator->trans(
+                true === $value ? 'settings.filters.yes' : 'settings.filters.no',
+            );
+        }
+
+        return trim($label . ' ' . (is_scalar($value) ? (string) $value : ''));
+    }
+
+    /**
+     * @param array<string,mixed> $action
+     */
+    private function action(array $action): ?string
+    {
+        $type = (string) ($action['type'] ?? '');
+
+        if ('' === $type) {
+            return null;
+        }
+
+        $described = $this->translator->trans('settings.filters.action.' . $type);
+
+        if (true === array_key_exists('labelId', $action)) {
+            return $described . ' ' . $this->labelName($action['labelId']);
+        }
+
+        return $described;
+    }
+
+    private function labelName(mixed $id): string
+    {
+        $missing = $this->translator->trans('settings.filters.label_missing');
+
+        if (null === $this->subject) {
+            return $missing;
+        }
+
+        $userId = (int) $this->subject->getId();
+
+        if (false === array_key_exists($userId, $this->labelNames)) {
+            $map = [];
+
+            foreach ($this->labelRepository->findForUser($this->subject) as $label) {
+                $map[(int) $label->id] = (string) $label->fullName;
+            }
+
+            $this->labelNames[$userId] = $map;
+        }
+
+        // A label deleted out from under a rule: name it as missing rather than
+        // rendering a bare id, which would read as nonsense.
+        return $this->labelNames[$userId][(int) $id] ?? $missing;
+    }
+}

@@ -54,6 +54,52 @@ class MailRuleRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Rewrite execution order from a list of ids.
+     *
+     * Takes the whole order rather than "move rule X to position N": the client
+     * already knows the arrangement it is showing, and sending it entire makes
+     * the write idempotent — a retried or duplicated request lands on the same
+     * result instead of shifting things twice.
+     *
+     * Ids that are not the user's are ignored rather than rejected, and rules
+     * the caller omitted keep their relative order at the end, so a stale page
+     * cannot silently drop a rule out of the sequence.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function applyOrder(UserInterface $user, array $orderedIds): void
+    {
+        $rules = $this->findForUserOrdered($user);
+
+        /** @var array<int, MailRule> $byId */
+        $byId = [];
+
+        foreach ($rules as $rule) {
+            $byId[(int) $rule->id] = $rule;
+        }
+
+        $position = 0;
+        $placed = [];
+
+        foreach ($orderedIds as $id) {
+            $rule = $byId[$id] ?? null;
+
+            if (null === $rule) {
+                continue;
+            }
+
+            $rule->sortOrder = $position++;
+            $placed[$id] = true;
+        }
+
+        foreach ($rules as $rule) {
+            if (false === isset($placed[(int) $rule->id])) {
+                $rule->sortOrder = $position++;
+            }
+        }
+    }
+
     public function nextSortOrder(UserInterface $user): int
     {
         $max = $this->createQueryBuilder('rule')
