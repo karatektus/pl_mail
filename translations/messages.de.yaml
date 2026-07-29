@@ -710,6 +710,9 @@ settings:
         yes: Ja
     integrations:
         ask_admin: 'Ihre Administration hat diesen Dienst nicht freigeschaltet.'
+        auth:
+            appPassword: 'App-Passwort'
+            oauth2: 'Anmeldung'
         available_heading: 'Dienst verbinden'
         badge:
             ask_admin: 'nicht freigeschaltet'

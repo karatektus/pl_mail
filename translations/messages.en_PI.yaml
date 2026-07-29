@@ -695,6 +695,9 @@ settings:
         yes: Aye
     integrations:
         ask_admin: 'Th'' quartermaster has not opened this port.'
+        auth:
+            appPassword: 'app password'
+            oauth2: 'boardin'' papers'
         available_heading: 'Moor at a port'
         badge:
             ask_admin: 'not opened'

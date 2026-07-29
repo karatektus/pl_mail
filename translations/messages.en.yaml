@@ -696,6 +696,9 @@ settings:
         yes: Yes
     integrations:
         ask_admin: 'Your administrator has not enabled this service.'
+        auth:
+            appPassword: 'app password'
+            oauth2: 'sign-in'
         available_heading: 'Connect a service'
         badge:
             ask_admin: 'not enabled'
