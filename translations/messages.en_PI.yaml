@@ -301,6 +301,8 @@ inbox:
     empty: No bottles in this here tab.
 
 integration:
+    save_failed: 'Could not stow: %reason%'
+    saved_to: 'Stowed to %name%'
     picker:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'
@@ -392,6 +394,7 @@ message:
         copied: Copied
         copy: Copy to the slate
         heading: The original scroll
+    save_to: 'Stow to'
 
 modal:
     close: Batten it down

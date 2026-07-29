@@ -301,6 +301,8 @@ inbox:
     empty: No messages in this tab.
 
 integration:
+    save_failed: 'Could not save: %reason%'
+    saved_to: 'Saved to %name%'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'
@@ -392,6 +394,7 @@ message:
         copied: Copied
         copy: Copy to clipboard
         heading: Original message
+    save_to: 'Save to'
 
 modal:
     close: Close

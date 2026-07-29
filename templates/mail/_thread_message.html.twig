@@ -132,16 +132,7 @@ Variables:
                 <div class="flex flex-wrap gap-2">
                     {% for part in message.messageParts %}
                         {% if not part.isInline %}
-
-                            <a
-                                href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-                                class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-                                       bg-sunken border border-line text-ink-soft
-                                       hover:bg-hover transition-colors"
-                            >
-                                <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
-                                <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
-                            </a>
+                            {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
                         {% endif %}
                     {% endfor %}
                 </div>

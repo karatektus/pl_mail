@@ -321,4 +321,38 @@ test.describe("compose integration picker", () => {
             /Could not reach the Nextcloud server/i,
         );
     });
+
+    /**
+     * The attachment chip gained a "Save to…" half and was extracted into a
+     * shared partial, so both of its call sites had to keep working. This
+     * covers the thread view; the failure toast also proves the whole
+     * resolve-then-upload path ran rather than short-circuiting.
+     */
+    test("an attachment offers save-to, and reports a failure", async ({
+        page,
+    }) => {
+        seed("seed-attachment");
+
+        await enableNextcloudAsAdmin(page);
+        await connectAsMailUser(page, "Home cloud");
+
+        await page.goto("/mail/inbox");
+        await page
+            .locator("#message-list li")
+            .filter({ hasText: "E2E Attachment" })
+            .first()
+            .click();
+
+        const chip = page.locator('[data-controller="dropdown"]').filter({
+            hasText: "e2e-attachment.txt",
+        });
+        await expect(chip).toBeVisible();
+
+        await chip.getByRole("button", { name: "Save to" }).click();
+        await chip.getByRole("button", { name: "Home cloud" }).click();
+
+        await expect(page.locator("#toast-region")).toContainText(
+            /Could not save/i,
+        );
+    });
 });

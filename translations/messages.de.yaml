@@ -303,6 +303,8 @@ inbox:
     empty: Keine Nachrichten in diesem Tab.
 
 integration:
+    save_failed: 'Speichern fehlgeschlagen: %reason%'
+    saved_to: 'In %name% gespeichert'
     picker:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
@@ -394,6 +396,7 @@ message:
         copied: Kopiert
         copy: In die Zwischenablage kopieren
         heading: Originalnachricht
+    save_to: 'Speichern in'
 
 modal:
     close: Schließen

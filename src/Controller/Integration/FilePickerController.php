@@ -13,6 +13,7 @@ use App\Entity\Message;
 use App\Entity\MessagePart;
 use App\Repository\IntegrationRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
+use App\Service\Mail\AttachmentResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -51,10 +52,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class FilePickerController extends AbstractController
 {
+    /**
+     * Integration::$settings key naming the folder or album uploads land in.
+     * Absent means the service's own default — the files root, or no album.
+     */
+    public const string UPLOAD_FOLDER_SETTING = 'upload.folder';
+
     public function __construct(
         private readonly IntegrationRepository     $integrationRepository,
         private readonly IntegrationDriverRegistry $drivers,
         private readonly AttachmentStorageHelper   $attachmentStorage,
+        private readonly AttachmentResolver        $attachmentResolver,
         private readonly EntityManagerInterface    $em,
     ) {
     }
@@ -207,7 +215,70 @@ final class FilePickerController extends AbstractController
         ]);
     }
 
+    /**
+     * Send an attachment the other way: out of a message and into a service.
+     *
+     * AttachmentResolver is what makes this work for provider-hosted mail —
+     * a gmail:// or msgraph:// part is materialised on first access, so a
+     * Gmail attachment that has never touched our disk uploads exactly like
+     * a locally stored one.
+     */
+    #[Route('/{id}/save-attachment/{part}', name: 'save_attachment', methods: ['POST'])]
+    public function saveAttachment(Integration $integration, MessagePart $part, Request $request): Response
+    {
+        $this->assertUsable($integration, Capability::Upload);
+
+        if (false === $this->isCsrfTokenValid('integration-save-'.$part->getId(), (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        // Same ownership rule AttachmentController uses for downloads: the
+        // part belongs to a message on one of this user's accounts.
+        if ($part->getMessage()?->getAccount()?->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $filename = (string) ($part->getFilename() ?: 'attachment');
+
+        try {
+            $this->drivers->forIntegration($integration)->upload(
+                $integration,
+                $this->attachmentResolver->absolutePathFor($part),
+                $filename,
+                (string) ($part->getContentType() ?: 'application/octet-stream'),
+                $integration->getSetting(self::UPLOAD_FOLDER_SETTING),
+            );
+
+            $integration->recordSuccess();
+            $this->em->flush();
+
+            return $this->toast('integration.saved_to', ['%name%' => $integration->name], false);
+        } catch (IntegrationException $e) {
+            $integration->recordFailure($e->getMessage());
+            $this->em->flush();
+
+            return $this->toast('integration.save_failed', ['%reason%' => $e->getMessage()], true);
+        } catch (\RuntimeException $e) {
+            // AttachmentResolver throws this when a provider-hosted part cannot
+            // be materialised — a different failure from the upload itself, and
+            // not one that says anything about the integration's health.
+            return $this->toast('integration.save_failed', ['%reason%' => $e->getMessage()], true);
+        }
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * @param array<string,string> $params
+     */
+    private function toast(string $message, array $params, bool $isError): Response
+    {
+        return $this->render('integration/_toast.stream.html.twig', [
+            'toastMessage' => $message,
+            'toastParams'  => $params,
+            'isError'      => $isError,
+        ], new Response(null, Response::HTTP_OK, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
 
     private function storePart(Message $message, string $filename, string $mime, string $contents): void
     {

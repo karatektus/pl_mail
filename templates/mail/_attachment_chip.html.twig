@@ -1,0 +1,66 @@
+{#
+mail/_attachment_chip.html.twig — one attachment, with download and save-to.
+
+Extracted from _thread_message and _message_content, which carried identical
+copies of the download link. The "Save to…" half is why it is shared: it needs
+the user's integrations, and duplicating that lookup into two partials rendered
+from five call sites is how one of them ends up stale.
+
+The service list comes from the `integrations` Twig global rather than a
+passed-in variable, because several of those call sites include with `only`.
+
+Save-to posts a Turbo Stream and answers with a toast — no navigation, and the
+thread keeps its scroll position.
+#}
+{% set targets = integrations.forUpload %}
+
+{% if targets is empty %}
+
+    <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+       class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+              bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
+        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+        <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+    </a>
+
+{% else %}
+
+    <div class="relative inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden"
+         data-controller="dropdown">
+
+        <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+           class="inline-flex items-center gap-2 px-3 py-2 text-xs text-ink-soft hover:bg-hover transition-colors">
+            <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+            <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+        </a>
+
+        <button type="button"
+                data-action="click->dropdown#toggle"
+                aria-label="{{ 'message.save_to'|trans }}"
+                class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors">
+            <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
+        </button>
+
+        <div data-dropdown-target="menu" hidden
+             class="absolute top-full mt-1 right-0 z-20 min-w-52 rounded-lg border border-line bg-pane shadow-float py-1">
+            <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                {{ 'message.save_to'|trans }}
+            </p>
+            {% for integration in targets %}
+                <form method="post"
+                      action="{{ path('app_integration_save_attachment', { id: integration.id, part: part.id }) }}"
+                      data-turbo-stream
+                      data-action="submit->dropdown#close">
+                    <input type="hidden" name="_token" value="{{ csrf_token('integration-save-' ~ part.id) }}">
+                    <button type="submit"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                   hover:bg-hover hover:text-ink transition-colors text-left">
+                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
+                        <span class="truncate">{{ integration.name }}</span>
+                    </button>
+                </form>
+            {% endfor %}
+        </div>
+    </div>
+
+{% endif %}
