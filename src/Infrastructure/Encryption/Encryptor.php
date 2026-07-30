@@ -29,19 +29,34 @@ final readonly class Encryptor
     /** Marks a value as encrypted by this class, and with which scheme. */
     public const string PREFIX = 'enc:v1:';
 
-    private string $key;
-
     /**
      * @param string $base64Key Base64-encoded 32-byte secretbox key
-     *
-     * @throws EncryptionException when the key is missing or the wrong size
      */
     public function __construct(
         #[SensitiveParameter]
         #[Autowire(env: 'APP_ENCRYPTION_KEY')]
-        string $base64Key,
+        private string $base64Key,
     ) {
-        $key = base64_decode(trim($base64Key), true);
+    }
+
+    /**
+     * Validated on first use rather than at construction.
+     *
+     * The key is a runtime concern: an image is built before the install it
+     * will run has one, and generation happens at container start. Validating
+     * in the constructor meant `cache:clear` during the Docker build — which
+     * instantiates services — failed on a key that was never supposed to exist
+     * yet.
+     *
+     * Nothing is weakened by the move. Both encrypt() and decrypt() go through
+     * here, so a missing or malformed key still fails loudly at the moment it
+     * would matter, and there is no path that writes plaintext instead.
+     *
+     * @throws EncryptionException when the key is missing or the wrong size
+     */
+    private function key(): string
+    {
+        $key = base64_decode(trim($this->base64Key), true);
 
         if (false === $key) {
             throw new EncryptionException(
@@ -58,7 +73,7 @@ final readonly class Encryptor
             ));
         }
 
-        $this->key = $key;
+        return $key;
     }
 
     /**
@@ -75,7 +90,7 @@ final readonly class Encryptor
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
 
         return self::PREFIX . base64_encode(
-            $nonce . sodium_crypto_secretbox($plaintext, $nonce, $this->key),
+            $nonce . sodium_crypto_secretbox($plaintext, $nonce, $this->key()),
         );
     }
 
@@ -97,7 +112,7 @@ final readonly class Encryptor
 
         $nonce   = substr($raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $sealed  = substr($raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-        $opened  = sodium_crypto_secretbox_open($sealed, $nonce, $this->key);
+        $opened  = sodium_crypto_secretbox_open($sealed, $nonce, $this->key());
 
         if (false === $opened) {
             throw new EncryptionException(

@@ -113,18 +113,36 @@ final class EncryptorTest extends TestCase
         self::assertFalse($encryptor->isEncrypted('x'));
     }
 
+    /**
+     * Validated on first use, not at construction.
+     *
+     * The key is a runtime concern: the Docker image is built long before the
+     * install it will run has one, and `cache:clear` during that build
+     * instantiates services. Constructing is therefore allowed to succeed with
+     * nonsense; using it is not, and that is the moment that matters — there is
+     * no path here that writes plaintext instead.
+     */
     public function testRejectsAKeyOfTheWrongLength(): void
     {
         $this->expectException(EncryptionException::class);
         $this->expectExceptionMessageMatches('/must decode to 32 bytes/');
 
-        new Encryptor(base64_encode('too-short'));
+        new Encryptor(base64_encode('too-short'))->encrypt('anything');
     }
 
     public function testRejectsANonBase64Key(): void
     {
         $this->expectException(EncryptionException::class);
 
-        new Encryptor('not base64 !!!');
+        new Encryptor('not base64 !!!')->encrypt('anything');
+    }
+
+    public function testAnUnusableKeyCanStillBeConstructed(): void
+    {
+        // What the image build needs: no key yet, and nothing exploding until
+        // something actually asks to encrypt.
+        $this->expectNotToPerformAssertions();
+
+        new Encryptor('');
     }
 }
