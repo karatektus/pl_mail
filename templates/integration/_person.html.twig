@@ -9,14 +9,14 @@ are still listed, because "who is this" is a reasonable thing to go looking for.
 Navigates rather than selects: a person is a place, not something attachable.
 #}
 <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
-   class="group flex flex-col items-center gap-1.5 p-1 rounded-lg hover:bg-hover transition-colors"
+   class="group flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-hover transition-colors"
    title="{{ entry.name }}">
-    <span class="relative block w-20 h-20 rounded-full overflow-hidden bg-sunken">
+    <span class="relative block w-24 h-24 rounded-full overflow-hidden bg-sunken ring-2 ring-transparent group-hover:ring-accent/40 transition-[box-shadow]">
         <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
              alt="" loading="lazy" class="w-full h-full object-cover"
              onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-user text-ink-faint w-full h-full flex items-center justify-center'}))">
     </span>
-    <span class="w-full truncate text-center text-[11px] text-ink-muted group-hover:text-ink transition-colors">
+    <span class="w-full truncate text-center text-xs text-ink-muted group-hover:text-ink transition-colors">
         {{ entry.name }}
     </span>
 </a>

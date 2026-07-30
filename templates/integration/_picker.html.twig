@@ -118,7 +118,7 @@ gap under the shortcuts row.
 
                             {# People are places, not attachments, so this grid
                                navigates rather than selects. #}
-                            <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))]"
+                            <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(7rem,1fr))]"
                                  data-integration-picker-target="results">
                                 {% for entry in listing.people %}
                                     {% include 'integration/_person.html.twig' with {
@@ -132,16 +132,14 @@ gap under the shortcuts row.
                         {% elseif isGrid %}
 
                             {% if listing.folders is not empty %}
-                                <ul class="mb-3 divide-y divide-line">
+                                <ul class="mb-3">
                                     {% for entry in listing.folders %}
-                                        <li>
-                                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
-                                               class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
-                                                <i class="fa-solid fa-images text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
-                                                <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
-                                                <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
-                                            </a>
-                                        </li>
+                                        {% include 'integration/_folder_row.html.twig' with {
+                                            integration: integration,
+                                            entry: entry,
+                                            draftId: draftId,
+                                            isMediaLibrary: true,
+                                        } only %}
                                     {% endfor %}
                                 </ul>
                             {% endif %}
@@ -168,7 +166,7 @@ gap under the shortcuts row.
                             </div>
 
                         {% else %}
-                            <ul class="divide-y divide-line" data-integration-picker-target="results">
+                            <ul class="space-y-0.5" data-integration-picker-target="results">
                                 {% for entry in listing.entries %}
                                     {% include 'integration/_row.html.twig' with {
                                         integration: integration,
@@ -177,6 +175,7 @@ gap under the shortcuts row.
                                         maxBytes: maxBytes,
                                         canLink: canLink,
                                         canThumb: canThumb,
+                                        isMediaLibrary: integration.provider.isMediaLibrary,
                                     } only %}
                                 {% endfor %}
                             </ul>

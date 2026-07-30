@@ -1,76 +1,103 @@
 {#
-integration/_row.html.twig — one folder or file in the picker list.
+integration/_row.html.twig — one file in the picker list.
 
-The file-store counterpart to _tile.html.twig, and its own partial for the same
-reason: the paging script appends more of these.
+The whole row selects, the way a whole tile does in the photo grid. Before, the
+only target was a small "Copy" chip on the right, which meant the obvious
+gesture — click the file you want — did nothing at all.
 
-Copy and link are radios in a per-file group, so picking one replaces the other
-rather than adding a second choice, and a file left untouched is simply absent
-from the POST.
+Copy and link stay mutually exclusive without any JavaScript by being two radios
+in one group. The trick that avoids nesting a label inside a label: the row's
+label is absolutely positioned over the whole row, the content above it is
+pointer-events-none so clicks fall through, and the link chip sits above both
+with its own label. So one tap picks copy, and the chip still picks link.
+
+Link only appears where it is useful — the service can mint one, and the file is
+either oversized or being hovered. Showing it permanently made every row look
+like it needed a decision.
 #}
 {% if entry.isFolder %}
-    <li>
-        <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
-           class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
-            <i class="fa-solid fa-folder text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
-            <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
-            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
-        </a>
-    </li>
+    {% include 'integration/_folder_row.html.twig' with {
+        integration: integration,
+        entry: entry,
+        draftId: draftId,
+        isMediaLibrary: isMediaLibrary|default(false),
+    } only %}
 {% else %}
     {# Only a *known* oversize blocks a copy — see the picker's docblock. #}
     {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
     {% set canCopy = not knownTooBig %}
     {% set unattachable = not canCopy and not canLink %}
-    {% set chip = 'inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
-                   text-ink-faint bg-field border border-field
-                   peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
-                   transition-colors' %}
 
-    <li class="flex items-center gap-3 py-2.5 {{ unattachable ? 'opacity-50' : '' }}">
-        {% if canThumb %}
-            <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
-                 alt="" loading="lazy"
-                 class="w-12 h-12 rounded object-cover bg-sunken shrink-0"
-                 onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-12 h-12 flex items-center justify-center shrink-0'}))">
-        {% else %}
-            <i class="fa-solid fa-file text-ink-faint w-5 text-center shrink-0" aria-hidden="true"></i>
+    <li class="group relative flex items-center gap-3 px-3 py-2.5 -mx-2 rounded-xl
+               {{ unattachable ? 'opacity-50' : '' }}">
+
+        {% if canCopy %}
+            {# Covers the row. Everything else is layered above it. #}
+            <label class="absolute inset-0 cursor-pointer rounded-xl select-none touch-manipulation"
+                   data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick"
+                   aria-label="{{ entry.name }}">
+                <input type="radio" class="peer sr-only"
+                       name="mode[{{ entry.id }}]" value="copy"
+                       data-integration-picker-target="mode">
+                <span class="absolute inset-0 rounded-xl transition-colors
+                             group-hover:bg-hover
+                             peer-checked:bg-accent-soft
+                             peer-checked:ring-2 peer-checked:ring-inset peer-checked:ring-accent"></span>
+
+                {# No tick here, unlike the grid: the ring plus the tinted fill
+                   is unambiguous across a full-width row, and the only free
+                   corner is where the link chip lives. #}
+            </label>
         {% endif %}
 
-        <div class="flex-1 min-w-0">
-            <span class="block truncate text-sm text-ink">{{ entry.name }}</span>
-            <span class="block text-[11px] text-ink-faint">
-                {% if entry.size is not null %}
-                    {{ (entry.size / 1024)|round }} KB
-                {% endif %}
-                {%- if entry.modifiedAt %} · {{ entry.modifiedAt|date('Y-m-d') }}{% endif -%}
+        {# pointer-events-none so a click on the name reaches the row label. #}
+        <div class="relative pointer-events-none flex items-center gap-3 flex-1 min-w-0">
+            {% if canThumb %}
+                <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
+                     alt="" loading="lazy"
+                     class="w-10 h-10 rounded-lg object-cover bg-sunken shrink-0"
+                     onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-10 h-10 flex items-center justify-center shrink-0'}))">
+            {% else %}
+                <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">
+                    <i class="fa-solid fa-file text-sm text-ink-faint" aria-hidden="true"></i>
+                </span>
+            {% endif %}
+
+            <span class="flex-1 min-w-0">
+                <span class="block truncate text-sm text-ink">{{ entry.name }}</span>
+                <span class="block text-[11px] text-ink-faint tabular-nums">
+                    {%- if entry.size is not null -%}
+                        {{ entry.size > 1048576
+                            ? (entry.size / 1048576)|round(1) ~ ' MB'
+                            : (entry.size / 1024)|round ~ ' KB' }}
+                    {%- endif -%}
+                    {%- if entry.size is not null and entry.modifiedAt %} · {% endif -%}
+                    {%- if entry.modifiedAt %}{{ entry.modifiedAt|date('Y-m-d') }}{% endif -%}
+                </span>
             </span>
         </div>
 
         {% if unattachable %}
-            <span class="shrink-0 text-[11px] text-ink-faint">
+            <span class="relative shrink-0 text-[11px] text-ink-faint">
                 {{ 'integration.picker.too_big'|trans }}
             </span>
-        {% else %}
-            <div class="shrink-0 flex items-center gap-1">
-                {% if canCopy %}
-                    <label class="cursor-pointer">
-                        <input type="radio" class="peer sr-only"
-                               name="mode[{{ entry.id }}]" value="copy"
-                               data-integration-picker-target="mode">
-                        <span class="{{ chip }}">{{ 'integration.picker.copy'|trans }}</span>
-                    </label>
-                {% endif %}
-
-                {% if canLink %}
-                    <label class="cursor-pointer">
-                        <input type="radio" class="peer sr-only"
-                               name="mode[{{ entry.id }}]" value="link"
-                               data-integration-picker-target="mode">
-                        <span class="{{ chip }}">{{ 'integration.picker.link'|trans }}</span>
-                    </label>
-                {% endif %}
-            </div>
+        {% elseif canLink %}
+            {# Above the row label, so the chip wins the click it is under. #}
+            <label class="relative shrink-0 cursor-pointer
+                          {{ knownTooBig ? '' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100' }}
+                          transition-opacity">
+                <input type="radio" class="peer sr-only"
+                       name="mode[{{ entry.id }}]" value="link"
+                       data-integration-picker-target="mode">
+                <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-medium
+                             text-ink-faint bg-field border border-field
+                             peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
+                             peer-checked:opacity-100
+                             transition-colors">
+                    <i class="fa-solid fa-link text-[9px]" aria-hidden="true"></i>
+                    {{ 'integration.picker.link'|trans }}
+                </span>
+            </label>
         {% endif %}
     </li>
 {% endif %}

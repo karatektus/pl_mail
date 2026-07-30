@@ -1,0 +1,26 @@
+{#
+integration/_folder_row.html.twig — one navigable row: a folder, or an album.
+
+One partial because folders were drawn twice with different icons — a file list
+used fa-folder, the photo grid's album list used fa-images — so the same thing
+looked like two depending on where you met it.
+
+The icon still varies, but by what the entry *is* rather than by which branch
+rendered it: an album is a pile of pictures, a folder is a folder.
+#}
+{% set isAlbum = isMediaLibrary|default(false) %}
+
+<li>
+    <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+       class="group flex items-center gap-3 -mx-2 px-3 py-2.5 rounded-xl
+              hover:bg-hover transition-colors">
+        <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">
+            <i class="fa-solid {{ isAlbum ? 'fa-images' : 'fa-folder' }} text-sm text-amber-500" aria-hidden="true"></i>
+        </span>
+
+        <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
+
+        <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint
+                  group-hover:text-ink-muted transition-colors" aria-hidden="true"></i>
+    </a>
+</li>
