@@ -78,4 +78,16 @@ declare(strict_types=1);
             $get('POSTGRES_CHARSET', 'utf8'),
         ));
     }
+
+    // The hub is proxied on the app's own origin (frankenphp/Caddyfile routes
+    // /.well-known/mercure to the mercure container), so the browser-facing hub
+    // URL follows APP_PUBLIC_URL — the address the admin chose during setup.
+    // Derived here rather than configured: it is one less thing to fill in, and
+    // it cannot drift from the public URL. An explicit MERCURE_PUBLIC_URL still
+    // wins, for the install whose hub really does live somewhere else.
+    if (false === $isSet('MERCURE_PUBLIC_URL') && true === $isSet('APP_PUBLIC_URL')) {
+        $publicUrl = trim((string) ($_SERVER['APP_PUBLIC_URL'] ?? $_ENV['APP_PUBLIC_URL'] ?? ''));
+
+        $put('MERCURE_PUBLIC_URL', rtrim($publicUrl, '/').'/.well-known/mercure');
+    }
 })();

@@ -11,18 +11,9 @@
 name: plmail
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. REQUIRED — plMail will not work properly until these are filled in.
+# 1. REQUIRED — the only thing to configure. Everything else works as-is.
 # ─────────────────────────────────────────────────────────────────────────────
 x-config:
-    # Where plMail is reached from outside, e.g. https://mail.example.com.
-    # Gmail and Outlook send push notifications back to it, and it is what the
-    # setup screen prefills. Leave blank only if you are just trying it out.
-    app_public_url:       &app_public_url       "https://mail.pluetzner.de"
-
-    # The Mercure hub, on that same public origin. Live updates arrive over it;
-    # get this wrong and the app works but never refreshes by itself.
-    mercure_public_url:   &mercure_public_url   "https://mail.pluetzner.de/.well-known/mercure"
-
     # -- Storage --
     # One directory. plMail makes its own subfolders inside it — postgres,
     # attachments, raw, uploads, secrets — so there is nothing to create and
@@ -31,15 +22,24 @@ x-config:
     # This is the whole install. Back it up, or make it a dataset and snapshot
     # it: the secrets subfolder holds the key every mailbox password is
     # encrypted with, and without it they are gone.
-    path_data:            &path_data            /mnt/SAS/plMail
-
-    # -- Image & host port --
-    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
-    http_port:            &http_port            30080
+    path_data:            &path_data            /mnt/yourPool/yourDataSet/plmail
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. OPTIONAL — every one of these works left exactly as it is.
 # ─────────────────────────────────────────────────────────────────────────────
+
+    # -- Public address --
+    # LEAVE BLANK. The setup screen asks for the public URL on first boot and
+    # stores it; the Mercure hub URL is then derived from it automatically
+    # (the hub is proxied on the same origin, at /.well-known/mercure).
+    # Fill these in only to pin values from the environment — anything set
+    # here wins over what the setup screen stored.
+    app_public_url:       &app_public_url       ""
+    mercure_public_url:   &mercure_public_url   ""
+
+    # -- Image & host port --
+    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
+    http_port:            &http_port            30080
 
     # -- Secrets --
     # LEAVE THESE BLANK. All four are generated on first start into the storage
