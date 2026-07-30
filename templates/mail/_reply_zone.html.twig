@@ -28,6 +28,7 @@ The action buttons hide themselves while a compose card is open; see the
             <a
                 href="{{ path('app_compose_reply', params|merge({ id: last.id })) }}"
                 data-turbo-frame="{{ frame }}"
+                data-controller="compose--frame-target"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                        text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
             >
@@ -39,6 +40,7 @@ The action buttons hide themselves while a compose card is open; see the
                 <a
                     href="{{ path('app_compose_reply_all', params|merge({ id: last.id })) }}"
                     data-turbo-frame="{{ frame }}"
+                    data-controller="compose--frame-target"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                            text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
                 >
@@ -50,6 +52,7 @@ The action buttons hide themselves while a compose card is open; see the
             <a
                 href="{{ path('app_compose_forward', params|merge({ id: last.id })) }}"
                 data-turbo-frame="{{ frame }}"
+                data-controller="compose--frame-target"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                        text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
             >

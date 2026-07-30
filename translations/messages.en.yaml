@@ -279,6 +279,7 @@ compose:
     continue_editing: Continue editing
     discard: Delete draft
     empty_draft: (empty draft)
+    formatting: Formatting options
     forward: Forward
     no_recipients: No recipients
     pop_out: Open in compose window

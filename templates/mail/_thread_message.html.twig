@@ -30,6 +30,7 @@ Variables:
             <a
                 href="{{ path('app_compose_edit', composeParams|merge({ id: message.id })) }}"
                 data-turbo-frame="{{ draftFrame }}"
+                data-controller="compose--frame-target"
                 class="flex items-center gap-3 cursor-pointer group"
             >
                 <div class="w-9 h-9 rounded-full bg-sunken border border-line flex-shrink-0 flex items-center justify-center text-ink-faint text-sm">

@@ -398,6 +398,20 @@
         min-height: 36px;
     }
 
+    /*
+       The compose toolbars scroll sideways on a phone rather than wrap. A
+       visible scrollbar inside a 32px-tall pill reads as breakage, and on the
+       touch devices this is for there is no persistent bar to hide anyway.
+    */
+    .compose-scroll-x {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .compose-scroll-x::-webkit-scrollbar {
+        display: none;
+    }
+
     .compose-field-label {
         font-size: 0.75rem;
         font-weight: 500;

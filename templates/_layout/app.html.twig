@@ -100,7 +100,12 @@
     {% block body %}{% endblock %}
     {% block javascripts_body %}{% endblock %}
     {% include '_partials/_modal.html.twig' %}
-    <turbo-frame id="compose_dock" class="fixed bottom-4 right-6 flex items-end gap-3"></turbo-frame>
+    {# `z-50` on the frame, not just on the window inside it: a fixed element
+       creates a stacking context, so the window's own z-index only ever
+       ordered it against its siblings here. Left at `auto` the whole dock
+       painted below the topbar (z-20) and the mobile drawer (z-40) — which
+       the fullscreen compose window below md has to cover. #}
+    <turbo-frame id="compose_dock" class="fixed bottom-4 right-6 z-50 flex items-end gap-3"></turbo-frame>
     <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
 </body>
 </html>

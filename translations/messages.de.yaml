@@ -281,6 +281,7 @@ compose:
     continue_editing: Weiter bearbeiten
     discard: Entwurf löschen
     empty_draft: (leerer Entwurf)
+    formatting: Formatierung
     forward: Weiterleiten
     no_recipients: Keine Empfänger
     pop_out: In eigenem Fenster öffnen

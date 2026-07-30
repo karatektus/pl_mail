@@ -2,7 +2,10 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn'];
+
+    /** Below this the dock window is the whole screen — matches Tailwind's md. */
+    static MOBILE_QUERY = '(max-width: 767px)';
     static values = {
         draftUrl: String,
         sendUrl: String,
@@ -59,11 +62,12 @@ export default class extends Controller {
         // Close from-dropdown when clicking outside
         this._boundCloseDropdown = this._closeFromDropdown.bind(this);
 
-        // Auto-expand on mobile — the dock only; an inline card must not
-        // take over the viewport or lock the thread's scroll.
-        if (false === this.inlineValue && window.innerWidth < 768) {
-            this.expandedValue = true;
-        }
+        // Fullscreen on a phone — both the dock and an inline reply.
+        this._mq = window.matchMedia(this.constructor.MOBILE_QUERY);
+        this._boundBreakpoint = this._applyMobile.bind(this);
+        this._boundViewport   = this._trackViewport.bind(this);
+        this._mq.addEventListener('change', this._boundBreakpoint);
+        this._applyMobile();
 
         if (this.hasBodyTarget) {
             this._collapseQuotedContent();
@@ -85,8 +89,168 @@ export default class extends Controller {
             form.removeEventListener('input', this._boundAutosave);
             form.removeEventListener('submit', this._boundHandleSubmit);
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
+        this._mq?.removeEventListener('change', this._boundBreakpoint);
+        this._unwatchViewport();
         document.body.style.overflow = '';
         this._zone?.classList.remove('composing');
+    }
+
+    // ── Fullscreen on a phone ─────────────────────────────────────────
+
+    /**
+     * True while this window owns the whole screen.
+     *
+     * Inline replies included: on a phone there is no room to wedge a compose
+     * card into a thread, so replying gets the same fullscreen window as
+     * composing. Above md an inline card stays an inline card.
+     */
+    _isMobile() {
+        return true === (this._mq?.matches ?? false);
+    }
+
+    /**
+     * Enter or leave fullscreen. Called on connect and again whenever the
+     * breakpoint flips, so a rotation lands in the right mode rather than
+     * keeping the layout it was opened in.
+     *
+     * The layout itself is CSS (see the root element's `md:` classes); what
+     * has to happen here is everything CSS cannot express — dropping the dock
+     * chrome's state, locking the page behind, folding the formatting bar
+     * away, and tracking the virtual keyboard.
+     */
+    _applyMobile() {
+        const mobile = this._isMobile();
+
+        if (mobile === this._mobileApplied) {
+            return;
+        }
+
+        this._mobileApplied = mobile;
+
+        if (true === mobile) {
+            // Minimize and expand are dock concepts, and expand leaves inline
+            // styles behind that would fight the fullscreen rules.
+            this.minimizedValue = false;
+            this.expandedValue  = false;
+            this.element.style.cssText = '';
+            this._resetExpandedBody();
+
+            document.body.style.overflow = 'hidden';
+            this._setFormatBar(false);
+            this._watchViewport();
+
+            return;
+        }
+
+        this._unwatchViewport();
+        this.element.style.height    = '';
+        this.element.style.transform = '';
+        document.body.style.overflow = '';
+        this._setFormatBar(true);
+    }
+
+    _watchViewport() {
+        // Both events fire: `resize` when the keyboard opens or closes,
+        // `scroll` when the page is panned while it is open.
+        window.visualViewport?.addEventListener('resize', this._boundViewport);
+        window.visualViewport?.addEventListener('scroll', this._boundViewport);
+        this._trackViewport();
+    }
+
+    _unwatchViewport() {
+        window.visualViewport?.removeEventListener('resize', this._boundViewport);
+        window.visualViewport?.removeEventListener('scroll', this._boundViewport);
+    }
+
+    /**
+     * Size the window to the *visual* viewport.
+     *
+     * The virtual keyboard shrinks that but not the layout viewport a fixed
+     * element is measured against, so a `100dvh` window keeps its bottom rows
+     * — the action bar, the send button — underneath the keyboard, which is
+     * exactly the thing that made composing on a phone unusable. Taking the
+     * height from `visualViewport` instead puts the keyboard *below* the
+     * window; `offsetTop` keeps us pinned when the browser pans the page to
+     * reveal the focused field.
+     */
+    _trackViewport() {
+        const viewport = window.visualViewport;
+
+        if (null === viewport || undefined === viewport) {
+            return;
+        }
+
+        this.element.style.height    = `${viewport.height}px`;
+        this.element.style.transform = `translateY(${viewport.offsetTop}px)`;
+
+        // Half the screen just became keyboard: put the caret back on screen.
+        requestAnimationFrame(() => this._revealCaret());
+    }
+
+    /** Scroll the caret back into the visible part of the body scroller. */
+    _revealCaret() {
+        if (false === this.hasScrollerTarget) {
+            return;
+        }
+
+        const selection = window.getSelection();
+
+        if (null === selection || 0 === selection.rangeCount) {
+            return;
+        }
+
+        if (false === this.scrollerTarget.contains(selection.anchorNode)) {
+            return;
+        }
+
+        const caret = selection.getRangeAt(0).getBoundingClientRect();
+        const box   = this.scrollerTarget.getBoundingClientRect();
+
+        // A range with no box at all (some browsers, empty editor) tells us
+        // nothing — leave the scroll where it is.
+        if (0 === caret.top && 0 === caret.bottom) {
+            return;
+        }
+
+        if (caret.bottom > box.bottom) {
+            this.scrollerTarget.scrollTop += caret.bottom - box.bottom + 24;
+        } else if (caret.top < box.top) {
+            this.scrollerTarget.scrollTop -= box.top - caret.top + 24;
+        }
+    }
+
+    // ── Formatting bar ────────────────────────────────────────────────
+
+    /**
+     * The rich-text bar is one more row competing with the keyboard, so on a
+     * phone it stays folded until asked for — the "Aa" button, same as Gmail.
+     */
+    toggleFormatBar() {
+        if (false === this.hasFormatBarTarget) {
+            return;
+        }
+
+        this._setFormatBar('none' === this.formatBarTarget.style.display);
+    }
+
+    _setFormatBar(open) {
+        if (false === this.hasFormatBarTarget) {
+            return;
+        }
+
+        // '' rather than a display value: the element's own responsive
+        // classes decide whether it is a wrapping row or a scroller.
+        this.formatBarTarget.style.display = true === open ? '' : 'none';
+
+        if (true === this.hasFormatToggleTarget) {
+            this.formatToggleTarget.classList.toggle('bg-hover', open);
+            this.formatToggleTarget.classList.toggle('text-ink', open);
+            this.formatToggleTarget.setAttribute('aria-pressed', true === open ? 'true' : 'false');
+        }
+
+        if (true === open) {
+            this._revealCaret();
+        }
     }
 
     /** The thread reply zone this card lives in, when rendered inline. */
@@ -270,7 +434,8 @@ export default class extends Controller {
         // conversation to the top the moment the card mounts.
         editor.focus({ preventScroll: true });
 
-        if (true === this.inlineValue) {
+        // Fullscreen is fixed to the viewport — there is nothing to scroll to.
+        if (true === this.inlineValue && false === this._isMobile()) {
             this.element.scrollIntoView({ block: 'nearest' });
         }
 
@@ -288,6 +453,12 @@ export default class extends Controller {
             sel.addRange(range);
         } catch (_) {
             // Silently ignore — editor is still focused.
+        }
+
+        // The address rows and the editor share one scroll region, so the
+        // thing to rewind is that region, not the editor.
+        if (this.hasScrollerTarget) {
+            this.scrollerTarget.scrollTop = 0;
         }
 
         editor.scrollTop = 0;
@@ -320,6 +491,11 @@ export default class extends Controller {
     // ── Minimize ──────────────────────────────────────────────────────
 
     toggleMinimize() {
+        // Fullscreen has nothing to minimize into — the dock is not on screen.
+        if (true === this._isMobile()) {
+            return;
+        }
+
         // Can't minimize while expanded — collapse first
         if (this.expandedValue) {
             this.expandedValue = false;
@@ -349,11 +525,17 @@ export default class extends Controller {
     // ── Expand / fullscreen ───────────────────────────────────────────
 
     toggleExpand() {
+        if (true === this._isMobile()) {
+            return;
+        }
+
         this.expandedValue = !this.expandedValue;
     }
 
     expandedValueChanged() {
-        if (true === this.inlineValue) {
+        // Mobile is already fullscreen and sizes itself from the visual
+        // viewport; the inline styles below would fight that.
+        if (true === this.inlineValue || true === this._isMobile()) {
             return;
         }
 
@@ -385,16 +567,26 @@ export default class extends Controller {
 
         } else {
             el.style.cssText = '';
-
-            if (this.hasBodyTarget) {
-                this.bodyTarget.closest('div').style.flex = '';
-                this.bodyTarget.style.flex = '';
-                this.bodyTarget.style.height = '';
-            }
+            this._resetExpandedBody();
 
             document.body.style.overflow = '';
         }
 
+        this._syncExpandIcon(expanded);
+    }
+
+    /** Undo the inline sizing the expanded dock puts on the editor. */
+    _resetExpandedBody() {
+        if (false === this.hasBodyTarget) {
+            return;
+        }
+
+        this.bodyTarget.closest('div').style.flex = '';
+        this.bodyTarget.style.flex   = '';
+        this.bodyTarget.style.height = '';
+    }
+
+    _syncExpandIcon(expanded) {
         if (this.hasExpandIconTarget) {
             this.expandIconTarget.className = expanded
                 ? 'fa-solid fa-down-left-and-up-right-to-center text-[10px]'
@@ -464,8 +656,10 @@ export default class extends Controller {
         }
 
         // Reply box: a draft the autosave created has no row yet — add one,
-        // otherwise it only turns up after a reload.
-        if (null !== id && true === this.inlineValue) {
+        // otherwise it only turns up after a reload. Keyed on the thread
+        // rather than on `inline`, because a reply below md is a dock window
+        // that still belongs to the conversation behind it.
+        if (null !== id && true === this.hasThreadValue) {
             this._insertDraftRow(id);
         }
 
@@ -719,18 +913,31 @@ export default class extends Controller {
         clearTimeout(this.#autosaveTimer);
         this._submitting = true;
 
-        const sendBtn = this.element.querySelector('[type="submit"]');
-        if (sendBtn) {
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Sending…';
-        }
+        // Two of them below md: the header's icon button and the pill in the
+        // action bar, only one of which is on screen at a time.
+        const sendButtons = this.hasSendBtnTarget
+            ? this.sendBtnTargets
+            : Array.from(this.element.querySelectorAll('[type="submit"]'));
+
+        sendButtons.forEach((button) => {
+            button.disabled = true;
+            // The icon button has no text to replace — keep its markup.
+            if ('' !== button.textContent.trim()) {
+                button.dataset.sendLabel ??= button.textContent;
+                button.textContent = 'Sending…';
+            }
+        });
 
         setTimeout(() => {
             this._submitting = false;
-            if (sendBtn) {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
-            }
+
+            sendButtons.forEach((button) => {
+                button.disabled = false;
+
+                if (undefined !== button.dataset.sendLabel) {
+                    button.textContent = button.dataset.sendLabel;
+                }
+            });
         }, 15_000);
     }
 

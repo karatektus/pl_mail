@@ -279,6 +279,7 @@ compose:
     continue_editing: Keep scribblin'
     discard: Burn this scroll
     empty_draft: (blank scroll)
+    formatting: Fancy lettering
     forward: Pass it along
     no_recipients: Nobody to send it to
     pop_out: Open in its own cabin

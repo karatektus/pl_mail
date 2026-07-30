@@ -565,10 +565,13 @@ class ComposeController extends AbstractController
 
         if (true === $ctx['inline']) {
             $params['frame'] = $ctx['frame'];
+        }
 
-            if (null !== $ctx['thread']) {
-                $params['thread'] = $ctx['thread'];
-            }
+        // Not inline-only: below md a reply opens in the dock instead of in
+        // the thread (see compose--frame-target), and the window still has to
+        // know which conversation it belongs to so its draft row lands there.
+        if (null !== $ctx['thread']) {
+            $params['thread'] = $ctx['thread'];
         }
 
         if (null !== $ctx['replyTo']) {
