@@ -16,12 +16,15 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use League\OAuth2\Client\Token\AccessTokenInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
 use App\Service\OAuth\OAuthProviderFactory;
 use App\Service\Graph\GraphSubscriptionManager;
 
@@ -39,6 +42,9 @@ class OAuthController extends AbstractController
         private readonly PushSubscriptionRegistry $pushRegistry,
         private readonly \App\Service\Mail\AliasSeeder $aliasSeeder,
         private readonly OnboardingFlow $onboarding,
+        private readonly MicrosoftOAuthErrorTranslator $microsoftErrorTranslator,
+        private readonly TranslatorInterface $translator,
+        private readonly LoggerInterface $logger,
     ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
@@ -100,7 +106,7 @@ class OAuthController extends AbstractController
 
             $this->addFlash('error', $this->translator->trans($translated['key']));
 
-            return $this->redirectToRoute('settings_accounts');
+            return $this->redirectToRoute($this->landingRoute());
         }
 
         if (null === $state || $state !== $expectedState) {
@@ -118,9 +124,14 @@ class OAuthController extends AbstractController
         try {
             $token = $client->getAccessToken('authorization_code', ['code' => $code]);
         } catch (IdentityProviderException $e) {
-            $translated = $this->microsoftErrorTranslator->translate(
-                $e->getMessage() . ' ' . json_encode($e->getResponseBody())
-            );
+            $raw        = $e->getMessage() . ' ' . json_encode($e->getResponseBody());
+            $translated = $this->microsoftErrorTranslator->translate($raw);
+
+            $this->logger->warning('OAuth token exchange failed', [
+                'provider'   => $provider,
+                'error'      => $e->getMessage(),
+                'aadstsCode' => $translated['code'],
+            ]);
 
             $this->addFlash('error', $this->translator->trans($translated['key']));
 

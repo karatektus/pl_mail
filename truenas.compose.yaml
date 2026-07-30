@@ -17,11 +17,11 @@ x-config:
     # Where plMail is reached from outside, e.g. https://mail.example.com.
     # Gmail and Outlook send push notifications back to it, and it is what the
     # setup screen prefills. Leave blank only if you are just trying it out.
-    app_public_url:       &app_public_url       ""
+    app_public_url:       &app_public_url       "https://mail.pluetzner.de"
 
     # The Mercure hub, on that same public origin. Live updates arrive over it;
     # get this wrong and the app works but never refreshes by itself.
-    mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
+    mercure_public_url:   &mercure_public_url   "https://mail.pluetzner.de/.well-known/mercure"
 
     # -- Storage --
     # One directory. plMail makes its own subfolders inside it — postgres,
@@ -31,7 +31,7 @@ x-config:
     # This is the whole install. Back it up, or make it a dataset and snapshot
     # it: the secrets subfolder holds the key every mailbox password is
     # encrypted with, and without it they are gone.
-    path_data:            &path_data            /mnt/yourPool/yourDataSet/plmail
+    path_data:            &path_data            /mnt/SAS/plMail
 
     # -- Image & host port --
     image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
@@ -138,6 +138,11 @@ services:
                        /app/var/data/raw \
                        /app/var/data/uploads
               chown -R 999:999 /app/var/data/postgres
+              # Postgres re-execs as uid 999 and must be able to traverse the
+              # mount root, but a TrueNAS dataset with the "Apps" preset is
+              # 770 apps:apps — no x-bit for uid 999. Execute-only: grants
+              # traversal, not the ability to list or read anything.
+              chmod o+x /app/var/data || setfacl -m u:999:--x /app/var/data || true
               exec generate-secrets
         environment:
             APP_SECRETS_DIR: /app/var/data/secrets
