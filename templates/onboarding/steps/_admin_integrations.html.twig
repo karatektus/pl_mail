@@ -1,0 +1,8 @@
+{# Same shape as the mail credentials step; different set of providers. #}
+{% include 'onboarding/steps/_provider_switch.html.twig' with {
+    providers: providers,
+    provider: provider,
+    step: step,
+} only %}
+
+{{ form_widget(form) }}

@@ -1,0 +1,9 @@
+{#
+The appearance step reuses the settings section verbatim — one place to change
+how plMail looks, whether you reach it from setup or from Settings.
+
+Its controls post JSON through fetch rather than submitting a form, so nothing
+here can trip the modal's close-on-submit. The only thing held back is the
+import/export pair; see the note in the included template.
+#}
+{% include 'settings/_appearance.html.twig' with { show_appearance_transfer: false } %}

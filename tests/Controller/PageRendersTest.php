@@ -18,9 +18,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * Needs the seeded admin (`app:test:seed-user --admin`); skips itself without
  * one so a fresh checkout does not fail on missing fixtures.
  *
- * `/compose/new` and `/admin/user` are deliberately absent — both 500 today,
- * for reasons that have nothing to do with rendering. See "Findings worth
- * fixing" in todo.md; add them back here once they answer 200.
+ * `/admin/user` is deliberately absent — it 500s today for reasons that have
+ * nothing to do with rendering (its template has never existed). See "Findings
+ * worth fixing" in todo.md; add it back here once it answers 200.
  */
 final class PageRendersTest extends WebTestCase
 {
@@ -53,6 +53,20 @@ final class PageRendersTest extends WebTestCase
         yield 'admin logs' => ['/admin/logs'];
         yield 'admin db' => ['/admin/db'];
         yield 'admin integrations' => ['/admin/integrations'];
+        // The wizard renders into the modal frame, so these are fragments
+        // rather than pages — but a broken step template still shows up as a
+        // 500 here, which is the point.
+        yield 'onboarding profile step' => ['/onboarding/profile'];
+        yield 'onboarding account step' => ['/onboarding/account'];
+        yield 'onboarding appearance step' => ['/onboarding/appearance'];
+        // The two admin steps are deliberately absent: they answer 404 once
+        // credentials are on file, which is the whole point of them, and
+        // whether this database has any depends on what the e2e suite last did.
+        // OnboardingFlowTest covers the applicability rules directly.
+        yield 'settings profile' => ['/settings?section=profile'];
+        // Was a 500 on a fresh install: no account, and Message::setAccount()
+        // is not nullable. See "Findings worth fixing" in todo.md.
+        yield 'compose new' => ['/compose/new'];
     }
 
     #[DataProvider('pages')]

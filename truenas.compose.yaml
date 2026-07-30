@@ -9,7 +9,7 @@
 name: plmail
 
 # NOTE — before installing, from the TrueNAS shell (replace "tank" with your pool):
-#   mkdir -p /mnt/tank/apps/plmail/{database_data,caddy_data,caddy_config,mercure_data,mercure_config,attachments,raw,uploads}
+#   mkdir -p /mnt/tank/apps/plmail/{database_data,caddy_data,caddy_config,mercure_data,mercure_config,attachments,raw,uploads,secrets}
 #   chown -R 999:999 /mnt/tank/apps/plmail/database_data   # postgres runs as uid 999
 # Better: create tank/apps/plmail as a dataset so it gets its own ZFS snapshots.
 
@@ -19,17 +19,28 @@ name: plmail
 # EDIT EVERYTHING IN THIS BLOCK — nothing below needs touching.
 # ─────────────────────────────────────────────────────────────────────────────
 x-config:
+    # Where plMail is reached from outside — Gmail and Outlook push callbacks
+    # come back to it. Leave blank and the setup screen asks for it, prefilled
+    # with the address you opened plMail on.
     app_public_url:       &app_public_url       ""
     # -- Secrets --
+    # LEAVE THESE BLANK unless you manage secrets yourself. All four are
+    # generated on first start into path_secrets below, which is why that bind
+    # is mounted on the app services, the database and the hub. Fill one in and
+    # yours is used instead — nothing is ever generated over the top.
+    #
+    # BACK UP path_secrets, separately from the database: app_encryption_key
+    # encrypts every mailbox password and OAuth token at rest, and losing it
+    # loses them all. Changing it once mail accounts exist makes the app refuse
+    # to start rather than overwrite what it can no longer read.
     app_secret:           &app_secret           ""
-    # REQUIRED — the app refuses to start without it. Encrypts mailbox
-    # passwords and OAuth tokens at rest. Generate: openssl rand -base64 32
-    # Back this up separately from the database; losing it loses the credentials.
     app_encryption_key:   &app_encryption_key   ""
     db_password:          &db_password          ""
     mercure_jwt:          &mercure_jwt          ""
-    # The password below MUST equal db_password (an anchor can't be spliced mid-string):
-    database_url:         &database_url         "postgresql://app:PASSWORD@database:5432/app?serverVersion=18&charset=utf8"
+    # Leave blank and the app assembles it from the generated db_password. Set
+    # it only to point plMail at a database of your own — and then the password
+    # inside it MUST equal db_password (an anchor can't be spliced mid-string):
+    database_url:         &database_url         ""
 
     # -- Public origin (your reverse-proxy hostname) --
     mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
@@ -42,6 +53,7 @@ x-config:
     # Rotating them invalidates every existing subscription; every device has to
     # re-enable notifications afterwards.
     # vapid_subject must be a mailto: or https: URL identifying you (RFC 8292).
+    # Leave the two keys blank and one is generated on first start instead.
     vapid_subject:        &vapid_subject        "mailto:you@yourdomain.com"
     vapid_public_key:     &vapid_public_key     ""
     vapid_private_key:    &vapid_private_key    ""
@@ -70,6 +82,10 @@ x-config:
     path_attachments:     &path_attachments     /mnt/yourPool/yourDataSet/attachments
     path_raw:             &path_raw             /mnt/yourPool/yourDataSet/raw
     path_uploads:         &path_uploads         /mnt/yourPool/yourDataSet/uploads
+    # Holds the secrets generated on first start. Mounted on all four app
+    # services: one that cannot see it mints its own encryption key and stops
+    # being able to read what the others wrote. BACK THIS UP.
+    path_secrets:         &path_secrets         /mnt/yourPool/yourDataSet/secrets
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -79,6 +95,8 @@ x-app-env: &app-env
     APP_SECRET: *app_secret
     APP_ENCRYPTION_KEY: *app_encryption_key
     DATABASE_URL: *database_url
+    POSTGRES_USER: app
+    POSTGRES_DB: app
     MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
     MERCURE_URL: "http://mercure/.well-known/mercure"
     MERCURE_PUBLIC_URL: *mercure_public_url
@@ -96,6 +114,25 @@ x-app-env: &app-env
     TRUSTED_PROXIES:
 
 services:
+    # Mints whatever was left blank above into path_secrets, then exits. Runs
+    # before everything else: Postgres and Mercure read their secrets when their
+    # containers are created and cannot wait for the app to hand them one.
+    # Idempotent — on every later start it finds the file and does nothing.
+    secrets-init:
+        image: *image
+        pull_policy: always
+        restart: "no"
+        entrypoint: ["generate-secrets"]
+        environment:
+            APP_SECRET: *app_secret
+            APP_ENCRYPTION_KEY: *app_encryption_key
+            POSTGRES_PASSWORD: *db_password
+            MERCURE_JWT_SECRET: *mercure_jwt
+        volumes:
+            - type: bind
+              source: *path_secrets
+              target: /app/var/secrets
+
     php:
         image: *image
         pull_policy: always
@@ -129,7 +166,12 @@ services:
             - type: bind
               source: *path_uploads
               target: /app/var/uploads
+            - type: bind
+              source: *path_secrets
+              target: /app/var/secrets
         depends_on:
+            secrets-init:
+                condition: service_completed_successfully
             database:
                 condition: service_healthy
 
@@ -154,9 +196,14 @@ services:
             - type: bind
               source: *path_uploads
               target: /app/var/uploads
+            - type: bind
+              source: *path_secrets
+              target: /app/var/secrets
         healthcheck:
             disable: true
         depends_on:
+            secrets-init:
+                condition: service_completed_successfully
             database:
                 condition: service_healthy
 
@@ -181,9 +228,14 @@ services:
             - type: bind
               source: *path_uploads
               target: /app/var/uploads
+            - type: bind
+              source: *path_secrets
+              target: /app/var/secrets
         healthcheck:
             disable: true
         depends_on:
+            secrets-init:
+                condition: service_completed_successfully
             database:
                 condition: service_healthy
 
@@ -212,9 +264,14 @@ services:
             - type: bind
               source: *path_uploads
               target: /app/var/uploads
+            - type: bind
+              source: *path_secrets
+              target: /app/var/secrets
         healthcheck:
             disable: true
         depends_on:
+            secrets-init:
+                condition: service_completed_successfully
             database:
                 condition: service_healthy
 
@@ -224,16 +281,26 @@ services:
         environment:
             POSTGRES_DB: app
             POSTGRES_USER: app
-            POSTGRES_PASSWORD: *db_password
+            # Only the _FILE form: the image rejects both being set at once, and
+            # the file is written with whatever db_password holds — generated or
+            # yours — so it is always the effective password.
+            POSTGRES_PASSWORD_FILE: /run/plmail/postgres_password
         healthcheck:
             test: ["CMD", "pg_isready", "-d", "app", "-U", "app"]
             timeout: 5s
             retries: 5
             start_period: 60s
+        depends_on:
+            secrets-init:
+                condition: service_completed_successfully
         volumes:
             - type: bind
               source: *path_db
               target: /var/lib/postgresql/18/docker
+            - type: bind
+              source: *path_secrets
+              target: /run/plmail
+              read_only: true
         command:
             - "postgres"
             - "-c"
@@ -246,15 +313,36 @@ services:
         restart: unless-stopped
         environment:
             SERVER_NAME: ':80'
-            MERCURE_PUBLISHER_JWT_KEY: *mercure_jwt
-            MERCURE_SUBSCRIBER_JWT_KEY: *mercure_jwt
+            # The hub image has no _FILE support, so the entrypoint below reads
+            # the generated secret in a shell before exec'ing Caddy. Filling in
+            # mercure_jwt above wins: the generator never overwrites it, so both
+            # sides still read the same value.
+            MERCURE_JWT_SECRET: *mercure_jwt
+        entrypoint:
+            - /bin/sh
+            - -c
+            - |
+              if [ -z "$$MERCURE_JWT_SECRET" ] && [ -f /run/plmail/generated.env ]; then
+                MERCURE_JWT_SECRET="$$(sed -n 's/^MERCURE_JWT_SECRET=//p' /run/plmail/generated.env)"
+              fi
+              export MERCURE_PUBLISHER_JWT_KEY="$$MERCURE_JWT_SECRET"
+              export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
+              exec "$$@"
+            - --
         command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+        depends_on:
+            secrets-init:
+                condition: service_completed_successfully
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost/healthz"]
             timeout: 5s
             retries: 5
             start_period: 60s
         volumes:
+            - type: bind
+              source: *path_secrets
+              target: /run/plmail
+              read_only: true
             - type: bind
               source: *path_mercure_data
               target: /data

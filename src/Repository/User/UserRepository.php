@@ -21,6 +21,13 @@ use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
  */
 class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
 {
+    /**
+     * Advisory lock id for creating the first administrator. Arbitrary but
+     * fixed — 'plm1' as an integer — and used nowhere else, so it cannot
+     * collide with another lock in the same database.
+     */
+    private const int FIRST_ADMIN_LOCK = 0x706C6D31;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, User::class);
@@ -77,6 +84,54 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         }
 
         return $owners;
+    }
+
+    /**
+     * Every user row, soft-deleted ones included.
+     *
+     * Deliberately not countUndeleted(): this is what decides whether the
+     * unauthenticated /install page is open. Counting only live users would
+     * mean soft-deleting the last account re-opens an endpoint that mints an
+     * administrator.
+     */
+    public function countAll(): int
+    {
+        return $this->count([]);
+    }
+
+    /**
+     * Persist $user as the first administrator, or return false if someone
+     * else got there first.
+     *
+     * The lock is the point, and is why this is not a plain persist+flush in a
+     * service. /install is unauthenticated by definition — it has to be, there
+     * is nobody to authenticate yet — so its only protection is that the
+     * install has no users. Two requests arriving together both read zero and
+     * both create an admin unless the count and the insert happen inside one
+     * transaction that nothing else can interleave with. Postgres advisory
+     * locks are the only way to hold a row that does not exist yet.
+     */
+    public function createFirstAdmin(User $user): bool
+    {
+        $entityManager = $this->getEntityManager();
+
+        return $entityManager->getConnection()->transactional(function () use ($entityManager, $user): bool {
+            $entityManager->getConnection()->executeStatement(
+                'SELECT pg_advisory_xact_lock(?)',
+                [self::FIRST_ADMIN_LOCK],
+            );
+
+            if (0 !== $this->countAll()) {
+                return false;
+            }
+
+            $user->setRoles([User::ROLE_ADMIN]);
+
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return true;
+        });
     }
 
     public function countUndeleted(): int

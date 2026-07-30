@@ -25,6 +25,30 @@ enum MailProvider: string
     case Microsoft = 'microsoft';
 
     /**
+     * The provider's own name for itself, for a chip or a button.
+     *
+     * Not translated: these are brand names, and "Gmail" is Gmail in every
+     * locale. The surrounding prose that explains what to do with them is
+     * translated, and lives in the message catalogues.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Google    => 'Gmail',
+            self::Microsoft => 'Microsoft',
+        };
+    }
+
+    /** FontAwesome class for the provider's mark, as Integration\Provider does. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Google    => 'fa-brands fa-google',
+            self::Microsoft => 'fa-brands fa-microsoft',
+        };
+    }
+
+    /**
      * OAuth scopes requested at consent time.
      *
      * @return list<string>

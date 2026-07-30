@@ -4,27 +4,24 @@ namespace App\Command\Setup;
 
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Setup\FirstAdminInstaller;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class SetupCommand extends Command
 {
     private const NAME = 'app:setup';
 
-    private EntityManagerInterface $entityManager;
-    private UserPasswordHasherInterface $passwordHasher;
+    private FirstAdminInstaller $firstAdminInstaller;
 
     private UserRepository $userRepository;
 
 
-    public function __construct(EntityManagerInterface $documentManager, UserPasswordHasherInterface $passwordHasher, UserRepository $userRepository)
+    public function __construct(FirstAdminInstaller $firstAdminInstaller, UserRepository $userRepository)
     {
-        $this->entityManager = $documentManager;
-        $this->passwordHasher = $passwordHasher;
+        $this->firstAdminInstaller = $firstAdminInstaller;
 
         $this->userRepository = $userRepository;
 
@@ -58,13 +55,16 @@ class SetupCommand extends Command
         $user = new User();
         $user
             ->setEmail($eMail)
-            ->setPassword($this->passwordHasher->hashPassword($user, $password))
             ->setNameFirst('Admin')
-            ->setNameLast('Istrator')
-            ->setRoles([User::ROLE_ADMIN]);
+            ->setNameLast('Istrator');
 
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        // Same locked write as the /install page, so the terminal route and the
+        // browser route cannot disagree about what "the first user" means.
+        if (false === $this->firstAdminInstaller->install($user, $password)) {
+            $symfonyStyle->warning('A user was created by something else while this command was running; nothing was changed.');
+
+            return 0;
+        }
 
         return 0;
     }

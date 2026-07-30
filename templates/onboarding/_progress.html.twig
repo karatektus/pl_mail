@@ -1,0 +1,40 @@
+{#
+_progress.html.twig — the numbered rail across the top of the wizard.
+
+Built from the steps this user actually gets, not from the enum: a plain user
+must never see a pill for an admin step they will never be offered, and the
+"3 of 4" in the header has to agree with what is on screen.
+
+Scrolls horizontally rather than wrapping. Six pills do not fit on a phone, and
+a rail that reflows to two rows moves the body down mid-wizard.
+#}
+<div class="px-6 pb-4 shrink-0 overflow-x-auto">
+    <ol class="flex items-center gap-1.5 min-w-max">
+        {% for item in steps %}
+            {% set isCurrent = item.value == current.value %}
+            {% set isDone = loop.index < currentIndex %}
+
+            <li class="flex items-center gap-1.5">
+                <span
+                    class="inline-flex items-center gap-2 h-7 pl-2 pr-2.5 rounded-full text-xs font-medium
+                           border transition-colors
+                           {% if isCurrent %}
+                             border-accent bg-accent/10 text-accent
+                           {% elseif isDone %}
+                             border-line text-ink-soft
+                           {% else %}
+                             border-line text-ink-faint
+                           {% endif %}"
+                    {% if isCurrent %}aria-current="step"{% endif %}
+                >
+                    <i class="{{ isDone ? 'fa-solid fa-check' : item.icon }} text-[11px]" aria-hidden="true"></i>
+                    {{ (item.transKey ~ '.title')|trans }}
+                </span>
+
+                {% if not loop.last %}
+                    <span class="w-4 h-px bg-line" aria-hidden="true"></span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+</div>

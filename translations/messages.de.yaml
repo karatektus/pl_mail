@@ -275,6 +275,10 @@ app:
     name: Mail
 
 compose:
+    no_account:
+        body: Richte zuerst ein Postfach ein, dann kannst du sofort davon schreiben.
+        cta: Mail-Konto hinzufügen
+        heading: Noch kein Mail-Konto
     attach: Dateien anhängen
     attachment_remove: Anhang entfernen
     click_to_cancel: zum Abbrechen klicken
@@ -313,6 +317,8 @@ header:
     user_menu:
         admin: Administration
         label: Benutzermenü für %email%
+        profile: Profil
+        rerun_setup: Einrichtung erneut starten
         settings: Einstellungen
         sign_out: Abmelden
         signed_in_as: Angemeldet als
@@ -455,9 +461,97 @@ oauth:
                 bei plMail anmelden. Prüfe die Einstellung
                 MICROSOFT_OAUTH_TENANT.
 
+onboarding:
+    action:
+        back: Zurück
+        finish: Fertig
+        next: Weiter
+        skip: Schritt überspringen
+        skip_all: Einrichtung überspringen
+    done:
+        body: >-
+            Alles Übersprungene findest du in den Einstellungen, und du kannst die
+            Einrichtung jederzeit über das Benutzermenü erneut starten.
+        cta: Zu meinen Mails
+        heading: Fertig eingerichtet
+    aside:
+        account:
+            body: >-
+                plMail braucht die Adressen für Posteingang (IMAP) und Postausgang (SMTP).
+                Die stehen meist in der Hilfe deines Anbieters unter "IMAP-Einstellungen".
+            heading: Wo finde ich das?
+            oauth: >-
+                Für Gmail und Outlook nimm stattdessen die Anmelde-Buttons unter
+                Einstellungen → Mail-Konten — dort brauchst du keine Serveradressen.
+        admin_integrations:
+            body: Registriere plMail beim Dienst und trage die erhaltenen Zugangsdaten hier ein.
+            heading: So richtest du das ein
+        admin_mail:
+            body: >-
+                Lege beim Anbieter eine OAuth-App an und trage Client-ID und Secret hier
+                ein. Alle Nutzer dieser plMail-Instanz melden sich darüber an.
+            heading: So richtest du das ein
+        profile:
+            body: Das sehen Empfänger in der Absenderzeile. Jederzeit änderbar.
+            heading: Wo das erscheint
+    integrations:
+        connect: Verbinden
+        connected: Verbunden
+    progress: 'Schritt %index% von %total%'
+    step:
+        account:
+            lead: Verbinde das Postfach, das du wirklich liest — plMail beginnt dann zu synchronisieren.
+            title: Mail-Konto
+        admin-integrations:
+            lead: Zugangsdaten für die Dienste, aus denen hier alle Dateien anhängen können.
+            title: Integrations-Zugangsdaten
+        admin-mail:
+            lead: Anmeldedaten für Gmail und Outlook — einmal für diese ganze Instanz.
+            title: Mail-Anbieter
+        appearance:
+            lead: Wie plMail aussieht. Nichts davon ist endgültig, ändere es jederzeit.
+            title: Darstellung
+        integrations:
+            lead: Verbinde die Dienste, in denen deine Dateien und Fotos liegen.
+            title: Deine Integrationen
+        profile:
+            lead: Der Name, der auf deinen gesendeten Mails steht.
+            title: Über dich
+    title: plMail einrichten
+
+profile:
+    avatar_wrong_type: Bitte ein PNG, JPEG, GIF oder WebP verwenden.
+    field:
+        avatar: Bild
+        avatar_help: PNG, JPEG, GIF oder WebP, bis 4 MB.
+        avatar_remove: Aktuelles Bild entfernen
+        name_first: Vorname
+        name_last: Nachname
+
 sent:
     empty: Keine gesendeten Nachrichten.
     heading: Gesendet
+
+setup:
+    install:
+        field:
+            email: E-Mail-Adresse
+            email_help: Mit dieser Adresse meldest du dich an.
+            public_url: Öffentliche Adresse
+            public_url_help: >-
+                Unter dieser Adresse ist plMail von außen erreichbar. Gmail und Outlook
+                schicken Push-Benachrichtigungen dorthin zurück, sie muss also aus dem
+                Internet erreichbar sein und sollte https sein. Später änderbar.
+            name_first: Vorname
+            name_last: Nachname
+            password: Passwort
+            password_repeat: Passwort wiederholen
+        footnote: Postfächer und alles Weitere kannst du einrichten, sobald du drin bist.
+        heading: Konto anlegen
+        lead: Das ist das erste Konto auf dieser plMail-Instanz und bekommt daher volle Administratorrechte.
+        page_title: plMail einrichten
+        submit: Konto anlegen und anmelden
+        tagline: Hier hat sich noch niemand angemeldet
 
 settings:
     accounts:
@@ -806,6 +900,10 @@ settings:
         show: Label anzeigen
         subheading: Labels erstellen, umbenennen und ordnen — und wählen, welche in der Seitenleiste erscheinen.
         system: System
+    profile:
+        heading: Dein Profil
+        save: Profil speichern
+        subheading: Name und Bild, die auf deinen gesendeten Mails erscheinen.
     language:
         heading: Sprache
         subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
@@ -815,6 +913,7 @@ settings:
         app_passwords: App-Passwörter
         appearance: Darstellung
         general: Allgemein
+        profile: Profil
         filters: Filter
         integrations: Integrationen
         labels: Labels

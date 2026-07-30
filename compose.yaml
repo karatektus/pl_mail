@@ -1,16 +1,44 @@
 x-app-image: &app-image ghcr.io/karatektus/pl_mail:latest
 
+# Every secret below is blank by default and generated on first start by the
+# secrets-init service, into the shared app_secrets volume. Set any of them in
+# your shell or a .env beside this file and yours is used instead — nothing is
+# ever generated over the top of a value you supplied.
+#
+# DATABASE_URL is deliberately absent: the app entrypoint assembles it from the
+# generated POSTGRES_PASSWORD. Set it explicitly to point at a database of your
+# own, and the entrypoint leaves it alone.
 x-app-env: &app-env
   APP_ENV: ${APP_ENV:-prod}
-  APP_SECRET: ${APP_SECRET}
-  DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-18}&charset=${POSTGRES_CHARSET:-utf8}
+  APP_SECRET: ${APP_SECRET:-}
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
+  DATABASE_URL: ${DATABASE_URL:-}
+  POSTGRES_USER: ${POSTGRES_USER:-app}
+  POSTGRES_DB: ${POSTGRES_DB:-app}
+  POSTGRES_VERSION: ${POSTGRES_VERSION:-18}
   MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
   MERCURE_URL: ${MERCURE_URL:-http://mercure/.well-known/mercure}
   MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
-  MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-'!ChangeThisMercureHubJWTSecretKey!'}
-  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
 
 services:
+  # Mints APP_SECRET, APP_ENCRYPTION_KEY, POSTGRES_PASSWORD and
+  # MERCURE_JWT_SECRET into app_secrets, then exits. Runs before everything
+  # else because Postgres and Mercure read their secrets when their containers
+  # are created — they cannot wait for the app to hand them one.
+  #
+  # Idempotent: on every later start it finds the file and does nothing.
+  secrets-init:
+    image: *app-image
+    restart: "no"
+    entrypoint: ["generate-secrets"]
+    environment:
+      APP_SECRET: ${APP_SECRET:-}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-}
+    volumes:
+      - app_secrets:/app/var/secrets
+
   php:
     image: *app-image
     restart: unless-stopped
@@ -22,6 +50,10 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      # Every app service mounts this. The secrets generated on first run live
+      # here, and a service that cannot see them generates its own and stops
+      # being able to read what the others wrote.
+      - app_secrets:/app/var/secrets
     ports:
       - target: 80
         published: ${HTTP_PORT:-80}
@@ -33,6 +65,8 @@ services:
         published: ${HTTP3_PORT:-443}
         protocol: udp
     depends_on:
+      secrets-init:
+        condition: service_completed_successfully
       database:
         condition: service_healthy
 
@@ -44,9 +78,14 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: imap-supervisor
+    volumes:
+      # See the note on the php service: this mount is not optional.
+      - app_secrets:/app/var/secrets
     healthcheck:
       disable: true
     depends_on:
+      secrets-init:
+        condition: service_completed_successfully
       database:
         condition: service_healthy
 
@@ -58,9 +97,14 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: messenger-worker
+    volumes:
+      # See the note on the php service: this mount is not optional.
+      - app_secrets:/app/var/secrets
     healthcheck:
       disable: true
     depends_on:
+      secrets-init:
+        condition: service_completed_successfully
       database:
         condition: service_healthy
 
@@ -74,9 +118,14 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: scheduler
+    volumes:
+      # See the note on the php service: this mount is not optional.
+      - app_secrets:/app/var/secrets
     healthcheck:
       disable: true
     depends_on:
+      secrets-init:
+        condition: service_completed_successfully
       database:
         condition: service_healthy
 
@@ -84,8 +133,14 @@ services:
     image: postgres:${POSTGRES_VERSION:-18}-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
       POSTGRES_USER: ${POSTGRES_USER:-app}
+      # The official image supports _FILE for any of its variables, which is the
+      # only way to hand it a password that did not exist when compose parsed
+      # this file.
+      POSTGRES_PASSWORD_FILE: /run/plmail/postgres_password
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
       timeout: 5s
@@ -93,6 +148,7 @@ services:
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql
+      - app_secrets:/run/plmail:ro
     command:
       - "postgres"
       - "-c"
@@ -105,9 +161,27 @@ services:
     restart: unless-stopped
     environment:
       SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-'!ChangeThisMercureHubJWTSecretKey!'}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-'!ChangeThisMercureHubJWTSecretKey!'}
+      # Left empty on purpose: the entrypoint below fills them from the
+      # generated file. The hub image has no _FILE support, so sourcing it in a
+      # shell before exec'ing Caddy is the way in. Setting MERCURE_JWT_SECRET
+      # yourself still wins — the generator never overwrites it, so both sides
+      # read the same value.
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -z "$$MERCURE_JWT_SECRET" ] && [ -f /run/plmail/generated.env ]; then
+          MERCURE_JWT_SECRET="$$(sed -n 's/^MERCURE_JWT_SECRET=//p' /run/plmail/generated.env)"
+        fi
+        export MERCURE_PUBLISHER_JWT_KEY="$$MERCURE_JWT_SECRET"
+        export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
+        exec "$$@"
+      - --
     command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/healthz"]
       timeout: 5s
@@ -116,8 +190,10 @@ services:
     volumes:
       - mercure_data:/data
       - mercure_config:/config
+      - app_secrets:/run/plmail:ro
 
 volumes:
+  app_secrets:
   caddy_data:
   caddy_config:
   database_data:

@@ -1,0 +1,21 @@
+{#
+Composing with no mail account at all.
+
+Reachable only on a fresh install — which is exactly when it used to be a 500,
+because Message::setAccount() is not nullable and defaultAccount() had nothing
+to give it. A dead end with a way out beats a stack trace.
+#}
+<div class="p-8 text-center">
+    <div class="mx-auto w-11 h-11 rounded-full bg-sunken flex items-center justify-center">
+        <i class="fa-solid fa-envelope text-ink-faint" aria-hidden="true"></i>
+    </div>
+
+    <h2 class="mt-4 text-base font-semibold text-ink">{{ 'compose.no_account.heading'|trans }}</h2>
+    <p class="mt-1.5 text-sm text-ink-muted">{{ 'compose.no_account.body'|trans }}</p>
+
+    <a href="{{ path('app_settings_index', { section: 'accounts' }) }}"
+       class="mt-5 inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-white
+              bg-accent hover:bg-accent-strong transition-colors">
+        {{ 'compose.no_account.cta'|trans }}
+    </a>
+</div>

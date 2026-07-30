@@ -1,0 +1,23 @@
+{#
+Settings → Profile. The same form the setup wizard shows, with its own action
+so it posts here rather than to the wizard.
+#}
+<section>
+    <h2 class="text-sm font-semibold text-ink">{{ 'settings.profile.heading'|trans }}</h2>
+    <p class="text-xs text-ink-faint mt-0.5 mb-5">{{ 'settings.profile.subheading'|trans }}</p>
+
+    <div class="max-w-md">
+        {{ form_start(profileForm) }}
+            {{ form_widget(profileForm) }}
+
+            <button
+                type="submit"
+                id="profile-save"
+                class="mt-6 inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-white
+                       bg-accent hover:bg-accent-strong active:bg-blue-800
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                       transition-colors duration-100"
+            >{{ 'settings.profile.save'|trans }}</button>
+        {{ form_end(profileForm) }}
+    </div>
+</section>

@@ -100,6 +100,11 @@
     {% block body %}{% endblock %}
     {% block javascripts_body %}{% endblock %}
     {% include '_partials/_modal.html.twig' %}
+    {# After the modal, and only ever for a signed-in user who has not been
+       through setup: it drives the dialog above, so that has to exist first. #}
+    {% if app.user %}
+        {% include 'onboarding/_boot.html.twig' %}
+    {% endif %}
     {# `z-50` on the frame, not just on the window inside it: a fixed element
        creates a stacking context, so the window's own z-index only ever
        ordered it against its siblings here. Left at `auto` the whole dock

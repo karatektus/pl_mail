@@ -14,6 +14,7 @@ use App\Form\Integration\MailProviderConfigType;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Integration\MailProviderConfigRepository;
+use App\Service\Integration\ProviderConfigWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -44,6 +45,7 @@ final class IntegrationProviderController extends AbstractController
         private readonly IntegrationRepository              $integrationRepository,
         private readonly MailProviderConfigRepository       $mailConfigRepository,
         private readonly EntityManagerInterface             $em,
+        private readonly ProviderConfigWriter               $configWriter,
     ) {
     }
 
@@ -78,17 +80,7 @@ final class IntegrationProviderController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            if (null === $config->id) {
-                $this->em->persist($config);
-            }
-
-            $this->applySecret(
-                $form,
-                static fn (?string $secret) => $config->clientSecret = $secret,
-                $config->clientSecret,
-            );
-
-            $this->em->flush();
+            $this->configWriter->saveIntegrationProvider($config, $form);
 
             return $this->savedStream('admin.integrations.saved');
         }
@@ -112,34 +104,7 @@ final class IntegrationProviderController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            if (null === $config->id) {
-                $this->em->persist($config);
-            }
-
-            $this->applySecret(
-                $form,
-                static fn (?string $secret) => $config->clientSecret = $secret,
-                $config->clientSecret,
-            );
-
-            if (true === $form->has('tenant')) {
-                $config->setTenant($form->get('tenant')->getData());
-            }
-
-            if (true === $form->has('pubsubTopic')) {
-                $config->setPubsubTopic($form->get('pubsubTopic')->getData());
-            }
-
-            // Write-only, like every other secret here.
-            if (true === $form->has('pushVerificationToken')) {
-                $submittedToken = $this->nullIfBlank($form->get('pushVerificationToken')->getData());
-
-                if (null !== $submittedToken) {
-                    $config->pushVerificationToken = $submittedToken;
-                }
-            }
-
-            $this->em->flush();
+            $this->configWriter->saveMailProvider($config, $form);
 
             return $this->savedStream('admin.integrations.mail.saved');
         }
@@ -218,31 +183,6 @@ final class IntegrationProviderController extends AbstractController
      *
      * @param callable(?string):void $assign
      */
-    private function applySecret(FormInterface $form, callable $assign, ?string $current): void
-    {
-        // Absent entirely on app-password providers, which have no app
-        // registration to hold — Nextcloud's form is a toggle and an address.
-        if (false === $form->has('clientSecret')) {
-            return;
-        }
-
-        if (true === $form->has('clearClientSecret') && true === $form->get('clearClientSecret')->getData()) {
-            $assign(null);
-
-            return;
-        }
-
-        $submitted = $this->nullIfBlank($form->get('clientSecret')->getData());
-
-        if (null !== $submitted) {
-            $assign($submitted);
-
-            return;
-        }
-
-        $assign($current);
-    }
-
     private function savedStream(string $message): Response
     {
         return $this->render('admin/integrations/_saved.stream.html.twig', [
@@ -270,14 +210,4 @@ final class IntegrationProviderController extends AbstractController
         ];
     }
 
-    private function nullIfBlank(mixed $value): ?string
-    {
-        if (false === is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return '' === $trimmed ? null : $trimmed;
-    }
 }

@@ -1,0 +1,26 @@
+{#
+The redirect URI is the one thing the admin has to paste into Google's or
+Microsoft's console, and getting it wrong is the most common reason OAuth never
+works — so it is here, copyable, rather than left to be reconstructed by hand.
+Same block as the admin panel's form.
+#}
+<p class="font-medium text-ink-soft">{{ 'onboarding.aside.admin_mail.heading'|trans }}</p>
+<p class="mt-2">{{ 'onboarding.aside.admin_mail.body'|trans }}</p>
+
+<div class="mt-4 pt-4 border-t border-line">
+    <span class="block text-[13px] font-medium leading-none text-ink-soft">
+        {{ 'admin.integrations.field.redirect_uri'|trans }}
+    </span>
+    <div class="mt-1.5 flex items-center gap-2" data-controller="ui--clipboard">
+        <code data-ui--clipboard-target="source"
+              class="flex-1 min-w-0 truncate rounded-lg bg-surface border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_oauth_callback', { provider: provider.value }) }}</code>
+        <button type="button"
+                data-action="click->ui--clipboard#copy"
+                class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
+                       bg-field border border-field hover:bg-hover transition-colors"
+                aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">
+            <i class="fa-solid fa-copy text-xs" aria-hidden="true"></i>
+        </button>
+    </div>
+    <p class="mt-1.5 text-xs text-ink-faint">{{ 'admin.integrations.field.redirect_uri_help'|trans }}</p>
+</div>

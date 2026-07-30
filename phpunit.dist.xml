@@ -14,6 +14,10 @@
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
+        <!-- A file of its own: InstallEmptyInstallTest writes APP_PUBLIC_URL
+             through the real service, and the generated secrets the test
+             environment actually runs on must not be the thing it overwrites. -->
+        <server name="APP_SECRETS_FILE" value="var/secrets/phpunit.env" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
         <!-- Most tests here are plain unit tests, but the filter-agreement
              test boots the kernel: it has to execute the compiler's SQL

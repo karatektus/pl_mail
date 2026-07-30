@@ -1,0 +1,6 @@
+# Symfony übersetzt Validierungsmeldungen in der Domain `validators`, nicht in
+# `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
+alias.invalid: Gib eine gültige E-Mail-Adresse ein.
+app_password.name_required: Gib dem App-Passwort einen Namen, damit du es später wiedererkennst.
+setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
+setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

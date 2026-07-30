@@ -1,0 +1,31 @@
+{#
+One row per connectable service. The connect links leave the modal on purpose —
+the OAuth ones bounce to the provider's consent screen, and there is no way to
+do that inside a dialog. The wizard reopens where it left off on the next page
+load, so leaving is not losing your place.
+#}
+<ul class="space-y-2">
+    {% for config in connectable %}
+        {% set provider = config.provider %}
+        <li id="onboarding-integration-{{ provider.value }}"
+            class="flex items-center gap-3 rounded-pane border border-line px-4 py-3">
+            <i class="{{ provider.icon }} w-5 text-center text-ink-muted" aria-hidden="true"></i>
+
+            <span class="flex-1 min-w-0 text-sm font-medium text-ink truncate">{{ provider.label }}</span>
+
+            {% if connected[provider.value]|default(false) %}
+                <span class="inline-flex items-center gap-1.5 text-xs text-ink-faint">
+                    <i class="fa-solid fa-check text-accent" aria-hidden="true"></i>
+                    {{ 'onboarding.integrations.connected'|trans }}
+                </span>
+            {% else %}
+                <a href="{{ path('app_settings_integrations_connect', { provider: provider.value }) }}"
+                   data-turbo-frame="_top"
+                   class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                          text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    {{ 'onboarding.integrations.connect'|trans }}
+                </a>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

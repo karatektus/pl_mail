@@ -30,6 +30,22 @@ class MailProviderConfigRepository extends ServiceEntityRepository
      *
      * @return array<string,MailProviderConfig>
      */
+    /**
+     * How many providers are fully registered.
+     *
+     * findAll() plus the entity's own isComplete(), rather than a query with
+     * two IS NOT NULL clauses: "complete" is defined on the entity, there are
+     * two rows at most, and a copy of that definition in DQL would be one more
+     * thing to keep in step.
+     */
+    public function countComplete(): int
+    {
+        return count(array_filter(
+            $this->findAll(),
+            static fn (MailProviderConfig $config): bool => $config->isComplete(),
+        ));
+    }
+
     public function findAllIndexedByProvider(): array
     {
         $indexed = [];

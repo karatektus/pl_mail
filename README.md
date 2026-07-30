@@ -86,31 +86,11 @@ Microsoft — see [Connecting Gmail](#connecting-gmail) below.
 git clone https://github.com/karatektus/pl_mail.git
 ```
 
-```bash
-cd pl_mail && cp .env .env.local
-```
+There is nothing to fill in before starting. The secrets are generated on first start, and the one
+setting that has no sensible default — the address people reach plMail at — is asked for on the setup
+screen, prefilled with the address you opened it on.
 
-Open `.env.local` and set at least these three before starting:
-
-| Setting | What to put there |
-|---|---|
-| `APP_PUBLIC_URL` | The address you'll reach plMail at, e.g. `https://mail.example.com` |
-| `APP_SECRET` | Any long random string |
-| `APP_ENCRYPTION_KEY` | The key your mailbox credentials are encrypted with — generate one below |
-
-Generate the encryption key with:
-
-```bash
-openssl rand -base64 32
-```
-
-plMail encrypts every mailbox password and OAuth token with this key before writing it to the
-database, so a stolen database dump or backup discloses no credentials on its own. That cuts both
-ways: **if you lose the key, the stored credentials cannot be recovered** and you'll have to re-enter
-them. Back it up separately from the database — storing both in the same place defeats the purpose.
-The app refuses to start without a valid key rather than quietly falling back to plain text.
-
-Then start everything:
+Start everything:
 
 ```bash
 docker compose up -d
@@ -118,6 +98,35 @@ docker compose up -d
 
 The database is prepared automatically on first boot. Open [https://localhost](https://localhost),
 create your account, and add your first mailbox.
+
+### The secrets it generates for you
+
+On first start plMail mints its own secrets rather than running on the ones committed to this
+repository — those are readable by anyone who has cloned it. They go into a single file on a volume
+every plMail service shares:
+
+```
+var/secrets/generated.env
+```
+
+It holds `APP_SECRET`, the `APP_ENCRYPTION_KEY` your mailbox credentials are encrypted with, the
+database password, the Mercure hub secret and a VAPID keypair for push notifications. Nothing has a
+working default any more — there is no `!ChangeMe!` left to forget about. Two things follow:
+
+**Back that volume up, separately from the database.** plMail encrypts every mailbox password and
+OAuth token with the key before writing it, so a stolen database dump discloses no credentials on
+its own. The same property cuts the other way: *lose the key and the stored credentials cannot be
+recovered.* Storing the backup of both in one place defeats the point of either.
+
+**Set any of them yourself and yours wins.** Pass `APP_ENCRYPTION_KEY` (or any of the others) as an
+environment variable and nothing is generated for it. That is the path to take if you already manage
+secrets somewhere else. One thing to know if you do: `docker compose` reads the project's `.env` to
+fill in `${VAR}`, so a value put there reaches every container — which is exactly why the committed
+`.env` leaves these blank.
+
+If a service comes up holding a key that cannot decrypt what is already stored — usually because the
+`app_secrets` volume was left off one of the services — it refuses to start and says so, rather than
+saving accounts that nothing else can read.
 
 ### Adding an IMAP mailbox
 

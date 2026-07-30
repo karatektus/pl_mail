@@ -1,0 +1,7 @@
+# Constraint messages. Symfony translates validation output in the `validators`
+# domain, not `messages` — a key put in messages.*.yaml renders as the raw key,
+# which is how "setup.install.password_too_short" ended up on screen.
+alias.invalid: Enter a valid email address.
+app_password.name_required: Give the app password a name so you can recognise it later.
+setup.install.password_mismatch: The two passwords don't match.
+setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.

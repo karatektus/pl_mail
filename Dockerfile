@@ -53,6 +53,9 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 
 COPY --link frankenphp/conf.d/10-app.ini $PHP_INI_DIR/conf.d/
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
+# Its own binary, not just a step inside the entrypoint: the secrets-init
+# service runs it on its own, before Postgres and Mercure start.
+COPY --link --chmod=755 frankenphp/generate-secrets.sh /usr/local/bin/generate-secrets
 COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 
 ENTRYPOINT ["docker-entrypoint"]

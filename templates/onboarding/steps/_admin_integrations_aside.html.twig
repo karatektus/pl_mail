@@ -1,0 +1,7 @@
+{# The provider's own setup tutorial, as shown in the admin panel. #}
+<p class="font-medium text-ink-soft">{{ 'onboarding.aside.admin_integrations.heading'|trans }}</p>
+<p class="mt-2">{{ 'onboarding.aside.admin_integrations.body'|trans }}</p>
+
+<div class="mt-4 pt-4 border-t border-line">
+    {% include 'admin/integrations/tutorial/_' ~ provider.slug ~ '.html.twig' ignore missing %}
+</div>

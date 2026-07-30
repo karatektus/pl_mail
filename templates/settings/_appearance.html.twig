@@ -239,7 +239,12 @@
         </label>
     </section>
 
-    {# ── Import / export ───────────────────────────────────────────────── #}
+    {# ── Import / export ─────────────────────────────────────────────────
+       Hidden inside the setup wizard: export sets a Content-Disposition, and a
+       download triggered from inside a turbo-frame either blows the frame away
+       or does nothing at all. Neither is worth showing someone who has been in
+       the app for ninety seconds. #}
+    {% if show_appearance_transfer|default(true) %}
     <section class="flex items-center gap-2 pt-4 border-t border-line">
         <a href="{{ path('app_appearance_export') }}"
            class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover transition-colors">
@@ -260,4 +265,5 @@
             {{ 'settings.appearance.reset'|trans }}
         </button>
     </section>
+    {% endif %}
 </div>

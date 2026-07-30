@@ -29,6 +29,13 @@ x-test-app: &test-app
   environment: &test-env
     APP_ENV: test
     APP_DEBUG: "1"
+    # Pinned, and passed as real environment variables rather than left to
+    # .env.test: the entrypoint generates these when the environment does not
+    # carry them, and a generated value would win over the dotenv one. The
+    # suite wants them fixed — stable CSRF tokens, and a seed encrypted with
+    # the same key every run. Same values as .env.test.
+    APP_SECRET: 282065e0f71bf96c0dbcf0496c1f5d3e
+    APP_ENCRYPTION_KEY: emL6R8zs0pSXCVV2HvVvbFubriWJIla7kgnqSGqCJ8E=
     # Host is `database`, unlike .env.test which targets 127.0.0.1 for CI.
     # Doctrine's when@test dbname_suffix (config/packages/doctrine.yaml) turns
     # this into `app_test` automatically.

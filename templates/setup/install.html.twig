@@ -1,0 +1,72 @@
+{#
+install.html.twig — the very first screen a new plMail install shows.
+
+Built on the login page's card rather than the app shell: there is no session,
+no sidebar and no account yet, and the two screens are the only ones a
+signed-out visitor ever sees, so they should look like the same product.
+
+Wider than login (max-w-md) because this form has five fields, and a repeated
+password in a max-w-sm card reads as a wall.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'setup.install.page_title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="min-h-screen flex items-center justify-center app-bg px-4 py-10">
+        <div class="w-full max-w-md">
+
+            {# Logo #}
+            <div class="flex flex-col items-center mb-8">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-envelope text-accent text-2xl" aria-hidden="true"></i>
+                    <span class="text-xl font-semibold text-ink">{{ 'app.name'|trans }}</span>
+                </div>
+                <p class="text-sm text-ink-muted">{{ 'setup.install.tagline'|trans }}</p>
+            </div>
+
+            {# Card #}
+            <div class="bg-surface rounded-pane shadow-sm border border-line p-8">
+
+                <h1 class="text-base font-semibold text-ink">{{ 'setup.install.heading'|trans }}</h1>
+                <p class="mt-1.5 text-sm text-ink-muted">{{ 'setup.install.lead'|trans }}</p>
+
+                {# Same reason as the login form: Turbo swaps only the <body>,
+                   so the appearance rendered onto <html> would be ignored until
+                   the next real navigation — and the next navigation here is
+                   into the signed-in app. #}
+                {{ form_start(form, { attr: { 'data-turbo': 'false' } }) }}
+
+                    {% if form.vars.errors|length %}
+                        <div role="alert" class="mt-6 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                            <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger" aria-hidden="true"></i>
+                            <div class="space-y-0.5">
+                                {% for error in form.vars.errors %}
+                                    <p class="leading-snug">{{ error.message }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-6">
+                        {{ form_widget(form) }}
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="install-submit"
+                        class="mt-7 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface"
+                    >
+                        {{ 'setup.install.submit'|trans }}
+                    </button>
+
+                {{ form_end(form) }}
+            </div>
+
+            <p class="text-center text-xs text-ink-faint mt-6">
+                {{ 'setup.install.footnote'|trans }}
+            </p>
+
+        </div>
+    </div>
+{% endblock %}

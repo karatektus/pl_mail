@@ -49,6 +49,10 @@ security:
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
+        # Creates the first administrator, so it cannot require one. Safe only
+        # because App\Service\Setup\InstallGuard 404s it the moment any user
+        # exists — see that class before touching this line.
+        - { path: ^/install, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

@@ -6,6 +6,8 @@ namespace App\Command\Test;
 
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -49,7 +51,8 @@ final class SeedTestUserCommand extends Command
         $this
             ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Override the seeded email')
             ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Override the seeded password')
-            ->addOption('admin', null, InputOption::VALUE_NONE, 'Seed with ROLE_ADMIN as well');
+            ->addOption('admin', null, InputOption::VALUE_NONE, 'Seed with ROLE_ADMIN as well')
+            ->addOption('pending-onboarding', null, InputOption::VALUE_NONE, 'Leave setup unfinished so the wizard opens on first page load');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -97,6 +100,18 @@ final class SeedTestUserCommand extends Command
 
         $user->setPassword(
             $this->passwordHasher->hashPassword($user, $plainPassword)
+        );
+
+        // Finished by default, and this is not cosmetic. The setup wizard opens
+        // itself over a backdrop that is fixed inset-0 z-50 and swallows every
+        // click, so a seeded user who is still pending would break every spec
+        // that shares the stored login. The onboarding spec asks for a pending
+        // one explicitly, with an email of its own.
+        $user->setSetting(
+            User::SETTING_ONBOARDING_COMPLETED_AT,
+            true === $input->getOption('pending-onboarding')
+                ? null
+                : (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
         );
 
         $this->entityManager->persist($user);

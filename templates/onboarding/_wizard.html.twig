@@ -1,0 +1,141 @@
+{#
+_wizard.html.twig — the shell every setup step renders into.
+
+Loads into the shared #modal frame at size "full" (max-w-6xl). Two things here
+are load-bearing rather than decorative:
+
+  data-ui--modal-keep-open must WRAP the form, not sit beside it. The modal
+  controller closes on any successful turbo:submit-end unless
+  event.target.closest() finds this attribute, and event.target is the <form>.
+  Put it on a sibling and the dialog vanishes halfway through setup.
+
+  The step form carries its own action, set by the handler. A form rendered
+  inside a turbo-frame posts to the document URL otherwise — which here is
+  whatever page the wizard was opened over.
+
+Every step has a form, even the ones with no fields: it is what the Next button
+submits, and an empty one keeps this template free of "if there is a form"
+branches around the body, the footer and the buttons.
+
+Two columns on desktop: fields left, the step's own prose right. A step with
+nothing to explain passes no aside_template and the grid collapses to one.
+#}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'onboarding.title'|trans }}</template>
+
+    <div data-ui--modal-keep-open id="onboarding-wizard" class="flex-1 min-h-0 flex flex-col">
+
+        {# ── Header ── #}
+        <div class="px-6 pb-4 shrink-0">
+            <div class="flex items-baseline justify-between gap-4">
+                <h3 class="text-lg font-semibold text-ink">{{ (step.transKey ~ '.title')|trans }}</h3>
+                <span class="text-xs text-ink-faint shrink-0">
+                    {{ 'onboarding.progress'|trans({'%index%': progress.index, '%total%': progress.total}) }}
+                </span>
+            </div>
+            <p class="mt-1 text-sm text-ink-muted">{{ (step.transKey ~ '.lead')|trans }}</p>
+        </div>
+
+        {% include 'onboarding/_progress.html.twig' with {
+            steps: steps,
+            current: step,
+            currentIndex: progress.index,
+        } only %}
+
+        {{ form_start(form, { attr: { 'data-turbo-frame': 'modal', class: 'flex-1 min-h-0 flex flex-col' } }) }}
+
+            <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+                <div class="grid gap-6 {% if aside_template is defined %}md:grid-cols-[1fr_320px]{% endif %}">
+                    <div id="onboarding-step-{{ step.value }}">
+                        {% if form.vars.errors|length %}
+                            <div role="alert" class="mb-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger" aria-hidden="true"></i>
+                                <div class="space-y-0.5">
+                                    {% for error in form.vars.errors %}
+                                        <p class="leading-snug">{{ error.message }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {{ include(template) }}
+                    </div>
+
+                    {% if aside_template is defined %}
+                        <aside class="md:order-last rounded-pane bg-sunken p-4 text-sm text-ink-muted leading-relaxed">
+                            {{ include(aside_template) }}
+                        </aside>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# ── Footer ── #}
+            <div class="flex items-center gap-2 px-6 pb-6 pt-3 shrink-0 border-t border-line">
+                <button
+                    type="submit"
+                    form="onboarding-skip-all-form"
+                    id="onboarding-skip-all"
+                    class="text-xs text-ink-faint hover:text-ink-soft underline-offset-2 hover:underline transition-colors"
+                >{{ 'onboarding.action.skip_all'|trans }}</button>
+
+                <div class="ml-auto flex items-center gap-2">
+                    {% if previous is not null %}
+                        <a
+                            id="onboarding-back"
+                            href="{{ path('app_onboarding_step', { step: previous.value }) }}"
+                            data-turbo-frame="modal"
+                            class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                                   text-ink-soft bg-field border border-field hover:bg-hover
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                                   transition-colors duration-100"
+                        >{{ 'onboarding.action.back'|trans }}</a>
+                    {% endif %}
+
+                    <button
+                        type="submit"
+                        form="onboarding-skip-form"
+                        id="onboarding-skip"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft hover:bg-hover
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100"
+                    >{{ 'onboarding.action.skip'|trans }}</button>
+
+                    <button
+                        type="submit"
+                        id="onboarding-next"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong active:bg-blue-800
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100"
+                    >{{ (isLast ? 'onboarding.action.finish' : 'onboarding.action.next')|trans }}</button>
+                </div>
+            </div>
+
+        {{ form_end(form) }}
+
+        {# Sibling forms, reached by the footer buttons through form="…". They
+           cannot nest inside the step form — HTML has no nested forms, and a
+           skip button placed inside it would submit the step instead. #}
+        <form
+            id="onboarding-skip-form"
+            method="post"
+            action="{{ path('app_onboarding_skip', { step: step.value }) }}"
+            data-turbo-frame="modal"
+            hidden
+        >
+            <input type="hidden" name="_token" value="{{ csrf_token('onboarding-skip-' ~ step.value) }}">
+        </form>
+
+        <form
+            id="onboarding-skip-all-form"
+            method="post"
+            action="{{ path('app_onboarding_finish') }}"
+            data-turbo-frame="modal"
+            hidden
+        >
+            <input type="hidden" name="_token" value="{{ csrf_token('onboarding-finish') }}">
+        </form>
+
+    </div>
+</turbo-frame>

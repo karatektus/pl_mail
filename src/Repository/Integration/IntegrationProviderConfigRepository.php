@@ -49,6 +49,15 @@ class IntegrationProviderConfigRepository extends ServiceEntityRepository
      *
      * @return list<IntegrationProviderConfig>
      */
+    /**
+     * How many providers an admin has actually set up — the same test
+     * findConnectable() applies, counted rather than listed.
+     */
+    public function countComplete(): int
+    {
+        return count($this->findConnectable());
+    }
+
     public function findConnectable(): array
     {
         return array_values(array_filter(

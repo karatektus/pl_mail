@@ -1,7 +1,50 @@
 #!/bin/sh
 set -e
 
+# Export every KEY=VALUE from the generated secrets file that is not already in
+# the environment. Explicit configuration always wins: an operator who manages
+# secrets elsewhere never has a generated value substituted underneath them.
+load_generated_secrets() {
+	[ -f "$1" ] || return 0
+
+	while IFS='=' read -r key value; do
+		case "$key" in '' | \#*) continue ;; esac
+		[ -n "$(printenv "$key" || true)" ] && continue
+		export "$key=$value"
+	done <"$1"
+}
+
 if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
+	# ── Generated secrets ──────────────────────────────────────────────────
+	# A fresh install must not come up on the secrets committed to the repo.
+	# APP_ENCRYPTION_KEY in particular is all that stands between a stolen
+	# database dump and every mailbox password inside it, so an install that
+	# inherits the repository's value is readable by anyone holding the repo.
+	#
+	# The `secrets-init` service has normally done this already, before Postgres
+	# and Mercure started — they read their secrets at container-create time and
+	# cannot wait for us. Running it again here is free and covers a stack
+	# assembled without that service.
+	#
+	# All app services mount the same directory. If one is missing that volume it
+	# mints its own key and quietly fails to read what the others wrote —
+	# `app:secrets:init` below probes for exactly that and refuses to start
+	# rather than write data nobody can decrypt.
+	SECRETS_DIR="${APP_SECRETS_DIR:-/app/var/secrets}"
+	SECRETS_FILE="$SECRETS_DIR/generated.env"
+
+	generate-secrets
+
+	export APP_SECRETS_FILE="$SECRETS_FILE"
+	load_generated_secrets "$SECRETS_FILE"
+
+	# The database password is generated too, so the connection string has to be
+	# assembled after the fact. Only when nothing supplied one: an operator with
+	# an external database sets DATABASE_URL and never reaches this.
+	if [ -z "$DATABASE_URL" ] && [ -n "$POSTGRES_PASSWORD" ]; then
+		export DATABASE_URL="postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-database}:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-18}&charset=${POSTGRES_CHARSET:-utf8}"
+	fi
+
 	# Install the project the first time PHP is started
 	# After the installation, the following block can be deleted
 	if [ ! -f composer.json ]; then
@@ -42,6 +85,14 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		if [ "$( find ./migrations -iname '*.php' -print -quit )" ]; then
 			php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
 		fi
+
+		# The secrets that need PHP: a VAPID keypair and the JWT keys. Runs
+		# after migrations because it also verifies that the encryption key in
+		# force can actually open the credentials already in the database —
+		# the one check that catches a container holding the wrong key before
+		# it writes anything.
+		php bin/console app:secrets:init
+		load_generated_secrets "$SECRETS_FILE"
 	fi
 
 	# POSIX ACLs are a convenience, not a requirement: this image runs as root,

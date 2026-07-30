@@ -83,6 +83,11 @@ export default class extends Controller {
 
         // Clear the frame so the next open always fetches fresh
         if (frame) frame.src = ""
+
+        // Announced on document, not on this.element: whoever cares about a
+        // dialog closing is rarely inside the dialog. The onboarding wizard
+        // treats a close as "finished", since it only ever opens by itself once.
+        this.dispatch("closed", { target: document })
     }
 
     backdropClick(event) {

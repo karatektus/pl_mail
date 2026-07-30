@@ -1,0 +1,26 @@
+{#
+_boot.html.twig — what opens the setup wizard on its own.
+
+An empty element carrying two controllers: ui--modal supplies the open() the
+wizard needs, and onboarding--autostart calls it once. Rendered only while the
+user is still pending, so on every other page load this include is a no-op and
+nothing reaches the browser.
+
+Size "full" is the max-w-6xl preset in _modal.html.twig — the big modal the
+wizard is designed around.
+
+The finish URL and its token ride along because closing the dialog counts as
+finishing: setup auto-opens once, and a user who dismisses it has answered.
+They can start it again from the user menu.
+#}
+{% if onboarding.isPending %}
+    <div
+        data-controller="ui--modal onboarding--autostart"
+        data-ui--modal-src-value="{{ path('app_onboarding_start') }}"
+        data-ui--modal-title-value="{{ 'onboarding.title'|trans }}"
+        data-ui--modal-size-value="full"
+        data-onboarding--autostart-finish-url-value="{{ path('app_onboarding_finish') }}"
+        data-onboarding--autostart-token-value="{{ csrf_token('onboarding-finish') }}"
+        hidden
+    ></div>
+{% endif %}

@@ -192,6 +192,23 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /** Admin panels the user has collapsed, as a list of panel keys. */
     public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
 
+    /**
+     * When setup was finished or dismissed, ISO-8601. Absent means pending,
+     * which is the right default for a user who has never seen the wizard —
+     * including everyone who existed before it did, so there is nothing to
+     * backfill.
+     */
+    public const string SETTING_ONBOARDING_COMPLETED_AT = 'onboarding.completed_at';
+
+    /**
+     * The step to resume at. Written before anything that navigates away, so a
+     * trip through Google's consent screen comes back where it left off.
+     */
+    public const string SETTING_ONBOARDING_STEP = 'onboarding.step';
+
+    /** Steps the user chose to skip, as a list of OnboardingStep values. */
+    public const string SETTING_ONBOARDING_SKIPPED = 'onboarding.skipped';
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

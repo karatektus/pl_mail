@@ -1,0 +1,28 @@
+{#
+The provider chooser shared by both admin credential steps.
+
+Plain links that reload the frame with ?provider=… rather than tabs held in
+JavaScript: each provider has its own form and its own stored row, so switching
+is a fetch either way, and a link keeps the current choice in the URL where a
+half-finished step can resume to it.
+#}
+<div class="flex items-center gap-1.5 mb-5" role="tablist">
+    {% for option in providers %}
+        <a
+            href="{{ path('app_onboarding_step', { step: step.value, provider: option.value }) }}"
+            data-turbo-frame="modal"
+            id="onboarding-provider-{{ option.value }}"
+            role="tab"
+            aria-selected="{{ option.value == provider.value ? 'true' : 'false' }}"
+            class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors
+                   {% if option.value == provider.value %}
+                     border-accent bg-accent/10 text-accent
+                   {% else %}
+                     border-field bg-field text-ink-soft hover:bg-hover
+                   {% endif %}"
+        >
+            <i class="{{ option.icon }} text-xs" aria-hidden="true"></i>
+            {{ option.label }}
+        </a>
+    {% endfor %}
+</div>

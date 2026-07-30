@@ -7,6 +7,7 @@ namespace App\Controller\Settings;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Mail\AccountCreator;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Push\PushSubscriptionRegistry;
@@ -37,35 +38,20 @@ final class AccountController extends AbstractController
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
         private readonly PushSubscriptionRegistry $subscriptionRegistry,
         private readonly AliasSeeder $aliasSeeder,
+        private readonly AccountCreator $accountCreator,
     ) {
     }
 
     #[Route('/new', name: 'new')]
     public function new(Request $request): Response
     {
-        $account = new Account()
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls');
+        $account = $this->accountCreator->blank();
 
         $form = $this->createForm(AccountType::class, $account, ['action' => $this->generateUrl('app_account_new')]);
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $account
-                ->setAuthType('password')
-                ->setIsActive(true)
-                ->setUsr($this->getUser());
-
-
-            $ordered   = $this->accountRepository->findForUserOrdered($this->getUser());
-            $ordered[] = $account;
-            $this->resequence($ordered);
-
-            $this->entityManager->persist($account);
-            $this->entityManager->flush();
-            $this->aliasSeeder->seed($account);
+            $this->accountCreator->create($account, $this->getUser());
 
             return $this->streamAccountList($request, 'account.added');
         }
@@ -257,18 +243,12 @@ final class AccountController extends AbstractController
      *
      * @param Account[] $orderedAccounts
      */
-    private function resequence(array $orderedAccounts): void
+    /**
+     * @param iterable<Account> $orderedAccounts
+     */
+    private function resequence(iterable $orderedAccounts): void
     {
-        $index = 0;
-
-        foreach ($orderedAccounts as $account) {
-            $account
-                ->setSortOrder($index)
-                ->setIsPrimary(0 === $index)
-                ->setUpdatedAt(new DateTimeImmutable());
-
-            $index++;
-        }
+        $this->accountCreator->resequence($orderedAccounts);
     }
 
     private function denyUnlessOwner(Account $account): void

@@ -273,6 +273,10 @@ app:
     name: Mail
 
 compose:
+    no_account:
+        body: Add a mailbox first, and you can write from it right away.
+        cta: Add a mail account
+        heading: No mail account yet
     attach: Attach files
     attachment_remove: Remove attachment
     click_to_cancel: click to cancel
@@ -311,6 +315,8 @@ header:
     user_menu:
         admin: Admin
         label: User menu for %email%
+        profile: Profile
+        rerun_setup: Run setup again
         settings: Settings
         sign_out: Sign out
         signed_in_as: Signed in as
@@ -450,9 +456,98 @@ oauth:
                 This account type can't sign in to plMail with the current
                 configuration. Check the MICROSOFT_OAUTH_TENANT setting.
 
+onboarding:
+    action:
+        back: Back
+        finish: Finish
+        next: Next
+        skip: Skip this step
+        skip_all: Skip setup
+    done:
+        body: >-
+            Anything you skipped is in Settings, and you can run this again from the
+            user menu whenever you like.
+        cta: Go to my mail
+        heading: You're all set
+    aside:
+        account:
+            body: >-
+                plMail needs the incoming (IMAP) and outgoing (SMTP) server addresses for
+                your provider. They are usually on your provider's help pages under
+                "IMAP settings".
+            heading: Where do I find these?
+            oauth: >-
+                For Gmail and Outlook, use the sign-in buttons under Settings → Mail
+                accounts instead — no server addresses needed.
+        admin_integrations:
+            body: Register plMail with the service, then paste the credentials it gives you.
+            heading: Setting this up
+        admin_mail:
+            body: >-
+                Create an OAuth app with the provider, then paste its client id and secret
+                here. Everyone on this plMail signs in through it.
+            heading: Setting this up
+        profile:
+            body: This is what recipients see in the From line. You can change it any time.
+            heading: Where this shows up
+    integrations:
+        connect: Connect
+        connected: Connected
+    progress: 'Step %index% of %total%'
+    step:
+        account:
+            lead: Connect the mailbox you actually read, and plMail starts syncing it.
+            title: Mail account
+        admin-integrations:
+            lead: Credentials for the services everyone here can attach files from.
+            title: Integration credentials
+        admin-mail:
+            lead: Sign-in credentials for Gmail and Outlook, set once for this whole install.
+            title: Mail providers
+        appearance:
+            lead: How plMail looks. None of this is permanent — change it whenever.
+            title: Appearance
+        integrations:
+            lead: Connect the services you keep files and photos in.
+            title: Your integrations
+        profile:
+            lead: The name that appears on the mail you send.
+            title: About you
+    title: Set up plMail
+
+profile:
+    avatar_wrong_type: Use a PNG, JPEG, GIF or WebP image.
+    field:
+        avatar: Picture
+        avatar_help: PNG, JPEG, GIF or WebP, up to 4 MB.
+        avatar_remove: Remove the current picture
+        name_first: First name
+        name_last: Last name
+
 sent:
     empty: No sent messages.
     heading: Sent
+
+setup:
+    install:
+        field:
+            email: Email address
+            email_help: This is the address you'll sign in with.
+            public_url: Public address
+            public_url_help: >-
+                Where people reach plMail from outside. Gmail and Outlook send push
+                notifications back to it, so it has to be reachable from the internet
+                and should be https. You can change it later.
+            name_first: First name
+            name_last: Last name
+            password: Password
+            password_repeat: Repeat password
+        footnote: You'll be able to add mailboxes, and anything else, once you're in.
+        heading: Create your account
+        lead: This is the first account on this plMail, so it gets full administrator rights.
+        page_title: Set up plMail
+        submit: Create account and sign in
+        tagline: Nobody has signed up yet — let's fix that
 
 settings:
     accounts:
@@ -792,6 +887,10 @@ settings:
         show: Show label
         subheading: Create, rename and organise your labels, and choose which appear in the sidebar.
         system: System
+    profile:
+        heading: Your profile
+        save: Save profile
+        subheading: The name and picture shown on the mail you send.
     language:
         heading: Language
         subheading: The language plMail's interface is shown in. Your mail is left as it was written.
@@ -801,6 +900,7 @@ settings:
         app_passwords: App passwords
         appearance: Appearance
         general: General
+        profile: Profile
         filters: Filters
         integrations: Integrations
         labels: Labels

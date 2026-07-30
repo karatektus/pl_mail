@@ -3,6 +3,7 @@
 namespace App\Controller\Auth;
 
 use App\Entity\User\User;
+use App\Service\Setup\InstallGuard;
 use LogicException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -26,10 +27,18 @@ class SecurityController extends AbstractController
 
 
     #[Route('/login', 'app_login')]
-    public function login(AuthenticationUtils $authenticationUtils): Response
+    public function login(AuthenticationUtils $authenticationUtils, InstallGuard $installGuard): Response
     {
         if (true === $this->authorizationChecker->isGranted(User::ROLE_USER)) {
             return new RedirectResponse($this->router->generate('app_default_index'));
+        }
+
+        // A signed-out visitor is already being sent here, so this is the one
+        // place worth spending a count query to notice that the install has no
+        // users yet. Nothing else in the request cycle checks, which is why
+        // there is no global listener costing every page a query.
+        if (true === $installGuard->isAvailable()) {
+            return new RedirectResponse($this->router->generate('app_install'));
         }
 
         // get the login error if there is one

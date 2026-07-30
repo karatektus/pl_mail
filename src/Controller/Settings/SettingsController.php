@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
 use App\Form\ApiTokenType;
+use App\Form\User\ProfileType;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -23,7 +24,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'labels', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['accounts', 'profile', 'labels', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -57,6 +58,9 @@ final class SettingsController extends AbstractController
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
+            'profileForm'        => $this->createForm(ProfileType::class, $this->getUser(), [
+                'action' => $this->generateUrl('app_settings_profile_save'),
+            ])->createView(),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),

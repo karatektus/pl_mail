@@ -68,6 +68,10 @@ services:
       target: frankenphp_dev
     volumes:
       - .:/app
+      # Runs bin/console, so it goes through the app entrypoint and needs the
+      # same secrets every other service uses. Without this it would generate
+      # its own and refuse to start.
+      - app_secrets:/app/var/secrets
     command: php bin/console tailwind:build --watch
     depends_on:
       - php

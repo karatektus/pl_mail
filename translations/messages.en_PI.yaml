@@ -273,6 +273,10 @@ app:
     name: Mail
 
 compose:
+    no_account:
+        body: Hitch up a mailbag first, an' ye can write from it straight away.
+        cta: Hitch up a mailbag
+        heading: No mailbag aboard yet
     attach: Lash on some cargo
     attachment_remove: Heave the cargo overboard
     click_to_cancel: click to belay it
@@ -311,6 +315,8 @@ header:
     user_menu:
         admin: Cap'n's quarters
         label: Crew menu for %email%
+        profile: Yer colours
+        rerun_setup: Rig her up again
         settings: Riggin'
         sign_out: Go ashore
         signed_in_as: Aboard as
@@ -449,9 +455,97 @@ oauth:
                 That kind o' crew member can't board plMail as she be rigged
                 now. Check the MICROSOFT_OAUTH_TENANT settin'.
 
+onboarding:
+    action:
+        back: Back astern
+        finish: Done an' dusted
+        next: Onward
+        skip: Sail past this one
+        skip_all: Skip the whole riggin'
+    done:
+        body: >-
+            Whatever ye sailed past be waitin' in the Settings, an' ye can run this
+            again from the crew menu whenever the mood takes ye.
+        cta: To me parrots
+        heading: Yer ship be rigged
+    aside:
+        account:
+            body: >-
+                plMail wants the addresses for incomin' (IMAP) an' outgoin' (SMTP) post.
+                Yer provider's help charts list 'em under "IMAP settings".
+            heading: Where be these writ?
+            oauth: >-
+                For Gmail an' Outlook, use the sign-aboard buttons under Riggin' → Mailbags
+                instead — no addresses needed.
+        admin_integrations:
+            body: Register yer ship with the port, then paste the keys it hands ye.
+            heading: Riggin' this up
+        admin_mail:
+            body: >-
+                Cut an OAuth key with the provider, then paste its id an' secret here.
+                Every soul aboard signs in through it.
+            heading: Riggin' this up
+        profile:
+            body: This be what them on the other end read in the From line.
+            heading: Where this flies
+    integrations:
+        connect: Hitch up
+        connected: Hitched
+    progress: 'Stop %index% o'' %total%'
+    step:
+        account:
+            lead: Hitch up the mailbag ye actually read, an' plMail starts haulin' it in.
+            title: Mailbag
+        admin-integrations:
+            lead: Keys for the ports every soul aboard can load cargo from.
+            title: Port keys
+        admin-mail:
+            lead: Keys for Gmail an' Outlook, cut once for the whole ship.
+            title: Parrot ports
+        appearance:
+            lead: How yer ship looks. Nothin' here be carved in stone.
+            title: Riggin' an' colours
+        integrations:
+            lead: Hitch up the ports where ye stow yer charts an' portraits.
+            title: Yer ports
+        profile:
+            lead: The name that flies on the parrots ye send.
+            title: About ye
+    title: Rig up plMail
+
+profile:
+    avatar_wrong_type: Use a PNG, JPEG, GIF or WebP likeness.
+    field:
+        avatar: Yer likeness
+        avatar_help: PNG, JPEG, GIF or WebP, up to 4 MB.
+        avatar_remove: Strike the current likeness
+        name_first: First name
+        name_last: Family name
+
 sent:
     empty: No bottles cast off.
     heading: Cast off
+
+setup:
+    install:
+        field:
+            email: Parrot address
+            email_help: This be the address ye sign aboard with.
+            public_url: Yer flag on the open sea
+            public_url_help: >-
+                Where the world finds yer plMail. Gmail an' Outlook holler back to it
+                with their tidings, so it must be reachable from the open sea, an'
+                best be https. Ye can change it later.
+            name_first: First name
+            name_last: Family name
+            password: Secret word
+            password_repeat: Say the secret word again
+        footnote: Ye can hoist yer mailbags, an' all else, once yer aboard.
+        heading: Claim yer berth
+        lead: This be the first soul aboard this plMail, so ye get the cap'n's keys.
+        page_title: Rig up plMail
+        submit: Claim it an' come aboard
+        tagline: Nary a soul aboard yet — let's mend that
 
 settings:
     accounts:
@@ -791,6 +885,10 @@ settings:
         show: Fly this flag
         subheading: Hoist, rename and order yer flags, and choose which fly in the sidebar.
         system: Ship's own
+    profile:
+        heading: Yer colours
+        save: Stow yer colours
+        subheading: The name an' likeness that fly on the parrots ye send.
     language:
         heading: Tongue
         subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
@@ -800,6 +898,7 @@ settings:
         app_passwords: Spare keys
         appearance: Look o' the ship
         general: General
+        profile: Yer colours
         filters: Sieves
         integrations: 'Friendly ports'
         labels: Flags

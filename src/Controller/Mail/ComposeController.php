@@ -84,6 +84,14 @@ class ComposeController extends AbstractController
 
         if (null === $message) {
             $account = $this->defaultAccount();
+
+            // A fresh install has no account, and Message::setAccount() is not
+            // nullable — so composing used to fatal at exactly the moment the
+            // app is emptiest. Say what is missing instead.
+            if (null === $account) {
+                return $this->render('compose/_no_account.html.twig', [], new Response(null, Response::HTTP_OK));
+            }
+
             $message = new Message()
                 ->setAccount($account)
                 ->setCreatedAt(new DateTimeImmutable());

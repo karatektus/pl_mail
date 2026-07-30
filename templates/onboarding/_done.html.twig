@@ -1,0 +1,41 @@
+{#
+_done.html.twig — the last thing the wizard shows.
+
+Still inside data-ui--modal-keep-open: the finishing POST is a submit like any
+other, and without the wrapper the modal would close on it and this screen would
+never be seen.
+
+The call to action leaves the frame on purpose (data-turbo-frame="_top"). A mail
+account added during setup does not exist in the sidebar that was rendered
+before the wizard opened, and a full navigation is the honest way to get one
+that does.
+#}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'onboarding.done.heading'|trans }}</template>
+
+    <div data-ui--modal-keep-open id="onboarding-done" class="flex-1 min-h-0 flex flex-col">
+
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+            <div class="max-w-md mx-auto text-center py-8">
+                <div class="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                    <i class="fa-solid fa-check text-accent text-lg" aria-hidden="true"></i>
+                </div>
+
+                <h3 class="mt-5 text-lg font-semibold text-ink">{{ 'onboarding.done.heading'|trans }}</h3>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed">{{ 'onboarding.done.body'|trans }}</p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-center gap-2 px-6 pb-6 pt-3 shrink-0">
+            <a
+                href="{{ path('app_default_index') }}"
+                data-turbo-frame="_top"
+                class="inline-flex items-center justify-center h-9 px-5 rounded-lg text-sm font-medium text-white
+                       bg-accent hover:bg-accent-strong active:bg-blue-800
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                       transition-colors duration-100"
+            >{{ 'onboarding.done.cta'|trans }}</a>
+        </div>
+
+    </div>
+</turbo-frame>

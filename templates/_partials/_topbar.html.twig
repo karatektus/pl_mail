@@ -112,14 +112,34 @@
                     class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
                     title="{{ app.user.email }}">
-                {{ app.user.email | first | upper }}
+                {# The initial is the fallback, not the design: an avatar is
+                   optional and most users never set one. #}
+                {% if app.user.avatar %}
+                    <img src="{{ path('app_settings_profile_avatar', { filename: app.user.avatar }) }}"
+                         alt=""
+                         class="w-8 h-8 rounded-full object-cover">
+                {% else %}
+                    {{ app.user.email | first | upper }}
+                {% endif %}
             </button>
 
             <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
-                    <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
-                    <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>
+                    {% set displayName = (app.user.nameFirst ~ ' ' ~ app.user.nameLast)|trim %}
+                    {% if displayName is not empty %}
+                        <p class="text-sm font-medium text-ink truncate">{{ displayName }}</p>
+                        <p class="text-xs text-ink-faint truncate">{{ app.user.email }}</p>
+                    {% else %}
+                        <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
+                        <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>
+                    {% endif %}
                 </div>
+                <a href="{{ path('app_settings_index', { section: 'profile' }) }}"
+                   id="user-menu-profile"
+                   class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
+                    <i class="fa-solid fa-user w-4 text-gray-400" aria-hidden="true"></i>
+                    {{ 'header.user_menu.profile'|trans }}
+                </a>
                 <a href="{{ path('app_settings_index') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.settings'|trans }}
@@ -130,6 +150,22 @@
                         {{ 'header.user_menu.admin'|trans }}
                     </a>
                 {% endif %}
+                {# Setup opens by itself once and never again, so this is the
+                   only way back to it. A button rather than a link: it loads
+                   into the shared modal instead of navigating. #}
+                <button
+                    type="button"
+                    id="user-menu-rerun-setup"
+                    data-controller="ui--modal"
+                    data-ui--modal-src-value="{{ path('app_onboarding_start') }}"
+                    data-ui--modal-title-value="{{ 'onboarding.title'|trans }}"
+                    data-ui--modal-size-value="full"
+                    data-action="click->ui--modal#open"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left cursor-pointer"
+                >
+                    <i class="fa-solid fa-wand-magic-sparkles w-4 text-gray-400" aria-hidden="true"></i>
+                    {{ 'header.user_menu.rerun_setup'|trans }}
+                </button>
                 <a href="{{ path('app_logout') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.sign_out'|trans }}
