@@ -6,6 +6,7 @@ namespace App\Form\Integration;
 
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Integration\MailProviderConfig;
+use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
@@ -41,7 +42,7 @@ final class MailProviderConfigType extends AbstractType
             ->add('clientId', TextType::class, [
                 'label'    => 'admin.integrations.field.client_id',
                 'required' => false,
-                'attr'     => ['autocomplete' => 'off'],
+                'attr'     => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ])
             // Not a password anyone signs in with — it is a value pasted out
             // of a provider's console. `new-password` invited password managers
@@ -53,15 +54,11 @@ final class MailProviderConfigType extends AbstractType
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete'   => 'off',
-                    'data-1p-ignore' => 'true',
-                    'data-lpignore'  => 'true',
-                    'data-bwignore'  => 'true',
-                    'data-form-type' => 'other',
+                    'autocomplete' => 'off',
                     'placeholder'  => $config instanceof MailProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
             ]);
 
         // Offered only when there is something to clear, so the option cannot
@@ -82,7 +79,7 @@ final class MailProviderConfigType extends AbstractType
                     'mapped'   => false,
                     'help'     => 'admin.integrations.field.pubsub_topic_help',
                     'data'     => $config instanceof MailProviderConfig ? $config->getPubsubTopic() : null,
-                    'attr'     => ['placeholder' => 'projects/your-project-id/topics/gmail-push'],
+                    'attr'     => ['placeholder' => 'projects/your-project-id/topics/gmail-push'] + PasswordManagerIgnore::ATTR,
                 ])
                 ->add('pushVerificationToken', PasswordType::class, [
                     'label'    => 'admin.integrations.field.push_token',
@@ -90,15 +87,11 @@ final class MailProviderConfigType extends AbstractType
                     'mapped'   => false,
                     'help'     => 'admin.integrations.field.push_token_help',
                     'attr'     => [
-                        'autocomplete'   => 'off',
-                        'data-1p-ignore' => 'true',
-                        'data-lpignore'  => 'true',
-                        'data-bwignore'  => 'true',
-                        'data-form-type' => 'other',
+                        'autocomplete' => 'off',
                         'placeholder'  => $config instanceof MailProviderConfig && null !== $config->pushVerificationToken
                             ? 'admin.integrations.secret_unchanged'
                             : 'admin.integrations.secret_none',
-                    ],
+                    ] + PasswordManagerIgnore::ATTR,
                 ]);
         }
 
@@ -123,7 +116,7 @@ final class MailProviderConfigType extends AbstractType
                 'mapped'   => false,
                 'help'     => 'admin.integrations.field.tenant_help',
                 'data'     => $config instanceof MailProviderConfig ? $config->getTenant() : null,
-                'attr'     => ['placeholder' => 'common'],
+                'attr'     => ['placeholder' => 'common'] + PasswordManagerIgnore::ATTR,
             ]);
         }
     }

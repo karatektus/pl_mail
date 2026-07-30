@@ -43,7 +43,7 @@ class AccountType extends AbstractType
                 'attr' => [
                     'placeholder' => 'you@example.com',
                     'class' => 'form-input',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
                 'label' => 'Account label',
             ])
             ->add('username', TextType::class, [
@@ -53,7 +53,7 @@ class AccountType extends AbstractType
                     'autocomplete'                      => 'email',
                     'data-settings--imap-preset-target' => 'username',
                     'data-action'                       => 'change->settings--imap-preset#detect blur->settings--imap-preset#detect',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
                 'label'       => 'Email address',
                 'constraints' => [new NotBlank()],
             ])
@@ -62,7 +62,7 @@ class AccountType extends AbstractType
                     'placeholder' => '••••••••',
                     'class' => 'form-input',
                     'autocomplete' => 'new-password',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
                 'label' => 'Password',
                 'always_empty' => true,
                 'required' => $options['require_password'],
@@ -71,7 +71,7 @@ class AccountType extends AbstractType
                 'attr' => [
                     'placeholder' => 'imap.example.com',
                     'class' => 'form-input',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
                 'label' => 'IMAP host',
                 'constraints' => [new NotBlank()],
             ])
@@ -97,7 +97,7 @@ class AccountType extends AbstractType
                 'attr' => [
                     'placeholder' => 'smtp.example.com',
                     'class' => 'form-input',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
                 'label' => 'SMTP host',
             ])
             ->add('smtpPort', IntegerType::class, [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Form\Integration;
 
 use App\Domain\Enum\Integration\Provider;
+use App\Form\PasswordManagerIgnore;
 use App\Entity\Integration\Integration;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
@@ -42,20 +43,20 @@ final class IntegrationConnectType extends AbstractType
         $builder->add('name', TextType::class, [
             'label' => 'settings.integrations.field.name',
             'help'  => 'settings.integrations.field.name_help',
-            'attr'  => ['maxlength' => 100],
+            'attr'  => ['maxlength' => 100] + PasswordManagerIgnore::ATTR,
         ]);
 
         if (true === $options['url_editable']) {
             $builder->add('baseUrl', UrlType::class, [
                 'label' => 'settings.integrations.field.base_url',
-                'attr'  => ['placeholder' => 'https://cloud.example.com'],
+                'attr'  => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
             ]);
         }
 
         if (true === isset(self::NEEDS_USERNAME[$provider->value])) {
             $builder->add('username', TextType::class, [
                 'label' => 'settings.integrations.field.username',
-                'attr'  => ['autocomplete' => 'off'],
+                'attr'  => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ]);
         }
 
@@ -68,13 +69,9 @@ final class IntegrationConnectType extends AbstractType
             'required' => $isNew,
             'mapped'   => false,
             'attr'     => [
-                'autocomplete'   => 'off',
-                'data-1p-ignore' => 'true',
-                'data-lpignore'  => 'true',
-                'data-bwignore'  => 'true',
-                'data-form-type' => 'other',
+                'autocomplete' => 'off',
                 'placeholder'  => $isNew ? '' : 'settings.integrations.field.secret_unchanged',
-            ],
+            ] + PasswordManagerIgnore::ATTR,
         ]);
     }
 

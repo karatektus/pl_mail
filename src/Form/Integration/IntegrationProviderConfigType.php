@@ -7,6 +7,7 @@ namespace App\Form\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
+use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
@@ -50,7 +51,7 @@ final class IntegrationProviderConfigType extends AbstractType
                 'help'     => $provider->needsBaseUrl()
                     ? 'admin.integrations.field.base_url_help_selfhosted'
                     : 'admin.integrations.field.base_url_help_saas',
-                'attr' => ['placeholder' => 'https://cloud.example.com'],
+                'attr' => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
             ]);
 
         if (AuthKind::OAuth2 !== $provider->authKind()) {
@@ -61,22 +62,18 @@ final class IntegrationProviderConfigType extends AbstractType
             ->add('clientId', TextType::class, [
                 'label'    => 'admin.integrations.field.client_id',
                 'required' => false,
-                'attr'     => ['autocomplete' => 'off'],
+                'attr'     => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ])
             ->add('clientSecret', PasswordType::class, [
                 'label'    => 'admin.integrations.field.client_secret',
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete'   => 'off',
-                    'data-1p-ignore' => 'true',
-                    'data-lpignore'  => 'true',
-                    'data-bwignore'  => 'true',
-                    'data-form-type' => 'other',
+                    'autocomplete' => 'off',
                     'placeholder'  => $config instanceof IntegrationProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ],
+                ] + PasswordManagerIgnore::ATTR,
             ]);
 
         if ($config instanceof IntegrationProviderConfig && true === $config->hasClientSecret()) {

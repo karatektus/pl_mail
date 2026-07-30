@@ -9,9 +9,16 @@
        notch; the safe-area padding in app.css keeps content clear of it.
        Zoom is pinned so the app behaves like an installed PWA rather than a
        page — see the 16px form-control rule in app.css, which is what actually
-       stops iOS zooming on focus (it ignores user-scalable). #}
+       stops iOS zooming on focus (it ignores user-scalable).
+       `interactive-widget=resizes-content`: Android's default (resizes-visual)
+       shrinks only the visual viewport for the keyboard and leaves the layout
+       viewport — where fixed elements live — at full height, so the page
+       behind the fullscreen compose window stayed pannable and showed through
+       below it. Resizing the content instead means fixed elements end above
+       the keyboard and there is nothing to pan. iOS ignores this keyword; the
+       compose controller's visualViewport tracking stays as its fallback. #}
     <meta name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>{% block title %}Welcome!{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%221em%22 font-size=%2224%22>✉️</text></svg>">
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it

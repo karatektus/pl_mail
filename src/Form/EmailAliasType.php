@@ -26,7 +26,9 @@ final class EmailAliasType extends AbstractType
         $builder->add('address', EmailType::class, [
             // Inline row next to the Add button — see ApiTokenType.
             'label' => false,
-            'attr'  => ['placeholder' => 'settings.aliases.add_placeholder'],
+            // A bare email field reads as a login to password managers;
+            // an alias is not one — see PasswordManagerIgnore.
+            'attr'  => ['placeholder' => 'settings.aliases.add_placeholder'] + PasswordManagerIgnore::ATTR,
             'constraints' => [
                 new NotBlank(message: 'alias.invalid'),
                 new Email(message: 'alias.invalid'),
