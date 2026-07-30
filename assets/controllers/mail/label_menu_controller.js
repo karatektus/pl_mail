@@ -57,7 +57,7 @@ export default class extends Controller {
 
         button.dataset.attached = attach ? "true" : "false";
 
-        const check = button.querySelector("[data-label-menu-target='check']");
+        const check = button.querySelector("[data-mail--label-menu-target='check']");
 
         if (check) {
             check.classList.toggle("invisible", !attach);

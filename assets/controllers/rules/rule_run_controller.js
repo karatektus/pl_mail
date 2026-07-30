@@ -20,7 +20,7 @@ export default class extends Controller {
 
     connect() {
         this._onRuleRun = () => this.refresh()
-        document.addEventListener("mercure:rule-run", this._onRuleRun)
+        document.addEventListener("core--mercure:rule-run", this._onRuleRun)
 
         if (this.busyValue) {
             this._poll = setInterval(() => this.refresh(), 5000)
@@ -28,7 +28,7 @@ export default class extends Controller {
     }
 
     disconnect() {
-        document.removeEventListener("mercure:rule-run", this._onRuleRun)
+        document.removeEventListener("core--mercure:rule-run", this._onRuleRun)
         clearInterval(this._poll)
     }
 

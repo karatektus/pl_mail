@@ -72,8 +72,8 @@ the conversation it answers.
 <li
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
-    data-controller="message-row"
-    data-message-row-id-value="{{ rowId }}"
+    data-controller="mail--message-row"
+    data-mail--message-row-id-value="{{ rowId }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
     data-starred="{{ starred ? 'true' : 'false' }}"
 >
@@ -81,7 +81,7 @@ the conversation it answers.
 <a
     {% if false == draft %}
         href="{{ href }}"
-        data-action="click->mail-pane#open"
+        data-action="click->mail--mail-pane#open"
     {% else %}
         href="{{ path('app_compose_edit', { id: draftId }) }}"
         data-turbo-frame="compose_dock"
@@ -100,7 +100,7 @@ the conversation it answers.
         {# Checkbox — fires custom event so the toolbar controller can react #}
         <input
             type="checkbox"
-            data-action="change->message-row#toggleSelect"
+            data-action="change->mail--message-row#toggleSelect"
             data-thread-select value="{{ rowId }}"
             class="z-10 w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer flex-shrink-0"
             aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
@@ -109,8 +109,8 @@ the conversation it answers.
         {# Star toggle #}
         <button
             type="button"
-            data-action="click->message-row#toggleStar"
-            data-message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
+            data-action="click->mail--message-row#toggleStar"
+            data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
             class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
             aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
         >
@@ -176,8 +176,8 @@ the conversation it answers.
 
             <div class="absolute inset-0 flex items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
                 {% if false == draft %}
-                    <button type="button" data-action="click->message-row#archive"
-                            data-message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
+                    <button type="button" data-action="click->mail--message-row#archive"
+                            data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
                             aria-label="{{ 'thread_row.actions.archive'|trans }}"
                             title="{{ 'thread_row.actions.archive'|trans }}"
                             class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -185,8 +185,8 @@ the conversation it answers.
                     </button>
                 {% endif %}
 
-                <button type="button" data-action="click->message-row#trash"
-                        data-message-row-trash-url-param="{{ path('app_status_trash', {'type': type, 'id': rowId}) }}"
+                <button type="button" data-action="click->mail--message-row#trash"
+                        data-mail--message-row-trash-url-param="{{ path('app_status_trash', {'type': type, 'id': rowId}) }}"
                         aria-label="{{ 'thread_row.actions.delete'|trans }}"
                         title="{{ 'thread_row.actions.delete'|trans }}"
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -194,17 +194,17 @@ the conversation it answers.
                 </button>
 
                 {% if false == draft %}
-                    <button type="button" data-action="click->message-row#snooze"
-                            data-message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
+                    <button type="button" data-action="click->mail--message-row#snooze"
+                            data-mail--message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
                             aria-label="{{ 'thread_row.actions.snooze'|trans }}"
                             title="{{ 'thread_row.actions.snooze'|trans }}"
                             class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
                     </button>
 
-                    <button type="button" data-action="click->message-row#markRead"
-                            data-message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"
-                            data-message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
+                    <button type="button" data-action="click->mail--message-row#markRead"
+                            data-mail--message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"
+                            data-mail--message-row-read-param="{{ true == unread ? 'true' : 'false' }}"
                             aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                             title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                             class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

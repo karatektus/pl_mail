@@ -6,7 +6,7 @@
     <nav class="pl-3 space-y-0.5">
         {% for label in labels %}
             <a
-                data-account-expand-target="link"
+                data-settings--account-expand-target="link"
                 href="{{ path('app_mail_label', { id: label.id }) }}"
                 data-turbo-frame="_top"
                 data-turbo-prefetch="false"

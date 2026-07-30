@@ -4,7 +4,7 @@ import { Controller } from "@hotwired/stimulus";
 // Gmail-style pill shape hangs off in app.css.
 const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-medium"];
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
-const SYNC_EVENTS      = ["mercure:mailbox-synced", "mercure:account-synced"];
+const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
 export default class extends Controller {
     static targets = ["link", "badge"];
     static values = { countsUrl: String };

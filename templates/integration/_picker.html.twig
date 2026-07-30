@@ -29,15 +29,15 @@ gap under the shortcuts row.
 
 {% block body %}
     <turbo-frame id="modal">
-        <template data-modal-frame-title>{{ integration.name }}</template>
+        <template data-ui--modal-frame-title>{{ integration.name }}</template>
 
-        {# data-modal-keep-open: the search form re-renders this frame, and the
+        {# data-ui--modal-keep-open: the search form re-renders this frame, and the
            modal otherwise treats any successful submit as "done" and closes. #}
-        <div data-controller="integration-picker"
-             data-modal-keep-open
-             data-integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
-             data-integration-picker-draft-value="{{ draftId }}"
-             data-integration-picker-token-value="{{ csrf_token('integration-picker') }}"
+        <div data-controller="integration--integration-picker"
+             data-ui--modal-keep-open
+             data-integration--integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
+             data-integration--integration-picker-draft-value="{{ draftId }}"
+             data-integration--integration-picker-token-value="{{ csrf_token('integration-picker') }}"
              class="flex-1 min-h-0 flex flex-col">
 
             {% if error is not null %}
@@ -107,7 +107,7 @@ gap under the shortcuts row.
                    clipped, so content would scroll into it and show above the
                    boundary. #}
                 <div class="flex-1 min-w-0 min-h-0 px-6 overflow-y-auto overscroll-contain"
-                     data-integration-picker-target="scroller">
+                     data-integration--integration-picker-target="scroller">
                     <div class="py-3">
                         {% if listing.entries is empty %}
                             <p class="py-8 text-center text-sm text-ink-faint italic">
@@ -119,7 +119,7 @@ gap under the shortcuts row.
                             {# People are places, not attachments, so this grid
                                navigates rather than selects. #}
                             <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(7rem,1fr))]"
-                                 data-integration-picker-target="results">
+                                 data-integration--integration-picker-target="results">
                                 {% for entry in listing.people %}
                                     {% include 'integration/_person.html.twig' with {
                                         integration: integration,
@@ -155,7 +155,7 @@ gap under the shortcuts row.
                                share links would need a second affordance; none
                                has one. #}
                             <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(6rem,1fr))]"
-                                 data-integration-picker-target="results">
+                                 data-integration--integration-picker-target="results">
                                 {% for entry in listing.files %}
                                     {% include 'integration/_tile.html.twig' with {
                                         integration: integration,
@@ -166,7 +166,7 @@ gap under the shortcuts row.
                             </div>
 
                         {% else %}
-                            <ul class="space-y-0.5" data-integration-picker-target="results">
+                            <ul class="space-y-0.5" data-integration--integration-picker-target="results">
                                 {% for entry in listing.entries %}
                                     {% include 'integration/_row.html.twig' with {
                                         integration: integration,
@@ -187,7 +187,7 @@ gap under the shortcuts row.
                            Left as a real link so it still works, by navigating,
                            if that script never runs. #}
                         {% if listing.nextCursor %}
-                            <div class="pt-3 text-center" data-integration-picker-target="sentinel">
+                            <div class="pt-3 text-center" data-integration--integration-picker-target="sentinel">
                                 <a href="{{ path('app_integration_browse', {
                                        id: integration.id,
                                        folder: folderId,
@@ -195,7 +195,7 @@ gap under the shortcuts row.
                                        q: query,
                                        cursor: listing.nextCursor,
                                    }) }}"
-                                   data-action="integration-picker#loadMore"
+                                   data-action="integration--integration-picker#loadMore"
                                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
                                     {{ 'integration.picker.more'|trans }}
@@ -217,18 +217,18 @@ gap under the shortcuts row.
 
             {# ── Footer ── #}
             <div class="flex items-center gap-2 px-6 pb-5 pt-3 shrink-0">
-                <span class="text-[11px] text-ink-faint" data-integration-picker-target="status"></span>
+                <span class="text-[11px] text-ink-faint" data-integration--integration-picker-target="status"></span>
 
                 <div class="flex-1"></div>
 
-                <button type="button" data-action="click->modal#close"
+                <button type="button" data-action="click->ui--modal#close"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                                text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
                     {{ 'form.cancel'|trans }}
                 </button>
                 <button type="button"
-                        data-action="click->integration-picker#attach"
-                        data-integration-picker-target="submit"
+                        data-action="click->integration--integration-picker#attach"
+                        data-integration--integration-picker-target="submit"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
                                bg-accent hover:bg-accent-strong transition-colors disabled:opacity-50">
                     {{ 'integration.picker.attach'|trans }}

@@ -8,7 +8,7 @@ export default class extends Controller {
         this._onOtherExpanded = this._handleOtherExpanded.bind(this);
         this._onTurboLoad = this.highlightActive.bind(this);
 
-        window.addEventListener("account-expand:opened", this._onOtherExpanded);
+        window.addEventListener("settings--account-expand:opened", this._onOtherExpanded);
         document.addEventListener("turbo:load", this._onTurboLoad);
         this.element.addEventListener('turbo:frame-load', () => this.highlightActive());
 
@@ -20,7 +20,7 @@ export default class extends Controller {
     }
 
     disconnect() {
-        window.removeEventListener("account-expand:opened", this._onOtherExpanded);
+        window.removeEventListener("settings--account-expand:opened", this._onOtherExpanded);
         document.removeEventListener("turbo:load", this._onTurboLoad);
     }
 
@@ -30,7 +30,7 @@ export default class extends Controller {
         const isHidden = frame.classList.contains("hidden");
 
         if (isHidden) {
-            window.dispatchEvent(new CustomEvent("account-expand:opened", {
+            window.dispatchEvent(new CustomEvent("settings--account-expand:opened", {
                 detail: { element: this.element }
             }));
 

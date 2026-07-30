@@ -36,7 +36,7 @@ Variables:
 {% import '_partials/_sidebar.html.twig' as sidebar %}
 {% set labelTree = sidebarCounts.userLabelTree() %}
 
-{% for target, drawerClose in { 'label-list': '', 'label-list-drawer': 'click->sidebar-drawer#close' } %}
+{% for target, drawerClose in { 'label-list': '', 'label-list-drawer': 'click->ui--sidebar-drawer#close' } %}
     <turbo-stream action="replace" target="{{ target }}">
         <template>
             <div id="{{ target }}" class="rail-hide space-y-0.5">

@@ -82,7 +82,7 @@ export default class extends Controller {
         Object.entries(defaults).forEach(([field, value]) => {
             if (field === 'density') {
                 const radio = this.element.querySelector(
-                    `[data-appearance-field="density"][value="${value}"]`,
+                    `[data-settings--appearance-field="density"][value="${value}"]`,
                 );
 
                 if (radio) {
@@ -94,7 +94,7 @@ export default class extends Controller {
                 return;
             }
 
-            const input = this.element.querySelector(`[data-appearance-field="${field}"]`);
+            const input = this.element.querySelector(`[data-settings--appearance-field="${field}"]`);
 
             if (!input) {
                 return;
@@ -129,7 +129,7 @@ export default class extends Controller {
 
     pickBackground(event) {
         if (event.currentTarget.dataset.appearanceField === 'backgroundPreset') {
-            const kindInput = this.element.querySelector('[data-appearance-field="backgroundKind"][value="preset"]');
+            const kindInput = this.element.querySelector('[data-settings--appearance-field="backgroundKind"][value="preset"]');
 
             if (kindInput) {
                 kindInput.checked = true;
@@ -152,7 +152,7 @@ export default class extends Controller {
     async save() {
         const payload = {};
 
-        this.element.querySelectorAll('[data-appearance-field]').forEach((input) => {
+        this.element.querySelectorAll('[data-settings--appearance-field]').forEach((input) => {
             if (input.type === 'radio' && input.checked === false) {
                 return;
             }

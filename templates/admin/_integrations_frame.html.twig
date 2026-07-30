@@ -48,10 +48,10 @@ the same screen as the field.
                 {% endif %}
 
                 <button type="button"
-                        data-controller="modal"
-                        data-modal-src-value="{{ path('app_admin_integrations_mail_edit', { provider: mailProvider.value }) }}"
-                        data-modal-title-value="{{ ('admin.integrations.mail.' ~ mailProvider.value)|trans }}"
-                        data-action="click->modal#open"
+                        data-controller="ui--modal"
+                        data-ui--modal-src-value="{{ path('app_admin_integrations_mail_edit', { provider: mailProvider.value }) }}"
+                        data-ui--modal-title-value="{{ ('admin.integrations.mail.' ~ mailProvider.value)|trans }}"
+                        data-action="click->ui--modal#open"
                         class="ml-auto inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                                text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
                     <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
@@ -155,10 +155,10 @@ the same screen as the field.
 
                 <div class="flex items-center gap-2 flex-wrap">
                     <button type="button"
-                            data-controller="modal"
-                            data-modal-src-value="{{ path('app_admin_integrations_edit', { provider: provider.value }) }}"
-                            data-modal-title-value="{{ provider.label }}"
-                            data-action="click->modal#open"
+                            data-controller="ui--modal"
+                            data-ui--modal-src-value="{{ path('app_admin_integrations_edit', { provider: provider.value }) }}"
+                            data-ui--modal-title-value="{{ provider.label }}"
+                            data-action="click->ui--modal#open"
                             class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                                    text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
                         <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>

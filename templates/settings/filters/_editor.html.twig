@@ -19,14 +19,14 @@ Variables:
            typed. A successful save answers with Turbo Streams, which are
            applied document-wide regardless of the frame. #}
         <form method="post" action="{{ path('app_settings_filters_save') }}"
-              data-controller="rule-builder"
-              data-rule-builder-preview-url-value="{{ path('app_settings_filters_preview') }}"
-              data-rule-builder-csrf-value="{{ csrf_token('mail_rule_preview') }}"
-              data-rule-builder-conditions-value="{{ (submittedConditions ?: (rule.conditions ? rule.conditions|json_encode : '{}'))|e('html_attr') }}"
-              data-rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
-              data-rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
-              data-rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
-              data-rule-builder-i18n-value="{{ {
+              data-controller="rules--rule-builder"
+              data-rules--rule-builder-preview-url-value="{{ path('app_settings_filters_preview') }}"
+              data-rules--rule-builder-csrf-value="{{ csrf_token('mail_rule_preview') }}"
+              data-rules--rule-builder-conditions-value="{{ (submittedConditions ?: (rule.conditions ? rule.conditions|json_encode : '{}'))|e('html_attr') }}"
+              data-rules--rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
+              data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
+              data-rules--rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
+              data-rules--rule-builder-i18n-value="{{ {
                   all: 'settings.filters.op.all'|trans,
                   any: 'settings.filters.op.any'|trans,
                   none: 'settings.filters.op.none'|trans,
@@ -85,8 +85,8 @@ Variables:
 
             <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_save') }}">
             <input type="hidden" name="id" value="{{ rule.id }}">
-            <input type="hidden" name="conditions" data-rule-builder-target="conditions">
-            <input type="hidden" name="actions" data-rule-builder-target="actions">
+            <input type="hidden" name="conditions" data-rules--rule-builder-target="conditions">
+            <input type="hidden" name="actions" data-rules--rule-builder-target="actions">
 
             {# ── Header ─────────────────────────────────────────────────── #}
             <div class="flex items-center gap-2 px-4 h-11 border-b border-line bg-sunken">
@@ -138,30 +138,30 @@ Variables:
                 {# ── Conditions ─────────────────────────────────────────── #}
                 <div>
                     <p class="text-[13px] font-medium text-ink-soft mb-1.5">{{ 'settings.filters.when'|trans }}</p>
-                    <div data-rule-builder-target="tree"></div>
+                    <div data-rules--rule-builder-target="tree"></div>
                 </div>
 
                 {# ── Actions ────────────────────────────────────────────── #}
                 <div>
                     <div class="flex items-center justify-between gap-2 mb-1.5">
                         <p class="text-[13px] font-medium text-ink-soft">{{ 'settings.filters.then'|trans }}</p>
-                        <button type="button" data-action="rule-builder#addAction"
+                        <button type="button" data-action="rules--rule-builder#addAction"
                                 class="inline-flex items-center gap-1.5 px-2 h-7 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
                             <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
                             {{ 'settings.filters.add_action'|trans }}
                         </button>
                     </div>
-                    <div data-rule-builder-target="actionList" class="space-y-2"></div>
+                    <div data-rules--rule-builder-target="actionList" class="space-y-2"></div>
                 </div>
 
                 {# ── Live feedback ──────────────────────────────────────── #}
                 <div class="rounded-lg border border-line bg-sunken/60 px-3 py-2.5 space-y-1.5">
-                    <p class="text-xs text-ink-soft leading-relaxed" data-rule-builder-target="summary"></p>
+                    <p class="text-xs text-ink-soft leading-relaxed" data-rules--rule-builder-target="summary"></p>
                     <p class="text-xs font-medium
                               data-[state=pending]:text-ink-faint
                               data-[state=ok]:text-accent
                               data-[state=error]:text-danger"
-                       data-rule-builder-target="count" data-state="pending">&nbsp;</p>
+                       data-rules--rule-builder-target="count" data-state="pending">&nbsp;</p>
                 </div>
 
                 <label class="flex items-start gap-2.5 cursor-pointer">

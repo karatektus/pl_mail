@@ -70,7 +70,7 @@ class ComposeType extends AbstractType
                 'attr' => [
                     'placeholder' => '',
                     'rows' => 10,
-                    'data-compose-target' => 'body',
+                    'data-compose--compose-target' => 'body',
                 ],
             ]);
     }

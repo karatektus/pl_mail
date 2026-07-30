@@ -18,14 +18,14 @@ Variables:
 
 <div
     class="relative"
-    data-controller="message-actions"
-    data-message-actions-entity-id-value="{{ message.id }}"
-    data-message-actions-entity-type-value="message"
-    data-message-actions-starred-value="{{ starred ? 'true' : 'false' }}"
+    data-controller="mail--message-actions"
+    data-mail--message-actions-entity-id-value="{{ message.id }}"
+    data-mail--message-actions-entity-type-value="message"
+    data-mail--message-actions-starred-value="{{ starred ? 'true' : 'false' }}"
 >
     <button
         type="button"
-        data-action="click->message-actions#toggle"
+        data-action="click->mail--message-actions#toggle"
         aria-label="{{ 'message.actions.more'|trans }}"
         class="flex items-center justify-center w-8 h-8 rounded-full
                text-ink-muted hover:text-ink hover:bg-hover
@@ -35,14 +35,14 @@ Variables:
     </button>
 
     <div
-        data-message-actions-target="panel"
+        data-mail--message-actions-target="panel"
         class="hidden absolute right-0 top-full mt-1 z-30 w-56
                rounded-xl bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop py-1 text-sm"
     >
         <a href="{{ path('app_compose_reply', composeParams|merge({ id: message.id })) }}"
            data-turbo-frame="{{ composeFrame }}"
-           data-action="click->message-actions#dismiss"
+           data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-reply w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'compose.reply'|trans }}
@@ -51,7 +51,7 @@ Variables:
         {% if toCount > 1 %}
             <a href="{{ path('app_compose_reply_all', composeParams|merge({ id: message.id })) }}"
                data-turbo-frame="{{ composeFrame }}"
-           data-action="click->message-actions#dismiss"
+           data-action="click->mail--message-actions#dismiss"
                class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
                 <i class="fa-solid fa-reply-all w-4 text-ink-faint" aria-hidden="true"></i>
                 {{ 'compose.reply_all'|trans }}
@@ -60,7 +60,7 @@ Variables:
 
         <a href="{{ path('app_compose_forward', composeParams|merge({ id: message.id })) }}"
            data-turbo-frame="{{ composeFrame }}"
-           data-action="click->message-actions#dismiss"
+           data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-share w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'compose.forward'|trans }}
@@ -69,32 +69,32 @@ Variables:
         <div class="border-t border-line my-1"></div>
 
         <button type="button"
-                data-action="click->message-actions#star"
+                data-action="click->mail--message-actions#star"
                 class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
-            <i data-message-actions-target="starIcon"
+            <i data-mail--message-actions-target="starIcon"
                class="{{ starred ? 'fa-solid text-amber-400' : 'fa-regular text-ink-faint' }} fa-star w-4"
                aria-hidden="true"></i>
-            <span data-message-actions-target="starLabel"
+            <span data-mail--message-actions-target="starLabel"
                   data-star="{{ 'message.actions.star'|trans }}"
                   data-unstar="{{ 'message.actions.unstar'|trans }}">{{ starred ? ('message.actions.unstar'|trans) : ('message.actions.star'|trans) }}</span>
         </button>
 
         <button type="button"
-                data-action="click->message-actions#markUnread"
+                data-action="click->mail--message-actions#markUnread"
                 class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
             <i class="fa-regular fa-envelope w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.mark_unread'|trans }}
         </button>
 
         <button type="button"
-                data-action="click->message-actions#archive"
+                data-action="click->mail--message-actions#archive"
                 class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
             <i class="fa-solid fa-box-archive w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.archive'|trans }}
         </button>
 
         <button type="button"
-                data-action="click->message-actions#trash"
+                data-action="click->mail--message-actions#trash"
                 class="w-full flex items-center gap-2 px-4 py-2 text-left text-danger hover:bg-hover transition-colors cursor-pointer">
             <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
             {{ 'message.actions.delete'|trans }}
@@ -104,7 +104,7 @@ Variables:
 
         <a href="{{ path('app_mail_message_original', { id: message.id }) }}"
            target="_blank" rel="noopener"
-           data-action="click->message-actions#dismiss"
+           data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-code w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.show_original'|trans }}
@@ -112,7 +112,7 @@ Variables:
 
         <a href="{{ path('app_mail_message_print', { id: message.id }) }}"
            target="_blank" rel="noopener"
-           data-action="click->message-actions#dismiss"
+           data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-print w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.print'|trans }}

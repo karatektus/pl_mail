@@ -21,9 +21,9 @@ still while only the results move.
 <div
     id="modal-backdrop"
     hidden
-    data-modal-dialog
-    data-controller="modal"
-    data-action="click->modal#backdropClick modal:close->modal#close"
+    data-ui--modal-dialog
+    data-controller="ui--modal"
+    data-action="click->ui--modal#backdropClick ui--modal:close->ui--modal#close"
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"
@@ -39,8 +39,8 @@ still while only the results move.
        these class names while scanning templates; a preset referenced only from
        JavaScript risks being purged out of the build. #}
     <div
-        data-modal-panel
-        data-modal-sizes='{"form":"max-w-lg","wide":"max-w-3xl","full":"max-w-6xl"}'
+        data-ui--modal-panel
+        data-ui--modal-sizes='{"form":"max-w-lg","wide":"max-w-3xl","full":"max-w-6xl"}'
         class="
             relative w-full max-w-lg
             pane-flat
@@ -57,7 +57,7 @@ still while only the results move.
         <div class="flex items-center gap-3 px-6 pt-5 pb-4 shrink-0">
             <h2
                 id="modal-title"
-                data-modal-title
+                data-ui--modal-title
                 class="text-base font-semibold text-ink truncate"
             >
                 {# Filled dynamically by the Stimulus controller or by the loaded frame #}
@@ -65,7 +65,7 @@ still while only the results move.
 
             <button
                 type="button"
-                data-action="click->modal#close"
+                data-action="click->ui--modal#close"
                 aria-label="{{ 'modal.close'|trans }}"
                 class="
                     ml-auto -mr-1 w-8 h-8 flex items-center justify-center rounded-lg
@@ -86,7 +86,7 @@ still while only the results move.
             loading="lazy"
         >
             <div
-                data-modal-loading
+                data-ui--modal-loading
                 class="flex items-center justify-center h-32 text-ink-faint"
                 aria-live="polite"
                 aria-label="{{ 'modal.loading'|trans }}"

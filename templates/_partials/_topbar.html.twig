@@ -9,7 +9,7 @@
                transition-colors flex-shrink-0"
         aria-label="{{ 'sidebar.toggle'|trans }}"
         title="{{ 'sidebar.toggle'|trans }}"
-        data-action="click->sidebar-drawer#toggle"
+        data-action="click->ui--sidebar-drawer#toggle"
     >
         <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>
     </button>
@@ -42,7 +42,7 @@
     {# ── Search ────────────────────────────────────────────────────────── #}
     <div
         class="flex-1 max-w-2xl mx-auto relative"
-        data-controller="search"
+        data-controller="mail--search"
     >
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" aria-hidden="true"></i>
@@ -52,8 +52,8 @@
                 value="{{ app.request.query.get('q', '') }}"
                 placeholder="{{ 'header.search.placeholder'|trans }}"
                 autocomplete="off"
-                data-search-target="input"
-                data-action="keydown->search#onKeydown focus->search#onFocus input->search#onInput"
+                data-mail--search-target="input"
+                data-action="keydown->mail--search#onKeydown focus->mail--search#onFocus input->mail--search#onInput"
                 class="w-full pl-10 pr-4 py-2 text-sm
                        bg-sunken
                        border border-transparent rounded-xl
@@ -67,7 +67,7 @@
 
         {# Recent searches dropdown #}
         <div
-            data-search-target="dropdown"
+            data-mail--search-target="dropdown"
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
                    bg-surface
                    border border-line
@@ -77,13 +77,13 @@
                 <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
                 <button
                     type="button"
-                    data-action="click->search#clearRecents"
+                    data-action="click->mail--search#clearRecents"
                     class="text-[11px] text-gray-400 hover:text-ink-soft transition-colors"
                 >
                     Clear
                 </button>
             </div>
-            <ul data-search-target="recentsList" class="py-1 max-h-56 overflow-y-auto"></ul>
+            <ul data-mail--search-target="recentsList" class="py-1 max-h-56 overflow-y-auto"></ul>
         </div>
     </div>
 
@@ -92,30 +92,30 @@
         {# TEMPORARY: manual sync trigger (app:mail:sync) #}
         <button
             type="button"
-            data-controller="sync-now"
-            data-sync-now-url-value="{{ path('app_dev_sync_run') }}"
-            data-sync-now-status-url-value="{{ path('app_dev_sync_status') }}"
-            data-action="click->sync-now#run"
+            data-controller="mail--sync-now"
+            data-mail--sync-now-url-value="{{ path('app_dev_sync_run') }}"
+            data-mail--sync-now-status-url-value="{{ path('app_dev_sync_status') }}"
+            data-action="click->mail--sync-now#run"
             class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
                    text-ink-muted hover:bg-hover transition-colors flex-shrink-0
                    disabled:cursor-default disabled:opacity-60"
             aria-label="Sync now"
             title="Sync now"
         >
-            <i class="fa-solid fa-rotate text-base" data-sync-now-target="icon" aria-hidden="true"></i>
+            <i class="fa-solid fa-rotate text-base" data-mail--sync-now-target="icon" aria-hidden="true"></i>
         </button>
 
         {# User menu #}
-        <div class="relative ml-1" data-controller="user-menu">
+        <div class="relative ml-1" data-controller="ui--user-menu">
             <button id="user-menu-btn"
-                    data-action="click->user-menu#toggle"
+                    data-action="click->ui--user-menu#toggle"
                     class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
                     title="{{ app.user.email }}">
                 {{ app.user.email | first | upper }}
             </button>
 
-            <div id="user-menu" data-user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
+            <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
                     <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>

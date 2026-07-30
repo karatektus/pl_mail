@@ -11,13 +11,13 @@ Variables:
                           rows from the list instead (bulk mode)
   activeLabels  int[]     ids of labels currently attached (single-target mode)
 #}
-<div data-controller="label-menu"
-     data-label-menu-target-type-value="{{ targetType }}"
-     {% if targetId is defined and targetId is not null %}data-label-menu-target-id-value="{{ targetId }}"{% endif %}
+<div data-controller="mail--label-menu"
+     data-mail--label-menu-target-type-value="{{ targetType }}"
+     {% if targetId is defined and targetId is not null %}data-mail--label-menu-target-id-value="{{ targetId }}"{% endif %}
      class="relative">
 
     <button type="button"
-            data-action="click->label-menu#toggle"
+            data-action="click->mail--label-menu#toggle"
             aria-label="{{ 'toolbar.actions.label'|trans }}"
             class="group relative flex items-center justify-center w-8 h-8 rounded-full
                    text-ink-muted
@@ -27,7 +27,7 @@ Variables:
         <i class="fa-solid fa-tag text-sm" aria-hidden="true"></i>
     </button>
 
-    <div data-label-menu-target="panel"
+    <div data-mail--label-menu-target="panel"
          class="hidden absolute right-0 top-full mt-1 z-30 w-56 max-h-72 overflow-y-auto rounded-xl
                 bg-pane-soft backdrop-blur-sm
                 border border-line
@@ -38,15 +38,15 @@ Variables:
         {% else %}
             {% for label in labels %}
                 <button type="button"
-                        data-action="click->label-menu#toggleLabel"
-                        data-label-menu-label-id-param="{{ label.id }}"
+                        data-action="click->mail--label-menu#toggleLabel"
+                        data-mail--label-menu-label-id-param="{{ label.id }}"
                         data-label-id="{{ label.id }}"
                         data-attached="{{ activeLabels is defined and label.id in activeLabels ? 'true' : 'false' }}"
                         class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left
                                text-ink-soft
                                hover:bg-hover transition-colors cursor-pointer"
                         style="padding-left: {{ 12 + label.depth * 14 }}px">
-                    <i data-label-menu-target="check"
+                    <i data-mail--label-menu-target="check"
                        class="fa-solid fa-check w-3.5 text-accent
                               {{ activeLabels is defined and label.id in activeLabels ? '' : 'invisible' }}"
                        aria-hidden="true"></i>
@@ -57,10 +57,10 @@ Variables:
 
         <div class="border-t border-line mt-1 pt-1">
             <button type="button"
-                    data-controller="modal"
-                    data-action="click->modal#open"
-                    data-modal-title-value="{{ 'sidebar.labels.add'|trans }}"
-                    data-modal-src-value="{{ path('app_label_new') }}"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+                    data-ui--modal-src-value="{{ path('app_label_new') }}"
                     class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left
                            text-ink-soft
                            hover:bg-hover transition-colors cursor-pointer">

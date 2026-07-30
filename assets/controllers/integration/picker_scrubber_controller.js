@@ -52,7 +52,7 @@ export default class extends Controller {
         }
 
         this._dragging = true;
-        this._target = event.target.closest("[data-picker-scrubber-target='segment']");
+        this._target = event.target.closest("[data-integration--picker-scrubber-target='segment']");
         this._place(this._target);
 
         // Capturing the pointer keeps events coming even once the finger leaves
@@ -74,7 +74,7 @@ export default class extends Controller {
         // every event reports the bar itself, not the segment under the finger.
         const under = document
             .elementFromPoint(event.clientX, event.clientY)
-            ?.closest("[data-picker-scrubber-target='segment']");
+            ?.closest("[data-integration--picker-scrubber-target='segment']");
 
         if (null != under) {
             this._target = under;

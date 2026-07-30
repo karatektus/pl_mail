@@ -2,15 +2,15 @@
 
 {% block body %}
     <turbo-frame id="modal">
-        <template data-modal-frame-title>{{ 'settings.accounts.edit'|trans }}</template>
+        <template data-ui--modal-frame-title>{{ 'settings.accounts.edit'|trans }}</template>
 
         {{ form_start(form, {
             attr: {
                 'data-turbo': 'true',
                 'data-controller': 'imap-preset connection-test',
-                'data-connection-test-url-value': path('app_account_test_connection'),
-                'data-connection-test-csrf-value': csrf_token('account_test'),
-                'data-connection-test-account-id-value': account.id,
+                'data-settings--connection-test-url-value': path('app_account_test_connection'),
+                'data-settings--connection-test-csrf-value': csrf_token('account_test'),
+                'data-settings--connection-test-account-id-value': account.id,
                 class: 'flex-1 min-h-0 flex flex-col',
             }
         }) }}
@@ -20,7 +20,7 @@
         </div>
 
         <div class="flex items-center justify-end gap-2 px-5 py-3.5">
-            <button type="button" data-action="click->modal#close"
+            <button type="button" data-action="click->ui--modal#close"
                     class="px-3 h-9 rounded-lg text-sm font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer">
                 {{ 'form.cancel'|trans }}
             </button>

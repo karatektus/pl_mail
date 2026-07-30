@@ -152,7 +152,7 @@ export default class extends Controller {
                 <button
                     type="button"
                     data-query="${this._escape(r)}"
-                    data-action="click->search#selectRecent"
+                    data-action="click->mail--search#selectRecent"
                     class="group w-full flex items-center gap-2.5 px-3 py-2
                            text-sm text-ink-soft
                            hover:bg-hover
@@ -163,7 +163,7 @@ export default class extends Controller {
                     <span
                         role="button"
                         tabindex="0"
-                        data-action="click->search#removeRecent"
+                        data-action="click->mail--search#removeRecent"
                         class="opacity-0 group-hover:opacity-100 p-0.5 rounded
                                text-ink-faint hover:text-ink-soft
                                transition-opacity"

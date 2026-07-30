@@ -26,7 +26,7 @@ thread keeps its scroll position.
 {% else %}
 
     <div class="relative inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden"
-         data-controller="dropdown">
+         data-controller="ui--dropdown">
 
         <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
            class="inline-flex items-center gap-2 px-3 py-2 text-xs text-ink-soft hover:bg-hover transition-colors">
@@ -35,13 +35,13 @@ thread keeps its scroll position.
         </a>
 
         <button type="button"
-                data-action="click->dropdown#toggle"
+                data-action="click->ui--dropdown#toggle"
                 aria-label="{{ 'message.save_to'|trans }}"
                 class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors">
             <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
         </button>
 
-        <div data-dropdown-target="menu" hidden
+        <div data-ui--dropdown-target="menu" hidden
              class="absolute top-full mt-1 right-0 z-20 min-w-52 popover py-1">
             <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
                 {{ 'message.save_to'|trans }}
@@ -50,7 +50,7 @@ thread keeps its scroll position.
                 <form method="post"
                       action="{{ path('app_integration_save_attachment', { id: integration.id, part: part.id }) }}"
                       data-turbo-stream
-                      data-action="submit->dropdown#close">
+                      data-action="submit->ui--dropdown#close">
                     <input type="hidden" name="_token" value="{{ csrf_token('integration-save-' ~ part.id) }}">
                     <button type="submit"
                             class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted

@@ -50,10 +50,10 @@ replyTo column on the entity.
 {% endif %}
 {% set extraCount = (toList|length + ccList|length) - 1 %}
 
-<div class="relative inline-flex" data-controller="message-details">
+<div class="relative inline-flex" data-controller="mail--message-details">
     <button
         type="button"
-        data-action="click->message-details#toggle"
+        data-action="click->mail--message-details#toggle"
         aria-label="{{ 'message.details.label'|trans }}"
         class="inline-flex items-center gap-1 rounded px-1 -mx-1 py-0.5
                text-xs text-ink-faint hover:text-ink-soft hover:bg-hover
@@ -66,13 +66,13 @@ replyTo column on the entity.
                 {{ 'message.details.label'|trans }}
             {%- endif -%}
         </span>
-        <i data-message-details-target="caret"
+        <i data-mail--message-details-target="caret"
            class="fa-solid fa-caret-down text-[10px] transition-transform duration-150"
            aria-hidden="true"></i>
     </button>
 
     <div
-        data-message-details-target="panel"
+        data-mail--message-details-target="panel"
         class="hidden absolute left-0 top-full mt-1 z-30 w-[28rem] max-w-[85vw]
                rounded-xl bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop
@@ -127,21 +127,21 @@ replyTo column on the entity.
             <div class="border-t border-line">
                 <button
                     type="button"
-                    data-action="click->message-details#toggleAll"
+                    data-action="click->mail--message-details#toggleAll"
                     class="w-full flex items-center gap-2 px-4 py-2 text-left
                            text-ink-faint hover:text-ink-soft hover:bg-hover
                            transition-colors cursor-pointer"
                 >
                     <i class="fa-solid fa-list w-3.5" aria-hidden="true"></i>
                     <span
-                        data-message-details-target="allHeadersLabel"
+                        data-mail--message-details-target="allHeadersLabel"
                         data-more="{{ 'message.details.show_all_headers'|trans }}"
                         data-less="{{ 'message.details.hide_all_headers'|trans }}"
                     >{{ 'message.details.show_all_headers'|trans }}</span>
                 </button>
 
                 <div
-                    data-message-details-target="allHeaders"
+                    data-mail--message-details-target="allHeaders"
                     class="hidden max-h-72 overflow-y-auto border-t border-line px-4 py-3"
                 >
                     <dl class="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1 font-mono text-[11px] leading-relaxed">

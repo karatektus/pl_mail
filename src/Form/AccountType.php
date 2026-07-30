@@ -33,10 +33,10 @@ class AccountType extends AbstractType
                 'choices'     => $this->presetProvider->choices(),
                 'autocomplete' => true,
                 'attr' => [
-                    'class'                    => 'form-select',
-                    'data-imap-preset-target'  => 'select',
-                    'data-action'              => 'change->imap-preset#apply',
-                    'data-presets'             => json_encode($this->presetProvider->toClientArray(), JSON_THROW_ON_ERROR),
+                    'class'                             => 'form-select',
+                    'data-settings--imap-preset-target' => 'select',
+                    'data-action'                       => 'change->settings--imap-preset#apply',
+                    'data-presets'                      => json_encode($this->presetProvider->toClientArray(), JSON_THROW_ON_ERROR),
                 ],
             ])
             ->add('email', TextType::class, [
@@ -48,11 +48,11 @@ class AccountType extends AbstractType
             ])
             ->add('username', TextType::class, [
                 'attr' => [
-                    'placeholder'             => 'you@example.com',
-                    'class'                   => 'form-input',
-                    'autocomplete'            => 'email',
-                    'data-imap-preset-target' => 'username',
-                    'data-action'             => 'change->imap-preset#detect blur->imap-preset#detect',
+                    'placeholder'                       => 'you@example.com',
+                    'class'                             => 'form-input',
+                    'autocomplete'                      => 'email',
+                    'data-settings--imap-preset-target' => 'username',
+                    'data-action'                       => 'change->settings--imap-preset#detect blur->settings--imap-preset#detect',
                 ],
                 'label'       => 'Email address',
                 'constraints' => [new NotBlank()],

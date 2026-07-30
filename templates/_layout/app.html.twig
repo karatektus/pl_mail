@@ -91,10 +91,10 @@
 </head>
 <body
     {% if app.user %}
-        data-controller="{% block body_controllers %}mercure mail-pane{% endblock %}"
-        data-mercure-url-value="{{ mercure(['mail/user/' ~ app.user.id]) }}"
-        data-action="mercure:mailbox-synced->mail-pane#onMailboxSynced"
-        data-mail-pane-open-value="{% block pane_open %}false{% endblock %}"
+        data-controller="{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}"
+        data-core--mercure-url-value="{{ mercure(['mail/user/' ~ app.user.id]) }}"
+        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced"
+        data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
     {% endif %}
 >
     {% block body %}{% endblock %}

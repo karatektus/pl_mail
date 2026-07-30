@@ -60,19 +60,19 @@ The action buttons hide themselves while a compose card is open; see the
     {% endif %}
 
     {% if sending %}
-        <div data-controller="inline-send"
-             data-inline-send-url-value="{{ sending.undoUrl }}"
-             data-inline-send-delay-value="{{ sending.delay }}">
+        <div data-controller="compose--inline-send"
+             data-compose--inline-send-url-value="{{ sending.undoUrl }}"
+             data-compose--inline-send-delay-value="{{ sending.delay }}">
             <button
                 type="button"
-                data-action="click->inline-send#cancel"
+                data-action="click->compose--inline-send#cancel"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                        text-accent bg-accent-soft border border-accent/30
                        hover:bg-accent hover:text-white transition-colors cursor-pointer"
             >
                 <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i>
                 <span>{{ 'compose.sending'|trans }}</span>
-                <span class="tabular-nums" data-inline-send-target="countdown">{{ (sending.delay / 1000)|round }}</span><span>s</span>
+                <span class="tabular-nums" data-compose--inline-send-target="countdown">{{ (sending.delay / 1000)|round }}</span><span>s</span>
                 <span class="opacity-70">— {{ 'compose.click_to_cancel'|trans }}</span>
             </button>
         </div>

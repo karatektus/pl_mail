@@ -64,10 +64,10 @@ into a message they can act on.
                             </form>
 
                             <button type="button"
-                                    data-controller="modal"
-                                    data-modal-src-value="{{ path('app_settings_integrations_edit', { id: integration.id }) }}"
-                                    data-modal-title-value="{{ integration.name }}"
-                                    data-action="click->modal#open"
+                                    data-controller="ui--modal"
+                                    data-ui--modal-src-value="{{ path('app_settings_integrations_edit', { id: integration.id }) }}"
+                                    data-ui--modal-title-value="{{ integration.name }}"
+                                    data-action="click->ui--modal#open"
                                     class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
                                 {{ 'settings.integrations.edit'|trans }}
                             </button>
@@ -103,10 +103,10 @@ into a message they can act on.
             <div class="flex flex-wrap gap-2">
                 {% for config in available %}
                     <button type="button"
-                            data-controller="modal"
-                            data-modal-src-value="{{ path('app_settings_integrations_connect', { provider: config.provider.value }) }}"
-                            data-modal-title-value="{{ config.provider.label }}"
-                            data-action="click->modal#open"
+                            data-controller="ui--modal"
+                            data-ui--modal-src-value="{{ path('app_settings_integrations_connect', { provider: config.provider.value }) }}"
+                            data-ui--modal-title-value="{{ config.provider.label }}"
+                            data-action="click->ui--modal#open"
                             class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-medium
                                    text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer">
                         <i class="{{ config.provider.icon }} text-xs" aria-hidden="true"></i>

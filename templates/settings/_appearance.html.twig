@@ -1,11 +1,11 @@
 {% set a = appearance() %}
 
 <div class="space-y-8"
-     data-controller="appearance"
-     data-appearance-update-url-value="{{ path('app_appearance_update') }}"
-     data-appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
-     data-appearance-import-url-value="{{ path('app_appearance_import') }}"
-     data-appearance-reset-url-value="{{ path('app_appearance_reset') }}">
+     data-controller="settings--appearance"
+     data-settings--appearance-update-url-value="{{ path('app_appearance_update') }}"
+     data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
+     data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
+     data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}">
 
     {# ── Theme ─────────────────────────────────────────────────────────── #}
     <section>
@@ -18,7 +18,7 @@
                 <button type="button"
                         data-theme="{{ theme.value }}"
                         data-dark="{{ theme.isDark ? '1' : '0' }}"
-                        data-action="click->appearance#pickTheme"
+                        data-action="click->settings--appearance#pickTheme"
                         class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
                                {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">
                     <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
@@ -30,7 +30,7 @@
                 </button>
             {% endfor %}
         </div>
-        <input type="hidden" data-appearance-target="theme" data-appearance-field="theme" value="{{ a.theme.value }}">
+        <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
     </section>
     {# ── Layout ────────────────────────────────────────────────────────────
        The second axis: the theme picks the palette, the layout picks how it
@@ -40,8 +40,8 @@
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
         <p class="text-xs text-ink-faint mt-0.5 mb-3">{{ 'settings.appearance.layout.subheading'|trans }}</p>
 
-        <select data-appearance-field="layout"
-                data-action="change->appearance#pickLayout"
+        <select data-settings--appearance-field="layout"
+                data-action="change->settings--appearance#pickLayout"
                 class="w-full sm:w-64 px-3 h-9 text-sm rounded-pane
                        bg-field border border-field-border text-ink cursor-pointer
                        focus:outline-none focus:ring-2 focus:ring-accent transition-colors">
@@ -66,29 +66,29 @@
             <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.main.tint'|trans }}</span>
             <span class="flex items-center gap-2">
                 <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                    <input type="checkbox" data-appearance-target="mainTintDefault"
-                           data-action="change->appearance#toggleMainTintDefault"
+                    <input type="checkbox" data-settings--appearance-target="mainTintDefault"
+                           data-action="change->settings--appearance#toggleMainTintDefault"
                            {{ a.mainTint is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
                     {{ 'settings.appearance.main.default'|trans }}
                 </label>
                 <input type="color" value="{{ a.mainTint ?? '#ffffff' }}"
-                       data-appearance-target="mainTint" data-action="input->appearance#pickMainTint"
+                       data-settings--appearance-target="mainTint" data-action="input->settings--appearance#pickMainTint"
                        class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
             </span>
-            <input type="hidden" data-appearance-field="mainTint" data-appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
+            <input type="hidden" data-settings--appearance-field="mainTint" data-settings--appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
         </label>
 
         <div>
             <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer mb-2">
-                <input type="checkbox" data-appearance-target="mainAlphaMatch"
-                       data-action="change->appearance#toggleMainAlphaMatch"
+                <input type="checkbox" data-settings--appearance-target="mainAlphaMatch"
+                       data-action="change->settings--appearance#toggleMainAlphaMatch"
                     {{ a.mainAlpha is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
                 {{ 'settings.appearance.main.matchGlass'|trans }}
             </label>
             <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
-                   data-appearance-target="mainAlpha" data-action="input->appearance#slideMainAlpha"
+                   data-settings--appearance-target="mainAlpha" data-action="input->settings--appearance#slideMainAlpha"
                    class="w-full accent-accent cursor-pointer {{ a.mainAlpha is null ? 'opacity-40 pointer-events-none' : '' }}">
-            <input type="hidden" data-appearance-field="mainAlpha" data-appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
+            <input type="hidden" data-settings--appearance-field="mainAlpha" data-settings--appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
         </div>
     </section>
     {# ── Glass ─────────────────────────────────────────────────────────── #}
@@ -111,10 +111,10 @@
                 <input type="range"
                        min="{{ slider.min }}" max="{{ slider.max }}" step="{{ slider.step }}"
                        value="{{ slider.value }}"
-                       data-appearance-field="{{ slider.field }}"
+                       data-settings--appearance-field="{{ slider.field }}"
                        data-css-variable="{{ slider.var }}"
                        data-css-suffix="{{ slider.suffix }}"
-                       data-action="input->appearance#slide"
+                       data-action="input->settings--appearance#slide"
                        class="w-full mt-2 accent-accent cursor-pointer">
             </label>
         {% endfor %}
@@ -130,35 +130,35 @@
             <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.color'|trans }}</span>
             <span class="flex items-center gap-2">
                 <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                    <input type="checkbox" data-appearance-target="inkDefault"
-                           data-action="change->appearance#toggleInkDefault"
+                    <input type="checkbox" data-settings--appearance-target="inkDefault"
+                           data-action="change->settings--appearance#toggleInkDefault"
                            {{ a.inkColor is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
                     {{ 'settings.appearance.text.default'|trans }}
                 </label>
                 <input type="color" value="{{ a.inkColor ?? '#27272a' }}"
-                       data-appearance-target="inkColor" data-action="input->appearance#pickInk"
+                       data-settings--appearance-target="inkColor" data-action="input->settings--appearance#pickInk"
                        class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
             </span>
-            <input type="hidden" data-appearance-field="inkColor" data-appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
+            <input type="hidden" data-settings--appearance-field="inkColor" data-settings--appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
         </label>
 
-        <div data-appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
+        <div data-settings--appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.muted'|trans }} / {{ 'settings.appearance.text.faint'|trans }}</span>
-                <button type="button" data-action="click->appearance#resetInkDerived"
+                <button type="button" data-action="click->settings--appearance#resetInkDerived"
                         class="text-[11px] text-accent hover:underline cursor-pointer">
                     {{ 'settings.appearance.text.autoDerive'|trans }}
                 </button>
             </div>
             <div class="flex items-center gap-3">
                 <input type="color" value="{{ a.inkMuted ?? '#71717a' }}"
-                       data-appearance-target="inkMuted" data-action="input->appearance#pickInkMuted"
+                       data-settings--appearance-target="inkMuted" data-action="input->settings--appearance#pickInkMuted"
                        class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                <input type="hidden" data-appearance-field="inkMuted" data-appearance-target="inkMutedField" value="{{ a.inkMuted ?? '' }}">
+                <input type="hidden" data-settings--appearance-field="inkMuted" data-settings--appearance-target="inkMutedField" value="{{ a.inkMuted ?? '' }}">
                 <input type="color" value="{{ a.inkFaint ?? '#a1a1aa' }}"
-                       data-appearance-target="inkFaint" data-action="input->appearance#pickInkFaint"
+                       data-settings--appearance-target="inkFaint" data-action="input->settings--appearance#pickInkFaint"
                        class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                <input type="hidden" data-appearance-field="inkFaint" data-appearance-target="inkFaintField" value="{{ a.inkFaint ?? '' }}">
+                <input type="hidden" data-settings--appearance-field="inkFaint" data-settings--appearance-target="inkFaintField" value="{{ a.inkFaint ?? '' }}">
             </div>
         </div>
     </section>
@@ -169,15 +169,15 @@
             {% for hex in ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#dc2626'] %}
                 <button type="button"
                         data-accent="{{ hex }}"
-                        data-action="click->appearance#pickAccent"
+                        data-action="click->settings--appearance#pickAccent"
                         class="w-7 h-7 rounded-full border border-line cursor-pointer hover:scale-110 transition-transform"
                         style="background:{{ hex }}"></button>
             {% endfor %}
             <input type="color"
                    value="{{ a.accent }}"
-                   data-appearance-target="accent"
-                   data-appearance-field="accent"
-                   data-action="input->appearance#pickAccent"
+                   data-settings--appearance-target="accent"
+                   data-settings--appearance-field="accent"
+                   data-action="input->settings--appearance#pickAccent"
                    class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
         </div>
     </section>
@@ -190,10 +190,10 @@
                 <label class="cursor-pointer">
                     <input type="radio" name="density" class="peer sr-only"
                            value="{{ density.value }}"
-                           data-appearance-field="density"
+                           data-settings--appearance-field="density"
                            data-row-y="{{ density.rowPadding }}"
                            data-gap="{{ density.gap }}"
-                           data-action="change->appearance#pickDensity"
+                           data-action="change->settings--appearance#pickDensity"
                         {{ a.density == density ? 'checked' : '' }}>
                     <span class="block px-4 py-2 text-sm text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
                         {{ ('settings.appearance.density.' ~ density.value)|trans }}
@@ -210,8 +210,8 @@
         <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
             <label class="cursor-pointer">
                 <input type="radio" name="backgroundKind" class="sr-only" value="preset"
-                       data-appearance-field="backgroundKind"
-                       data-action="change->appearance#pickBackground"
+                       data-settings--appearance-field="backgroundKind"
+                       data-action="change->settings--appearance#pickBackground"
                     {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
                 <span class="flex items-center justify-center h-16 rounded-pane border border-line text-xs text-ink-muted peer-checked:ring-2 peer-checked:ring-accent app-bg">
                     {{ 'settings.appearance.background.theme'|trans }}
@@ -221,8 +221,8 @@
             {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
                 <label class="cursor-pointer">
                     <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
-                           data-appearance-field="backgroundPreset"
-                           data-action="change->appearance#pickBackground"
+                           data-settings--appearance-field="backgroundPreset"
+                           data-action="change->settings--appearance#pickBackground"
                         {{ a.backgroundPreset == preset ? 'checked' : '' }}>
                     <span class="block h-16 rounded-pane border border-line bg-cover bg-center peer-checked:ring-2 peer-checked:ring-accent"
                           style="background-image:url('{{ asset(preset.thumbnail) }}')"></span>
@@ -234,8 +234,8 @@
             <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
             {{ 'settings.appearance.background.upload'|trans }}
             <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
-                   data-appearance-target="uploadInput"
-                   data-action="change->appearance#upload">
+                   data-settings--appearance-target="uploadInput"
+                   data-action="change->settings--appearance#upload">
         </label>
     </section>
 
@@ -251,11 +251,11 @@
             <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>
             {{ 'settings.appearance.import'|trans }}
             <input type="file" accept="application/json" class="sr-only"
-                   data-appearance-target="importInput"
-                   data-action="change->appearance#importFile">
+                   data-settings--appearance-target="importInput"
+                   data-action="change->settings--appearance#importFile">
         </label>
 
-        <button type="button" data-action="click->appearance#reset"
+        <button type="button" data-action="click->settings--appearance#reset"
                 class="ml-auto text-xs text-ink-faint hover:text-ink-muted cursor-pointer transition-colors">
             {{ 'settings.appearance.reset'|trans }}
         </button>

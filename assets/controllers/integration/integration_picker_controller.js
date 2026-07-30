@@ -73,7 +73,7 @@ export default class extends Controller {
 
         const next = new DOMParser().parseFromString(markup, "text/html");
         const incoming = next.querySelector(
-            '[data-integration-picker-target="results"]',
+            '[data-integration--integration-picker-target="results"]',
         );
 
         if (null !== incoming && true === this.hasResultsTarget) {
@@ -83,7 +83,7 @@ export default class extends Controller {
         // The fetched page carries its own sentinel, or none if it was the last.
         // Swapping it in is what advances the cursor for the next round.
         const incomingSentinel = next.querySelector(
-            '[data-integration-picker-target="sentinel"]',
+            '[data-integration--integration-picker-target="sentinel"]',
         );
 
         if (true === this.hasSentinelTarget) {
@@ -234,7 +234,7 @@ export default class extends Controller {
             return;
         }
 
-        this.dispatch("close", { prefix: "modal" });
+        this.dispatch("close", { prefix: "ui--modal" });
     }
 
     _busy(busy) {

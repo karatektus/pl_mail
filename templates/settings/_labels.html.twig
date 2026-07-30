@@ -19,10 +19,10 @@ Variables:
     <p class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</p>
 
     <button
-        data-controller="modal"
-        data-action="click->modal#open"
-        data-modal-title-value="{{ 'sidebar.labels.add'|trans }}"
-        data-modal-src-value="{{ path('app_label_new') }}"
+        data-controller="ui--modal"
+        data-action="click->ui--modal#open"
+        data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+        data-ui--modal-src-value="{{ path('app_label_new') }}"
         class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
     >
         <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
@@ -74,10 +74,10 @@ Variables:
                         {# Kept reachable without hover: these rows are the only
                            place a label can be renamed or removed. #}
                         <button
-                            data-controller="modal"
-                            data-action="click->modal#open"
-                            data-modal-title-value="{{ 'label.form.edit_title'|trans }}"
-                            data-modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'label.form.edit_title'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label.name }) }}"
                             title="{{ 'label.form.edit_title'|trans }}"

@@ -27,7 +27,7 @@ Variables:
     {% set integrationNames = integrationNames|merge({ ('id' ~ integration.id): integration.name }) %}
 {% endfor %}
 
-<div data-controller="rule-run" data-rule-run-busy-value="{{ anyRunning ? 'true' : 'false' }}"></div>
+<div data-controller="rules--rule-run" data-rules--rule-run-busy-value="{{ anyRunning ? 'true' : 'false' }}"></div>
 
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
     <p class="text-xs text-ink-faint">{{ 'settings.filters.count'|trans({ '%count%': rules|length }) }}</p>
@@ -48,10 +48,10 @@ Variables:
     </div>
 {% else %}
     <ul class="divide-y divide-line"
-        data-controller="rule-order"
-        data-rule-order-url-value="{{ path('app_settings_filters_reorder') }}"
-        data-rule-order-csrf-value="{{ csrf_token('mail_rule_reorder') }}"
-        data-rule-order-target="list">
+        data-controller="rules--rule-order"
+        data-rules--rule-order-url-value="{{ path('app_settings_filters_reorder') }}"
+        data-rules--rule-order-csrf-value="{{ csrf_token('mail_rule_reorder') }}"
+        data-rules--rule-order-target="list">
         {% for rule in rules %}
             <li class="px-4 py-3 {{ rule.isEnabled ? '' : 'opacity-60' }}" data-rule-id="{{ rule.id }}">
                 <div class="flex items-start gap-3">
@@ -59,7 +59,7 @@ Variables:
                     {# Order matters: rules run top-down and "stop after this
                        filter" makes the first match final. #}
                     <div class="flex flex-col items-center shrink-0 pt-0.5">
-                        <button type="button" data-action="rule-order#move" data-direction="up"
+                        <button type="button" data-action="rules--rule-order#move" data-direction="up"
                                 class="w-6 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                 {{ loop.first ? 'disabled' : '' }}
                                 aria-label="{{ 'settings.filters.move_up'|trans({ '%name%': rule.name }) }}">
@@ -71,7 +71,7 @@ Variables:
                             <i class="fa-solid fa-grip-vertical text-[10px]"></i>
                         </span>
 
-                        <button type="button" data-action="rule-order#move" data-direction="down"
+                        <button type="button" data-action="rules--rule-order#move" data-direction="down"
                                 class="w-6 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                 {{ loop.last ? 'disabled' : '' }}
                                 aria-label="{{ 'settings.filters.move_down'|trans({ '%name%': rule.name }) }}">

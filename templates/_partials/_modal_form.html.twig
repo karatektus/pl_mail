@@ -11,7 +11,7 @@ the app ended up with four slightly different modal footers.
 {% set danger       = danger ?? false %}
 
 <turbo-frame id="modal">
-    <template data-modal-frame-title>{{ title ?? '' }}</template>
+    <template data-ui--modal-frame-title>{{ title ?? '' }}</template>
 
     {{ form_start(form, {
         attr: {
@@ -50,7 +50,7 @@ the app ended up with four slightly different modal footers.
     <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
         <button
             type="button"
-            data-action="click->modal#close"
+            data-action="click->ui--modal#close"
             class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                text-ink-soft
                bg-field

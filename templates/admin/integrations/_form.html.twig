@@ -34,11 +34,11 @@ field to fill in.
                     <span class="block text-[13px] font-medium leading-none text-ink-soft">
                         {{ 'admin.integrations.field.redirect_uri'|trans }}
                     </span>
-                    <div class="flex items-center gap-2" data-controller="clipboard">
-                        <code data-clipboard-target="source"
+                    <div class="flex items-center gap-2" data-controller="ui--clipboard">
+                        <code data-ui--clipboard-target="source"
                               class="flex-1 min-w-0 truncate rounded-lg bg-sunken border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_integration_oauth_callback', { provider: provider.value }) }}</code>
                         <button type="button"
-                                data-action="click->clipboard#copy"
+                                data-action="click->ui--clipboard#copy"
                                 class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
                                        bg-field border border-field hover:bg-hover transition-colors"
                                 aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">

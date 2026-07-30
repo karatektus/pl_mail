@@ -100,8 +100,8 @@ The button itself carries `group` and `relative`.
            border-b border-line
            bg-raised
            shrink-0 min-h-[40px]"
-    data-controller="list-toolbar"
-    data-list-toolbar-total-value="{{ total }}"
+    data-controller="mail--list-toolbar"
+    data-mail--list-toolbar-total-value="{{ total }}"
 >
 
     {# ── Checkbox + chevron ───────────────────────────────────────────────── #}
@@ -115,8 +115,8 @@ The button itself carries `group` and `relative`.
             type="button"
             role="checkbox"
             aria-checked="false"
-            data-list-toolbar-target="checkboxBtn"
-            data-action="click->list-toolbar#toggleAll"
+            data-mail--list-toolbar-target="checkboxBtn"
+            data-action="click->mail--list-toolbar#toggleAll"
             class="flex items-center justify-center w-4 h-4 rounded
                    border border-field
                    bg-field
@@ -126,13 +126,13 @@ The button itself carries `group` and `relative`.
             aria-label="{{ 'toolbar.select_all'|trans }}"
         >
             {# Checkmark — shown when all selected #}
-            <svg data-list-toolbar-target="checkmark"
+            <svg data-mail--list-toolbar-target="checkmark"
                  class="hidden w-2.5 h-2.5 text-white pointer-events-none"
                  viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polyline points="1.5,5 3.8,7.5 8.5,2.5"/>
             </svg>
             {# Dash — shown when some (but not all) selected #}
-            <svg data-list-toolbar-target="indeterminate"
+            <svg data-mail--list-toolbar-target="indeterminate"
                  class="hidden w-2.5 h-2.5 text-white pointer-events-none"
                  viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
                 <line x1="2" y1="5" x2="8" y2="5"/>
@@ -143,8 +143,8 @@ The button itself carries `group` and `relative`.
         <div class="relative">
             <button
                 type="button"
-                data-action="click->list-toolbar#toggleSelectMenu"
-                data-list-toolbar-target="selectMenuBtn"
+                data-action="click->mail--list-toolbar#toggleSelectMenu"
+                data-mail--list-toolbar-target="selectMenuBtn"
                 aria-label="{{ 'toolbar.select_menu'|trans }}"
                 aria-haspopup="true"
                 class="ml-0.5 p-0.5 rounded
@@ -160,7 +160,7 @@ The button itself carries `group` and `relative`.
 
             {# Dropdown #}
             <div
-                data-list-toolbar-target="selectMenu"
+                data-mail--list-toolbar-target="selectMenu"
                 class="hidden absolute left-0 top-full mt-1 z-30 w-36
                        bg-surface
                        border border-line
@@ -174,7 +174,7 @@ The button itself carries `group` and `relative`.
                     'selectStarred': 'toolbar.select.starred',
                 } %}
                     <button type="button"
-                            data-action="click->list-toolbar#{{ key }}"
+                            data-action="click->mail--list-toolbar#{{ key }}"
                             class="w-full text-left px-3 py-1.5
                                    text-ink-soft
                                    hover:bg-hover
@@ -195,27 +195,27 @@ The button itself carries `group` and `relative`.
        ════════════════════════════════════════════════════════════════════════ #}
 
     {# Refresh — default visible state #}
-    <div data-list-toolbar-target="refreshSlot" class="flex items-center">
-        {{ m.tbtn('click->list-toolbar#refresh', 'fa-solid fa-rotate-right', 'toolbar.refresh'|trans) }}
+    <div data-mail--list-toolbar-target="refreshSlot" class="flex items-center">
+        {{ m.tbtn('click->mail--list-toolbar#refresh', 'fa-solid fa-rotate-right', 'toolbar.refresh'|trans) }}
     </div>
 
     {# Bulk actions — hidden until ≥1 selected #}
     <div
-        data-list-toolbar-target="actions"
+        data-mail--list-toolbar-target="actions"
         class="hidden items-center gap-2"
         aria-hidden="true"
     >
-        {{ m.tbtn('click->list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
-        {{ m.tbtn('click->list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
-        {{ m.tbtn('click->list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
-        {{ m.tbtn('click->list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
-        {{ m.tbtn('click->list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}
+        {{ m.tbtn('click->mail--list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
+        {{ m.tbtn('click->mail--list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
+        {{ m.tbtn('click->mail--list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
+        {{ m.tbtn('click->mail--list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
+        {{ m.tbtn('click->mail--list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}
         {% include '_partials/_label_menu.html.twig' with {
             labels: sidebarCounts.flattenedUserLabels,
             targetType: 'thread',
         } %}
         <span
-            data-list-toolbar-target="selectionCount"
+            data-mail--list-toolbar-target="selectionCount"
             class="ml-1 text-xs text-ink-muted tabular-nums whitespace-nowrap"
         ></span>
     </div>

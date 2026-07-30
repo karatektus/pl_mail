@@ -46,10 +46,10 @@
                     {% if isPassword %}
                         <button
                             type="button"
-                            data-controller="modal"
-                            data-action="click->modal#open"
-                            data-modal-title-value="{{ 'settings.accounts.edit'|trans }}"
-                            data-modal-src-value="{{ path('app_account_edit', { id: account.id }) }}"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'settings.accounts.edit'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_account_edit', { id: account.id }) }}"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.edit'|trans }}" title="{{ 'settings.accounts.edit'|trans }}"
                         >

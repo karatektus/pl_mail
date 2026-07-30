@@ -22,11 +22,11 @@ Usage:
     <details
         class="group/card rounded-pane border border-line bg-pane-soft overflow-hidden"
         {% if key not in collapsedPanels %}open{% endif %}
-        data-controller="admin-panel"
-        data-admin-panel-key-value="{{ key }}"
-        data-admin-panel-url-value="{{ path('app_admin_panel_toggle') }}"
-        data-admin-panel-csrf-value="{{ csrf_token('admin_panel_' ~ key) }}"
-        data-action="toggle->admin-panel#persist"
+        data-controller="admin--admin-panel"
+        data-admin--admin-panel-key-value="{{ key }}"
+        data-admin--admin-panel-url-value="{{ path('app_admin_panel_toggle') }}"
+        data-admin--admin-panel-csrf-value="{{ csrf_token('admin_panel_' ~ key) }}"
+        data-action="toggle->admin--admin-panel#persist"
     >
         <summary class="flex items-center gap-2.5 px-5 h-11 border-b border-line cursor-pointer list-none
                         hover:bg-hover transition-colors select-none">

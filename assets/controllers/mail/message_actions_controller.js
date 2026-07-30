@@ -132,14 +132,14 @@ export default class extends Controller {
 
     /** mail-pane lives on <body> (see _layout/app.html.twig). */
     _closePane() {
-        const element = document.querySelector('[data-controller~="mail-pane"]');
+        const element = document.querySelector('[data-controller~="mail--mail-pane"]');
 
         if (!element) {
             return;
         }
 
         this.application
-            .getControllerForElementAndIdentifier(element, "mail-pane")
+            .getControllerForElementAndIdentifier(element, "mail--mail-pane")
             ?.close();
     }
 

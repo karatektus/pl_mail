@@ -24,11 +24,11 @@ export default class extends Controller {
     toggleSelect(event) {
         event.stopPropagation();
 
-        const toolbar = document.querySelector("[data-controller~='list-toolbar']");
+        const toolbar = document.querySelector("[data-controller~='mail--list-toolbar']");
 
         if (toolbar) {
             toolbar.dispatchEvent(
-                new CustomEvent("list-toolbar:row-changed", { bubbles: false }),
+                new CustomEvent("mail--list-toolbar:row-changed", { bubbles: false }),
             );
         }
     }

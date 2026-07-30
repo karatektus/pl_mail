@@ -24,7 +24,7 @@ Variables: message
                     {{- kb >= 1024 ? (kb / 1024)|number_format(1) ~ ' MB' : kb|number_format(0) ~ ' KB' -}}
                 </span>
                 <button type="button"
-                        data-action="click->compose#removeAttachment"
+                        data-action="click->compose--compose#removeAttachment"
                         data-part-id="{{ part.id }}"
                         title="{{ 'compose.attachment_remove'|trans }}"
                         class="w-5 h-5 flex items-center justify-center rounded

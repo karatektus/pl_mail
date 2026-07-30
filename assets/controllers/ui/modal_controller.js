@@ -5,10 +5,10 @@ import { Controller } from "@hotwired/stimulus"
  *
  * Usage on a trigger button:
  *   <button
- *     data-controller="modal"                        ← attach here, or use a parent
- *     data-action="click->modal#open"
- *     data-modal-src-value="/some/form/url"
- *     data-modal-title-value="Edit settings"
+ *     data-controller="ui--modal"                        ← attach here, or use a parent
+ *     data-action="click->ui--modal#open"
+ *     data-ui--modal-src-value="/some/form/url"
+ *     data-ui--modal-title-value="Edit settings"
  *   >Open</button>
  *
  * Or fire open() directly from Turbo events / other controllers.
@@ -40,7 +40,7 @@ export default class extends Controller {
         const dialog = this._dialog
 
         if (!frame || !dialog) {
-            console.warn("[modal] #modal turbo-frame or [data-modal-dialog] not found in DOM")
+            console.warn("[modal] #modal turbo-frame or [data-ui--modal-dialog] not found in DOM")
             return
         }
 
@@ -49,7 +49,7 @@ export default class extends Controller {
         const triggerTitle = event?.currentTarget?.dataset?.modalTitleValue ?? this.titleValue
 
         // Update the frame title if present
-        const titleEl = dialog.querySelector("[data-modal-title]")
+        const titleEl = dialog.querySelector("[data-ui--modal-title]")
         if (titleEl && triggerTitle) titleEl.textContent = triggerTitle
 
         this._applySize(
@@ -93,7 +93,7 @@ export default class extends Controller {
     // ── Private ─────────────────────────────────────────────────────────────────
 
     get _frame()  { return document.getElementById("modal") }
-    get _dialog() { return document.querySelector("[data-modal-dialog]") }
+    get _dialog() { return document.querySelector("[data-ui--modal-dialog]") }
 
     _handleKeydown(event) {
         if (event.key === "Escape") this.close(event)
@@ -109,7 +109,7 @@ export default class extends Controller {
     /**
      * Swap the panel's width class.
      *
-     * Presets come from the panel's own data-modal-sizes so the class names live
+     * Presets come from the panel's own data-ui--modal-sizes so the class names live
      * in the template, where Tailwind is guaranteed to see them — a width
      * referenced only from here could be purged from the build.
      *
@@ -118,7 +118,7 @@ export default class extends Controller {
      * label form stretched across the screen.
      */
     _applySize(dialog, size) {
-        const panel = dialog.querySelector("[data-modal-panel]")
+        const panel = dialog.querySelector("[data-ui--modal-panel]")
 
         if (!panel) {
             return
@@ -147,7 +147,7 @@ export default class extends Controller {
         // integration picker's search box re-renders the frame and must stay
         // open. Closing on every successful submit made searching look like a
         // cancel.
-        if (event.target?.closest?.("[data-modal-keep-open]")) {
+        if (event.target?.closest?.("[data-ui--modal-keep-open]")) {
             return;
         }
 

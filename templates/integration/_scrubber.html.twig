@@ -23,13 +23,13 @@ year is skipped if it would land too close to the last one drawn.
 
 {% if total > 0 %}
     <div class="hidden sm:flex shrink-0 w-12 flex-col select-none overflow-hidden"
-         data-controller="picker-scrubber"
+         data-controller="integration--picker-scrubber"
          aria-label="{{ 'integration.picker.timeline'|trans }}">
 
         <div class="relative flex-1 min-h-0 flex flex-col overflow-hidden">
             {# Floats outside the bar so a thin segment can still show a legible
                label. #}
-            <span data-picker-scrubber-target="readout"
+            <span data-integration--picker-scrubber-target="readout"
                   class="pointer-events-none absolute right-full mr-2 z-20 hidden
                          whitespace-nowrap rounded-md bg-inverse px-2 py-1
                          text-[11px] font-medium text-inverse-ink shadow-float"></span>
@@ -51,9 +51,9 @@ year is skipped if it would land too close to the last one drawn.
                        draft: draftId,
                        cursor: bucket.cursor,
                    }) }}"
-                   data-picker-scrubber-target="segment"
+                   data-integration--picker-scrubber-target="segment"
                    data-title="{{ bucket.title }}"
-                   data-action="mouseenter->picker-scrubber#show mouseleave->picker-scrubber#hide"
+                   data-action="mouseenter->integration--picker-scrubber#show mouseleave->integration--picker-scrubber#hide"
                    style="flex-grow: {{ bucket.count }}"
                    class="basis-0 shrink hover:bg-hover transition-colors"
                    title="{{ bucket.title }}"

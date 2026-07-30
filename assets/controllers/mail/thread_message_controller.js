@@ -5,7 +5,7 @@ export default class extends Controller {
     static values  = { expanded: Boolean };
 
     connect() {
-        // expanded value is set from Twig via data-thread-message-expanded-value
+        // expanded value is set from Twig via data-mail--thread-message-expanded-value
     }
 
     toggle(event) {

@@ -7,15 +7,15 @@
     {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
 
     <div class="h-screen overflow-hidden app-bg"
-         data-controller="sidebar-drawer">
+         data-controller="ui--sidebar-drawer">
 
         {# Mobile backdrop #}
-        <div data-sidebar-drawer-target="backdrop" data-action="click->sidebar-drawer#backdropClick"
+        <div data-ui--sidebar-drawer-target="backdrop" data-action="click->ui--sidebar-drawer#backdropClick"
              class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"
              aria-hidden="true"></div>
 
         {# Mobile sidebar drawer #}
-        <div data-sidebar-drawer-target="drawer"
+        <div data-ui--sidebar-drawer-target="drawer"
              class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3 -translate-x-full transition-transform duration-200 ease-out">
             {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
         </div>
@@ -83,8 +83,8 @@
                                         <turbo-frame id="admin-db"
                                                      src="{{ path('app_admin_db') }}"
                                                      loading="lazy"
-                                                     data-controller="auto-refresh"
-                                                     data-auto-refresh-interval-value="20000">
+                                                     data-controller="mail--auto-refresh"
+                                                     data-mail--auto-refresh-interval-value="20000">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                             </div>
@@ -117,8 +117,8 @@
                                         <turbo-frame id="admin-live"
                                                      src="{{ path('app_admin_live') }}"
                                                      loading="lazy"
-                                                     data-controller="auto-refresh"
-                                                     data-auto-refresh-interval-value="10000">
+                                                     data-controller="mail--auto-refresh"
+                                                     data-mail--auto-refresh-interval-value="10000">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                             </div>

@@ -32,9 +32,9 @@ export default class extends Controller {
             Turbo.renderStreamMessage(html)
 
             // Dismiss the parent toast immediately
-            this.element.closest("[data-controller~='toast']")
+            this.element.closest("[data-controller~='ui--toast']")
                 ?.__stimulusController?.dismiss()
-            ?? this.element.closest("[data-controller~='toast']")?.remove()
+            ?? this.element.closest("[data-controller~='ui--toast']")?.remove()
         }
     }
 }

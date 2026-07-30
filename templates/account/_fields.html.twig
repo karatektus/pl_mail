@@ -12,7 +12,7 @@ Variables:
   form   FormView   an AccountType form view
   mode   string     "new" | "edit" — controls password help text only
 
-Note: rows deliberately pass no `attr` override. The data-imap-preset-target
+Note: rows deliberately pass no `attr` override. The data-settings--imap-preset-target
 attributes are defined in AccountType, and a template-level `attr` replaces
 that hash wholesale rather than merging into it. Where an override is
 genuinely needed, merge onto form.<field>.vars.attr.
@@ -34,7 +34,7 @@ genuinely needed, merge onto form.<field>.vars.attr.
 {# ── Provider preset ──────────────────────────────────────────────────── #}
 <div class="space-y-2">
     {{ form_row(form.preset, { label: 'account.form.preset.label'|trans }) }}
-    <p data-imap-preset-target="note"
+    <p data-settings--imap-preset-target="note"
        class="hidden rounded-lg bg-accent-soft px-3 py-2 text-xs leading-snug text-accent"></p>
 </div>
 
@@ -88,8 +88,8 @@ genuinely needed, merge onto form.<field>.vars.attr.
     <div class="flex items-center gap-3">
         <button
             type="button"
-            data-connection-test-target="button"
-            data-action="click->connection-test#run"
+            data-settings--connection-test-target="button"
+            data-action="click->settings--connection-test#run"
             class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
                    border border-line text-ink-soft
                    hover:bg-hover transition-colors cursor-pointer
@@ -99,30 +99,30 @@ genuinely needed, merge onto form.<field>.vars.attr.
             {{ 'account.test.button'|trans }}
         </button>
 
-        <span data-connection-test-target="spinner" class="hidden">
+        <span data-settings--connection-test-target="spinner" class="hidden">
             <i class="fa-solid fa-circle-notch fa-spin text-ink-faint text-sm" aria-hidden="true"></i>
         </span>
     </div>
 
-    <div data-connection-test-target="panel"
+    <div data-settings--connection-test-target="panel"
          class="hidden space-y-2 rounded-xl border border-line bg-sunken px-3.5 py-3"
          aria-live="polite">
 
-        <div data-connection-test-target="imapRow" class="flex items-start gap-2.5 text-xs">
+        <div data-settings--connection-test-target="imapRow" class="flex items-start gap-2.5 text-xs">
             <i class="fa-solid fa-circle-notch mt-0.5 shrink-0 text-ink-faint" aria-hidden="true"></i>
             <div class="min-w-0">
                 <p class="font-semibold text-ink">{{ 'account.test.imap'|trans }}</p>
-                <p data-connection-test-target="imapTarget" class="text-ink-faint font-mono text-[11px]"></p>
-                <p data-connection-test-target="imapText" class="text-ink-soft break-words leading-snug"></p>
+                <p data-settings--connection-test-target="imapTarget" class="text-ink-faint font-mono text-[11px]"></p>
+                <p data-settings--connection-test-target="imapText" class="text-ink-soft break-words leading-snug"></p>
             </div>
         </div>
 
-        <div data-connection-test-target="smtpRow" class="flex items-start gap-2.5 text-xs">
+        <div data-settings--connection-test-target="smtpRow" class="flex items-start gap-2.5 text-xs">
             <i class="fa-solid fa-circle-notch mt-0.5 shrink-0 text-ink-faint" aria-hidden="true"></i>
             <div class="min-w-0">
                 <p class="font-semibold text-ink">{{ 'account.test.smtp'|trans }}</p>
-                <p data-connection-test-target="smtpTarget" class="text-ink-faint font-mono text-[11px]"></p>
-                <p data-connection-test-target="smtpText" class="text-ink-soft break-words leading-snug"></p>
+                <p data-settings--connection-test-target="smtpTarget" class="text-ink-faint font-mono text-[11px]"></p>
+                <p data-settings--connection-test-target="smtpText" class="text-ink-soft break-words leading-snug"></p>
             </div>
         </div>
 

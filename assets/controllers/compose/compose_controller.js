@@ -626,7 +626,7 @@ export default class extends Controller {
                 if (status) {
                     const html = await response.text();
                     const doc  = new DOMParser().parseFromString(html, 'text/html');
-                    const newController = doc.querySelector('[data-compose-draft-url-value]');
+                    const newController = doc.querySelector('[data-compose--compose-draft-url-value]');
                     const oldForm = this.element.querySelector('form');
 
                     if (newController) {
@@ -768,12 +768,12 @@ export default class extends Controller {
 
         // The modal controller takes its URL from the trigger's own values, and
         // the draft id is only known once the save above has run — so the
-        // button carries data-controller="modal" and gets pointed at the right
+        // button carries data-controller="ui--modal" and gets pointed at the right
         // URL here, immediately before being opened.
         button.dataset.modalSrcValue = `/integrations/${integrationId}/browse?draft=${id}`;
 
         this.application
-            .getControllerForElementAndIdentifier(button, 'modal')
+            .getControllerForElementAndIdentifier(button, 'ui--modal')
             ?.open();
     }
 

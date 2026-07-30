@@ -40,14 +40,14 @@ export default class extends Controller {
         this._onRowChange    = this._syncFromRows.bind(this);
         this._onClickOutside = this._closeSelectMenu.bind(this);
 
-        this.element.addEventListener("list-toolbar:row-changed", this._onRowChange);
+        this.element.addEventListener("mail--list-toolbar:row-changed", this._onRowChange);
         document.addEventListener("click", this._onClickOutside, { capture: true });
 
         this._syncFromRows();
     }
 
     disconnect() {
-        this.element.removeEventListener("list-toolbar:row-changed", this._onRowChange);
+        this.element.removeEventListener("mail--list-toolbar:row-changed", this._onRowChange);
         document.removeEventListener("click", this._onClickOutside, { capture: true });
     }
 
@@ -165,7 +165,7 @@ export default class extends Controller {
     _rowCheckboxes() {
         return Array.from(
             document.querySelectorAll(
-                "#message-list [data-controller~='message-row'] input[type='checkbox']",
+                "#message-list [data-controller~='mail--message-row'] input[type='checkbox']",
             ),
         );
     }
@@ -176,7 +176,7 @@ export default class extends Controller {
 
     _selectedIds() {
         return this._checkedRows().map((cb) => {
-            const li = cb.closest("[data-message-row-id-value]");
+            const li = cb.closest("[data-mail--message-row-id-value]");
             return li ? parseInt(li.dataset.messageRowIdValue, 10) : null;
         }).filter(Boolean);
     }

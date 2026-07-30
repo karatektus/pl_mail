@@ -42,7 +42,7 @@ export default class extends Controller {
             this.editorTarget.addEventListener('blur',    this._boundSaveRange);
         }
 
-        this.element.querySelectorAll('[data-compose-toolbar-action]').forEach(btn => {
+        this.element.querySelectorAll('[data-compose--compose-toolbar-action]').forEach(btn => {
             btn.addEventListener('mousedown', e => e.preventDefault());
         });
     }

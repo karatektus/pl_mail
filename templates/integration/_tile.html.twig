@@ -21,10 +21,10 @@ selection, which pulled its corners away from the ring.
 {% else %}
     <label class="group relative aspect-square block rounded-lg overflow-hidden bg-sunken
                   cursor-pointer select-none touch-manipulation"
-           data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick">
+           data-action="pointerdown->integration--integration-picker#tileDown click->integration--integration-picker#tileClick">
         <input type="checkbox" class="peer sr-only"
                name="mode[{{ entry.id }}]" value="copy"
-               data-integration-picker-target="mode">
+               data-integration--integration-picker-target="mode">
 
         <img src="{{ thumbUrl }}" alt="{{ entry.name }}" loading="lazy"
              class="w-full h-full object-cover">

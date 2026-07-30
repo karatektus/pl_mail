@@ -26,12 +26,12 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
     #}
     <div
         class="h-screen overflow-hidden app-bg"
-        data-controller="sidebar-drawer"
+        data-controller="ui--sidebar-drawer"
     >
         {# ── Mobile backdrop ──────────────────────────────────────────────── #}
         <div
-            data-sidebar-drawer-target="backdrop"
-            data-action="click->sidebar-drawer#backdropClick"
+            data-ui--sidebar-drawer-target="backdrop"
+            data-action="click->ui--sidebar-drawer#backdropClick"
             class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm
                    opacity-0 pointer-events-none transition-opacity duration-200"
             aria-hidden="true"
@@ -43,7 +43,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
         On md+: hidden (the normal sidebar is in the flex row below).
         #}
         <div
-            data-sidebar-drawer-target="drawer"
+            data-ui--sidebar-drawer-target="drawer"
             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
@@ -71,7 +71,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     <div
                         id="message-list"
                         data-sync-scope="{% block list_scope %}*{% endblock %}"
-                        data-mail-pane-target="list"
+                        data-mail--mail-pane-target="list"
                         class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
                         <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
@@ -97,7 +97,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
 
                     {# Reading pane #}
                     <div
-                        data-mail-pane-target="reading"
+                        data-mail--mail-pane-target="reading"
                         class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
                     >
                         {% block reading_pane %}

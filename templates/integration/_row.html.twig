@@ -34,11 +34,11 @@ like it needed a decision.
         {% if canCopy %}
             {# Covers the row. Everything else is layered above it. #}
             <label class="absolute inset-0 cursor-pointer rounded-xl select-none touch-manipulation"
-                   data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick"
+                   data-action="pointerdown->integration--integration-picker#tileDown click->integration--integration-picker#tileClick"
                    aria-label="{{ entry.name }}">
                 <input type="radio" class="peer sr-only"
                        name="mode[{{ entry.id }}]" value="copy"
-                       data-integration-picker-target="mode">
+                       data-integration--integration-picker-target="mode">
                 <span class="absolute inset-0 rounded-xl transition-colors
                              group-hover:bg-hover
                              peer-checked:bg-accent-soft
@@ -114,7 +114,7 @@ like it needed a decision.
                           transition-opacity">
                 <input type="radio" class="peer sr-only"
                        name="mode[{{ entry.id }}]" value="link"
-                       data-integration-picker-target="mode">
+                       data-integration--integration-picker-target="mode">
                 <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-medium
                              text-ink-faint bg-field border border-field
                              peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
