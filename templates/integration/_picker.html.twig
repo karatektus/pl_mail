@@ -38,7 +38,7 @@ gap under the shortcuts row.
              data-integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
              data-integration-picker-draft-value="{{ draftId }}"
              data-integration-picker-token-value="{{ csrf_token('integration-picker') }}"
-             class="flex flex-col min-h-0">
+             class="flex-1 min-h-0 flex flex-col">
 
             {% if error is not null %}
                 <div role="alert" class="m-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
@@ -68,11 +68,10 @@ gap under the shortcuts row.
                 {% endif %}
 
                 {# ── Trail and shortcuts ──
-                   One row, so the results start immediately below a single
-                   opaque boundary. Shortcuts are whatever the driver offered —
-                   Immich surfacing its albums from the timeline — so no
-                   per-provider branch lives here. #}
-                <div class="flex items-center gap-2 flex-wrap px-5 pb-3 border-b border-line shrink-0">
+                   One row. No rule under it: the dialog is a single surface and
+                   hairlines across it read as seams, so spacing carries the
+                   separation instead. #}
+                <div class="flex items-center gap-2 flex-wrap px-5 pb-3 shrink-0">
                     <nav class="flex items-center gap-1 flex-wrap text-xs text-ink-muted">
                         {% for crumb in listing.breadcrumb %}
                             {% if not loop.last %}
@@ -98,10 +97,12 @@ gap under the shortcuts row.
                 {# ── Results and scrubber, side by side ──
                    The bar is a sibling of the scroll container, not inside it, so
                    it stays put while the photos move. #}
-                {# The height bound lives on the row, not the scroller: the
-                   scrubber is the other child, and bounding only the scroller let
-                   the bar grow the row and push through the footer. #}
-                <div class="flex min-h-0 max-h-[55vh]">
+                {# The row takes whatever height the panel has spare, with a floor
+                   so a short listing still looks deliberate. Bounding the row
+                   rather than the scroller matters because the scrubber is the
+                   other child — bounding only the scroller left the bar free to
+                   grow the row and push through the footer. #}
+                <div class="flex flex-1 min-h-[16rem]">
                 {# No py-* on the scroller: padding on a scroll container is not
                    clipped, so content would scroll into it and show above the
                    boundary. #}
@@ -216,7 +217,7 @@ gap under the shortcuts row.
             {% endif %}
 
             {# ── Footer ── #}
-            <div class="flex items-center gap-2 px-5 py-3.5 border-t border-line bg-sunken rounded-b-xl shrink-0">
+            <div class="flex items-center gap-2 px-5 py-3.5 shrink-0">
                 <span class="text-[11px] text-ink-faint" data-integration-picker-target="status"></span>
 
                 <div class="flex-1"></div>

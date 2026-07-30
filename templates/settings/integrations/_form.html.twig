@@ -17,7 +17,7 @@ credential, and whether the address is the user's to set at all.
 
         <form method="post"
               action="{{ path('app_settings_integrations_save') }}"
-              class="flex flex-col min-h-0">
+              class="flex-1 min-h-0 flex flex-col">
 
             <input type="hidden" name="_token" value="{{ csrf_token('settings-integration') }}">
             <input type="hidden" name="provider" value="{{ provider.value }}">
@@ -25,7 +25,7 @@ credential, and whether the address is the user's to set at all.
                 <input type="hidden" name="id" value="{{ integration.id }}">
             {% endif %}
 
-            <div class="px-5 py-5 space-y-5 overflow-y-auto">
+            <div class="flex-1 min-h-0 px-5 pb-5 space-y-5 overflow-y-auto">
 
                 {% if not isNew and not integration.isHealthy %}
                     <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
@@ -137,7 +137,7 @@ credential, and whether the address is the user's to set at all.
 
             </div>
 
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-sunken rounded-b-xl shrink-0">
+            <div class="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0">
                 <button type="button" data-action="click->modal#close"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                                text-ink-soft bg-field border border-field hover:bg-hover transition-colors">

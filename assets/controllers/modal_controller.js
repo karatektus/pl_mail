@@ -17,6 +17,7 @@ export default class extends Controller {
     static values = {
         src:   String,   // URL to load into the turbo-frame
         title: String,   // Optional title shown in the modal header
+        size:  String,   // Optional width preset — see SIZES
     }
 
     connect() {
@@ -50,6 +51,11 @@ export default class extends Controller {
         // Update the frame title if present
         const titleEl = dialog.querySelector("[data-modal-title]")
         if (titleEl && triggerTitle) titleEl.textContent = triggerTitle
+
+        this._applySize(
+            dialog,
+            event?.currentTarget?.dataset?.modalSizeValue ?? this.sizeValue,
+        )
 
         // Point the turbo-frame at the form URL and let Turbo do the fetch
         frame.src = triggerSrc
@@ -98,6 +104,42 @@ export default class extends Controller {
             'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )
         el?.focus()
+    }
+
+    /**
+     * Swap the panel's width class.
+     *
+     * Presets come from the panel's own data-modal-sizes so the class names live
+     * in the template, where Tailwind is guaranteed to see them — a width
+     * referenced only from here could be purged from the build.
+     *
+     * Every preset is removed before the chosen one is added: the shell is
+     * reused for every dialog, so a wide picker would otherwise leave the next
+     * label form stretched across the screen.
+     */
+    _applySize(dialog, size) {
+        const panel = dialog.querySelector("[data-modal-panel]")
+
+        if (!panel) {
+            return
+        }
+
+        let sizes
+
+        try {
+            sizes = JSON.parse(panel.dataset.modalSizes ?? "{}")
+        } catch (_) {
+            return
+        }
+
+        const chosen = sizes[size] ?? sizes.form
+
+        if (undefined === chosen) {
+            return
+        }
+
+        panel.classList.remove(...Object.values(sizes))
+        panel.classList.add(chosen)
     }
 
     _handleSubmitEnd(event) {

@@ -17,11 +17,11 @@ what the modal controller actually needs, and both are reproduced here.
 
         <form method="post"
               action="{{ path('app_admin_integrations_save', { provider: provider.value }) }}"
-              class="flex flex-col min-h-0">
+              class="flex-1 min-h-0 flex flex-col">
 
             <input type="hidden" name="_token" value="{{ csrf_token('admin-integration-' ~ provider.value) }}">
 
-            <div class="px-5 py-5 space-y-5 overflow-y-auto">
+            <div class="flex-1 min-h-0 px-5 pb-5 space-y-5 overflow-y-auto">
 
                 {% if not provider.isImplemented %}
                     <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
@@ -115,7 +115,7 @@ what the modal controller actually needs, and both are reproduced here.
 
             </div>
 
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-sunken rounded-b-xl shrink-0">
+            <div class="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0">
                 <button type="button" data-action="click->modal#close"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
                                text-ink-soft bg-field border border-field hover:bg-hover transition-colors">

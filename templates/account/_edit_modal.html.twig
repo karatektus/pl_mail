@@ -11,15 +11,15 @@
                 'data-connection-test-url-value': path('app_account_test_connection'),
                 'data-connection-test-csrf-value': csrf_token('account_test'),
                 'data-connection-test-account-id-value': account.id,
-                class: 'flex flex-col min-h-0',
+                class: 'flex-1 min-h-0 flex flex-col',
             }
         }) }}
 
-        <div class="overflow-y-auto px-5 py-5 space-y-5">
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 pb-5 space-y-5">
             {% include 'account/_fields.html.twig' with { form: form, mode: 'edit' } %}
         </div>
 
-        <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-sunken">
+        <div class="flex items-center justify-end gap-2 px-5 py-3.5">
             <button type="button" data-action="click->modal#close"
                     class="px-3 h-9 rounded-lg text-sm font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer">
                 {{ 'form.cancel'|trans }}

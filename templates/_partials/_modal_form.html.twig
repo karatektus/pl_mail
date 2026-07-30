@@ -8,12 +8,12 @@
     {{ form_start(form, {
         attr: {
             'data-turbo-frame': 'modal',
-            class: 'flex flex-col min-h-0',
+            class: 'flex-1 min-h-0 flex flex-col',
         }
     }) }}
 
     {# ── Body ── #}
-    <div class="px-5 py-5 space-y-4 overflow-y-auto">
+    <div class="flex-1 min-h-0 px-5 pb-5 space-y-4 overflow-y-auto">
 
         {# Global form errors #}
         {% if form.vars.errors|length %}
@@ -35,7 +35,7 @@
     </div>
 
     {# ── Footer ── #}
-    <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-line bg-sunken rounded-b-xl shrink-0">
+    <div class="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0">
         <button
             type="button"
             data-action="click->modal#close"

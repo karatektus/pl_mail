@@ -1,3 +1,21 @@
+{#
+_modal.html.twig — the one dialog shell every modal in the app loads into.
+
+One continuous surface. The header and footer used to be filled with bg-sunken,
+which made every dialog read as a three-tone sandwich — the pattern the rest of
+the app deliberately avoids: a pane is a single surface and uses hairline
+border-line to divide, keeping bg-sunken for genuinely inset areas. The header
+also rounded with rounded-t-2xl against a panel using rounded-pane, so the two
+corners disagreed at every density setting.
+
+Width is per-trigger. A label form wants to be narrow and a photo grid wants the
+screen, so a trigger asks for a size and the controller applies it, rather than
+every dialog inheriting whichever width suited the first one written.
+
+The frame no longer scrolls: it is a flex column, so loaded content decides what
+scrolls inside it. That is what lets the picker keep its own header and footer
+still while only the results move.
+#}
 
 {# ── Backdrop + dialog wrapper ─────────────────────────────────────────────── #}
 <div
@@ -12,33 +30,35 @@
     class="
         fixed inset-0 z-50
         flex items-center justify-center
-        bg-black/40 backdrop-blur-sm
-        p-4
+        bg-black/50 backdrop-blur-sm
+        p-3 sm:p-6
     "
 >
     {# ── Dialog panel ────────────────────────────────────────────────────────── #}
-    <div class="
-        relative w-full max-w-lg
-        pane-flat
-        rounded-pane shadow-float
-        flex flex-col
-        max-h-[90vh]
-        border border-line
-    ">
+    {# The size map lives here rather than in the controller so Tailwind sees
+       these class names while scanning templates; a preset referenced only from
+       JavaScript risks being purged out of the build. #}
+    <div
+        data-modal-panel
+        data-modal-sizes='{"form":"max-w-lg","wide":"max-w-3xl","full":"max-w-6xl"}'
+        class="
+            relative w-full max-w-lg
+            pane-flat
+            shadow-float
+            flex flex-col
+            max-h-[92vh]
+            overflow-hidden
+        "
+    >
 
-        {# ── Header ──────────────────────────────────────────────────────────────── #}
-        <div class="
-            flex items-center justify-between
-            px-5 py-3.5
-            border-b border-line
-            bg-sunken
-            rounded-t-2xl
-            shrink-0
-        ">
+        {# ── Header ──
+           No fill and no rule: the title sits on the same surface as the body
+           and the spacing does the separating. #}
+        <div class="flex items-center gap-3 px-5 pt-4 pb-3 shrink-0">
             <h2
                 id="modal-title"
                 data-modal-title
-                class="text-sm font-semibold text-ink truncate"
+                class="text-base font-semibold text-ink truncate"
             >
                 {# Filled dynamically by the Stimulus controller or by the loaded frame #}
             </h2>
@@ -48,7 +68,7 @@
                 data-action="click->modal#close"
                 aria-label="{{ 'modal.close'|trans }}"
                 class="
-                    -mr-1 w-7 h-7 flex items-center justify-center rounded-lg
+                    ml-auto -mr-1 w-8 h-8 flex items-center justify-center rounded-lg
                     text-ink-faint
                     hover:text-ink
                     hover:bg-hover
@@ -62,7 +82,7 @@
         {# ── Turbo Frame — Turbo loads the form here ──────────────────────────── #}
         <turbo-frame
             id="modal"
-            class="flex-1 overflow-y-auto min-h-0"
+            class="flex-1 min-h-0 flex flex-col"
             loading="lazy"
         >
             <div

@@ -22,7 +22,7 @@ year is skipped if it would land too close to the last one drawn.
 {% set total = buckets|reduce((sum, bucket) => sum + bucket.count, 0) %}
 
 {% if total > 0 %}
-    <div class="hidden sm:flex shrink-0 w-12 flex-col border-l border-line select-none overflow-hidden"
+    <div class="hidden sm:flex shrink-0 w-12 flex-col select-none overflow-hidden"
          data-controller="picker-scrubber"
          aria-label="{{ 'integration.picker.timeline'|trans }}">
 

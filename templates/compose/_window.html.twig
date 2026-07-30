@@ -388,6 +388,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                         <button type="button"
                                 data-controller="modal"
                                 data-modal-title-value="{{ only.name }}"
+                                data-modal-size-value="{{ only.provider.isMediaLibrary ? 'full' : 'wide' }}"
                                 data-integration-id="{{ only.id }}"
                                 data-action="click->compose#openIntegrationPicker"
                                 title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
@@ -404,6 +405,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                                     <button type="button"
                                             data-controller="modal"
                                             data-modal-title-value="{{ integration.name }}"
+                                            data-modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
                                             data-integration-id="{{ integration.id }}"
                                             data-action="click->compose#openIntegrationPicker click->dropdown#close"
                                             class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors text-left">
