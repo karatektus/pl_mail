@@ -25,9 +25,7 @@ gap under the shortcuts row.
    A listing of people gets a third shape: portraits with the name always shown,
    which the driver signals by the entries' kind rather than by the folder id. #}
 {% set isGrid = canThumb and integration.provider.isMediaLibrary %}
-{% set isPeople = listing is not null
-    and listing.entries is not empty
-    and listing.entries|first.kind.value == 'person' %}
+{% set isPeople = listing is not null and listing.people is not empty %}
 
 {% block body %}
     <turbo-frame id="modal">
@@ -100,11 +98,14 @@ gap under the shortcuts row.
                 {# ── Results and scrubber, side by side ──
                    The bar is a sibling of the scroll container, not inside it, so
                    it stays put while the photos move. #}
-                <div class="flex min-h-0">
+                {# The height bound lives on the row, not the scroller: the
+                   scrubber is the other child, and bounding only the scroller let
+                   the bar grow the row and push through the footer. #}
+                <div class="flex min-h-0 max-h-[55vh]">
                 {# No py-* on the scroller: padding on a scroll container is not
                    clipped, so content would scroll into it and show above the
                    boundary. #}
-                <div class="flex-1 min-w-0 px-5 overflow-y-auto overscroll-contain max-h-[55vh]"
+                <div class="flex-1 min-w-0 min-h-0 px-5 overflow-y-auto overscroll-contain"
                      data-integration-picker-target="scroller">
                     <div class="py-3">
                         {% if listing.entries is empty %}
@@ -118,7 +119,7 @@ gap under the shortcuts row.
                                navigates rather than selects. #}
                             <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))]"
                                  data-integration-picker-target="results">
-                                {% for entry in listing.entries %}
+                                {% for entry in listing.people %}
                                     {% include 'integration/_person.html.twig' with {
                                         integration: integration,
                                         entry: entry,

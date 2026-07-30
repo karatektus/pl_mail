@@ -48,4 +48,18 @@ final readonly class Listing
     {
         return array_values(array_filter($this->entries, static fn (Entry $e): bool => false === $e->isFolder));
     }
+
+    /**
+     * Recognised people, which render as named portraits rather than folder rows.
+     *
+     * A named helper rather than the template reaching into the first entry's
+     * kind: that read the raw property, which is null for everything except a
+     * person, and blew up on every ordinary listing.
+     *
+     * @return list<Entry>
+     */
+    public function people(): array
+    {
+        return array_values(array_filter($this->entries, static fn (Entry $e): bool => $e->isPerson()));
+    }
 }

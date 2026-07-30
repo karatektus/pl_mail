@@ -28,8 +28,12 @@ final readonly class Entry
          * Only set where "folder or file" loses something the UI needs — a
          * recognised person, say. Left null by every driver that deals purely in
          * files and folders.
+         *
+         * Named apart from kind() on purpose: Twig resolves a property before a
+         * method of the same name, so calling this one `kind` meant every
+         * template reached the raw null instead of the accessor.
          */
-        public ?EntryKind         $kind = null,
+        public ?EntryKind         $declaredKind = null,
     ) {
     }
 
@@ -43,7 +47,7 @@ final readonly class Entry
      */
     public static function person(string $id, string $name): self
     {
-        return new self($id, $name, true, kind: EntryKind::Person);
+        return new self($id, $name, true, declaredKind: EntryKind::Person);
     }
 
     /**
@@ -52,6 +56,11 @@ final readonly class Entry
      */
     public function kind(): EntryKind
     {
-        return $this->kind ?? ($this->isFolder ? EntryKind::Folder : EntryKind::File);
+        return $this->declaredKind ?? ($this->isFolder ? EntryKind::Folder : EntryKind::File);
+    }
+
+    public function isPerson(): bool
+    {
+        return EntryKind::Person === $this->kind();
     }
 }

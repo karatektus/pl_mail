@@ -6,34 +6,44 @@ shape of the library rather than treating a busy month and an empty one alike.
 Those counts come from one cheap API call, which is what makes jumping to a
 month that has never been loaded instant.
 
-Year labels only: the bar is a few pixels wide, and a month per segment would be
-unreadable. The month is in the hover readout instead.
+Two things this has to get right, both learned the hard way:
 
-Each segment is a real link, so the whole thing works by navigation if the
-script never runs; the Stimulus controller only adds the floating readout and
-drag-to-scrub.
+Height. Buckets are monthly, so a twenty-year library is ~240 segments. Giving
+each a minimum height made the bar taller than the grid beside it and pushed it
+through the footer. Segments are now purely proportional and the bar clips, so it
+can never exceed the row it sits in. A thin month is a thin target — that is what
+dragging is for, and the readout says where you are.
+
+Labels. Rendered as an absolutely positioned overlay at each year's cumulative
+offset, not inside the segments. Inside, a one-pixel December spilled its label
+over its neighbours and the early years came out stacked on top of each other. A
+year is skipped if it would land too close to the last one drawn.
 #}
 {% set total = buckets|reduce((sum, bucket) => sum + bucket.count, 0) %}
 
 {% if total > 0 %}
-    <div class="hidden sm:flex shrink-0 w-12 flex-col border-l border-line select-none"
+    <div class="hidden sm:flex shrink-0 w-12 flex-col border-l border-line select-none overflow-hidden"
          data-controller="picker-scrubber"
          aria-label="{{ 'integration.picker.timeline'|trans }}">
 
-        {# The readout floats outside the bar so a thin segment can still show a
-           legible label. #}
-        <div class="relative flex-1 min-h-0 flex flex-col">
+        <div class="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+            {# Floats outside the bar so a thin segment can still show a legible
+               label. #}
             <span data-picker-scrubber-target="readout"
-                  class="pointer-events-none absolute right-full mr-2 z-10 hidden
+                  class="pointer-events-none absolute right-full mr-2 z-20 hidden
                          whitespace-nowrap rounded-md bg-inverse px-2 py-1
                          text-[11px] font-medium text-inverse-ink shadow-float"></span>
 
+            {% set running = 0 %}
             {% set lastLabel = null %}
+            {# Percent of the bar's height that must separate two labels. About
+               one line of 9px text in a 55vh bar. #}
+            {% set labelGap = 3.2 %}
+            {% set lastLabelAt = -100 %}
+
             {% for bucket in buckets %}
-                {# One label per year, at its first (newest) month, so the bar
-                   reads as a run of years rather than a repeated number. #}
-                {% set showLabel = bucket.label != lastLabel %}
-                {% set lastLabel = bucket.label %}
+                {% set offset = running / total * 100 %}
+                {% set running = running + bucket.count %}
 
                 <a href="{{ path('app_integration_browse', {
                        id: integration.id,
@@ -45,15 +55,17 @@ drag-to-scrub.
                    data-title="{{ bucket.title }}"
                    data-action="mouseenter->picker-scrubber#show mouseleave->picker-scrubber#hide"
                    style="flex-grow: {{ bucket.count }}"
-                   class="group relative flex items-start justify-center min-h-[2px] basis-0
-                          hover:bg-hover transition-colors"
-                   title="{{ bucket.title }}">
-                    {% if showLabel %}
-                        <span class="pt-0.5 text-[9px] tabular-nums text-ink-faint group-hover:text-ink transition-colors">
-                            {{ bucket.label }}
-                        </span>
-                    {% endif %}
-                </a>
+                   class="basis-0 shrink hover:bg-hover transition-colors"
+                   title="{{ bucket.title }}"
+                   aria-label="{{ bucket.title }}"></a>
+
+                {% if bucket.label != lastLabel and offset - lastLabelAt >= labelGap %}
+                    <span class="pointer-events-none absolute right-1 z-10 text-[9px] tabular-nums text-ink-faint"
+                          style="top: {{ offset|round(2) }}%">{{ bucket.label }}</span>
+                    {% set lastLabelAt = offset %}
+                {% endif %}
+
+                {% set lastLabel = bucket.label %}
             {% endfor %}
         </div>
     </div>
