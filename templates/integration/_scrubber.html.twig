@@ -1,0 +1,60 @@
+{#
+integration/_scrubber.html.twig — the date bar down the right of the photo grid.
+
+Segments are sized by how many photos each month holds, so the bar shows the
+shape of the library rather than treating a busy month and an empty one alike.
+Those counts come from one cheap API call, which is what makes jumping to a
+month that has never been loaded instant.
+
+Year labels only: the bar is a few pixels wide, and a month per segment would be
+unreadable. The month is in the hover readout instead.
+
+Each segment is a real link, so the whole thing works by navigation if the
+script never runs; the Stimulus controller only adds the floating readout and
+drag-to-scrub.
+#}
+{% set total = buckets|reduce((sum, bucket) => sum + bucket.count, 0) %}
+
+{% if total > 0 %}
+    <div class="hidden sm:flex shrink-0 w-12 flex-col border-l border-line select-none"
+         data-controller="picker-scrubber"
+         aria-label="{{ 'integration.picker.timeline'|trans }}">
+
+        {# The readout floats outside the bar so a thin segment can still show a
+           legible label. #}
+        <div class="relative flex-1 min-h-0 flex flex-col">
+            <span data-picker-scrubber-target="readout"
+                  class="pointer-events-none absolute right-full mr-2 z-10 hidden
+                         whitespace-nowrap rounded-md bg-inverse px-2 py-1
+                         text-[11px] font-medium text-inverse-ink shadow-float"></span>
+
+            {% set lastLabel = null %}
+            {% for bucket in buckets %}
+                {# One label per year, at its first (newest) month, so the bar
+                   reads as a run of years rather than a repeated number. #}
+                {% set showLabel = bucket.label != lastLabel %}
+                {% set lastLabel = bucket.label %}
+
+                <a href="{{ path('app_integration_browse', {
+                       id: integration.id,
+                       folder: 'timeline',
+                       draft: draftId,
+                       cursor: bucket.cursor,
+                   }) }}"
+                   data-picker-scrubber-target="segment"
+                   data-title="{{ bucket.title }}"
+                   data-action="mouseenter->picker-scrubber#show mouseleave->picker-scrubber#hide"
+                   style="flex-grow: {{ bucket.count }}"
+                   class="group relative flex items-start justify-center min-h-[2px] basis-0
+                          hover:bg-hover transition-colors"
+                   title="{{ bucket.title }}">
+                    {% if showLabel %}
+                        <span class="pt-0.5 text-[9px] tabular-nums text-ink-faint group-hover:text-ink transition-colors">
+                            {{ bucket.label }}
+                        </span>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}

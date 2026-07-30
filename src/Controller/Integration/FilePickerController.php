@@ -7,8 +7,10 @@ namespace App\Controller\Integration;
 use App\Controller\ComposeController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Interface\SearchableDriverInterface;
+use App\Domain\Interface\TimelineDriverInterface;
 use App\Entity\Integration;
 use App\Entity\Message;
 use App\Entity\MessagePart;
@@ -87,10 +89,11 @@ final class FilePickerController extends AbstractController
         $canSearch = $integration->supports(Capability::Search) && $driver instanceof SearchableDriverInterface;
 
         try {
-            // A query wins over a folder: search crosses folders, so being
-            // "inside" one while searching would be a lie.
+            // Search is handed the folder it was launched from, because in some
+            // views it means something else — Immich's people view filters faces
+            // by name rather than searching photos.
             $listing = null !== $query && true === $canSearch
-                ? $driver->search($integration, $query, $cursor)
+                ? $driver->search($integration, $query, $folderId, $cursor)
                 : $driver->list($integration, $folderId, $cursor);
             $error = null;
         } catch (IntegrationException $e) {
@@ -112,6 +115,7 @@ final class FilePickerController extends AbstractController
             'canLink'     => $integration->supports(Capability::ShareLink),
             'canThumb'    => $integration->supports(Capability::Thumbnail),
             'canSearch'   => $canSearch,
+            'buckets'     => $this->buckets($integration, $driver, $folderId, $query),
         ]);
     }
 
@@ -346,6 +350,37 @@ final class FilePickerController extends AbstractController
      * one whose provider cannot do the thing is refused here rather than
      * merely omitted from a menu.
      */
+    /**
+     * Scrubber buckets, but only where a date bar means anything.
+     *
+     * Not on an album, a person or a search result: those are already a slice of
+     * the library, so a whole-library date bar beside them would be describing
+     * something other than what is on screen.
+     *
+     * @return list<TimelineBucket>
+     */
+    private function buckets(
+        Integration $integration,
+        object $driver,
+        ?string $folderId,
+        ?string $query,
+    ): array {
+        if (false === $integration->supports(Capability::Timeline) || false === $driver instanceof TimelineDriverInterface) {
+            return [];
+        }
+
+        if (null !== $query || (null !== $folderId && '' !== $folderId && 'timeline' !== $folderId)) {
+            return [];
+        }
+
+        try {
+            return $driver->timelineBuckets($integration);
+        } catch (IntegrationException) {
+            // A missing scrubber is cosmetic; the listing already succeeded.
+            return [];
+        }
+    }
+
     private function blankToNull(mixed $value): ?string
     {
         if (false === is_string($value)) {

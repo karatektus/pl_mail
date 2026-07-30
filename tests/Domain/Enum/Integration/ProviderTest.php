@@ -8,6 +8,9 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Interface\IntegrationDriverInterface;
+use App\Domain\Interface\SearchableDriverInterface;
+use App\Domain\Interface\TimelineDriverInterface;
+use App\Service\Integration\Driver\ImmichDriver;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -70,6 +73,30 @@ final class ProviderTest extends TestCase
         self::assertTrue(Provider::GoogleDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::OneDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::Dropbox->supports(Capability::ShareLink));
+    }
+
+    /**
+     * Search and Timeline are Immich-only for now, and each is paired with an
+     * optional interface — a provider claiming one without implementing it would
+     * draw a search box or a date bar that then fails at the driver.
+     */
+    public function testOnlyImmichClaimsSearchAndTimeline(): void
+    {
+        foreach (Provider::cases() as $provider) {
+            $expected = Provider::Immich === $provider;
+
+            self::assertSame($expected, $provider->supports(Capability::Search), $provider->value);
+            self::assertSame($expected, $provider->supports(Capability::Timeline), $provider->value);
+        }
+
+        self::assertContains(
+            SearchableDriverInterface::class,
+            class_implements(ImmichDriver::class) ?: [],
+        );
+        self::assertContains(
+            TimelineDriverInterface::class,
+            class_implements(ImmichDriver::class) ?: [],
+        );
     }
 
     public function testEveryProviderCanBrowseDownloadUploadAndPreview(): void

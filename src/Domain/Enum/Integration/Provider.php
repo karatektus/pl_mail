@@ -81,6 +81,7 @@ enum Provider: string
                 Capability::Upload,
                 Capability::Thumbnail,
                 Capability::Search,
+                Capability::Timeline,
             ],
             self::GooglePhotos => [
                 Capability::Browse,

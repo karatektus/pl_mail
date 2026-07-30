@@ -21,8 +21,13 @@ gap under the shortcuts row.
 #}
 {% extends '_layout/app.html.twig' %}
 
-{# A photo library gets a grid of previews; a file store gets a list of names. #}
+{# A photo library gets a grid of previews; a file store gets a list of names.
+   A listing of people gets a third shape: portraits with the name always shown,
+   which the driver signals by the entries' kind rather than by the folder id. #}
 {% set isGrid = canThumb and integration.provider.isMediaLibrary %}
+{% set isPeople = listing is not null
+    and listing.entries is not empty
+    and listing.entries|first.kind.value == 'person' %}
 
 {% block body %}
     <turbo-frame id="modal">
@@ -84,18 +89,22 @@ gap under the shortcuts row.
 
                     {% for shortcut in listing.shortcuts %}
                         <a href="{{ path('app_integration_browse', { id: integration.id, folder: shortcut.id, draft: draftId }) }}"
-                           class="ml-auto inline-flex items-center gap-2 h-7 px-2.5 rounded-lg text-xs font-medium
-                                  text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
-                            <i class="fa-solid fa-images text-[10px]" aria-hidden="true"></i>
+                           class="{{ loop.first ? 'ml-auto' : '' }} inline-flex items-center h-7 px-2.5 rounded-lg
+                                  text-xs font-medium text-ink-soft bg-field border border-field
+                                  hover:bg-hover transition-colors">
                             {{ shortcut.name }}
                         </a>
                     {% endfor %}
                 </div>
 
-                {# ── Results ──
-                   No py-* here: padding on a scroll container is not clipped, so
-                   content would scroll into it and show above the boundary. #}
-                <div class="px-5 overflow-y-auto overscroll-contain max-h-[55vh]"
+                {# ── Results and scrubber, side by side ──
+                   The bar is a sibling of the scroll container, not inside it, so
+                   it stays put while the photos move. #}
+                <div class="flex min-h-0">
+                {# No py-* on the scroller: padding on a scroll container is not
+                   clipped, so content would scroll into it and show above the
+                   boundary. #}
+                <div class="flex-1 min-w-0 px-5 overflow-y-auto overscroll-contain max-h-[55vh]"
                      data-integration-picker-target="scroller">
                     <div class="py-3">
                         {% if listing.entries is empty %}
@@ -103,6 +112,21 @@ gap under the shortcuts row.
                                 {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
                                          : 'integration.picker.empty'|trans }}
                             </p>
+                        {% elseif isPeople %}
+
+                            {# People are places, not attachments, so this grid
+                               navigates rather than selects. #}
+                            <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))]"
+                                 data-integration-picker-target="results">
+                                {% for entry in listing.entries %}
+                                    {% include 'integration/_person.html.twig' with {
+                                        integration: integration,
+                                        entry: entry,
+                                        draftId: draftId,
+                                    } only %}
+                                {% endfor %}
+                            </div>
+
                         {% elseif isGrid %}
 
                             {% if listing.folders is not empty %}
@@ -179,6 +203,13 @@ gap under the shortcuts row.
                             </div>
                         {% endif %}
                     </div>
+                </div>
+
+                {% include 'integration/_scrubber.html.twig' with {
+                    integration: integration,
+                    buckets: buckets,
+                    draftId: draftId,
+                } only %}
                 </div>
 
             {% endif %}

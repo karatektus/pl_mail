@@ -20,11 +20,23 @@ use App\Entity\Integration;
 interface SearchableDriverInterface
 {
     /**
-     * Files matching a query, newest or most-relevant first as the service sees
-     * fit. Results are a flat list — search crosses folders by definition, so
-     * the listing's breadcrumb describes the search rather than a location.
+     * Matches for a query, newest or most-relevant first as the service sees fit.
+     *
+     * $folderId is where the user was searching from, because "search" can mean
+     * different things in different views: in Immich's people view the box
+     * filters faces by name, everywhere else it searches photos. Passing the
+     * context lets one search box serve both instead of the UI needing two.
+     *
+     * Results are otherwise a flat list — an asset search crosses albums by
+     * definition, so the listing's breadcrumb describes the search rather than a
+     * location.
      *
      * @throws IntegrationException
      */
-    public function search(Integration $integration, string $query, ?string $cursor = null): Listing;
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing;
 }

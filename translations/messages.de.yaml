@@ -322,6 +322,7 @@ integration:
             immich: 'Ein Foto beschreiben, z. B. Strand bei Sonnenuntergang'
             nextcloud: 'Nextcloud durchsuchen'
             oneDrive: 'OneDrive durchsuchen'
+        timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
 
 label:

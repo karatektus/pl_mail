@@ -1,0 +1,22 @@
+{#
+integration/_person.html.twig — one recognised face in the people grid.
+
+A portrait rather than a folder row: round preview, name always underneath.
+"Always" is the point — a face is identified by its name, so hiding it behind
+hover the way the photo grid does would make the grid unreadable. Unnamed faces
+are still listed, because "who is this" is a reasonable thing to go looking for.
+
+Navigates rather than selects: a person is a place, not something attachable.
+#}
+<a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+   class="group flex flex-col items-center gap-1.5 p-1 rounded-lg hover:bg-hover transition-colors"
+   title="{{ entry.name }}">
+    <span class="relative block w-20 h-20 rounded-full overflow-hidden bg-sunken">
+        <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
+             alt="" loading="lazy" class="w-full h-full object-cover"
+             onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-user text-ink-faint w-full h-full flex items-center justify-center'}))">
+    </span>
+    <span class="w-full truncate text-center text-[11px] text-ink-muted group-hover:text-ink transition-colors">
+        {{ entry.name }}
+    </span>
+</a>

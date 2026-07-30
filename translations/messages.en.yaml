@@ -320,6 +320,7 @@ integration:
             immich: 'Describe a photo, e.g. beach at sunset'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+        timeline: 'Jump to a date'
         too_big: 'Too large to attach'
 
 label:

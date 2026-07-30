@@ -7,10 +7,12 @@ namespace App\Service\Integration\Driver;
 use App\Domain\DTO\Integration\Entry;
 use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
+use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
+use App\Domain\Interface\TimelineDriverInterface;
 use App\Entity\Integration;
 use App\Repository\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
@@ -50,7 +52,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Auth is an API key in x-api-key, generated per user in Immich's account
  * settings. Entry ids are Immich's own UUIDs, opaque to everything else.
  */
-final readonly class ImmichDriver implements IntegrationDriverInterface, SearchableDriverInterface
+final readonly class ImmichDriver implements IntegrationDriverInterface, SearchableDriverInterface, TimelineDriverInterface
 {
     private const string API = '/api';
 
@@ -66,6 +68,21 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      */
     private const string TIMELINE = 'timeline';
     private const string ALBUMS = 'albums';
+    private const string PEOPLE = 'people';
+
+    /**
+     * Prefix marking a folder id as a person rather than an album — both are
+     * UUIDs, so without it the two are indistinguishable.
+     */
+    private const string PERSON_PREFIX = 'person:';
+
+    /**
+     * Separator in a paging cursor: "<iso>@<page>" pages within a date-anchored
+     * query, a bare number pages the unanchored one. The anchor has to travel
+     * with the page or the second page of a scrubber jump would silently come
+     * from the top of the library.
+     */
+    private const string CURSOR_SEPARATOR = '@';
 
     /** Assets per page, for both the timeline and search results. */
     private const int PAGE_SIZE = 100;
@@ -102,6 +119,14 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             return $this->albumList($integration);
         }
 
+        if (self::PEOPLE === $folderId) {
+            return $this->peopleList($integration, null);
+        }
+
+        if (true === str_starts_with($folderId, self::PERSON_PREFIX)) {
+            return $this->personAssets($integration, substr($folderId, strlen(self::PERSON_PREFIX)), $cursor);
+        }
+
         return $this->albumAssets($integration, $folderId, $cursor);
     }
 
@@ -114,23 +139,33 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      * deployment, so a failure falls back to metadata search on the filename:
      * a worse search, but a working one, and the picker never has to know.
      */
-    public function search(Integration $integration, string $query, ?string $cursor = null): Listing
-    {
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing {
         $query = trim($query);
+
+        // The people view's box filters faces by name; everywhere else it
+        // searches photos. One box, two meanings, decided by where the user is.
+        if (self::PEOPLE === $folderId) {
+            return $this->peopleList($integration, '' === $query ? null : $query);
+        }
 
         if ('' === $query) {
             return $this->timeline($integration, null);
         }
 
-        $page = $this->pageFrom($cursor);
+        [$anchor, $page] = $this->parseCursor($cursor);
 
         try {
             $payload = $this->json($integration, 'POST', $this->url($integration, '/search/smart'), [
-                'json' => ['query' => $query, 'size' => self::PAGE_SIZE, 'page' => $page],
+                'json' => $this->searchBody(['query' => $query], $anchor, $page),
             ]);
         } catch (IntegrationException) {
             $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
-                'json' => ['originalFileName' => $query, 'size' => self::PAGE_SIZE, 'page' => $page],
+                'json' => $this->searchBody(['originalFileName' => $query], $anchor, $page),
             ]);
         }
 
@@ -142,8 +177,53 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
                 // results cross every album.
                 Entry::folder('', sprintf('“%s”', $query)),
             ],
-            [Entry::folder(self::ALBUMS, 'Albums')],
+            $this->shortcuts(),
+            $anchor,
         );
+    }
+
+    /**
+     * Newest-first month buckets for the scrubber.
+     *
+     * One call, and a failure is an empty list rather than an exception: a
+     * missing scrubber is a cosmetic loss, and taking the whole picker down over
+     * it would trade a small feature for the main one.
+     *
+     * @return list<TimelineBucket>
+     */
+    public function timelineBuckets(Integration $integration): array
+    {
+        try {
+            $raw = $this->get($integration, '/timeline/buckets', ['size' => 'month']);
+        } catch (IntegrationException) {
+            return [];
+        }
+
+        $buckets = [];
+
+        foreach ($raw as $bucket) {
+            if (false === is_array($bucket)) {
+                continue;
+            }
+
+            $at = $this->parseDate($bucket['timeBucket'] ?? null);
+            $count = $this->intOrNull($bucket['count'] ?? null);
+
+            if (null === $at || null === $count || 0 === $count) {
+                continue;
+            }
+
+            $buckets[] = new TimelineBucket(
+                cursor: $this->buildCursor($at->format('Y-m-d'), 1),
+                // The bar is only a few pixels wide, so the segment label is the
+                // year and the month is left to the hover readout.
+                label: $at->format('Y'),
+                count: $count,
+                title: $at->format('F Y'),
+            );
+        }
+
+        return $buckets;
     }
 
     public function download(Integration $integration, string $fileId): RemoteFile
@@ -231,13 +311,19 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
     public function thumbnail(Integration $integration, string $fileId): ?RemoteFile
     {
-        $response = $this->request(
-            $integration,
-            'GET',
-            $this->url($integration, '/assets/'.rawurlencode($fileId).'/thumbnail'),
-            ['query' => ['size' => self::THUMBNAIL_SIZE]],
-            false,
-        );
+        // People and assets both arrive here, since both are rendered with a
+        // preview; they live on different endpoints.
+        [$url, $query] = true === str_starts_with($fileId, self::PERSON_PREFIX)
+            ? [
+                $this->url($integration, '/people/'.rawurlencode(substr($fileId, strlen(self::PERSON_PREFIX))).'/thumbnail'),
+                [],
+            ]
+            : [
+                $this->url($integration, '/assets/'.rawurlencode($fileId).'/thumbnail'),
+                ['size' => self::THUMBNAIL_SIZE],
+            ];
+
+        $response = $this->request($integration, 'GET', $url, ['query' => $query], false);
 
         try {
             if (200 !== $response->getStatusCode()) {
@@ -278,17 +364,113 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      */
     private function timeline(Integration $integration, ?string $cursor): Listing
     {
-        $page = $this->pageFrom($cursor);
+        [$anchor, $page] = $this->parseCursor($cursor);
 
         $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
-            'json' => ['size' => self::PAGE_SIZE, 'page' => $page, 'order' => 'desc'],
+            'json' => $this->searchBody([], $anchor, $page),
         ]);
 
         return $this->fromAssetsPayload(
             $payload,
             [Entry::folder(self::TIMELINE, 'All photos')],
-            [Entry::folder(self::ALBUMS, 'Albums')],
+            $this->shortcuts(),
+            $anchor,
         );
+    }
+
+    /**
+     * Every recognised face, optionally filtered by name.
+     *
+     * Immich exposes two endpoints here: /people lists them, /search/person
+     * filters them. Both come back as portraits with a name that may be empty —
+     * an unnamed face is still worth browsing, it just shows as "Unnamed".
+     */
+    private function peopleList(Integration $integration, ?string $nameFilter): Listing
+    {
+        if (null === $nameFilter) {
+            $payload = $this->get($integration, '/people', ['withHidden' => 'false']);
+            $items = $payload['people'] ?? [];
+        } else {
+            // This endpoint answers a bare array rather than an envelope.
+            $items = $this->get($integration, '/search/person', [
+                'name'       => $nameFilter,
+                'withHidden' => 'false',
+            ]);
+        }
+
+        $entries = [];
+
+        if (true === is_array($items)) {
+            foreach ($items as $person) {
+                if (false === is_array($person)) {
+                    continue;
+                }
+
+                $id = $this->stringOrNull($person['id'] ?? null);
+
+                if (null === $id) {
+                    continue;
+                }
+
+                $entries[] = Entry::person(
+                    self::PERSON_PREFIX.$id,
+                    $this->stringOrNull($person['name'] ?? null) ?? 'Unnamed',
+                );
+            }
+        }
+
+        return new Listing(
+            $entries,
+            [...$this->breadcrumb(), Entry::folder(self::PEOPLE, 'People')],
+            null,
+            $this->shortcuts(),
+        );
+    }
+
+    /** Everything Immich recognised this person in. */
+    private function personAssets(Integration $integration, string $personId, ?string $cursor): Listing
+    {
+        [$anchor, $page] = $this->parseCursor($cursor);
+
+        $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
+            'json' => $this->searchBody(['personIds' => [$personId]], $anchor, $page),
+        ]);
+
+        return $this->fromAssetsPayload(
+            $payload,
+            [
+                ...$this->breadcrumb(),
+                Entry::folder(self::PEOPLE, 'People'),
+                Entry::folder(self::PERSON_PREFIX.$personId, $this->personName($integration, $personId)),
+            ],
+            $this->shortcuts(),
+            $anchor,
+        );
+    }
+
+    private function personName(Integration $integration, string $personId): string
+    {
+        try {
+            $person = $this->get($integration, '/people/'.rawurlencode($personId));
+        } catch (IntegrationException) {
+            return 'Person';
+        }
+
+        return $this->stringOrNull($person['name'] ?? null) ?? 'Unnamed';
+    }
+
+    /**
+     * The sideways jumps offered from any asset view. Albums and people are both
+     * ways of slicing the same library, so neither is a parent of the other.
+     *
+     * @return list<Entry>
+     */
+    private function shortcuts(): array
+    {
+        return [
+            Entry::folder(self::ALBUMS, 'Albums'),
+            Entry::folder(self::PEOPLE, 'People'),
+        ];
     }
 
     /**
@@ -298,11 +480,20 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      * page number, so the cursor is just the next page — Immich reports
      * nextPage itself, and its absence is the end.
      *
+     * The anchor is threaded back through so the next cursor keeps it: without
+     * that, page two of a scrubber jump would quietly come from the top of the
+     * library instead of from where the user landed.
+     *
      * @param array<mixed> $payload
      * @param list<Entry>  $breadcrumb
      * @param list<Entry>  $shortcuts
      */
-    private function fromAssetsPayload(array $payload, array $breadcrumb, array $shortcuts = []): Listing
+    private function fromAssetsPayload(
+        array $payload,
+        array $breadcrumb,
+        array $shortcuts = [],
+        ?string $anchor = null,
+    ): Listing
     {
         $bucket = $payload['assets'] ?? [];
         $items = is_array($bucket) ? ($bucket['items'] ?? []) : [];
@@ -321,11 +512,12 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
         }
 
         $next = is_array($bucket) ? ($bucket['nextPage'] ?? null) : null;
+        $nextPage = $this->intOrNull($next);
 
         return new Listing(
             $entries,
             $breadcrumb,
-            null === $next || '' === $next ? null : (string) $next,
+            null === $nextPage ? null : $this->buildCursor($anchor, $nextPage),
             $shortcuts,
         );
     }
@@ -399,17 +591,22 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      */
     private function albumAssets(Integration $integration, string $albumId, ?string $cursor): Listing
     {
-        $page = $this->pageFrom($cursor);
+        [$anchor, $page] = $this->parseCursor($cursor);
 
         $payload = $this->json($integration, 'POST', $this->url($integration, '/search/metadata'), [
-            'json' => ['albumIds' => [$albumId], 'size' => self::PAGE_SIZE, 'page' => $page, 'order' => 'desc'],
+            'json' => $this->searchBody(['albumIds' => [$albumId]], $anchor, $page),
         ]);
 
-        return $this->fromAssetsPayload($payload, [
-            ...$this->breadcrumb(),
-            Entry::folder(self::ALBUMS, 'Albums'),
-            Entry::folder($albumId, $this->albumName($integration, $albumId)),
-        ]);
+        return $this->fromAssetsPayload(
+            $payload,
+            [
+                ...$this->breadcrumb(),
+                Entry::folder(self::ALBUMS, 'Albums'),
+                Entry::folder($albumId, $this->albumName($integration, $albumId)),
+            ],
+            $this->shortcuts(),
+            $anchor,
+        );
     }
 
     /**
@@ -428,17 +625,69 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
     }
 
     /**
-     * Immich pages by number and reports the next one itself, so a cursor is
-     * just that number. Anything unparseable starts from the beginning rather
-     * than failing — a hand-edited URL should not 500.
+     * A search body with the paging and ordering every asset view shares.
+     *
+     * takenBefore is how a scrubber jump works: rather than paging forward until
+     * 2019 appears, the query starts there. It costs nothing extra — Immich
+     * filters server-side — and it is why jumping to an unloaded month is
+     * instant.
+     *
+     * @param array<string,mixed> $filters
+     *
+     * @return array<string,mixed>
      */
-    private function pageFrom(?string $cursor): int
+    private function searchBody(array $filters, ?string $anchor, int $page): array
     {
-        if (null === $cursor || false === ctype_digit($cursor)) {
-            return 1;
+        $body = $filters + [
+            'size'  => self::PAGE_SIZE,
+            'page'  => $page,
+            'order' => 'desc',
+        ];
+
+        if (null !== $anchor) {
+            // End of that day, so the anchored month is included rather than
+            // skipped by an off-by-one at midnight.
+            $body['takenBefore'] = $anchor.'T23:59:59.999Z';
         }
 
-        return max(1, (int) $cursor);
+        return $body;
+    }
+
+    /**
+     * Split a cursor into its date anchor and page.
+     *
+     * Anything unparseable starts from the beginning rather than failing — a
+     * hand-edited URL should not produce a 500.
+     *
+     * @return array{0: ?string, 1: int}
+     */
+    private function parseCursor(?string $cursor): array
+    {
+        if (null === $cursor || '' === $cursor) {
+            return [null, 1];
+        }
+
+        if (true === ctype_digit($cursor)) {
+            return [null, max(1, (int) $cursor)];
+        }
+
+        $parts = explode(self::CURSOR_SEPARATOR, $cursor, 2);
+        $anchor = $parts[0];
+        $page = isset($parts[1]) && ctype_digit($parts[1]) ? max(1, (int) $parts[1]) : 1;
+
+        // Only a plain date is accepted; the value is interpolated into a query.
+        if (1 !== preg_match('/^\d{4}-\d{2}-\d{2}$/', $anchor)) {
+            return [null, 1];
+        }
+
+        return [$anchor, $page];
+    }
+
+    private function buildCursor(?string $anchor, int $page): string
+    {
+        return null === $anchor
+            ? (string) $page
+            : $anchor.self::CURSOR_SEPARATOR.$page;
     }
 
     private function addToAlbum(Integration $integration, string $albumId, string $assetId): void

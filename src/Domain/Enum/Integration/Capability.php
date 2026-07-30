@@ -43,4 +43,13 @@ enum Capability: string
      * interface is what the code calls.
      */
     case Search = 'search';
+
+    /**
+     * Can summarise its library as dated buckets, cheaply enough to draw a
+     * scrubber for a library that has not been loaded.
+     *
+     * Gates the picker's date bar. A driver declaring this must implement
+     * TimelineDriverInterface.
+     */
+    case Timeline = 'timeline';
 }

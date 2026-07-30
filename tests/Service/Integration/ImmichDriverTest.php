@@ -53,9 +53,11 @@ final class ImmichDriverTest extends TestCase
         self::assertStringEndsWith('/api/search/metadata', $this->requests[0]['url']);
         self::assertSame(['All photos'], array_map(static fn ($c) => $c->name, $listing->breadcrumb));
 
-        // Albums stay reachable, but as a sideways jump rather than the entrance.
-        self::assertSame(['Albums'], array_map(static fn ($s) => $s->name, $listing->shortcuts));
-        self::assertSame('albums', $listing->shortcuts[0]->id);
+        // Albums and people stay reachable, but as sideways jumps rather than
+        // the entrance — both are slices of the same library, so neither is a
+        // parent of the other.
+        self::assertSame(['Albums', 'People'], array_map(static fn ($s) => $s->name, $listing->shortcuts));
+        self::assertSame(['albums', 'people'], array_map(static fn ($s) => $s->id, $listing->shortcuts));
     }
 
     public function testTheAlbumsShortcutListsAlbumsAsFolders(): void
@@ -115,7 +117,7 @@ final class ImmichDriverTest extends TestCase
             ]]]),
         ]);
 
-        $listing = $driver->search($this->integration(), 'beach at sunset');
+        $listing = $driver->search($this->integration(), 'beach at sunset', null);
 
         self::assertSame(['sunset.jpg'], array_map(static fn ($e) => $e->name, $listing->entries));
         self::assertStringEndsWith('/api/search/smart', $this->requests[0]['url']);
@@ -133,7 +135,7 @@ final class ImmichDriverTest extends TestCase
             ]]]),
         ]);
 
-        $listing = $driver->search($this->integration(), 'sunset');
+        $listing = $driver->search($this->integration(), 'sunset', null);
 
         self::assertCount(1, $listing->entries);
         self::assertStringEndsWith('/api/search/smart', $this->requests[0]['url']);
@@ -145,7 +147,7 @@ final class ImmichDriverTest extends TestCase
     {
         $driver = $this->driver([new JsonMockResponse(['assets' => ['items' => []]])]);
 
-        $driver->search($this->integration(), '   ');
+        $driver->search($this->integration(), '   ', null);
 
         // Clearing the box is how a user leaves a search, so it must not go
         // looking for the empty string.
@@ -216,6 +218,115 @@ final class ImmichDriverTest extends TestCase
         } finally {
             unlink($path);
         }
+    }
+
+    public function testPeopleAreEntriesOfTheirOwnKindNotFolders(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['people' => [
+                ['id' => 'p1', 'name' => 'Ada'],
+                // An unnamed face is still worth browsing.
+                ['id' => 'p2', 'name' => ''],
+            ]]),
+        ]);
+
+        $listing = $driver->list($this->integration(), 'people');
+
+        self::assertSame(['Ada', 'Unnamed'], array_map(static fn ($e) => $e->name, $listing->entries));
+        // Kind is what makes the picker render a portrait with the name always
+        // shown rather than a folder row.
+        self::assertSame('person', $listing->entries[0]->kind()->value);
+        self::assertTrue($listing->entries[0]->isFolder, 'a person is navigable');
+        // Prefixed, because album ids are UUIDs too and would otherwise be
+        // indistinguishable.
+        self::assertSame('person:p1', $listing->entries[0]->id);
+    }
+
+    public function testSearchingFromThePeopleViewFiltersFacesRatherThanPhotos(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse([['id' => 'p1', 'name' => 'Ada Lovelace']]),
+        ]);
+
+        $listing = $driver->search($this->integration(), 'ada', 'people');
+
+        self::assertSame(['Ada Lovelace'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringContainsString('/api/search/person', $this->requests[0]['url']);
+        self::assertStringContainsString('name=ada', $this->requests[0]['url']);
+    }
+
+    public function testAPersonsPhotosComeFromSearchByPersonId(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'm1', 'originalFileName' => 'ada.jpg'],
+            ]]]),
+            new JsonMockResponse(['name' => 'Ada']),
+        ]);
+
+        $listing = $driver->list($this->integration(), 'person:p1');
+
+        self::assertSame(['ada.jpg'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertSame(['p1'], $this->jsonBodyOf(0)['personIds'] ?? null);
+        self::assertSame(['Immich', 'People', 'Ada'], array_map(static fn ($c) => $c->name, $listing->breadcrumb));
+    }
+
+    public function testTimelineBucketsCarryTheCursorThatLandsOnThem(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse([
+                ['timeBucket' => '2026-07-01T00:00:00.000Z', 'count' => 120],
+                ['timeBucket' => '2026-06-01T00:00:00.000Z', 'count' => 4],
+                // Empty buckets would render as invisible slivers.
+                ['timeBucket' => '2026-05-01T00:00:00.000Z', 'count' => 0],
+            ]),
+        ]);
+
+        $buckets = $driver->timelineBuckets($this->integration());
+
+        self::assertCount(2, $buckets);
+        self::assertSame('July 2026', $buckets[0]->title);
+        self::assertSame('2026', $buckets[0]->label, 'the bar is too narrow for a month');
+        self::assertSame(120, $buckets[0]->count);
+        self::assertSame('2026-07-01@1', $buckets[0]->cursor);
+    }
+
+    public function testAMissingBucketsEndpointCostsTheScrubberAndNothingElse(): void
+    {
+        // A scrubber is cosmetic; taking the whole picker down for it would
+        // trade the main feature for a small one.
+        $driver = $this->driver([new MockResponse('', ['http_code' => 404])]);
+
+        self::assertSame([], $driver->timelineBuckets($this->integration()));
+    }
+
+    public function testAJumpKeepsItsAnchorOnTheFollowingPage(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [], 'nextPage' => '2']]),
+        ]);
+
+        $listing = $driver->list($this->integration(), 'timeline', '2019-08-01@1');
+
+        // takenBefore is what makes the jump instant — the query starts there
+        // rather than paging forward until 2019 appears.
+        self::assertSame('2019-08-01T23:59:59.999Z', $this->jsonBodyOf(0)['takenBefore'] ?? null);
+        // And the anchor rides along, or page two would silently come from the
+        // top of the library.
+        self::assertSame('2019-08-01@2', $listing->nextCursor);
+    }
+
+    public function testAHandEditedCursorFallsBackToTheStartInsteadOfFailing(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => []]]),
+        ]);
+
+        $driver->list($this->integration(), 'timeline', 'not-a-date@9');
+
+        $body = $this->jsonBodyOf(0);
+        self::assertArrayNotHasKey('takenBefore', $body);
+        self::assertSame(1, $body['page'] ?? null);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
