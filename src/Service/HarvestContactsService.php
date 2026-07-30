@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Entity\User;
-use App\Repository\ContactRepository;
-use App\Repository\MessageRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\User\User;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MessageRepository;
 use Psr\Log\LoggerInterface;
 
 final readonly class HarvestContactsService

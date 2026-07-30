@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jmap\Mapper;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Label;
-use App\Entity\LabelBinding;
+use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
 
 /**
  * Maps a plMail LabelBinding onto a JMAP Mailbox object (RFC 8621 §2). JMAP

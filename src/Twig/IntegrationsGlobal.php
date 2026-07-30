@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Enum\Integration\Capability;
-use App\Entity\Integration;
-use App\Repository\IntegrationRepository;
+use App\Entity\Integration\Integration;
+use App\Repository\Integration\IntegrationRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**

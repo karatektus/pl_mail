@@ -6,7 +6,7 @@ namespace App\Service\Graph;
 
 use App\Domain\Enum\PushHealth;
 use App\Domain\Interface\PushSubscriptionManagerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Mail\GraphApiClient;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

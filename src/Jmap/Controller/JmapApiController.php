@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Controller;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\InvalidRequestException;
 use App\Jmap\Protocol\Exception\UnknownCapabilityException;
 use App\Jmap\Protocol\JmapProcessor;

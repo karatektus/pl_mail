@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Entity\Mail\Message;
 
 /**
  * Decides how a plMail label is represented on Exchange.

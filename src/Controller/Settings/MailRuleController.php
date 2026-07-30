@@ -8,15 +8,15 @@ use App\Domain\Enum\Integration\Capability;
 use App\Domain\Filter\FilterAstValidator;
 use App\Domain\Filter\InvalidFilterException;
 use App\Domain\Enum\Mail\RuleRunState;
-use App\Entity\MailRule;
+use App\Entity\Rule\MailRule;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\AccountRepository;
-use App\Repository\IntegrationRepository;
-use App\Repository\LabelRepository;
-use App\Repository\MailRuleRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Rule\FilterDescriber;
 use App\Service\Rule\RuleActionExecutor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -408,7 +408,7 @@ final class MailRuleController extends AbstractController
         return $clean;
     }
 
-    private function resolveAccount(mixed $id): ?\App\Entity\Account
+    private function resolveAccount(mixed $id): ?\App\Entity\Mail\Account
     {
         if (false === is_string($id) || '' === $id) {
             return null;

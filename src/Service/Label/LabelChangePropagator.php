@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Service\Label;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\LabelRepository;
-use App\Repository\MailboxRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -203,7 +203,7 @@ final readonly class LabelChangePropagator
      * Rule 2 resolution: system Trash/Spam first, then folder-backed custom
      * labels (last attached wins).
      */
-    private function resolveDestinationMailbox(Message $message): ?\App\Entity\Mailbox
+    private function resolveDestinationMailbox(Message $message): ?\App\Entity\Mail\Mailbox
     {
         $account         = $message->getMailbox()->getAccount();
         $systemCandidate = null;

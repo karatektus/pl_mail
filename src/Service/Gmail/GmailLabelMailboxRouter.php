@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Entity\Account;
-use App\Entity\Mailbox;
-use App\Repository\MailboxRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
+use App\Repository\Mail\MailboxRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jmap\Controller;
 
 use App\Domain\Helper\UploadStorage;
-use App\Entity\UploadedBlob;
-use App\Entity\User;
+use App\Entity\Mail\UploadedBlob;
+use App\Entity\User\User;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Protocol\Exception\MethodException;

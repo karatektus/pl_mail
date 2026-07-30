@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
-use App\Entity\PushSubscription;
-use App\Entity\User;
+use App\Entity\User\PushSubscription;
+use App\Entity\User\User;
 use App\Jmap\Push\WebPushSender;
-use App\Repository\PushSubscriptionRepository;
+use App\Repository\User\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;

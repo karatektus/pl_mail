@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Entity\User;
-use App\Repository\UserRepository;
+use App\Entity\User\User;
+use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

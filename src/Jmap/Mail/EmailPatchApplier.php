@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
-use App\Entity\Account;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\LabelRepository;
+use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\ThreadLabelSynchronizer;
 

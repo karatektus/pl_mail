@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Enum\Account;
 
 /**
- * How credentials for an {@see \App\Entity\Account} are presented to the server.
+ * How credentials for an {@see \App\Entity\Mail\Account} are presented to the server.
  */
 enum AuthType: string
 {

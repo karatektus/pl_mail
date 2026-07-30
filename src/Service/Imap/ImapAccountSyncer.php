@@ -6,8 +6,8 @@ namespace App\Service\Imap;
 
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\AccountSyncerInterface;
-use App\Entity\Account;
-use App\Repository\MailboxRepository;
+use App\Entity\Mail\Account;
+use App\Repository\Mail\MailboxRepository;
 use Psr\Log\LoggerInterface;
 
 /**

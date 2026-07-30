@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Rule;
 
-use App\Entity\MailRule;
+use App\Entity\Rule\MailRule;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 

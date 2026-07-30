@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Interface\MailSenderInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mime\Email;

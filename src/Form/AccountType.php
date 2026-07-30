@@ -2,7 +2,7 @@
 
 namespace App\Form;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Mail\MailPresetProvider;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;

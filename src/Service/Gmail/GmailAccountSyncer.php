@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Interface\AccountSyncerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 /**
  * Gmail sync entry point. Label-based architecture: syncs the label list

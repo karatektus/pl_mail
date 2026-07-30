@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Domain\Filter;
 
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Entity\MessagePart;
-use App\Entity\User;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
+use App\Entity\User\User;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;

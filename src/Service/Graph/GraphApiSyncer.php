@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
-use App\Entity\Account;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

@@ -6,7 +6,7 @@ namespace App\Service\Gmail;
 
 use App\Domain\Enum\PushHealth;
 use App\Domain\Interface\PushSubscriptionManagerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

@@ -1,9 +1,9 @@
 <?php
 
 namespace App\Infrastructure\Messaging\Handler;
-use App\Entity\Message;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MessageSendService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

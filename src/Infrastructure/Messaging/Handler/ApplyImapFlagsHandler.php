@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\ImapConnectionFactory;
-use App\Entity\Account;
-use App\Entity\Mailbox;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\MailboxRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Domain\Helper\AddressHelper;
-use App\Entity\Message;
-use App\Repository\ContactRepository;
-use App\Repository\MessageRepository;
+use App\Entity\Mail\Message;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 

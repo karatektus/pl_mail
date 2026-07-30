@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jmap\Mapper;
 
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Entity\Message;
-use App\Entity\MessagePart;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Jmap\Blob\BlobId;
 
 /**

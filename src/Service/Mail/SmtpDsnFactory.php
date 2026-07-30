@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 /**
  * Single source of truth for the SMTP DSN.

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Entity\Message;
-use App\Repository\MessageRepository;
+use App\Entity\Mail\Message;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

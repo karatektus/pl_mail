@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Entity\Account;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
-use App\Repository\AccountRepository;
-use App\Repository\LabelRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;

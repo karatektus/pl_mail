@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
-use App\Entity\MessageThread;
+use App\Entity\Mail\MessageThread;
 use App\Service\Mail\ThreadParticipants;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;

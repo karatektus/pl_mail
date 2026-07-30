@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controller\Integration;
 
-use App\Controller\ComposeController;
+use App\Controller\Mail\ComposeController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
-use App\Entity\Integration;
-use App\Entity\Message;
-use App\Entity\MessagePart;
-use App\Repository\IntegrationRepository;
+use App\Entity\Integration\Integration;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
+use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
 use App\Service\Mail\AttachmentResolver;
 use Doctrine\ORM\EntityManagerInterface;

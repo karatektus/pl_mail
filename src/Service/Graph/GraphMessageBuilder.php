@@ -6,9 +6,9 @@ namespace App\Service\Graph;
 
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Entity\MessagePart;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;

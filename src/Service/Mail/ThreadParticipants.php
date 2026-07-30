@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Entity\Message;
-use App\Entity\MessageThread;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 
 /**
  * The "who" column of a conversation row.

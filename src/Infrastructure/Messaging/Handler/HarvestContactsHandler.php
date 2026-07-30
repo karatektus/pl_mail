@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Infrastructure\Messaging\Message\HarvestContactsMessage;
-use App\Repository\AccountRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Service\HarvestContactsService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

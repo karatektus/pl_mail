@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Service\Label;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Entity\LabelBinding;
-use App\Entity\Mailbox;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
+use App\Entity\Mail\Mailbox;
 use App\Jmap\State\JmapObjectType;
 use DateTimeImmutable;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelBindingRepository;
-use App\Repository\LabelRepository;
+use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Form\Integration;
 
 use App\Domain\Enum\Integration\Provider;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;

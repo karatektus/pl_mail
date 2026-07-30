@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 /**
  * Decides which account a Gmail API message payload belongs to.

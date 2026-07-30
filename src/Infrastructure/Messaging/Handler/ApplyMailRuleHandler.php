@@ -7,8 +7,8 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\RuleRunState;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\MailRuleRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleRunNotifier;
 use DateTimeImmutable;
@@ -87,7 +87,7 @@ final readonly class ApplyMailRuleHandler
         $this->notifier->publish($rule);
     }
 
-    private function walk(\App\Entity\MailRule $rule): void
+    private function walk(\App\Entity\Rule\MailRule $rule): void
     {
         $filter = $this->compiler->compile($rule->conditions);
         $afterId = 0;

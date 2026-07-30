@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\HeaderNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;

@@ -2,7 +2,7 @@
 
 namespace App\Twig;
 
-use App\Repository\AccountRepository;
+use App\Repository\Mail\AccountRepository;
 use ArrayIterator;
 use IteratorAggregate;
 use Symfony\Bundle\SecurityBundle\Security;

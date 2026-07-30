@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Helper\RawMessageStorage;
-use App\Entity\Message;
+use App\Entity\Mail\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Interface\MailSenderInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Mailer;

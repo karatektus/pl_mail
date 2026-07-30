@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Entity\MailProviderConfig;
-use App\Repository\MailProviderConfigRepository;
+use App\Entity\Integration\MailProviderConfig;
+use App\Repository\Integration\MailProviderConfigRepository;
 use App\Service\OAuth\OAuthProviderFactory;
 use League\OAuth2\Client\Provider\Google;
 use PHPUnit\Framework\TestCase;

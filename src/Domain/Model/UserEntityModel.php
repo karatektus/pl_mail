@@ -2,7 +2,7 @@
 
 namespace App\Domain\Model;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use LogicException;
 
 class UserEntityModel

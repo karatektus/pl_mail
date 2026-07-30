@@ -6,12 +6,12 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
-use App\Entity\Message;
-use App\Entity\MessagePart;
+use App\Entity\Integration\Integration;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Infrastructure\Messaging\Message\UploadAttachmentsMessage;
-use App\Repository\IntegrationRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
 use App\Service\Mail\AttachmentResolver;
 use Doctrine\ORM\EntityManagerInterface;

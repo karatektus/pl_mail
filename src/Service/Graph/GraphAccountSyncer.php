@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Domain\Interface\AccountSyncerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

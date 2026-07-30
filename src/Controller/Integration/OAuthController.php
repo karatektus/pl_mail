@@ -7,10 +7,10 @@ namespace App\Controller\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
-use App\Entity\User;
-use App\Repository\IntegrationProviderConfigRepository;
-use App\Repository\IntegrationRepository;
+use App\Entity\Integration\Integration;
+use App\Entity\User\User;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,7 +24,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 /**
  * The authorise/return pair for OAuth-based integration providers.
  *
- * Separate from App\Controller\OAuthController, which owns mail-account OAuth: the two share a
+ * Separate from App\Controller\Auth\OAuthController, which owns mail-account OAuth: the two share a
  * shape but not a callback, and merging them would leave one callback guessing
  * from session state whether it had been asked for a mailbox or a file store.
  * They also do different things on return — this one never touches accounts,

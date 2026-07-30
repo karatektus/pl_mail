@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Core;
 
-use App\Entity\PushSubscription;
+use App\Entity\User\PushSubscription;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\PushSubscriptionRepository;
+use App\Repository\User\PushSubscriptionRepository;
 
 /**
  * "PushSubscription/get" (RFC 8620 §7.2.1).

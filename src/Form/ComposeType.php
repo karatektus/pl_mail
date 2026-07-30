@@ -2,9 +2,9 @@
 
 namespace App\Form;
 
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Repository\AccountRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Repository\Mail\AccountRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;

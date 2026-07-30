@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Label;
 
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Entity\LabelBinding;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
 

@@ -34,7 +34,7 @@ services:
     App\Domain\Helper\UploadStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
-    App\Command\PruneBlobsCommand:
+    App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
     App\Service\OAuth\OAuthProviderFactory:

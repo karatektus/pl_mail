@@ -6,7 +6,7 @@ namespace App\Domain\Interface;
 
 use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 
 /**
  * A driver whose library can be summarised as a chronological histogram.

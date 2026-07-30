@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Entity\Account;
-use App\Entity\MessagePart;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\MessagePart;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Form\Integration;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Entity\MailProviderConfig;
+use App\Entity\Integration\MailProviderConfig;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;

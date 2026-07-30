@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
-use App\Entity\PushSubscription;
+use App\Entity\User\PushSubscription;
 use App\Jmap\Protocol\StateChangeBuilder;
-use App\Repository\PushSubscriptionRepository;
-use App\Repository\UserRepository;
+use App\Repository\User\PushSubscriptionRepository;
+use App\Repository\User\UserRepository;
 use Psr\Log\LoggerInterface;
 
 /**

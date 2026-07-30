@@ -2,7 +2,7 @@
 
 namespace App\Domain\Helper;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
 use App\Service\OAuth\OAuthTokenManager;
 use Webklex\PHPIMAP\Client;

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Domain\Helper\MessageIdHelper;
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Repository\AccountRepository;
-use App\Repository\MessageRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MessageThreader;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;

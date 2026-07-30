@@ -2,7 +2,7 @@
 
 namespace App\Domain\Model;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 class AccountModel
 {

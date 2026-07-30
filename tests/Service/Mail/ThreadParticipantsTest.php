@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Entity\MessageThread;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Service\Mail\ThreadParticipants;
 use PHPUnit\Framework\TestCase;
 

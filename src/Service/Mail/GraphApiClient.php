@@ -7,7 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphResyncRequiredException;
 use App\Domain\Exception\GraphThrottledException;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;

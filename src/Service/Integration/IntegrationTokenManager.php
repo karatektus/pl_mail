@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Integration;
 
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Throwable;

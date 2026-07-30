@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Session;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\State\StateManager;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;

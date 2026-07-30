@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Entity\Label;
-use App\Repository\AccountRepository;
-use App\Repository\LabelRepository;
-use App\Repository\UserRepository;
+use App\Entity\Label\Label;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

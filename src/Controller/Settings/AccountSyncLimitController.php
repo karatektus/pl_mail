@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

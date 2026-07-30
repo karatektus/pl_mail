@@ -6,10 +6,10 @@ namespace App\Tests\Service\Integration;
 
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
-use App\Entity\IntegrationProviderConfig;
-use App\Entity\User;
-use App\Repository\IntegrationProviderConfigRepository;
+use App\Entity\Integration\Integration;
+use App\Entity\Integration\IntegrationProviderConfig;
+use App\Entity\User\User;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use App\Service\Integration\IntegrationTokenManager;
 use DateTimeImmutable;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Filter\FilterVocabulary;
-use App\Entity\MailRule;
-use App\Repository\IntegrationRepository;
-use App\Repository\LabelRepository;
+use App\Entity\Rule\MailRule;
+use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Label\LabelRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 

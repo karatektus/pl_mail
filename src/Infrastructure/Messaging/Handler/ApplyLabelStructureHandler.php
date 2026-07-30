@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Entity\Account;
-use App\Entity\Label;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
-use App\Repository\AccountRepository;
-use App\Repository\LabelRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Label\LabelRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;

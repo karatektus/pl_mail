@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\State;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\MethodException;
 use Doctrine\ORM\EntityManagerInterface;
 

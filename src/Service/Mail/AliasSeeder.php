@@ -6,9 +6,9 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
-use App\Entity\Account;
-use App\Entity\EmailAlias;
-use App\Repository\EmailAliasRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\EmailAlias;
+use App\Repository\Mail\EmailAliasRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

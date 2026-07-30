@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Account;
 
-use App\Entity\Account;
-use App\Entity\User;
+use App\Entity\Mail\Account;
+use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\MethodException;
 
 /**

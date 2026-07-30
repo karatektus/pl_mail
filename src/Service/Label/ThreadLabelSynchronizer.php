@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Label;
 
-use App\Entity\MessageThread;
+use App\Entity\Mail\MessageThread;
 
 /**
  * Keeps a thread's labels equal to the union of its messages' labels

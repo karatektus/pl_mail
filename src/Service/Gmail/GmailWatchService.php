@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Mail\GmailApiClient;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;

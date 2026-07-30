@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Entity\Message;
+use App\Entity\Mail\Message;
 
 /**
  * Reconstructs an RFC822-shaped source for a Message.

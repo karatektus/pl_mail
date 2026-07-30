@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Label;
-use App\Repository\LabelRepository;
-use App\Repository\MessageThreadRepository;
+use App\Entity\Label\Label;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**

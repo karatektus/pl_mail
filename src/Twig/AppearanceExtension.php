@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Embeddable\Appearance;
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Service\Appearance\AppearanceRenderer;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;

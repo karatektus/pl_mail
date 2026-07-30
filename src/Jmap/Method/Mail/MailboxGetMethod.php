@@ -12,7 +12,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelBindingRepository;
+use App\Repository\Label\LabelBindingRepository;
 
 /**
  * "Mailbox/get" (RFC 8621 §2.1). ids = null returns every mailbox for the

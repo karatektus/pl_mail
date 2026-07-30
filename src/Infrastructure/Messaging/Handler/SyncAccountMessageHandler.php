@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Interface\AccountSyncerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\HarvestContactsMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
-use App\Repository\AccountRepository;
-use App\Repository\MailboxRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Service\Mail\SyncNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;

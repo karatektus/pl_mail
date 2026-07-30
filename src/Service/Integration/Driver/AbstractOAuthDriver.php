@@ -6,7 +6,7 @@ namespace App\Service\Integration\Driver;
 
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\IntegrationDriverInterface;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 use App\Service\Integration\IntegrationTokenManager;
 use DateTimeImmutable;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;

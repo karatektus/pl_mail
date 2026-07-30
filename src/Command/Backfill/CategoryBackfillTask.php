@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Repository\AccountRepository;
-use App\Repository\ContactRepository;
-use App\Repository\MessageRepository;
-use App\Repository\MessageThreadRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\MessageCategorizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;

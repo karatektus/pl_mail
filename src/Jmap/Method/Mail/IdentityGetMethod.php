@@ -6,8 +6,8 @@ namespace App\Jmap\Method\Mail;
 
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
-use App\Entity\Account;
-use App\Entity\EmailAlias;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\EmailAlias;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;

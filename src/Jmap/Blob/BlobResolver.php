@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jmap\Blob;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Domain\Helper\UploadStorage;
-use App\Repository\MessagePartRepository;
-use App\Repository\MessageRepository;
-use App\Repository\UploadedBlobRepository;
+use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\UploadedBlobRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MessageSourceBuilder;
 use App\Service\Mail\RawMessageResolver;

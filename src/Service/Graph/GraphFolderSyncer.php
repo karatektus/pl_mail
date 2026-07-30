@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Account;
-use App\Repository\LabelBindingRepository;
+use App\Entity\Mail\Account;
+use App\Repository\Label\LabelBindingRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;

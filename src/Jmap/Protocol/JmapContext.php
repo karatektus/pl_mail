@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Protocol;
 
-use App\Entity\User;
+use App\Entity\User\User;
 
 /**
  * Mutable per-request state threaded through every method call:

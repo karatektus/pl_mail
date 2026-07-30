@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
-use App\Entity\PushSubscription as JmapPushSubscription;
+use App\Entity\User\PushSubscription as JmapPushSubscription;
 use Doctrine\ORM\EntityManagerInterface;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;

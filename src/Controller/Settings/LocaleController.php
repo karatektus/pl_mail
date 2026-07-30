@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Domain\Enum\AppLocale;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

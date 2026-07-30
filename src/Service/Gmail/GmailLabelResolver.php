@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Repository\LabelRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Repository\Label\LabelRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

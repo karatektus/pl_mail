@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Entity\MailProviderConfig;
-use App\Repository\MailProviderConfigRepository;
+use App\Entity\Integration\MailProviderConfig;
+use App\Repository\Integration\MailProviderConfigRepository;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Google;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;

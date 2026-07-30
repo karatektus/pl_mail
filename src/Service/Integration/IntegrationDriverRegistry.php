@@ -7,7 +7,7 @@ namespace App\Service\Integration;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\IntegrationDriverInterface;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 
 /**
  * Finds the driver for a provider.

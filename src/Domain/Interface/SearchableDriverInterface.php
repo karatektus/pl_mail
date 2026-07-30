@@ -6,7 +6,7 @@ namespace App\Domain\Interface;
 
 use App\Domain\DTO\Integration\Listing;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 
 /**
  * A driver that can find files by text query, not only by walking folders.

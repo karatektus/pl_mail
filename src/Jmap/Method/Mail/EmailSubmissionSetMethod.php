@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Entity\Account;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Mail\EmailPatchApplier;
 use App\Jmap\Method\JmapMethod;
@@ -14,7 +14,7 @@ use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

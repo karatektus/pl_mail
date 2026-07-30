@@ -2,9 +2,9 @@
 
 namespace App\Controller\Admin\User;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Form\Admin\UserFormType;
-use App\Repository\UserRepository;
+use App\Repository\User\UserRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use JetBrains\PhpStorm\ArrayShape;

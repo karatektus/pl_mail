@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Entity\LabelBinding;
+use App\Entity\Label\LabelBinding;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Mapper\MailboxMapper;
 use App\Jmap\Method\JmapMethod;
@@ -12,7 +12,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelBindingRepository;
+use App\Repository\Label\LabelBindingRepository;
 
 /**
  * "Mailbox/query" (RFC 8621 §2.3). Returns the ordered id list for the account.

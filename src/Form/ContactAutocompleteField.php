@@ -3,9 +3,9 @@
 namespace App\Form;
 
 use App\Domain\Helper\AddressHelper;
-use App\Entity\Contact;
-use App\Entity\User;
-use App\Repository\ContactRepository;
+use App\Entity\Mail\Contact;
+use App\Entity\User\User;
+use App\Repository\Mail\ContactRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Event\PreSubmitEvent;

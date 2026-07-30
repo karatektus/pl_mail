@@ -2,8 +2,8 @@
 
 namespace App\Security;
 
-use App\Entity\User;
-use App\Repository\UserRepository;
+use App\Entity\User\User;
+use App\Repository\User\UserRepository;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use JetBrains\PhpStorm\ArrayShape;

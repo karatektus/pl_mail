@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Push\PushStatusFactory;
 use App\Service\Push\PushSubscriptionRegistry;
 use Doctrine\ORM\EntityManagerInterface;

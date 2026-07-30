@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
-use App\Entity\Account;
-use App\Entity\Message;
-use App\Entity\MessageThread;
-use App\Repository\MessageRepository;
-use App\Repository\MessageThreadRepository;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
+use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;

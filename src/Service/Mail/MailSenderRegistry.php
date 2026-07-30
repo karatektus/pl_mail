@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Interface\MailSenderInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 /**
  * Picks the sender for an account. Senders are injected highest-priority first

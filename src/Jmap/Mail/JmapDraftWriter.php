@@ -6,10 +6,10 @@ namespace App\Jmap\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Entity\Account;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\MailboxRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\MessageIdHelper;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
-use App\Repository\AccountRepository;
-use App\Repository\ContactRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Imap\MessageThreader;
@@ -154,7 +154,7 @@ final readonly class SyncGraphMessageBatchHandler
 
         $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
 
-        /** @var list<\App\Entity\Message> $ruleTargets */
+        /** @var list<\App\Entity\Mail\Message> $ruleTargets */
         $ruleTargets = [];
 
         foreach ($built as $entity) {

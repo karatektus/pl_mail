@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Entity\User;
-use App\Repository\LogEntryRepository;
+use App\Entity\User\User;
+use App\Repository\Monitoring\LogEntryRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\QueueMonitor;

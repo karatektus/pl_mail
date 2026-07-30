@@ -6,14 +6,14 @@ use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
-use App\Entity\Mailbox;
-use App\Entity\Message;
-use App\Entity\MessagePart;
+use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\ContactRepository;
-use App\Repository\MailboxRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MessageCategorizer;
@@ -250,7 +250,7 @@ class MessageSyncer
 
         $correspondents = $this->contactRepository->findCorrespondentEmails($mailbox->getAccount()->getUsr());
         // Pass 2 — assign threads now that all messages exist in DB
-        /** @var list<\App\Entity\Message> $ruleTargets */
+        /** @var list<\App\Entity\Mail\Message> $ruleTargets */
         $ruleTargets = [];
 
         foreach ($messages as $index => $message) {

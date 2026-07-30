@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Exception\GuzzleException;

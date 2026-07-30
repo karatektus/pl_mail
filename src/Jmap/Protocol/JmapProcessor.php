@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Protocol;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Jmap\Method\MethodRegistry;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\Exception\UnknownCapabilityException;

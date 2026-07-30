@@ -10,7 +10,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\MessageThreadRepository;
+use App\Repository\Mail\MessageThreadRepository;
 
 /**
  * "Thread/get" (RFC 8621 §3.1). A Thread is just an id plus its Emails in

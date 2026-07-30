@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Rule;
 
-use App\Entity\Account;
-use App\Entity\MailRule;
-use App\Entity\Message;
+use App\Entity\Mail\Account;
+use App\Entity\Rule\MailRule;
+use App\Entity\Mail\Message;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\MailRuleRepository;
-use App\Repository\MessageRepository;
+use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Mail\MessageRepository;
 use Psr\Log\LoggerInterface;
 
 /**

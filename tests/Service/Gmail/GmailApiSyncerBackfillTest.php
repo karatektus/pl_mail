@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Gmail;
 
-use App\Entity\Account;
-use App\Entity\User;
+use App\Entity\Mail\Account;
+use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
-use App\Repository\MessageRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\OAuth\OAuthTokenManager;

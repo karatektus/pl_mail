@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Interface;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 
 interface AccountSyncerInterface
 {

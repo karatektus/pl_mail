@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use App\Entity\Account;
-use App\Repository\AccountRepository;
-use App\Repository\ProcessHeartbeatRepository;
+use App\Entity\Mail\Account;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Monitoring\ProcessHeartbeatRepository;
 use App\Service\Push\PushSubscriptionRegistry;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

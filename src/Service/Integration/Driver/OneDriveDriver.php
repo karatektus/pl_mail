@@ -10,7 +10,7 @@ use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
+use App\Entity\Integration\Integration;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 
 /**

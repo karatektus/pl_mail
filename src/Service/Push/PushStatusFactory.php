@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Push;
 
 use App\Domain\DTO\PushStatus;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use Twig\Attribute\AsTwigFunction;
 
 /**

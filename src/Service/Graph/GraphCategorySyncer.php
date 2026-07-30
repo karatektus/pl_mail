@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\GraphApiException;

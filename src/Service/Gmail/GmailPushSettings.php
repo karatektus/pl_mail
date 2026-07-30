@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Repository\MailProviderConfigRepository;
+use App\Repository\Integration\MailProviderConfigRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**

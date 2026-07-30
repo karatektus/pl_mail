@@ -7,7 +7,7 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Infrastructure\Messaging\Message\HarvestContactsMessage;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
-use App\Repository\MailboxRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\SyncNotifier;
 use Psr\Log\LoggerInterface;

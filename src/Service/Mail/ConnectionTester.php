@@ -6,7 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Helper\ImapConnectionFactory;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;

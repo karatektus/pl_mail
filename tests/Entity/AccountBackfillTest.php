@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Entity;
 
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use PHPUnit\Framework\TestCase;
 
 /**

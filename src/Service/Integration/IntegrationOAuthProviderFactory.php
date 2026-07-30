@@ -7,7 +7,7 @@ namespace App\Service\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
-use App\Repository\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Provider\Google;

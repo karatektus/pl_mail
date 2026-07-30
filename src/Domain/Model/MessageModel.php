@@ -3,7 +3,7 @@
 namespace App\Domain\Model;
 
 use App\Domain\Enum\Mail\MessageFlag;
-use App\Entity\Message;
+use App\Entity\Mail\Message;
 
 class MessageModel
 {

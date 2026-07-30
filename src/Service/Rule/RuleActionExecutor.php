@@ -6,11 +6,11 @@ namespace App\Service\Rule;
 
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\MailRule;
-use App\Entity\Message;
+use App\Entity\Rule\MailRule;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\UploadAttachmentsMessage;
-use App\Repository\IntegrationRepository;
-use App\Repository\LabelRepository;
+use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -249,7 +249,7 @@ final readonly class RuleActionExecutor
     /**
      * @param array<string,mixed> $action
      */
-    private function resolveLabel(array $action, MailRule $rule): ?\App\Entity\Label
+    private function resolveLabel(array $action, MailRule $rule): ?\App\Entity\Label\Label
     {
         $labelId = $action['labelId'] ?? null;
 

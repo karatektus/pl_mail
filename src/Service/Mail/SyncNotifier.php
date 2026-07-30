@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Entity\Account;
-use App\Entity\Mailbox;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 

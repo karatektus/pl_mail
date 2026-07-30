@@ -6,7 +6,7 @@ namespace App\Service\Push;
 
 use App\Domain\Enum\PushHealth;
 use App\Domain\Interface\PushSubscriptionManagerInterface;
-use App\Entity\Account;
+use App\Entity\Mail\Account;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 /**

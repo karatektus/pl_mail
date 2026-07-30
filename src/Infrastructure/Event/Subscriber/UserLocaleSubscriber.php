@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Event\Subscriber;
 
-use App\Entity\User;
+use App\Entity\User\User;
 use App\Domain\Enum\AppLocale;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\RequestEvent;

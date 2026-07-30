@@ -6,9 +6,9 @@ namespace App\Tests\Service\Integration;
 
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration;
-use App\Entity\IntegrationProviderConfig;
-use App\Entity\User;
+use App\Entity\Integration\Integration;
+use App\Entity\Integration\IntegrationProviderConfig;
+use App\Entity\User\User;
 use App\Service\Integration\IntegrationUrlValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

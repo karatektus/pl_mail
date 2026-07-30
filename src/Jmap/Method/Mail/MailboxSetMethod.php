@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Entity\Account;
-use App\Entity\Label;
-use App\Entity\LabelBinding;
+use App\Entity\Mail\Account;
+use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\LabelBindingRepository;
-use App\Repository\LabelRepository;
+use App\Repository\Label\LabelBindingRepository;
+use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\LabelStructurePropagator;
 use Doctrine\ORM\EntityManagerInterface;
