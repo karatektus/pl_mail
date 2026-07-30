@@ -101,6 +101,14 @@ export default class extends Controller {
     }
 
     _handleSubmitEnd(event) {
+        // Some forms inside a modal are navigation, not completion — the
+        // integration picker's search box re-renders the frame and must stay
+        // open. Closing on every successful submit made searching look like a
+        // cancel.
+        if (event.target?.closest?.("[data-modal-keep-open]")) {
+            return;
+        }
+
         if (event.detail.success) {
             this.close();
         }

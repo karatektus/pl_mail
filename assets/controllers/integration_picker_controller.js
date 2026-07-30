@@ -15,13 +15,116 @@ import { Controller } from "@hotwired/stimulus";
  * simply absent from the POST.
  */
 export default class extends Controller {
-    static targets = ["mode", "status", "submit"];
+    static targets = ["mode", "status", "submit", "results", "sentinel", "scroller"];
 
     static values = {
         url: String,
         draft: Number,
         token: String,
     };
+
+    connect() {
+        this._observeSentinel();
+    }
+
+    disconnect() {
+        this._observer?.disconnect();
+    }
+
+    /**
+     * Load the next page and append it.
+     *
+     * Appending rather than navigating is the whole point: the frame link would
+     * reset the scroll position to the top and drop every tick already made,
+     * which on a photo grid means starting over.
+     */
+    async loadMore(event) {
+        event?.preventDefault();
+
+        const link = this.hasSentinelTarget
+            ? this.sentinelTarget.querySelector("a")
+            : null;
+
+        if (null === link || true === this._loading) {
+            return;
+        }
+
+        this._loading = true;
+        this._status("Loading…");
+
+        let markup;
+
+        try {
+            const response = await fetch(link.href, {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+
+            if (false === response.ok) {
+                throw new Error(String(response.status));
+            }
+
+            markup = await response.text();
+        } catch (_) {
+            this._loading = false;
+            this._status("Could not load more");
+
+            return;
+        }
+
+        const next = new DOMParser().parseFromString(markup, "text/html");
+        const incoming = next.querySelector(
+            '[data-integration-picker-target="results"]',
+        );
+
+        if (null !== incoming && true === this.hasResultsTarget) {
+            this.resultsTarget.append(...incoming.children);
+        }
+
+        // The fetched page carries its own sentinel, or none if it was the last.
+        // Swapping it in is what advances the cursor for the next round.
+        const incomingSentinel = next.querySelector(
+            '[data-integration-picker-target="sentinel"]',
+        );
+
+        if (true === this.hasSentinelTarget) {
+            if (null === incomingSentinel) {
+                this.sentinelTarget.remove();
+            } else {
+                this.sentinelTarget.replaceWith(incomingSentinel);
+            }
+        }
+
+        this._loading = false;
+        this._status("");
+        this._observeSentinel();
+    }
+
+    /**
+     * Auto-load as the sentinel comes into view.
+     *
+     * Rooted on the scroll container rather than the viewport — the results
+     * scroll inside the modal, so a viewport-rooted observer would fire once at
+     * open and never again. The margin starts the fetch slightly before the
+     * sentinel is visible so scrolling does not visibly stall.
+     */
+    _observeSentinel() {
+        this._observer?.disconnect();
+
+        if (false === this.hasSentinelTarget || false === this.hasScrollerTarget) {
+            return;
+        }
+
+        this._observer = new IntersectionObserver(
+            (entries) => {
+                if (true === entries.some((entry) => entry.isIntersecting)) {
+                    this.loadMore();
+                }
+            },
+            { root: this.scrollerTarget, rootMargin: "200px" },
+        );
+
+        this._observer.observe(this.sentinelTarget);
+    }
 
     /**
      * How far a pointer may travel between press and release and still count as

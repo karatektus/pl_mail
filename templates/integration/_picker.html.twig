@@ -1,9 +1,11 @@
 {#
 integration/_picker.html.twig — browse a service and pick files, in the modal.
 
-Folder navigation is plain <a> links inside the modal frame, so Turbo handles
-it with no client-side routing. Only the picking is JavaScript, and it posts
-once, at the end.
+Folder navigation, search and paging are plain links and a GET form inside the
+modal frame, so they work without JavaScript. Two things are scripted on top:
+the selection, which posts once at the end, and paging, which appends the next
+page in place rather than navigating — a photo grid that reset to the top and
+lost its ticks on every page would be unusable.
 
 Per file the user chooses copy or link. Copy is blocked only when the size is
 *known* to exceed the cap; services that report no size at all (Immich, Google
@@ -12,9 +14,10 @@ the real size once it has the bytes. Link is unavailable on services that cannot
 share a single file (Immich), so a photo genuinely over the cap there cannot be
 attached and says so.
 
-Search, paging and folder navigation are all plain links and a GET form inside
-the modal frame — Turbo swaps the results in, and none of it needs JavaScript.
-Only the picking is scripted, and it posts once, at the end.
+Layout: everything above the results is fixed, and only the results scroll. The
+scroll container carries no vertical padding on purpose — padding on a scroll
+container does not clip its content, so scrolled images stayed visible in the
+gap under the shortcuts row.
 #}
 {% extends '_layout/app.html.twig' %}
 
@@ -25,7 +28,10 @@ Only the picking is scripted, and it posts once, at the end.
     <turbo-frame id="modal">
         <template data-modal-frame-title>{{ integration.name }}</template>
 
+        {# data-modal-keep-open: the search form re-renders this frame, and the
+           modal otherwise treats any successful submit as "done" and closes. #}
         <div data-controller="integration-picker"
+             data-modal-keep-open
              data-integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
              data-integration-picker-draft-value="{{ draftId }}"
              data-integration-picker-token-value="{{ csrf_token('integration-picker') }}"
@@ -38,13 +44,10 @@ Only the picking is scripted, and it posts once, at the end.
                 </div>
             {% else %}
 
-                {# ── Search ──
-                   A plain GET form inside the modal frame, so Turbo swaps the
-                   results in with no JavaScript. Submitting an empty box is how
-                   you get back out of a search. #}
+                {# ── Search ── #}
                 {% if canSearch %}
                     <form method="get" action="{{ path('app_integration_browse', { id: integration.id }) }}"
-                          class="flex items-center gap-2 px-5 py-3 border-b border-line shrink-0">
+                          class="flex items-center gap-2 px-5 py-3 shrink-0">
                         <input type="hidden" name="draft" value="{{ draftId }}">
                         <div class="relative flex-1 min-w-0">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint" aria-hidden="true"></i>
@@ -61,212 +64,105 @@ Only the picking is scripted, and it posts once, at the end.
                     </form>
                 {% endif %}
 
-                {# ── Breadcrumb ── #}
-                <nav class="flex items-center gap-1 flex-wrap px-5 py-3 border-b border-line text-xs text-ink-muted shrink-0">
-                    {% for crumb in listing.breadcrumb %}
-                        {% if not loop.last %}
-                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: crumb.id, draft: draftId }) }}"
-                               class="hover:text-ink transition-colors">{{ crumb.name }}</a>
-                            <i class="fa-solid fa-chevron-right text-[8px] text-ink-faint" aria-hidden="true"></i>
-                        {% else %}
-                            <span class="text-ink font-medium">{{ crumb.name }}</span>
-                        {% endif %}
-                    {% endfor %}
-                </nav>
-
-                {# ── Shortcuts ──
-                   Sideways jumps the driver offered, e.g. Immich surfacing its
-                   album list from the timeline. Rendered as whatever it hands
-                   over, so no per-provider branch lives here. #}
-                {% if listing.shortcuts is not empty %}
-                    <div class="flex items-center gap-2 flex-wrap px-5 pt-3 shrink-0">
-                        {% for shortcut in listing.shortcuts %}
-                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: shortcut.id, draft: draftId }) }}"
-                               class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-medium
-                                      text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
-                                <i class="fa-solid fa-images text-[10px]" aria-hidden="true"></i>
-                                {{ shortcut.name }}
-                            </a>
+                {# ── Trail and shortcuts ──
+                   One row, so the results start immediately below a single
+                   opaque boundary. Shortcuts are whatever the driver offered —
+                   Immich surfacing its albums from the timeline — so no
+                   per-provider branch lives here. #}
+                <div class="flex items-center gap-2 flex-wrap px-5 pb-3 border-b border-line shrink-0">
+                    <nav class="flex items-center gap-1 flex-wrap text-xs text-ink-muted">
+                        {% for crumb in listing.breadcrumb %}
+                            {% if not loop.last %}
+                                <a href="{{ path('app_integration_browse', { id: integration.id, folder: crumb.id, draft: draftId }) }}"
+                                   class="hover:text-ink transition-colors">{{ crumb.name }}</a>
+                                <i class="fa-solid fa-chevron-right text-[8px] text-ink-faint" aria-hidden="true"></i>
+                            {% else %}
+                                <span class="text-ink font-medium">{{ crumb.name }}</span>
+                            {% endif %}
                         {% endfor %}
-                    </div>
-                {% endif %}
+                    </nav>
 
-                {# ── Entries ── #}
-                <div class="px-5 py-3 overflow-y-auto max-h-[55vh]">
-                    {% if listing.entries is empty %}
-                        <p class="py-8 text-center text-sm text-ink-faint italic">
-                            {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
-                                     : 'integration.picker.empty'|trans }}
-                        </p>
-                    {% elseif isGrid %}
+                    {% for shortcut in listing.shortcuts %}
+                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: shortcut.id, draft: draftId }) }}"
+                           class="ml-auto inline-flex items-center gap-2 h-7 px-2.5 rounded-lg text-xs font-medium
+                                  text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                            <i class="fa-solid fa-images text-[10px]" aria-hidden="true"></i>
+                            {{ shortcut.name }}
+                        </a>
+                    {% endfor %}
+                </div>
 
-                        {# ── Photo grid ──
-                           No filenames: nobody recognises a photo by reading
-                           IMG_4821.jpg. The whole tile is the control, and the
-                           date sits in a bar that appears on hover, on keyboard
-                           focus, and whenever the tile is selected — hover alone
-                           would hide it permanently on a touch screen.
+                {# ── Results ──
+                   No py-* here: padding on a scroll container is not clipped, so
+                   content would scroll into it and show above the boundary. #}
+                <div class="px-5 overflow-y-auto overscroll-contain max-h-[55vh]"
+                     data-integration-picker-target="scroller">
+                    <div class="py-3">
+                        {% if listing.entries is empty %}
+                            <p class="py-8 text-center text-sm text-ink-faint italic">
+                                {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
+                                         : 'integration.picker.empty'|trans }}
+                            </p>
+                        {% elseif isGrid %}
 
-                           Copy is the only mode here. A media library with share
-                           links would need a second affordance; none has one. #}
-                        {% if listing.folders is not empty %}
-                            <ul class="mb-3 divide-y divide-line">
-                                {% for entry in listing.folders %}
-                                    <li>
-                                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
-                                           class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
-                                            <i class="fa-solid fa-images text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
-                                            <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
-                                            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
-                                        </a>
-                                    </li>
+                            {% if listing.folders is not empty %}
+                                <ul class="mb-3 divide-y divide-line">
+                                    {% for entry in listing.folders %}
+                                        <li>
+                                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+                                               class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
+                                                <i class="fa-solid fa-images text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
+                                                <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
+                                                <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            {# ── Photo grid ──
+                               No filenames: nobody recognises a photo by reading
+                               IMG_4821.jpg. The whole tile is the control, and
+                               the date appears on hover, on keyboard focus, and
+                               while selected — hover alone would hide it
+                               permanently on a touch screen.
+
+                               Copy is the only mode here. A media library with
+                               share links would need a second affordance; none
+                               has one. #}
+                            <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(6rem,1fr))]"
+                                 data-integration-picker-target="results">
+                                {% for entry in listing.files %}
+                                    {% include 'integration/_tile.html.twig' with {
+                                        integration: integration,
+                                        entry: entry,
+                                        maxBytes: maxBytes,
+                                    } only %}
+                                {% endfor %}
+                            </div>
+
+                        {% else %}
+                            <ul class="divide-y divide-line" data-integration-picker-target="results">
+                                {% for entry in listing.entries %}
+                                    {% include 'integration/_row.html.twig' with {
+                                        integration: integration,
+                                        entry: entry,
+                                        draftId: draftId,
+                                        maxBytes: maxBytes,
+                                        canLink: canLink,
+                                        canThumb: canThumb,
+                                    } only %}
                                 {% endfor %}
                             </ul>
                         {% endif %}
 
-                        <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(6rem,1fr))]">
-                            {% for entry in listing.files %}
-                                {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
-
-                                {% if knownTooBig %}
-                                    <div class="relative aspect-square rounded-lg overflow-hidden bg-sunken opacity-40"
-                                         title="{{ 'integration.picker.too_big'|trans }}">
-                                        <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
-                                             alt="" loading="lazy" class="w-full h-full object-cover">
-                                    </div>
-                                {% else %}
-                                    <label class="group relative aspect-square block rounded-lg overflow-hidden bg-sunken cursor-pointer
-                                                  select-none touch-manipulation"
-                                           data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick">
-                                        <input type="checkbox" class="peer sr-only"
-                                               name="mode[{{ entry.id }}]" value="copy"
-                                               data-integration-picker-target="mode">
-
-                                        <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
-                                             alt="{{ entry.name }}" loading="lazy"
-                                             class="w-full h-full object-cover transition-transform duration-150
-                                                    peer-checked:scale-95"
-                                             onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-full h-full flex items-center justify-center'}))">
-
-                                        {# Selection ring and tick. #}
-                                        <span class="pointer-events-none absolute inset-0 rounded-lg
-                                                     ring-2 ring-inset ring-transparent peer-checked:ring-accent
-                                                     transition-colors"></span>
-                                        <span class="pointer-events-none absolute top-1.5 right-1.5 w-5 h-5 rounded-full
-                                                     bg-accent text-white text-[10px] items-center justify-center
-                                                     hidden peer-checked:flex">
-                                            <i class="fa-solid fa-check" aria-hidden="true"></i>
-                                        </span>
-
-                                        {% if entry.modifiedAt %}
-                                            <span class="pointer-events-none absolute inset-x-0 bottom-0 px-1.5 py-1
-                                                         bg-gradient-to-t from-black/70 to-transparent
-                                                         text-[10px] text-white text-center tabular-nums
-                                                         opacity-0 transition-opacity
-                                                         group-hover:opacity-100 peer-focus-visible:opacity-100
-                                                         peer-checked:opacity-100">
-                                                {{ entry.modifiedAt|date('Y-m-d') }}
-                                            </span>
-                                        {% endif %}
-                                    </label>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-
-                    {% else %}
-                        <ul class="divide-y divide-line">
-                            {% for entry in listing.entries %}
-                                {% if entry.isFolder %}
-                                    <li>
-                                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
-                                           class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
-                                            <i class="fa-solid fa-folder text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
-                                            <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
-                                            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
-                                        </a>
-                                    </li>
-                                {% else %}
-                                    {# Only a *known* oversize blocks a copy. Services that report
-                                       no size — Immich, Google Photos — would otherwise have every
-                                       file treated as too big, and with no share link to fall back
-                                       on that made every photo unselectable. The attach endpoint
-                                       re-checks the real size after downloading and reports what it
-                                       skipped, so being optimistic here costs one wasted fetch in
-                                       the rare case and is the difference between a usable picker
-                                       and a dead one. #}
-                                    {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
-                                    {% set canCopy = not knownTooBig %}
-                                    {% set unattachable = not canCopy and not canLink %}
-
-                                    <li class="flex items-center gap-3 py-2.5 {{ unattachable ? 'opacity-50' : '' }}">
-                                        {% if canThumb %}
-                                            {# Larger than an icon on purpose: on a photo service the
-                                               preview is how you recognise the file, and a filename
-                                               like IMG_4821.jpg tells you nothing. #}
-                                            <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
-                                                 alt="" loading="lazy"
-                                                 class="w-12 h-12 rounded object-cover bg-sunken shrink-0"
-                                                 onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-9 h-9 flex items-center justify-center shrink-0'}))">
-                                        {% else %}
-                                            <i class="fa-solid fa-file text-ink-faint w-5 text-center shrink-0" aria-hidden="true"></i>
-                                        {% endif %}
-
-                                        <div class="flex-1 min-w-0">
-                                            <span class="block truncate text-sm text-ink">{{ entry.name }}</span>
-                                            <span class="block text-[11px] text-ink-faint">
-                                                {% if entry.size is not null %}
-                                                    {{ (entry.size / 1024)|round }} KB
-                                                {% endif %}
-                                                {%- if entry.modifiedAt %} · {{ entry.modifiedAt|date('Y-m-d') }}{% endif -%}
-                                            </span>
-                                        </div>
-
-                                        {% if unattachable %}
-                                            <span class="shrink-0 text-[11px] text-ink-faint">
-                                                {{ 'integration.picker.too_big'|trans }}
-                                            </span>
-                                        {% else %}
-                                            <div class="shrink-0 flex items-center gap-1">
-                                                {% if canCopy %}
-                                                    <label class="cursor-pointer">
-                                                        <input type="radio" class="peer sr-only"
-                                                               name="mode[{{ entry.id }}]" value="copy"
-                                                               data-integration-picker-target="mode">
-                                                        <span class="inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
-                                                                     text-ink-faint bg-field border border-field
-                                                                     peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
-                                                                     transition-colors">
-                                                            {{ 'integration.picker.copy'|trans }}
-                                                        </span>
-                                                    </label>
-                                                {% endif %}
-
-                                                {% if canLink %}
-                                                    <label class="cursor-pointer">
-                                                        <input type="radio" class="peer sr-only"
-                                                               name="mode[{{ entry.id }}]" value="link"
-                                                               data-integration-picker-target="mode">
-                                                        <span class="inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
-                                                                     text-ink-faint bg-field border border-field
-                                                                     peer-checked:bg-accent peer-checked:text-white peer-checked:border-accent
-                                                                     transition-colors">
-                                                            {{ 'integration.picker.link'|trans }}
-                                                        </span>
-                                                    </label>
-                                                {% endif %}
-                                            </div>
-                                        {% endif %}
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                        </ul>
-
-                        {# Paging. Replaces the list rather than appending, like
-                           folder navigation does — the selection is submitted at
-                           the end, so a page change would lose ticks either way
-                           and a link keeps this JavaScript-free. #}
+                        {# ── Paging ──
+                           Scripted into an append by the controller, which also
+                           auto-triggers it as the sentinel scrolls into view.
+                           Left as a real link so it still works, by navigating,
+                           if that script never runs. #}
                         {% if listing.nextCursor %}
-                            <div class="pt-3 text-center">
+                            <div class="pt-3 text-center" data-integration-picker-target="sentinel">
                                 <a href="{{ path('app_integration_browse', {
                                        id: integration.id,
                                        folder: folderId,
@@ -274,6 +170,7 @@ Only the picking is scripted, and it posts once, at the end.
                                        q: query,
                                        cursor: listing.nextCursor,
                                    }) }}"
+                                   data-action="integration-picker#loadMore"
                                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
                                     {{ 'integration.picker.more'|trans }}
@@ -281,7 +178,7 @@ Only the picking is scripted, and it posts once, at the end.
                                 </a>
                             </div>
                         {% endif %}
-                    {% endif %}
+                    </div>
                 </div>
 
             {% endif %}

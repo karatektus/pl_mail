@@ -599,7 +599,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             return null;
         }
     }
-    
+
     private function intOrNull(mixed $value): ?int
     {
         return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null;

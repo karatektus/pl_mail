@@ -307,6 +307,31 @@ test.describe("compose integration picker", () => {
 
     test("no button at all when nothing is connected", async ({ page }) => {
         await login(page);
+
+        // Establishes its own premise rather than assuming a fresh database:
+        // this file's other tests connect a service, so on a re-run against a
+        // dirty database the button would legitimately be there and the failure
+        // would say nothing about the behaviour under test.
+        await page.goto("/settings?section=integrations");
+        const frame = page.locator("#settings-integrations-frame");
+
+        // Wait for the frame's *content*, not the frame: it loads lazily and the
+        // placeholder is already visible, so querying too early finds nothing to
+        // disconnect and the premise silently fails to hold.
+        await expect(frame.getByText("Connect a service")).toBeVisible();
+
+        for (;;) {
+            const disconnect = frame.getByRole("button", { name: "Disconnect" }).first();
+
+            if (0 === (await disconnect.count())) {
+                break;
+            }
+
+            page.once("dialog", (dialog) => dialog.accept());
+            await disconnect.click();
+            await expect(disconnect).toHaveCount(0);
+        }
+
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
 

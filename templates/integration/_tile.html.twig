@@ -1,0 +1,55 @@
+{#
+integration/_tile.html.twig — one photo in the picker grid.
+
+Its own partial because the paging script appends more of exactly these, and a
+copy of this markup living in JavaScript would drift from the copy here.
+
+Stacking matters. The selection ring is the LAST child so it paints over both
+the image and the date bar — with the bar on top the ring looked muddy along the
+bottom edge. It also shares `rounded-lg` with the clipping label, so the ring
+and the image corners cannot disagree; an earlier version scaled the image on
+selection, which pulled its corners away from the ring.
+#}
+{% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
+{% set thumbUrl = path('app_integration_thumbnail', { id: integration.id, file: entry.id }) %}
+
+{% if knownTooBig %}
+    <div class="relative aspect-square rounded-lg overflow-hidden bg-sunken opacity-40"
+         title="{{ 'integration.picker.too_big'|trans }}">
+        <img src="{{ thumbUrl }}" alt="" loading="lazy" class="w-full h-full object-cover">
+    </div>
+{% else %}
+    <label class="group relative aspect-square block rounded-lg overflow-hidden bg-sunken
+                  cursor-pointer select-none touch-manipulation"
+           data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick">
+        <input type="checkbox" class="peer sr-only"
+               name="mode[{{ entry.id }}]" value="copy"
+               data-integration-picker-target="mode">
+
+        <img src="{{ thumbUrl }}" alt="{{ entry.name }}" loading="lazy"
+             class="w-full h-full object-cover"
+             onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-full h-full flex items-center justify-center'}))">
+
+        {% if entry.modifiedAt %}
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 px-1.5 py-1
+                         bg-gradient-to-t from-black/70 to-transparent
+                         text-[10px] text-white text-center tabular-nums
+                         opacity-0 transition-opacity
+                         group-hover:opacity-100 peer-focus-visible:opacity-100
+                         peer-checked:opacity-100">
+                {{ entry.modifiedAt|date('Y-m-d') }}
+            </span>
+        {% endif %}
+
+        <span class="pointer-events-none absolute top-1.5 right-1.5 w-5 h-5 rounded-full
+                     bg-accent text-white text-[10px] items-center justify-center
+                     hidden peer-checked:flex">
+            <i class="fa-solid fa-check" aria-hidden="true"></i>
+        </span>
+
+        {# Last, so it sits above the gradient rather than under it. #}
+        <span class="pointer-events-none absolute inset-0 rounded-lg
+                     ring-2 ring-inset ring-transparent peer-checked:ring-accent
+                     transition-colors"></span>
+    </label>
+{% endif %}
