@@ -118,6 +118,22 @@ final class OneDriveDriverTest extends OAuthDriverTestCase
         self::assertNull($driver->thumbnail($this->integration(Provider::OneDrive), 'i9'));
     }
 
+    public function testSearchUsesGraphsQuotedArgumentAndStripsQuotes(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['value' => [
+                ['id' => 'i2', 'name' => 'report.pdf', 'size' => 10, 'file' => ['mimeType' => 'application/pdf']],
+            ]]),
+        ]);
+
+        $listing = $driver->search($this->integration(Provider::OneDrive), "rep'ort", null);
+
+        self::assertSame(['report.pdf'], array_map(static fn ($e) => $e->name, $listing->entries));
+        // The term rides inside search(q='…'), so a quote in it would terminate
+        // the argument.
+        self::assertStringContainsString("/root/search(q='report')", urldecode($this->requests[0]['url']));
+    }
+
     /**
      * @param list<ResponseInterface> $responses
      */

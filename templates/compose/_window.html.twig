@@ -400,7 +400,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                                     title="{{ 'integration.picker.attach_from_service'|trans }}"
                                     class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
                             <div data-dropdown-target="menu" hidden
-                                 class="absolute bottom-full mb-1 left-0 z-20 min-w-48 rounded-lg border border-line bg-pane shadow-float py-1">
+                                 class="absolute bottom-full mb-1 left-0 z-20 min-w-48 popover py-1">
                                 {% for integration in pickerIntegrations %}
                                     <button type="button"
                                             data-controller="modal"

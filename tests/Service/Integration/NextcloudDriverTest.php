@@ -149,6 +149,49 @@ final class NextcloudDriverTest extends TestCase
         self::assertNull($driver->thumbnail($this->integration(), 'Documents/archive.zip'));
     }
 
+    public function testSearchUsesWebdavSearchSoResultsAreAddressablePaths(): void
+    {
+        $driver = $this->driver([$this->multistatus()]);
+
+        $listing = $driver->search($this->integration(), 'report');
+
+        // The whole reason for SEARCH over the OCS unified-search endpoint: it
+        // answers with WebDAV hrefs, which are already our entry ids. OCS
+        // returns /apps/files/?dir=… app URLs, which are not.
+        self::assertSame('SEARCH', $this->requests[0]['method']);
+        self::assertContains('Documents/report.pdf', array_map(static fn ($e) => $e->id, $listing->entries));
+
+        $body = $this->requests[0]['body'];
+        self::assertStringContainsString('<d:basicsearch>', $body);
+        self::assertStringContainsString('%report%', $body);
+        // DAV-root-relative, not an absolute server path: Nextcloud cannot
+        // resolve /remote.php/dav/files/alice as a scope and answers 404, which
+        // surfaces to the user as "no such folder".
+        self::assertStringContainsString('<d:href>/files/alice</d:href>', $body);
+        self::assertStringNotContainsString('/remote.php/dav/files/alice</d:href>', $body);
+    }
+
+    public function testSearchEscapesWildcardsInTheTerm(): void
+    {
+        $driver = $this->driver([$this->multistatus()]);
+
+        $driver->search($this->integration(), '50%_off');
+
+        // The % and _ belong to us, not the user — unescaped they would widen
+        // the match to everything.
+        $body = $this->requests[0]['body'];
+        self::assertStringContainsString('%50\\%\\_off%', $body);
+    }
+
+    public function testAnEmptyTermGoesBackToBrowsing(): void
+    {
+        $driver = $this->driver([$this->multistatus()]);
+
+        $driver->search($this->integration(), '   ');
+
+        self::assertSame('PROPFIND', $this->requests[0]['method']);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     /**
@@ -191,13 +234,45 @@ final class NextcloudDriverTest extends TestCase
         return new MockResponse($xml, ['http_code' => 207]);
     }
 
+    private function drain(mixed $body): string
+    {
+        if (true === is_string($body)) {
+            return $body;
+        }
+
+        $buffer = '';
+
+        if ($body instanceof \Closure) {
+            while ('' !== ($chunk = $body(16372))) {
+                $buffer .= $chunk;
+            }
+
+            return $buffer;
+        }
+
+        if (true === is_iterable($body)) {
+            foreach ($body as $chunk) {
+                $buffer .= $chunk;
+            }
+        }
+
+        return $buffer;
+    }
+
     /**
      * @param list<ResponseInterface> $responses
      */
     private function driver(array $responses): NextcloudDriver
     {
         $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$responses): ResponseInterface {
-            $this->requests[] = ['method' => $method, 'url' => $url, 'options' => $options];
+            $this->requests[] = [
+                'method'  => $method,
+                'url'     => $url,
+                'options' => $options,
+                // Drained here: the client consumes a streamed body on its way
+                // out, so reading it at assertion time yields an empty string.
+                'body'    => $this->drain($options['body'] ?? ''),
+            ];
 
             return array_shift($responses) ?? new MockResponse('', ['http_code' => 500]);
         });

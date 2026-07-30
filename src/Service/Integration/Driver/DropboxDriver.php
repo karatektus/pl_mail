@@ -8,6 +8,7 @@ use App\Domain\DTO\Integration\Entry;
 use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
@@ -28,7 +29,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Almost everything is a POST, including reads — Dropbox has no GET endpoints
  * for these operations, so a listing being a POST is correct rather than a slip.
  */
-final class DropboxDriver extends AbstractOAuthDriver
+final class DropboxDriver extends AbstractOAuthDriver implements SearchableDriverInterface
 {
     private const string API = 'https://api.dropboxapi.com/2';
     private const string CONTENT = 'https://content.dropboxapi.com/2';
@@ -108,6 +109,72 @@ final class DropboxDriver extends AbstractOAuthDriver
         return new Listing(
             $entries,
             $this->breadcrumb($this->normalise($folderId ?? '')),
+            true === ($payload['has_more'] ?? false) ? $this->stringOrNull($payload['cursor'] ?? null) : null,
+        );
+    }
+
+    /**
+     * Dropbox's files/search_v2.
+     *
+     * Its result shape is nested two levels deeper than a listing —
+     * matches[].metadata.metadata — and paging is a cursor rather than a page,
+     * so this cannot share fromEntries with list().
+     */
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing {
+        $query = trim($query);
+
+        if ('' === $query) {
+            return $this->list($integration, $folderId);
+        }
+
+        $payload = null !== $cursor && '' !== $cursor
+            ? $this->json($integration, 'POST', self::API.'/files/search_v2/continue_v2', ['json' => ['cursor' => $cursor]])
+            : $this->json($integration, 'POST', self::API.'/files/search_v2', [
+                'json' => [
+                    'query'   => $query,
+                    'options' => [
+                        'path'       => $this->normalise($folderId ?? ''),
+                        'max_results' => 200,
+                        'file_status' => 'active',
+                    ],
+                ],
+            ]);
+
+        $entries = [];
+
+        foreach ($payload['matches'] ?? [] as $match) {
+            $item = is_array($match) ? ($match['metadata']['metadata'] ?? null) : null;
+
+            if (false === is_array($item)) {
+                continue;
+            }
+
+            $path = $this->stringOrNull($item['path_lower'] ?? null);
+
+            if (null === $path) {
+                continue;
+            }
+
+            $isFolder = 'folder' === ($item['.tag'] ?? '');
+
+            $entries[] = new Entry(
+                id: $path,
+                name: (string) ($item['name'] ?? basename($path)),
+                isFolder: $isFolder,
+                size: $isFolder ? null : $this->intOrNull($item['size'] ?? null),
+                mime: null,
+                modifiedAt: $this->parseDate($item['server_modified'] ?? null),
+            );
+        }
+
+        return new Listing(
+            $entries,
+            [Entry::folder('', 'Dropbox'), Entry::folder('', sprintf('\u{201C}%s\u{201D}', $query))],
             true === ($payload['has_more'] ?? false) ? $this->stringOrNull($payload['cursor'] ?? null) : null,
         );
     }

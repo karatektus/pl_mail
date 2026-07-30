@@ -134,6 +134,32 @@ final class GoogleDriveDriverTest extends OAuthDriverTestCase
         $driver->verify($this->integration(Provider::GoogleDrive));
     }
 
+    public function testSearchQueriesByNameAndStillExcludesTrash(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['files' => [
+                ['id' => 'd1', 'name' => 'report.pdf', 'mimeType' => 'application/pdf', 'size' => '10'],
+            ]]),
+        ]);
+
+        $listing = $driver->search($this->integration(Provider::GoogleDrive), 'report', null);
+
+        self::assertSame(['report.pdf'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringContainsString('name%20contains', $this->requests[0]['url']);
+        self::assertStringContainsString('trashed%20%3D%20false', $this->requests[0]['url']);
+    }
+
+    public function testSearchStripsQuotesThatWouldEscapeTheQueryClause(): void
+    {
+        $driver = $this->driver([new JsonMockResponse(['files' => []])]);
+
+        $driver->search($this->integration(Provider::GoogleDrive), "it's a trap'", null);
+
+        // Drive's query language is string-delimited, so a stray quote would
+        // break out of the clause.
+        self::assertStringNotContainsString('%27s', $this->requests[0]['url']);
+    }
+
     /**
      * @param list<ResponseInterface> $responses
      */

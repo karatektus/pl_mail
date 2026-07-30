@@ -9,6 +9,7 @@ use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\File;
@@ -32,7 +33,7 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionIn
  * fails on them — so they are listed but marked unattachable by reporting no
  * size, rather than being offered and then failing.
  */
-final class GoogleDriveDriver extends AbstractOAuthDriver
+final class GoogleDriveDriver extends AbstractOAuthDriver implements SearchableDriverInterface
 {
     private const string API = 'https://www.googleapis.com/drive/v3';
     private const string UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -100,6 +101,51 @@ final class GoogleDriveDriver extends AbstractOAuthDriver
         return new Listing(
             $entries,
             $this->breadcrumb($integration, $folder),
+            $this->stringOrNull($payload['nextPageToken'] ?? null),
+        );
+    }
+
+    /**
+     * Drive's own name search, across the whole account.
+     *
+     * `fullText contains` would also match document bodies, but it silently
+     * ignores most binary types, so a name search is the one that behaves the
+     * same for every file. Trashed items stay excluded, as in a plain listing.
+     */
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing {
+        $query = trim($query);
+
+        if ('' === $query) {
+            return $this->list($integration, $folderId);
+        }
+
+        $payload = $this->json($integration, 'GET', self::API.'/files', [
+            'query' => [
+                'q' => sprintf("name contains '%s' and trashed = false", $this->escape($query)),
+                'fields'                    => sprintf('nextPageToken,files(%s)', self::FILE_FIELDS),
+                'pageSize'                  => 200,
+                'pageToken'                 => $cursor,
+                'supportsAllDrives'         => 'true',
+                'includeItemsFromAllDrives' => 'true',
+            ],
+        ]);
+
+        $entries = [];
+
+        foreach ($payload['files'] ?? [] as $file) {
+            if (true === is_array($file)) {
+                $entries[] = $this->entry($file);
+            }
+        }
+
+        return new Listing(
+            $entries,
+            [Entry::folder('', 'My Drive'), Entry::folder('', sprintf('\u{201C}%s\u{201D}', $query))],
             $this->stringOrNull($payload['nextPageToken'] ?? null),
         );
     }

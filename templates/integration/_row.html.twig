@@ -52,14 +52,40 @@ like it needed a decision.
 
         {# pointer-events-none so a click on the name reaches the row label. #}
         <div class="relative pointer-events-none flex items-center gap-3 flex-1 min-w-0">
-            {% if canThumb %}
+            {# A preview only where it tells you something. Asking for one per row
+               meant a 200-hit search fired 200 proxied requests, each making the
+               service render a document preview — 4.5 MB and half a minute for a
+               list of invoices, where the answer was always a red PDF square.
+               Pictures are worth previewing; a filename identifies the rest. #}
+            {% if canThumb and entry.mime is not null and (entry.mime starts with 'image/' or entry.mime starts with 'video/') %}
                 <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
                      alt="" loading="lazy"
-                     class="w-10 h-10 rounded-lg object-cover bg-sunken shrink-0"
-                     onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-10 h-10 flex items-center justify-center shrink-0'}))">
+                     class="w-10 h-10 rounded-lg object-cover bg-sunken shrink-0">
             {% else %}
-                <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">
-                    <i class="fa-solid fa-file text-sm text-ink-faint" aria-hidden="true"></i>
+                {% set icon = 'fa-file' %}
+                {% set tint = 'text-ink-faint' %}
+                {% if entry.mime is not null %}
+                    {% if entry.mime == 'application/pdf' %}
+                        {% set icon = 'fa-file-pdf' %}{% set tint = 'text-red-400' %}
+                    {% elseif entry.mime starts with 'image/' %}
+                        {% set icon = 'fa-file-image' %}{% set tint = 'text-violet-400' %}
+                    {% elseif entry.mime starts with 'video/' %}
+                        {% set icon = 'fa-file-video' %}{% set tint = 'text-violet-400' %}
+                    {% elseif entry.mime starts with 'audio/' %}
+                        {% set icon = 'fa-file-audio' %}{% set tint = 'text-violet-400' %}
+                    {% elseif entry.mime starts with 'text/' %}
+                        {% set icon = 'fa-file-lines' %}
+                    {% elseif 'zip' in entry.mime or 'compressed' in entry.mime or 'tar' in entry.mime %}
+                        {% set icon = 'fa-file-zipper' %}{% set tint = 'text-amber-400' %}
+                    {% elseif 'sheet' in entry.mime or 'excel' in entry.mime or 'csv' in entry.mime %}
+                        {% set icon = 'fa-file-excel' %}{% set tint = 'text-emerald-400' %}
+                    {% elseif 'word' in entry.mime or 'document' in entry.mime %}
+                        {% set icon = 'fa-file-word' %}{% set tint = 'text-sky-400' %}
+                    {% endif %}
+                {% endif %}
+
+                <span class="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-raised">
+                    <i class="fa-solid {{ icon }} text-base {{ tint }}" aria-hidden="true"></i>
                 </span>
             {% endif %}
 

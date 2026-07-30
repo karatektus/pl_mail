@@ -13,8 +13,7 @@ Navigates rather than selects: a person is a place, not something attachable.
    title="{{ entry.name }}">
     <span class="relative block w-24 h-24 rounded-full overflow-hidden bg-sunken ring-2 ring-transparent group-hover:ring-accent/40 transition-[box-shadow]">
         <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
-             alt="" loading="lazy" class="w-full h-full object-cover"
-             onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-user text-ink-faint w-full h-full flex items-center justify-center'}))">
+             alt="" loading="lazy" class="w-full h-full object-cover">
     </span>
     <span class="w-full truncate text-center text-xs text-ink-muted group-hover:text-ink transition-colors">
         {{ entry.name }}

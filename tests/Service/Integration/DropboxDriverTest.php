@@ -160,6 +160,25 @@ final class DropboxDriverTest extends OAuthDriverTestCase
         self::assertNull($driver->thumbnail($this->integration(Provider::Dropbox), '/archive.zip'));
     }
 
+    public function testSearchReadsTheDoublyNestedMatchShape(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['matches' => [
+                ['metadata' => ['metadata' => [
+                    '.tag' => 'file', 'name' => 'report.pdf', 'path_lower' => '/report.pdf', 'size' => 10,
+                ]]],
+            ], 'has_more' => false]),
+        ]);
+
+        $listing = $driver->search($this->integration(Provider::Dropbox), 'report', null);
+
+        // matches[].metadata.metadata — two levels deeper than a listing, which
+        // is why search cannot share the listing parser.
+        self::assertSame(['report.pdf'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertSame('/report.pdf', $listing->entries[0]->id);
+        self::assertStringEndsWith('/files/search_v2', $this->requests[0]['url']);
+    }
+
     /**
      * @param list<ResponseInterface> $responses
      */

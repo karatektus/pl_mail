@@ -72,9 +72,8 @@ enum Provider: string
     public function capabilities(): array
     {
         return match ($this) {
-            // Immich's own search is a first-class feature of the service —
-            // CLIP smart search over the whole library — so it is worth
-            // surfacing rather than making people browse albums.
+            // Immich's search is CLIP smart search over the whole library, and
+            // it is the only provider that also summarises a timeline.
             self::Immich => [
                 Capability::Browse,
                 Capability::Download,
@@ -83,6 +82,8 @@ enum Provider: string
                 Capability::Search,
                 Capability::Timeline,
             ],
+            // Google Photos is the one without search: its Library API offers
+            // no text search over media, only album and date filters.
             self::GooglePhotos => [
                 Capability::Browse,
                 Capability::Download,
@@ -95,6 +96,7 @@ enum Provider: string
                 Capability::Upload,
                 Capability::ShareLink,
                 Capability::Thumbnail,
+                Capability::Search,
             ],
         };
     }

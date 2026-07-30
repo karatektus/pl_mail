@@ -8,6 +8,7 @@ use App\Domain\DTO\Integration\Entry;
 use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
@@ -26,7 +27,7 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionIn
  * chunks. Attachments routinely straddle that line, so both paths are real
  * rather than one being theoretical.
  */
-final class OneDriveDriver extends AbstractOAuthDriver
+final class OneDriveDriver extends AbstractOAuthDriver implements SearchableDriverInterface
 {
     private const string API = 'https://graph.microsoft.com/v1.0';
     private const string DRIVE = self::API.'/me/drive';
@@ -102,6 +103,65 @@ final class OneDriveDriver extends AbstractOAuthDriver
         return new Listing(
             $entries,
             $this->breadcrumb($integration, $folderId),
+            $this->stringOrNull($payload['@odata.nextLink'] ?? null),
+        );
+    }
+
+    /**
+     * Graph's drive search.
+     *
+     * The term goes in the URL's own quoted argument rather than a query
+     * parameter, so a quote in it would break out of the call — hence the
+     * stripping. Graph pages this with @odata.nextLink like any other listing.
+     */
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing {
+        $query = trim($query);
+
+        if ('' === $query) {
+            return $this->list($integration, $folderId);
+        }
+
+        $url = null !== $cursor && '' !== $cursor
+            ? $cursor
+            : sprintf("%s/root/search(q='%s')", self::DRIVE, rawurlencode(str_replace("'", '', $query)));
+
+        $payload = $this->json($integration, 'GET', $url, [
+            'query' => null !== $cursor && '' !== $cursor ? [] : ['$select' => self::ITEM_FIELDS, '$top' => 200],
+        ]);
+
+        $entries = [];
+
+        foreach ($payload['value'] ?? [] as $item) {
+            if (false === is_array($item)) {
+                continue;
+            }
+
+            $id = $this->stringOrNull($item['id'] ?? null);
+
+            if (null === $id) {
+                continue;
+            }
+
+            $isFolder = true === isset($item['folder']);
+
+            $entries[] = new Entry(
+                id: $id,
+                name: (string) ($item['name'] ?? 'untitled'),
+                isFolder: $isFolder,
+                size: $isFolder ? null : $this->intOrNull($item['size'] ?? null),
+                mime: $isFolder ? null : $this->stringOrNull($item['file']['mimeType'] ?? null),
+                modifiedAt: $this->parseDate($item['lastModifiedDateTime'] ?? null),
+            );
+        }
+
+        return new Listing(
+            $entries,
+            [Entry::folder('', 'OneDrive'), Entry::folder('', sprintf('\u{201C}%s\u{201D}', $query))],
             $this->stringOrNull($payload['@odata.nextLink'] ?? null),
         );
     }

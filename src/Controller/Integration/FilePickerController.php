@@ -143,18 +143,46 @@ final class FilePickerController extends AbstractController
             $preview = null;
         }
 
-        if (null === $preview) {
-            return new Response(null, Response::HTTP_NOT_FOUND);
-        }
+        // A placeholder rather than a 404. Plenty of things legitimately have no
+        // preview — a zip, a person Immich never generated a face crop for — and
+        // answering 404 for each one filled the browser console with failed
+        // requests that looked like breakage and buried real errors.
+        [$body, $mime] = null === $preview
+            ? [$this->placeholderSvg($fileId), 'image/svg+xml']
+            : [$preview->contents, $preview->mime];
 
-        $response = new Response($preview->contents, Response::HTTP_OK, [
-            'Content-Type'           => $preview->mime,
+        $response = new Response($body, Response::HTTP_OK, [
+            'Content-Type'           => $mime,
             'X-Content-Type-Options' => 'nosniff',
         ]);
         $response->setPrivate();
         $response->setMaxAge(3600);
 
         return $response;
+    }
+
+    /**
+     * A neutral stand-in for a preview that does not exist.
+     *
+     * Inline SVG so it costs no asset pipeline and no extra request, and it
+     * carries the same glyph the row would have fallen back to anyway. The
+     * person variant is a bust rather than a sheet of paper, because a nameless
+     * circle with a document in it reads as an error.
+     */
+    private function placeholderSvg(string $fileId): string
+    {
+        $glyph = true === str_starts_with($fileId, 'person:')
+            // Head and shoulders.
+            ? '<circle cx="32" cy="25" r="10"/><path d="M14 54c0-9.9 8.1-18 18-18s18 8.1 18 18z"/>'
+            // Sheet with a folded corner.
+            : '<path d="M20 12h16l10 10v30H20z" opacity=".55"/><path d="M36 12v10h10z"/>';
+
+        return sprintf(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">'
+            .'<rect width="64" height="64" fill="rgb(113 113 122 / .12)"/>'
+            .'<g fill="rgb(113 113 122 / .55)">%s</g></svg>',
+            $glyph,
+        );
     }
 
     /**

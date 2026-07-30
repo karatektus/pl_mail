@@ -242,6 +242,22 @@
     border-radius: var(--app-radius);
 }
 
+/*
+   A menu that floats over content. Unlike pane, the surface is fully opaque:
+   a translucent dropdown lets whatever it covers — toolbar icons, a wall of
+   photos — read straight through the labels, which is illegible rather than
+   airy. The blur stays for the edges, and the shadow does the lifting.
+*/
+@utility popover {
+    background-color: rgb(var(--rgb-surface));
+    backdrop-filter: blur(var(--pane-blur));
+    -webkit-backdrop-filter: blur(var(--pane-blur));
+    border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
+    border-radius: var(--app-radius);
+    box-shadow: 0 20px 25px -5px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 4)),
+    0 8px 10px -6px rgb(var(--rgb-shadow) / calc(var(--shadow-alpha) * 4));
+}
+
 @utility main-pane {
     background-color: rgb(var(--rgb-main) / var(--main-alpha));
     backdrop-filter: blur(var(--pane-blur));

@@ -10,6 +10,7 @@ use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\IntegrationDriverInterface;
+use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration;
 use App\Repository\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
@@ -36,9 +37,20 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * resolved to a path first would double the round trips on every click for no
  * gain, since Nextcloud addresses everything by path anyway.
  */
-final readonly class NextcloudDriver implements IntegrationDriverInterface
+final readonly class NextcloudDriver implements IntegrationDriverInterface, SearchableDriverInterface
 {
-    private const string DAV_PATH = '/remote.php/dav/files';
+    private const string DAV_ROOT = '/remote.php/dav';
+    private const string DAV_PATH = self::DAV_ROOT.'/files';
+
+    /**
+     * Cap on search hits.
+     *
+     * Was 200, which is more than anyone reads and turned one search into a
+     * wall of rows. A picker is for finding one file, so a tighter term beats a
+     * longer list — and basicsearch has no cursor to page with, so this number
+     * is the whole result set rather than a first page.
+     */
+    private const int SEARCH_LIMIT = 60;
     private const string OCS_SHARES = '/ocs/v2.php/apps/files_sharing/api/v1/shares';
     private const string PREVIEW_PATH = '/index.php/core/preview.png';
 
@@ -116,6 +128,110 @@ final readonly class NextcloudDriver implements IntegrationDriverInterface
         });
 
         return new Listing($entries, $this->breadcrumb($folder));
+    }
+
+    /**
+     * Filename search, via WebDAV's SEARCH method.
+     *
+     * Nextcloud also has a unified-search OCS endpoint, but it answers with
+     * app URLs like /apps/files/?dir=…&openfile=123 — which are not WebDAV
+     * paths, and our entry ids are paths. SEARCH returns ordinary multistatus
+     * hrefs instead, so the existing parsing handles the response unchanged and
+     * every result is immediately addressable.
+     *
+     * Matching is a case-insensitive contains on the display name. That is what
+     * basicsearch offers; it is not full-text, and the placeholder text says
+     * "Search Nextcloud" rather than promising more.
+     */
+    public function search(
+        Integration $integration,
+        string $query,
+        ?string $folderId = null,
+        ?string $cursor = null,
+    ): Listing {
+        $query = trim($query);
+
+        if ('' === $query) {
+            return $this->list($integration, $folderId);
+        }
+
+        $scope = $this->normalisePath($folderId ?? '');
+
+        $response = $this->request($integration, 'SEARCH', $this->baseUrl($integration).self::DAV_ROOT.'/', [
+            'headers' => ['Content-Type' => 'application/xml'],
+            'body'    => $this->searchBody($integration, $scope, $query),
+        ]);
+
+        try {
+            $xml = $response->getContent();
+        } catch (HttpExceptionInterface $e) {
+            throw $this->translate($e);
+        }
+
+        $entries = [];
+
+        foreach ($this->parseMultistatus($xml, $this->davRoot($integration)) as $item) {
+            // The scope itself comes back as a hit on some versions.
+            if ($item['path'] === $scope || '' === $item['path']) {
+                continue;
+            }
+
+            $entries[] = new Entry(
+                id: $item['path'],
+                name: basename($item['path']),
+                isFolder: $item['isFolder'],
+                size: $item['size'],
+                mime: $item['mime'],
+                modifiedAt: $item['modifiedAt'],
+            );
+        }
+
+        usort($entries, static function (Entry $a, Entry $b): int {
+            if ($a->isFolder !== $b->isFolder) {
+                return $a->isFolder ? -1 : 1;
+            }
+
+            return strnatcasecmp($a->name, $b->name);
+        });
+
+        return new Listing($entries, [
+            Entry::folder('', 'Nextcloud'),
+            // Names the search rather than a place, since hits cross folders.
+            Entry::folder('', sprintf('\u{201C}%s\u{201D}', $query)),
+        ]);
+    }
+
+    /**
+     * basicsearch request body.
+     *
+     * The literal is XML-escaped and the percent signs are ours, not the
+     * user's: a term containing % would otherwise widen its own match.
+     */
+    private function searchBody(Integration $integration, string $scope, string $query): string
+    {
+        // The scope href is relative to the DAV root, not an absolute server
+        // path: "/files/alice/Documents", never "/remote.php/dav/files/alice/…".
+        // Nextcloud fails to resolve the latter and answers 404, which reads to a
+        // user as "no such folder" when the folder is fine and the request is not.
+        $href = '/files/'.rawurlencode((string) $integration->username)
+            .('' === $scope ? '' : '/'.implode('/', array_map('rawurlencode', explode('/', $scope))));
+
+        $literal = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $query).'%';
+
+        return sprintf(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<d:searchrequest xmlns:d="DAV:"><d:basicsearch>'
+            .'<d:select><d:prop><d:resourcetype/><d:getcontentlength/>'
+            .'<d:getcontenttype/><d:getlastmodified/></d:prop></d:select>'
+            .'<d:from><d:scope><d:href>%s</d:href><d:depth>infinity</d:depth></d:scope></d:from>'
+            .'<d:where><d:like><d:prop><d:displayname/></d:prop>'
+            .'<d:literal>%s</d:literal></d:like></d:where>'
+            .'<d:orderby/><d:limit><d:nresults>%d</d:nresults></d:limit>'
+            .'</d:basicsearch></d:searchrequest>',
+            htmlspecialchars($href, ENT_XML1),
+            htmlspecialchars($literal, ENT_XML1),
+            self::SEARCH_LIMIT,
+        );
     }
 
     public function download(Integration $integration, string $fileId): RemoteFile
