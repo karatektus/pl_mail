@@ -310,6 +310,16 @@ integration:
         copy: Copy
         empty: 'This hold be empty.'
         link: Link
+        more: 'Show more'
+        no_results: 'Naught found for “%query%”.'
+        search: Search
+        search_placeholder:
+            dropbox: 'Search Dropbox'
+            googleDrive: 'Search Drive'
+            googlePhotos: 'Search Photos'
+            immich: 'Describe a picture, say beach at sundown'
+            nextcloud: 'Search Nextcloud'
+            oneDrive: 'Search OneDrive'
         too_big: 'Too heavy to haul'
 
 label:
@@ -730,6 +740,10 @@ settings:
                 immich: 'Mint one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
                 oneDrive: ''
+            permissions:
+                immich: 'asset.read — sight yer pictures and moving pictures|asset.download — haul the original aboard|asset.view — show previews in th'' dialog|asset.upload — stow cargo into Immich|album.read — list and browse yer albums|albumAsset.create — file stowed cargo under an album'
+            permissions_heading: 'Papers this key needs'
+            permissions_note: 'A key with all papers works too, and be simpler than tickin'' boxes.'
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
         heading: 'Friendly ports'

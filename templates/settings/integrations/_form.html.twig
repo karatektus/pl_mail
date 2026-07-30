@@ -101,6 +101,35 @@ credential, and whether the address is the user's to set at all.
                     </p>
                 </div>
 
+                {# ── Required permissions ──
+                   Listed here rather than only in the admin tutorial, because
+                   the person minting the key is the one reading this form. A key
+                   short of one of these fails at the operation that needs it —
+                   uploads working while previews 404, say — which is far harder
+                   to diagnose than being told up front. #}
+                {% set permissionKey = 'settings.integrations.field.permissions.' ~ provider.value %}
+                {% if permissionKey|trans != permissionKey %}
+                    <div class="rounded-lg border border-line bg-sunken px-3.5 py-3 space-y-1.5">
+                        <p class="text-xs font-semibold text-ink">
+                            <i class="fa-solid fa-key mr-1 text-[10px]" aria-hidden="true"></i>
+                            {{ 'settings.integrations.field.permissions_heading'|trans }}
+                        </p>
+                        <ul class="space-y-1">
+                            {% for permission in permissionKey|trans|split('|') %}
+                                <li class="flex items-start gap-2 text-xs text-ink-muted">
+                                    <code class="shrink-0 text-[11px] text-ink">{{ permission|split(' — ')|first }}</code>
+                                    {% if permission|split(' — ')|length > 1 %}
+                                        <span class="text-ink-faint">{{ permission|split(' — ')|last }}</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        <p class="text-[11px] text-ink-faint pt-0.5">
+                            {{ 'settings.integrations.field.permissions_note'|trans }}
+                        </p>
+                    </div>
+                {% endif %}
+
                 <p class="text-xs text-ink-faint">
                     <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
                     {{ 'settings.integrations.save_tests'|trans }}

@@ -312,6 +312,16 @@ integration:
         copy: Kopie
         empty: 'Dieser Ordner ist leer.'
         link: Link
+        more: 'Mehr anzeigen'
+        no_results: 'Nichts gefunden für „%query%“.'
+        search: Suchen
+        search_placeholder:
+            dropbox: 'Dropbox durchsuchen'
+            googleDrive: 'Drive durchsuchen'
+            googlePhotos: 'Photos durchsuchen'
+            immich: 'Ein Foto beschreiben, z. B. Strand bei Sonnenuntergang'
+            nextcloud: 'Nextcloud durchsuchen'
+            oneDrive: 'OneDrive durchsuchen'
         too_big: 'Zu groß zum Anhängen'
 
 label:
@@ -745,6 +755,10 @@ settings:
                 immich: 'In Immich unter Account Settings → API Keys erzeugen.'
                 nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
                 oneDrive: ''
+            permissions:
+                immich: 'asset.read — Fotos und Videos sehen|asset.download — die Originaldatei anhängen|asset.view — Vorschauen im Dialog anzeigen|asset.upload — Anhänge in Immich speichern|album.read — Alben auflisten und durchsehen|albumAsset.create — gespeicherte Anhänge einem Album zuordnen'
+            permissions_heading: 'Berechtigungen für diesen Schlüssel'
+            permissions_note: 'Ein Schlüssel mit allen Berechtigungen funktioniert ebenfalls und ist einfacher, wenn Sie nicht einzeln auswählen möchten.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen

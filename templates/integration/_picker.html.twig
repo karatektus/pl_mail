@@ -18,6 +18,9 @@ Only the picking is scripted, and it posts once, at the end.
 #}
 {% extends '_layout/app.html.twig' %}
 
+{# A photo library gets a grid of previews; a file store gets a list of names. #}
+{% set isGrid = canThumb and integration.provider.isMediaLibrary %}
+
 {% block body %}
     <turbo-frame id="modal">
         <template data-modal-frame-title>{{ integration.name }}</template>
@@ -71,6 +74,23 @@ Only the picking is scripted, and it posts once, at the end.
                     {% endfor %}
                 </nav>
 
+                {# ── Shortcuts ──
+                   Sideways jumps the driver offered, e.g. Immich surfacing its
+                   album list from the timeline. Rendered as whatever it hands
+                   over, so no per-provider branch lives here. #}
+                {% if listing.shortcuts is not empty %}
+                    <div class="flex items-center gap-2 flex-wrap px-5 pt-3 shrink-0">
+                        {% for shortcut in listing.shortcuts %}
+                            <a href="{{ path('app_integration_browse', { id: integration.id, folder: shortcut.id, draft: draftId }) }}"
+                               class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-medium
+                                      text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                <i class="fa-solid fa-images text-[10px]" aria-hidden="true"></i>
+                                {{ shortcut.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
                 {# ── Entries ── #}
                 <div class="px-5 py-3 overflow-y-auto max-h-[55vh]">
                     {% if listing.entries is empty %}
@@ -78,6 +98,81 @@ Only the picking is scripted, and it posts once, at the end.
                             {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
                                      : 'integration.picker.empty'|trans }}
                         </p>
+                    {% elseif isGrid %}
+
+                        {# ── Photo grid ──
+                           No filenames: nobody recognises a photo by reading
+                           IMG_4821.jpg. The whole tile is the control, and the
+                           date sits in a bar that appears on hover, on keyboard
+                           focus, and whenever the tile is selected — hover alone
+                           would hide it permanently on a touch screen.
+
+                           Copy is the only mode here. A media library with share
+                           links would need a second affordance; none has one. #}
+                        {% if listing.folders is not empty %}
+                            <ul class="mb-3 divide-y divide-line">
+                                {% for entry in listing.folders %}
+                                    <li>
+                                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+                                           class="flex items-center gap-3 py-2.5 hover:bg-hover -mx-2 px-2 rounded-lg transition-colors">
+                                            <i class="fa-solid fa-images text-amber-500 w-5 text-center shrink-0" aria-hidden="true"></i>
+                                            <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ entry.name }}</span>
+                                            <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint" aria-hidden="true"></i>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(6rem,1fr))]">
+                            {% for entry in listing.files %}
+                                {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
+
+                                {% if knownTooBig %}
+                                    <div class="relative aspect-square rounded-lg overflow-hidden bg-sunken opacity-40"
+                                         title="{{ 'integration.picker.too_big'|trans }}">
+                                        <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
+                                             alt="" loading="lazy" class="w-full h-full object-cover">
+                                    </div>
+                                {% else %}
+                                    <label class="group relative aspect-square block rounded-lg overflow-hidden bg-sunken cursor-pointer
+                                                  select-none touch-manipulation"
+                                           data-action="pointerdown->integration-picker#tileDown click->integration-picker#tileClick">
+                                        <input type="checkbox" class="peer sr-only"
+                                               name="mode[{{ entry.id }}]" value="copy"
+                                               data-integration-picker-target="mode">
+
+                                        <img src="{{ path('app_integration_thumbnail', { id: integration.id, file: entry.id }) }}"
+                                             alt="{{ entry.name }}" loading="lazy"
+                                             class="w-full h-full object-cover transition-transform duration-150
+                                                    peer-checked:scale-95"
+                                             onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-file text-ink-faint w-full h-full flex items-center justify-center'}))">
+
+                                        {# Selection ring and tick. #}
+                                        <span class="pointer-events-none absolute inset-0 rounded-lg
+                                                     ring-2 ring-inset ring-transparent peer-checked:ring-accent
+                                                     transition-colors"></span>
+                                        <span class="pointer-events-none absolute top-1.5 right-1.5 w-5 h-5 rounded-full
+                                                     bg-accent text-white text-[10px] items-center justify-center
+                                                     hidden peer-checked:flex">
+                                            <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                        </span>
+
+                                        {% if entry.modifiedAt %}
+                                            <span class="pointer-events-none absolute inset-x-0 bottom-0 px-1.5 py-1
+                                                         bg-gradient-to-t from-black/70 to-transparent
+                                                         text-[10px] text-white text-center tabular-nums
+                                                         opacity-0 transition-opacity
+                                                         group-hover:opacity-100 peer-focus-visible:opacity-100
+                                                         peer-checked:opacity-100">
+                                                {{ entry.modifiedAt|date('Y-m-d') }}
+                                            </span>
+                                        {% endif %}
+                                    </label>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
                     {% else %}
                         <ul class="divide-y divide-line">
                             {% for entry in listing.entries %}

@@ -19,9 +19,13 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Immich's two-level browse (albums, then their assets) and the metadata gaps
- * the picker has to survive — an asset whose EXIF has not been extracted has
- * no size at all, which must read as "unknown" rather than "zero bytes".
+ * Immich's navigation and the metadata gaps the picker has to survive.
+ *
+ * The landing view is the whole library, with albums as a sideways jump — that
+ * ordering is the point, because opening on albums made the picker look empty
+ * for anyone who does not curate. And an asset Immich has not processed reports
+ * no size at all, which must read as "unknown" and stay attachable rather than
+ * being treated as oversize, which made every photo unselectable.
  */
 final class ImmichDriverTest extends TestCase
 {
@@ -33,7 +37,28 @@ final class ImmichDriverTest extends TestCase
         $this->requests = [];
     }
 
-    public function testRootListsAlbumsAsFolders(): void
+    public function testTheLandingViewIsTheWholeLibraryNotTheAlbumList(): void
+    {
+        // Albums used to be the way in, and that made the picker look empty for
+        // anyone who does not file their photos into albums.
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'm1', 'originalFileName' => 'beach.jpg', 'originalMimeType' => 'image/jpeg'],
+            ]]]),
+        ]);
+
+        $listing = $driver->list($this->integration());
+
+        self::assertSame(['beach.jpg'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringEndsWith('/api/search/metadata', $this->requests[0]['url']);
+        self::assertSame(['All photos'], array_map(static fn ($c) => $c->name, $listing->breadcrumb));
+
+        // Albums stay reachable, but as a sideways jump rather than the entrance.
+        self::assertSame(['Albums'], array_map(static fn ($s) => $s->name, $listing->shortcuts));
+        self::assertSame('albums', $listing->shortcuts[0]->id);
+    }
+
+    public function testTheAlbumsShortcutListsAlbumsAsFolders(): void
     {
         $driver = $this->driver([
             new JsonMockResponse([
@@ -42,46 +67,90 @@ final class ImmichDriverTest extends TestCase
             ]),
         ]);
 
-        $listing = $driver->list($this->integration());
+        $listing = $driver->list($this->integration(), 'albums');
 
         self::assertSame(['Archive', 'Trips'], array_map(static fn ($e) => $e->name, $listing->entries));
         self::assertTrue($listing->entries[0]->isFolder);
         self::assertStringEndsWith('/api/albums', $this->requests[0]['url']);
     }
 
-    public function testAlbumListsAssetsWithMetadata(): void
+    public function testAlbumContentsComeFromSearchSoTheyPage(): void
     {
         $driver = $this->driver([
-            new JsonMockResponse([
-                'id'        => 'b-2',
-                'albumName' => 'Trips',
-                'assets'    => [
+            new JsonMockResponse(['assets' => [
+                'items' => [
                     [
                         'id'               => 'asset-1',
                         'originalFileName' => 'beach.jpg',
                         'originalMimeType' => 'image/jpeg',
                         'fileCreatedAt'    => '2026-06-11T12:00:00Z',
-                        'exifInfo'         => ['fileSizeInByte' => 4_200_000],
+                        'exifInfo'         => ['fileSizeInByte' => 4200000],
                     ],
-                    [
-                        // No exifInfo at all — Immich has not processed it yet.
-                        'id'               => 'asset-2',
-                        'originalFileName' => 'clip.mp4',
-                        'originalMimeType' => 'video/mp4',
-                    ],
+                    // No exifInfo yet: Immich has not processed this one.
+                    ['id' => 'asset-2', 'originalFileName' => 'clip.mp4', 'originalMimeType' => 'video/mp4'],
                 ],
-            ]),
+                'nextPage' => '2',
+            ]]),
+            new JsonMockResponse(['albumName' => 'Trips']),
         ]);
 
         $listing = $driver->list($this->integration(), 'b-2');
 
         self::assertCount(2, $listing->entries);
-        self::assertSame(4_200_000, $listing->entries[0]->size);
-        self::assertSame('image/jpeg', $listing->entries[0]->mime);
-        self::assertNull($listing->entries[1]->size, 'a missing size is unknown, not zero');
-        self::assertFalse($listing->entries[0]->isFolder);
+        self::assertSame(4200000, $listing->entries[0]->size);
+        // Unknown size means "not known yet". The picker treats that as
+        // attachable — calling it oversize made every photo unselectable.
+        self::assertNull($listing->entries[1]->size);
 
-        self::assertSame(['Immich', 'Trips'], array_map(static fn ($c) => $c->name, $listing->breadcrumb));
+        self::assertSame('2', $listing->nextCursor, 'Immich reports the next page itself');
+        self::assertSame(['b-2'], $this->jsonBodyOf(0)['albumIds'] ?? null);
+        self::assertSame(['Immich', 'Albums', 'Trips'], array_map(static fn ($c) => $c->name, $listing->breadcrumb));
+    }
+
+    public function testSearchUsesSmartSearchFirst(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'm1', 'originalFileName' => 'sunset.jpg'],
+            ]]]),
+        ]);
+
+        $listing = $driver->search($this->integration(), 'beach at sunset');
+
+        self::assertSame(['sunset.jpg'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringEndsWith('/api/search/smart', $this->requests[0]['url']);
+        self::assertSame('beach at sunset', $this->jsonBodyOf(0)['query'] ?? null);
+    }
+
+    public function testSearchFallsBackToFilenameWhenSmartSearchIsUnavailable(): void
+    {
+        // Immich's ML service is optional, so smart search can be missing on an
+        // otherwise healthy server. A dead search box is worse than a dumb one.
+        $driver = $this->driver([
+            new MockResponse('', ['http_code' => 500]),
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'm1', 'originalFileName' => 'sunset.jpg'],
+            ]]]),
+        ]);
+
+        $listing = $driver->search($this->integration(), 'sunset');
+
+        self::assertCount(1, $listing->entries);
+        self::assertStringEndsWith('/api/search/smart', $this->requests[0]['url']);
+        self::assertStringEndsWith('/api/search/metadata', $this->requests[1]['url']);
+        self::assertSame('sunset', $this->jsonBodyOf(1)['originalFileName'] ?? null);
+    }
+
+    public function testAnEmptyQueryFallsBackToTheLibrary(): void
+    {
+        $driver = $this->driver([new JsonMockResponse(['assets' => ['items' => []]])]);
+
+        $driver->search($this->integration(), '   ');
+
+        // Clearing the box is how a user leaves a search, so it must not go
+        // looking for the empty string.
+        self::assertStringEndsWith('/api/search/metadata', $this->requests[0]['url']);
+        self::assertArrayNotHasKey('query', $this->jsonBodyOf(0));
     }
 
     public function testDownloadTakesTheFilenameFromContentDisposition(): void
@@ -155,6 +224,16 @@ final class ImmichDriverTest extends TestCase
      * The client normalises an iterable body into a closure yielding chunks
      * until it returns ''.
      */
+    /**
+     * @return array<string,mixed>
+     */
+    private function jsonBodyOf(int $index): array
+    {
+        $decoded = json_decode($this->requests[$index]['body'], true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     private function drain(mixed $body): string
     {
         if (true === is_string($body)) {

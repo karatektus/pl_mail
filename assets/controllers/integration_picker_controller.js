@@ -23,6 +23,46 @@ export default class extends Controller {
         token: String,
     };
 
+    /**
+     * How far a pointer may travel between press and release and still count as
+     * a tap. Below this a finger that drifted while scrolling would toggle a
+     * photo the user never meant to pick — the grid fills the scrollable area,
+     * so almost every scroll gesture starts on a tile.
+     */
+    static TAP_SLOP_PX = 10;
+
+    /** Records where a press started, so tileClick can measure the drift. */
+    tileDown(event) {
+        this._downX = event.clientX;
+        this._downY = event.clientY;
+        this._scrolled = false;
+    }
+
+    /**
+     * Cancel the toggle when the pointer moved like a scroll rather than a tap.
+     *
+     * Browsers usually suppress the click after a touch scroll, but not
+     * reliably once momentum and nested scroll containers are involved, and
+     * getting this wrong is worse than a missed tap: the user only finds out
+     * when an unexpected photo lands in their mail.
+     */
+    tileClick(event) {
+        if (undefined === this._downX) {
+            return;
+        }
+
+        const drifted =
+            Math.abs(event.clientX - this._downX) > this.constructor.TAP_SLOP_PX ||
+            Math.abs(event.clientY - this._downY) > this.constructor.TAP_SLOP_PX;
+
+        this._downX = undefined;
+
+        if (true === drifted) {
+            // The label would otherwise toggle its checkbox for us.
+            event.preventDefault();
+        }
+    }
+
     async attach() {
         const chosen = this.modeTargets.filter((input) => input.checked);
 

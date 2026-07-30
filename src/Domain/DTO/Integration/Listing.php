@@ -11,17 +11,24 @@ namespace App\Domain\DTO\Integration;
  * only the driver knows how to turn its own opaque folder id back into a
  * readable path, and carrying the trail in the query string would let a user
  * hand-edit their way into an inconsistent view.
+ *
+ * Shortcuts are sideways jumps a driver wants offered next to the results —
+ * Immich surfacing "Albums" from its timeline, for instance. They exist so a
+ * service's own shape can reach the UI without the template growing a
+ * per-provider branch: the picker renders whatever chips it is handed.
  */
 final readonly class Listing
 {
     /**
      * @param list<Entry> $entries
      * @param list<Entry> $breadcrumb root first, current folder last
+     * @param list<Entry> $shortcuts  jumps offered alongside the results
      */
     public function __construct(
         public array   $entries,
         public array   $breadcrumb = [],
         public ?string $nextCursor = null,
+        public array   $shortcuts = [],
     ) {
     }
 

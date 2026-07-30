@@ -310,6 +310,16 @@ integration:
         copy: Copy
         empty: 'This folder is empty.'
         link: Link
+        more: 'Show more'
+        no_results: 'Nothing found for “%query%”.'
+        search: Search
+        search_placeholder:
+            dropbox: 'Search Dropbox'
+            googleDrive: 'Search Drive'
+            googlePhotos: 'Search Photos'
+            immich: 'Describe a photo, e.g. beach at sunset'
+            nextcloud: 'Search Nextcloud'
+            oneDrive: 'Search OneDrive'
         too_big: 'Too large to attach'
 
 label:
@@ -731,6 +741,10 @@ settings:
                 immich: 'Create one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
                 oneDrive: ''
+            permissions:
+                immich: 'asset.read — see your photos and videos|asset.download — attach the original file|asset.view — show previews in the picker|asset.upload — save attachments into Immich|album.read — list and browse your albums|albumAsset.create — file saved attachments into an album'
+            permissions_heading: 'Permissions this key needs'
+            permissions_note: 'Granting the key all permissions also works, and is simpler if you would rather not tick boxes.'
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
         heading: Integrations

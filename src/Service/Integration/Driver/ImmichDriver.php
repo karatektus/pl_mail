@@ -25,10 +25,11 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 /**
  * Immich, the self-hosted photo library.
  *
- * A photo library has no directory tree, so the root is a set of entry points
- * rather than a folder: a Timeline covering the whole library, then one folder
- * per album. Browsing albums alone was the original design and it was too
- * narrow — most photos a person wants to attach were never filed into an album.
+ * A photo library has no directory tree, so the landing view is the library
+ * itself — every asset, newest first — with albums offered as a sideways jump
+ * rather than as the way in. Browsing albums only was the original design and it
+ * was too narrow: most photos a person wants to attach were never filed into
+ * one, so the picker looked like it held nothing.
  *
  * Search goes through Immich's own smart search, which is CLIP-based and takes
  * natural language ("beach at sunset"). When the ML service is not running that
@@ -60,10 +61,11 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
     private const string THUMBNAIL_SIZE = 'thumbnail';
 
     /**
-     * Virtual folder id for the whole library. Immich album ids are UUIDs, so a
-     * bare word cannot collide with one.
+     * Virtual folder ids. Immich album ids are UUIDs, so bare words cannot
+     * collide with one.
      */
     private const string TIMELINE = 'timeline';
+    private const string ALBUMS = 'albums';
 
     /** Assets per page, for both the timeline and search results. */
     private const int PAGE_SIZE = 100;
@@ -88,12 +90,16 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
     public function list(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
     {
-        if (null === $folderId || '' === $folderId) {
-            return $this->root($integration);
+        // The library itself is the landing view. Albums are a sideways jump
+        // from it, not the way in — most photos worth attaching were never
+        // filed into one, and opening on a list of albums made the picker look
+        // like it held nothing.
+        if (null === $folderId || '' === $folderId || self::TIMELINE === $folderId) {
+            return $this->timeline($integration, $cursor);
         }
 
-        if (self::TIMELINE === $folderId) {
-            return $this->timeline($integration, $cursor);
+        if (self::ALBUMS === $folderId) {
+            return $this->albumList($integration);
         }
 
         return $this->albumAssets($integration, $folderId, $cursor);
@@ -113,7 +119,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
         $query = trim($query);
 
         if ('' === $query) {
-            return $this->root($integration);
+            return $this->timeline($integration, null);
         }
 
         $page = $this->pageFrom($cursor);
@@ -128,12 +134,16 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             ]);
         }
 
-        return $this->fromAssetsPayload($payload, [
-            Entry::folder('', 'Immich'),
-            // The trail names the search rather than a location, since results
-            // cross every album.
-            Entry::folder(self::TIMELINE, sprintf('“%s”', $query)),
-        ]);
+        return $this->fromAssetsPayload(
+            $payload,
+            [
+                Entry::folder(self::TIMELINE, 'All photos'),
+                // The trail names the search rather than a location, since
+                // results cross every album.
+                Entry::folder('', sprintf('“%s”', $query)),
+            ],
+            [Entry::folder(self::ALBUMS, 'Albums')],
+        );
     }
 
     public function download(Integration $integration, string $fileId): RemoteFile
@@ -249,18 +259,12 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
     // ── Listings ──────────────────────────────────────────────────────────────
 
-    /**
-     * The root: the whole library first, then the albums.
-     *
-     * Timeline leads because it is the answer most of the time — a photo worth
-     * attaching usually was never filed into an album, and offering only albums
-     * made the picker look empty for anyone who does not curate.
-     */
-    private function root(Integration $integration): Listing
+    /** Every album, as folders to descend into. */
+    private function albumList(Integration $integration): Listing
     {
         return new Listing(
-            [Entry::folder(self::TIMELINE, 'All photos'), ...$this->albums($integration)],
-            $this->breadcrumb(),
+            $this->albums($integration),
+            [...$this->breadcrumb(), Entry::folder(self::ALBUMS, 'Albums')],
         );
     }
 
@@ -280,10 +284,11 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             'json' => ['size' => self::PAGE_SIZE, 'page' => $page, 'order' => 'desc'],
         ]);
 
-        return $this->fromAssetsPayload($payload, [
-            ...$this->breadcrumb(),
-            Entry::folder(self::TIMELINE, 'All photos'),
-        ]);
+        return $this->fromAssetsPayload(
+            $payload,
+            [Entry::folder(self::TIMELINE, 'All photos')],
+            [Entry::folder(self::ALBUMS, 'Albums')],
+        );
     }
 
     /**
@@ -295,8 +300,9 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
      *
      * @param array<mixed> $payload
      * @param list<Entry>  $breadcrumb
+     * @param list<Entry>  $shortcuts
      */
-    private function fromAssetsPayload(array $payload, array $breadcrumb): Listing
+    private function fromAssetsPayload(array $payload, array $breadcrumb, array $shortcuts = []): Listing
     {
         $bucket = $payload['assets'] ?? [];
         $items = is_array($bucket) ? ($bucket['items'] ?? []) : [];
@@ -320,6 +326,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             $entries,
             $breadcrumb,
             null === $next || '' === $next ? null : (string) $next,
+            $shortcuts,
         );
     }
 
@@ -400,6 +407,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
         return $this->fromAssetsPayload($payload, [
             ...$this->breadcrumb(),
+            Entry::folder(self::ALBUMS, 'Albums'),
             Entry::folder($albumId, $this->albumName($integration, $albumId)),
         ]);
     }
@@ -453,6 +461,27 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
     }
 
     // ── HTTP ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Any request whose response is JSON. The search endpoints are POSTs, so
+     * get() alone would not cover them.
+     *
+     * @param array<string,mixed> $options
+     *
+     * @return array<mixed>
+     *
+     * @throws IntegrationException
+     */
+    private function json(Integration $integration, string $method, string $url, array $options = []): array
+    {
+        $response = $this->request($integration, $method, $url, $options);
+
+        try {
+            return $response->toArray();
+        } catch (HttpExceptionInterface $e) {
+            throw $this->translate($e);
+        }
+    }
 
     /**
      * @param array<string,scalar> $query
@@ -570,7 +599,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             return null;
         }
     }
-
+    
     private function intOrNull(mixed $value): ?int
     {
         return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null;

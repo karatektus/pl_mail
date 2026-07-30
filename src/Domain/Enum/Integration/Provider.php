@@ -215,6 +215,22 @@ enum Provider: string
     }
 
     /**
+     * Whether this holds photos rather than files.
+     *
+     * Decides how the picker renders: a grid of previews for a photo library,
+     * a list of names for a file store. The distinction is real rather than
+     * cosmetic — nobody recognises a photo by reading "IMG_4821.jpg", and
+     * nobody picks a spreadsheet out of a wall of thumbnails.
+     */
+    public function isMediaLibrary(): bool
+    {
+        return match ($this) {
+            self::Immich, self::GooglePhotos => true,
+            default                         => false,
+        };
+    }
+
+    /**
      * Translation key stem for this provider's UI copy, e.g.
      * "settings.integrations.provider.nextcloud.help".
      */
