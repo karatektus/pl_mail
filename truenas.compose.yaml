@@ -121,7 +121,24 @@ services:
         image: *image
         pull_policy: always
         restart: "no"
-        entrypoint: ["generate-secrets"]
+        # Lays out the shared directory before anything else starts, then mints
+        # the secrets. Docker creates the host path as root, and Postgres runs
+        # as uid 999 in the 18-alpine image (uid 70 before 18) — it cannot make
+        # its own data directory inside a root-owned parent, which is the one
+        # thing "subfolders are automatic" cannot leave to the services
+        # themselves.
+        entrypoint:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /app/var/data/secrets \
+                       /app/var/data/postgres \
+                       /app/var/data/attachments \
+                       /app/var/data/raw \
+                       /app/var/data/uploads
+              chown -R 999:999 /app/var/data/postgres
+              exec generate-secrets
         environment:
             APP_SECRETS_DIR: /app/var/data/secrets
             APP_SECRET: *app_secret
@@ -285,12 +302,6 @@ services:
               target: /plmail
               bind:
                   create_host_path: true
-            - type: bind
-              source: *path_data
-              target: /plmail
-              bind:
-                  create_host_path: true
-              read_only: true
         command:
             - "postgres"
             - "-c"
