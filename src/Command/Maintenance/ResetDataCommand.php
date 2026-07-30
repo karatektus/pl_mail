@@ -3,6 +3,8 @@
 namespace App\Command\Maintenance;
 
 use App\Infrastructure\Setup\GeneratedSecretsFile;
+use App\Service\Monitoring\WorkerRestartSignal;
+use Throwable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
@@ -40,6 +42,7 @@ class ResetDataCommand extends Command
         private readonly EntityManagerInterface $em,
         private readonly GeneratedSecretsFile $secrets,
         private readonly Filesystem $filesystem,
+        private readonly WorkerRestartSignal $workerRestart,
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
     ) {
@@ -53,7 +56,8 @@ class ResetDataCommand extends Command
             ->addOption('contacts', null, InputOption::VALUE_NONE, 'Also delete harvested contacts')
             ->addOption('accounts', null, InputOption::VALUE_NONE, 'Also delete the accounts themselves, aliases included (implies --mailboxes)')
             ->addOption('keep-monitoring', null, InputOption::VALUE_NONE, 'Keep monitoring data (aggregated logs and process heartbeats)')
-            ->addOption('full', null, InputOption::VALUE_NONE, 'Back to first-run state: every table, every user, the stored files and the generated secrets');
+            ->addOption('full', null, InputOption::VALUE_NONE, 'Back to first-run state: every table, every user and the stored files')
+            ->addOption('rotate-secrets', null, InputOption::VALUE_NONE, 'With --full: also discard the generated secrets. Requires restarting the whole stack before the app is used again');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -61,7 +65,7 @@ class ResetDataCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         if (true === $input->getOption('full')) {
-            return $this->fullReset($io, $input->isInteractive());
+            return $this->fullReset($io, $input->isInteractive(), true === $input->getOption('rotate-secrets'));
         }
 
         $io->warning('This will permanently delete synced data from the database.');
@@ -197,6 +201,30 @@ class ResetDataCommand extends Command
     }
 
     /**
+     * Delete everything inside a directory, but not the directory.
+     *
+     * These paths are bind mounts — attachments, raw messages and uploads are
+     * on host storage so the web container and the workers can both reach them
+     * — and a mount point cannot be removed from inside the container:
+     * rmdir() answers "Device or resource busy". Emptying is what was meant
+     * anyway; the directory itself has to survive for the next write.
+     *
+     * @return bool whether there was a directory to empty
+     */
+    private function emptyDirectory(string $path): bool
+    {
+        if (false === is_dir($path)) {
+            return false;
+        }
+
+        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $child) {
+            $this->filesystem->remove($path.'/'.$child);
+        }
+
+        return true;
+    }
+
+    /**
      * Put the install back to the state a fresh `docker compose up` produces:
      * no data, no users, no generated secrets. The next page load offers the
      * create-your-account screen again.
@@ -206,14 +234,24 @@ class ResetDataCommand extends Command
      * deletes the user you are running it as, and there is nothing to undo it
      * with.
      */
-    private function fullReset(SymfonyStyle $io, bool $interactive): int
+    private function fullReset(SymfonyStyle $io, bool $interactive, bool $rotateSecrets): int
     {
-        $io->warning([
+        $warning = [
             'FULL RESET — this deletes everything, not just synced mail:',
             'every user (you included), every account and its stored password,',
-            'the files on disk, and the secrets generated on first run.',
+            'and the files on disk.',
             'The install goes back to asking for its first administrator.',
-        ]);
+        ];
+
+        if (true === $rotateSecrets) {
+            $warning[] = '';
+            $warning[] = 'AND the generated secrets. Every service is still running with the old';
+            $warning[] = 'APP_ENCRYPTION_KEY in memory and will keep using it until restarted, so';
+            $warning[] = 'anything saved before you restart the stack becomes unreadable to half';
+            $warning[] = 'of it. Restart immediately afterwards and before using the app.';
+        }
+
+        $io->warning($warning);
 
         if (true === $interactive && false === $io->confirm('Continue?', false)) {
             $io->text('Nothing was changed.');
@@ -248,27 +286,49 @@ class ResetDataCommand extends Command
         // Attachments, raw messages and uploads are all referenced by rows that
         // no longer exist, so leaving them would be leaking disk to nothing.
         foreach (['var/attachments', 'var/raw', 'var/uploads'] as $directory) {
-            $path = $this->projectDir.'/'.$directory;
-
-            if (true === $this->filesystem->exists($path)) {
-                $this->filesystem->remove($path);
+            if (true === $this->emptyDirectory($this->projectDir.'/'.$directory)) {
                 $io->text('✓ '.$directory);
             }
+        }
+
+        if (false === $rotateSecrets) {
+            // Deliberately untouched. Rotating the encryption key cannot be
+            // made safe from inside a running fleet: the other services hold
+            // the old one in memory until they restart, so for a while half of
+            // them cannot read what the other half writes. The data it
+            // protected is gone anyway, which is most of the reason to rotate.
+            $io->success([
+                'Done. Open plMail and create the first administrator.',
+                'The generated secrets were left alone — add --rotate-secrets to discard them,',
+                'and restart the whole stack immediately afterwards.',
+            ]);
+
+            return Command::SUCCESS;
         }
 
         $io->section('Clearing generated secrets...');
 
         $removed = $this->secrets->remove(self::RESETTABLE_SECRETS);
 
-        $this->filesystem->remove($this->projectDir.'/var/secrets/jwt');
+        $this->emptyDirectory($this->projectDir.'/var/secrets/jwt');
+
+        // Best effort: the workers recycle onto the new key rather than
+        // lingering on the old one. The web process cannot restart itself,
+        // which is why the instruction below is not optional.
+        try {
+            $this->workerRestart->request();
+        } catch (Throwable) {
+            // A nudge that fails changes nothing about what has to happen next.
+        }
 
         $io->listing([...$removed, 'JWT keypair']);
         $io->text('POSTGRES_PASSWORD kept — Postgres was initialised with it. To change that, wipe the database volume.');
 
-        $io->success([
-            'Done. Restart the stack so every service picks up new secrets:',
+        $io->warning([
+            'RESTART THE STACK NOW, before using plMail:',
             '  docker compose restart',
-            'Then open plMail and create the first administrator.',
+            'Every service is still running with the old encryption key. Anything saved',
+            'before the restart will be unreadable to the services that have moved on.',
         ]);
 
         return Command::SUCCESS;

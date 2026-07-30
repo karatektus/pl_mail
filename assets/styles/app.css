@@ -340,6 +340,23 @@
     color: rgb(var(--rgb-danger));
 }
 
+/* A pill for a step that has actually been answered. Its own utility rather
+   than Tailwind colour classes: --rgb-success is a theme token, so a step
+   marked done stays legible in every theme. */
+@utility pill-done {
+    background-color: rgb(var(--rgb-success) / 0.12);
+    border-color: rgb(var(--rgb-success) / 0.35);
+    color: rgb(var(--rgb-success));
+}
+
+/* A step that was filled in and does not work. Its own utility for the same
+   reason pill-done is: --rgb-danger is a theme token. */
+@utility pill-failed {
+    background-color: rgb(var(--rgb-danger) / 0.12);
+    border-color: rgb(var(--rgb-danger) / 0.35);
+    color: rgb(var(--rgb-danger));
+}
+
 @utility alert-info {
     background-color: rgb(var(--rgb-info) / var(--info-soft-alpha));
     border: 1px solid rgb(var(--rgb-info) / 0.2);

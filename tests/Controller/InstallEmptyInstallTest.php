@@ -90,6 +90,7 @@ final class InstallEmptyInstallTest extends WebTestCase
             'first_admin[publicUrl]'            => 'https://localhost',
             'first_admin[plainPassword][first]' => 'correct-horse-battery-staple',
             'first_admin[plainPassword][second]' => 'correct-horse-battery-staple',
+            'first_admin[locale]'               => 'de',
         ]));
 
         // Straight into the app: no second sign-in, which is the whole point of
@@ -102,6 +103,8 @@ final class InstallEmptyInstallTest extends WebTestCase
         self::assertNotNull($created);
         self::assertContains('ROLE_ADMIN', $created->getRoles(), 'the first user owns the install');
         self::assertNotSame('correct-horse-battery-staple', $created->getPassword(), 'the password must be hashed');
+        // Chosen on the setup screen, and theirs from here on.
+        self::assertSame('de', $created->getLocale());
 
         // The public address is asked for here because a worker building a push
         // subscription has no request to infer one from.
@@ -113,6 +116,38 @@ final class InstallEmptyInstallTest extends WebTestCase
         // And the door closes behind them.
         $client->request('GET', '/install');
         self::assertSame(404, $client->getResponse()->getStatusCode());
+    }
+
+    /**
+     * The language selector reloads the page, so anything already typed has to
+     * survive the round trip — otherwise correcting the language costs you the
+     * form.
+     */
+    public function testSwitchingLanguageKeepsWhatWasAlreadyTyped(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+
+        $this->configPath = static::getContainer()->get(GeneratedSecretsFile::class)->path();
+        static::getContainer()->get(WorkerRestartSignal::class)->request();
+
+        $this->connection = $entityManager->getConnection();
+        $this->connection->beginTransaction();
+
+        $this->emptyTheInstall();
+
+        $client->request('GET', '/install?_locale=de&first_admin%5BnameFirst%5D=Ada&first_admin%5Bemail%5D=ada%40plmail.test');
+
+        self::assertResponseIsSuccessful();
+
+        $html = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('value="Ada"', $html);
+        self::assertStringContainsString('value="ada@plmail.test"', $html);
+        // And the page itself came back in the chosen language.
+        self::assertStringContainsString('Konto anlegen', $html);
     }
 
     public function testAShortPasswordIsRejectedRatherThanCreatingTheAccount(): void

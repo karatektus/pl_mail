@@ -6,7 +6,9 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
 use App\Form\ApiTokenType;
+use App\Entity\User\User;
 use App\Form\User\ProfileType;
+use App\Service\User\AvatarFromIntegration;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -37,6 +39,7 @@ final class SettingsController extends AbstractController
         private readonly string $vapidPublicKey,
         #[Autowire('%kernel.default_locale%')]
         private readonly string $defaultLocale,
+        private readonly AvatarFromIntegration $avatarSources,
     ) {
     }
 
@@ -58,9 +61,7 @@ final class SettingsController extends AbstractController
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
-            'profileForm'        => $this->createForm(ProfileType::class, $this->getUser(), [
-                'action' => $this->generateUrl('app_settings_profile_save'),
-            ])->createView(),
+            ...$this->profileSection($request),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
@@ -68,6 +69,54 @@ final class SettingsController extends AbstractController
                 ?? AppLocale::tryFromRequest($this->defaultLocale)
                 ?? AppLocale::English,
         ]);
+    }
+
+    /**
+     * The profile section's own parameters.
+     *
+     * The picture can be taken from a service the user has connected, exactly
+     * as it can during setup — the wizard is not the only place a profile is
+     * edited, and a feature reachable only from a one-time flow is a feature
+     * most people never find.
+     *
+     * @return array<string, mixed>
+     */
+    private function profileSection(Request $request): array
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $sources = $this->avatarSources->availableFor($user);
+        $picking = null;
+
+        foreach ($sources as $source) {
+            // Matched against the user's own connections rather than looked up
+            // by id, so a borrowed id cannot browse somebody else's photos.
+            if ((string) $source->id === (string) $request->query->get('pick', '')) {
+                $picking = $source;
+            }
+        }
+
+        $pickUrls = [];
+
+        foreach ($sources as $source) {
+            $pickUrls[(string) $source->id] = $this->generateUrl('app_settings_index', [
+                'section' => 'profile',
+                'pick'    => $source->id,
+            ]);
+        }
+
+        return [
+            'profileForm' => $this->createForm(ProfileType::class, $user, [
+                'action'        => $this->generateUrl('app_settings_profile_save'),
+                'avatar_source' => null === $picking ? null : (string) $picking->id,
+            ])->createView(),
+            'avatarSources' => $sources,
+            'avatarPicking' => $picking,
+            'avatarEntries' => null === $picking ? [] : $this->avatarSources->browse($picking),
+            'avatarPickUrls' => $pickUrls,
+            'avatarCloseUrl' => $this->generateUrl('app_settings_index', ['section' => 'profile']),
+        ];
     }
 
 }

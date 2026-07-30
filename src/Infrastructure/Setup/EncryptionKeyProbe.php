@@ -62,9 +62,17 @@ final readonly class EncryptionKeyProbe
             'The two usual causes:',
             sprintf('  1. This service cannot see %s — the volume holding the', $this->secrets->path()),
             '     generated secrets must be mounted on every plMail service, not just some.',
-            '  2. APP_ENCRYPTION_KEY used to be set in the environment and no longer is, so a',
-            '     new key was generated over the top of data written with the old one. Put the',
-            '     original value back.',
+            '  2. The key changed while the stack was running, so part of the fleet wrote data',
+            '     the rest cannot read. Putting the original value back is the only way to',
+            '     recover that data.',
+            '',
+            'If the unreadable data is expendable — a fresh install, or accounts you can add',
+            'again — clear it and start over. This command does not block console commands,',
+            'so from a running-or-not container:',
+            '',
+            '    docker compose exec php php bin/console app:reset --full',
+            '',
+            'then restart the stack.',
         ]);
     }
 }

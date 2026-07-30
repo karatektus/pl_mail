@@ -53,20 +53,21 @@ final class OnboardingFlowTest extends TestCase
 
     public function testNextAndPreviousWalkTheFilteredList(): void
     {
-        // Appearance is missing in the middle: next() from Account must reach
-        // Profile, not fall into the gap.
+        // Integrations sits between Account and Profile in the enum and is not
+        // applicable here: next() from Account must step over it to Profile
+        // rather than fall into the gap.
         $flow = $this->flow([
             [OnboardingStep::Account, true],
+            [OnboardingStep::Integrations, false],
             [OnboardingStep::Profile, true],
-            [OnboardingStep::Appearance, false],
-            [OnboardingStep::Integrations, true],
+            [OnboardingStep::Appearance, true],
         ]);
 
         $user = new User();
 
         self::assertSame(OnboardingStep::Profile, $flow->next($user, OnboardingStep::Account));
-        self::assertSame(OnboardingStep::Integrations, $flow->next($user, OnboardingStep::Profile));
-        self::assertSame(OnboardingStep::Profile, $flow->previous($user, OnboardingStep::Integrations));
+        self::assertSame(OnboardingStep::Appearance, $flow->next($user, OnboardingStep::Profile));
+        self::assertSame(OnboardingStep::Profile, $flow->previous($user, OnboardingStep::Appearance));
     }
 
     public function testTheEndsOfTheListHaveNowhereToGo(): void
@@ -76,6 +77,30 @@ final class OnboardingFlowTest extends TestCase
 
         self::assertNull($flow->previous($user, OnboardingStep::Account), 'the first step has no back');
         self::assertNull($flow->next($user, OnboardingStep::Profile), 'the last step finishes instead');
+    }
+
+    /**
+     * Saving the last mail provider, or the only account, can be the very thing
+     * that satisfies the step being left — so `next` has to work for a step
+     * that is no longer in the applicable list. It used to fall back to the
+     * first entry, sending the user backwards.
+     */
+    public function testNextWorksFromAStepThatHasJustStoppedApplying(): void
+    {
+        $flow = $this->flow([
+            [OnboardingStep::AdminMailCredentials, false],
+            [OnboardingStep::Account, true],
+            [OnboardingStep::Profile, true],
+        ]);
+
+        $user = new User();
+
+        self::assertSame(
+            OnboardingStep::Account,
+            $flow->next($user, OnboardingStep::AdminMailCredentials),
+            'the step after it by order, not the first one still outstanding',
+        );
+        self::assertNull($flow->previous($user, OnboardingStep::AdminMailCredentials));
     }
 
     public function testProgressCountsOnlyTheStepsOnScreen(): void
@@ -185,6 +210,16 @@ final class OnboardingFlowTest extends TestCase
             public function isApplicable(User $user): bool
             {
                 return $this->isApplicable;
+            }
+
+            public function isSatisfied(User $user): bool
+            {
+                return false;
+            }
+
+            public function failureMessage(User $user): ?string
+            {
+                return null;
             }
 
             public function template(): string

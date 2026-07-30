@@ -51,7 +51,20 @@ final readonly class AdminMailCredentialsStepHandler implements OnboardingStepHa
             return false;
         }
 
-        return 0 === $this->configs->countComplete();
+        return true;
+    }
+
+    public function isSatisfied(User $user): bool
+    {
+        return [] === $this->unregistered();
+    }
+
+    public function failureMessage(User $user): ?string
+    {
+        // Nothing here can be verified without the user making a round trip of
+        // their own: credentials prove nothing until somebody consents with
+        // them, and a name cannot be wrong.
+        return null;
     }
 
     public function template(): string
@@ -65,6 +78,7 @@ final readonly class AdminMailCredentialsStepHandler implements OnboardingStepHa
 
         return $this->formFactory->create(MailProviderConfigType::class, $this->config($request), [
             'mail_provider' => $provider,
+            'offer_inherit' => true,
             'action'        => $this->urlGenerator->generate('app_onboarding_step', [
                 'step'     => $this->step()->value,
                 'provider' => $provider->value,
@@ -74,24 +88,64 @@ final readonly class AdminMailCredentialsStepHandler implements OnboardingStepHa
 
     public function viewData(User $user, Request $request): array
     {
-        $provider = $this->provider($request);
-
         return [
-            'provider'       => $provider,
+            'provider'       => $this->provider($request),
             'config'         => $this->config($request),
+            // Both, always, and in the same order — a chip that disappeared
+            // when its provider was saved took the one being edited with it.
             'providers'      => MailProvider::cases(),
+            'decided'        => $this->registered(),
             'aside_template' => 'onboarding/steps/_admin_mail_aside.html.twig',
         ];
     }
 
     public function persist(User $user, FormInterface $form): void
     {
-        $this->configWriter->saveMailProvider($form->getData(), $form);
+        $config = $form->getData();
+
+        $this->configWriter->saveMailProvider($config, $form);
+
+        if (true === $form->has('inheritToIntegrations') && true === $form->get('inheritToIntegrations')->getData()) {
+            $this->configWriter->inheritFromMailProvider($config);
+        }
+    }
+
+    /**
+     * Which providers already have a complete registration, keyed by value.
+     *
+     * @return array<string, bool>
+     */
+    private function registered(): array
+    {
+        $registered = [];
+
+        foreach ($this->configs->findAllIndexedByProvider() as $value => $config) {
+            $registered[$value] = $config->isComplete();
+        }
+
+        return $registered;
+    }
+
+    /**
+     * @return list<MailProvider>
+     */
+    private function unregistered(): array
+    {
+        $registered = $this->registered();
+
+        return array_values(array_filter(
+            MailProvider::cases(),
+            static fn (MailProvider $provider): bool => true !== ($registered[$provider->value] ?? false),
+        ));
     }
 
     private function provider(Request $request): MailProvider
     {
-        return MailProvider::tryFrom((string) $request->query->get('provider')) ?? MailProvider::Google;
+        // Any provider, not only an unregistered one: an admin has to be able
+        // to go back and correct one they have already saved.
+        return MailProvider::tryFrom((string) $request->query->get('provider'))
+            ?? $this->unregistered()[0]
+            ?? MailProvider::Google;
     }
 
     private function config(Request $request): MailProviderConfig

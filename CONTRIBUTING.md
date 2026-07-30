@@ -23,16 +23,16 @@ Development setup, test suites and console reference. For installing and running
 ## Development setup
 
 ```bash
-cp .env .env.local
-```
-
-```bash
 docker compose up --build
 ```
 
-Migrations run automatically via the entrypoint. Create the first user with `app:setup`, or register
-through the UI. The `imap-supervisor`, `messenger-worker` and `scheduler` services start with the
-stack and restart on failure.
+There is nothing to fill in first: the secrets are generated on first start (see below), and the one
+setting with no sensible default — the address plMail is reached at — is asked for on the setup
+screen. Open the app and it offers to create the first administrator; `app:setup` does the same
+thing from a terminal.
+
+Migrations run automatically via the entrypoint. The `imap-supervisor`, `messenger-worker` and
+`scheduler` services start with the stack and restart on failure.
 
 ## Tests
 
@@ -83,6 +83,81 @@ E2E_DOCKER=1 npx playwright test screenshots.spec.ts --project=chromium --worker
 
 Never point it at a stack holding real mail.
 
+## Secrets and the encryption key
+
+plMail generates its own secrets on first start rather than shipping working ones, and one of them
+is load-bearing enough to be worth understanding before you touch this area.
+
+### Where they come from
+
+`frankenphp/generate-secrets.sh` mints anything not already supplied, into a single file on a volume
+**every** service mounts:
+
+```
+var/secrets/generated.env
+```
+
+It runs twice over: as the `secrets-init` compose service, before anything else starts — Postgres and
+Mercure read their secrets at container-create time and cannot wait for the app — and again from the
+app entrypoint, so a stack assembled without that service still comes up. Generation is idempotent
+and takes a `flock`, so four containers starting at once mint each value once between them.
+
+`APP_STORAGE_DIR` decides where blobs live relative to the project root — attachments, raw messages,
+uploads and avatars all sit under it, and `var` by default. It exists so a deployment can put the
+whole lot on one mount: `truenas.compose.yaml` sets it to `var/data` and binds a single host
+directory there, which is why that file has one path to fill in rather than five. Attachment paths
+are stored relative to the project root, so changing it on an install with mail in it orphans what
+is already there.
+
+`config/bootstrap_generated_secrets.php`, loaded through composer's `autoload.files`, makes those
+values visible to PHP started any other way — `docker compose exec … bin/console` bypasses the
+entrypoint entirely.
+
+**Anything you set explicitly wins.** Nothing is ever generated over the top of a supplied value.
+
+> `docker compose` reads the project's `.env` to resolve `${VAR}`, so a value put there becomes a
+> real environment variable in every container and switches off generation for it. That is why
+> `APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL` and `MERCURE_JWT_SECRET` are blank in the
+> committed `.env`, with a banner saying so. Putting a working secret back defeats the whole
+> arrangement.
+
+### Why APP_ENCRYPTION_KEY is different
+
+It is the libsodium key behind the `encrypted_string` Doctrine type: every mailbox password and
+OAuth refresh token in the database. Two things follow, and both have bitten:
+
+**Every service must hold the same one.** They run the same image with no shared `var/`, so the key
+lives on the `app_secrets` volume and each service mounts it. A service missing that mount mints its
+own and quietly stops being able to read what the others wrote. `App\Infrastructure\Setup\EncryptionKeyProbe`
+runs at container start and refuses to boot the server rather than write data half the fleet cannot
+read.
+
+**It cannot be rotated underneath a running stack.** The other services keep the old key in process
+memory until they restart, so for a while half of them cannot read what the other half writes. This
+is why `app:reset --full` leaves the secrets alone by default and `--rotate-secrets` is a separate,
+loudly warned flag that requires restarting everything immediately afterwards.
+
+`POSTGRES_PASSWORD` is never rotated by the reset at all: Postgres was initialised with it and keeps
+its own copy, so a new one locks the app out of the database it just reset. Changing that means
+wiping the database volume.
+
+### When the keys disagree
+
+The symptom is a decrypt failure — a worker logging
+`Could not decrypt encrypted_string column`, or the server refusing to start with the probe's
+message. Recovering the data means putting the original key back; there is no other way.
+
+If the unreadable data is expendable, clear it. The probe is deliberately **fatal only when starting
+the server** — a console invocation warns and continues, because refusing it would block the very
+command that repairs the situation:
+
+```bash
+docker compose run --rm --entrypoint docker-php-entrypoint php php bin/console app:reset --full
+```
+
+Then `docker compose down && docker compose up -d`, so every service comes up on the one key in the
+file, and create the first administrator again.
+
 ## Console commands
 
 | Command | Description |
@@ -104,6 +179,8 @@ Never point it at a stack holding real mail.
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:monitoring:prune [--days=N]` | Prune old log entries and dead process heartbeats |
 | `app:reset` | Truncate synced data — useful during development |
+| `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
+| `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
 
 These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`
 for the cadences (polling sync every 15 min, push renewal and monitoring pruning

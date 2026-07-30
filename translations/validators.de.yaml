@@ -1,3 +1,5 @@
+admin.integrations.client_id_missing: Trage die Client-ID ein, die zu diesem Secret gehört.
+admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der Client-ID allein kann sich niemand anmelden.
 # Symfony übersetzt Validierungsmeldungen in der Domain `validators`, nicht in
 # `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.

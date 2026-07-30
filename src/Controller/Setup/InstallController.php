@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Setup;
 
+use App\Domain\Enum\AppLocale;
 use App\Entity\User\User;
 use App\Form\Setup\FirstAdminType;
 use App\Service\Setup\FirstAdminInstaller;
@@ -14,6 +15,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Creating the first user, in a browser, on an install that has none.
@@ -32,16 +34,41 @@ final class InstallController extends AbstractController
     public function index(
         Request $request,
         InstallGuard $guard,
+        TranslatorInterface $translator,
         FirstAdminInstaller $installer,
         PublicUrlSetting $publicUrl,
         Security $security,
     ): Response {
         $guard->assertAvailable();
 
+        // Nobody is signed in, so UserLocaleSubscriber has no user to read a
+        // language from — this page has to honour the one the selector asks
+        // for itself.
+        $locale = AppLocale::tryFrom((string) $request->query->get('_locale', ''));
+
+        if (null !== $locale) {
+            $request->setLocale($locale->value);
+            $translator->setLocale($locale->value);
+        }
+
         $user = new User();
+        $user->setLocale(($locale ?? AppLocale::tryFromRequest($request->getLocale()) ?? AppLocale::English)->value);
+
+        // Switching language is a real navigation, so whatever had been typed
+        // comes back through the query string rather than being thrown away.
+        $carried = $request->query->all('first_admin');
+
+        foreach (['nameFirst' => $user->setNameFirst(...), 'nameLast' => $user->setNameLast(...), 'email' => $user->setEmail(...)] as $field => $set) {
+            $value = $carried[$field] ?? '';
+
+            if (is_string($value) && '' !== $value) {
+                $set($value);
+            }
+        }
+
         $form = $this->createForm(FirstAdminType::class, $user, [
             'action'           => $this->generateUrl('app_install'),
-            'public_url_guess' => $publicUrl->guessFrom($request->getSchemeAndHttpHost()),
+            'public_url_guess' => $carried['publicUrl'] ?? $publicUrl->guessFrom($request->getSchemeAndHttpHost()),
         ]);
 
         $form->handleRequest($request);

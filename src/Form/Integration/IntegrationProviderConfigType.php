@@ -8,6 +8,9 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -32,6 +35,8 @@ final class IntegrationProviderConfigType extends AbstractType
     {
         $config = $options['data'];
         $provider = $options['integration_provider'];
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, $this->assertRegistrationIsWhole(...));
 
         $builder
             ->add('isEnabled', CheckboxType::class, [
@@ -63,7 +68,11 @@ final class IntegrationProviderConfigType extends AbstractType
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete' => 'new-password',
+                    'autocomplete'   => 'off',
+                    'data-1p-ignore' => 'true',
+                    'data-lpignore'  => 'true',
+                    'data-bwignore'  => 'true',
+                    'data-form-type' => 'other',
                     'placeholder'  => $config instanceof IntegrationProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
@@ -76,6 +85,36 @@ final class IntegrationProviderConfigType extends AbstractType
                 'required' => false,
                 'mapped'   => false,
             ]);
+        }
+    }
+
+    /**
+     * Same rule as the mail registrations: half a client credential pair is
+     * worse than none, because it looks configured until someone tries to
+     * connect. App-password providers have no pair and are skipped.
+     */
+    private function assertRegistrationIsWhole(FormEvent $event): void
+    {
+        $form   = $event->getForm();
+        $config = $form->getData();
+
+        if (false === $form->has('clientSecret')) {
+            return;
+        }
+
+        $clientId  = trim((string) $form->get('clientId')->getData());
+        $submitted = trim((string) $form->get('clientSecret')->getData());
+        $stored    = $config instanceof IntegrationProviderConfig && true === $config->hasClientSecret();
+        $cleared   = $form->has('clearClientSecret') && true === $form->get('clearClientSecret')->getData();
+
+        $hasSecret = '' !== $submitted || (true === $stored && false === $cleared);
+
+        if ('' !== $clientId && false === $hasSecret) {
+            $form->get('clientSecret')->addError(new FormError('admin.integrations.secret_missing'));
+        }
+
+        if ('' === $clientId && '' !== $submitted) {
+            $form->get('clientId')->addError(new FormError('admin.integrations.client_id_missing'));
         }
     }
 

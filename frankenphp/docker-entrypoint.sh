@@ -91,7 +91,17 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		# force can actually open the credentials already in the database —
 		# the one check that catches a container holding the wrong key before
 		# it writes anything.
-		php bin/console app:secrets:init
+		#
+		# Fatal only when starting the server. A console invocation is how an
+		# operator FIXES a key mismatch, so refusing to run one turns a
+		# recoverable problem into a locked door: the container would not start,
+		# and neither would the command that clears the unreadable rows.
+		if [ "$1" = 'frankenphp' ]; then
+			php bin/console app:secrets:init
+		elif ! php bin/console app:secrets:init; then
+			echo 'Continuing anyway: this is a console invocation, and refusing it would'
+			echo 'block the very commands that repair a key mismatch.'
+		fi
 		load_generated_secrets "$SECRETS_FILE"
 	fi
 

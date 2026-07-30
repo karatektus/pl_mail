@@ -9,6 +9,7 @@ use Symfony\Component\Form\AbstractType;
 use App\Domain\Helper\AvatarStorage;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -54,6 +55,19 @@ final class ProfileType extends AbstractType
                 'attr' => ['accept' => implode(',', AvatarStorage::ALLOWED_MIME)],
             ]);
 
+        // Present only while pictures from a connected service are on screen.
+        // The file id is set by the thumbnail the user clicks — each is a submit
+        // button carrying this field's name — so the choice and the submission
+        // are one action rather than two.
+        if (null !== $options['avatar_source']) {
+            $builder
+                ->add('avatarIntegrationId', HiddenType::class, [
+                    'mapped' => false,
+                    'data'   => $options['avatar_source'],
+                ])
+                ->add('avatarFileId', HiddenType::class, ['mapped' => false]);
+        }
+
         // Offered only when there is one to remove, so it cannot read as
         // "tick this to delete the picture I have not got".
         if (null !== $options['data']?->getAvatar()) {
@@ -67,6 +81,8 @@ final class ProfileType extends AbstractType
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefaults(['data_class' => User::class]);
+        $resolver
+            ->setDefaults(['data_class' => User::class, 'avatar_source' => null])
+            ->setAllowedTypes('avatar_source', ['null', 'string']);
     }
 }

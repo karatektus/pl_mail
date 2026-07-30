@@ -5,31 +5,59 @@ Built from the steps this user actually gets, not from the enum: a plain user
 must never see a pill for an admin step they will never be offered, and the
 "3 of 4" in the header has to agree with what is on screen.
 
+Every pill navigates. Setup is not a funnel — going back to change the address
+you just typed should not mean clicking Back four times — and a step already
+answered is worth being able to revisit.
+
+They submit the step rather than linking away from it, for the same reason the
+provider chips do: a link discards whatever was entered and not yet saved, so
+ticking a box and then clicking the next pill lost the tick.
+
+Three states, and "done" is not the same as "behind you": a step is marked
+complete when it has actually been answered, so skipping one leaves it plainly
+unfinished rather than quietly ticked.
+
+A fourth, and the important one: a step that was filled in but does not work —
+a mistyped app password, a server refusing the connection — gets a cross rather
+than a tick. Ticking it would be worse than showing nothing, because the user
+would stop looking.
+
 Scrolls horizontally rather than wrapping. Six pills do not fit on a phone, and
 a rail that reflows to two rows moves the body down mid-wizard.
 #}
-<div class="px-6 pb-4 shrink-0 overflow-x-auto">
+<div class="px-6 pb-4 shrink-0 overflow-x-auto" data-controller="onboarding--form-nav">
+    <input type="hidden" name="goto_step" value="" data-onboarding--form-nav-target="field">
+
     <ol class="flex items-center gap-1.5 min-w-max">
         {% for item in steps %}
             {% set isCurrent = item.value == current.value %}
-            {% set isDone = loop.index < currentIndex %}
+            {% set status = statuses[item.value]|default({ done: false, error: null }) %}
+            {% set isDone = status.done %}
+            {% set isFailing = status.error is not null %}
 
             <li class="flex items-center gap-1.5">
-                <span
+                <button
+                    type="button"
+                    id="onboarding-pill-{{ item.value }}"
+                    data-value="{{ item.value }}"
+                    data-action="click->onboarding--form-nav#go"
                     class="inline-flex items-center gap-2 h-7 pl-2 pr-2.5 rounded-full text-xs font-medium
                            border transition-colors
                            {% if isCurrent %}
                              border-accent bg-accent/10 text-accent
+                           {% elseif isFailing %}
+                             pill-failed
                            {% elseif isDone %}
-                             border-line text-ink-soft
+                             pill-done
                            {% else %}
-                             border-line text-ink-faint
+                             border-line text-ink-faint hover:bg-hover cursor-pointer
                            {% endif %}"
                     {% if isCurrent %}aria-current="step"{% endif %}
+                    {% if isFailing %}title="{{ status.error }}"{% endif %}
                 >
-                    <i class="{{ isDone ? 'fa-solid fa-check' : item.icon }} text-[11px]" aria-hidden="true"></i>
+                    <i class="{{ isDone and not isCurrent ? 'fa-solid fa-check' : item.icon }} text-[11px]" aria-hidden="true"></i>
                     {{ (item.transKey ~ '.title')|trans }}
-                </span>
+                </button>
 
                 {% if not loop.last %}
                     <span class="w-4 h-px bg-line" aria-hidden="true"></span>

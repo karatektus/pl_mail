@@ -59,10 +59,14 @@ final class PageRendersTest extends WebTestCase
         yield 'onboarding profile step' => ['/onboarding/profile'];
         yield 'onboarding account step' => ['/onboarding/account'];
         yield 'onboarding appearance step' => ['/onboarding/appearance'];
-        // The two admin steps are deliberately absent: they answer 404 once
-        // credentials are on file, which is the whole point of them, and
-        // whether this database has any depends on what the e2e suite last did.
-        // OnboardingFlowTest covers the applicability rules directly.
+        // These render whatever is already configured — a step being done no
+        // longer hides it — so they answer 200 regardless of what the e2e suite
+        // last left in the database.
+        yield 'onboarding admin mail step' => ['/onboarding/admin-mail'];
+        yield 'onboarding admin integrations step' => ['/onboarding/admin-integrations'];
+        // Not the integrations step: it is the one that still answers 404 by
+        // design, when an admin has made nothing connectable, and whether this
+        // database has anything depends on what the e2e suite last did.
         yield 'settings profile' => ['/settings?section=profile'];
         // Was a 500 on a fresh install: no account, and Message::setAccount()
         // is not nullable. See "Findings worth fixing" in todo.md.

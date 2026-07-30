@@ -68,7 +68,11 @@ final class IntegrationConnectType extends AbstractType
             'required' => $isNew,
             'mapped'   => false,
             'attr'     => [
-                'autocomplete' => 'new-password',
+                'autocomplete'   => 'off',
+                'data-1p-ignore' => 'true',
+                'data-lpignore'  => 'true',
+                'data-bwignore'  => 'true',
+                'data-form-type' => 'other',
                 'placeholder'  => $isNew ? '' : 'settings.integrations.field.secret_unchanged',
             ],
         ]);

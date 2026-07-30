@@ -84,6 +84,8 @@ admin:
         connected_users: '%count% connected'
         connected_users_one: '1 connected'
         copy_redirect_uri: 'Copy redirect URI'
+        inherit_toggle: 'Use these credentials for file storage too'
+        inherit_toggle_help: 'One Google project also covers Drive and Photos; one Microsoft app also covers OneDrive. Leave this on and there is nothing more to set up for them.'
         field:
             base_url: 'Server address'
             base_url_help_saas: 'Leave empty. This service has one fixed address.'
@@ -302,6 +304,9 @@ errors:
     not_found: The requested resource could not be found.
 
 form:
+    file:
+        choose: Choose an image…
+        hint: PNG, JPEG, GIF or WebP
     cancel: Cancel
     submit: Save
 
@@ -483,17 +488,37 @@ onboarding:
             body: Register plMail with the service, then paste the credentials it gives you.
             heading: Setting this up
         admin_mail:
-            body: >-
-                Create an OAuth app with the provider, then paste its client id and secret
-                here. Everyone on this plMail signs in through it.
-            heading: Setting this up
+            google:
+                heading: Setting up Gmail sign-in
+                step1: Open console.cloud.google.com and create a project, or pick an existing one.
+                step2: 'Under APIs & Services → Library, enable the Gmail API.'
+                step3: 'Under OAuth consent screen, choose Internal if you have Workspace, otherwise External, and fill in the app name and support email.'
+                step4: 'Under Credentials, create an OAuth client ID of type "Web application".'
+                step5: Paste the redirect URI below into its "Authorised redirect URIs", then save.
+                step6: Copy the client ID and client secret it shows you into the fields on the left.
+            microsoft:
+                heading: Setting up Microsoft sign-in
+                step1: 'Open portal.azure.com and go to Microsoft Entra ID → App registrations → New registration.'
+                step2: 'Choose who can sign in. "Accounts in any organizational directory and personal Microsoft accounts" matches the default tenant setting of "common".'
+                step3: 'Set the redirect URI to Web, and paste the address below into it.'
+                step4: 'After registering, copy the Application (client) ID into the field on the left.'
+                step5: 'Under Certificates & secrets, create a new client secret and copy its Value — not its ID — straight away; it is only shown once.'
+                step6: 'Under API permissions, add the delegated Microsoft Graph permissions Mail.ReadWrite, Mail.Send and offline_access.'
         profile:
             body: This is what recipients see in the From line. You can change it any time.
             heading: Where this shows up
+    account:
+        add: Add this account
+        or_manual: 'Or set it up by hand:'
+        sign_in_with: 'Sign in with %provider%'
+        add_another: Add another account
+        cancel: Cancel
     integrations:
+        cancel: Cancel
         connect: Connect
         connected: Connected
     progress: 'Step %index% of %total%'
+    switch_blocked: Nothing was switched — fix the fields below first, and what you entered will be kept.
     step:
         account:
             lead: Connect the mailbox you actually read, and plMail starts syncing it.
@@ -516,6 +541,10 @@ onboarding:
     title: Set up plMail
 
 profile:
+    avatar_current: Current picture
+    avatar_from:
+        empty: Nothing to show from this service.
+        heading: Or pick one from a connected service
     avatar_wrong_type: Use a PNG, JPEG, GIF or WebP image.
     field:
         avatar: Picture
@@ -538,6 +567,7 @@ setup:
                 Where people reach plMail from outside. Gmail and Outlook send push
                 notifications back to it, so it has to be reachable from the internet
                 and should be https. You can change it later.
+            locale: Language
             name_first: First name
             name_last: Last name
             password: Password

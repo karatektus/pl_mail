@@ -21,6 +21,7 @@ readonly class RawMessageStorage
 
     public function __construct(
         private string $projectDir,
+        private string $storageDir,
     ) {
     }
 
@@ -30,7 +31,7 @@ readonly class RawMessageStorage
     public function store(int $accountId, int $messageId, string $content): string
     {
         $relativeDirectory = sprintf(
-            'var/raw/%d/%d',
+            $this->storageDir.'/raw/%d/%d',
             $accountId,
             intdiv($messageId, self::FANOUT),
         );

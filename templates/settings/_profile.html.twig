@@ -1,6 +1,8 @@
 {#
-Settings → Profile. The same form the setup wizard shows, with its own action
-so it posts here rather than to the wizard.
+Settings → Profile. The same form the setup wizard shows, with its own action so
+it posts here rather than to the wizard, and the same picture picker — the
+wizard runs once, and a feature reachable only from it is one most people never
+find.
 #}
 <section>
     <h2 class="text-sm font-semibold text-ink">{{ 'settings.profile.heading'|trans }}</h2>
@@ -9,6 +11,16 @@ so it posts here rather than to the wizard.
     <div class="max-w-md">
         {{ form_start(profileForm) }}
             {{ form_widget(profileForm) }}
+
+            {% include '_partials/_avatar_picker.html.twig' with {
+                sources:   avatarSources,
+                picking:   avatarPicking,
+                entries:   avatarEntries,
+                pickUrls:  avatarPickUrls,
+                closeUrl:  avatarCloseUrl,
+                fileField: avatarPicking is null ? '' : profileForm.avatarFileId.vars.full_name,
+                current:   app.user.avatar ? path('app_settings_profile_avatar', { filename: app.user.avatar }) : null,
+            } only %}
 
             <button
                 type="submit"

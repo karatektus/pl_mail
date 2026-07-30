@@ -27,6 +27,7 @@ readonly class AvatarStorage
 
     public function __construct(
         private string $projectDir,
+        private string $storageDir,
     ) {
     }
 
@@ -58,6 +59,30 @@ readonly class AvatarStorage
         return $filename;
     }
 
+    /**
+     * Same as store(), for bytes that arrived from somewhere other than an
+     * upload — a file pulled out of a connected service, say.
+     *
+     * @return string the stored filename, to put on the user
+     */
+    public function storeContents(string $userId, string $originalName, string $contents): string
+    {
+        $directory = $this->directory($userId);
+
+        if (false === is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $this->deleteAllFor($userId);
+
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $filename  = bin2hex(random_bytes(8)).'.'.('' === $extension ? 'img' : $extension);
+
+        file_put_contents($directory.'/'.$filename, $contents);
+
+        return $filename;
+    }
+
     public function pathFor(string $userId, string $filename): string
     {
         return $this->directory($userId).'/'.$filename;
@@ -74,6 +99,6 @@ readonly class AvatarStorage
 
     private function directory(string $userId): string
     {
-        return $this->projectDir.'/var/uploads/avatars/'.$userId;
+        return $this->projectDir.'/'.$this->storageDir.'/uploads/avatars/'.$userId;
     }
 }

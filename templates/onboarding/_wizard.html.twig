@@ -36,17 +36,43 @@ nothing to explain passes no aside_template and the grid collapses to one.
             <p class="mt-1 text-sm text-ink-muted">{{ (step.transKey ~ '.lead')|trans }}</p>
         </div>
 
-        {% include 'onboarding/_progress.html.twig' with {
-            steps: steps,
-            current: step,
-            currentIndex: progress.index,
-        } only %}
+        {# A step can put its own controllers on the form element — the account
+           step needs the preset and connection-test ones, which hang off the
+           <form> in the settings modals for the same reason. #}
+        {{ form_start(form, { attr: {
+            'data-turbo-frame': 'modal',
+            class: 'flex-1 min-h-0 flex flex-col',
+        }|merge(form_attr|default({})) }) }}
 
-        {{ form_start(form, { attr: { 'data-turbo-frame': 'modal', class: 'flex-1 min-h-0 flex flex-col' } }) }}
+            {# Inside the form on purpose: the pills submit the step so that
+               jumping to another one saves what is on screen first. #}
+            {% include 'onboarding/_progress.html.twig' with {
+                steps: steps,
+                current: step,
+                currentIndex: progress.index,
+                statuses: statuses,
+            } only %}
 
             <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5">
                 <div class="grid gap-6 {% if aside_template is defined %}md:grid-cols-[1fr_320px]{% endif %}">
                     <div id="onboarding-step-{{ step.value }}">
+                        {% set stepError = statuses[step.value].error %}
+                        {% if stepError %}
+                            {# Repeated here, not only on the rail: the cross
+                               says something is wrong, this says what. #}
+                            <div role="alert" class="mb-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger" aria-hidden="true"></i>
+                                <p class="leading-snug">{{ stepError }}</p>
+                            </div>
+                        {% endif %}
+
+                        {% if switchBlocked|default(false) %}
+                            <div role="alert" class="mb-5 flex items-start gap-2.5 rounded-lg alert-info px-3.5 py-3 text-sm">
+                                <i class="fa-solid fa-circle-info mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <p class="leading-snug">{{ 'onboarding.switch_blocked'|trans }}</p>
+                            </div>
+                        {% endif %}
+
                         {% if form.vars.errors|length %}
                             <div role="alert" class="mb-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
                                 <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger" aria-hidden="true"></i>

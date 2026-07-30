@@ -1,6 +1,19 @@
 {#
-The profile step's body: just the fields. The wizard shell owns the heading, the
-progress rail, the buttons and the form tags — a step template is only ever what
-goes between them.
+Who the user is, and what they look like.
+
+The picture can come from a service connected a step earlier — the photos are
+already there, and asking someone to download one and upload it again is asking
+them to do the computer's job.
 #}
 {{ form_widget(form) }}
+
+{% include '_partials/_avatar_picker.html.twig' with {
+    sources:   avatarSources,
+    picking:   picking,
+    entries:   pickEntries,
+    pickUrls:  pickUrls,
+    closeUrl:  closeUrl,
+    fileField: picking is null ? '' : form.avatarFileId.vars.full_name,
+    frame:     'modal',
+    current:   app.user.avatar ? path('app_settings_profile_avatar', { filename: app.user.avatar }) : null,
+} only %}

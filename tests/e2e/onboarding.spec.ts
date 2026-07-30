@@ -70,10 +70,19 @@ test("Next advances a step without closing the dialog", async ({ page }) => {
     await login(page, PENDING.email, PENDING.password);
     await expect(wizard(page)).toBeVisible();
 
-    // Past the account step first: it opens on a blank required form, and Next
-    // on an invalid form is *supposed* to stay put. The step after it is the
-    // profile, whose fields the seeder has already filled.
-    await page.locator("#onboarding-skip").click();
+    // Skip forward to the profile step, whose fields the seeder has already
+    // filled. Which steps come before it varies with what the rest of the suite
+    // has configured — an admin who enables a provider makes the integrations
+    // step applicable — and the earlier ones open on blank required forms,
+    // where Next is *supposed* to stay put.
+    for (let i = 0; i < 4; i++) {
+        if (await page.locator("#onboarding-step-profile").isVisible()) {
+            break;
+        }
+
+        await page.locator("#onboarding-skip").click();
+    }
+
     await expect(page.locator("#onboarding-step-profile")).toBeVisible();
 
     const before = await currentStepId(page);
@@ -124,7 +133,7 @@ test("the user menu opens it again once it has been finished", async ({ page }) 
     await expect(wizard(page)).toBeVisible();
 });
 
-test("closing the dialog counts as having answered", async ({ page }) => {
+test("closing the dialog quietens it without ending setup", async ({ page }) => {
     await login(page, PENDING.email, PENDING.password);
 
     await expect(wizard(page)).toBeVisible();
@@ -132,7 +141,15 @@ test("closing the dialog counts as having answered", async ({ page }) => {
     await page.keyboard.press("Escape");
     await expect(backdrop(page)).toBeHidden();
 
+    // Quiet for the rest of the tab...
     await page.goto("/mail/inbox");
-
     await expect(backdrop(page)).toBeHidden();
+
+    // ...but not finished. Closing used to mark setup done, which meant a
+    // dialog closing for a reason nobody chose ended it for good.
+    await page.context().clearCookies();
+    await page.evaluate(() => sessionStorage.clear());
+    await login(page, PENDING.email, PENDING.password);
+
+    await expect(wizard(page)).toBeVisible();
 });

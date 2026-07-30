@@ -1,30 +1,64 @@
 {#
-One row per connectable service. The connect links leave the modal on purpose —
-the OAuth ones bounce to the provider's consent screen, and there is no way to
-do that inside a dialog. The wizard reopens where it left off on the next page
-load, so leaving is not losing your place.
+One row per connectable service.
+
+The two kinds of provider need different things. OAuth ones leave for a consent
+screen no dialog can contain, so those are links out — the wizard reopens where
+it left off on the next page load. App-password ones are two or three fields, so
+they expand in place: sending someone to a settings page mid-setup dropped them
+on a bare form with none of this around it.
+
+Expanding is a frame navigation because the fields belong to the step's own
+form, and HTML has no nested forms.
 #}
 <ul class="space-y-2">
     {% for config in connectable %}
         {% set provider = config.provider %}
+        {% set isExpanded = expanded is not null and expanded.value == provider.value %}
+
         <li id="onboarding-integration-{{ provider.value }}"
-            class="flex items-center gap-3 rounded-pane border border-line px-4 py-3">
-            <i class="{{ provider.icon }} w-5 text-center text-ink-muted" aria-hidden="true"></i>
+            class="rounded-pane border {{ isExpanded ? 'border-accent/40' : 'border-line' }}">
+            <div class="flex items-center gap-3 px-4 py-3">
+                <i class="{{ provider.icon }} w-5 text-center text-ink-muted" aria-hidden="true"></i>
 
-            <span class="flex-1 min-w-0 text-sm font-medium text-ink truncate">{{ provider.label }}</span>
+                <span class="flex-1 min-w-0 text-sm font-medium text-ink truncate">{{ provider.label }}</span>
 
-            {% if connected[provider.value]|default(false) %}
-                <span class="inline-flex items-center gap-1.5 text-xs text-ink-faint">
-                    <i class="fa-solid fa-check text-accent" aria-hidden="true"></i>
-                    {{ 'onboarding.integrations.connected'|trans }}
-                </span>
-            {% else %}
-                <a href="{{ path('app_settings_integrations_connect', { provider: provider.value }) }}"
-                   data-turbo-frame="_top"
-                   class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                          text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
-                    {{ 'onboarding.integrations.connect'|trans }}
-                </a>
+                {% if connected[provider.value]|default(false) %}
+                    <span class="inline-flex items-center gap-1.5 text-xs text-ink-faint">
+                        <i class="fa-solid fa-check text-success" aria-hidden="true"></i>
+                        {{ 'onboarding.integrations.connected'|trans }}
+                    </span>
+                {% elseif provider.authKind.value == 'oauth2' %}
+                    <a href="{{ path('app_settings_integrations_connect', { provider: provider.value }) }}"
+                       data-turbo-frame="_top"
+                       class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                        {{ 'onboarding.integrations.connect'|trans }}
+                    </a>
+                {% else %}
+                    <a href="{{ isExpanded ? closeUrl : connectUrls[provider.value] }}"
+                       data-turbo-frame="modal"
+                       class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                        {{ (isExpanded ? 'onboarding.integrations.cancel' : 'onboarding.integrations.connect')|trans }}
+                    </a>
+                {% endif %}
+            </div>
+
+            {% if isExpanded %}
+                <div class="border-t border-line px-4 py-4 space-y-5">
+                    {{ form_widget(form) }}
+
+                    <button
+                        type="submit"
+                        name="stay_on_step"
+                        value="1"
+                        id="onboarding-integration-save"
+                        class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong active:bg-blue-800
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100"
+                    >{{ 'onboarding.integrations.connect'|trans }}</button>
+                </div>
             {% endif %}
         </li>
     {% endfor %}

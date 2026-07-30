@@ -8,9 +8,10 @@ namespace App\Domain\Enum\Onboarding;
  * The stops on the setup wizard, in the order they are shown.
  *
  * `cases()` *is* the order — there is no separate ordering table to keep in
- * step. Administrator plumbing comes first on purpose: an admin who enters
- * Google credentials here can then use OAuth in the account step two stops
- * later, which is not possible the other way round.
+ * step, and the order is load-bearing twice over. Administrator plumbing comes
+ * first so an admin who enters Google credentials here can use OAuth in the
+ * account step; and integrations come before the profile so the avatar can be
+ * picked out of a service the user has just connected.
  *
  * Which of these a given user actually sees is not decided here. Each step has
  * a handler that answers whether it applies (App\Service\Onboarding\Step), so a
@@ -25,9 +26,9 @@ enum OnboardingStep: string
     case AdminMailCredentials = 'admin-mail';
     case AdminIntegrationCredentials = 'admin-integrations';
     case Account = 'account';
+    case Integrations = 'integrations';
     case Profile = 'profile';
     case Appearance = 'appearance';
-    case Integrations = 'integrations';
 
     /** Translation key for the step's title; the lead is `.lead` beside it. */
     public function transKey(): string

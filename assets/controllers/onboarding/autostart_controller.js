@@ -14,22 +14,36 @@ import { Controller } from "@hotwired/stimulus"
  *   the user pressed Back. The guard is in sessionStorage, keyed per tab, so it
  *   survives those replays and still lets a new session start fresh.
  *
- *   Dismissing the dialog counts as finishing. The wizard opens by itself
- *   exactly once, so a user who closes it has answered the question — anything
- *   else means nagging them on every page load. The user menu is how they get
- *   back to it.
+ *   Closing the dialog does NOT finish setup. It used to, on the reasoning that
+ *   someone who dismisses it has answered — but a dialog closes for reasons the
+ *   user did not choose, and each of those permanently ended setup with no way
+ *   back but the user menu. That is a lot to lose to a stray click. Closing now
+ *   quietens it for this tab only; the next session offers it again, until it is
+ *   actually finished or skipped.
  */
 export default class extends Controller {
     static values = {
-        finishUrl: String,
-        token: String,
+        /**
+         * Identifies this login. sessionStorage belongs to the tab and outlives
+         * both the session and the user, so an unkeyed guard meant a tab that
+         * had dismissed the wizard once never saw it again — not after signing
+         * out and back in, and not after a reset had built a new administrator
+         * in that same tab.
+         */
+        offerKey: String,
     }
 
     connect() {
         this._onClosed = this._handleClosed.bind(this)
         document.addEventListener("ui--modal:closed", this._onClosed)
 
-        if (sessionStorage.getItem(GUARD_KEY)) {
+        // Shown once per login — except when it was open a moment ago and the
+        // page went out from under it. A background refresh replacing the
+        // document must not be able to strand someone's setup, so an open
+        // wizard comes back after one.
+        const wasOpen = sessionStorage.getItem(this._openKey) === "1"
+
+        if (sessionStorage.getItem(this._shownKey) === "1" && wasOpen === false) {
             return
         }
 
@@ -40,8 +54,12 @@ export default class extends Controller {
             return
         }
 
-        sessionStorage.setItem(GUARD_KEY, "1")
+        sessionStorage.setItem(this._shownKey, "1")
+        sessionStorage.setItem(this._openKey, "1")
         this._opened = true
+
+        // Reopening lands on the remembered step, so a wizard restored this way
+        // picks up where it was rather than starting over.
         modal.open()
     }
 
@@ -51,25 +69,26 @@ export default class extends Controller {
 
     _handleClosed() {
         // Only our own dialog: the modal shell is shared, and closing a label
-        // form must not end anyone's setup.
+        // form has nothing to do with setup.
         if (!this._opened) {
             return
         }
 
         this._opened = false
 
-        const body = new FormData()
-        body.append("_token", this.tokenValue)
+        // Nothing is written to the server. Setup stays unfinished until the
+        // user finishes or skips it; the shown-key is what keeps it from
+        // reopening on every page load in the meantime.
+        sessionStorage.removeItem(this._openKey)
+    }
 
-        // keepalive so the write still lands if the close was the user
-        // navigating away in the same breath.
-        fetch(this.finishUrlValue, { method: "POST", body, keepalive: true })
-            .catch(() => {
-                // Nothing to recover to — the wizard reopens on the next page
-                // load, which is the safe direction to fail in.
-            })
+    /** Already offered to this person, this session. */
+    get _shownKey() {
+        return `plmail:onboarding-autostarted:${this.offerKeyValue}`
+    }
+
+    /** On screen right now — the difference is what brings it back. */
+    get _openKey() {
+        return `plmail:onboarding-open:${this.offerKeyValue}`
     }
 }
-
-/** Per-tab, so a Turbo restoration visit does not re-open the wizard. */
-const GUARD_KEY = "plmail:onboarding-autostarted"

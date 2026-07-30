@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Onboarding\Step;
 
-use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Onboarding\OnboardingStep;
 use App\Entity\Integration\IntegrationProviderConfig;
@@ -19,12 +18,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * Credentials for the file and photo services everyone here can attach from.
+ * The file and photo services everyone here can attach from.
  *
- * Same shape as the mail step, and offered on the same terms: admin only, and
- * only until something has been registered. Nextcloud and Immich need no app
- * registration at all — each user signs in with their own app password — so
- * they are not offered here.
+ * Every implemented provider is offered, not only the OAuth ones. Nextcloud and
+ * Immich need no app registration — each user signs in with their own app
+ * password — but an admin still has to switch them on, and may want to pin one
+ * server address for everybody, which is exactly what their form asks for.
+ *
+ * "Configured" therefore means a saved row rather than a client id: for a
+ * self-hosted provider there is no client id to look for, and the admin's
+ * decision to enable or leave it off is the thing that has been made.
  */
 final readonly class AdminIntegrationCredentialsStepHandler implements OnboardingStepHandlerInterface
 {
@@ -47,7 +50,21 @@ final readonly class AdminIntegrationCredentialsStepHandler implements Onboardin
             return false;
         }
 
-        return 0 === $this->configs->countComplete();
+        return true;
+    }
+
+    public function isSatisfied(User $user): bool
+    {
+        // Every provider has been either set up or deliberately left off.
+        return [] === $this->undecided();
+    }
+
+    public function failureMessage(User $user): ?string
+    {
+        // Nothing here can be verified without the user making a round trip of
+        // their own: credentials prove nothing until somebody consents with
+        // them, and a name cannot be wrong.
+        return null;
     }
 
     public function template(): string
@@ -70,12 +87,15 @@ final readonly class AdminIntegrationCredentialsStepHandler implements Onboardin
 
     public function viewData(User $user, Request $request): array
     {
-        $provider = $this->provider($request);
-
         return [
-            'provider'       => $provider,
+            'provider'       => $this->provider($request),
             'config'         => $this->config($request),
-            'providers'      => $this->offered(),
+            // Every provider, always, and in the same order. The list used to
+            // be the undecided ones, which meant the provider you had just
+            // been editing vanished the moment you switched away from it —
+            // switching saves, and a saved provider counted as decided.
+            'providers'      => Provider::implemented(),
+            'decided'        => $this->decided(),
             'aside_template' => 'onboarding/steps/_admin_integrations_aside.html.twig',
         ];
     }
@@ -86,30 +106,52 @@ final readonly class AdminIntegrationCredentialsStepHandler implements Onboardin
     }
 
     /**
-     * Only the providers that have an app registration to hold. Nextcloud and
-     * Immich authenticate with a per-user app password, so there is nothing an
-     * admin could enter for them here.
+     * Which providers the admin has actually said something about, keyed by
+     * provider value.
      *
+     * A saved row is not enough on its own: switching provider saves the form
+     * on the way past, so an untouched provider ends up with an empty row.
+     * "Decided" means switched on, or given an address, or given credentials.
+     *
+     * @return array<string, bool>
+     */
+    private function decided(): array
+    {
+        $decided = [];
+
+        foreach ($this->configs->findAllIndexedByProvider() as $value => $config) {
+            $decided[$value] = true === $config->isEnabled
+                || '' !== (string) $config->baseUrl
+                || '' !== (string) $config->clientId;
+        }
+
+        return $decided;
+    }
+
+    /**
      * @return list<Provider>
      */
-    private function offered(): array
+    private function undecided(): array
     {
+        $decided = $this->decided();
+
         return array_values(array_filter(
             Provider::implemented(),
-            static fn (Provider $provider): bool => AuthKind::OAuth2 === $provider->authKind(),
+            static fn (Provider $provider): bool => true !== ($decided[$provider->value] ?? false),
         ));
     }
 
     private function provider(Request $request): Provider
     {
         $requested = Provider::tryFrom((string) $request->query->get('provider'));
-        $offered   = $this->offered();
 
-        if (null !== $requested && in_array($requested, $offered, true)) {
+        // Any implemented provider, not only an undecided one: an admin has to
+        // be able to go back and correct one they have already saved.
+        if (null !== $requested && true === $requested->isImplemented()) {
             return $requested;
         }
 
-        return $offered[0] ?? Provider::GoogleDrive;
+        return $this->undecided()[0] ?? Provider::implemented()[0];
     }
 
     private function config(Request $request): IntegrationProviderConfig

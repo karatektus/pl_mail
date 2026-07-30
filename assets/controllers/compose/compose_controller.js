@@ -143,6 +143,9 @@ export default class extends Controller {
         }
 
         this._unwatchViewport();
+        // Every property _trackViewport sets, or the desktop window keeps a
+        // phone's width the next time the viewport crosses the breakpoint.
+        this.element.style.width     = '';
         this.element.style.height    = '';
         this.element.style.transform = '';
         document.body.style.overflow = '';
@@ -163,15 +166,22 @@ export default class extends Controller {
     }
 
     /**
-     * Size the window to the *visual* viewport.
+     * Size and place the window against the *visual* viewport, on both axes.
      *
      * The virtual keyboard shrinks that but not the layout viewport a fixed
      * element is measured against, so a `100dvh` window keeps its bottom rows
      * — the action bar, the send button — underneath the keyboard, which is
      * exactly the thing that made composing on a phone unusable. Taking the
-     * height from `visualViewport` instead puts the keyboard *below* the
-     * window; `offsetTop` keeps us pinned when the browser pans the page to
-     * reveal the focused field.
+     * size from `visualViewport` instead puts the keyboard *below* the window.
+     *
+     * Width and offsetLeft matter as much as height: with the keyboard up the
+     * browser can pan and scale the visual viewport, and a window that only
+     * tracked the vertical axis left a strip of the page showing down the right
+     * edge as well as above the keyboard.
+     *
+     * Rounded up, because these are fractional CSS pixels. Flooring — or
+     * leaving them fractional — is what turns a rounding error into a visible
+     * hairline of whatever is behind the window.
      */
     _trackViewport() {
         const viewport = window.visualViewport;
@@ -180,8 +190,9 @@ export default class extends Controller {
             return;
         }
 
-        this.element.style.height    = `${viewport.height}px`;
-        this.element.style.transform = `translateY(${viewport.offsetTop}px)`;
+        this.element.style.width     = `${Math.ceil(viewport.width)}px`;
+        this.element.style.height    = `${Math.ceil(viewport.height)}px`;
+        this.element.style.transform = `translate(${viewport.offsetLeft}px, ${viewport.offsetTop}px)`;
 
         // Half the screen just became keyboard: put the caret back on screen.
         requestAnimationFrame(() => this._revealCaret());

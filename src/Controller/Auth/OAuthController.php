@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Domain\Enum\Account\AuthType;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Onboarding\OnboardingFlow;
 use App\Service\Gmail\GmailWatchService;
 use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
@@ -37,6 +38,7 @@ class OAuthController extends AbstractController
         private readonly GraphSubscriptionManager $graphSubscriptionManager,
         private readonly PushSubscriptionRegistry $pushRegistry,
         private readonly \App\Service\Mail\AliasSeeder $aliasSeeder,
+        private readonly OnboardingFlow $onboarding,
     ) {}
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
@@ -55,6 +57,24 @@ class OAuthController extends AbstractController
         $request->getSession()->set(self::SESSION_STATE_KEY, $client->getState());
 
         return new RedirectResponse($authUrl);
+    }
+
+    /**
+     * Where to land after the round trip through the provider.
+     *
+     * Settings, normally. But a user still in setup started this from the
+     * wizard, and dropping them on the settings page means the wizard reopens
+     * over a page they never asked for. The mail shell is where they were.
+     */
+    private function landingRoute(): string
+    {
+        $user = $this->getUser();
+
+        if ($user instanceof User && true === $this->onboarding->isPending($user)) {
+            return 'app_default_index';
+        }
+
+        return 'app_settings_index';
     }
 
     #[Route('/{provider}/callback', name: 'callback', methods: ['GET'])]
@@ -104,7 +124,7 @@ class OAuthController extends AbstractController
 
             $this->addFlash('error', $this->translator->trans($translated['key']));
 
-            return $this->redirectToRoute('app_settings_index');
+            return $this->redirectToRoute($this->landingRoute());
         }
 
         $ownerData = $client->getResourceOwner($token)->toArray();
@@ -121,7 +141,7 @@ class OAuthController extends AbstractController
         $this->registerPush($account);
         $this->aliasSeeder->seed($account);
 
-        return $this->redirectToRoute('app_settings_index');
+        return $this->redirectToRoute($this->landingRoute());
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

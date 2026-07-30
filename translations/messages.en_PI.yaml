@@ -84,6 +84,8 @@ admin:
         connected_users: '%count% hands moored'
         connected_users_one: '1 hand moored'
         copy_redirect_uri: 'Copy th'' return bearing'
+        inherit_toggle: 'Use these keys for th'' cargo holds an'' all'
+        inherit_toggle_help: 'One Google charter covers Drive an'' Photos; one Microsoft charter covers OneDrive. Leave it set an'' there be nothin'' more to rig for them.'
         field:
             base_url: 'Port address'
             base_url_help_saas: 'Leave it empty. This port never moves.'
@@ -302,6 +304,9 @@ errors:
     not_found: That be nowhere on the charts.
 
 form:
+    file:
+        choose: Choose a likeness…
+        hint: PNG, JPEG, GIF or WebP
     cancel: Belay that
     submit: Stow it
 
@@ -481,17 +486,37 @@ onboarding:
             body: Register yer ship with the port, then paste the keys it hands ye.
             heading: Riggin' this up
         admin_mail:
-            body: >-
-                Cut an OAuth key with the provider, then paste its id an' secret here.
-                Every soul aboard signs in through it.
-            heading: Riggin' this up
+            google:
+                heading: Riggin' Gmail sign-aboard
+                step1: Make sail for console.cloud.google.com an' start a project, or take one ye already hold.
+                step2: 'Under APIs an'' Services → Library, hoist th'' Gmail API.'
+                step3: 'Under OAuth consent screen, pick Internal if ye sail with Workspace, else External, an'' name yer ship.'
+                step4: 'Under Credentials, cut an OAuth client ID o'' th'' "Web application" sort.'
+                step5: Paste th' return bearing below into its "Authorised redirect URIs", then stow it.
+                step6: Copy th' client ID an' secret it shows ye into th' fields to port.
+            microsoft:
+                heading: Riggin' Microsoft sign-aboard
+                step1: 'Make for portal.azure.com an'' steer to Microsoft Entra ID → App registrations → New registration.'
+                step2: 'Choose who may come aboard. "Any organizational directory an'' personal Microsoft accounts" matches th'' tenant settin'' o'' "common".'
+                step3: 'Set th'' redirect kind to Web an'' paste th'' bearing below into it.'
+                step4: 'Once registered, copy th'' Application (client) ID into th'' field to port.'
+                step5: 'Under Certificates an'' secrets, cut a new client secret an'' copy its Value — not its ID — at once; it be shown but once.'
+                step6: 'Under API permissions, add th'' delegated Microsoft Graph rights Mail.ReadWrite, Mail.Send an'' offline_access.'
         profile:
             body: This be what them on the other end read in the From line.
             heading: Where this flies
+    account:
+        add: Hitch up this mailbag
+        or_manual: 'Or rig it by hand:'
+        sign_in_with: 'Sign aboard with %provider%'
+        add_another: Hitch up another mailbag
+        cancel: Belay that
     integrations:
+        cancel: Belay that
         connect: Hitch up
         connected: Hitched
     progress: 'Stop %index% o'' %total%'
+    switch_blocked: Naught was switched — mend the fields below first, an' what ye wrote stays put.
     step:
         account:
             lead: Hitch up the mailbag ye actually read, an' plMail starts haulin' it in.
@@ -514,6 +539,10 @@ onboarding:
     title: Rig up plMail
 
 profile:
+    avatar_current: Yer likeness at present
+    avatar_from:
+        empty: Naught to show from that port.
+        heading: Or take one from a port ye've hitched up
     avatar_wrong_type: Use a PNG, JPEG, GIF or WebP likeness.
     field:
         avatar: Yer likeness
@@ -536,6 +565,7 @@ setup:
                 Where the world finds yer plMail. Gmail an' Outlook holler back to it
                 with their tidings, so it must be reachable from the open sea, an'
                 best be https. Ye can change it later.
+            locale: Tongue
             name_first: First name
             name_last: Family name
             password: Secret word

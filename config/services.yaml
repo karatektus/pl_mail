@@ -28,15 +28,19 @@ services:
     App\Domain\Helper\AttachmentStorageHelper:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\RawMessageStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\UploadStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\AvatarStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

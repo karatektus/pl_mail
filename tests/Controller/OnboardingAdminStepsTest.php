@@ -50,6 +50,53 @@ final class OnboardingAdminStepsTest extends WebTestCase
         yield 'integration credentials, dropbox' => ['/onboarding/admin-integrations?provider=dropbox'];
     }
 
+    /**
+     * Half a registration is worse than none: it looks configured and fails at
+     * the consent screen. Switching provider posts the step, so this is also
+     * what stops a click on the other provider silently storing the fragment.
+     */
+    public function testAClientIdWithNoSecretIsRefused(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $user          = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        if (null === $user) {
+            self::markTestSkipped('run `app:test:seed-user --admin` first');
+        }
+
+        $this->connection = $entityManager->getConnection();
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement('TRUNCATE TABLE mail_provider_config CASCADE');
+        $entityManager->clear();
+
+        $client->loginUser($user);
+        $client->request('POST', '/onboarding/admin-mail?provider=google', [
+            'mail_provider_config' => [
+                'clientId'     => 'an-id-with-no-secret',
+                'clientSecret' => '',
+            ],
+            'switch_to' => 'microsoft',
+        ]);
+
+        self::assertSame(422, $client->getResponse()->getStatusCode(), 'the form must be rejected, not saved');
+        self::assertStringContainsString(
+            'onboarding-provider-google',
+            (string) $client->getResponse()->getContent(),
+            'and it must stay on the provider being edited rather than switching away',
+        );
+
+        $entityManager->clear();
+
+        self::assertSame(
+            0,
+            (int) $this->connection->fetchOne('SELECT count(*) FROM mail_provider_config'),
+            'nothing half-finished may be stored',
+        );
+    }
+
     #[DataProvider('adminSteps')]
     public function testTheStepRendersOnAnUnconfiguredInstall(string $path): void
     {

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Integration;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormInterface;
 
@@ -24,9 +26,61 @@ use Symfony\Component\Form\FormInterface;
  */
 final readonly class ProviderConfigWriter
 {
+    /**
+     * Integration providers whose app registration is the *same* registration
+     * as a mail provider's — one Google Cloud project covers Gmail, Drive and
+     * Photos, and one Entra app covers Outlook and OneDrive. Copying the
+     * credentials across is what saves an admin doing the whole dance twice.
+     */
+    public const array INHERITABLE = [
+        'googleDrive'  => 'google',
+        'googlePhotos' => 'google',
+        'oneDrive'     => 'microsoft',
+    ];
+
     public function __construct(
+        private IntegrationProviderConfigRepository $configs,
         private EntityManagerInterface $entityManager,
     ) {
+    }
+
+    /**
+     * Copy a mail provider's client credentials onto every integration
+     * provider that shares its app registration.
+     *
+     * @return list<Provider> the providers that now have credentials
+     */
+    public function inheritFromMailProvider(MailProviderConfig $source): array
+    {
+        if (false === $source->isComplete()) {
+            return [];
+        }
+
+        $inherited = [];
+
+        foreach (self::INHERITABLE as $providerValue => $mailValue) {
+            if ($mailValue !== $source->provider->value) {
+                continue;
+            }
+
+            $provider = Provider::from($providerValue);
+            $config   = $this->configs->findOneByProvider($provider);
+
+            if (null === $config) {
+                $config = new IntegrationProviderConfig($provider);
+                $this->entityManager->persist($config);
+            }
+
+            $config->clientId     = $source->clientId;
+            $config->clientSecret = $source->clientSecret;
+            $config->isEnabled    = true;
+
+            $inherited[] = $provider;
+        }
+
+        $this->entityManager->flush();
+
+        return $inherited;
     }
 
     /**

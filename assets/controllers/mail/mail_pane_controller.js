@@ -2,6 +2,9 @@ import { Controller } from "@hotwired/stimulus";
 
 // MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
 // the data-sync-scope tokens used by the list templates.
+/** The frame wrapping the list itself — see templates/_layout/_mailbox.html.twig. */
+const LIST_FRAME_ID = "inbox-list-frame";
+
 const SYNC_SCOPES = {
     "\\Inbox": "inbox",
     "\\Sent": "sent",
@@ -121,8 +124,72 @@ export default class extends Controller {
         return scope.split(" ").includes(SYNC_SCOPES[data.specialUse] ?? "");
     }
 
-    _refreshList() {
-        console.log("[mail-pane] refreshing list");
-        Turbo.visit(window.location.href, { action: "replace" });
+    /**
+     * Refresh the list after a sync, and nothing else.
+     *
+     * Fetched and swapped by hand rather than through Turbo. A page visit
+     * replaces the whole document and takes an open dialog, a half-typed form
+     * and the compose window with it — which is how connecting a mail account
+     * kept destroying the setup wizard it was connected from, since the account
+     * triggers the sync that triggers this.
+     *
+     * `frame.reload()` looked like the scoped answer and is not: this frame is
+     * server-rendered with no `src`, so Turbo has nothing to re-fetch and falls
+     * back to reloading the page — the very thing being avoided, and with
+     * `data-turbo-action="advance"` on the frame it navigates too.
+     *
+     * So: ask for the current URL, take the matching frame out of the response,
+     * and swap its contents in. It cannot navigate, because nothing here
+     * navigates.
+     *
+     * The sidebar keeps its own counts up to date from the same Mercure
+     * updates, so nothing outside the frame needs this to redraw it.
+     */
+    async _refreshList() {
+        const frame = document.getElementById(LIST_FRAME_ID);
+
+        if (frame === null) {
+            console.warn("[mail-pane] no list frame to refresh");
+
+            return;
+        }
+
+        // One at a time: a burst of sync events would otherwise have several
+        // responses racing to write the same element.
+        if (this._refreshing === true) {
+            return;
+        }
+
+        this._refreshing = true;
+
+        try {
+            const response = await fetch(window.location.href, {
+                headers: { "Turbo-Frame": LIST_FRAME_ID, Accept: "text/html" },
+                credentials: "same-origin",
+            });
+
+            if (response.ok === false) {
+                return;
+            }
+
+            const fresh = new DOMParser()
+                .parseFromString(await response.text(), "text/html")
+                .getElementById(LIST_FRAME_ID);
+
+            if (fresh === null) {
+                console.warn("[mail-pane] no list frame in the response");
+
+                return;
+            }
+
+            frame.innerHTML = fresh.innerHTML;
+            console.log("[mail-pane] list refreshed");
+        } catch (error) {
+            // A failed refresh is not worth surfacing: the next sync event, or
+            // the next navigation, redraws it anyway.
+            console.warn("[mail-pane] list refresh failed", error);
+        } finally {
+            this._refreshing = false;
+        }
     }
 }

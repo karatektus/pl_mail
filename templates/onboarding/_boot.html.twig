@@ -9,9 +9,10 @@ nothing reaches the browser.
 Size "full" is the max-w-6xl preset in _modal.html.twig — the big modal the
 wizard is designed around.
 
-The finish URL and its token ride along because closing the dialog counts as
-finishing: setup auto-opens once, and a user who dismisses it has answered.
-They can start it again from the user menu.
+Closing the dialog does not finish setup — only the last step and "Skip setup"
+do. A dialog can close for reasons nobody chose, and ending setup on one of
+those leaves no way back except the user menu. Dismissing it silences it for
+the rest of the tab; the next session offers it again.
 #}
 {% if onboarding.isPending %}
     <div
@@ -19,8 +20,7 @@ They can start it again from the user menu.
         data-ui--modal-src-value="{{ path('app_onboarding_start') }}"
         data-ui--modal-title-value="{{ 'onboarding.title'|trans }}"
         data-ui--modal-size-value="full"
-        data-onboarding--autostart-finish-url-value="{{ path('app_onboarding_finish') }}"
-        data-onboarding--autostart-token-value="{{ csrf_token('onboarding-finish') }}"
+        data-onboarding--autostart-offer-key-value="{{ onboarding.offerKey }}"
         hidden
     ></div>
 {% endif %}

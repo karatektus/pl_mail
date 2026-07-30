@@ -45,7 +45,10 @@ final class EncryptionKeyProbeTest extends TestCase
             self::assertStringContainsString('cannot decrypt the credentials already stored', $e->getMessage());
             // The two causes, both invisible from inside the container.
             self::assertStringContainsString('mounted on every plMail service', $e->getMessage());
-            self::assertStringContainsString('used to be set in the environment', $e->getMessage());
+            self::assertStringContainsString('changed while the stack was running', $e->getMessage());
+            // And a way out. A guard that only describes the problem strands
+            // whoever hits it — this one names the command that clears it.
+            self::assertStringContainsString('app:reset --full', $e->getMessage());
         }
     }
 

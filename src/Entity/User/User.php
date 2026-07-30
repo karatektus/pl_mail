@@ -170,8 +170,10 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         return $this->avatar;
     }
 
-    public function setAvatar(string $avatar): self
+    public function setAvatar(?string $avatar): self
     {
+        // Nullable: removing a picture is a normal thing to do, and the column
+        // has always allowed it.
         $this->avatar = $avatar;
 
         return $this;
@@ -208,6 +210,12 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     /** Steps the user chose to skip, as a list of OnboardingStep values. */
     public const string SETTING_ONBOARDING_SKIPPED = 'onboarding.skipped';
+
+    /**
+     * Steps the user actually answered. Separate from skipped: the progress
+     * rail marks these done, and a skipped step must not look answered.
+     */
+    public const string SETTING_ONBOARDING_DONE_STEPS = 'onboarding.done_steps';
 
     public function getSetting(string $key, mixed $default = null): mixed
     {

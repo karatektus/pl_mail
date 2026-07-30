@@ -84,6 +84,8 @@ admin:
         connected_users: '%count% verbunden'
         connected_users_one: '1 verbunden'
         copy_redirect_uri: 'Redirect-URI kopieren'
+        inherit_toggle: 'Diese Zugangsdaten auch für Dateidienste verwenden'
+        inherit_toggle_help: 'Ein Google-Projekt deckt auch Drive und Fotos ab, eine Microsoft-App auch OneDrive. Angeschaltet lassen und für diese ist nichts weiter einzurichten.'
         field:
             base_url: 'Serveradresse'
             base_url_help_saas: 'Leer lassen. Dieser Dienst hat eine feste Adresse.'
@@ -304,6 +306,9 @@ errors:
     not_found: Die angeforderte Ressource wurde nicht gefunden.
 
 form:
+    file:
+        choose: Bild auswählen …
+        hint: PNG, JPEG, GIF oder WebP
     cancel: Abbrechen
     submit: Speichern
 
@@ -487,17 +492,37 @@ onboarding:
             body: Registriere plMail beim Dienst und trage die erhaltenen Zugangsdaten hier ein.
             heading: So richtest du das ein
         admin_mail:
-            body: >-
-                Lege beim Anbieter eine OAuth-App an und trage Client-ID und Secret hier
-                ein. Alle Nutzer dieser plMail-Instanz melden sich darüber an.
-            heading: So richtest du das ein
+            google:
+                heading: Gmail-Anmeldung einrichten
+                step1: console.cloud.google.com öffnen und ein Projekt anlegen oder ein bestehendes wählen.
+                step2: 'Unter APIs und Dienste → Bibliothek die Gmail API aktivieren.'
+                step3: 'Unter OAuth-Zustimmungsbildschirm "Intern" wählen, wenn du Workspace hast, sonst "Extern", und App-Name sowie Support-E-Mail eintragen.'
+                step4: 'Unter Anmeldedaten eine OAuth-Client-ID vom Typ "Webanwendung" erstellen.'
+                step5: Die untenstehende Redirect-URI bei "Autorisierte Weiterleitungs-URIs" eintragen und speichern.
+                step6: Client-ID und Client-Secret in die Felder links kopieren.
+            microsoft:
+                heading: Microsoft-Anmeldung einrichten
+                step1: 'portal.azure.com öffnen und zu Microsoft Entra ID → App-Registrierungen → Neue Registrierung gehen.'
+                step2: 'Auswählen, wer sich anmelden darf. "Konten in einem beliebigen Organisationsverzeichnis und persönliche Microsoft-Konten" passt zur Tenant-Voreinstellung "common".'
+                step3: 'Als Redirect-URI-Typ "Web" wählen und die Adresse unten eintragen.'
+                step4: 'Nach der Registrierung die Anwendungs-ID (Client) in das Feld links kopieren.'
+                step5: 'Unter Zertifikate und Geheimnisse ein neues Client-Secret anlegen und dessen Wert — nicht die ID — sofort kopieren; er wird nur einmal angezeigt.'
+                step6: 'Unter API-Berechtigungen die delegierten Microsoft-Graph-Berechtigungen Mail.ReadWrite, Mail.Send und offline_access hinzufügen.'
         profile:
             body: Das sehen Empfänger in der Absenderzeile. Jederzeit änderbar.
             heading: Wo das erscheint
+    account:
+        add: Konto hinzufügen
+        or_manual: 'Oder von Hand einrichten:'
+        sign_in_with: 'Mit %provider% anmelden'
+        add_another: Weiteres Konto hinzufügen
+        cancel: Abbrechen
     integrations:
+        cancel: Abbrechen
         connect: Verbinden
         connected: Verbunden
     progress: 'Schritt %index% von %total%'
+    switch_blocked: Es wurde nicht gewechselt — korrigiere zuerst die Felder unten, deine Eingaben bleiben erhalten.
     step:
         account:
             lead: Verbinde das Postfach, das du wirklich liest — plMail beginnt dann zu synchronisieren.
@@ -520,6 +545,10 @@ onboarding:
     title: plMail einrichten
 
 profile:
+    avatar_current: Aktuelles Bild
+    avatar_from:
+        empty: Von diesem Dienst gibt es nichts anzuzeigen.
+        heading: Oder eins aus einem verbundenen Dienst wählen
     avatar_wrong_type: Bitte ein PNG, JPEG, GIF oder WebP verwenden.
     field:
         avatar: Bild
@@ -542,6 +571,7 @@ setup:
                 Unter dieser Adresse ist plMail von außen erreichbar. Gmail und Outlook
                 schicken Push-Benachrichtigungen dorthin zurück, sie muss also aus dem
                 Internet erreichbar sein und sollte https sein. Später änderbar.
+            locale: Sprache
             name_first: Vorname
             name_last: Nachname
             password: Passwort

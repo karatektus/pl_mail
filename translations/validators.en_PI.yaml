@@ -1,3 +1,5 @@
+admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
+admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
 # Symfony be translatin' validation messages in the `validators` domain.
 alias.invalid: That be no proper parrot address, matey.
 app_password.name_required: Give the ship's key a name, lest ye forget which lock it opens.

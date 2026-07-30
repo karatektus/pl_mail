@@ -86,6 +86,36 @@ test.describe("mobile compose window", () => {
         expect(Math.abs(measured.height - measured.visual)).toBeLessThan(2);
     });
 
+    test("covers the visual viewport on both axes, with nothing showing past its edges", async ({ page }) => {
+        await openCompose(page);
+
+        // A window that tracked only the vertical axis left a strip of the page
+        // visible down the right edge as well as above the keyboard, because
+        // the browser can pan and scale the visual viewport horizontally too.
+        const measured = await page.evaluate(() => {
+            const el = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+            const box = el.getBoundingClientRect();
+
+            return {
+                width: box.width,
+                height: box.height,
+                right: box.right,
+                bottom: box.bottom,
+                visualWidth: window.visualViewport!.width,
+                visualHeight: window.visualViewport!.height,
+                inlineWidth: el.style.width,
+            };
+        });
+
+        expect(measured.inlineWidth).not.toBe("");
+        expect(measured.width).toBeGreaterThanOrEqual(measured.visualWidth);
+        expect(measured.height).toBeGreaterThanOrEqual(measured.visualHeight);
+
+        // And it reaches the far edges rather than stopping short of them.
+        expect(measured.right).toBeGreaterThanOrEqual(measured.visualWidth - 0.5);
+        expect(measured.bottom).toBeGreaterThanOrEqual(measured.visualHeight - 0.5);
+    });
+
     test("keeps Send in the header, on screen", async ({ page }) => {
         await openCompose(page);
 

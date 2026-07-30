@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Form\Setup;
 
+use App\Domain\Enum\AppLocale;
 use App\Entity\User\User;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
@@ -33,12 +35,29 @@ use Symfony\Component\Validator\Constraints\Url;
  * push subscriptions are built by a worker, which has no request to infer a
  * hostname from. It is prefilled with the address this page was reached on,
  * which on first run is almost always right.
+ *
+ * The locale is mapped: it is the administrator's own interface language from
+ * here on, and choosing it is also how the rest of this page gets translated.
  */
 final class FirstAdminType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+            // First field on the page, because it changes the rest of it: the
+            // selector reloads the form in the chosen language, and picking a
+            // language after reading five English labels is too late.
+            ->add('locale', ChoiceType::class, [
+                'label'   => 'setup.install.field.locale',
+                'choices' => array_combine(
+                    array_map(static fn (AppLocale $l): string => $l->emoji().'  '.$l->nativeLabel(), AppLocale::cases()),
+                    array_map(static fn (AppLocale $l): string => $l->value, AppLocale::cases()),
+                ),
+                'attr' => [
+                    'data-controller' => 'setup--locale-switch',
+                    'data-action'     => 'change->setup--locale-switch#reload',
+                ],
+            ])
             ->add('nameFirst', TextType::class, [
                 'label'       => 'setup.install.field.name_first',
                 'constraints' => [new NotBlank()],

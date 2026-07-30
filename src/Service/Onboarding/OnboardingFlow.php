@@ -73,28 +73,52 @@ final readonly class OnboardingFlow
         return $steps[0];
     }
 
+    /**
+     * The next step to show after this one.
+     *
+     * Ordered by the enum rather than by position in the applicable list,
+     * because the step being left may have dropped out of that list on its way
+     * out: saving the last mail provider, or the only account, can be the very
+     * thing that satisfies a step. Searching the list for a step no longer in
+     * it used to fall back to its first entry, which sent the user backwards.
+     */
     public function next(User $user, OnboardingStep $step): ?OnboardingStep
     {
-        $steps    = $this->applicableSteps($user);
-        $position = array_search($step, $steps, true);
+        $applicable = $this->applicableSteps($user);
+        $seen       = false;
 
-        if (false === $position) {
-            return $steps[0] ?? null;
+        foreach (OnboardingStep::cases() as $candidate) {
+            if ($candidate === $step) {
+                $seen = true;
+
+                continue;
+            }
+
+            if (true === $seen && in_array($candidate, $applicable, true)) {
+                return $candidate;
+            }
         }
 
-        return $steps[$position + 1] ?? null;
+        return null;
     }
 
+    /** The applicable step before this one, by enum order — see next(). */
     public function previous(User $user, OnboardingStep $step): ?OnboardingStep
     {
-        $steps    = $this->applicableSteps($user);
-        $position = array_search($step, $steps, true);
+        $applicable = $this->applicableSteps($user);
+        $previous   = null;
 
-        if (false === $position || 0 === $position) {
-            return null;
+        foreach (OnboardingStep::cases() as $candidate) {
+            if ($candidate === $step) {
+                return $previous;
+            }
+
+            if (true === in_array($candidate, $applicable, true)) {
+                $previous = $candidate;
+            }
         }
 
-        return $steps[$position - 1] ?? null;
+        return null;
     }
 
     /**
@@ -114,6 +138,56 @@ final readonly class OnboardingFlow
     public function isPending(User $user): bool
     {
         return null === $user->getSetting(User::SETTING_ONBOARDING_COMPLETED_AT);
+    }
+
+    /**
+     * How each step stands, keyed by step value: answered, and if not working,
+     * why.
+     *
+     * "Answered" is not "behind you": the progress rail marks these complete,
+     * and a step the user skipped past must not come out looking done. Two
+     * sources, because both mean the same thing to the person looking at it —
+     * a step they submitted here, and a step the handler says is satisfied
+     * anyway (an account exists, credentials are on file), which covers someone
+     * who did it in Settings instead.
+     *
+     * @return array<string, array{done: bool, error: string|null}>
+     */
+    public function stepStatuses(User $user): array
+    {
+        $done     = $this->done($user);
+        $statuses = [];
+
+        foreach (OnboardingStep::cases() as $step) {
+            $handler = $this->registry->has($step) ? $this->registry->handlerFor($step) : null;
+            $error   = $handler?->failureMessage($user);
+
+            $statuses[$step->value] = [
+                // A step that is not working is not done, whatever was pressed
+                // on the way past. Saying "done" to a mistyped password is
+                // worse than saying nothing, because the user stops looking.
+                'done' => null === $error && (
+                    in_array($step->value, $done, true)
+                    || true === $handler?->isSatisfied($user)
+                ),
+                'error' => $error,
+            ];
+        }
+
+        return $statuses;
+    }
+
+    public function markStepDone(User $user, OnboardingStep $step): void
+    {
+        $done = $this->done($user);
+
+        if (false === in_array($step->value, $done, true)) {
+            $done[] = $step->value;
+        }
+
+        $user->setSetting(User::SETTING_ONBOARDING_DONE_STEPS, $done);
+
+        $this->entityManager->flush();
     }
 
     public function isSkipped(User $user, OnboardingStep $step): bool
@@ -161,7 +235,8 @@ final readonly class OnboardingFlow
         $user
             ->setSetting(User::SETTING_ONBOARDING_COMPLETED_AT, null)
             ->setSetting(User::SETTING_ONBOARDING_STEP, null)
-            ->setSetting(User::SETTING_ONBOARDING_SKIPPED, []);
+            ->setSetting(User::SETTING_ONBOARDING_SKIPPED, [])
+            ->setSetting(User::SETTING_ONBOARDING_DONE_STEPS, []);
 
         $this->entityManager->flush();
     }
@@ -171,6 +246,20 @@ final readonly class OnboardingFlow
         $value = $user->getSetting(User::SETTING_ONBOARDING_STEP);
 
         return is_string($value) ? OnboardingStep::tryFrom($value) : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function done(User $user): array
+    {
+        $done = $user->getSetting(User::SETTING_ONBOARDING_DONE_STEPS, []);
+
+        if (false === is_array($done)) {
+            return [];
+        }
+
+        return array_values(array_filter($done, 'is_string'));
     }
 
     /**

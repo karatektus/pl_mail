@@ -1,11 +1,24 @@
 {#
-The redirect URI is the one thing the admin has to paste into Google's or
-Microsoft's console, and getting it wrong is the most common reason OAuth never
-works — so it is here, copyable, rather than left to be reconstructed by hand.
-Same block as the admin panel's form.
+The step-by-step for the selected provider, plus the redirect URI it has to be
+given. Longer than the admin panel's version on purpose: this is where someone
+sets plMail up for the first time, and "create an OAuth app" is not a single
+action if you have never opened the console before.
+
+The redirect URI is the same copyable block the admin form uses — pasting it
+wrong is the most common reason sign-in never works.
 #}
-<p class="font-medium text-ink-soft">{{ 'onboarding.aside.admin_mail.heading'|trans }}</p>
-<p class="mt-2">{{ 'onboarding.aside.admin_mail.body'|trans }}</p>
+{% set key = 'onboarding.aside.admin_mail.' ~ provider.value %}
+
+<p class="font-medium text-ink-soft">{{ (key ~ '.heading')|trans }}</p>
+
+<ol class="mt-3 space-y-2 list-decimal list-outside pl-4 marker:text-ink-faint">
+    {% for i in 1..6 %}
+        {% set line = (key ~ '.step' ~ i)|trans %}
+        {% if line != key ~ '.step' ~ i %}
+            <li class="pl-1 leading-relaxed">{{ line }}</li>
+        {% endif %}
+    {% endfor %}
+</ol>
 
 <div class="mt-4 pt-4 border-t border-line">
     <span class="block text-[13px] font-medium leading-none text-ink-soft">

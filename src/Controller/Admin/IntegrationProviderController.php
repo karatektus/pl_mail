@@ -124,11 +124,8 @@ final class IntegrationProviderController extends AbstractController
      * id and secret genuinely are the same credential. Dropbox has no mail
      * counterpart and is absent.
      */
-    private const array INHERITABLE = [
-        'googleDrive'  => 'google',
-        'googlePhotos' => 'google',
-        'oneDrive'     => 'microsoft',
-    ];
+    /** Shared with the setup wizard; see ProviderConfigWriter. */
+    private const array INHERITABLE = ProviderConfigWriter::INHERITABLE;
 
     #[Route('/{provider}/inherit', name: 'inherit', methods: ['POST'])]
     public function inherit(Provider $provider, Request $request): Response

@@ -1,3 +1,5 @@
+admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
+admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
 # Constraint messages. Symfony translates validation output in the `validators`
 # domain, not `messages` — a key put in messages.*.yaml renders as the raw key,
 # which is how "setup.install.password_too_short" ended up on screen.

@@ -7,7 +7,7 @@
         {{ form_start(form, {
             attr: {
                 'data-turbo': 'true',
-                'data-controller': 'account-form imap-preset connection-test',
+                'data-controller': 'settings--account-form settings--imap-preset settings--connection-test',
                 'data-settings--connection-test-url-value': path('app_account_test_connection'),
                 'data-settings--connection-test-csrf-value': csrf_token('account_test'),
                 class: 'flex-1 min-h-0 flex flex-col',

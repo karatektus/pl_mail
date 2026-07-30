@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Form\Integration\IntegrationConnectType;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
+use App\Service\Integration\IntegrationConnector;
 use App\Service\Integration\IntegrationDriverRegistry;
 use App\Service\Integration\IntegrationUrlValidator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,6 +45,7 @@ final class IntegrationController extends AbstractController
         private readonly IntegrationProviderConfigRepository $configRepository,
         private readonly IntegrationDriverRegistry           $drivers,
         private readonly IntegrationUrlValidator             $urlValidator,
+        private readonly IntegrationConnector                $connector,
         private readonly EntityManagerInterface              $em,
     ) {
     }
@@ -170,20 +172,7 @@ final class IntegrationController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            if (null === $integration->id) {
-                $this->em->persist($integration);
-            }
-
-            // Blank keeps the stored credential: the field never renders it, so
-            // blank cannot mean "clear it".
-            $secret = $this->nullIfBlank($form->get('secret')->getData());
-
-            if (null !== $secret) {
-                $integration->secret = $secret;
-            }
-
-            $error = $this->probe($integration);
-            $this->em->flush();
+            $error = $this->connector->save($integration, $form);
 
             return $this->listStream(null === $error
                 ? 'settings.integrations.saved'

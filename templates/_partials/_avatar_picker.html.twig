@@ -1,0 +1,80 @@
+{#
+_avatar_picker.html.twig — the profile picture: the one in use, and choosing a
+new one from a connected service.
+
+Shared by the setup wizard and Settings → Profile, because they are two views of
+the same thing. Only the URLs differ, so the caller passes them:
+
+  sources    list<Integration>   connections that can supply a picture
+  picking    Integration|null    the one whose pictures are on screen
+  entries    list<Entry>         images from it
+  pickUrls   map id => url       where "browse this one" goes
+  closeUrl   string              where "stop browsing" goes
+  fileField  string              full_name of the form field the choice binds to
+  current    string|null         URL of the picture in use, if there is one
+
+A thumbnail *is* the submit: choosing and saving are one action, and the button
+carries the field name the form binds it to. Browsing is a navigation rather
+than a client-side toggle because these fields belong to the surrounding form,
+and HTML has no nested forms.
+#}
+{% if current is defined and current is not null %}
+    {# Shown wherever the profile is edited. A file input reports a filename at
+       best, so without this there is no way to tell what the picture currently
+       is — only that there is one. #}
+    <div class="mt-5 flex items-center gap-3">
+        <img src="{{ current }}"
+             alt=""
+             class="size-12 rounded-full object-cover border border-line">
+        <span class="text-xs text-ink-faint">{{ 'profile.avatar_current'|trans }}</span>
+    </div>
+{% endif %}
+
+{% if sources|length %}
+    <div class="mt-5 pt-5 border-t border-line">
+        <p class="text-[13px] font-medium text-ink-soft">{{ 'profile.avatar_from.heading'|trans }}</p>
+
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+            {% for source in sources %}
+                {% set isOpen = picking is not null and picking.id == source.id %}
+                <a href="{{ isOpen ? closeUrl : pickUrls[source.id] }}"
+                   data-turbo-frame="{{ frame|default('_self') }}"
+                   id="avatar-source-{{ source.id }}"
+                   class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors
+                          {% if isOpen %}
+                            border-accent bg-accent/10 text-accent
+                          {% else %}
+                            border-field bg-field text-ink-soft hover:bg-hover
+                          {% endif %}">
+                    <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
+                    {{ source.name }}
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if picking is not null %}
+            {% if entries|length %}
+                <ul class="mt-4 grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {% for entry in entries %}
+                        <li>
+                            <button type="submit"
+                                    name="{{ fileField }}"
+                                    value="{{ entry.id }}"
+                                    title="{{ entry.name }}"
+                                    class="block w-full aspect-square overflow-hidden rounded-lg border border-line
+                                           hover:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                                           transition-colors cursor-pointer">
+                                <img src="{{ path('app_integration_thumbnail', { id: picking.id, file: entry.id }) }}"
+                                     alt="{{ entry.name }}"
+                                     loading="lazy"
+                                     class="w-full h-full object-cover">
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="mt-4 text-xs text-ink-faint">{{ 'profile.avatar_from.empty'|trans }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endif %}

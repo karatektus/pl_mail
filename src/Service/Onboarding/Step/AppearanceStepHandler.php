@@ -42,6 +42,24 @@ final readonly class AppearanceStepHandler implements OnboardingStepHandlerInter
         return true;
     }
 
+    /**
+     * There is no such thing as an appearance that is already configured — the
+     * defaults are a starting point, not an answer — so this is done when the
+     * user says it is, by pressing Next.
+     */
+    public function isSatisfied(User $user): bool
+    {
+        return false;
+    }
+
+    public function failureMessage(User $user): ?string
+    {
+        // Nothing here can be verified without the user making a round trip of
+        // their own: credentials prove nothing until somebody consents with
+        // them, and a name cannot be wrong.
+        return null;
+    }
+
     public function template(): string
     {
         return 'onboarding/steps/_appearance.html.twig';

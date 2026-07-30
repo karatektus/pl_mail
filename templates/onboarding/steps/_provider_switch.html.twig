@@ -1,20 +1,36 @@
 {#
 The provider chooser shared by both admin credential steps.
 
-Plain links that reload the frame with ?provider=… rather than tabs held in
-JavaScript: each provider has its own form and its own stored row, so switching
-is a fetch either way, and a link keeps the current choice in the URL where a
-half-finished step can resume to it.
+Buttons, not links, and that is the whole point: switching used to be a plain
+navigation, which threw away whatever had been typed for the provider you were
+leaving. Filling in the Google client id and then clicking Microsoft lost it
+silently. Now the switch submits the step first, so what you entered is saved
+and you come back to it.
+
+Every field on these forms is optional, so a half-filled provider saves as a
+half-filled provider rather than refusing. type="button" keeps Next as the
+form's default submit — otherwise Enter in a text field would switch provider.
+
+The list is every provider, always. It used to be only the ones still needing
+attention, which combined badly with save-on-switch: the provider you had just
+left acquired a row, stopped counting as outstanding, and disappeared from the
+list you were looking at. A tick marks the ones that are set up.
 #}
-<div class="flex items-center gap-1.5 mb-5" role="tablist">
+<div class="flex items-center gap-1.5 mb-5"
+     role="tablist"
+     data-controller="onboarding--form-nav">
+
+    <input type="hidden" name="switch_to" value="" data-onboarding--form-nav-target="field">
+
     {% for option in providers %}
-        <a
-            href="{{ path('app_onboarding_step', { step: step.value, provider: option.value }) }}"
-            data-turbo-frame="modal"
+        <button
+            type="button"
             id="onboarding-provider-{{ option.value }}"
             role="tab"
             aria-selected="{{ option.value == provider.value ? 'true' : 'false' }}"
-            class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors
+            data-value="{{ option.value }}"
+            data-action="click->onboarding--form-nav#go"
+            class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer
                    {% if option.value == provider.value %}
                      border-accent bg-accent/10 text-accent
                    {% else %}
@@ -23,6 +39,9 @@ half-finished step can resume to it.
         >
             <i class="{{ option.icon }} text-xs" aria-hidden="true"></i>
             {{ option.label }}
-        </a>
+            {% if decided[option.value]|default(false) %}
+                <i class="fa-solid fa-check text-[10px] text-success" aria-hidden="true"></i>
+            {% endif %}
+        </button>
     {% endfor %}
 </div>

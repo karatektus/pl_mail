@@ -6,6 +6,7 @@ readonly class AttachmentStorageHelper
 {
     public function __construct(
         private string $projectDir,
+        private string $storageDir,
     )
     {
     }
@@ -13,8 +14,9 @@ readonly class AttachmentStorageHelper
     public function store(int $accountId, int $mailboxId, int $messageUid, string $filename, string $content): string
     {
         $directory = sprintf(
-            '%s/var/attachments/%d/%d/%d',
+            '%s/%s/attachments/%d/%d/%d',
             $this->projectDir,
+            $this->storageDir,
             $accountId,
             $mailboxId,
             $messageUid,
@@ -38,7 +40,8 @@ readonly class AttachmentStorageHelper
 
         // Return path relative to project root for storage in DB
         return sprintf(
-            'var/attachments/%d/%d/%d/%s',
+            '%s/attachments/%d/%d/%d/%s',
+            $this->storageDir,
             $accountId,
             $mailboxId,
             $messageUid,
@@ -58,7 +61,7 @@ readonly class AttachmentStorageHelper
      */
     public function delete(?string $relativePath): void
     {
-        if (null === $relativePath || false === str_starts_with($relativePath, 'var/attachments/')) {
+        if (null === $relativePath || false === str_starts_with($relativePath, $this->storageDir.'/attachments/')) {
             return;
         }
 

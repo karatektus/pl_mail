@@ -16,6 +16,7 @@ readonly class UploadStorage
 {
     public function __construct(
         private string $projectDir,
+        private string $storageDir,
     ) {
     }
 
@@ -24,7 +25,7 @@ readonly class UploadStorage
      */
     public function store(int $accountId, string $content): string
     {
-        $relativeDirectory = sprintf('var/uploads/%d', $accountId);
+        $relativeDirectory = sprintf('%s/uploads/%d', $this->storageDir, $accountId);
         $directory = $this->projectDir.'/'.$relativeDirectory;
 
         if (false === is_dir($directory)) {

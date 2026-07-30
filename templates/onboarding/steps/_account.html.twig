@@ -1,2 +1,91 @@
-{# The same fields as Settings → Mail accounts → Add account. #}
-{% include 'account/_fields.html.twig' with { form: form, mode: 'new' } %}
+{#
+Mailboxes: what is connected, and a form to add another.
+
+The add form is the step's own form — HTML has no nested forms, so it could not
+be a second one inside the wizard — which is why opening and closing it is a
+frame navigation rather than a client-side toggle.
+
+"Add account" carries stay_on_step, so saving comes back here with the new
+account in the list instead of moving on. Next is still the way forward.
+#}
+{% if accounts|length %}
+    <ul class="space-y-2 mb-5">
+        {% for account in accounts %}
+            <li id="onboarding-account-{{ account.id }}"
+                class="flex items-center gap-3 rounded-pane border border-line px-4 py-3">
+                <i class="fa-solid fa-envelope w-5 text-center text-ink-muted" aria-hidden="true"></i>
+
+                <span class="flex-1 min-w-0">
+                    <span class="block truncate text-sm font-medium text-ink">{{ account.email ?? account.username }}</span>
+                    <span class="block truncate text-xs text-ink-faint">{{ account.imapHost }}</span>
+                </span>
+
+                <i class="fa-solid fa-check text-success text-xs" aria-hidden="true"></i>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if oauthProviders|length %}
+    {#
+    Signing in beats typing server addresses, so these come first — but only
+    for providers an admin has registered, since a button for an unconfigured
+    one leads to the provider's own error page.
+
+    _top, not the modal frame: a consent screen cannot render inside a dialog.
+    The wizard reopens at this step when the user comes back, so leaving is not
+    losing your place.
+    #}
+    <div class="flex flex-wrap items-center gap-2 mb-5">
+        {% for mailProvider in oauthProviders %}
+            <a href="{{ path('app_oauth_connect', { provider: mailProvider.value }) }}"
+               data-turbo-frame="_top"
+               id="onboarding-account-oauth-{{ mailProvider.value }}"
+               class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                      text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                <i class="{{ mailProvider.icon }} text-xs" aria-hidden="true"></i>
+                {{ 'onboarding.account.sign_in_with'|trans({ '%provider%': mailProvider.label }) }}
+            </a>
+        {% endfor %}
+    </div>
+
+    {% if adding %}
+        <p class="mb-4 text-xs text-ink-faint">{{ 'onboarding.account.or_manual'|trans }}</p>
+    {% endif %}
+{% endif %}
+
+{% if adding %}
+    <div class="space-y-6">
+        {% include 'account/_fields.html.twig' with { form: form, mode: 'new' } %}
+
+        <div class="flex items-center gap-2 pt-1">
+            <button
+                type="submit"
+                name="stay_on_step"
+                value="1"
+                id="onboarding-account-add"
+                class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-white
+                       bg-accent hover:bg-accent-strong active:bg-blue-800
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                       transition-colors duration-100"
+            >{{ 'onboarding.account.add'|trans }}</button>
+
+            {% if accounts|length %}
+                <a href="{{ closeUrl }}"
+                   data-turbo-frame="modal"
+                   class="text-xs text-ink-faint hover:text-ink-soft underline-offset-2 hover:underline transition-colors">
+                    {{ 'onboarding.account.cancel'|trans }}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <a href="{{ addUrl }}"
+       data-turbo-frame="modal"
+       id="onboarding-account-open"
+       class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+        {{ 'onboarding.account.add_another'|trans }}
+    </a>
+{% endif %}

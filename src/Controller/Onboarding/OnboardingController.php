@@ -89,10 +89,68 @@ final class OnboardingController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $handler->persist($user, $form);
 
+            // A step can ask to be re-rendered rather than advanced. The
+            // credential steps do it when the admin switches provider, so what
+            // they typed is saved instead of discarded; the account and
+            // integration steps do it after adding one, so the result is
+            // visible and another can follow. Either way the user is still
+            // working on the step, so it is not marked done yet.
+            $switchTo = (string) $request->request->get('switch_to', '');
+
+            if ('' !== $switchTo) {
+                return $this->redirectToRoute(
+                    'app_onboarding_step',
+                    ['step' => $step->value, 'provider' => $switchTo],
+                    Response::HTTP_SEE_OTHER,
+                );
+            }
+
+            // Jumped to another step from the progress rail. The step is
+            // marked done because it was saved on the way past — it is being
+            // left deliberately, not abandoned.
+            $gotoStep = OnboardingStep::tryFrom((string) $request->request->get('goto_step', ''));
+
+            if (null !== $gotoStep && $this->flow->isApplicable($user, $gotoStep)) {
+                $this->flow->markStepDone($user, $step);
+
+                return $this->redirectToRoute(
+                    'app_onboarding_step',
+                    ['step' => $gotoStep->value],
+                    Response::HTTP_SEE_OTHER,
+                );
+            }
+
+            if ('' !== (string) $request->request->get('stay_on_step', '')) {
+                return $this->redirectToRoute(
+                    'app_onboarding_step',
+                    ['step' => $step->value],
+                    Response::HTTP_SEE_OTHER,
+                );
+            }
+
+            $this->flow->markStepDone($user, $step);
+
             return $this->advanceFrom($user, $step);
         }
 
-        return $this->renderStep($user, $step, $form, $handler->template(), $handler->viewData($user, $request));
+        // Submitted, rejected, and a switch was asked for: the user clicked
+        // another provider and is still looking at this one. Say so, or the
+        // click reads as having done nothing.
+        // Submitted, rejected, and it was on its way somewhere: the user
+        // clicked another provider or another step and is still looking at this
+        // one. Say so, or the click reads as having done nothing.
+        $switchBlocked = $form->isSubmitted() && (
+            '' !== (string) $request->request->get('switch_to', '')
+            || '' !== (string) $request->request->get('goto_step', '')
+        );
+
+        return $this->renderStep(
+            $user,
+            $step,
+            $form,
+            $handler->template(),
+            [...$handler->viewData($user, $request), 'switchBlocked' => $switchBlocked],
+        );
     }
 
     #[Route('/{step}/skip', name: 'skip', methods: ['POST'], requirements: ['step' => self::STEP_PATTERN])]
@@ -168,6 +226,14 @@ final class OnboardingController extends AbstractController
         string $template,
         array $viewData,
     ): Response {
+        // 422 by hand: AbstractController::render() sets it automatically only
+        // when a FormInterface is among the parameters, and the shell is handed
+        // a FormView. Without it a rejected step answers 200, which Turbo and
+        // any test both read as success.
+        $status = $form->isSubmitted() && false === $form->isValid()
+            ? Response::HTTP_UNPROCESSABLE_ENTITY
+            : Response::HTTP_OK;
+
         return $this->render('onboarding/_wizard.html.twig', [
             ...$viewData,
             'step'     => $step,
@@ -175,8 +241,9 @@ final class OnboardingController extends AbstractController
             'progress' => $this->flow->progress($user, $step),
             'previous' => $this->flow->previous($user, $step),
             'isLast'   => null === $this->flow->next($user, $step),
+            'statuses' => $this->flow->stepStatuses($user),
             'template' => $template,
             'form'     => $form->createView(),
-        ]);
+        ], new Response(null, $status));
     }
 }

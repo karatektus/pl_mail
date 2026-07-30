@@ -1,91 +1,86 @@
 # plMail — TrueNAS SCALE custom app (Apps > Discover > ⋮ > Install via YAML)
 #
 # TrueNAS's YAML installer does NOT support ${VAR} interpolation, so all config is
-# hoisted into the x-config anchor block below and aliased (*name) into the services.
-# Edit ONLY the x-config block, then create the host dataset dirs (see NOTE at bottom).
+# hoisted into the x-config block below and aliased (*name) into the services.
+# Edit that block; nothing below it needs touching.
 #
-# Values below are pre-generated. Change them (at least slightly) before real use.
+# You do NOT need to create any directories by hand. Every bind below carries
+# create_host_path, so Docker makes them on first start. Point them at a dataset
+# rather than a plain directory if you want ZFS snapshots of your mail.
 
 name: plmail
 
-# NOTE — before installing, from the TrueNAS shell (replace "tank" with your pool):
-#   mkdir -p /mnt/tank/apps/plmail/{database_data,caddy_data,caddy_config,mercure_data,mercure_config,attachments,raw,uploads,secrets}
-#   chown -R 999:999 /mnt/tank/apps/plmail/database_data   # postgres runs as uid 999
-# Better: create tank/apps/plmail as a dataset so it gets its own ZFS snapshots.
-
-# READ THE COMMENT ABOVE!
-
 # ─────────────────────────────────────────────────────────────────────────────
-# EDIT EVERYTHING IN THIS BLOCK — nothing below needs touching.
+# 1. REQUIRED — plMail will not work properly until these are filled in.
 # ─────────────────────────────────────────────────────────────────────────────
 x-config:
-    # Where plMail is reached from outside — Gmail and Outlook push callbacks
-    # come back to it. Leave blank and the setup screen asks for it, prefilled
-    # with the address you opened plMail on.
+    # Where plMail is reached from outside, e.g. https://mail.example.com.
+    # Gmail and Outlook send push notifications back to it, and it is what the
+    # setup screen prefills. Leave blank only if you are just trying it out.
     app_public_url:       &app_public_url       ""
-    # -- Secrets --
-    # LEAVE THESE BLANK unless you manage secrets yourself. All four are
-    # generated on first start into path_secrets below, which is why that bind
-    # is mounted on the app services, the database and the hub. Fill one in and
-    # yours is used instead — nothing is ever generated over the top.
+
+    # The Mercure hub, on that same public origin. Live updates arrive over it;
+    # get this wrong and the app works but never refreshes by itself.
+    mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
+
+    # -- Storage --
+    # One directory. plMail makes its own subfolders inside it — postgres,
+    # attachments, raw, uploads, secrets — so there is nothing to create and
+    # nothing else to point anywhere.
     #
-    # BACK UP path_secrets, separately from the database: app_encryption_key
-    # encrypts every mailbox password and OAuth token at rest, and losing it
-    # loses them all. Changing it once mail accounts exist makes the app refuse
-    # to start rather than overwrite what it can no longer read.
+    # This is the whole install. Back it up, or make it a dataset and snapshot
+    # it: the secrets subfolder holds the key every mailbox password is
+    # encrypted with, and without it they are gone.
+    path_data:            &path_data            /mnt/yourPool/yourDataSet/plmail
+
+    # -- Image & host port --
+    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
+    http_port:            &http_port            30080
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. OPTIONAL — every one of these works left exactly as it is.
+# ─────────────────────────────────────────────────────────────────────────────
+
+    # -- Secrets --
+    # LEAVE THESE BLANK. All four are generated on first start into the storage
+    # directory above. Fill one in only if you manage secrets yourself; nothing is ever
+    # generated over the top of a value you supplied.
+    #
+    # app_encryption_key encrypts every mailbox password and OAuth token at rest.
+    # Changing it once mail accounts exist makes the app refuse to start rather
+    # than overwrite what it can no longer read — see CONTRIBUTING.md.
     app_secret:           &app_secret           ""
     app_encryption_key:   &app_encryption_key   ""
     db_password:          &db_password          ""
     mercure_jwt:          &mercure_jwt          ""
-    # Leave blank and the app assembles it from the generated db_password. Set
-    # it only to point plMail at a database of your own — and then the password
-    # inside it MUST equal db_password (an anchor can't be spliced mid-string):
+
+    # Leave blank and the app assembles it from the generated db_password. Set it
+    # only to point plMail at a database of your own — and then the password
+    # inside it MUST equal db_password (an anchor cannot be spliced mid-string):
     database_url:         &database_url         ""
 
-    # -- Public origin (your reverse-proxy hostname) --
-    mercure_public_url:   &mercure_public_url   "https://mail.yourdomain.com/.well-known/mercure"
-
     # -- Web Push (browser/PWA notifications + JMAP PushSubscription) --
-    # Generate a keypair once, on any machine with the image:
-    #   docker run --rm ghcr.io/karatektus/pl_mail:latest php bin/console app:push:generate-vapid-keys
-    # then paste the two keys below. Leave them blank to disable push entirely —
-    # the app detects that and hides the notification toggle.
-    # Rotating them invalidates every existing subscription; every device has to
-    # re-enable notifications afterwards.
+    # Generated on first start if left blank. Rotating them invalidates every
+    # existing subscription; every device has to re-enable notifications.
     # vapid_subject must be a mailto: or https: URL identifying you (RFC 8292).
-    # Leave the two keys blank and one is generated on first start instead.
     vapid_subject:        &vapid_subject        "mailto:you@yourdomain.com"
     vapid_public_key:     &vapid_public_key     ""
     vapid_private_key:    &vapid_private_key    ""
 
-    # -- Gmail (leave blank for IMAP-only) --
+    # -- Gmail and Outlook sign-in --
+    # These are easier to set up from inside plMail: Admin → Integrations walks
+    # through it and shows you the redirect URI to paste into the provider's
+    # console. Anything entered there is stored in the database and wins over
+    # what is here, so most installs can leave this whole block alone.
     google_client_id:     &google_client_id     ""
     google_client_secret: &google_client_secret ""
     gmail_pubsub_topic:   &gmail_pubsub_topic   "projects/your-project-id/topics/gmail-push"
     # Shared secret appended to the Pub/Sub push endpoint as ?token=… — must
     # match the push subscription in Google Cloud or every push is rejected.
-    # Generate with: openssl rand -hex 24
     gmail_pubsub_token:   &gmail_pubsub_token   ""
 
     graph_client_id:      &graph_client_id      ""
     graph_client_secret:  &graph_client_secret  ""
-    # -- Image & host port --
-    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
-    http_port:            &http_port            30080
-
-    # -- Host paths (create these as datasets first) --
-    path_db:              &path_db              /mnt/yourPool/yourDataSet/postgres
-    path_caddy_data:      &path_caddy_data      /mnt/yourPool/yourDataSet/caddy-data
-    path_caddy_config:    &path_caddy_config    /mnt/yourPool/yourDataSet/caddy-config
-    path_mercure_data:    &path_mercure_data    /mnt/yourPool/yourDataSet/mercure-data
-    path_mercure_config:  &path_mercure_config  /mnt/yourPool/yourDataSet/mercure-config
-    path_attachments:     &path_attachments     /mnt/yourPool/yourDataSet/attachments
-    path_raw:             &path_raw             /mnt/yourPool/yourDataSet/raw
-    path_uploads:         &path_uploads         /mnt/yourPool/yourDataSet/uploads
-    # Holds the secrets generated on first start. Mounted on all four app
-    # services: one that cannot see it mints its own encryption key and stops
-    # being able to read what the others wrote. BACK THIS UP.
-    path_secrets:         &path_secrets         /mnt/yourPool/yourDataSet/secrets
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -97,6 +92,10 @@ x-app-env: &app-env
     DATABASE_URL: *database_url
     POSTGRES_USER: app
     POSTGRES_DB: app
+    # Everything plMail writes goes under the single mounted directory.
+    APP_STORAGE_DIR: var/data
+    APP_SECRETS_DIR: /app/var/data/secrets
+    APP_SECRETS_FILE: /app/var/data/secrets/generated.env
     MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
     MERCURE_URL: "http://mercure/.well-known/mercure"
     MERCURE_PUBLIC_URL: *mercure_public_url
@@ -114,7 +113,7 @@ x-app-env: &app-env
     TRUSTED_PROXIES:
 
 services:
-    # Mints whatever was left blank above into path_secrets, then exits. Runs
+    # Mints whatever was left blank above into the storage directory, then exits. Runs
     # before everything else: Postgres and Mercure read their secrets when their
     # containers are created and cannot wait for the app to hand them one.
     # Idempotent — on every later start it finds the file and does nothing.
@@ -124,14 +123,17 @@ services:
         restart: "no"
         entrypoint: ["generate-secrets"]
         environment:
+            APP_SECRETS_DIR: /app/var/data/secrets
             APP_SECRET: *app_secret
             APP_ENCRYPTION_KEY: *app_encryption_key
             POSTGRES_PASSWORD: *db_password
             MERCURE_JWT_SECRET: *mercure_jwt
         volumes:
             - type: bind
-              source: *path_secrets
-              target: /app/var/secrets
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
 
     php:
         image: *image
@@ -149,26 +151,24 @@ services:
               published: *http_port
               protocol: tcp
         volumes:
-            - type: bind
-              source: *path_caddy_data       # holds TLS certs/keys — persist this
+            # Named volumes rather than host paths: these hold TLS material
+            # Caddy regenerates by itself, so there is nothing here worth a
+            # dataset of its own — and two fewer paths to get right.
+            - type: volume
+              source: caddy_data
               target: /data
-            - type: bind
-              source: *path_caddy_config
+            - type: volume
+              source: caddy_config
               target: /config
-            # Written by the sync workers, served by php — all three services
-            # must bind the same host paths.
+            # One mount for everything plMail writes. APP_STORAGE_DIR and
+            # APP_SECRETS_* point inside it, so attachments, raw messages,
+            # uploads and the generated secrets all land here — and every
+            # service sees the same files, which the encryption key depends on.
             - type: bind
-              source: *path_attachments
-              target: /app/var/attachments
-            - type: bind
-              source: *path_raw
-              target: /app/var/raw
-            - type: bind
-              source: *path_uploads
-              target: /app/var/uploads
-            - type: bind
-              source: *path_secrets
-              target: /app/var/secrets
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
         depends_on:
             secrets-init:
                 condition: service_completed_successfully
@@ -185,20 +185,15 @@ services:
             <<: *app-env
             APP_CONTAINER_NAME: imap-supervisor
         volumes:
-            # Written by the sync workers, served by php — all three services
-            # must bind the same host paths.
+            # One mount for everything plMail writes. APP_STORAGE_DIR and
+            # APP_SECRETS_* point inside it, so attachments, raw messages,
+            # uploads and the generated secrets all land here — and every
+            # service sees the same files, which the encryption key depends on.
             - type: bind
-              source: *path_attachments
-              target: /app/var/attachments
-            - type: bind
-              source: *path_raw
-              target: /app/var/raw
-            - type: bind
-              source: *path_uploads
-              target: /app/var/uploads
-            - type: bind
-              source: *path_secrets
-              target: /app/var/secrets
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
         healthcheck:
             disable: true
         depends_on:
@@ -217,20 +212,15 @@ services:
             <<: *app-env
             APP_CONTAINER_NAME: messenger-worker
         volumes:
-            # Written by the sync workers, served by php — all three services
-            # must bind the same host paths.
+            # One mount for everything plMail writes. APP_STORAGE_DIR and
+            # APP_SECRETS_* point inside it, so attachments, raw messages,
+            # uploads and the generated secrets all land here — and every
+            # service sees the same files, which the encryption key depends on.
             - type: bind
-              source: *path_attachments
-              target: /app/var/attachments
-            - type: bind
-              source: *path_raw
-              target: /app/var/raw
-            - type: bind
-              source: *path_uploads
-              target: /app/var/uploads
-            - type: bind
-              source: *path_secrets
-              target: /app/var/secrets
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
         healthcheck:
             disable: true
         depends_on:
@@ -256,17 +246,10 @@ services:
             # app:prune:blobs unlinks files across all three stores, so it
             # needs the same binds as the workers that write them.
             - type: bind
-              source: *path_attachments
-              target: /app/var/attachments
-            - type: bind
-              source: *path_raw
-              target: /app/var/raw
-            - type: bind
-              source: *path_uploads
-              target: /app/var/uploads
-            - type: bind
-              source: *path_secrets
-              target: /app/var/secrets
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
         healthcheck:
             disable: true
         depends_on:
@@ -284,7 +267,8 @@ services:
             # Only the _FILE form: the image rejects both being set at once, and
             # the file is written with whatever db_password holds — generated or
             # yours — so it is always the effective password.
-            POSTGRES_PASSWORD_FILE: /run/plmail/postgres_password
+            POSTGRES_PASSWORD_FILE: /plmail/secrets/postgres_password
+            PGDATA: /plmail/postgres
         healthcheck:
             test: ["CMD", "pg_isready", "-d", "app", "-U", "app"]
             timeout: 5s
@@ -294,12 +278,18 @@ services:
             secrets-init:
                 condition: service_completed_successfully
         volumes:
+            # PGDATA is a subfolder of the shared mount, so Postgres creates
+            # and owns it on first start — nothing to chown by hand.
             - type: bind
-              source: *path_db
-              target: /var/lib/postgresql/18/docker
+              source: *path_data
+              target: /plmail
+              bind:
+                  create_host_path: true
             - type: bind
-              source: *path_secrets
-              target: /run/plmail
+              source: *path_data
+              target: /plmail
+              bind:
+                  create_host_path: true
               read_only: true
         command:
             - "postgres"
@@ -322,8 +312,8 @@ services:
             - /bin/sh
             - -c
             - |
-              if [ -z "$$MERCURE_JWT_SECRET" ] && [ -f /run/plmail/generated.env ]; then
-                MERCURE_JWT_SECRET="$$(sed -n 's/^MERCURE_JWT_SECRET=//p' /run/plmail/generated.env)"
+              if [ -z "$$MERCURE_JWT_SECRET" ] && [ -f /plmail/secrets/generated.env ]; then
+                MERCURE_JWT_SECRET="$$(sed -n 's/^MERCURE_JWT_SECRET=//p' /plmail/secrets/generated.env)"
               fi
               export MERCURE_PUBLISHER_JWT_KEY="$$MERCURE_JWT_SECRET"
               export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
@@ -340,12 +330,20 @@ services:
             start_period: 60s
         volumes:
             - type: bind
-              source: *path_secrets
-              target: /run/plmail
+              source: *path_data
+              target: /plmail
+              bind:
+                  create_host_path: true
               read_only: true
-            - type: bind
-              source: *path_mercure_data
+            - type: volume
+              source: mercure_data
               target: /data
-            - type: bind
-              source: *path_mercure_config
+            - type: volume
+              source: mercure_config
               target: /config
+
+volumes:
+    caddy_data:
+    caddy_config:
+    mercure_data:
+    mercure_config:
