@@ -8,10 +8,10 @@ use App\Domain\Enum\PushHealth;
 use App\Domain\Interface\PushSubscriptionManagerInterface;
 use App\Entity\Mail\Account;
 use App\Service\Mail\GraphApiClient;
+use App\Service\Setup\PublicUrlSetting;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -45,8 +45,10 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
         private UrlGeneratorInterface  $urlGenerator,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        #[Autowire(env: 'APP_PUBLIC_URL')]
-        private string                 $publicBaseUrl,
+        // Resolved per call, not injected as a string: the workers that build
+        // subscriptions are long-running, and the URL is typically saved from
+        // the setup screen after they have booted.
+        private PublicUrlSetting       $publicUrl,
     ) {}
 
     /**
@@ -116,7 +118,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
         if (false === $this->isPubliclyRoutable()) {
             $this->logger->warning('GraphSubscriptionManager: no usable public base URL, staying on polling', [
                 'accountId'     => $account->getId(),
-                'publicBaseUrl' => $this->publicBaseUrl,
+                'publicBaseUrl' => $this->publicUrl->current() ?? '',
             ]);
 
             return false;
@@ -272,7 +274,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
     {
         $path = $this->urlGenerator->generate($route);
 
-        return rtrim($this->publicBaseUrl, '/') . $path;
+        return rtrim((string) $this->publicUrl->current(), '/') . $path;
     }
 
     /**
@@ -282,7 +284,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
      */
     private function isPubliclyRoutable(): bool
     {
-        $base = trim($this->publicBaseUrl);
+        $base = trim((string) $this->publicUrl->current());
 
         if ('' === $base) {
             return false;

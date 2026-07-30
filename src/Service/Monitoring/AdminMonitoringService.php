@@ -7,7 +7,9 @@ namespace App\Service\Monitoring;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Monitoring\ProcessHeartbeatRepository;
+use App\Service\Gmail\GmailPushSettings;
 use App\Service\Push\PushSubscriptionRegistry;
+use App\Service\Setup\PublicUrlSetting;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -34,12 +36,12 @@ final class AdminMonitoringService
         private readonly AccountRepository          $accountRepository,
         private readonly Connection                 $connection,
         private readonly PushSubscriptionRegistry   $pushRegistry,
-        #[Autowire(env: 'GMAIL_PUBSUB_TOPIC')]
-        private readonly string                     $pubSubTopic,
-        #[Autowire(env: 'GMAIL_PUBSUB_VERIFICATION_TOKEN')]
-        private readonly string                     $verificationToken,
-        #[Autowire(env: 'APP_PUBLIC_URL')]
-        private readonly string                     $publicBaseUrl,
+        // Through the same resolvers the push path itself uses — the panel
+        // exists to explain that path, so reading the raw environment here
+        // showed placeholder values whenever the real ones were stored via
+        // Admin → Integrations or the setup screen.
+        private readonly GmailPushSettings          $gmailPushSettings,
+        private readonly PublicUrlSetting           $publicUrl,
         #[Autowire(env: 'APP_DB_LOG_LEVEL')]
         private readonly string                     $dbLogLevel,
     ) {}
@@ -141,9 +143,9 @@ final class AdminMonitoringService
      */
     public function gmailPushDiagnostics(): array
     {
-        $topic = trim($this->pubSubTopic);
-        $token = trim($this->verificationToken);
-        $base  = trim($this->publicBaseUrl);
+        $topic = trim($this->gmailPushSettings->topic() ?? '');
+        $token = trim($this->gmailPushSettings->verificationToken() ?? '');
+        $base  = trim((string) $this->publicUrl->current());
 
         return [
             'topic'           => '' === $topic ? '—' : $topic,

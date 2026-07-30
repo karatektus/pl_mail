@@ -51,6 +51,28 @@ final readonly class PublicUrlSetting
     }
 
     /**
+     * The effective public URL right now, or null while none is configured.
+     *
+     * Same precedence as everywhere else — a real environment value wins, the
+     * setup-written file is the fallback — but resolved at call time rather
+     * than frozen into a service at container build. That distinction is what
+     * lets a long-running worker see a URL the admin saved after the worker
+     * booted: the file is re-read here, not snapshotted.
+     */
+    public function current(): ?string
+    {
+        $env = trim((string) ($_SERVER['APP_PUBLIC_URL'] ?? $_ENV['APP_PUBLIC_URL'] ?? ''));
+
+        if ('' !== $env) {
+            return rtrim($env, '/');
+        }
+
+        $stored = trim($this->config->read()['APP_PUBLIC_URL'] ?? '');
+
+        return '' === $stored ? null : rtrim($stored, '/');
+    }
+
+    /**
      * The address this request arrived on, as the best guess to offer during
      * setup. Correct whenever plMail is reached the same way its users reach
      * it, which on first run it is — someone is looking at it in a browser.

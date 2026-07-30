@@ -145,10 +145,17 @@ final class MessageThreader
             ?? $this->createThread($message, $account, ThreadingMethod::Provider)
                 ->setProviderThreadKey($providerThreadKey);
 
-        // Long-running workers never stop adding keys, and the entries are only
-        // worth anything within one batch, so drop the lot rather than grow.
+        // Long-running workers never stop adding keys, so the cache has to be
+        // bounded — but only entries the repository lookup above can already
+        // serve are safe to drop. A thread without an id is an unflushed
+        // INSERT: evicting it mid-batch made the next message of the same
+        // conversation create it a second time, and the batch-end flush died
+        // on uniq_message_thread_provider_key_account.
         if (count($this->providerThreads) >= self::PROVIDER_THREAD_CACHE_LIMIT) {
-            $this->providerThreads = [];
+            $this->providerThreads = array_filter(
+                $this->providerThreads,
+                static fn (MessageThread $cached): bool => null === $cached->getId(),
+            );
         }
 
         $this->providerThreads[$cacheKey] = $thread;

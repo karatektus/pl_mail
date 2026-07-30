@@ -178,6 +178,41 @@ final class MessageThreaderTest extends TestCase
     }
 
     /**
+     * The cache is bounded, but an entry whose thread has not been flushed yet
+     * is the only record of that thread anywhere — the repository cannot serve
+     * it. The old wipe-everything eviction forgot those mid-batch on busy
+     * workers, the same conversation got a second thread, and the batch-end
+     * flush died on uniq_message_thread_provider_key_account.
+     */
+    public function testCacheOverflowDoesNotForgetUnflushedThreads(): void
+    {
+        $account  = new Account();
+        $threader = $this->threaderWithThreadLookup(null, managed: true);
+
+        $first = $this->message(MessageCategory::Primary, '2026-07-28 10:00:00');
+        $threader->assignThread($first, $account);
+
+        /** @var int $limit */
+        $limit = (new \ReflectionClassConstant(MessageThreader::class, 'PROVIDER_THREAD_CACHE_LIMIT'))->getValue();
+
+        // Push the cache past its limit with unrelated conversations, as a
+        // long-running worker does over the course of a large sync.
+        for ($i = 0; $i <= $limit; ++$i) {
+            $threader->assignThread(
+                $this->message(MessageCategory::Primary, '2026-07-28 10:30:00')
+                    ->setProviderThreadKey('conversation-filler-'.$i),
+                $account,
+            );
+        }
+
+        $second = $this->message(MessageCategory::Primary, '2026-07-28 11:00:00');
+        $threader->assignThread($second, $account);
+
+        self::assertNotNull($first->getThread());
+        self::assertSame($first->getThread(), $second->getThread());
+    }
+
+    /**
      * The cache holds entities, and the worker's entity manager is cleared
      * between messages — a thread it no longer manages must not be handed out.
      */
