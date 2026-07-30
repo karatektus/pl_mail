@@ -69,12 +69,18 @@ export default class extends Controller {
             const href = link.getAttribute("href");
             const isActive = current === href || current.startsWith(href + "/");
 
+            // A system row is its own .nav-item; a custom label wraps the
+            // anchor in one so the disclosure arrow and the edit button stay
+            // outside the link. Tint the row either way, or a label would get
+            // the colour on its text only while the pill stayed empty.
+            const row = link.closest(".nav-item") ?? link;
+
             if (isActive) {
-                link.classList.add(...ACTIVE_CLASSES);
-                link.classList.remove(...INACTIVE_CLASSES);
+                row.classList.add(...ACTIVE_CLASSES);
+                row.classList.remove(...INACTIVE_CLASSES);
             } else {
-                link.classList.remove(...ACTIVE_CLASSES);
-                link.classList.add(...INACTIVE_CLASSES);
+                row.classList.remove(...ACTIVE_CLASSES);
+                row.classList.add(...INACTIVE_CLASSES);
             }
         });
     }

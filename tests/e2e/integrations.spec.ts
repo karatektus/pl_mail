@@ -463,7 +463,7 @@ test.describe("compose integration picker", () => {
             .first()
             .click();
 
-        const chip = page.locator('[data-controller="dropdown"]').filter({
+        const chip = page.locator('[data-controller="ui--dropdown"]').filter({
             hasText: "e2e-attachment.txt",
         });
         await expect(chip).toBeVisible();

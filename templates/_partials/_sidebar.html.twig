@@ -61,9 +61,9 @@ keeps its accessible name either way.
 
     {% if children|length > 0 %}
         <details class="group/tree" open>
-            <summary class="group/label flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer list-none
-                            hover:bg-hover transition-colors"
-                     style="padding-left: {{ 12 + depth * 14 }}px">
+            <summary class="nav-item group/label flex items-center gap-1 py-1.5 cursor-pointer list-none
+                            transition-colors"
+                     style="--label-depth: {{ depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
                 {{ macros.label_dot(label.color) }}
@@ -83,9 +83,8 @@ keeps its accessible name either way.
             </div>
         </details>
     {% else %}
-        <div class="group/label flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
-                    hover:bg-hover"
-             style="padding-left: {{ 12 + depth * 14 + 16 }}px">
+        <div class="nav-item group/label flex items-center gap-2 py-1.5 transition-colors"
+             style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
             <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"

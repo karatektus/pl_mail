@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
+use App\Form\ApiTokenType;
 use App\Repository\User\ApiTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -38,11 +39,17 @@ final class ApiTokenController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        $name = (string) $request->request->get('name', '');
+        $form = $this->createForm(ApiTokenType::class);
+        $form->handleRequest($request);
 
-        if ('' === trim($name)) {
+        // An invalid token lands here too: minting a credential must not be
+        // reachable by a cross-site POST, which it was while this read the
+        // request bag directly.
+        if (false === $form->isSubmitted() || false === $form->isValid()) {
             return $this->streamResponse($request, 'app_password.name_required', null, 'error');
         }
+
+        $name = (string) $form->get('name')->getData();
 
         ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $name);
 
@@ -55,6 +62,10 @@ final class ApiTokenController extends AbstractController
     #[Route('/{id}/revoke', name: 'revoke', methods: ['POST'])]
     public function revoke(Request $request, int $id): Response
     {
+        if (false === $this->isCsrfTokenValid('app-password-revoke' . $id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
         $token = $this->tokenRepository->findOneOwnedBy($id, $this->getUser());
 
         if (null === $token) {
@@ -81,6 +92,9 @@ final class ApiTokenController extends AbstractController
                 'newSecret' => $secret,
                 'toastMessage' => $toastMessage,
                 'toastType' => $toastType,
+                // A fresh form: the replaced frame carries the create field, and
+                // reusing the submitted one would redisplay what was just saved.
+                'apiTokenForm' => $this->createForm(ApiTokenType::class)->createView(),
             ]);
         }
 

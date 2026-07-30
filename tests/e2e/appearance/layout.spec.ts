@@ -16,7 +16,7 @@ const APPEARANCE = "/settings?section=appearance";
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 const layoutSelect = (page: Page) =>
-    page.locator('select[data-appearance-field="layout"]');
+    page.locator('select[data-settings--appearance-field="layout"]');
 
 const flat = (page: Page) =>
     page.evaluate(() =>
@@ -86,8 +86,8 @@ test.describe("layout", () => {
     test("seeds its glass knobs, and a manual change still wins", async ({
         page,
     }) => {
-        const opacity = page.locator('input[data-appearance-field="paneAlpha"]');
-        const blur = page.locator('input[data-appearance-field="paneBlur"]');
+        const opacity = page.locator('input[data-settings--appearance-field="paneAlpha"]');
+        const blur = page.locator('input[data-settings--appearance-field="paneBlur"]');
 
         await pickLayout(page, "boxed");
         await expect(opacity).toHaveValue("0.7");

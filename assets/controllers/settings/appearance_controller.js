@@ -128,7 +128,7 @@ export default class extends Controller {
     }
 
     pickBackground(event) {
-        if (event.currentTarget.dataset.appearanceField === 'backgroundPreset') {
+        if (event.currentTarget.getAttribute('data-settings--appearance-field') === 'backgroundPreset') {
             const kindInput = this.element.querySelector('[data-settings--appearance-field="backgroundKind"][value="preset"]');
 
             if (kindInput) {
@@ -157,7 +157,7 @@ export default class extends Controller {
                 return;
             }
 
-            payload[input.dataset.appearanceField] = input.value;
+            payload[input.getAttribute('data-settings--appearance-field')] = input.value;
         });
 
         try {

@@ -8,6 +8,8 @@ use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
+use App\Form\EmailAliasType;
+use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\EmailAliasRepository;
 use App\Service\Mail\AliasSeeder;
@@ -28,6 +30,7 @@ final class AliasController extends AbstractController
         private readonly AccountRepository      $accountRepository,
         private readonly EmailAliasRepository   $aliasRepository,
         private readonly AliasSeeder            $aliasSeeder,
+        private readonly AliasAddFormFactory    $aliasAddForms,
     ) {}
 
     #[Route('/add', name: 'add', methods: ['POST'])]
@@ -35,9 +38,18 @@ final class AliasController extends AbstractController
     {
         $this->denyUnlessOwner($account);
 
-        $address = EmailAlias::normalize((string) $request->request->get('address', ''));
+        $form = $this->createForm(EmailAliasType::class);
+        $form->handleRequest($request);
 
-        if ('' === $address || false === filter_var($address, FILTER_VALIDATE_EMAIL)) {
+        // Covers a missing or stale CSRF token as well as a malformed address:
+        // both mean "do not write", and the toast says the same thing either way.
+        if (false === $form->isSubmitted() || false === $form->isValid()) {
+            return $this->streamResponse($request, $account, 'alias.invalid');
+        }
+
+        $address = EmailAlias::normalize((string) $form->get('address')->getData());
+
+        if ('' === $address) {
             return $this->streamResponse($request, $account, 'alias.invalid');
         }
 
@@ -62,6 +74,7 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/primary', name: 'primary', methods: ['POST'])]
     public function makePrimary(Request $request, Account $account, int $aliasId): Response
     {
+        $this->assertToken($request, 'alias-primary' . $aliasId);
         $this->denyUnlessOwner($account);
         $target = $this->ownedAlias($account, $aliasId);
 
@@ -80,6 +93,7 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/status', name: 'status', methods: ['POST'])]
     public function setStatus(Request $request, Account $account, int $aliasId): Response
     {
+        $this->assertToken($request, 'alias-status' . $aliasId);
         $this->denyUnlessOwner($account);
         $target = $this->ownedAlias($account, $aliasId);
 
@@ -99,6 +113,7 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Account $account, int $aliasId): Response
     {
+        $this->assertToken($request, 'alias-delete' . $aliasId);
         $this->denyUnlessOwner($account);
         $target = $this->ownedAlias($account, $aliasId);
 
@@ -116,6 +131,7 @@ final class AliasController extends AbstractController
     #[Route('/refresh', name: 'refresh', methods: ['POST'])]
     public function refresh(Request $request, Account $account): Response
     {
+        $this->assertToken($request, 'alias-refresh' . $account->getId());
         $this->denyUnlessOwner($account);
 
         $this->aliasSeeder->seed($account);
@@ -136,6 +152,17 @@ final class AliasController extends AbstractController
         throw $this->createNotFoundException('No such alias on this account.');
     }
 
+    /**
+     * The add form gets its token from EmailAliasType; these four are single
+     * buttons, so they carry one by hand the way the label and account rows do.
+     */
+    private function assertToken(Request $request, string $id): void
+    {
+        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+    }
+
     private function denyUnlessOwner(Account $account): void
     {
         if ($account->getUsr() !== $this->getUser()) {
@@ -154,6 +181,9 @@ final class AliasController extends AbstractController
                 'account'            => $account,
                 'manageableAccounts' => $manageableAccounts,
                 'toastMessage'       => $toastMessage,
+                // Fresh, unsubmitted forms: the stream replaces the whole list,
+                // and the add field should come back empty.
+                'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             ]);
         }
 

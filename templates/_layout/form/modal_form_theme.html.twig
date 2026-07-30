@@ -1,3 +1,28 @@
+{#
+── Field container ────────────────────────────────────────────────────────────
+
+Symfony wraps every row of a compound form in one bare <div>. That div is a
+single child of whatever holds the form, so a space-y-* on the modal body sets
+the gap around the whole field block and never between the fields — they sit
+flush no matter how far that number is raised. The rhythm has to live here, on
+the wrapper that actually has the rows as children.
+
+Root form only. A compound child — a repeated password, a date's three selects,
+a collection row — is one field to the reader and should stay tight.
+#}
+{% block form_widget_compound %}
+    {% if form is rootform %}
+        {% set attr = attr|merge({ class: (attr.class|default('') ~ ' space-y-5')|trim }) %}
+    {% endif %}
+    <div {{ block('widget_container_attributes') }}>
+        {%- if form is rootform -%}
+            {{ form_errors(form) }}
+        {%- endif -%}
+        {{- block('form_rows') -}}
+        {{- form_rest(form) -}}
+    </div>
+{% endblock %}
+
 {# ── Row wrapper ─────────────────────────────────────────────────────────── #}
 {% block form_row %}
     <div class="flex flex-col gap-2">

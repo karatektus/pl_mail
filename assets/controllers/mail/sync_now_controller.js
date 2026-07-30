@@ -134,7 +134,7 @@ export default class extends Controller {
         const toast = document.createElement("div");
         toast.setAttribute("data-controller", "ui--toast");
         toast.setAttribute("role", "status");
-        toast.className = `relative rounded-xl shadow-xl overflow-hidden min-w-[280px] max-w-sm ${colors[type] ?? colors.info}`;
+        toast.className = `relative rounded-pane shadow-xl overflow-hidden min-w-[280px] max-w-sm ${colors[type] ?? colors.info}`;
         toast.innerHTML = `
             <div class="flex items-center gap-3 px-5 py-3.5 text-base font-medium">
                 <span></span>

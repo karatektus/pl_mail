@@ -341,7 +341,9 @@ export default class extends Controller {
                 : 'fa-solid fa-minus text-xs';
         }
 
-        this.element.classList.toggle('rounded-b-2xl', minimized);
+        // Must track the header's rounded-t-pane: both follow the theme radius,
+        // so a fixed value here disagrees at every setting but the default.
+        this.element.classList.toggle('rounded-b-pane', minimized);
     }
 
     // ── Expand / fullscreen ───────────────────────────────────────────
@@ -630,8 +632,8 @@ export default class extends Controller {
                     const oldForm = this.element.querySelector('form');
 
                     if (newController) {
-                        this.draftUrlValue = newController.dataset.composeDraftUrlValue;
-                        this.sendUrlValue  = newController.dataset.composeSendUrlValue;
+                        this.draftUrlValue = newController.getAttribute('data-compose--compose-draft-url-value');
+                        this.sendUrlValue  = newController.getAttribute('data-compose--compose-send-url-value');
                     }
 
                     if (oldForm) {
@@ -770,7 +772,7 @@ export default class extends Controller {
         // the draft id is only known once the save above has run — so the
         // button carries data-controller="ui--modal" and gets pointed at the right
         // URL here, immediately before being opened.
-        button.dataset.modalSrcValue = `/integrations/${integrationId}/browse?draft=${id}`;
+        button.setAttribute('data-ui--modal-src-value', `/integrations/${integrationId}/browse?draft=${id}`);
 
         this.application
             .getControllerForElementAndIdentifier(button, 'ui--modal')

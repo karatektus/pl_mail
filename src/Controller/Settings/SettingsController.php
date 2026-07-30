@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
+use App\Form\ApiTokenType;
+use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Label\LabelRepository;
@@ -29,6 +31,7 @@ final class SettingsController extends AbstractController
         private readonly MailRuleRepository $mailRuleRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly ApiTokenRepository $apiTokenRepository,
+        private readonly AliasAddFormFactory $aliasAddForms,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
         private readonly string $vapidPublicKey,
         #[Autowire('%kernel.default_locale%')]
@@ -53,6 +56,8 @@ final class SettingsController extends AbstractController
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
+            'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
+            'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
             'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->getLocale())
@@ -60,4 +65,5 @@ final class SettingsController extends AbstractController
                 ?? AppLocale::English,
         ]);
     }
+
 }

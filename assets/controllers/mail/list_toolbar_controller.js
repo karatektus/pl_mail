@@ -177,7 +177,7 @@ export default class extends Controller {
     _selectedIds() {
         return this._checkedRows().map((cb) => {
             const li = cb.closest("[data-mail--message-row-id-value]");
-            return li ? parseInt(li.dataset.messageRowIdValue, 10) : null;
+            return li ? parseInt(li.getAttribute("data-mail--message-row-id-value"), 10) : null;
         }).filter(Boolean);
     }
 

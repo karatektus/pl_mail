@@ -22,6 +22,7 @@
     {% else %}
         <form method="post" action="{{ path('app_alias_primary', { id: account.id, aliasId: alias.id }) }}"
               data-turbo-stream class="shrink-0">
+            <input type="hidden" name="_token" value="{{ csrf_token('alias-primary' ~ alias.id) }}">
             <button type="submit" class="text-[11px] text-ink-faint hover:text-accent transition-colors cursor-pointer">
                 {{ 'settings.aliases.make_primary'|trans }}
             </button>
@@ -29,6 +30,7 @@
 
         <form method="post" action="{{ path('app_alias_status', { id: account.id, aliasId: alias.id }) }}"
               data-turbo-stream class="shrink-0">
+            <input type="hidden" name="_token" value="{{ csrf_token('alias-status' ~ alias.id) }}">
             <input type="hidden" name="status" value="{{ isInactive ? 'active' : 'inactive' }}">
             <button type="submit" class="text-[11px] text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
                 {{ isInactive ? 'settings.aliases.enable'|trans : 'settings.aliases.disable'|trans }}
@@ -38,6 +40,7 @@
         {% if alias.source.value == 'manual' %}
             <form method="post" action="{{ path('app_alias_delete', { id: account.id, aliasId: alias.id }) }}"
                   data-turbo-stream class="shrink-0">
+                <input type="hidden" name="_token" value="{{ csrf_token('alias-delete' ~ alias.id) }}">
                 <button type="submit" class="text-[11px] text-ink-faint hover:text-red-500 transition-colors cursor-pointer"
                         aria-label="{{ 'settings.aliases.delete'|trans }}">
                     <i class="fa-solid fa-trash-can" aria-hidden="true"></i>

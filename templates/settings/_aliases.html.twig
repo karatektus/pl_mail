@@ -12,6 +12,7 @@
                     </p>
                     <form method="post" action="{{ path('app_alias_refresh', { id: account.id }) }}"
                           data-turbo-stream>
+                        <input type="hidden" name="_token" value="{{ csrf_token('alias-refresh' ~ account.id) }}">
                         <button type="submit"
                                 class="shrink-0 inline-flex items-center gap-1.5 text-xs text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
                             <i class="fa-solid fa-rotate text-[11px]" aria-hidden="true"></i>
@@ -35,17 +36,20 @@
                     {% endif %}
                 </ul>
 
-                <form method="post" action="{{ path('app_alias_add', { id: account.id }) }}"
-                      data-turbo-stream class="flex items-center gap-2">
-                    <input type="email" name="address" required
-                           placeholder="{{ 'settings.aliases.add_placeholder'|trans }}"
-                           class="flex-1 h-9 px-3 rounded-lg bg-zinc-500/5 border border-line text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent">
+                {# One form per account, from AliasAddFormFactory — each posts to
+                   its own account's route. EmailAliasType carries the CSRF token
+                   this row used to go without. #}
+                {% set aliasForm = aliasForms[account.id] %}
+                {{ form_start(aliasForm, { attr: { 'data-turbo-stream': true, class: 'flex items-end gap-2' } }) }}
+                    <div class="flex-1 min-w-0">
+                        {{ form_widget(aliasForm.address) }}
+                    </div>
                     <button type="submit"
                             class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
                         <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
                         {{ 'settings.aliases.add'|trans }}
                     </button>
-                </form>
+                {{ form_end(aliasForm) }}
             </div>
 
         {% endfor %}

@@ -71,7 +71,7 @@
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
                    bg-surface
                    border border-line
-                   rounded-xl shadow-xl overflow-hidden"
+                   rounded-pane shadow-xl overflow-hidden"
         >
             <div class="flex items-center justify-between px-3 py-1.5 border-b border-line">
                 <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
@@ -115,7 +115,7 @@
                 {{ app.user.email | first | upper }}
             </button>
 
-            <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-xl shadow-lg py-1 z-[200]">
+            <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
                     <p class="text-xs text-gray-400">{{ 'header.user_menu.signed_in_as'|trans }}</p>
                     <p class="text-sm font-medium text-ink truncate">{{ app.user.email }}</p>

@@ -29,7 +29,7 @@ test.describe("compose window", () => {
         // Target the Stimulus hook, not the generated id: the editor's id is
         // derived from the form field name and moves whenever the form does.
         await expect(
-            window.locator('[data-compose-toolbar-target="editor"]'),
+            window.locator('[data-compose--compose-toolbar-target="editor"]'),
         ).toBeVisible();
     });
 
@@ -37,7 +37,7 @@ test.describe("compose window", () => {
         await page.goto("/mail/inbox");
         await page.getByRole("link", { name: "Compose" }).click();
 
-        const cc = page.locator('[data-compose-target="ccField"]');
+        const cc = page.locator('[data-compose--compose-target="ccField"]');
         await expect(cc).toBeHidden();
 
         await page.locator(dock).getByRole("button", { name: "Cc", exact: true }).click();
@@ -71,7 +71,7 @@ test.describe("compose window", () => {
         await toInput.press("Tab");
 
         await expect(
-            page.locator('[data-compose-target="ccField"]').locator(".ts-control input"),
+            page.locator('[data-compose--compose-target="ccField"]').locator(".ts-control input"),
         ).toBeFocused();
     });
 
@@ -84,7 +84,7 @@ test.describe("compose window", () => {
         const firstWindow = page.locator(dock);
         await firstWindow.locator(".ts-control input").first().fill(RECIPIENT);
         await firstWindow.locator(".ts-control input").first().press("Enter");
-        await firstWindow.locator('[data-compose-toolbar-target="editor"]').fill("Draft body");
+        await firstWindow.locator('[data-compose--compose-toolbar-target="editor"]').fill("Draft body");
         await page.waitForResponse((r) =>
             r.url().includes("/compose/draft") && r.request().method() === "POST"
         );
@@ -173,7 +173,7 @@ test.describe("compose window", () => {
 
         // The autosave only mints a draft once the body clears min-chars, so a
         // subject on its own would never produce the POST awaited below.
-        await dockEl.locator('[data-compose-toolbar-target="editor"]').fill("Draft body");
+        await dockEl.locator('[data-compose--compose-toolbar-target="editor"]').fill("Draft body");
 
         await page.waitForResponse((r) =>
             r.url().includes("/compose/draft") && r.request().method() === "POST"

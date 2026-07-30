@@ -1,5 +1,5 @@
 {#
-mail/_attachment_chip.html.twig — one attachment, with download and save-to.
+mail/_attachment_chip.html.twig — one attachment, with preview, download and save-to.
 
 Extracted from _thread_message and _message_content, which carried identical
 copies of the download link. The "Save to…" half is why it is shared: it needs
@@ -11,16 +11,37 @@ passed-in variable, because several of those call sites include with `only`.
 
 Save-to posts a Turbo Stream and answers with a toast — no navigation, and the
 thread keeps its scroll position.
+
+Images swap the paperclip for a thumbnail. It is a separate lazy request per
+attachment, so a thread full of photos costs nothing until it is scrolled to,
+and a part that will not decode answers 404 — which is why the <img> removes
+itself on error rather than leaving a broken-image glyph in the chip.
 #}
 {% set targets = integrations.forUpload %}
+{% set hasPreview = attachment_has_preview(part) %}
+
+{% macro face(part, hasPreview) %}
+    {% if hasPreview %}
+        <img src="{{ path('app_mail_attachment_thumbnail', { id: part.id }) }}"
+             alt=""
+             loading="lazy"
+             decoding="async"
+             onerror="this.remove()"
+             class="w-8 h-8 shrink-0 rounded object-cover bg-sunken">
+    {% else %}
+        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+    {% endif %}
+    <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+{% endmacro %}
+
+{% import _self as chip %}
 
 {% if targets is empty %}
 
     <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-       class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+       class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
               bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
-        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
-        <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+        {{ chip.face(part, hasPreview) }}
     </a>
 
 {% else %}
@@ -29,9 +50,8 @@ thread keeps its scroll position.
          data-controller="ui--dropdown">
 
         <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-           class="inline-flex items-center gap-2 px-3 py-2 text-xs text-ink-soft hover:bg-hover transition-colors">
-            <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
-            <span class="truncate max-w-[12rem]">{{ part.filename ?: 'attachment' }}</span>
+           class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
+            {{ chip.face(part, hasPreview) }}
         </a>
 
         <button type="button"

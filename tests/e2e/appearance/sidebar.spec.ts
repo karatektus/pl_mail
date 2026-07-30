@@ -139,8 +139,8 @@ test.describe("sidebar drawer (mobile)", () => {
 
         // The drawer is parked off-screen by a transform rather than hidden,
         // so its position is what says whether it is open.
-        const drawer = page.locator('[data-sidebar-drawer-target="drawer"]');
-        const backdrop = page.locator('[data-sidebar-drawer-target="backdrop"]');
+        const drawer = page.locator('[data-ui--sidebar-drawer-target="drawer"]');
+        const backdrop = page.locator('[data-ui--sidebar-drawer-target="backdrop"]');
 
         await expect(drawer).toHaveClass(/-translate-x-full/);
 

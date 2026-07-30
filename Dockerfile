@@ -42,6 +42,9 @@ RUN set -eux; \
         pgsql \
         pcntl \
         gmp \
+        # Attachment previews only — see AttachmentThumbnailer, which degrades
+        # to the paperclip icon where this is missing.
+        gd \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser

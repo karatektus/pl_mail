@@ -125,6 +125,7 @@
                                                 <div id="settings-alias-list">
                                                     {% include 'settings/_aliases.html.twig' with {
                                                         manageableAccounts: manageableAccounts,
+                                                        aliasForms: aliasForms,
                                                     } %}
                                                 </div>
 
@@ -180,6 +181,7 @@
                                                 <div id="settings-app-password-list">
                                                     {% include 'settings/_app_passwords.html.twig' with {
                                                         apiTokens: apiTokens,
+                                                        apiTokenForm: apiTokenForm,
                                                     } %}
                                                 </div>
                                             </div>

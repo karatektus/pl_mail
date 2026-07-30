@@ -59,7 +59,7 @@ test.describe("README screenshots", () => {
 
         await dock.locator('input[name="compose[subject]"]')
             .fill("Re: Bookshelf dimensions");
-        await dock.locator('[data-compose-toolbar-target="editor"]')
+        await dock.locator('[data-compose--compose-toolbar-target="editor"]')
             .fill(
                 "That clears it nicely — let's go with the 175cm unit. " +
                 "I'll order the trim at the same time so it all arrives together. " +

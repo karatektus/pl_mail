@@ -34,7 +34,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
             data-compose--compose-send-url-value="{{ path('app_compose_mail_send_draft', ctx|merge({'id': message.id})) }}"
         {% endif %}
          class="{% if inline %}
-       w-full rounded-xl border border-line bg-surface shadow-sm mt-3
+       w-full rounded-pane border border-line bg-surface shadow-sm mt-3
        flex flex-col
        {% else %}
        max-h-[90vh] w-[520px] rounded-pane shadow-float
@@ -44,7 +44,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
 
         {# ── Header ───────────────────────────────────────────────── #}
         <div class="flex items-center justify-between px-4 py-2.5
-                    {{ inline ? 'border-b border-line' : 'bg-sunken rounded-t-2xl' }}
+                    {{ inline ? 'border-b border-line' : 'bg-sunken rounded-t-pane' }}
                     select-none shrink-0"
              {% if not inline %}data-action="dblclick->compose--compose#toggleMinimize"{% endif %}>
             {% if inline %}
@@ -153,7 +153,7 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
                 </div>
 
                 <div data-compose--compose-target="fromDropdown"
-                     class="hidden absolute left-4 right-4 top-full z-20 rounded-xl overflow-hidden
+                     class="hidden absolute left-4 right-4 top-full z-20 rounded-pane overflow-hidden
                             bg-pane-soft
                             backdrop-blur-sm
                             border border-line

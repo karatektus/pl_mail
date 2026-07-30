@@ -34,7 +34,7 @@ test.beforeAll(() => {
 
 /** The panel's <details>, located fresh so it survives a reload. */
 function panel(page: import("@playwright/test").Page, key: string) {
-    return page.locator(`details[data-admin-panel-key-value="${key}"]`);
+    return page.locator(`details[data-admin--admin-panel-key-value="${key}"]`);
 }
 
 async function toggle(page: import("@playwright/test").Page, key: string) {

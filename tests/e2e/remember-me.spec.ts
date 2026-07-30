@@ -61,11 +61,11 @@ test("a remember-me session can still use the app", async ({ page }) => {
 
     // ThreadStatusController — every list action routes through it.
     const row = page
-        .locator('#message-list li[data-controller="message-row"]')
+        .locator('#message-list li[data-controller="mail--message-row"]')
         .first();
     await row.locator('input[type="checkbox"]').check();
     await expect(
-        page.locator('[data-list-toolbar-target="actions"]'),
+        page.locator('[data-mail--list-toolbar-target="actions"]'),
     ).toBeVisible();
 
     // SearchController.

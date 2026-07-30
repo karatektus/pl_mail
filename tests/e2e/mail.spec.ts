@@ -30,7 +30,7 @@ test.describe("mail UI actions", () => {
         await row.click();
         await page.getByRole("link", { name: "Reply", exact: true }).first().click();
         await page
-            .locator('#compose_inline [data-compose-toolbar-target="editor"]')
+            .locator('#compose_inline [data-compose--compose-toolbar-target="editor"]')
             .fill("Reply draft body");
         await page.waitForResponse((r) =>
             r.url().includes("/compose/draft") && r.request().method() === "POST"
@@ -61,7 +61,7 @@ test.describe("mail UI actions", () => {
         await page.goto("/mail/starred");
         await expect(
             page
-                .locator('#message-list li[data-controller="message-row"]')
+                .locator('#message-list li[data-controller="mail--message-row"]')
                 .filter({ hasText: INBOX_SUBJECTS.star }),
         ).toBeVisible();
     });
@@ -100,7 +100,7 @@ test.describe("mail UI actions", () => {
         await page.goto("/mail/trash");
         await expect(
             page
-                .locator('#message-list li[data-controller="message-row"]')
+                .locator('#message-list li[data-controller="mail--message-row"]')
                 .filter({ hasText: INBOX_SUBJECTS.trash }),
         ).toBeVisible();
     });
@@ -176,19 +176,19 @@ test.describe("mail UI actions", () => {
     // streams or a frame reload). Once green, delete this notice.
 
     const allRows = (page: Page) =>
-        page.locator('#message-list li[data-controller="message-row"]');
+        page.locator('#message-list li[data-controller="mail--message-row"]');
 
     const selectAll = async (page: Page) => {
         await page
             .getByRole("checkbox", { name: "Select all conversations" })
             .click();
         // Actions slot swaps in only once ≥1 row is selected.
-        await expect(page.locator('[data-list-toolbar-target="actions"]')).toBeVisible();
+        await expect(page.locator('[data-mail--list-toolbar-target="actions"]')).toBeVisible();
     };
 
     const bulkAction = (page: Page, name: string) =>
         page
-            .locator('[data-list-toolbar-target="actions"]')
+            .locator('[data-mail--list-toolbar-target="actions"]')
             .getByRole("button", { name, exact: true });
 
     test("bulk-archives every selected conversation", async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe("mail UI actions", () => {
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(
                 page
-                    .locator('#message-list li[data-controller="message-row"]')
+                    .locator('#message-list li[data-controller="mail--message-row"]')
                     .filter({ hasText: subject }),
             ).toBeVisible();
         }

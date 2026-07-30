@@ -41,6 +41,10 @@ final class PageRendersTest extends WebTestCase
         yield 'settings accounts' => ['/settings?section=accounts'];
         yield 'settings filters' => ['/settings?section=filters'];
         yield 'settings integrations' => ['/settings?section=integrations'];
+        yield 'settings aliases' => ['/settings?section=aliases'];
+        yield 'settings app passwords' => ['/settings?section=app-passwords'];
+        yield 'settings notifications' => ['/settings?section=notifications'];
+        yield 'settings general' => ['/settings?section=general'];
         yield 'filters list' => ['/settings/filters/list'];
         yield 'filters editor' => ['/settings/filters/new'];
         yield 'label editor' => ['/labels/new'];

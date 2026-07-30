@@ -30,27 +30,27 @@ test.describe("mail filters", () => {
         await editor.getByLabel("Name").fill(name);
 
         // The root group starts with one condition; fill it in.
-        const firstValue = editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first();
+        const firstValue = editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first();
         await firstValue.fill("billing@acme.test");
 
         // Nest a group, which is the thing a flat form could not express.
         await editor.getByRole("button", { name: "Add group" }).click();
         await expect(
-            editor.locator('[data-rule-builder-target="tree"] select'),
+            editor.locator('[data-rules--rule-builder-target="tree"] select'),
         ).toHaveCount(2);
 
         // The nested group arrives with a blank condition, which is correctly
         // not a usable filter — fill it so the preview can evaluate.
-        await editor.locator('[data-rule-builder-target="tree"] input[type="text"]')
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]')
             .nth(1).fill("invoice");
 
         // An action is required, or the save is rejected.
         await editor.getByRole("button", { name: "Add action" }).click();
 
         // The live readouts prove the preview endpoint round-tripped.
-        await expect(editor.locator('[data-rule-builder-target="summary"]')).toContainText("If");
+        await expect(editor.locator('[data-rules--rule-builder-target="summary"]')).toContainText("If");
         await expect(
-            editor.locator('[data-rule-builder-target="count"][data-state="ok"]'),
+            editor.locator('[data-rules--rule-builder-target="count"][data-state="ok"]'),
         ).toBeVisible();
 
         await editor.getByRole("button", { name: "Save" }).click();
@@ -67,10 +67,10 @@ test.describe("mail filters", () => {
         const reopened = page.locator("#filter-editor");
         await expect(reopened.getByLabel("Name")).toHaveValue(name);
         await expect(
-            reopened.locator('[data-rule-builder-target="tree"] input[type="text"]').first(),
+            reopened.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first(),
         ).toHaveValue("billing@acme.test");
         await expect(
-            reopened.locator('[data-rule-builder-target="tree"] select'),
+            reopened.locator('[data-rules--rule-builder-target="tree"] select'),
         ).toHaveCount(2);
     });
 
@@ -86,7 +86,7 @@ test.describe("mail filters", () => {
 
         const editor = page.locator("#filter-editor");
         await editor.getByLabel("Name").fill(`No actions ${Date.now()}`);
-        await editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first()
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first()
             .fill("keep-me@example.test");
         await editor.getByRole("button", { name: "Save" }).click();
 
@@ -94,7 +94,7 @@ test.describe("mail filters", () => {
         // trip rather than resetting to a blank editor.
         await expect(page.locator("#filter-editor")).toContainText("at least one action");
         await expect(
-            page.locator('#filter-editor [data-rule-builder-target="tree"] input[type="text"]').first(),
+            page.locator('#filter-editor [data-rules--rule-builder-target="tree"] input[type="text"]').first(),
         ).toHaveValue("keep-me@example.test");
     });
 
@@ -106,7 +106,7 @@ test.describe("mail filters", () => {
         const editor = page.locator("#filter-editor");
         const toggleName = `Toggle me ${Date.now()}`;
         await editor.getByLabel("Name").fill(toggleName);
-        await editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first().fill("x@example.test");
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first().fill("x@example.test");
         await editor.getByRole("button", { name: "Add action" }).click();
         await editor.getByRole("button", { name: "Save" }).click();
 
@@ -138,7 +138,7 @@ test.describe("mail filters", () => {
         const editor = page.locator("#filter-editor");
         const name = `Runnable ${Date.now()}`;
         await editor.getByLabel("Name").fill(name);
-        await editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first().fill("E2E");
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first().fill("E2E");
         await editor.getByRole("button", { name: "Add action" }).click();
         await editor.getByRole("button", { name: "Save" }).click();
 
@@ -174,7 +174,7 @@ test.describe("mail filters", () => {
             await page.locator("#settings-filter-list").getByRole("link", { name: "New filter" }).click();
             const editor = page.locator("#filter-editor");
             await editor.getByLabel("Name").fill(name);
-            await editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first().fill("x@example.test");
+            await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first().fill("x@example.test");
             await editor.getByRole("button", { name: "Add action" }).click();
             await editor.getByRole("button", { name: "Save" }).click();
             await expect(page.locator("#settings-filter-list").getByText(name)).toBeVisible();
@@ -232,13 +232,13 @@ test.describe("mail filters", () => {
         const editor = page.locator("#filter-editor");
         const name = `Described ${Date.now()}`;
         await editor.getByLabel("Name").fill(name);
-        await editor.locator('[data-rule-builder-target="tree"] input[type="text"]').first()
+        await editor.locator('[data-rules--rule-builder-target="tree"] input[type="text"]').first()
             .fill("billing@acme.test");
         await editor.getByRole("button", { name: "Add action" }).click();
 
         // The editor's live sentence comes from the server, so it must appear
         // even though nothing in the browser builds it.
-        await expect(editor.locator('[data-rule-builder-target="summary"]'))
+        await expect(editor.locator('[data-rules--rule-builder-target="summary"]'))
             .toContainText("Subject contains billing@acme.test");
 
         await editor.getByRole("button", { name: "Save" }).click();

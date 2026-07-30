@@ -52,7 +52,7 @@ export function seed(...tasks: string[]): void {
  */
 export function mailRow(page: Page, subject: string): Locator {
     return page
-        .locator('#message-list li[data-controller="message-row"]')
+        .locator('#message-list li[data-controller="mail--message-row"]')
         .filter({ hasText: subject });
 }
 

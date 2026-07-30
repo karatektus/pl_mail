@@ -127,7 +127,7 @@ export default class extends Controller {
         let sizes
 
         try {
-            sizes = JSON.parse(panel.dataset.modalSizes ?? "{}")
+            sizes = JSON.parse(panel.getAttribute("data-ui--modal-sizes") ?? "{}")
         } catch (_) {
             return
         }

@@ -161,14 +161,14 @@ test.describe("label as", () => {
         // Select the row so the toolbar's bulk actions (incl. "Label as") appear.
         await row.locator('input[type="checkbox"]').check();
 
-        const actions = page.locator('[data-list-toolbar-target="actions"]');
+        const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
         await expect(actions).toBeVisible();
 
         // Open the "Label as" menu and pick the seeded label.
         await actions.getByRole("button", { name: "Label as" }).click();
 
         const panel = page.locator(
-            '[data-controller="label-menu"] [data-label-menu-target="panel"]',
+            '[data-controller="mail--label-menu"] [data-mail--label-menu-target="panel"]',
         );
         await expect(panel).toBeVisible();
         await panel.getByRole("button", { name: LABEL_NAME }).click();
@@ -186,11 +186,11 @@ test.describe("label as", () => {
         await expect(row).toBeVisible();
         await row.locator('input[type="checkbox"]').check();
 
-        const actions = page.locator('[data-list-toolbar-target="actions"]');
+        const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
         await actions.getByRole("button", { name: "Label as" }).click();
 
         const panel = page.locator(
-            '[data-controller="label-menu"] [data-label-menu-target="panel"]',
+            '[data-controller="mail--label-menu"] [data-mail--label-menu-target="panel"]',
         );
         await panel.getByRole("button", { name: LABEL_NAME }).click();
         await expect(mailRow(page, INBOX_SUBJECTS.trash)).toContainText(LABEL_NAME);
@@ -199,7 +199,7 @@ test.describe("label as", () => {
         await page.getByRole("link", { name: LABEL_NAME }).click();
         await expect(
             page
-                .locator('#message-list li[data-controller="message-row"]')
+                .locator('#message-list li[data-controller="mail--message-row"]')
                 .filter({ hasText: INBOX_SUBJECTS.trash }),
         ).toBeVisible();
     });

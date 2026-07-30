@@ -19,7 +19,7 @@ async function composeDraft(page: Page, subject: string): Promise<void> {
     await dockEl.locator(".ts-control input").first().fill("draftee@example.test");
     await dockEl.locator(".ts-control input").first().press("Enter");
     await dockEl.locator('input[name="compose[subject]"]').fill(subject);
-    await dockEl.locator('[data-compose-toolbar-target="editor"]').fill("Draft body");
+    await dockEl.locator('[data-compose--compose-toolbar-target="editor"]').fill("Draft body");
 
     await page.waitForResponse((r: Response) =>
         r.url().includes("/compose/draft") && r.request().method() === "POST"
@@ -74,7 +74,7 @@ test.describe("drafts list", () => {
 
         await page.getByRole("link", { name: "Reply", exact: true }).first().click();
         await page
-            .locator('#compose_inline [data-compose-toolbar-target="editor"]')
+            .locator('#compose_inline [data-compose--compose-toolbar-target="editor"]')
             .fill("Reply draft body");
         await page.waitForResponse((r: Response) =>
             r.url().includes("/compose/draft") && r.request().method() === "POST"
@@ -85,7 +85,7 @@ test.describe("drafts list", () => {
         await row.click();
 
         const dockEl = page.locator(dock);
-        await expect(dockEl.locator('[data-compose-toolbar-target="editor"]')).toContainText(
+        await expect(dockEl.locator('[data-compose--compose-toolbar-target="editor"]')).toContainText(
             "Reply draft body",
         );
 
