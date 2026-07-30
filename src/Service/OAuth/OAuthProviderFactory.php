@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
+use App\Entity\MailProviderConfig;
+use App\Repository\MailProviderConfigRepository;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Google;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -14,11 +16,18 @@ use TheNetworg\OAuth2\Client\Provider\Azure;
  * Builds a configured league OAuth2 provider for a given MailProvider.
  *
  * This is the only place that knows about concrete league provider classes.
+ *
+ * Credentials come from the database if an admin has entered them, and from the
+ * environment otherwise. That order, and not the reverse: an admin editing the
+ * value in the UI expects it to take effect, and an installation that has only
+ * ever used .env keeps working with no migration and no restart. The env values
+ * stay the documented way to seed a fresh deployment.
  */
 class OAuthProviderFactory
 {
     public function __construct(
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly MailProviderConfigRepository $configRepository,
         private readonly string $googleClientId,
         private readonly string $googleClientSecret,
         private readonly string $microsoftClientId,
@@ -35,17 +44,19 @@ class OAuthProviderFactory
             UrlGeneratorInterface::ABSOLUTE_URL,
         );
 
+        $config = $this->configRepository->findOneByProvider($provider);
+
         if (MailProvider::Google === $provider) {
             return new Google([
-                'clientId'     => $this->googleClientId,
-                'clientSecret' => $this->googleClientSecret,
+                'clientId'     => $this->clientId($provider, $config),
+                'clientSecret' => $this->clientSecret($provider, $config),
                 'redirectUri'  => $redirectUri,
                 'accessType'   => 'offline',
             ]);
         }
 
         if (MailProvider::Microsoft === $provider) {
-            return $this->createAzure($redirectUri);
+            return $this->createAzure($redirectUri, $config);
         }
 
         throw new \RuntimeException(sprintf(
@@ -72,13 +83,13 @@ class OAuthProviderFactory
      * AADSTS50194 at consent time — the app registration's supported-account
      * type must match this value.
      */
-    private function createAzure(string $redirectUri): Azure
+    private function createAzure(string $redirectUri, ?MailProviderConfig $config): Azure
     {
         $azure = new Azure([
-            'clientId'               => $this->microsoftClientId,
-            'clientSecret'           => $this->microsoftClientSecret,
+            'clientId'               => $this->clientId(MailProvider::Microsoft, $config),
+            'clientSecret'           => $this->clientSecret(MailProvider::Microsoft, $config),
             'redirectUri'            => $redirectUri,
-            'tenant'                 => $this->microsoftTenant,
+            'tenant'                 => $config?->getTenant() ?? $this->microsoftTenant,
             'defaultEndPointVersion' => Azure::ENDPOINT_VERSION_2_0,
         ]);
 
@@ -89,5 +100,35 @@ class OAuthProviderFactory
         $azure->authWithResource = false;
 
         return $azure;
+    }
+
+    /**
+     * A stored value wins over the environment, but only when it is actually
+     * set — a half-filled row must not shadow a working .env.
+     */
+    private function clientId(MailProvider $provider, ?MailProviderConfig $config): string
+    {
+        $stored = $config?->clientId;
+
+        if (null !== $stored && '' !== $stored) {
+            return $stored;
+        }
+
+        return MailProvider::Google === $provider
+            ? $this->googleClientId
+            : $this->microsoftClientId;
+    }
+
+    private function clientSecret(MailProvider $provider, ?MailProviderConfig $config): string
+    {
+        $stored = $config?->clientSecret;
+
+        if (null !== $stored && '' !== $stored) {
+            return $stored;
+        }
+
+        return MailProvider::Google === $provider
+            ? $this->googleClientSecret
+            : $this->microsoftClientSecret;
     }
 }

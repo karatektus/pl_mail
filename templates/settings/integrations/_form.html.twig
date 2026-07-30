@@ -1,154 +1,78 @@
 {#
 Connect or edit one integration, inside the modal.
 
-Only reached for app-password providers — OAuth ones redirect to the service
-instead, so there is no form to render. What the form asks for therefore comes
-down to two things: whether the provider wants a username alongside the
-credential, and whether the address is the user's to set at all.
+Only reached for app-password providers — OAuth ones redirect to the service, so
+there is nothing to fill in. Fields come from IntegrationConnectType, which
+decides which of them exist from the provider and from what the admin settled.
+
+The blocks carry what is not a field: the last failure, the permissions a key
+needs, and the note that saving probes the connection.
 #}
 {% extends '_layout/app.html.twig' %}
 
-{% set isNew = integration is null %}
-{% set wantsUsername = provider.value == 'nextcloud' %}
+{% set isNew = integration is null or integration.id is null %}
 
 {% block body %}
-    <turbo-frame id="modal">
-        <template data-modal-frame-title>{{ isNew ? provider.label : integration.name }}</template>
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: isNew ? provider.label : integration.name,
+        submit_label: isNew ? 'settings.integrations.connect'|trans : 'form.submit'|trans,
+        integration: integration,
+        provider: provider,
+        config: config,
+        isNew: isNew,
+    } only %}
+        {% block before_fields %}
+            {% if not isNew and not integration.isHealthy %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ integration.lastError }}</p>
+                </div>
+            {% endif %}
+        {% endblock %}
 
-        <form method="post"
-              action="{{ path('app_settings_integrations_save') }}"
-              class="flex-1 min-h-0 flex flex-col">
-
-            <input type="hidden" name="_token" value="{{ csrf_token('settings-integration') }}">
-            <input type="hidden" name="provider" value="{{ provider.value }}">
-            {% if not isNew %}
-                <input type="hidden" name="id" value="{{ integration.id }}">
+        {% block after_fields %}
+            {# An admin-pinned address is stated rather than offered as a field:
+               the form omits it and the controller ignores a submitted value. #}
+            {% if config is not null and config.baseUrl and provider.needsBaseUrl %}
+                <p class="text-xs text-ink-faint">
+                    <i class="fa-solid fa-lock mr-1" aria-hidden="true"></i>
+                    {{ 'settings.integrations.field.base_url_fixed'|trans({ '%url%': config.baseUrl }) }}
+                </p>
             {% endif %}
 
-            <div class="flex-1 min-h-0 px-5 pb-5 space-y-5 overflow-y-auto">
-
-                {% if not isNew and not integration.isHealthy %}
-                    <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
-                        <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
-                        <p class="leading-snug">{{ integration.lastError }}</p>
-                    </div>
-                {% endif %}
-
-                {# ── Name ── #}
-                <div class="space-y-1.5">
-                    <label for="int-name" class="block text-sm font-medium text-ink">
-                        {{ 'settings.integrations.field.name'|trans }}
-                    </label>
-                    <input id="int-name" type="text" name="name" maxlength="100"
-                           value="{{ isNew ? provider.label : integration.name }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <p class="text-xs text-ink-faint">{{ 'settings.integrations.field.name_help'|trans }}</p>
-                </div>
-
-                {# ── Server address ──
-                   Rendered only when it is genuinely the user's to set. When an
-                   admin has pinned one, the field is absent rather than
-                   disabled, and the controller ignores the value regardless. #}
-                {% if urlEditable %}
-                    <div class="space-y-1.5">
-                        <label for="int-url" class="block text-sm font-medium text-ink">
-                            {{ 'settings.integrations.field.base_url'|trans }}
-                        </label>
-                        <input id="int-url" type="url" name="baseUrl" required
-                               value="{{ isNew ? '' : integration.baseUrl }}"
-                               placeholder="https://cloud.example.com"
-                               class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    </div>
-                {% elseif config is not null and config.baseUrl %}
-                    <p class="text-xs text-ink-faint">
-                        <i class="fa-solid fa-lock mr-1" aria-hidden="true"></i>
-                        {{ 'settings.integrations.field.base_url_fixed'|trans({ '%url%': config.baseUrl }) }}
+            {# Listed here rather than only in the admin tutorial, because the
+               person minting the key is the one reading this form. A key short of
+               one of these fails at the operation that needs it — uploads working
+               while previews 404 — which is far harder to diagnose than being
+               told up front. #}
+            {% set permissionKey = 'settings.integrations.field.permissions.' ~ provider.value %}
+            {% if permissionKey|trans != permissionKey %}
+                <div class="rounded-lg border border-line bg-sunken px-3.5 py-3 space-y-1.5">
+                    <p class="text-xs font-semibold text-ink">
+                        <i class="fa-solid fa-key mr-1 text-[10px]" aria-hidden="true"></i>
+                        {{ 'settings.integrations.field.permissions_heading'|trans }}
                     </p>
-                {% endif %}
-
-                {# ── Username ── #}
-                {% if wantsUsername %}
-                    <div class="space-y-1.5">
-                        <label for="int-username" class="block text-sm font-medium text-ink">
-                            {{ 'settings.integrations.field.username'|trans }}
-                        </label>
-                        <input id="int-username" type="text" name="username" autocomplete="off" required
-                               value="{{ isNew ? '' : integration.username }}"
-                               class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    </div>
-                {% endif %}
-
-                {# ── Credential ──
-                   Write-only, same rule as the admin form: blank keeps what is
-                   stored, so renaming a connection does not require re-pasting
-                   an app password the user no longer has. #}
-                <div class="space-y-1.5">
-                    <label for="int-secret" class="block text-sm font-medium text-ink">
-                        {{ ('settings.integrations.field.secret.' ~ provider.value)|trans }}
-                    </label>
-                    <input id="int-secret" type="password" name="secret" autocomplete="new-password"
-                           {{ isNew ? 'required' : '' }}
-                           placeholder="{{ isNew
-                               ? ''
-                               : 'settings.integrations.field.secret_unchanged'|trans }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <p class="text-xs text-ink-faint">
-                        {{ ('settings.integrations.field.secret_help.' ~ provider.value)|trans }}
+                    <ul class="space-y-1">
+                        {% for permission in permissionKey|trans|split('|') %}
+                            <li class="flex items-start gap-2 text-xs text-ink-muted">
+                                <code class="shrink-0 text-[11px] text-ink">{{ permission|split(' — ')|first }}</code>
+                                {% if permission|split(' — ')|length > 1 %}
+                                    <span class="text-ink-faint">{{ permission|split(' — ')|last }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="text-[11px] text-ink-faint pt-0.5">
+                        {{ 'settings.integrations.field.permissions_note'|trans }}
                     </p>
                 </div>
+            {% endif %}
 
-                {# ── Required permissions ──
-                   Listed here rather than only in the admin tutorial, because
-                   the person minting the key is the one reading this form. A key
-                   short of one of these fails at the operation that needs it —
-                   uploads working while previews 404, say — which is far harder
-                   to diagnose than being told up front. #}
-                {% set permissionKey = 'settings.integrations.field.permissions.' ~ provider.value %}
-                {% if permissionKey|trans != permissionKey %}
-                    <div class="rounded-lg border border-line bg-sunken px-3.5 py-3 space-y-1.5">
-                        <p class="text-xs font-semibold text-ink">
-                            <i class="fa-solid fa-key mr-1 text-[10px]" aria-hidden="true"></i>
-                            {{ 'settings.integrations.field.permissions_heading'|trans }}
-                        </p>
-                        <ul class="space-y-1">
-                            {% for permission in permissionKey|trans|split('|') %}
-                                <li class="flex items-start gap-2 text-xs text-ink-muted">
-                                    <code class="shrink-0 text-[11px] text-ink">{{ permission|split(' — ')|first }}</code>
-                                    {% if permission|split(' — ')|length > 1 %}
-                                        <span class="text-ink-faint">{{ permission|split(' — ')|last }}</span>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                        <p class="text-[11px] text-ink-faint pt-0.5">
-                            {{ 'settings.integrations.field.permissions_note'|trans }}
-                        </p>
-                    </div>
-                {% endif %}
-
-                <p class="text-xs text-ink-faint">
-                    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
-                    {{ 'settings.integrations.save_tests'|trans }}
-                </p>
-
-            </div>
-
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0">
-                <button type="button" data-action="click->modal#close"
-                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
-                    {{ 'form.cancel'|trans }}
-                </button>
-                <button type="submit"
-                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
-                               bg-accent hover:bg-accent-strong transition-colors">
-                    {{ isNew ? 'settings.integrations.connect'|trans : 'form.submit'|trans }}
-                </button>
-            </div>
-        </form>
-    </turbo-frame>
+            <p class="text-xs text-ink-faint">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'settings.integrations.save_tests'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
 {% endblock %}

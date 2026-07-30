@@ -1,6 +1,6 @@
 {# ── Row wrapper ─────────────────────────────────────────────────────────── #}
 {% block form_row %}
-    <div class="flex flex-col gap-1.5">
+    <div class="flex flex-col gap-2">
         {{ form_label(form) }}
         {{ form_widget(form) }}
         {{ form_errors(form) }}
@@ -120,6 +120,12 @@
 {% endblock %}
 
 {# ── Checkbox ────────────────────────────────────────────────────────────── #}
+{#
+   Rendered directly rather than through form_widget_simple, which was the bug
+   here: that block emits neither type="checkbox" nor checked, so every checkbox
+   in a modal form came out as an empty text input. Nothing had used one yet, so
+   it stayed latent until the integration forms needed a toggle.
+#}
 {% block checkbox_widget %}
     {% set attr = attr|merge({
         class: 'size-4 rounded border-field
@@ -129,7 +135,23 @@
             cursor-pointer
             ' ~ (attr.class ?? '')
     }) %}
-    {{ block('form_widget_simple') }}
+    <input type="checkbox" {{ block('widget_attributes') }}
+           {%- if value is defined and value is not empty %} value="{{ value }}"{% endif %}
+           {%- if checked %} checked="checked"{% endif %}>
+{% endblock %}
+
+{% block radio_widget %}
+    {% set attr = attr|merge({
+        class: 'size-4 border-field
+            text-accent
+            bg-field
+            focus:ring-2 focus:ring-accent focus:ring-offset-0
+            cursor-pointer
+            ' ~ (attr.class ?? '')
+    }) %}
+    <input type="radio" {{ block('widget_attributes') }}
+           {%- if value is defined and value is not empty %} value="{{ value }}"{% endif %}
+           {%- if checked %} checked="checked"{% endif %}>
 {% endblock %}
 
 {% block checkbox_row %}
@@ -162,7 +184,9 @@
 {# ── Help text ───────────────────────────────────────────────────────────── #}
 {% block form_help %}
     {% if help is not empty %}
-        <p class="text-[12px] text-ink-muted leading-snug">
+        {# text-ink-faint, not -muted: help is subordinate to its field, and at
+           the same weight as a label it competed with the next one. #}
+        <p class="text-[12px] text-ink-faint leading-snug">
             {{ help|trans({}, translation_domain) }}
         </p>
     {% endif %}

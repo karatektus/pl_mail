@@ -1,0 +1,49 @@
+{#
+admin/integrations/_mail_form.html.twig — the OAuth app behind mail sign-in.
+
+Same shell and same form theme as the integration provider form, because it is
+the same kind of thing: an app registration an admin owns. The blocks carry the
+prose and the copyable redirect URI, neither of which is a field.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {# `only` limits what the overridden blocks can see, so provider has to be
+       handed over explicitly rather than inherited from here. #}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: ('admin.integrations.mail.' ~ provider.value)|trans,
+        provider: provider,
+    } only %}
+        {% block before_fields %}
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'admin.integrations.mail.intro'|trans }}
+            </p>
+
+            <div class="flex flex-col gap-1.5">
+                <span class="block text-[13px] font-medium leading-none text-ink-soft">
+                    {{ 'admin.integrations.field.redirect_uri'|trans }}
+                </span>
+                <div class="flex items-center gap-2" data-controller="clipboard">
+                    <code data-clipboard-target="source"
+                          class="flex-1 min-w-0 truncate rounded-lg bg-sunken border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_oauth_callback', { provider: provider.value }) }}</code>
+                    <button type="button"
+                            data-action="click->clipboard#copy"
+                            class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
+                                   bg-field border border-field hover:bg-hover transition-colors"
+                            aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">
+                        <i class="fa-solid fa-copy text-xs" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-ink-faint">{{ 'admin.integrations.field.redirect_uri_help'|trans }}</p>
+            </div>
+        {% endblock %}
+
+        {% block after_fields %}
+            <p class="text-xs text-ink-faint">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'admin.integrations.mail.env_note'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

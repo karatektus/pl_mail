@@ -33,11 +33,24 @@ test.beforeAll(() => {
     );
 });
 
-/** One provider's row, located fresh so it survives a frame replacement. */
+/**
+ * One provider's row, by id and located fresh so it survives a frame swap.
+ *
+ * By id rather than by visible text: filtering on the label matched the
+ * tutorial body inside the row as well, and the same trap cost several rounds of
+ * chasing locators.
+ */
+const PROVIDER_IDS: Record<string, string> = {
+    Nextcloud: "nextcloud",
+    Immich: "immich",
+    "Google Drive": "googleDrive",
+    "Google Photos": "googlePhotos",
+    OneDrive: "oneDrive",
+    Dropbox: "dropbox",
+};
+
 function providerRow(page: Page, label: string) {
-    return page.locator("#admin-integrations details").filter({
-        has: page.getByText(label, { exact: true }),
-    });
+    return page.locator(`#integration-provider-${PROVIDER_IDS[label]}`);
 }
 
 async function openIntegrations(page: Page) {
@@ -52,14 +65,7 @@ test.describe("admin integrations", () => {
     }) => {
         await openIntegrations(page);
 
-        for (const label of [
-            "Nextcloud",
-            "Immich",
-            "Google Drive",
-            "Google Photos",
-            "OneDrive",
-            "Dropbox",
-        ]) {
+        for (const label of Object.keys(PROVIDER_IDS)) {
             await expect(providerRow(page, label)).toHaveCount(1);
         }
 
@@ -86,6 +92,78 @@ test.describe("admin integrations", () => {
                 .locator("summary")
                 .getByText("app password", { exact: true }),
         ).toBeVisible();
+    });
+
+    test("mail sign-in sits above the services and reads from the environment", async ({
+        page,
+    }) => {
+        await openIntegrations(page);
+
+        const frame = page.locator("#admin-integrations");
+
+        await expect(frame.getByRole("heading", { name: "Mail sign-in" })).toBeVisible();
+        await expect(frame.getByText("Gmail sign-in")).toBeVisible();
+        await expect(frame.getByText("Microsoft mail sign-in")).toBeVisible();
+
+        // Every row offers configuration, and each has exactly one status chip —
+        // "From environment" or "Enabled" depending on whether anything has been
+        // stored. Which one is not this test's business: another test in this
+        // file stores credentials, so asserting a particular chip here would
+        // make the two order-dependent.
+        // Scoped by a stable hook rather than by DOM shape: filtering divs by a
+        // descendant heading picked a different wrapper depending on what the
+        // rows happened to contain, which made this pass alone and fail in a
+        // full run.
+        await expect(
+            frame.locator("#admin-mail-providers").getByRole("button", { name: "Configure" }),
+        ).toHaveCount(2);
+    });
+
+    test("saving mail credentials enables reuse on the matching integrations", async ({
+        page,
+    }) => {
+        await openIntegrations(page);
+
+        // No credentials stored yet, so nothing offers to reuse them.
+        await expect(
+            page.locator("#admin-integrations").getByRole("button", { name: /Reuse/ }),
+        ).toHaveCount(0);
+
+        const gmail = page.locator("#mail-provider-google");
+        await gmail.getByRole("button", { name: "Configure" }).click();
+
+        const modal = page.locator("#modal");
+        await modal.locator('input[name$="[clientId]"]').fill("gmail-client-id");
+        await modal.locator('input[name$="[clientSecret]"]').fill("gmail-client-secret");
+        await modal.getByRole("button", { name: "Save" }).click();
+
+        await expect(
+            page.locator("#admin-integrations").getByText("Enabled").first(),
+        ).toBeVisible();
+
+        // Both Google integrations share that Cloud project, so both offer it;
+        // Dropbox has no mail counterpart and must not.
+        const drive = providerRow(page, "Google Drive");
+        await drive.locator("summary").click();
+        await expect(drive.getByRole("button", { name: /Reuse Gmail sign-in/ })).toBeVisible();
+
+        const dropbox = providerRow(page, "Dropbox");
+        await dropbox.locator("summary").click();
+        await expect(dropbox.getByRole("button", { name: /Reuse/ })).toHaveCount(0);
+
+        await drive.getByRole("button", { name: /Reuse Gmail sign-in/ }).click();
+
+        // Wait for the copy to land before reopening: the response replaces the
+        // whole frame, so a row opened before then is replaced closed again.
+        await expect(page.locator("#toast-region")).toContainText("Credentials copied");
+
+        // The client id crossed over; the secret did too, but only server-side —
+        // nothing in the page should ever contain it.
+        const refreshed = providerRow(page, "Google Drive");
+        await refreshed.locator("summary").click();
+        await expect(refreshed.getByText("gmail-client-id")).toBeVisible();
+        await expect(refreshed.getByText("Stored")).toBeVisible();
+        await expect(page.locator("body")).not.toContainText("gmail-client-secret");
     });
 
     test("the setup tutorial is readable inline", async ({ page }) => {
@@ -126,9 +204,9 @@ test.describe("admin integrations", () => {
         await row.getByRole("button", { name: "Configure" }).click();
 
         const modal = page.locator("#modal");
-        await modal.locator('input[name="isEnabled"]').check();
+        await modal.locator('input[name$="[isEnabled]"]').check();
         await modal
-            .locator('input[name="baseUrl"]')
+            .locator('input[name$="[baseUrl]"]')
             .fill("https://cloud.example.com");
         await modal.getByRole("button", { name: "Save" }).click();
 
@@ -170,9 +248,9 @@ test.describe("user integrations", () => {
         const row = providerRow(page, "Nextcloud");
         await row.locator("summary").click();
         await row.getByRole("button", { name: "Configure" }).click();
-        await page.locator('#modal input[name="isEnabled"]').check();
+        await page.locator('#modal input[name$="[isEnabled]"]').check();
         await page
-            .locator('#modal input[name="baseUrl"]')
+            .locator('#modal input[name$="[baseUrl]"]')
             .fill("https://cloud.example.com");
         await page.locator("#modal").getByRole("button", { name: "Save" }).click();
         await expect(row.getByText("Enabled")).toBeVisible();
@@ -203,11 +281,11 @@ test.describe("user integrations", () => {
 
         const modal = page.locator("#modal");
         // The admin pinned the address, so the field must not be offered.
-        await expect(modal.locator('input[name="baseUrl"]')).toHaveCount(0);
+        await expect(modal.locator('input[name$="[baseUrl]"]')).toHaveCount(0);
 
-        await modal.locator('input[name="name"]').fill("Home cloud");
-        await modal.locator('input[name="username"]').fill("alice");
-        await modal.locator('input[name="secret"]').fill("not-a-real-password");
+        await modal.locator('input[name$="[name]"]').fill("Home cloud");
+        await modal.locator('input[name$="[username]"]').fill("alice");
+        await modal.locator('input[name$="[secret]"]').fill("not-a-real-password");
         await modal.getByRole("button", { name: "Connect" }).click();
 
         // cloud.example.com is unreachable from the test container, so the
@@ -229,9 +307,9 @@ test.describe("user integrations", () => {
         await frame.getByRole("button", { name: "Nextcloud" }).click();
 
         const modal = page.locator("#modal");
-        await modal.locator('input[name="name"]').fill("Scratch cloud");
-        await modal.locator('input[name="username"]').fill("bob");
-        await modal.locator('input[name="secret"]').fill("whatever");
+        await modal.locator('input[name$="[name]"]').fill("Scratch cloud");
+        await modal.locator('input[name$="[username]"]').fill("bob");
+        await modal.locator('input[name$="[secret]"]').fill("whatever");
         await modal.getByRole("button", { name: "Connect" }).click();
 
         const row = frame.locator("li").filter({ hasText: "Scratch cloud" });
@@ -280,9 +358,9 @@ test.describe("compose integration picker", () => {
         const row = providerRow(page, "Nextcloud");
         await row.locator("summary").click();
         await row.getByRole("button", { name: "Configure" }).click();
-        await page.locator('#modal input[name="isEnabled"]').check();
+        await page.locator('#modal input[name$="[isEnabled]"]').check();
         await page
-            .locator('#modal input[name="baseUrl"]')
+            .locator('#modal input[name$="[baseUrl]"]')
             .fill("https://cloud.example.com");
         await page.locator("#modal").getByRole("button", { name: "Save" }).click();
         await expect(row.getByText("Enabled")).toBeVisible();
@@ -298,9 +376,9 @@ test.describe("compose integration picker", () => {
 
         const frame = page.locator("#settings-integrations-frame");
         await frame.getByRole("button", { name: "Nextcloud" }).click();
-        await page.locator('#modal input[name="name"]').fill(name);
-        await page.locator('#modal input[name="username"]').fill("alice");
-        await page.locator('#modal input[name="secret"]').fill("app-password");
+        await page.locator('#modal input[name$="[name]"]').fill(name);
+        await page.locator('#modal input[name$="[username]"]').fill("alice");
+        await page.locator('#modal input[name$="[secret]"]').fill("app-password");
         await page.locator("#modal").getByRole("button", { name: "Connect" }).click();
         await expect(frame.getByText(name)).toBeVisible();
     }

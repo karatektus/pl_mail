@@ -11,7 +11,57 @@ the same screen as the field.
 #}
 <turbo-frame id="admin-integrations" class="block space-y-3">
 
-    <p class="text-sm text-ink-muted">
+    {# ── Mail sign-in ──
+       Above the services, because it is the prerequisite: a Google or Microsoft
+       integration can borrow this app registration, and mail itself does not
+       work without it. Same row shape as a service, so the page reads as one
+       list of app registrations rather than two unrelated things. #}
+    <div id="admin-mail-providers" class="space-y-2">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'admin.integrations.mail.heading'|trans }}
+        </h3>
+
+        {% for mailProvider in mailProviders %}
+            {% set mailConfig = mailConfigs[mailProvider.value] ?? null %}
+
+            <div id="mail-provider-{{ mailProvider.value }}"
+                 class="flex items-center gap-3 px-5 h-14 rounded-pane border border-line bg-pane-soft">
+                <i class="fa-brands {{ mailProvider.value == 'google' ? 'fa-google' : 'fa-microsoft' }}
+                          text-base w-5 text-center
+                          {{ mailConfig is not null and mailConfig.isComplete ? 'text-accent' : 'text-ink-faint' }}"
+                   aria-hidden="true"></i>
+
+                <span class="text-sm font-semibold text-ink">
+                    {{ ('admin.integrations.mail.' ~ mailProvider.value)|trans }}
+                </span>
+
+                {% if mailConfig is not null and mailConfig.isComplete %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                        {{ 'admin.integrations.status.enabled'|trans }}
+                    </span>
+                {% else %}
+                    {# "From environment" is a real state worth naming: the flow
+                       may well be working off .env with nothing in the table. #}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                        {{ 'admin.integrations.mail.from_env'|trans }}
+                    </span>
+                {% endif %}
+
+                <button type="button"
+                        data-controller="modal"
+                        data-modal-src-value="{{ path('app_admin_integrations_mail_edit', { provider: mailProvider.value }) }}"
+                        data-modal-title-value="{{ ('admin.integrations.mail.' ~ mailProvider.value)|trans }}"
+                        data-action="click->modal#open"
+                        class="ml-auto inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
+                    {{ 'admin.integrations.configure'|trans }}
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <p class="text-sm text-ink-muted pt-2">
         {{ 'admin.integrations.intro'|trans }}
     </p>
 
@@ -20,7 +70,11 @@ the same screen as the field.
         {% set connectable = config is not null and config.isConnectable %}
         {% set users = userCounts[provider.value] ?? 0 %}
 
-        <details class="group/int rounded-pane border border-line bg-pane-soft overflow-hidden">
+        {# Addressable by id: filtering rows by their visible text kept matching
+           the wrong one — "Google Drive" is a substring of nothing here, but
+           "Nextcloud" appears in its own tutorial body too. #}
+        <details id="integration-provider-{{ provider.value }}"
+                 class="group/int rounded-pane border border-line bg-pane-soft overflow-hidden">
 
             <summary class="flex items-center gap-3 px-5 h-14 cursor-pointer list-none hover:bg-hover transition-colors select-none">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
@@ -99,7 +153,7 @@ the same screen as the field.
                     {% endif %}
                 </dl>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                     <button type="button"
                             data-controller="modal"
                             data-modal-src-value="{{ path('app_admin_integrations_edit', { provider: provider.value }) }}"
@@ -110,7 +164,39 @@ the same screen as the field.
                         <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
                         {{ 'admin.integrations.configure'|trans }}
                     </button>
+
+                    {# ── Reuse the mail credentials ──
+                       Offered only when the counterpart is actually configured,
+                       because a button that explains why it cannot work is worse
+                       than no button. The copy happens server-side: the secret
+                       moves between rows and is never sent to the browser. #}
+                    {% set mailSource = inheritable[provider.value] ?? null %}
+                    {% set sourceConfig = mailSource ? (mailConfigs[mailSource] ?? null) : null %}
+
+                    {% if sourceConfig is not null and sourceConfig.isComplete %}
+                        <form method="post"
+                              action="{{ path('app_admin_integrations_inherit', { provider: provider.value }) }}"
+                              data-turbo-stream>
+                            <input type="hidden" name="_token"
+                                   value="{{ csrf_token('admin-integration-inherit-' ~ provider.value) }}">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                <i class="fa-solid fa-clone text-xs" aria-hidden="true"></i>
+                                {{ 'admin.integrations.inherit'|trans({
+                                    '%name%': ('admin.integrations.mail.' ~ mailSource)|trans,
+                                }) }}
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
+
+                {% if sourceConfig is not null and sourceConfig.isComplete %}
+                    <p class="text-[11px] text-ink-faint">
+                        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                        {{ 'admin.integrations.inherit_help'|trans }}
+                    </p>
+                {% endif %}
 
                 {# Setup tutorial. Written for every provider including the
                    unimplemented ones, so the instructions are ready the day a

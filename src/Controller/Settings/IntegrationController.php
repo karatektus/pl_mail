@@ -10,6 +10,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration;
 use App\Entity\IntegrationProviderConfig;
 use App\Entity\User;
+use App\Form\Integration\IntegrationConnectType;
 use App\Repository\IntegrationProviderConfigRepository;
 use App\Repository\IntegrationRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
@@ -54,93 +55,39 @@ final class IntegrationController extends AbstractController
         return $this->render('settings/integrations/_list_frame.html.twig', $this->listData());
     }
 
-    #[Route('/connect/{provider}', name: 'connect', methods: ['GET'])]
-    public function connect(Provider $provider): Response
+    #[Route('/connect/{provider}', name: 'connect', methods: ['GET', 'POST'])]
+    public function connect(Provider $provider, Request $request): Response
     {
         $config = $this->assertConnectable($provider);
 
-        // OAuth providers do not have a form to fill in — they bounce to the
-        // service. The route exists so the button has one destination
-        // regardless of auth kind.
+        // OAuth providers have nothing to fill in — they bounce to the service.
+        // The route exists so the button has one destination whatever the auth
+        // kind is.
         if (AuthKind::OAuth2 === $provider->authKind()) {
             return $this->redirectToRoute('app_integration_oauth_connect', ['provider' => $provider->value]);
         }
 
-        return $this->render('settings/integrations/_form.html.twig', [
-            'provider'    => $provider,
-            'integration' => null,
-            'urlEditable' => $this->urlValidator->isUserEditable($provider, $config),
-            'config'      => $config,
-        ]);
+        return $this->handleForm(
+            $request,
+            new Integration($this->user(), $provider, $provider->label()),
+            $provider,
+            $config,
+            $this->generateUrl('app_settings_integrations_connect', ['provider' => $provider->value]),
+        );
     }
 
-    #[Route('/{id}/edit', name: 'edit', methods: ['GET'])]
-    public function edit(Integration $integration): Response
+    #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
+    public function edit(Integration $integration, Request $request): Response
     {
         $this->assertOwned($integration);
 
-        $config = $this->configRepository->findOneByProvider($integration->provider);
-
-        return $this->render('settings/integrations/_form.html.twig', [
-            'provider'    => $integration->provider,
-            'integration' => $integration,
-            'urlEditable' => $this->urlValidator->isUserEditable($integration->provider, $config),
-            'config'      => $config,
-        ]);
-    }
-
-    #[Route('/save', name: 'save', methods: ['POST'])]
-    public function save(Request $request): Response
-    {
-        if (false === $this->isCsrfTokenValid('settings-integration', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
-
-        $id = $request->request->getInt('id');
-        $integration = 0 === $id ? null : $this->integrationRepository->findOneForUser($this->getUser(), $id);
-
-        if (0 !== $id && null === $integration) {
-            throw $this->createNotFoundException();
-        }
-
-        if (null === $integration) {
-            $provider = Provider::tryFrom((string) $request->request->get('provider'));
-
-            if (null === $provider) {
-                throw $this->createNotFoundException();
-            }
-
-            $this->assertConnectable($provider);
-
-            $integration = new Integration($this->user(), $provider, (string) $request->request->get('name', ''));
-            $this->em->persist($integration);
-        } else {
-            $integration->name = (string) $request->request->get('name', '');
-        }
-
-        $config = $this->configRepository->findOneByProvider($integration->provider);
-
-        if (true === $this->urlValidator->isUserEditable($integration->provider, $config)) {
-            $integration->baseUrl = $this->nullIfBlank($request->request->get('baseUrl'));
-        }
-
-        $integration->username = $this->nullIfBlank($request->request->get('username'));
-
-        // Blank keeps the stored credential, exactly as on the admin form: the
-        // field never renders the secret, so blank cannot mean "clear it".
-        $submittedSecret = $this->nullIfBlank($request->request->get('secret'));
-
-        if (null !== $submittedSecret) {
-            $integration->secret = $submittedSecret;
-        }
-
-        $error = $this->probe($integration);
-
-        $this->em->flush();
-
-        return $this->listStream(null === $error
-            ? 'settings.integrations.saved'
-            : 'settings.integrations.saved_with_error');
+        return $this->handleForm(
+            $request,
+            $integration,
+            $integration->provider,
+            $this->configRepository->findOneByProvider($integration->provider),
+            $this->generateUrl('app_settings_integrations_edit', ['id' => $integration->id]),
+        );
     }
 
     /**
@@ -197,6 +144,59 @@ final class IntegrationController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Render or handle the connect form.
+     *
+     * One path for a new and an existing connection: the differences are all
+     * decided inside the form type from the provider, rather than duplicated
+     * between two actions that then drift.
+     */
+    private function handleForm(
+        Request $request,
+        Integration $integration,
+        Provider $provider,
+        ?IntegrationProviderConfig $config,
+        string $action,
+    ): Response {
+        // Explicit action: a form with none submits to the document URL, and
+        // this renders inside a Turbo Frame, so the POST would land on the
+        // settings page instead of here.
+        $form = $this->createForm(IntegrationConnectType::class, $integration, [
+            'integration_provider' => $provider,
+            'url_editable'         => $this->urlValidator->isUserEditable($provider, $config),
+            'action'               => $action,
+        ]);
+        $form->handleRequest($request);
+
+        if (true === $form->isSubmitted() && true === $form->isValid()) {
+            if (null === $integration->id) {
+                $this->em->persist($integration);
+            }
+
+            // Blank keeps the stored credential: the field never renders it, so
+            // blank cannot mean "clear it".
+            $secret = $this->nullIfBlank($form->get('secret')->getData());
+
+            if (null !== $secret) {
+                $integration->secret = $secret;
+            }
+
+            $error = $this->probe($integration);
+            $this->em->flush();
+
+            return $this->listStream(null === $error
+                ? 'settings.integrations.saved'
+                : 'settings.integrations.saved_with_error');
+        }
+
+        return $this->render('settings/integrations/_form.html.twig', [
+            'provider'    => $provider,
+            'integration' => null === $integration->id ? null : $integration,
+            'config'      => $config,
+            'form'        => $form,
+        ]);
+    }
 
     /**
      * Ask the service whether the credentials work, recording the outcome on

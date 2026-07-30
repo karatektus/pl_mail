@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Service\Gmail\GmailPushSettings;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -43,8 +44,7 @@ final class GmailPushController extends AbstractController
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface        $logger,
-        #[Autowire(env: 'GMAIL_PUBSUB_VERIFICATION_TOKEN')]
-        private readonly string                 $verificationToken,
+        private readonly GmailPushSettings      $pushSettings,
     ) {}
 
     #[Route('/gmail/push', name: 'app_gmail_push', methods: ['POST'])]
@@ -114,7 +114,7 @@ final class GmailPushController extends AbstractController
      */
     private function isAuthentic(Request $request): bool
     {
-        $expected = trim($this->verificationToken);
+        $expected = trim(($this->pushSettings->verificationToken() ?? ''));
 
         if ('' === $expected) {
             return false;

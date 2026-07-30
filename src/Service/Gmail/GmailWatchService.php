@@ -30,8 +30,7 @@ final class GmailWatchService
         private readonly GmailApiClient         $apiClient,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface        $logger,
-        #[Autowire(env: 'GMAIL_PUBSUB_TOPIC')]
-        private readonly string                 $pubSubTopicName,
+        private readonly GmailPushSettings      $pushSettings,
     ) {}
 
     /**
@@ -47,7 +46,7 @@ final class GmailWatchService
             'account'   => $account->getEmail(),
         ]);
 
-        $response = $this->apiClient->watch($account, $this->pubSubTopicName);
+        $response = $this->apiClient->watch($account, ($this->pushSettings->topic() ?? ''));
 
         // expiration is a Unix timestamp in *milliseconds*
         $expirationMs = (int) ($response['expiration'] ?? 0);

@@ -55,8 +55,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
         private GmailWatchService      $watchService,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
-        #[Autowire(env: 'GMAIL_PUBSUB_TOPIC')]
-        private string                 $pubSubTopicName,
+        private GmailPushSettings      $pushSettings,
     ) {}
 
     public function supports(Account $account): bool
@@ -66,7 +65,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
 
     public function isConfigured(): bool
     {
-        return '' !== trim($this->pubSubTopicName);
+        return '' !== trim(($this->pushSettings->topic() ?? ''));
     }
 
     public function messageKey(): string
@@ -96,7 +95,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
             // grant — in the response body, so it has to be pulled out here.
             $this->logger->error('GmailPushSubscriptionManager: watch failed, falling back to polling', [
                 'accountId' => $account->getId(),
-                'topic'     => $this->pubSubTopicName,
+                'topic'     => ($this->pushSettings->topic() ?? ''),
                 'error'     => $e->getMessage(),
                 'body'      => $e instanceof HttpExceptionInterface
                     ? $e->getResponse()->getContent(false)

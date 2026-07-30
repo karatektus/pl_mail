@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\IntegrationProviderConfig;
+use App\Entity\MailProviderConfig;
+use App\Form\Integration\IntegrationProviderConfigType;
+use App\Form\Integration\MailProviderConfigType;
 use App\Repository\IntegrationProviderConfigRepository;
 use App\Repository\IntegrationRepository;
+use App\Repository\MailProviderConfigRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -36,6 +42,7 @@ final class IntegrationProviderController extends AbstractController
     public function __construct(
         private readonly IntegrationProviderConfigRepository $configRepository,
         private readonly IntegrationRepository              $integrationRepository,
+        private readonly MailProviderConfigRepository       $mailConfigRepository,
         private readonly EntityManagerInterface             $em,
     ) {
     }
@@ -49,20 +56,126 @@ final class IntegrationProviderController extends AbstractController
         return $this->render('admin/_integrations_frame.html.twig', $this->listData());
     }
 
-    #[Route('/{provider}/edit', name: 'edit', methods: ['GET'])]
-    public function edit(Provider $provider): Response
+    /**
+     * The provider's setup form, and its submission.
+     *
+     * One action for both, as the rest of the app does it: the form re-renders
+     * itself with what was typed when a submission is rejected, which a separate
+     * GET could not do.
+     */
+    #[Route('/{provider}/edit', name: 'edit', methods: ['GET', 'POST'])]
+    public function edit(Provider $provider, Request $request): Response
     {
+        $config = $this->configRepository->findOneByProvider($provider) ?? new IntegrationProviderConfig($provider);
+
+        // The action has to be explicit. A Symfony form with no action submits
+        // to the *document* URL, and this one renders inside a Turbo Frame — so
+        // the POST went to /admin?section=integrations and quietly did nothing.
+        $form = $this->createForm(IntegrationProviderConfigType::class, $config, [
+            'integration_provider' => $provider,
+            'action'               => $this->generateUrl('app_admin_integrations_edit', ['provider' => $provider->value]),
+        ]);
+        $form->handleRequest($request);
+
+        if (true === $form->isSubmitted() && true === $form->isValid()) {
+            if (null === $config->id) {
+                $this->em->persist($config);
+            }
+
+            $this->applySecret(
+                $form,
+                static fn (?string $secret) => $config->clientSecret = $secret,
+                $config->clientSecret,
+            );
+
+            $this->em->flush();
+
+            return $this->savedStream('admin.integrations.saved');
+        }
+
         return $this->render('admin/integrations/_form.html.twig', [
             'provider' => $provider,
-            'config'   => $this->configRepository->findOneByProvider($provider),
+            'config'   => $config,
+            'form'     => $form,
         ]);
     }
 
-    #[Route('/{provider}/save', name: 'save', methods: ['POST'])]
-    public function save(Provider $provider, Request $request): Response
+    #[Route('/mail/{provider}/edit', name: 'mail_edit', methods: ['GET', 'POST'])]
+    public function editMail(MailProvider $provider, Request $request): Response
     {
-        if (false === $this->isCsrfTokenValid('admin-integration-'.$provider->value, (string) $request->request->get('_token'))) {
+        $config = $this->mailConfigRepository->findOneByProvider($provider) ?? new MailProviderConfig($provider);
+
+        $form = $this->createForm(MailProviderConfigType::class, $config, [
+            'mail_provider' => $provider,
+            'action'        => $this->generateUrl('app_admin_integrations_mail_edit', ['provider' => $provider->value]),
+        ]);
+        $form->handleRequest($request);
+
+        if (true === $form->isSubmitted() && true === $form->isValid()) {
+            if (null === $config->id) {
+                $this->em->persist($config);
+            }
+
+            $this->applySecret(
+                $form,
+                static fn (?string $secret) => $config->clientSecret = $secret,
+                $config->clientSecret,
+            );
+
+            if (true === $form->has('tenant')) {
+                $config->setTenant($form->get('tenant')->getData());
+            }
+
+            if (true === $form->has('pubsubTopic')) {
+                $config->setPubsubTopic($form->get('pubsubTopic')->getData());
+            }
+
+            // Write-only, like every other secret here.
+            if (true === $form->has('pushVerificationToken')) {
+                $submittedToken = $this->nullIfBlank($form->get('pushVerificationToken')->getData());
+
+                if (null !== $submittedToken) {
+                    $config->pushVerificationToken = $submittedToken;
+                }
+            }
+
+            $this->em->flush();
+
+            return $this->savedStream('admin.integrations.mail.saved');
+        }
+
+        return $this->render('admin/integrations/_mail_form.html.twig', [
+            'provider' => $provider,
+            'config'   => $config,
+            'form'     => $form,
+        ]);
+    }
+
+    /**
+     * Which integration can borrow which mail provider's app registration.
+     *
+     * Google Drive and Photos live in the same Cloud project as Gmail, and
+     * OneDrive is the same Entra app registration as Graph mail — so the client
+     * id and secret genuinely are the same credential. Dropbox has no mail
+     * counterpart and is absent.
+     */
+    private const array INHERITABLE = [
+        'googleDrive'  => 'google',
+        'googlePhotos' => 'google',
+        'oneDrive'     => 'microsoft',
+    ];
+
+    #[Route('/{provider}/inherit', name: 'inherit', methods: ['POST'])]
+    public function inherit(Provider $provider, Request $request): Response
+    {
+        if (false === $this->isCsrfTokenValid('admin-integration-inherit-'.$provider->value, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
+        }
+
+        $source = $this->inheritableSource($provider);
+
+        if (null === $source || false === $source->isComplete()) {
+            throw $this->createNotFoundException();
         }
 
         $config = $this->configRepository->findOneByProvider($provider);
@@ -72,34 +185,72 @@ final class IntegrationProviderController extends AbstractController
             $this->em->persist($config);
         }
 
-        $config->isEnabled = $request->request->getBoolean('isEnabled');
-        $config->baseUrl = $this->nullIfBlank($request->request->get('baseUrl'));
-
-        if (AuthKind::OAuth2 === $provider->authKind()) {
-            $config->clientId = $this->nullIfBlank($request->request->get('clientId'));
-
-            // A blank secret field means "leave it alone", not "clear it" —
-            // the form never renders the stored value, so treating blank as a
-            // deletion would silently wipe it on every unrelated edit. Clearing
-            // is the explicit checkbox instead.
-            $submittedSecret = $this->nullIfBlank($request->request->get('clientSecret'));
-
-            if (true === $request->request->getBoolean('clearClientSecret')) {
-                $config->clientSecret = null;
-            } elseif (null !== $submittedSecret) {
-                $config->clientSecret = $submittedSecret;
-            }
-        }
+        $config->clientId = $source->clientId;
+        $config->clientSecret = $source->clientSecret;
 
         $this->em->flush();
 
-        return $this->render('admin/integrations/_saved.stream.html.twig', [
-            ...$this->listData(),
-            'toastMessage' => 'admin.integrations.saved',
-        ], new Response(null, Response::HTTP_OK, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+        return $this->savedStream('admin.integrations.inherited');
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The mail config an integration may inherit from, or null when there is no
+     * counterpart or it is not configured.
+     */
+    private function inheritableSource(Provider $provider): ?MailProviderConfig
+    {
+        $mailProvider = MailProvider::tryFrom(self::INHERITABLE[$provider->value] ?? '');
+
+        return null === $mailProvider
+            ? null
+            : $this->mailConfigRepository->findOneByProvider($mailProvider);
+    }
+
+    /**
+     * The write-only secret rule, in one place.
+     *
+     * The form never renders a stored secret, so an empty submission means
+     * "leave it alone" — mapping the field would wipe it every time an admin
+     * edited something else. Clearing is the explicit checkbox, which only
+     * exists when there is something to clear.
+     *
+     * @param callable(?string):void $assign
+     */
+    private function applySecret(FormInterface $form, callable $assign, ?string $current): void
+    {
+        // Absent entirely on app-password providers, which have no app
+        // registration to hold — Nextcloud's form is a toggle and an address.
+        if (false === $form->has('clientSecret')) {
+            return;
+        }
+
+        if (true === $form->has('clearClientSecret') && true === $form->get('clearClientSecret')->getData()) {
+            $assign(null);
+
+            return;
+        }
+
+        $submitted = $this->nullIfBlank($form->get('clientSecret')->getData());
+
+        if (null !== $submitted) {
+            $assign($submitted);
+
+            return;
+        }
+
+        $assign($current);
+    }
+
+    private function savedStream(string $message): Response
+    {
+        return $this->render('admin/integrations/_saved.stream.html.twig', [
+            ...$this->listData(),
+            'toastMessage' => $message,
+        ], new Response(null, Response::HTTP_OK, ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
+
 
     /**
      * @return array<string,mixed>
@@ -107,9 +258,15 @@ final class IntegrationProviderController extends AbstractController
     private function listData(): array
     {
         return [
-            'providers'  => Provider::cases(),
-            'configs'    => $this->configRepository->findAllIndexedByProvider(),
-            'userCounts' => $this->integrationRepository->countUsersByProvider(),
+            'providers'     => Provider::cases(),
+            'configs'       => $this->configRepository->findAllIndexedByProvider(),
+            'userCounts'    => $this->integrationRepository->countUsersByProvider(),
+            'mailProviders' => MailProvider::cases(),
+            'mailConfigs'   => $this->mailConfigRepository->findAllIndexedByProvider(),
+            // Which integrations could inherit credentials from which mail
+            // provider. Drives the "reuse" button, and stays here rather than in
+            // the template so the copy endpoint validates against the same map.
+            'inheritable'   => self::INHERITABLE,
         ];
     }
 

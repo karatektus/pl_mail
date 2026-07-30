@@ -1,132 +1,53 @@
 {#
-admin/integrations/_form.html.twig — configure one provider, inside the modal.
+admin/integrations/_form.html.twig — configure one integration provider.
 
-Hand-rolled rather than a Symfony form type: the fields depend on the
-provider's auth kind, and the client-secret field is deliberately write-only,
-which a form bound to the entity would fight rather than help.
-
-Not extending _modal_form.html.twig for the same reason — that partial takes a
-form object. The <turbo-frame id="modal"> wrapper and the title <template> are
-what the modal controller actually needs, and both are reproduced here.
+A Symfony form through the shared modal shell; the fields themselves come from
+IntegrationProviderConfigType and the styling from the modal form theme. Only
+the redirect URI needs a block, because it is a value to copy rather than a
+field to fill in.
 #}
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
-    <turbo-frame id="modal">
-        <template data-modal-frame-title>{{ provider.label }}</template>
-
-        <form method="post"
-              action="{{ path('app_admin_integrations_save', { provider: provider.value }) }}"
-              class="flex-1 min-h-0 flex flex-col">
-
-            <input type="hidden" name="_token" value="{{ csrf_token('admin-integration-' ~ provider.value) }}">
-
-            <div class="flex-1 min-h-0 px-5 pb-5 space-y-5 overflow-y-auto">
-
-                {% if not provider.isImplemented %}
-                    <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
-                        <i class="fa-solid fa-hammer mt-0.5 shrink-0" aria-hidden="true"></i>
-                        <p class="leading-snug">{{ 'admin.integrations.unimplemented_notice'|trans }}</p>
-                    </div>
-                {% endif %}
-
-                {# ── Enable ── #}
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" name="isEnabled" value="1"
-                           {{ config is not null and config.isEnabled ? 'checked' : '' }}
-                           class="mt-0.5 h-4 w-4 rounded border-field text-accent focus:ring-accent">
-                    <span class="min-w-0">
-                        <span class="block text-sm font-medium text-ink">{{ 'admin.integrations.field.enabled'|trans }}</span>
-                        <span class="block text-xs text-ink-faint">{{ 'admin.integrations.field.enabled_help'|trans }}</span>
-                    </span>
-                </label>
-
-                {# ── Base URL ── #}
-                <div class="space-y-1.5">
-                    <label for="int-base-url" class="block text-sm font-medium text-ink">
-                        {{ 'admin.integrations.field.base_url'|trans }}
-                    </label>
-                    <input id="int-base-url" type="url" name="baseUrl"
-                           value="{{ config is not null ? config.baseUrl : '' }}"
-                           placeholder="https://cloud.example.com"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <p class="text-xs text-ink-faint">
-                        {% if provider.needsBaseUrl %}
-                            {{ 'admin.integrations.field.base_url_help_selfhosted'|trans }}
-                        {% else %}
-                            {{ 'admin.integrations.field.base_url_help_saas'|trans }}
-                        {% endif %}
-                    </p>
+    {# `only` limits what the overridden blocks can see, so anything they use
+       has to be handed over explicitly — provider is not inherited. #}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: provider.label,
+        provider: provider,
+    } only %}
+        {% block before_fields %}
+            {% if not provider.isImplemented %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                    <i class="fa-solid fa-hammer mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.integrations.unimplemented_notice'|trans }}</p>
                 </div>
+            {% endif %}
+        {% endblock %}
 
-                {% if provider.authKind.value == 'oauth2' %}
-                    {# ── Redirect URI, for pasting into the provider's console ── #}
-                    <div class="space-y-1.5">
-                        <span class="block text-sm font-medium text-ink">{{ 'admin.integrations.field.redirect_uri'|trans }}</span>
-                        <div class="flex items-center gap-2" data-controller="clipboard">
-                            <code data-clipboard-target="source"
-                                  class="flex-1 min-w-0 truncate rounded-lg bg-sunken border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_integration_oauth_callback', { provider: provider.value }) }}</code>
-                            <button type="button"
-                                    data-action="click->clipboard#copy"
-                                    class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
-                                           bg-field border border-field hover:bg-hover transition-colors"
-                                    aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">
-                                <i class="fa-solid fa-copy text-xs" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <p class="text-xs text-ink-faint">{{ 'admin.integrations.field.redirect_uri_help'|trans }}</p>
+        {% block after_fields %}
+            {% if provider.authKind.value == 'oauth2' %}
+                {# The one value an admin copies out rather than types in, and the
+                   one that cannot be changed later without breaking every
+                   connection already authorised against it. #}
+                <div class="flex flex-col gap-1.5">
+                    <span class="block text-[13px] font-medium leading-none text-ink-soft">
+                        {{ 'admin.integrations.field.redirect_uri'|trans }}
+                    </span>
+                    <div class="flex items-center gap-2" data-controller="clipboard">
+                        <code data-clipboard-target="source"
+                              class="flex-1 min-w-0 truncate rounded-lg bg-sunken border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_integration_oauth_callback', { provider: provider.value }) }}</code>
+                        <button type="button"
+                                data-action="click->clipboard#copy"
+                                class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
+                                       bg-field border border-field hover:bg-hover transition-colors"
+                                aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">
+                            <i class="fa-solid fa-copy text-xs" aria-hidden="true"></i>
+                        </button>
                     </div>
-
-                    {# ── Client id ── #}
-                    <div class="space-y-1.5">
-                        <label for="int-client-id" class="block text-sm font-medium text-ink">
-                            {{ 'admin.integrations.field.client_id'|trans }}
-                        </label>
-                        <input id="int-client-id" type="text" name="clientId" autocomplete="off"
-                               value="{{ config is not null ? config.clientId : '' }}"
-                               class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    </div>
-
-                    {# ── Client secret ──
-                       Write-only. Blank means "keep what is stored", so editing
-                       the base URL does not require re-pasting a secret the
-                       admin may no longer have a copy of. #}
-                    <div class="space-y-1.5">
-                        <label for="int-client-secret" class="block text-sm font-medium text-ink">
-                            {{ 'admin.integrations.field.client_secret'|trans }}
-                        </label>
-                        <input id="int-client-secret" type="password" name="clientSecret" autocomplete="new-password"
-                               placeholder="{{ config is not null and config.hasClientSecret
-                                   ? 'admin.integrations.secret_unchanged'|trans
-                                   : 'admin.integrations.secret_none'|trans }}"
-                               class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                        {% if config is not null and config.hasClientSecret %}
-                            <label class="flex items-center gap-2 cursor-pointer pt-1">
-                                <input type="checkbox" name="clearClientSecret" value="1"
-                                       class="h-3.5 w-3.5 rounded border-field text-danger focus:ring-danger">
-                                <span class="text-xs text-ink-faint">{{ 'admin.integrations.clear_secret'|trans }}</span>
-                            </label>
-                        {% endif %}
-                    </div>
-                {% endif %}
-
-            </div>
-
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0">
-                <button type="button" data-action="click->modal#close"
-                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
-                    {{ 'form.cancel'|trans }}
-                </button>
-                <button type="submit"
-                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
-                               bg-accent hover:bg-accent-strong transition-colors">
-                    {{ 'form.submit'|trans }}
-                </button>
-            </div>
-        </form>
-    </turbo-frame>
+                    <p class="text-xs text-ink-faint">{{ 'admin.integrations.field.redirect_uri_help'|trans }}</p>
+                </div>
+            {% endif %}
+        {% endblock %}
+    {% endembed %}
 {% endblock %}
