@@ -6,6 +6,16 @@ doctrine:
             # TEXT column, encrypted at rest. See App\Infrastructure\Doctrine\Type\EncryptedStringType.
             encrypted_string: App\Infrastructure\Doctrine\Type\EncryptedStringType
 
+        mapping_types:
+            # calendar_event_occurrence.span is a GENERATED tsrange that only
+            # raw SQL ever touches, but schema:validate still has to be able to
+            # name its type when it reads the database back. DBAL knows tsvector
+            # natively (message.search_vector) and does not know tsrange, so say
+            # so here. text, matching how DBAL already maps tsvector, so the
+            # comparator sees the same type on both sides and stops asking to
+            # rewrite the column on every diff.
+            tsrange: text
+
 
         # IMPORTANT: You MUST configure your server version,
         # either here or in the DATABASE_URL env var (see .env file)

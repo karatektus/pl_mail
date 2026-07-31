@@ -253,6 +253,126 @@ parameters:
 			path: src/Domain/Enum/Integration/Provider.php
 
 		-
+			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/Calendar.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/Calendar.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/Calendar.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$calendar type mapping mismatch\: property can contain App\\Entity\\Calendar\\Calendar\|null but database expects App\\Entity\\Calendar\\Calendar\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$endsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$startsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/CalendarEvent.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$calendar type mapping mismatch\: property can contain App\\Entity\\Calendar\\Calendar\|null but database expects App\\Entity\\Calendar\\Calendar\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$endsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$event type mapping mismatch\: property can contain App\\Entity\\Calendar\\CalendarEvent\|null but database expects App\\Entity\\Calendar\\CalendarEvent\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$recurrenceId type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$startsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\CalendarEventOccurrence\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/CalendarEventOccurrence.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/EventSourceLink.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$event type mapping mismatch\: property can contain App\\Entity\\Calendar\\CalendarEvent\|null but database expects App\\Entity\\Calendar\\CalendarEvent\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/EventSourceLink.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$message type mapping mismatch\: property can contain App\\Entity\\Mail\\Message\|null but database expects App\\Entity\\Mail\\Message\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/EventSourceLink.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Calendar/EventSourceLink.php
+
+		-
+			message: '#^Property App\\Entity\\Calendar\\EventSuppression\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Calendar/EventSuppression.php
+
+		-
 			message: '#^Property App\\Entity\\Integration\\Integration\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
@@ -731,6 +851,12 @@ parameters:
 			identifier: method.unused
 			count: 1
 			path: src/Kernel.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Repository/Calendar/CalendarEventOccurrenceRepository.php
 
 		-
 			message: '#^PHPDoc tag @return with type iterable\<App\\Entity\\Mail\\Account\> is not subtype of native type array\.$#'
