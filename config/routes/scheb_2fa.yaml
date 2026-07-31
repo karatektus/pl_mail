@@ -1,0 +1,16 @@
+# The code form between the two factors.
+#
+# scheb's FormController is used as-is — it resolves which provider the pending
+# token is waiting on and hands the template everything it needs. Only the
+# template is ours, set as `totp.template` in packages/scheb_2fa.yaml.
+#
+# The check path is intercepted by the firewall's two-factor authenticator, so
+# it needs a route but never reaches a controller. Both live under /2fa so one
+# access_control line covers them.
+app_2fa_login:
+    path: /2fa
+    defaults:
+        _controller: "scheb_two_factor.form_controller::form"
+
+app_2fa_login_check:
+    path: /2fa_check

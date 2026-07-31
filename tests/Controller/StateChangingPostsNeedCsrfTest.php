@@ -78,4 +78,41 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
 
         self::assertSame(403, $client->getResponse()->getStatusCode());
     }
+
+    /**
+     * The two-factor endpoints, which are worth pinning separately.
+     *
+     * A cross-site POST that stripped somebody's second factor, or quietly
+     * re-trusted a device, would be a more useful attack than most of what 2FA
+     * is there to stop — and unlike minting an app password, the damage is
+     * invisible until the next sign-in.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function twoFactorEndpoints(): iterable
+    {
+        yield 'turn off 2FA' => ['/settings/security/disable'];
+        yield 'confirm enrolment' => ['/settings/security/confirm'];
+        yield 'regenerate recovery codes' => ['/settings/security/backup-codes'];
+        yield 'revoke one device' => ['/settings/security/devices/1/revoke'];
+        yield 'revoke every device' => ['/settings/security/devices/revoke-all'];
+    }
+
+    #[DataProvider('twoFactorEndpoints')]
+    public function testTwoFactorEndpointsRejectAForgedToken(string $path): void
+    {
+        $client = static::createClient();
+
+        $user = static::getContainer()->get(UserRepository::class)
+            ->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        if (null === $user) {
+            self::markTestSkipped('run `app:test:seed-user --admin` first');
+        }
+
+        $client->loginUser($user);
+        $client->request('POST', $path, ['_token' => 'nonsense', 'code' => '000000']);
+
+        self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a forged token");
+    }
 }

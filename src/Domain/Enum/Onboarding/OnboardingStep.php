@@ -13,6 +13,11 @@ namespace App\Domain\Enum\Onboarding;
  * account step; and integrations come before the profile so the avatar can be
  * picked out of a service the user has just connected.
  *
+ * Security sits late but before Appearance, which is deliberate rather than
+ * arbitrary: asked before the mail account is connected, "protect your mailbox"
+ * is an abstraction, and asked last it competes with a Finish button. Appearance
+ * makes a better closer because skipping it costs nothing.
+ *
  * Which of these a given user actually sees is not decided here. Each step has
  * a handler that answers whether it applies (App\Service\Onboarding\Step), so a
  * plain user never meets the admin stops and nobody is shown a step for
@@ -28,6 +33,7 @@ enum OnboardingStep: string
     case Account = 'account';
     case Integrations = 'integrations';
     case Profile = 'profile';
+    case Security = 'security';
     case Appearance = 'appearance';
 
     /** Translation key for the step's title; the lead is `.lead` beside it. */
@@ -44,6 +50,7 @@ enum OnboardingStep: string
             self::AdminIntegrationCredentials => 'fa-solid fa-plug-circle-bolt',
             self::Account                     => 'fa-solid fa-envelope',
             self::Profile                     => 'fa-solid fa-user',
+            self::Security                    => 'fa-solid fa-shield-halved',
             self::Appearance                  => 'fa-solid fa-palette',
             self::Integrations                => 'fa-solid fa-cloud',
         };

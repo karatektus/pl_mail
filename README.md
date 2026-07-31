@@ -52,6 +52,13 @@ unreachable, and search runs against your own database rather than someone else'
 - Optional browser notifications, so you hear about mail without the tab open
 - Scheduled syncing as a fallback whenever push isn't available
 
+**Keeping it yours**
+
+- Two-factor authentication with any authenticator app — Google Authenticator, Aegis, 1Password, Bitwarden
+- One-time recovery codes for when the phone is gone, and a console command for when they are too
+- "Remember this device" for 30 days, listed in Settings with what and when, and revocable one at a time
+- Revoking a device takes effect on its next request, not whenever a cookie happens to expire
+
 **Making it yours**
 
 - Light and dark themes, following your system or set explicitly

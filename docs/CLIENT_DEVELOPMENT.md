@@ -169,8 +169,16 @@ list and clamps:
 | `backgroundPreset` / `backgroundSolid` / `backgroundFile` | — | — | The chosen background. |
 
 `Appearance::toArray()` is the export format (versioned, `version: 1`), and `applyArray()` the
-import. The web UI lets users export/import this as a file. A native client should read the user's
-appearance and honour it; supporting import/export is a nice-to-have.
+import. The web UI lets users export/import this as a file.
+
+> **None of this is reachable over JMAP today.** `Appearance` hangs off the `User` entity and is
+> served only to the web UI; there is no JMAP method that returns it. So a client cannot literally
+> honour the user's server-side theme yet — see [§4](#feature-parity-checklist). What it *can* do,
+> and should, is model the same two-axis Theme×Layout shape with the same semantic tokens and drive
+> it from local settings, so that when a `UserPreferences`-style vendor method lands it changes
+> where the values come from and nothing else. The rule being enforced is "don't hardcode a
+> palette", and that rule bites with or without the network fetch. If you need this, ask — the
+> export format already exists, so it is a small addition.
 
 > **Radius applies to panes, not controls.** Modals, the compose window, dropdowns, menus and toasts
 > take `--app-radius`. Buttons, inputs, chips and list rows keep a *fixed* small radius — they must
@@ -440,6 +448,13 @@ Authorization: Bearer plmail_…
 Back-references (`#ids`) are supported and are the intended way to pair query with get in one round
 trip — important over a slow home uplink.
 
+Two argument details that cost more to debug than to read:
+
+- **`accountId` must be a JSON string.** An integer is rejected with `invalidArguments`, not coerced.
+- **`Email/get` returns `list` in repository order, not the order you asked for**, and computes
+  `notFound` by difference. If you paired it with `Email/query` you must re-order the result against
+  the query's `ids` yourself, or your list arrives sorted by database id.
+
 Request-level errors come back as `application/problem+json` with status 400 and a `type` of
 `urn:ietf:params:jmap:error:notJSON` / `notRequest` / `unknownCapability`.
 
@@ -464,7 +479,9 @@ your client wants one, **ask for it rather than engineering around it** (see [§
   `canCalculateChanges: false`. To refresh a list you re-run the query. Use `Email/changes` for the
   object-level delta and re-query for ordering.
 - **Anchor-based paging is not supported.** `anchor` raises `unsupportedFilter`; use `position` +
-  `limit`. Negative positions (anchoring from the end) are also rejected.
+  `limit`. Negative positions (anchoring from the end) are rejected **by `Email/query`**;
+  `Mailbox/query` does accept them and anchors from the end.
+- **`Email/query` always returns `total`; `Mailbox/query` only with `calculateTotal: true`.**
 - **`SearchSnippet/*`, `VacationResponse/*`, `Blob/copy`** are absent.
 - **No JMAP Contacts or Calendars.** Mail only.
 
@@ -476,12 +493,19 @@ Labels are user-scoped and span accounts; a `LabelBinding` is the per-account in
 and *that* is what has a stable identity inside one JMAP account. So:
 
 - `Mailbox.id` = binding id.
+- `Mailbox.labelId` = the **user-scoped label id** this binding materialises. A plMail extension,
+  not RFC 8621. Binding ids are per-account by necessity, so one label reachable from three accounts
+  is three Mailboxes with three unrelated ids and nothing tying them together. This is what lets a
+  client collapse them into a single sidebar row — matching on `name` instead breaks the moment the
+  label is renamed in one account. It is **not** an id you can pass to `inMailbox` or `Email/set`;
+  those take binding ids, always.
 - `Mailbox.name` = the **leaf** name (JMAP models hierarchy via `parentId`, so `"Invoices"`, not
   `"Work/Invoices"`).
 - `Mailbox.parentId` = the parent's *binding* id, or `null` if the parent has no binding in this
   account (so a child never points at an unresolvable id).
 - Roles map from plMail's `LabelRole`: `inbox`, `sent`, `drafts`, `trash`, `junk` (plMail's `Spam`),
-  `archive`. An unmapped role degrades to `null` — the mailbox still appears.
+  `archive`, plus `flagged`, `important` and `all`. An unmapped role degrades to `null` — the
+  mailbox still appears.
 - `myRights`: system labels (`role !== null`) are not renamable or deletable; custom labels are fully
   mutable. Everything else is permitted.
 - `isSubscribed` mirrors the label's visibility toggle. Note **Archive is created hidden by default**
@@ -490,17 +514,32 @@ and *that* is what has a stable identity inside one JMAP account. So:
 Sidebar order for system labels is fixed: Inbox 0, Sent 10, Drafts 20, Spam 30, Trash 40, Archive 50.
 Custom labels sort after, alphabetically.
 
-**2. `Email.mailboxIds` comes from the per-message label join.**
+**2. `Email.mailboxIds` comes from the per-message label join, translated into the binding id space.**
 
 Not from the thread-level union — reading that would report a mailbox for every message in the
 thread. Standard JMAP map shape (`{"42": true}`), and `{}` when empty (never `[]`).
+
+The join stores user-scoped **label** ids, but the ids published here are **binding** ids, so they
+match `Mailbox.id` and can be passed straight back to `inMailbox` and `Email/set`. **One id space
+throughout — there is no case where you need to translate.** A label the account has no binding for
+is omitted rather than published as an id you could not resolve.
+
+> Until mid-2026 this property emitted untranslated label ids. Because both are autoincrement ints
+> from different tables, the wrong ids usually *looked* valid and named some unrelated mailbox, so
+> the symptom was a plausible wrong answer rather than an error — and it was invisible on a
+> single-account install, where the two sequences tend to line up. If you are reading this against
+> an older server, that is what you are seeing.
 
 **3. Bodies are synthetic parts.**
 
 plMail stores a *flattened* body (`bodyText` / `bodyHtmlSafe`), not a MIME tree. So every Email
 publishes at most two body parts with the fixed `partId`s **`"text"`** and **`"html"`**. They are
-stable per message, which is all `fetchTextBodyValues` / `fetchHtmlBodyValues` need. Treat `partId`
+stable per message, which is all `fetchTextBodyValues` / `fetchHTMLBodyValues` need. Treat `partId`
 as opaque anyway, as the spec requires.
+
+**Note the capitalisation: `fetchHTMLBodyValues`, not `fetchHtmlBodyValues`.** That is the RFC 8621
+spelling and what the server reads. An unrecognised argument is simply absent, so getting it wrong
+returns empty `bodyValues` with no error at all.
 
 **The HTML published is always the sanitised version**, never the raw column — this body is handed
 straight to third-party clients that render it.
@@ -544,6 +583,10 @@ returns too many emails and the client cannot tell.
 | `listId` | Substring over the canonicalised `list-id` header. |
 
 `AND` / `OR` / `NOT` FilterOperators nest freely. Note `NOT` is implemented as `NOT (a OR b …)`.
+
+`EmailFilterCompiler` also understands `hasLabel` / `notLabel`, which take **user-scoped Label ids**
+rather than Mailbox (binding) ids. These exist for mail rules, which have no reason to know about
+the JMAP id space. They are not part of the client-facing filter vocabulary — use `inMailbox`.
 
 **Sort:** `receivedAt`, `from`, `to`, `subject`, `size`. **Limit:** capped at 500 (`null` or larger
 becomes 500). `collapseThreads` is supported.
@@ -753,7 +796,8 @@ Ordered roughly by how much users will miss them.
 - Mark read/unread, star.
 
 **Settings**
-- Appearance (theme, layout, density, accent) — read and honour at minimum.
+- Appearance (theme, layout, density, accent) — build the token system and drive it from local
+  settings for now; the server does not expose `Appearance` over JMAP yet (see [§2](#2-look-and-feel)).
 - Account list and order.
 - Notification preferences.
 - App password management is web-only today; link out to the web UI rather than reimplementing.

@@ -5,18 +5,23 @@ namespace App\Entity\User;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
+use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\User\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints\DateTime;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
-class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface
+class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
     /* Core roles */
     public const string ROLE_ADMIN = 'ROLE_ADMIN';
@@ -43,6 +48,40 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $avatar = null;
+
+    /**
+     * The shared TOTP secret, base32, encrypted at rest by the same libsodium
+     * key as mailbox passwords — anyone who can read it can mint valid codes
+     * forever, so it belongs in the same bracket as a credential, not a
+     * setting.
+     */
+    #[ORM\Column(name: 'totp_secret', type: EncryptedStringType::NAME, nullable: true)]
+    private ?string $totpSecret = null;
+
+    /**
+     * When the user proved the secret works, by typing a code from their app.
+     *
+     * Separate from the secret existing on purpose: enrolment writes the secret
+     * first so the QR can be scanned, and a secret that has never been
+     * confirmed must not lock anyone out. 2FA is *on* only once this is set,
+     * which is exactly what isTotpAuthenticationEnabled() answers.
+     */
+    #[ORM\Column(name: 'totp_confirmed_at', nullable: true)]
+    private ?\DateTimeImmutable $totpConfirmedAt = null;
+
+    /**
+     * Unused recovery codes, as SHA-256 digests.
+     *
+     * Hashed for the same reason the secret is encrypted, and by a plain digest
+     * rather than a password hasher for the same reason as ApiToken: each code
+     * is 64 bits of CSPRNG output, so there is nothing to brute-force and no
+     * key stretching to buy. Codes are removed from this list as they are
+     * spent, so its length is the "N remaining" the settings page shows.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'backup_codes', type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
+    private array $backupCodes = [];
 
     /**
      * Preferred interface locale. Null means "follow the server default".
@@ -163,6 +202,155 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    /* ── Two-factor authentication ──────────────────────────────────────── */
+
+    /**
+     * RFC 6238 defaults, and they are not ours to tune.
+     *
+     * Google Authenticator ignores the `algorithm` and `digits` parameters in
+     * the otpauth:// URI and assumes SHA-1 and 6 digits regardless. Configuring
+     * anything else here produces an enrolment that scans cleanly and then
+     * rejects every code, with nothing on either side saying why.
+     */
+    private const string TOTP_ALGORITHM = TotpConfiguration::ALGORITHM_SHA1;
+    private const int TOTP_PERIOD = 30;
+    private const int TOTP_DIGITS = 6;
+
+    /** How many recovery codes an enrolment or a regeneration hands out. */
+    public const int BACKUP_CODE_COUNT = 8;
+
+    /**
+     * 2FA is on once the secret has been confirmed — see $totpConfirmedAt for
+     * why a stored secret is not by itself enough.
+     */
+    public function isTotpAuthenticationEnabled(): bool
+    {
+        return null !== $this->totpSecret && null !== $this->totpConfirmedAt;
+    }
+
+    public function getTotpAuthenticationUsername(): ?string
+    {
+        return $this->getUserIdentifier();
+    }
+
+    public function getTotpAuthenticationConfiguration(): ?TotpConfigurationInterface
+    {
+        if (null === $this->totpSecret) {
+            return null;
+        }
+
+        return new TotpConfiguration(
+            $this->totpSecret,
+            self::TOTP_ALGORITHM,
+            self::TOTP_PERIOD,
+            self::TOTP_DIGITS,
+        );
+    }
+
+    /**
+     * The pending or active secret. Only the enrolment service and the QR
+     * renderer have any business reading this.
+     */
+    public function getTotpSecret(): ?string
+    {
+        return $this->totpSecret;
+    }
+
+    /**
+     * Stage a secret for enrolment. Unconfirmed until confirmTotp() — so
+     * starting an enrolment and walking away cannot lock the account.
+     */
+    public function startTotpEnrolment(string $secret): static
+    {
+        $this->totpSecret = $secret;
+        $this->totpConfirmedAt = null;
+
+        return $this;
+    }
+
+    public function confirmTotp(): static
+    {
+        $this->totpConfirmedAt ??= new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function getTotpConfirmedAt(): ?\DateTimeImmutable
+    {
+        return $this->totpConfirmedAt;
+    }
+
+    /**
+     * Turn 2FA off and leave nothing behind that could turn it back on.
+     *
+     * Recovery codes go with the secret: they are alternative proofs of the
+     * same factor, and a set left lying around would still open the account
+     * after the user believes they have removed the second factor. Trusted
+     * devices are withdrawn by the caller, which has the repository.
+     */
+    public function disableTotp(): static
+    {
+        $this->totpSecret = null;
+        $this->totpConfirmedAt = null;
+        $this->backupCodes = [];
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getBackupCodeHashes(): array
+    {
+        return $this->backupCodes;
+    }
+
+    public function countBackupCodes(): int
+    {
+        return count($this->backupCodes);
+    }
+
+    /**
+     * @param list<string> $hashes
+     */
+    public function setBackupCodeHashes(array $hashes): static
+    {
+        $this->backupCodes = array_values($hashes);
+
+        return $this;
+    }
+
+    public static function hashBackupCode(string $code): string
+    {
+        // Normalised so the grouping dashes the user is shown, and the case
+        // their keyboard happens to be in, do not decide whether a valid code
+        // is accepted.
+        return hash('sha256', strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $code) ?? ''));
+    }
+
+    public function isBackupCode(string $code): bool
+    {
+        $candidate = self::hashBackupCode($code);
+
+        foreach ($this->backupCodes as $hash) {
+            if (true === hash_equals($hash, $candidate)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function invalidateBackupCode(string $code): void
+    {
+        $candidate = self::hashBackupCode($code);
+
+        $this->backupCodes = array_values(array_filter(
+            $this->backupCodes,
+            static fn (string $hash): bool => false === hash_equals($hash, $candidate),
+        ));
     }
 
     public function getAvatar(): ?string

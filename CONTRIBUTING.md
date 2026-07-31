@@ -18,6 +18,7 @@ Development setup, test suites and console reference. For installing and running
 | Frontend | AssetMapper, Tailwind v4, Hotwire Turbo, Stimulus |
 | Runtime | FrankenPHP |
 | Credentials | libsodium secretbox via the `encrypted_string` Doctrine type |
+| Auth | Session login, TOTP two-factor (`scheb/2fa`), database-backed trusted devices |
 | Dev tooling | Docker Compose, Adminer, Mailpit |
 | Architectures | `linux/amd64` and `linux/arm64` |
 
@@ -191,6 +192,65 @@ docker compose run --rm --entrypoint docker-php-entrypoint php php bin/console a
 Then `docker compose down && docker compose up -d`, so every service comes up on the one key in the
 file, and create the first administrator again.
 
+## Two-factor authentication
+
+TOTP, through `scheb/2fa`, on the `main` firewall only. Opt-in per user, from Settings → Security or
+the step the setup wizard offers.
+
+`/jmap` is deliberately not covered. It authenticates third-party mail clients with app passwords,
+which exist precisely because an IMAP or JMAP client cannot present a six-digit code; the way to
+withdraw access there is the app password list, not this.
+
+### Why "remember this device" is a table
+
+scheb ships a trusted-device feature already, and plMail replaces its manager
+(`App\Security\TwoFactor\DatabaseTrustedDeviceManager`, wired through `trusted_device.manager` in
+`config/packages/scheb_2fa.yaml`). The stock one puts the whole grant in the cookie: a JWT holding a
+username and a version, signed with `APP_SECRET`. That is stateless and fast, and it **cannot be
+taken back** — a stolen cookie stays valid for its full lifetime, and the only revocation on offer is
+bumping the version, which drops every device the user owns at once.
+
+Here the cookie is an opaque 32-byte secret and the grant is a row in `trusted_device`, so the
+settings page can list what is trusted and revoking one takes effect on that device's very next
+request. The cost is one indexed lookup per request on a 2FA-enabled account.
+
+Only a SHA-256 of the cookie secret is stored, on the same reasoning as `ApiToken`: CSPRNG output has
+nothing to brute-force, and a digest can be matched by an indexed equality test instead of scanning
+every row. The TOTP secret itself goes through the `encrypted_string` type, like every mailbox
+password.
+
+### Things that bite
+
+**The TOTP parameters are not yours to tune.** Google Authenticator ignores the `algorithm` and
+`digits` parameters in the `otpauth://` URI and assumes SHA-1 and 6 digits regardless. `User` hard-codes
+those, and `TwoFactorEnrolmentTest` generates real codes with otphp to prove the configuration written
+into the QR and the one validated against have not drifted apart. Get that wrong and enrolment scans
+cleanly, then rejects every code, with nothing on either side saying why.
+
+**`leeway` must stay below the 30-second period.** otphp throws
+`The leeway must be lower than the TOTP period` for anything `>= 30` — not a narrower window, an
+exception on *every* verification. It is 15.
+
+**Adding an onboarding step needs `OnboardingController::STEP_PATTERN` updating.** A route requirement
+is an attribute argument, so it cannot be derived from the enum. A missing case does not just 404: the
+progress rail generates a URL for every applicable step, so one omission takes down every page of the
+wizard. `OnboardingStepCoverageTest` checks both that and the handler.
+
+**Programmatic login must name its authenticator.** The `main` firewall has two now, and
+`Security::login()` refuses to guess — see `InstallController`.
+
+### Getting back in
+
+Losing the phone and the recovery codes is recoverable, because plMail runs on hardware its user owns:
+
+```bash
+docker compose exec php php bin/console app:user:2fa-disable you@example.com
+```
+
+This is not exposed to administrators through the web UI on purpose. An admin who could strip another
+user's second factor from a browser would be a second way into every mailbox on the install, reachable
+with nothing but a stolen admin session.
+
 ## Console commands
 
 | Command | Description |
@@ -210,6 +270,7 @@ file, and create the first administrator again.
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
 | `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
+| `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:monitoring:prune [--days=N]` | Prune old log entries and dead process heartbeats |
 | `app:reset` | Truncate synced data — useful during development |
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |

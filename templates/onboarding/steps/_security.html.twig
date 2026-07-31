@@ -1,0 +1,140 @@
+{#
+The setup wizard's two-factor step. Opt-in: Next moves on without enrolling,
+and nothing here blocks it.
+
+There is no <form> in this file, and there must not be. The body renders inside
+the wizard's own form (see _wizard.html.twig), HTML has no nested forms, and a
+second one is dropped by the browser — its submit button then submits the
+wizard instead, advancing the step without ever enrolling. So the code field is
+a child of the step form, added by SecurityStepHandler::createForm(), and the
+Confirm button below carries `stay_on_step` so the step re-renders with the
+recovery codes rather than moving on.
+
+Links target the modal frame for the same reason the account step's do:
+_wizard.html.twig is a bare <turbo-frame> fragment with no page layout, so a
+full navigation to a step URL renders it unstyled.
+#}
+
+{% if newBackupCodes %}
+    {# Shown once, straight after enrolment. #}
+    <div id="onboarding-2fa-codes" class="mb-5 rounded-pane border border-line overflow-hidden">
+        <div class="px-4 py-3 border-b border-line bg-accent-soft/40">
+            <p class="text-sm font-semibold text-ink mb-0.5">
+                <i class="fa-solid fa-life-ring text-xs mr-1" aria-hidden="true"></i>
+                {{ 'settings.security.codes.copy_now'|trans }}
+            </p>
+            <p class="text-xs text-ink-muted">{{ 'settings.security.codes.copy_now_hint'|trans }}</p>
+        </div>
+
+        <div data-controller="ui--clipboard" class="px-4 py-3.5">
+            <code data-ui--clipboard-target="source"
+                  class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
+
+            <button type="button"
+                    data-action="click->ui--clipboard#copy"
+                    class="mt-2 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
+                           bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                <i class="fa-solid fa-copy text-[11px]" aria-hidden="true"></i>
+                <span data-ui--clipboard-target="label">{{ 'settings.security.codes.copy'|trans }}</span>
+            </button>
+        </div>
+    </div>
+{% endif %}
+
+{% if twoFactorEnabled %}
+
+    <div class="flex items-start gap-3 rounded-pane border border-line px-4 py-4">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-base mt-0.5 shrink-0" aria-hidden="true"></i>
+        <div class="min-w-0">
+            <p class="text-sm font-medium text-ink">{{ 'onboarding.security.done_heading'|trans }}</p>
+            <p class="text-xs text-ink-muted leading-relaxed mt-1">
+                {{ 'onboarding.security.done_body'|trans }}
+            </p>
+        </div>
+    </div>
+
+{% elseif twoFactorEnrolling %}
+
+    <ol class="space-y-4">
+        <li class="flex gap-3">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">1</span>
+            <p class="text-xs text-ink-muted leading-relaxed pt-0.5">{{ 'settings.security.enrol.step_app'|trans }}</p>
+        </li>
+
+        <li class="flex gap-3">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">2</span>
+            <div class="min-w-0">
+                <p class="text-xs text-ink-muted leading-relaxed mb-2.5">{{ 'settings.security.enrol.step_scan'|trans }}</p>
+
+                <div class="inline-block rounded-lg bg-white p-2">
+                    <img src="{{ twoFactorQr }}" alt="{{ 'settings.security.enrol.qr_alt'|trans }}"
+                         width="220" height="220" class="block">
+                </div>
+
+                <details class="mt-2.5">
+                    <summary class="text-[11px] text-accent cursor-pointer hover:underline">
+                        {{ 'settings.security.enrol.manual_toggle'|trans }}
+                    </summary>
+                    <div class="mt-2" data-controller="ui--clipboard">
+                        <code data-ui--clipboard-target="source"
+                              id="onboarding-2fa-secret"
+                              class="block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-xs font-mono text-ink select-all">{{ twoFactorSecret }}</code>
+                        <button type="button"
+                                data-action="click->ui--clipboard#copy"
+                                class="mt-1.5 text-[11px] text-accent hover:underline cursor-pointer">
+                            <span data-ui--clipboard-target="label">{{ 'settings.security.enrol.manual_copy'|trans }}</span>
+                        </button>
+                    </div>
+                </details>
+            </div>
+        </li>
+
+        <li class="flex gap-3">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">3</span>
+            <div class="min-w-0 flex-1">
+                <p class="text-xs text-ink-muted leading-relaxed mb-2.5">{{ 'settings.security.enrol.step_confirm'|trans }}</p>
+
+                {# A field of the wizard's form, not a form of its own — see the
+                   note at the top. Rejected codes come back as errors on it. #}
+                <div class="flex items-end gap-2">
+                    <div class="flex-1 min-w-0 max-w-[200px]">
+                        {{ form_errors(form.code) }}
+                        {{ form_widget(form.code) }}
+                    </div>
+                    <button type="submit"
+                            name="stay_on_step"
+                            value="1"
+                            id="onboarding-2fa-confirm"
+                            class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                   bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                        {{ 'settings.security.enrol.submit'|trans }}
+                    </button>
+                </div>
+            </div>
+        </li>
+    </ol>
+
+    <a href="{{ cancelUrl }}" data-turbo-frame="modal"
+       class="inline-block mt-4 text-[11px] text-ink-faint hover:text-ink transition-colors">
+        {{ 'settings.security.enrol.cancel'|trans }}
+    </a>
+
+{% else %}
+
+    <p class="text-sm text-ink-muted leading-relaxed">
+        {{ 'onboarding.security.body'|trans }}
+    </p>
+
+    <a href="{{ enrolUrl }}" data-turbo-frame="modal"
+       id="onboarding-2fa-open"
+       class="inline-flex items-center gap-2 mt-4 px-3 h-9 rounded-lg text-sm font-medium
+              bg-accent hover:bg-accent-strong text-white transition-colors">
+        <i class="fa-solid fa-shield-halved text-xs" aria-hidden="true"></i>
+        {{ 'settings.security.enable'|trans }}
+    </a>
+
+    <p class="text-[11px] text-ink-faint mt-3">
+        {{ 'onboarding.security.skip_hint'|trans }}
+    </p>
+
+{% endif %}

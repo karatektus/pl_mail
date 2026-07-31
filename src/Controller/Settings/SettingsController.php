@@ -7,6 +7,7 @@ namespace App\Controller\Settings;
 use App\Domain\Enum\AppLocale;
 use App\Form\ApiTokenType;
 use App\Service\User\ProfileSectionViewData;
+use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -24,7 +25,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'profile', 'labels', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -38,6 +39,7 @@ final class SettingsController extends AbstractController
         #[Autowire('%kernel.default_locale%')]
         private readonly string $defaultLocale,
         private readonly ProfileSectionViewData $profileSection,
+        private readonly SecuritySectionViewData $securitySection,
     ) {
     }
 
@@ -60,6 +62,7 @@ final class SettingsController extends AbstractController
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             ...$this->profileSection->build($this->getUser(), $request),
+            ...$this->securitySectionData($section, $request),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
@@ -69,4 +72,30 @@ final class SettingsController extends AbstractController
         ]);
     }
 
+    /**
+     * The Security section's parameters, and only when that section is on
+     * screen.
+     *
+     * Building it is not free of consequence: opening the enrolment panel
+     * stages a fresh TOTP secret, and it renders the QR. Neither should happen
+     * because somebody opened Settings on the Labels tab.
+     *
+     * @return array<string, mixed>
+     */
+    private function securitySectionData(string $section, Request $request): array
+    {
+        if ('security' !== $section) {
+            return [];
+        }
+
+        // Read once, straight out of the flash bag — see the note on
+        // TwoFactorController about why recovery codes travel this way.
+        $codes = $request->getSession()->getFlashBag()->get(TwoFactorController::FLASH_BACKUP_CODES);
+
+        return $this->securitySection->build(
+            $this->getUser(),
+            $request,
+            [] === $codes ? null : array_values((array) $codes),
+        );
+    }
 }

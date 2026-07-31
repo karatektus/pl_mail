@@ -102,8 +102,18 @@ test.describe("admin integrations", () => {
         const frame = page.locator("#admin-integrations");
 
         await expect(frame.getByRole("heading", { name: "Mail sign-in" })).toBeVisible();
-        await expect(frame.getByText("Gmail sign-in")).toBeVisible();
-        await expect(frame.getByText("Microsoft mail sign-in")).toBeVisible();
+
+        // Scoped to the row, not searched for across the frame. Once mail
+        // credentials exist, every Google-backed service grows a "Reuse Gmail
+        // sign-in" button, so an unscoped getByText("Gmail sign-in") matches
+        // three elements and dies on strict mode — passing alone and failing
+        // in a full run, because the test below is what stores them.
+        await expect(
+            page.locator("#mail-provider-google").getByText("Gmail sign-in", { exact: true }),
+        ).toBeVisible();
+        await expect(
+            page.locator("#mail-provider-microsoft").getByText("Microsoft mail sign-in", { exact: true }),
+        ).toBeVisible();
 
         // Every row offers configuration, and each has exactly one status chip —
         // "From environment" or "Enabled" depending on whether anything has been

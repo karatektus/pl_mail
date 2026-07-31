@@ -11,6 +11,7 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Mail\MessageRepository;
 
 /**
@@ -32,6 +33,7 @@ final class EmailGetMethod implements JmapMethod
         private readonly MessageRepository $messageRepository,
         private readonly EmailMapper $mapper,
         private readonly StateManager $stateManager,
+        private readonly LabelBindingRepository $bindingRepository,
     ) {
     }
 
@@ -83,6 +85,11 @@ final class EmailGetMethod implements JmapMethod
             array_map('intval', $requestedIds),
         );
 
+        // mailboxIds is emitted in the binding id space, and a message may
+        // carry any of the account's labels — so the map is resolved once for
+        // the whole account rather than per message.
+        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);
+
         $list = [];
         $found = [];
 
@@ -94,6 +101,7 @@ final class EmailGetMethod implements JmapMethod
                 true === ($arguments['fetchTextBodyValues'] ?? false),
                 true === ($arguments['fetchHTMLBodyValues'] ?? false),
                 $bodyProperties,
+                $bindingIdByLabelId,
             );
         }
 

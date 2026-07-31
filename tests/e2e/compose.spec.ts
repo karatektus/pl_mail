@@ -9,13 +9,16 @@ import { seed } from "./support/config";
  * as `.ts-control .item`.
  *
  * Seeds the E2E account once; the drafts these specs exercise are created
- * through the UI rather than seeded.
+ * through the UI rather than seeded. `clear-drafts` goes with it: a draft
+ * written through the UI is filed on the user's default account, which is not
+ * necessarily the one seed-mail wipes, so without it every run leaves another
+ * "E2E Draft" behind and the reopen spec's locator turns ambiguous.
  */
 const RECIPIENT = "draftee@example.test";
 const dock = "#compose_dock";
 
 test.beforeAll(() => {
-    seed("seed-mail");
+    seed("seed-mail", "clear-drafts");
 });
 
 test.describe("compose window", () => {

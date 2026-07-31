@@ -1,0 +1,280 @@
+{# templates/settings/_security.html.twig
+
+   Settings → Security. Three states, and only ever one on screen:
+     • off, not enrolling  — the pitch and a Set up button
+     • enrolling           — QR, manual key, and the confirm field
+     • on                  — status, recovery codes, trusted devices
+
+   Variables come from App\Service\User\TwoFactor\SecuritySectionViewData.
+#}
+
+{# Freshly minted recovery codes, shown once. See TwoFactorController on why
+   these arrive through the flash bag. #}
+{% if newBackupCodes %}
+    <div class="mb-4 rounded-pane border border-line overflow-hidden">
+        <div class="px-4 py-3.5 border-b border-line bg-accent-soft/40">
+            <p class="text-xs font-semibold text-ink mb-1">
+                <i class="fa-solid fa-life-ring text-[11px] mr-1" aria-hidden="true"></i>
+                {{ 'settings.security.codes.copy_now'|trans }}
+            </p>
+            <p class="text-[11px] text-ink-muted">{{ 'settings.security.codes.copy_now_hint'|trans }}</p>
+        </div>
+
+        <div data-controller="ui--clipboard" class="px-4 py-3.5">
+            <code data-ui--clipboard-target="source"
+                  class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
+
+            <button type="button"
+                    data-action="click->ui--clipboard#copy"
+                    class="mt-2 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
+                           bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                <i class="fa-solid fa-copy text-[11px]" aria-hidden="true"></i>
+                <span data-ui--clipboard-target="label">{{ 'settings.security.codes.copy'|trans }}</span>
+            </button>
+        </div>
+    </div>
+{% endif %}
+
+<section>
+    <div class="mb-4">
+        <h2 class="text-sm font-semibold text-ink">{{ 'settings.security.heading'|trans }}</h2>
+        <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.security.subheading'|trans }}</p>
+    </div>
+
+    <div class="rounded-pane border border-line overflow-hidden">
+
+        {% if twoFactorEnabled %}
+
+            {# ── On ──────────────────────────────────────────────────────── #}
+            <div class="flex items-start gap-3 px-4 py-3.5 border-b border-line">
+                <i class="fa-solid fa-shield-halved text-emerald-500 text-sm mt-0.5 shrink-0" aria-hidden="true"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm text-ink font-medium">{{ 'settings.security.status.on'|trans }}</p>
+                    <p class="text-[11px] text-ink-faint mt-0.5">
+                        {{ 'settings.security.status.on_since'|trans({ '%date%': twoFactorConfirmedAt|date('Y-m-d') }) }}
+                    </p>
+                </div>
+            </div>
+
+            {# ── Recovery codes ──────────────────────────────────────────── #}
+            <div class="px-4 py-3.5 border-b border-line">
+                <div class="flex items-baseline justify-between gap-3 mb-1">
+                    <h3 class="text-xs font-semibold text-ink">{{ 'settings.security.codes.heading'|trans }}</h3>
+                    <span class="text-[11px] {{ backupCodesRemaining > 2 ? 'text-ink-faint' : 'text-amber-500' }}">
+                        {{ 'settings.security.codes.remaining'|trans({ '%count%': backupCodesRemaining }) }}
+                    </span>
+                </div>
+                <p class="text-[11px] text-ink-muted leading-relaxed mb-2.5">
+                    {{ 'settings.security.codes.hint'|trans }}
+                </p>
+
+                <form method="post" action="{{ path('app_two_factor_regenerate_codes') }}"
+                      data-turbo="false" class="flex items-end gap-2">
+                    <input type="hidden" name="_token" value="{{ csrf_token('two-factor-backup-codes') }}">
+                    <div class="flex-1 min-w-0 max-w-[200px]">
+                        <label for="regen-code" class="block text-[11px] text-ink-faint mb-1">
+                            {{ 'settings.security.confirm_with_code'|trans }}
+                        </label>
+                        <input type="text" id="regen-code" name="code" required
+                               autocomplete="one-time-code" inputmode="numeric" placeholder="000000"
+                               class="w-full px-3 py-2 text-sm font-mono rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors">
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                   bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer">
+                        {{ 'settings.security.codes.regenerate'|trans }}
+                    </button>
+                </form>
+            </div>
+
+            {# ── Trusted devices ─────────────────────────────────────────── #}
+            <div class="border-b border-line">
+                <div class="px-4 pt-3.5 pb-2">
+                    <h3 class="text-xs font-semibold text-ink">{{ 'settings.security.devices.heading'|trans }}</h3>
+                    <p class="text-[11px] text-ink-muted leading-relaxed mt-0.5">
+                        {{ 'settings.security.devices.hint'|trans }}
+                    </p>
+                </div>
+
+                {% if trustedDevices is empty %}
+                    <p class="px-4 pb-4 text-xs text-ink-faint italic">
+                        {{ 'settings.security.devices.empty'|trans }}
+                    </p>
+                {% else %}
+                    <ul class="divide-y divide-line border-t border-line">
+                        {% for device in trustedDevices %}
+                            <li class="flex items-center gap-3 px-4 py-3">
+                                <i class="fa-solid fa-laptop text-ink-faint text-xs shrink-0" aria-hidden="true"></i>
+
+                                <div class="flex-1 min-w-0">
+                                    <span class="block truncate text-sm text-ink">
+                                        {{ device.label }}
+                                        {% if device.id == currentDeviceId %}
+                                            <span class="ml-1.5 text-[10px] font-medium text-accent">
+                                                {{ 'settings.security.devices.this_device'|trans }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="block text-[11px] text-ink-faint">
+                                        {{ 'settings.security.devices.last_used'|trans({
+                                            '%date%': device.lastUsedAt ? device.lastUsedAt|date('Y-m-d H:i') : '—',
+                                            '%ip%': device.ipAddress|default('—'),
+                                        }) }}
+                                    </span>
+                                </div>
+
+                                <span class="shrink-0 text-[11px] text-ink-faint hidden sm:block">
+                                    {{ 'settings.security.devices.expires'|trans({ '%date%': device.expiresAt|date('Y-m-d') }) }}
+                                </span>
+
+                                <form method="post" action="{{ path('app_two_factor_revoke_device', { id: device.id }) }}"
+                                      data-turbo="false" class="shrink-0"
+                                      onsubmit="return confirm('{{ 'settings.security.devices.revoke_confirm'|trans({ '%name%': device.label })|e('js') }}')">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('two-factor-revoke-device' ~ device.id) }}">
+                                    <button type="submit"
+                                            class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
+                                        {{ 'settings.security.devices.revoke'|trans }}
+                                    </button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="px-4 py-3 border-t border-line">
+                        <form method="post" action="{{ path('app_two_factor_revoke_all_devices') }}"
+                              data-turbo="false"
+                              onsubmit="return confirm('{{ 'settings.security.devices.revoke_all_confirm'|trans|e('js') }}')">
+                            <input type="hidden" name="_token" value="{{ csrf_token('two-factor-revoke-all-devices') }}">
+                            <button type="submit"
+                                    class="text-[11px] font-medium text-red-400 hover:underline cursor-pointer">
+                                {{ 'settings.security.devices.revoke_all'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# ── Turn off ────────────────────────────────────────────────── #}
+            <div class="px-4 py-3.5">
+                <h3 class="text-xs font-semibold text-ink mb-1">{{ 'settings.security.disable.heading'|trans }}</h3>
+                <p class="text-[11px] text-ink-muted leading-relaxed mb-2.5">
+                    {{ 'settings.security.disable.hint'|trans }}
+                </p>
+
+                <form method="post" action="{{ path('app_two_factor_disable') }}"
+                      data-turbo="false" class="flex items-end gap-2"
+                      onsubmit="return confirm('{{ 'settings.security.disable.confirm'|trans|e('js') }}')">
+                    <input type="hidden" name="_token" value="{{ csrf_token('two-factor-disable') }}">
+                    <div class="flex-1 min-w-0 max-w-[200px]">
+                        <label for="disable-code" class="block text-[11px] text-ink-faint mb-1">
+                            {{ 'settings.security.confirm_with_code'|trans }}
+                        </label>
+                        <input type="text" id="disable-code" name="code" required
+                               autocomplete="one-time-code" inputmode="numeric" placeholder="000000"
+                               class="w-full px-3 py-2 text-sm font-mono rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors">
+                    </div>
+                    <button type="submit"
+                            class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                   border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer">
+                        {{ 'settings.security.disable.submit'|trans }}
+                    </button>
+                </form>
+            </div>
+
+        {% elseif twoFactorEnrolling %}
+
+            {# ── Enrolling ───────────────────────────────────────────────── #}
+            <div class="px-4 py-4">
+                <h3 class="text-xs font-semibold text-ink mb-3">{{ 'settings.security.enrol.heading'|trans }}</h3>
+
+                <ol class="space-y-4">
+                    <li class="flex gap-3">
+                        <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">1</span>
+                        <p class="text-xs text-ink-muted leading-relaxed pt-0.5">{{ 'settings.security.enrol.step_app'|trans }}</p>
+                    </li>
+
+                    <li class="flex gap-3">
+                        <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">2</span>
+                        <div class="min-w-0">
+                            <p class="text-xs text-ink-muted leading-relaxed mb-2.5">{{ 'settings.security.enrol.step_scan'|trans }}</p>
+
+                            <div class="inline-block rounded-lg bg-white p-2">
+                                {# Inline data URI, never a URL: the image *is* the
+                                   secret, and an endpoint would put it in logs and
+                                   the browser cache. #}
+                                <img src="{{ twoFactorQr }}" alt="{{ 'settings.security.enrol.qr_alt'|trans }}"
+                                     width="220" height="220" class="block">
+                            </div>
+
+                            <details class="mt-2.5">
+                                <summary class="text-[11px] text-accent cursor-pointer hover:underline">
+                                    {{ 'settings.security.enrol.manual_toggle'|trans }}
+                                </summary>
+                                <div class="mt-2" data-controller="ui--clipboard">
+                                    <code data-ui--clipboard-target="source"
+                                          class="block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-xs font-mono text-ink select-all">{{ twoFactorSecret }}</code>
+                                    <button type="button"
+                                            data-action="click->ui--clipboard#copy"
+                                            class="mt-1.5 text-[11px] text-accent hover:underline cursor-pointer">
+                                        <span data-ui--clipboard-target="label">{{ 'settings.security.enrol.manual_copy'|trans }}</span>
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
+                    </li>
+
+                    <li class="flex gap-3">
+                        <span class="shrink-0 w-5 h-5 rounded-full bg-raised text-ink text-[11px] font-semibold flex items-center justify-center">3</span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs text-ink-muted leading-relaxed mb-2.5">{{ 'settings.security.enrol.step_confirm'|trans }}</p>
+
+                            <form method="post" action="{{ path('app_two_factor_confirm') }}"
+                                  data-turbo="false" class="flex items-end gap-2">
+                                <input type="hidden" name="_token" value="{{ csrf_token('two-factor-confirm') }}">
+                                <div class="flex-1 min-w-0 max-w-[200px]">
+                                    <input type="text" name="code" required autofocus
+                                           autocomplete="one-time-code" inputmode="numeric" placeholder="000000"
+                                           class="w-full px-3 py-2 text-sm font-mono tracking-widest rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors">
+                                </div>
+                                <button type="submit"
+                                        class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                               bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                                    {{ 'settings.security.enrol.submit'|trans }}
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                </ol>
+
+                <a href="{{ path('app_settings_index', { section: 'security' }) }}"
+                   class="inline-block mt-4 text-[11px] text-ink-faint hover:text-ink transition-colors">
+                    {{ 'settings.security.enrol.cancel'|trans }}
+                </a>
+            </div>
+
+        {% else %}
+
+            {# ── Off ─────────────────────────────────────────────────────── #}
+            <div class="px-4 py-4">
+                <div class="flex items-start gap-3 mb-3">
+                    <i class="fa-solid fa-shield-halved text-ink-faint text-sm mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <div class="min-w-0">
+                        <p class="text-sm text-ink font-medium">{{ 'settings.security.status.off'|trans }}</p>
+                        <p class="text-[11px] text-ink-muted leading-relaxed mt-1">
+                            {{ 'settings.security.pitch'|trans }}
+                        </p>
+                    </div>
+                </div>
+
+                <a href="{{ path('app_settings_index', { section: 'security', enrol: 1 }) }}"
+                   class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                          bg-accent hover:bg-accent-strong text-white transition-colors">
+                    <i class="fa-solid fa-shield-halved text-xs" aria-hidden="true"></i>
+                    {{ 'settings.security.enable'|trans }}
+                </a>
+            </div>
+
+        {% endif %}
+
+    </div>
+</section>

@@ -507,6 +507,16 @@ onboarding:
         profile:
             body: This is what recipients see in the From line. You can change it any time.
             heading: Where this shows up
+        security:
+            body: >-
+                Think about what happens if someone gets your email password. They
+                don't just read your mail — they click "forgot password" on your
+                bank, your domain registrar, your cloud storage, and collect the
+                reset links as they arrive.
+            body_two: >-
+                A second factor is a code from your phone that changes every 30
+                seconds. A stolen password on its own stops being enough.
+            heading: Why this one matters most
     account:
         add: Add this account
         or_manual: 'Or set it up by hand:'
@@ -518,6 +528,16 @@ onboarding:
         connect: Connect
         connected: Connected
     progress: 'Step %index% of %total%'
+    security:
+        body: >-
+            Your mailbox is the key to every other account you have, because that
+            is where password resets arrive. Adding a code from your phone means a
+            stolen password is not enough on its own.
+        done_body: >-
+            You will be asked for a code from your app when you sign in. Keep the
+            recovery codes somewhere you can reach without your phone.
+        done_heading: Two-factor authentication is on
+        skip_hint: You can set this up later under Settings → Security.
     switch_blocked: Nothing was switched — fix the fields below first, and what you entered will be kept.
     step:
         account:
@@ -538,6 +558,9 @@ onboarding:
         profile:
             lead: The name that appears on the mail you send.
             title: About you
+        security:
+            lead: The one account worth locking properly. This takes about a minute.
+            title: Protect your mailbox
     title: Set up plMail
 
 profile:
@@ -935,6 +958,7 @@ settings:
         integrations: Integrations
         labels: Labels
         notifications: Notifications
+        security: Security
     notifications:
         heading: Notifications
         ios_hint: >-
@@ -962,6 +986,70 @@ settings:
         unconfigured: >-
             Push is not configured on this server — no VAPID keys are set.
             Run "bin/console app:push:generate-vapid-keys".
+    security:
+        codes:
+            copy: Copy codes
+            copy_now: Save your recovery codes now
+            copy_now_hint: >-
+                This is the only time they are shown. Keep them somewhere you can
+                reach without your phone — a password manager, or paper in a
+                drawer. Each one works once.
+            heading: Recovery codes
+            hint: >-
+                Recovery codes get you back in if you lose your phone. Generating
+                a new set replaces the old one, so anything you wrote down before
+                stops working.
+            regenerate: Generate new codes
+            remaining: '%count% unused'
+        confirm_with_code: Code from your app
+        devices:
+            empty: No devices are remembered. You will be asked for a code every time you sign in.
+            expires: 'Expires %date%'
+            heading: Remembered devices
+            hint: >-
+                Devices that skip the code prompt for 30 days. Revoking one takes
+                effect immediately — it will ask for a code on its very next page
+                load.
+            last_used: 'Last used %date% from %ip%'
+            revoke: Revoke
+            revoke_all: Revoke every remembered device
+            revoke_all_confirm: >-
+                Every remembered device will be asked for a code next time,
+                including this one. Continue?
+            revoke_confirm: 'Stop trusting %name%? It will be asked for a code next time.'
+            this_device: this device
+        disable:
+            confirm: >-
+                Your mailbox will be protected by your password alone. Continue?
+            heading: Turn off two-factor authentication
+            hint: >-
+                This deletes your recovery codes and stops trusting every
+                remembered device.
+            submit: Turn off
+        enable: Set up two-factor authentication
+        enrol:
+            cancel: Cancel
+            heading: Set up two-factor authentication
+            manual_copy: Copy setup key
+            manual_toggle: Can't scan? Enter a key instead
+            qr_alt: QR code for setting up your authenticator app
+            step_app: >-
+                Install an authenticator app if you don't have one — Google
+                Authenticator, Aegis, 1Password and Bitwarden all work.
+            step_confirm: Enter the six-digit code your app is showing now.
+            step_scan: Scan this with the app.
+            submit: Confirm
+        heading: Two-factor authentication
+        pitch: >-
+            Your mailbox is the account worth protecting most: anyone who reaches
+            it can reset the password on everything else you own, because that is
+            where the reset links arrive. A second factor means a stolen password
+            is not enough on its own.
+        status:
+            off: Two-factor authentication is off
+            on: Two-factor authentication is on
+            on_since: 'Enabled %date%'
+        subheading: How you prove it is you when signing in.
     title: Settings
 
 sidebar:
@@ -1044,3 +1132,26 @@ toolbar:
 trash:
     empty: No deleted messages.
     heading: Trash
+
+two_factor:
+    cancel: Sign in as someone else
+    flash:
+        code_rejected: That code was not right. Check your app and try again.
+        codes_regenerated: New recovery codes generated. The old ones no longer work.
+        device_revoked: That device will be asked for a code next time.
+        devices_revoked: No devices are remembered any more.
+        disabled: Two-factor authentication is off.
+        enabled: Two-factor authentication is on.
+    form:
+        code: Authentication code
+        code_hint: >-
+            The six-digit code from your authenticator app, or one of your
+            recovery codes.
+        submit: Continue
+        trust_device: Don't ask on this device again
+        trust_device_hint: For 30 days. You can revoke it any time from Settings → Security.
+    page_title: Two-factor authentication
+    recovery_hint: >-
+        Lost your phone? Use one of the recovery codes you saved when you set
+        this up.
+    tagline: One more step

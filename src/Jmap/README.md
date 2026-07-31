@@ -103,6 +103,16 @@ Get these wrong and things fail quietly rather than loudly.
 - **`message_label` is authoritative for `Email.mailboxIds`.** `thread_label` is
   NOT: `ThreadLabelSynchronizer` derives it as the union of a thread's messages'
   labels, so reading it would report a mailbox for every message in the thread.
+- **A JMAP Mailbox id is a `label_binding` id everywhere** — `Mailbox.id`,
+  `Email.mailboxIds`, `inMailbox`, `Email/set`. `message_label` stores
+  user-scoped `label` ids, so `EmailMapper` translates through
+  `LabelBindingRepository::bindingIdsByLabelId()` on the way out, exactly as
+  `MailboxMapper` does for `parentId`. Both are autoincrement ints from
+  different tables, so an untranslated id names an unrelated mailbox rather
+  than failing — and on a single-account install the sequences tend to line up,
+  which is how this went unnoticed. `Mailbox.labelId` carries the label id
+  deliberately, for cross-account grouping; it is not accepted anywhere as
+  input.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*

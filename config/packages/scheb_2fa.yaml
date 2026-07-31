@@ -1,0 +1,49 @@
+# Two-factor authentication for the web login.
+#
+# Only the `main` firewall is covered. /jmap authenticates third-party mail
+# clients with app passwords, which exist precisely because an IMAP or JMAP
+# client cannot present a TOTP code; the way to withdraw access there is the
+# app password list in Settings, not this.
+#
+# See the configuration reference at https://symfony.com/bundles/SchebTwoFactorBundle/6.x/configuration.html
+scheb_two_factor:
+    security_tokens:
+        - Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+        # Remember-me is a secret the browser stores, so by itself it is still
+        # one factor. Without this line the login form's 60-day cookie would
+        # walk straight past the second factor and quietly undo the feature.
+        - Symfony\Component\Security\Core\Authentication\Token\RememberMeToken
+
+    totp:
+        enabled: true
+        # What the authenticator app lists the entry under. server_name is left
+        # unset so the label is just the address — an install that set it would
+        # get "you@example.com@host", which reads badly on a phone.
+        issuer: plMail
+        # Tolerate a clock that has drifted. plMail runs on home servers and
+        # NASes where that is an ordinary Tuesday, and the failure it causes
+        # ("my code is always wrong") is near-impossible for a user to
+        # diagnose.
+        #
+        # Half a period, and it cannot be a whole one: otphp throws
+        # "The leeway must be lower than the TOTP period" for anything >= 30,
+        # which would make *every* verification fail rather than fall back to a
+        # narrower window.
+        leeway: 15
+        template: security/2fa_login.html.twig
+
+    backup_codes:
+        enabled: true
+
+    trusted_device:
+        enabled: true
+        # The grant lives in the `trusted_device` table rather than in a signed
+        # JWT cookie, which is what makes revoking one take effect on that
+        # device's next request instead of whenever the cookie expires.
+        manager: App\Security\TwoFactor\DatabaseTrustedDeviceManager
+        lifetime: 2592000 # 30 days
+        extend_lifetime: true
+        cookie_name: plmail_trusted_device
+        cookie_secure: auto
+        cookie_same_site: lax

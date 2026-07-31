@@ -37,8 +37,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class OnboardingController extends AbstractController
 {
-    /** Every step value, so /{step} cannot swallow /finish. */
-    private const string STEP_PATTERN = 'admin-mail|admin-integrations|account|profile|appearance|integrations';
+    /**
+     * Every step value, so /{step} cannot swallow /finish.
+     *
+     * Spelled out rather than derived from OnboardingStep: a route requirement
+     * is an attribute argument, so it has to be a constant expression. That
+     * makes it the one place adding a step does not update itself — a new case
+     * 404s here and, worse, takes the whole wizard down with it, because the
+     * progress rail generates a URL for every applicable step. Adding a case
+     * without adding it here is what OnboardingStepCoverageTest now checks.
+     */
+    public const string STEP_PATTERN = 'admin-mail|admin-integrations|account|profile|security|appearance|integrations';
 
     public function __construct(
         private readonly OnboardingFlow $flow,

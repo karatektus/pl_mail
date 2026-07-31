@@ -1,0 +1,325 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Service\User\TwoFactor;
+
+use App\Entity\User\TrustedDevice;
+use App\Entity\User\User;
+use App\Repository\User\TrustedDeviceRepository;
+use App\Service\User\TwoFactor\TwoFactorEnrolment;
+use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
+use OTPHP\TOTP;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+
+/**
+ * Enrolment end to end, against the real database.
+ *
+ * Codes are generated here with otphp rather than stubbed, so this also
+ * asserts the thing a unit test cannot: that the configuration plMail writes
+ * into the QR and the configuration it later validates against are the same
+ * one. Getting those out of step is the classic TOTP bug — it scans cleanly
+ * and then rejects every code.
+ *
+ * Everything runs inside a transaction that is rolled back, so the suite can
+ * be re-run without the seeded user drifting.
+ */
+final class TwoFactorEnrolmentTest extends KernelTestCase
+{
+    private ?EntityManagerInterface $em = null;
+
+    protected function setUp(): void
+    {
+        self::bootKernel();
+
+        $this->em = static::getContainer()->get(EntityManagerInterface::class);
+        $this->em->getConnection()->beginTransaction();
+    }
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->em && $this->em->getConnection()->isTransactionActive()) {
+            $this->em->getConnection()->rollBack();
+        }
+
+        $this->em = null;
+
+        parent::tearDown();
+    }
+
+    private function enrolment(): TwoFactorEnrolment
+    {
+        return static::getContainer()->get(TwoFactorEnrolment::class);
+    }
+
+    private function devices(): TrustedDeviceRepository
+    {
+        return static::getContainer()->get(TrustedDeviceRepository::class);
+    }
+
+    /**
+     * A user that exists in the database, since enrolment flushes.
+     */
+    private function user(): User
+    {
+        $user = new User();
+        $user->setEmail('2fa-'.bin2hex(random_bytes(6)).'@plmail.test');
+        $user->setPassword('irrelevant');
+        $user->setNameFirst('Two');
+        $user->setNameLast('Factor');
+
+        $this->em->persist($user);
+        $this->em->flush();
+
+        return $user;
+    }
+
+    /** The code the user's app would be showing right now. */
+    private function currentCode(User $user): string
+    {
+        return TOTP::create($user->getTotpSecret(), 30, 'sha1', 6)->now();
+    }
+
+    public function testBeginStagesASecretWithoutEnablingAnything(): void
+    {
+        $user = $this->user();
+
+        $uri = $this->enrolment()->begin($user);
+
+        self::assertStringStartsWith('otpauth://totp/', $uri);
+        self::assertNotNull($user->getTotpSecret());
+        self::assertFalse($user->isTotpAuthenticationEnabled());
+    }
+
+    /**
+     * The whole point of the staged-but-unconfirmed state: walking away from
+     * enrolment must leave an account that still opens with a password.
+     */
+    public function testAWrongCodeLeavesTwoFactorOff(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+
+        self::assertNull($this->enrolment()->confirm($user, '000000'));
+        self::assertFalse($user->isTotpAuthenticationEnabled());
+        self::assertSame(0, $user->countBackupCodes());
+    }
+
+    public function testARealCodeEnablesTwoFactorAndReturnsRecoveryCodes(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+
+        $codes = $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        self::assertNotNull($codes);
+        self::assertCount(User::BACKUP_CODE_COUNT, $codes);
+        self::assertTrue($user->isTotpAuthenticationEnabled());
+        self::assertSame(User::BACKUP_CODE_COUNT, $user->countBackupCodes());
+    }
+
+    public function testEveryReturnedRecoveryCodeActuallyWorks(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+
+        $codes = $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        foreach ($codes as $code) {
+            self::assertTrue($user->isBackupCode($code), "recovery code $code was not accepted");
+        }
+    }
+
+    public function testRecoveryCodesAreUnique(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+
+        $codes = $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        self::assertSame($codes, array_unique($codes));
+    }
+
+    public function testRegeneratingReplacesTheWholeSet(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+        $old = $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        $new = $this->enrolment()->regenerateBackupCodes($user);
+
+        self::assertSame(User::BACKUP_CODE_COUNT, $user->countBackupCodes());
+
+        foreach ($old as $code) {
+            self::assertFalse($user->isBackupCode($code), 'an old recovery code survived regeneration');
+        }
+
+        foreach ($new as $code) {
+            self::assertTrue($user->isBackupCode($code));
+        }
+    }
+
+    public function testDisablingClearsEverything(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+        $codes = $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        $this->enrolment()->disable($user);
+
+        self::assertFalse($user->isTotpAuthenticationEnabled());
+        self::assertNull($user->getTotpSecret());
+        self::assertFalse($user->isBackupCode($codes[0]));
+    }
+
+    /**
+     * The invariant that makes "turn it off and on again" safe: a device
+     * trusted under the old secret must not keep skipping the prompt.
+     */
+    public function testDisablingWithdrawsEveryTrustedDevice(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+        $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+            $user,
+            'main',
+            'Firefox on macOS',
+            new DateTimeImmutable('+30 days'),
+        );
+        $this->em->persist($device);
+        $this->em->flush();
+
+        self::assertNotNull($this->devices()->findActiveBySecret($secret, $user, 'main'));
+
+        $this->enrolment()->disable($user);
+        $this->em->clear();
+
+        self::assertNull(
+            $this->devices()->findActiveBySecret($secret, $user, 'main'),
+            'a device trusted under the old secret survived 2FA being turned off',
+        );
+    }
+
+    /**
+     * A revoked grant stops resolving on the very next lookup. This is the
+     * property the whole DB-backed design exists for — scheb's stock signed
+     * cookie cannot do it.
+     */
+    public function testRevokingADeviceTakesEffectImmediately(): void
+    {
+        $user = $this->user();
+
+        ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+            $user,
+            'main',
+            'Firefox on macOS',
+            new DateTimeImmutable('+30 days'),
+        );
+        $this->em->persist($device);
+        $this->em->flush();
+
+        self::assertNotNull($this->devices()->findActiveBySecret($secret, $user, 'main'));
+
+        $device->revoke();
+        $this->em->flush();
+
+        self::assertNull($this->devices()->findActiveBySecret($secret, $user, 'main'));
+    }
+
+    /**
+     * A cookie left behind by whoever used this browser last must not skip the
+     * prompt for the person signing in now.
+     */
+    public function testAGrantDoesNotResolveForADifferentUser(): void
+    {
+        $owner = $this->user();
+        $other = $this->user();
+
+        ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+            $owner,
+            'main',
+            'Firefox on macOS',
+            new DateTimeImmutable('+30 days'),
+        );
+        $this->em->persist($device);
+        $this->em->flush();
+
+        self::assertNull($this->devices()->findActiveBySecret($secret, $other, 'main'));
+    }
+
+    /** A grant issued for the web login must not be honoured elsewhere. */
+    public function testAGrantDoesNotResolveForADifferentFirewall(): void
+    {
+        $user = $this->user();
+
+        ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+            $user,
+            'main',
+            'Firefox on macOS',
+            new DateTimeImmutable('+30 days'),
+        );
+        $this->em->persist($device);
+        $this->em->flush();
+
+        self::assertNull($this->devices()->findActiveBySecret($secret, $user, 'jmap'));
+    }
+
+    public function testAnExpiredGrantDoesNotResolve(): void
+    {
+        $user = $this->user();
+
+        ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+            $user,
+            'main',
+            'Firefox on macOS',
+            new DateTimeImmutable('-1 hour'),
+        );
+        $this->em->persist($device);
+        $this->em->flush();
+
+        self::assertNull($this->devices()->findActiveBySecret($secret, $user, 'main'));
+    }
+
+    public function testRevokeAllWithdrawsEveryGrantForThatUserOnly(): void
+    {
+        $user = $this->user();
+        $other = $this->user();
+
+        $secrets = [];
+
+        foreach (['Laptop', 'Phone'] as $label) {
+            ['device' => $device, 'secret' => $secret] = TrustedDevice::create(
+                $user,
+                'main',
+                $label,
+                new DateTimeImmutable('+30 days'),
+            );
+            $this->em->persist($device);
+            $secrets[] = $secret;
+        }
+
+        ['device' => $otherDevice, 'secret' => $otherSecret] = TrustedDevice::create(
+            $other,
+            'main',
+            'Someone else',
+            new DateTimeImmutable('+30 days'),
+        );
+        $this->em->persist($otherDevice);
+        $this->em->flush();
+
+        $this->devices()->revokeAllForUser($user);
+        $this->em->clear();
+
+        foreach ($secrets as $secret) {
+            self::assertNull($this->devices()->findActiveBySecret($secret, $user, 'main'));
+        }
+
+        self::assertNotNull(
+            $this->devices()->findActiveBySecret($otherSecret, $other, 'main'),
+            'revoking one user\'s devices withdrew another user\'s',
+        );
+    }
+}

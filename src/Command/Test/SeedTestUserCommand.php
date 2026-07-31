@@ -6,6 +6,7 @@ namespace App\Command\Test;
 
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Service\Onboarding\OnboardingFlow;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,7 @@ final class SeedTestUserCommand extends Command
         private readonly EntityManagerInterface      $entityManager,
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly OnboardingFlow              $onboardingFlow,
         #[Autowire('%kernel.environment%')]
         private readonly string                      $environment,
     ) {
@@ -102,19 +104,31 @@ final class SeedTestUserCommand extends Command
             $this->passwordHasher->hashPassword($user, $plainPassword)
         );
 
+        // Before the onboarding block, which flushes through OnboardingFlow: a
+        // brand-new user has to be managed by then, or that flush writes
+        // everything except the row it is about.
+        $this->entityManager->persist($user);
+
         // Finished by default, and this is not cosmetic. The setup wizard opens
         // itself over a backdrop that is fixed inset-0 z-50 and swallows every
         // click, so a seeded user who is still pending would break every spec
         // that shares the stored login. The onboarding spec asks for a pending
         // one explicitly, with an email of its own.
-        $user->setSetting(
-            User::SETTING_ONBOARDING_COMPLETED_AT,
-            true === $input->getOption('pending-onboarding')
-                ? null
-                : (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
-        );
+        if (true === $input->getOption('pending-onboarding')) {
+            // Every key, not just the completion stamp. "Pending" has to mean
+            // "has never seen the wizard", because the resume point is what
+            // decides which step it opens on: clearing only the stamp reseeds a
+            // user who reopens at whatever step the last run left off, so the
+            // onboarding spec passed once and then walked into the middle of
+            // the flow on every re-run.
+            $this->onboardingFlow->reset($user);
+        } else {
+            $user->setSetting(
+                User::SETTING_ONBOARDING_COMPLETED_AT,
+                (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+            );
+        }
 
-        $this->entityManager->persist($user);
         $this->entityManager->flush();
 
         if (true === $created) {

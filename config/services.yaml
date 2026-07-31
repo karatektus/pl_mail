@@ -86,6 +86,25 @@ services:
         arguments:
             $inner: '@.inner'
 
+    # "Remember this device" is a row rather than a signed cookie, so revoking
+    # one takes effect immediately — see App\Security\TwoFactor\DatabaseTrustedDeviceManager.
+    # scheb_2fa.yaml points trusted_device.manager at this service.
+    App\Security\TwoFactor\DatabaseTrustedDeviceManager:
+        arguments:
+            $lifetime: '%scheb_two_factor.trusted_device.lifetime%'
+            $extendLifetime: '%scheb_two_factor.trusted_device.extend_lifetime%'
+
+    # Request-scoped: the pending cookie must not survive into the next
+    # request, which would write it for whoever asks next.
+    App\Security\TwoFactor\TrustedDeviceCookieJar:
+        tags: [{ name: kernel.reset, method: reset }]
+        arguments:
+            $cookieName: '%scheb_two_factor.trusted_device.cookie_name%'
+            $cookieSecure: '%scheb_two_factor.trusted_device.cookie_secure%'
+            $cookieSameSite: '%scheb_two_factor.trusted_device.cookie_same_site%'
+            $cookiePath: '%scheb_two_factor.trusted_device.cookie_path%'
+            $cookieDomain: '%scheb_two_factor.trusted_device.cookie_domain%'
+
     App\Jmap\Session\SessionBuilder:
         arguments:
             $vapidPublicKey: '%env(VAPID_PUBLIC_KEY)%'

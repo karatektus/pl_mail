@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login } from "./support/config";
+import { secondsUntilNextWindow, totp } from "./support/totp";
 import { execSync } from "node:child_process";
 
 /**
@@ -45,6 +46,19 @@ test.beforeEach(() => {
     // Re-seeded per test: finishing setup is persistent, so a second test would
     // otherwise run against a user the first one already took through it.
     seedUser(true);
+
+    // Two-factor is persistent too, and the seeder does not clear it. Without
+    // this, the enrolment test below leaves the user needing a code, and every
+    // later test's login stops at /2fa instead of the inbox — and on a re-run
+    // it finds the step already done and never opens the panel at all.
+    //
+    // In beforeEach rather than afterAll on purpose: the point is that each
+    // test starts from a known state, not that this file tidies up after
+    // itself. afterAll fires too late to help the test that runs next.
+    execSync(`${CONSOLE} app:user:2fa-disable ${PENDING.email} --force`, {
+        stdio: "inherit",
+        env: { ...process.env, APP_ENV: "test" },
+    });
 });
 
 test("it opens by itself after signing in, without leaving the mail page", async ({ page }) => {
@@ -66,24 +80,61 @@ async function currentStepId(page: Page): Promise<string> {
     return (await wizard(page).locator("[id^='onboarding-step-']").first().getAttribute("id")) ?? "";
 }
 
+/**
+ * Skip forward until the wanted step is on screen.
+ *
+ * Which steps come before it depends on what the rest of the suite has left
+ * configured, so the count cannot be hard-coded. Each iteration waits for the
+ * step to actually change before clicking again: Turbo disables a submit
+ * button while its request is in flight, so clicking blindly in a loop hits a
+ * disabled button and hangs until the test times out.
+ *
+ * Skip rather than the progress-rail pills, which submit the wizard form —
+ * from the account step of a fresh user that form is a blank required mailbox,
+ * and the jump is refused.
+ */
+async function skipTo(page: Page, step: string): Promise<void> {
+    const wanted = page.locator(`#onboarding-step-${step}`);
+
+    for (let i = 0; i < 8; i++) {
+        if (await wanted.isVisible()) {
+            return;
+        }
+
+        const before = await currentStepId(page);
+
+        await expect(page.locator("#onboarding-skip")).toBeEnabled();
+        await page.locator("#onboarding-skip").click();
+
+        // Must be a *settled* different step. Mid-swap the frame briefly has no
+        // step element at all, and currentStepId() answers "" — which is not
+        // `before`, so a plain inequality check passes while the DOM is still
+        // changing. The loop then clicks skip again and silently loses a step,
+        // sailing past the one it was looking for.
+        await expect
+            .poll(async () => {
+                const now = await currentStepId(page);
+
+                return "" !== now && now !== before;
+            })
+            .toBe(true);
+    }
+
+    await expect(wanted).toBeVisible();
+}
+
 test("Next advances a step without closing the dialog", async ({ page }) => {
     await login(page, PENDING.email, PENDING.password);
     await expect(wizard(page)).toBeVisible();
 
     // Skip forward to the profile step, whose fields the seeder has already
-    // filled. Which steps come before it varies with what the rest of the suite
-    // has configured — an admin who enables a provider makes the integrations
-    // step applicable — and the earlier ones open on blank required forms,
-    // where Next is *supposed* to stay put.
-    for (let i = 0; i < 4; i++) {
-        if (await page.locator("#onboarding-step-profile").isVisible()) {
-            break;
-        }
-
-        await page.locator("#onboarding-skip").click();
-    }
-
-    await expect(page.locator("#onboarding-step-profile")).toBeVisible();
+    // filled. The earlier steps open on blank required forms, where Next is
+    // *supposed* to stay put.
+    //
+    // Through skipTo() rather than a bare loop: this clicked skip a fixed
+    // number of times without waiting for the step to change, which raced
+    // Turbo disabling the button mid-submit and hung until the timeout.
+    await skipTo(page, "profile");
 
     const before = await currentStepId(page);
 
@@ -131,6 +182,61 @@ test("the user menu opens it again once it has been finished", async ({ page }) 
     await page.locator("#user-menu-rerun-setup").click();
 
     await expect(wizard(page)).toBeVisible();
+});
+
+/**
+ * Two-factor enrolment, done from inside the wizard.
+ *
+ * This exists because the step shipped broken in a way no other test could
+ * see. The wizard body renders into a bare <turbo-frame> with no page layout,
+ * and the step opened its panel with `data-turbo="false"` — a full navigation,
+ * which rendered that fragment as an unstyled page. Behind it was a worse one:
+ * the confirm field sat in a second <form> nested inside the wizard's, which
+ * browsers drop, so the button submitted the wizard and advanced the step
+ * without ever enrolling.
+ *
+ * PageRendersTest could not catch either — it asks for the step URL directly
+ * and only checks for a 200, which is exactly what the broken version gave.
+ * Both failures need a real click from inside the modal.
+ */
+test("enrols in two-factor authentication without leaving the wizard", async ({ page }) => {
+    // Skipping through steps, then possibly sitting out a TOTP window.
+    test.setTimeout(90_000);
+
+    await login(page, PENDING.email, PENDING.password);
+    await expect(wizard(page)).toBeVisible();
+
+    await skipTo(page, "security");
+
+    await page.locator("#onboarding-2fa-open").click();
+
+    // The regression: opening the panel must stay inside the modal. A full
+    // navigation lands on the layout-less fragment, where the wizard shell and
+    // its backdrop are both gone.
+    await expect(wizard(page)).toBeVisible();
+    await expect(backdrop(page)).toBeVisible();
+    await expect(page).toHaveURL(/\/mail\/inbox/);
+
+    await page.locator("#onboarding-step-security details summary").click();
+    const secret = (await page.locator("#onboarding-2fa-secret").innerText()).trim();
+    expect(secret).toMatch(/^[A-Z2-7]+$/);
+
+    if (secondsUntilNextWindow() < 15) {
+        await page.waitForTimeout(secondsUntilNextWindow() * 1000 + 500);
+    }
+
+    await page.locator("#onboarding-step-security input[type='text']").fill(totp(secret));
+    await page.locator("#onboarding-2fa-confirm").click();
+
+    // Still in the wizard, on the same step, now reporting success — the step
+    // must not advance past the one screen the recovery codes are shown on.
+    await expect(wizard(page)).toBeVisible();
+    await expect(page.locator("#onboarding-step-security")).toBeVisible();
+    await expect(page.locator("#onboarding-2fa-codes")).toBeVisible();
+
+    // And it actually took, rather than the wizard merely looking pleased.
+    await page.goto("/settings?section=security");
+    await expect(page.getByText("Two-factor authentication is on")).toBeVisible();
 });
 
 test("closing the dialog quietens it without ending setup", async ({ page }) => {

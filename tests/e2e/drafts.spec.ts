@@ -27,7 +27,11 @@ async function composeDraft(page: Page, subject: string): Promise<void> {
 }
 
 test.beforeEach(() => {
-    seed("seed-mail");
+    // clear-drafts as well as seed-mail: these drafts are written through the
+    // UI, so they land on the user's default account rather than the one
+    // seed-mail owns and wipes. Left in place they accumulate across runs and
+    // the subject filters below match several rows at once.
+    seed("seed-mail", "clear-drafts");
 });
 
 test.describe("drafts list", () => {

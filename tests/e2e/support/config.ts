@@ -48,6 +48,19 @@ export function seed(...tasks: string[]): void {
 }
 
 /**
+ * Runs an arbitrary console command, for the few specs that need one which is
+ * not an `app:test:` seed — currently only the two-factor spec, which has to
+ * be able to put the shared test user back the way it found them even when the
+ * test that enabled 2FA failed halfway.
+ */
+export function consoleCommand(command: string): void {
+    execSync(`${CONSOLE} ${command}`, {
+        stdio: "inherit",
+        env: { ...process.env, APP_ENV: "test" },
+    });
+}
+
+/**
  * The inbox row (`<li id="thread_{id}">`) carrying the given subject.
  */
 export function mailRow(page: Page, subject: string): Locator {

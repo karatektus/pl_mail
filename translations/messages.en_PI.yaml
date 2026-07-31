@@ -505,6 +505,16 @@ onboarding:
         profile:
             body: This be what them on the other end read in the From line.
             heading: Where this flies
+        security:
+            body: >-
+                Think what befalls ye if some scallywag gets yer secret word. He
+                don't just read yer parrots — he calls for a new secret word at yer
+                bank, yer harbourmaster an' yer storehouse, an' collects the letters
+                as they land.
+            body_two: >-
+                A second lock be a countersign on yer spyglass that turns over every
+                30 seconds. A pinched secret word stops bein' enough.
+            heading: Why this prize above all
     account:
         add: Hitch up this mailbag
         or_manual: 'Or rig it by hand:'
@@ -516,6 +526,16 @@ onboarding:
         connect: Hitch up
         connected: Hitched
     progress: 'Stop %index% o'' %total%'
+    security:
+        body: >-
+            Yer parrot cage be the key to every other prize ye hold, for that be
+            where the letters for a new secret word land. A countersign from yer
+            spyglass means a pinched secret word be not enough on its own.
+        done_body: >-
+            Ye'll be hailed for a countersign from yer spyglass when ye come aboard.
+            Stow the spare tokens where ye can reach 'em without it.
+        done_heading: The second lock be set
+        skip_hint: Ye can rig this later under Riggin' → The ship's lock.
     switch_blocked: Naught was switched — mend the fields below first, an' what ye wrote stays put.
     step:
         account:
@@ -536,6 +556,9 @@ onboarding:
         profile:
             lead: The name that flies on the parrots ye send.
             title: About ye
+        security:
+            lead: The one prize worth lockin' proper. Takes about a minute.
+            title: Guard yer parrot cage
     title: Rig up plMail
 
 profile:
@@ -933,6 +956,7 @@ settings:
         integrations: 'Friendly ports'
         labels: Flags
         notifications: Word from the crow's nest
+        security: The ship's lock
     notifications:
         heading: Word from the crow's nest
         ios_hint: >-
@@ -961,6 +985,66 @@ settings:
         unconfigured: >-
             No cannon rigged on this ship — no VAPID keys be set. Run
             "bin/console app:push:generate-vapid-keys".
+    security:
+        codes:
+            copy: Copy the tokens
+            copy_now: Stow yer spare tokens now
+            copy_now_hint: >-
+                This be the only time ye lay eyes on 'em. Keep 'em where ye can
+                reach without yer spyglass — a keyring, or paper in a locker. Each
+                one works but once.
+            heading: Spare tokens
+            hint: >-
+                Spare tokens get ye back aboard when yer spyglass goes overboard. A
+                fresh set replaces the old, so what ye wrote down before be worth
+                naught.
+            regenerate: Strike new tokens
+            remaining: '%count% unspent'
+        confirm_with_code: Countersign from yer spyglass
+        devices:
+            empty: No ship be remembered. Ye'll be hailed for a countersign every time.
+            expires: 'Runs dry %date%'
+            heading: Remembered ships
+            hint: >-
+                Ships that skip the hail for 30 days. Strikin' one takes hold at
+                once — she'll be hailed on her very next page.
+            last_used: 'Last aboard %date% from %ip%'
+            revoke: Strike
+            revoke_all: Strike every remembered ship
+            revoke_all_confirm: >-
+                Every remembered ship gets hailed next time, this one included.
+                Carry on?
+            revoke_confirm: 'Stop trustin'' %name%? She''ll be hailed next time.'
+            this_device: this here ship
+        disable:
+            confirm: Yer parrot cage be guarded by yer secret word alone. Carry on?
+            heading: Strike the second lock
+            hint: This scuttles yer spare tokens and stops trustin' every remembered ship.
+            submit: Strike it
+        enable: Rig the second lock
+        enrol:
+            cancel: Belay that
+            heading: Rig the second lock
+            manual_copy: Copy the riggin' key
+            manual_toggle: Can't read the mark? Take the key instead
+            qr_alt: The mark for riggin' yer spyglass
+            step_app: >-
+                Ship a spyglass if ye have none — Google Authenticator, Aegis,
+                1Password an' Bitwarden all sail fine.
+            step_confirm: Give the six figures yer spyglass be showin' now.
+            step_scan: Read this mark with the spyglass.
+            submit: Aye, that's it
+        heading: The second lock
+        pitch: >-
+            Yer parrot cage be the prize worth guardin' most: whoever reaches it can
+            call for a new secret word on everythin' else ye own, for that be where
+            them letters land. A second lock means a pinched secret word be not
+            enough on its own.
+        status:
+            off: The second lock be struck
+            on: The second lock be set
+            on_since: 'Set %date%'
+        subheading: How ye prove ye be ye when comin' aboard.
     title: Riggin'
 
 sidebar:
@@ -1043,3 +1127,25 @@ toolbar:
 trash:
     empty: Naught fed to the fishes.
     heading: Davy Jones' locker
+
+two_factor:
+    cancel: Come aboard as another soul
+    flash:
+        code_rejected: That countersign be wrong. Check yer spyglass an' try again.
+        codes_regenerated: New spare tokens struck. The old ones be worth naught.
+        device_revoked: That ship be hailed next time.
+        devices_revoked: No ship be remembered any more.
+        disabled: The second lock be struck.
+        enabled: The second lock be set.
+    form:
+        code: Countersign
+        code_hint: >-
+            The six figures from yer spyglass, or one o' yer spare tokens.
+        submit: Carry on
+        trust_device: Don't hail this ship again
+        trust_device_hint: For 30 days. Ye can strike it any time from Riggin' → The ship's lock.
+    page_title: The second lock
+    recovery_hint: >-
+        Spyglass overboard? Use one o' the spare tokens ye stowed when ye rigged
+        this.
+    tagline: One more turn o' the capstan

@@ -44,6 +44,10 @@ final class PageRendersTest extends WebTestCase
         yield 'settings aliases' => ['/settings?section=aliases'];
         yield 'settings app passwords' => ['/settings?section=app-passwords'];
         yield 'settings notifications' => ['/settings?section=notifications'];
+        yield 'settings security' => ['/settings?section=security'];
+        // The enrolment panel, which is where the QR is rendered — a broken
+        // renderer only shows up once something asks it for an image.
+        yield 'settings security enrolling' => ['/settings?section=security&enrol=1'];
         yield 'settings general' => ['/settings?section=general'];
         yield 'filters list' => ['/settings/filters/list'];
         yield 'filters editor' => ['/settings/filters/new'];
@@ -59,6 +63,8 @@ final class PageRendersTest extends WebTestCase
         yield 'onboarding profile step' => ['/onboarding/profile'];
         yield 'onboarding account step' => ['/onboarding/account'];
         yield 'onboarding appearance step' => ['/onboarding/appearance'];
+        yield 'onboarding security step' => ['/onboarding/security'];
+        yield 'onboarding security step, enrolling' => ['/onboarding/security?enrol=1'];
         // These render whatever is already configured — a step being done no
         // longer hides it — so they answer 200 regardless of what the e2e suite
         // last left in the database.

@@ -33,6 +33,13 @@ final class MailboxMapper
 
         return [
             'id' => (string) $binding->id,
+            // plMail extension. The binding id is per-account by necessity, so
+            // the same label reachable from three accounts is three Mailboxes
+            // with three ids and nothing tying them together. A client showing
+            // one unified sidebar needs that link, and matching on name breaks
+            // the moment a label is renamed in one account. Unknown properties
+            // are ignored by spec-conformant clients, so this is additive.
+            'labelId' => (string) $label->id,
             'name' => (string) $label->name,
             'parentId' => $this->parentId($label, $bindingIdByLabelId),
             'role' => $this->roleOf($label),

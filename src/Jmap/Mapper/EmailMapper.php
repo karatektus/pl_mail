@@ -19,6 +19,16 @@ use App\Jmap\Blob\BlobId;
  *    a derived union that ThreadLabelSynchronizer recomputes from these rows,
  *    so reading it would report a mailbox for every message in a thread.
  *
+ *    Those rows hold user-scoped LABEL ids, but a JMAP Mailbox id is a
+ *    per-account LABEL BINDING id (see MailboxMapper) — which is also what
+ *    inMailbox and Email/set's mailboxIds patch consume. So the ids are
+ *    translated on the way out, via the same label id => binding id map
+ *    MailboxMapper uses for parentId. Both are autoincrement ints from
+ *    different tables, so emitting the untranslated id does not fail loudly:
+ *    it names some unrelated mailbox that happens to share the number.
+ *    A label with no binding in this account is omitted rather than emitted
+ *    as an id the client cannot resolve.
+ *
  * 2. plMail stores a flattened body (bodyText / bodyHtmlSafe) rather than a
  *    MIME part tree, so two synthetic body parts are published with the fixed
  *    partIds "text" and "html". Clients treat partId as opaque, and they stay
@@ -38,6 +48,8 @@ final class EmailMapper
     /**
      * @param list<string>|null $properties
      * @param list<string>|null $bodyProperties
+     * @param array<int,int>    $bindingIdByLabelId label id => binding id, for
+     *        this account; used to express mailboxIds in the binding id space
      *
      * @return array<string,mixed>
      */
@@ -47,8 +59,9 @@ final class EmailMapper
         bool $fetchTextBodyValues = false,
         bool $fetchHtmlBodyValues = false,
         ?array $bodyProperties = null,
+        array $bindingIdByLabelId = [],
     ): array {
-        $full = $this->full($message, $fetchTextBodyValues, $fetchHtmlBodyValues, $bodyProperties);
+        $full = $this->full($message, $fetchTextBodyValues, $fetchHtmlBodyValues, $bodyProperties, $bindingIdByLabelId);
 
         if (null === $properties) {
             return $full;
@@ -68,6 +81,7 @@ final class EmailMapper
 
     /**
      * @param list<string>|null $bodyProperties
+     * @param array<int,int>    $bindingIdByLabelId
      *
      * @return array<string,mixed>
      */
@@ -76,6 +90,7 @@ final class EmailMapper
         bool $fetchTextBodyValues,
         bool $fetchHtmlBodyValues,
         ?array $bodyProperties,
+        array $bindingIdByLabelId,
     ): array {
         $textBody = $this->textBodyParts($message, $bodyProperties);
         $htmlBody = $this->htmlBodyParts($message, $bodyProperties);
@@ -84,7 +99,7 @@ final class EmailMapper
             'id' => (string) $message->getId(),
             'blobId' => (string) BlobId::forMessage((int) $message->getId()),
             'threadId' => $this->threadId($message),
-            'mailboxIds' => $this->mailboxIds($message),
+            'mailboxIds' => $this->mailboxIds($message, $bindingIdByLabelId),
             'keywords' => $this->keywords($message),
             'size' => $message->getSize() ?? 0,
             'receivedAt' => $this->utcOrNull($message->getReceivedAt() ?? $message->getSentAt() ?? $message->getCreatedAt()),
@@ -122,14 +137,22 @@ final class EmailMapper
     /**
      * JMAP models set membership as a map id => true, never a list.
      *
+     * @param array<int,int> $bindingIdByLabelId
+     *
      * @return array<string,bool>|\stdClass
      */
-    private function mailboxIds(Message $message): array|\stdClass
+    private function mailboxIds(Message $message, array $bindingIdByLabelId): array|\stdClass
     {
         $ids = [];
 
         foreach ($message->getLabels() as $label) {
-            $ids[(string) $label->id] = true;
+            $bindingId = $bindingIdByLabelId[(int) $label->id] ?? null;
+
+            if (null === $bindingId) {
+                continue;
+            }
+
+            $ids[(string) $bindingId] = true;
         }
 
         if (0 === count($ids)) {

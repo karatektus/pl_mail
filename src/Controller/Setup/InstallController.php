@@ -10,6 +10,7 @@ use App\Form\Setup\FirstAdminType;
 use App\Service\Setup\FirstAdminInstaller;
 use App\Service\Setup\InstallGuard;
 use App\Service\Setup\PublicUrlSetting;
+use App\Security\LoginFormAuthenticator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -86,7 +87,13 @@ final class InstallController extends AbstractController
             // public URL behind pointing at a plMail nobody owns.
             $publicUrl->save((string) $form->get('publicUrl')->getData());
 
-            $security->login($user);
+            // Named explicitly: the firewall gained a second authenticator when
+            // 2FA was added, and Security::login() refuses to guess between
+            // them. The two-factor one is never the right answer here — the
+            // account was created seconds ago and cannot have a second factor
+            // yet, and asking for one would lock the installer out of the
+            // install they just performed.
+            $security->login($user, LoginFormAuthenticator::class);
 
             return $this->redirectToRoute('app_default_index');
         }

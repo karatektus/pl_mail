@@ -59,6 +59,11 @@
                                         <i class="fa-solid fa-user w-4 {{ section == 'profile' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.profile'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'security' }) }}"
+                                       class="{{ section == 'security' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-shield-halved w-4 {{ section == 'security' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.security'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'general' }) }}"
                                        class="{{ section == 'general' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-sliders w-4 {{ section == 'general' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -107,6 +112,8 @@
                                         {% include 'settings/_appearance.html.twig' %}
                                     {% elseif section == 'profile' %}
                                         {% include 'settings/_profile.html.twig' %}
+                                    {% elseif section == 'security' %}
+                                        {% include 'settings/_security.html.twig' %}
                                     {% elseif section == 'general' %}
                                         <section>
                                             <div class="mb-4">

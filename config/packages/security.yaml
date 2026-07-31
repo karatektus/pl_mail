@@ -37,6 +37,18 @@ security:
                 lifetime: 5184000 # 60 days
                 secure: auto
                 samesite: lax
+            # Password first, then TOTP if the account has it switched on. The
+            # RememberMeToken is listed in scheb_2fa.yaml's security_tokens, so
+            # a remember-me cookie is challenged too — see the note there.
+            two_factor:
+                auth_form_path: app_2fa_login
+                check_path: app_2fa_login_check
+                # Both are scheb's defaults, spelled out because
+                # templates/security/2fa_login.html.twig hard-codes the matching
+                # field ids for its label/autofocus wiring. Changing one here
+                # without the other silently stops the form submitting anything.
+                auth_code_parameter_name: _auth_code
+                trusted_parameter_name: _trusted
             logout:
                 path: app_logout
 
@@ -49,6 +61,11 @@ security:
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
+        # The code form sits between the two factors: the password is in, the
+        # second factor is not, and ROLE_USER has not been granted yet. It must
+        # be reachable in exactly that state and in no other, which is what
+        # this role means. Covers /2fa and /2fa_check — see routes/scheb_2fa.yaml.
+        - { path: ^/2fa, roles: IS_AUTHENTICATED_2FA_IN_PROGRESS }
         # Creates the first administrator, so it cannot require one. Safe only
         # because App\Service\Setup\InstallGuard 404s it the moment any user
         # exists — see that class before touching this line.

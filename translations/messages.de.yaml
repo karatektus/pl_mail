@@ -511,6 +511,17 @@ onboarding:
         profile:
             body: Das sehen Empfänger in der Absenderzeile. Jederzeit änderbar.
             heading: Wo das erscheint
+        security:
+            body: >-
+                Stell dir vor, jemand hat dein E-Mail-Passwort. Der liest nicht nur
+                mit — der klickt bei deiner Bank, deinem Domain-Anbieter und deinem
+                Cloud-Speicher auf "Passwort vergessen" und fängt die Links dafür
+                hier ab.
+            body_two: >-
+                Ein zweiter Faktor ist ein Code auf deinem Handy, der sich alle 30
+                Sekunden ändert. Ein gestohlenes Passwort allein reicht dann nicht
+                mehr.
+            heading: Warum ausgerechnet dieses Konto
     account:
         add: Konto hinzufügen
         or_manual: 'Oder von Hand einrichten:'
@@ -522,6 +533,16 @@ onboarding:
         connect: Verbinden
         connected: Verbunden
     progress: 'Schritt %index% von %total%'
+    security:
+        body: >-
+            Dein Postfach ist der Schlüssel zu allen deinen anderen Konten, denn
+            dort landen die Links zum Zurücksetzen von Passwörtern. Mit einem Code
+            von deinem Handy reicht ein gestohlenes Passwort allein nicht mehr.
+        done_body: >-
+            Beim Anmelden wirst du nach einem Code aus deiner App gefragt. Bewahre
+            die Wiederherstellungscodes dort auf, wo du ohne dein Handy herankommst.
+        done_heading: Zwei-Faktor-Authentifizierung ist an
+        skip_hint: Du kannst das später unter Einstellungen → Sicherheit einrichten.
     switch_blocked: Es wurde nicht gewechselt — korrigiere zuerst die Felder unten, deine Eingaben bleiben erhalten.
     step:
         account:
@@ -542,6 +563,9 @@ onboarding:
         profile:
             lead: Der Name, der auf deinen gesendeten Mails steht.
             title: Über dich
+        security:
+            lead: Das eine Konto, das sich richtig abzuschließen lohnt. Dauert etwa eine Minute.
+            title: Postfach schützen
     title: plMail einrichten
 
 profile:
@@ -948,6 +972,7 @@ settings:
         integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
+        security: Sicherheit
     notifications:
         heading: Benachrichtigungen
         ios_hint: >-
@@ -978,6 +1003,72 @@ settings:
             Push ist auf diesem Server nicht konfiguriert — es sind keine
             VAPID-Schlüssel hinterlegt. Führe
             "bin/console app:push:generate-vapid-keys" aus.
+    security:
+        codes:
+            copy: Codes kopieren
+            copy_now: Sichere jetzt deine Wiederherstellungscodes
+            copy_now_hint: >-
+                Sie werden nur dieses eine Mal angezeigt. Bewahre sie dort auf, wo
+                du ohne dein Handy herankommst — in einem Passwortmanager oder auf
+                Papier in einer Schublade. Jeder Code funktioniert genau einmal.
+            heading: Wiederherstellungscodes
+            hint: >-
+                Mit Wiederherstellungscodes kommst du wieder hinein, wenn du dein
+                Handy verlierst. Ein neuer Satz ersetzt den alten — was du vorher
+                notiert hast, funktioniert dann nicht mehr.
+            regenerate: Neue Codes erzeugen
+            remaining: '%count% unbenutzt'
+        confirm_with_code: Code aus deiner App
+        devices:
+            empty: >-
+                Es ist kein Gerät gemerkt. Du wirst bei jeder Anmeldung nach einem
+                Code gefragt.
+            expires: 'Läuft ab am %date%'
+            heading: Gemerkte Geräte
+            hint: >-
+                Geräte, die 30 Tage lang nicht nach einem Code fragen. Ein Widerruf
+                greift sofort — beim nächsten Seitenaufruf wird wieder gefragt.
+            last_used: 'Zuletzt verwendet %date% von %ip%'
+            revoke: Widerrufen
+            revoke_all: Alle gemerkten Geräte widerrufen
+            revoke_all_confirm: >-
+                Jedes gemerkte Gerät wird beim nächsten Mal wieder nach einem Code
+                gefragt, auch dieses. Fortfahren?
+            revoke_confirm: '%name% nicht mehr vertrauen? Beim nächsten Mal wird wieder nach einem Code gefragt.'
+            this_device: dieses Gerät
+        disable:
+            confirm: >-
+                Dein Postfach ist dann nur noch durch dein Passwort geschützt.
+                Fortfahren?
+            heading: Zwei-Faktor-Authentifizierung ausschalten
+            hint: >-
+                Das löscht deine Wiederherstellungscodes und widerruft jedes
+                gemerkte Gerät.
+            submit: Ausschalten
+        enable: Zwei-Faktor-Authentifizierung einrichten
+        enrol:
+            cancel: Abbrechen
+            heading: Zwei-Faktor-Authentifizierung einrichten
+            manual_copy: Schlüssel kopieren
+            manual_toggle: Geht das Scannen nicht? Schlüssel eingeben
+            qr_alt: QR-Code zum Einrichten deiner Authenticator-App
+            step_app: >-
+                Installiere eine Authenticator-App, falls du noch keine hast —
+                Google Authenticator, Aegis, 1Password und Bitwarden gehen alle.
+            step_confirm: Gib den sechsstelligen Code ein, den deine App gerade anzeigt.
+            step_scan: Scanne das mit der App.
+            submit: Bestätigen
+        heading: Zwei-Faktor-Authentifizierung
+        pitch: >-
+            Dein Postfach ist das Konto, das am meisten Schutz verdient: Wer da
+            hineinkommt, kann bei allem anderen das Passwort zurücksetzen — denn
+            dort landen die Links dafür. Ein zweiter Faktor sorgt dafür, dass ein
+            gestohlenes Passwort allein nicht reicht.
+        status:
+            off: Zwei-Faktor-Authentifizierung ist aus
+            on: Zwei-Faktor-Authentifizierung ist an
+            on_since: 'Aktiviert am %date%'
+        subheading: Wie du beim Anmelden nachweist, dass du es bist.
     title: Einstellungen
 
 sidebar:
@@ -1060,3 +1151,26 @@ toolbar:
 trash:
     empty: Keine gelöschten Nachrichten.
     heading: Papierkorb
+
+two_factor:
+    cancel: Als jemand anderes anmelden
+    flash:
+        code_rejected: Der Code stimmt nicht. Sieh in deiner App nach und versuch es nochmal.
+        codes_regenerated: Neue Wiederherstellungscodes erzeugt. Die alten funktionieren nicht mehr.
+        device_revoked: Dieses Gerät wird beim nächsten Mal wieder nach einem Code gefragt.
+        devices_revoked: Es ist kein Gerät mehr gemerkt.
+        disabled: Zwei-Faktor-Authentifizierung ist aus.
+        enabled: Zwei-Faktor-Authentifizierung ist an.
+    form:
+        code: Bestätigungscode
+        code_hint: >-
+            Der sechsstellige Code aus deiner Authenticator-App oder einer deiner
+            Wiederherstellungscodes.
+        submit: Weiter
+        trust_device: Auf diesem Gerät nicht mehr fragen
+        trust_device_hint: Für 30 Tage. Du kannst das jederzeit unter Einstellungen → Sicherheit widerrufen.
+    page_title: Zwei-Faktor-Authentifizierung
+    recovery_hint: >-
+        Handy verloren? Nimm einen der Wiederherstellungscodes, die du beim
+        Einrichten gesichert hast.
+    tagline: Noch ein Schritt
