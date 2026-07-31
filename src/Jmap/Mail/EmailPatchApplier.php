@@ -7,6 +7,7 @@ namespace App\Jmap\Mail;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -27,6 +28,7 @@ final class EmailPatchApplier
 {
     public function __construct(
         private readonly LabelRepository $labelRepository,
+        private readonly LabelBindingRepository $bindingRepository,
         private readonly LabelChangePropagator $propagator,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
     ) {
@@ -41,7 +43,7 @@ final class EmailPatchApplier
     public function apply(Account $account, Message $message, array $patch): void
     {
         $keywords = $this->currentKeywords($message);
-        $mailboxIds = $this->currentMailboxIds($message);
+        $mailboxIds = $this->currentMailboxIds($account, $message);
         $touchesKeywords = false;
         $touchesMailboxes = false;
 
@@ -196,14 +198,34 @@ final class EmailPatchApplier
     }
 
     /**
+     * The message's current mailboxIds, in the BINDING id space.
+     *
+     * message_label stores user-scoped label ids, but a JMAP Mailbox id is a
+     * per-account binding id — which is what the incoming patch keys are and
+     * what the resolution below expects. Emitting label ids here made a patch
+     * removing one mailbox leave the others behind as ids from the wrong
+     * space, and the resolution then rejected them as "No such Mailbox".
+     *
+     * Both are autoincrement ints from different tables, so the two spaces
+     * overlap and the failure looks like a client sending nonsense rather than
+     * like a translation that was skipped. Same reason EmailMapper translates
+     * on the way out.
+     *
      * @return array<string,bool>
      */
-    private function currentMailboxIds(Message $message): array
+    private function currentMailboxIds(Account $account, Message $message): array
     {
+        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId((int) $account->getId());
         $ids = [];
 
         foreach ($message->getLabels() as $label) {
-            $ids[(string) $label->id] = true;
+            $bindingId = $bindingIdByLabelId[(int) $label->id] ?? null;
+
+            if (null === $bindingId) {
+                continue;
+            }
+
+            $ids[(string) $bindingId] = true;
         }
 
         return $ids;
