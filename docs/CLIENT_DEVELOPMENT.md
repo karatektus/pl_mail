@@ -40,9 +40,28 @@ Concretely, **stop and ask before** you:
 - denormalise or cache something in a way that would break if the server later did it properly.
 
 Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging,
-`SearchSnippet/*`, JMAP Contacts, JWT issuance, snooze over JMAP, a cross-account unified query — are
-all *candidates for being built*, not permanent constraints. Raise the need with the maintainer and
-decide together whether it belongs in the server or the client.
+`SearchSnippet/*`, JMAP Contacts, JMAP Calendars, JWT issuance, snooze over JMAP, a cross-account
+unified query — are all *candidates for being built*, not permanent constraints. Raise the need with
+the maintainer and decide together whether it belongs in the server or the client.
+
+**The calendar is the current example of exactly this.** plMail now has one — calendars, events,
+and their materialised occurrences, stored as JSCalendar (RFC 8984) — and it is reachable only from
+the web UI. There is **no JMAP calendar API yet**: `Capability::SUPPORTED` still advertises
+core/mail/submission only, and `JmapObjectType` has no `Calendar` case, so a `using` containing a
+calendar URN is rejected outright.
+
+If you are building something that wants events, **say so** — the storage is already JSCalendar
+precisely so the API can be JSCalendar, and the shape of the methods (`Calendar/get`,
+`CalendarEvent/query`, `/changes` against the existing `StateManager`) is settled. Two things to
+know before you ask:
+
+- JMAP for Calendars is still an IETF **draft**, so when this ships it will advertise a vendor URN
+  (`urn:plmail:params:jmap:calendars`), following the precedent already set by
+  `urn:plmail:params:jmap:push`. Do not hard-code the draft's URN.
+- Do **not** read `calendar_event.jscalendar` through some side channel, and do not reconstruct
+  recurrence client-side. Occurrences are materialised server-side to a bounded horizon for good
+  reasons (an unbounded `FREQ=DAILY` has no last instance), and a client that expands rules itself
+  will disagree with the web UI at DST boundaries and on overridden instances.
 
 The corollary: **when you read something surprising here, check it against the code before designing
 around it.** `src/Jmap/` is the authority, and it moves.
