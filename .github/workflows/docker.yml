@@ -3,6 +3,9 @@ name: Build and push Docker image
 on:
     push:
         branches: [main]
+        # Releases. `latest` moves only when one of these is pushed — see the
+        # tag rules in the merge job.
+        tags: ['v*']
     pull_request:
         branches: [main]
 
@@ -122,10 +125,19 @@ jobs:
               uses: docker/metadata-action@v5
               with:
                   images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  # `latest` used to follow the default branch, so every push
+                  # to main went straight to the tag the README tells people to
+                  # pull — including work in progress, and migrations that run
+                  # automatically on boot. It now moves only on a release tag.
+                  #
+                  # `main` still publishes, under its own name, for anyone who
+                  # wants the tip.
                   tags: |
                       type=ref,event=branch
                       type=sha,prefix=sha-
-                      type=raw,value=latest,enable={{is_default_branch}}
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+                      type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
             - name: Create manifest list and push
               working-directory: ${{ runner.temp }}/digests

@@ -317,11 +317,18 @@ each.
 
 ## Roadmap
 
-- [ ] Complete the label-based architecture refactor (Label as the user-facing concept; Mailbox demoted to IMAP sync infrastructure)
+- [x] Complete the label-based architecture refactor (Label as the user-facing concept; Mailbox demoted to IMAP sync infrastructure)
 - [x] Sanitize rendered HTML bodies
 - [x] Full-text search
 - [x] Microsoft OAuth2 / Graph send support
-- [ ] Gmail-native `threadId` threading (currently RFC Message-ID based)
-- [ ] Incoming IMAP flag sync over the IDLE stream
-- [ ] Avatar fetching (once OAuth avatar scopes are wired)
-- [ ] Nested label UI
+- [x] Nested label UI — `Label::$parent`, `LabelRepository::findVisibleTreeForUser()`, and the recursive tree in `_partials/_sidebar.html.twig`
+- [x] Snooze — `ThreadSnoozeService`, `app:mail:wake-snoozed`, and the `Thread/set` JMAP extension
+- [ ] Gmail-native `threadId` threading (the id is carried on `Message`, but threading is still RFC Message-ID based)
+- [ ] Incoming IMAP flag sync over the IDLE stream — flags currently travel outward only, so marking a message read in another client does not reflect back
+- [ ] Avatar fetching (partially done: `Service/User/AvatarFromIntegration.php`; still needs OAuth avatar scopes)
+- [ ] Per-identity signatures — no `signature` field exists on `User`, `Account` or `EmailAlias`
+- [ ] Password reset (recovery is console-only today, which is why the login form no longer offers a link)
+
+> Keep this honest. Three items above were finished long before anyone ticked
+> them, and a roadmap that under-reports is worse than none — it is the document
+> a contributor reads to decide what to pick up.
