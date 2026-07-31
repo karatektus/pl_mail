@@ -59,6 +59,17 @@ jobs:
                   coverage: none
                   tools: composer:v2
 
+            # The same file the Docker image bakes in, rather than a second set
+            # of numbers here. It is what raises PHP's stock 2M/8M upload limits
+            # to 25M/60M, and the compose suite has a test that attaches a 3MB
+            # file — but CI serves through `symfony serve` against setup-php's
+            # PHP, which never loaded it, so that test could not pass here and
+            # had not since it was written. Copying keeps one source for both.
+            - name: Apply the app's PHP configuration
+              # sudo because setup-php's scan dir is /etc/php/<v>/cli/conf.d,
+              # which is root-owned on the runner.
+              run: sudo cp frankenphp/conf.d/10-app.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/"
+
             - name: Get Composer cache directory
               id: composer-cache
               run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
