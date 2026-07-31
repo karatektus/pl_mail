@@ -391,6 +391,7 @@ login:
     form:
         email: Parrot address
         forgot_password: Forgot yer secret word?
+        forgot_password_hint: 'Only th' quartermaster can mint ye a new one, from th' ship's console.'
         password: Secret word
         remember_me: Keep me aboard
         submit: Come aboard

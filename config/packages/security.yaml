@@ -30,6 +30,18 @@ security:
             lazy: true
             provider: app_user_provider
             custom_authenticator: App\Security\LoginFormAuthenticator
+            # A password form on an instance meant to be reachable from the
+            # internet, with no limit on how fast it could be guessed. The
+            # per-username limit is the one that matters; the global IP limit
+            # is the backstop for someone spraying one password across many
+            # addresses, and is deliberately looser so a household behind one
+            # NAT address cannot lock itself out.
+            #
+            # Note this does NOT cover the 2FA code form — that is a separate
+            # firewall listener with its own throttle, see below.
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
             # Opt-in via the "keep me logged in" checkbox on the login form.
             # Signature-based tokens: no storage, and changing the password
             # invalidates every cookie that was issued for it.

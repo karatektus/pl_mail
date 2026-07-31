@@ -40,7 +40,12 @@
                                 type="email"
                                 id="inputEmail"
                                 name="email"
-                                value="{{ last_username|default('APP_DEV_USER_EMAIL'|get_env) }}"
+                                {# The dev prefill is a local convenience and must not reach a
+                                   real deployment. It is empty in the shipped .env, so nothing
+                                   leaked by default — but nothing stopped it being set either,
+                                   and a password rendered into a value attribute is not
+                                   something to leave to configuration. #}
+                                value="{{ last_username|default('dev' == app.environment ? 'APP_DEV_USER_EMAIL'|get_env : '') }}"
                                 autocomplete="email"
                                 autofocus
                                 required
@@ -54,9 +59,13 @@
                                 <label for="password" class="block text-sm font-medium text-ink-soft">
                                     {{ 'login.form.password'|trans }}
                                 </label>
-                                <a href="#" class="text-xs text-accent hover:underline">
+                                {# No reset flow exists yet, and this was an href="#" that did
+                                   nothing — worse than no affordance, because it reads as one.
+                                   Recovery on a self-hosted install is a console command; the
+                                   link comes back when it points somewhere real. #}
+                                <span class="text-xs text-ink-faint" title="{{ 'login.form.forgot_password_hint'|trans }}">
                                     {{ 'login.form.forgot_password'|trans }}
-                                </a>
+                                </span>
                             </div>
                             <input
                                 type="password"
@@ -64,7 +73,7 @@
                                 name="password"
                                 autocomplete="current-password"
                                 required
-                                value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
+                                {% if 'dev' == app.environment %}value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"{% endif %}
                                 class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >

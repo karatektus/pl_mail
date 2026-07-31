@@ -1,0 +1,21 @@
+framework:
+    rate_limiter:
+        # The second factor needs its own throttle. login_throttling on the
+        # main firewall covers the password form only — by the time the code
+        # form is reachable the password has already been accepted, so an
+        # attacker holding a stolen or phished password arrives here with the
+        # password limiter already satisfied and six digits between them and
+        # the mailbox. 10^6 is not a large number against an unthrottled form.
+        #
+        # Keyed per user, in App\Security\TwoFactor\TwoFactorThrottle: the
+        # thing being guessed is one account's code, and an IP key would let
+        # anyone on a shared address lock everyone else out of theirs.
+        #
+        # Deliberately tighter than the password form. Nobody mistypes a code
+        # from an authenticator app five times in a row — and unlike a
+        # forgotten password, being locked out here is recoverable from the
+        # console without a reset flow.
+        two_factor_code:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'

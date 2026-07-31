@@ -391,6 +391,7 @@ login:
     form:
         email: Email address
         forgot_password: Forgot password?
+        forgot_password_hint: 'Password recovery runs from the server console: bin/console app:user:2fa-disable and a fresh password set by an administrator.'
         password: Password
         remember_me: Keep me logged in
         submit: Sign in
