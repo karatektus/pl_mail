@@ -47,9 +47,9 @@ final readonly class SecuritySectionViewData
         $secret = null;
 
         if (true === $enrolling) {
-            // A fresh secret every time the panel opens: an abandoned attempt
-            // on another device must not leave one behind that the QR now on
-            // screen no longer matches.
+            // begin() reuses an unconfirmed secret rather than minting one, so
+            // reopening the panel — which is what a rejected code does — shows
+            // the same QR the user already scanned.
             $qrDataUri = $this->qrCodes->dataUri($this->enrolment->begin($user));
             $secret = $user->getTotpSecret();
         }

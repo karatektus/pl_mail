@@ -37,17 +37,26 @@ final readonly class TwoFactorEnrolment
     }
 
     /**
-     * Stage a fresh secret and hand back the otpauth:// URI to render.
+     * Stage a secret if there is not already an unconfirmed one, and hand back
+     * the otpauth:// URI to render.
      *
-     * Called every time the user opens the enrolment panel without having
-     * confirmed, so a half-finished attempt on another device cannot leave a
-     * secret behind that the QR on screen no longer matches.
+     * Reusing matters more than it looks. This is called from the view data of
+     * the enrolment panel, which re-renders on every rejected code — minting a
+     * fresh secret there would silently invalidate the QR the user scanned a
+     * moment ago, so their second attempt fails for a reason nothing on screen
+     * explains, and so does every attempt after it.
+     *
+     * Keeping an abandoned one costs nothing: an unconfirmed secret cannot
+     * authenticate anything (see User::isTotpAuthenticationEnabled), and both
+     * disabling 2FA and confirming a new enrolment replace it.
      */
     public function begin(User $user): string
     {
-        $user->startTotpEnrolment($this->totpAuthenticator->generateSecret());
+        if (null === $user->getTotpSecret() || true === $user->isTotpAuthenticationEnabled()) {
+            $user->startTotpEnrolment($this->totpAuthenticator->generateSecret());
 
-        $this->entityManager->flush();
+            $this->entityManager->flush();
+        }
 
         return $this->totpAuthenticator->getQRContent($user);
     }

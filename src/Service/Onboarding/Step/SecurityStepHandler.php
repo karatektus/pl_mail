@@ -122,9 +122,10 @@ final readonly class SecurityStepHandler implements OnboardingStepHandlerInterfa
             'twoFactorEnabled'   => $user->isTotpAuthenticationEnabled(),
             'twoFactorEnrolling' => $enrolling,
             'newBackupCodes'     => [] === $codes ? null : array_values((array) $codes),
-            // Only when the panel is open: the QR is the secret in scannable
-            // form, and staging a fresh one on every render of the wizard would
-            // invalidate a code the user is halfway through typing.
+            // Only when the panel is open — the QR is the secret in scannable
+            // form. begin() reuses an unconfirmed secret, which matters here:
+            // this method runs again on every rejected code, and minting a new
+            // one would change the QR under a user who had already scanned it.
             'twoFactorQr'        => $enrolling ? $this->qrCodes->dataUri($this->enrolment->begin($user)) : null,
             'twoFactorSecret'    => $enrolling ? $user->getTotpSecret() : null,
             'enrolUrl'           => $this->stepUrl('1'),

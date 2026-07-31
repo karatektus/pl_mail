@@ -93,6 +93,62 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
     }
 
     /**
+     * Reopening the panel keeps the staged secret.
+     *
+     * The enrolment panel re-renders on every rejected code, and its view data
+     * calls begin() again. Minting a fresh secret there changed the QR under a
+     * user who had already scanned it, so their retry failed for a reason
+     * nothing on screen explained — and so did every attempt after.
+     */
+    public function testBeginKeepsAnUnconfirmedSecret(): void
+    {
+        $user = $this->user();
+
+        $this->enrolment()->begin($user);
+        $first = $user->getTotpSecret();
+
+        $this->enrolment()->begin($user);
+
+        self::assertSame($first, $user->getTotpSecret());
+    }
+
+    /**
+     * But a *confirmed* one is replaced: enrolling again is a deliberate act
+     * of replacing the second factor, not resuming the last attempt.
+     */
+    public function testBeginReplacesAConfirmedSecret(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+        $this->enrolment()->confirm($user, $this->currentCode($user));
+
+        $confirmed = $user->getTotpSecret();
+
+        $this->enrolment()->begin($user);
+
+        self::assertNotSame($confirmed, $user->getTotpSecret());
+        self::assertFalse($user->isTotpAuthenticationEnabled());
+    }
+
+    /**
+     * A retry after a wrong code still works — the end-to-end version of the
+     * two tests above, and the shape the bug actually presented in.
+     */
+    public function testAWrongCodeDoesNotBreakTheNextAttempt(): void
+    {
+        $user = $this->user();
+        $this->enrolment()->begin($user);
+
+        self::assertNull($this->enrolment()->confirm($user, '000000'));
+
+        // What the panel does when it re-renders after the rejection.
+        $this->enrolment()->begin($user);
+
+        self::assertNotNull($this->enrolment()->confirm($user, $this->currentCode($user)));
+        self::assertTrue($user->isTotpAuthenticationEnabled());
+    }
+
+    /**
      * The whole point of the staged-but-unconfirmed state: walking away from
      * enrolment must leave an account that still opens with a password.
      */
