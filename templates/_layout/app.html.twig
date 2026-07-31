@@ -96,10 +96,18 @@
         <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
     {% endif %}
 </head>
+{# One topic, named once: it is both what we subscribe to and what the cookie
+   authorizes, and the two drifting apart is a silent no-updates bug. #}
+{% set mercure_topics = app.user ? ['mail/user/' ~ app.user.id] : [] %}
 <body
     {% if app.user %}
         data-controller="{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}"
-        data-core--mercure-url-value="{{ mercure(['mail/user/' ~ app.user.id]) }}"
+        {# URL only. The cookie that authorizes this subscription is attached by
+           MercureCookieSubscriber — passing `subscribe:` here would mint it too,
+           but that helper throws for a hub on another domain and would take the
+           whole page down with it. #}
+        data-core--mercure-url-value="{{ mercure(mercure_topics) }}"
+        data-core--mercure-auth-url-value="{{ path('mercure_auth') }}"
         data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
     {% endif %}

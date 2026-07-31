@@ -73,27 +73,33 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      // integrations.spec.ts is handled separately below.
-      testIgnore: /integrations\.spec\.ts/,
+      // integrations.spec.ts and mercure.spec.ts are handled separately below.
+      testIgnore: /(integrations|mercure)\.spec\.ts/,
       // No `storageState` here, and no `setup` project: signing in is now a
       // worker-scoped fixture in tests/e2e/support/test.ts, because the path
       // has to differ per worker and project config is static.
     },
     {
-      // The one spec per-worker users cannot isolate.
+      // The specs per-worker users cannot isolate.
       //
-      // IntegrationProviderConfig and MailProviderConfig are both unique on
-      // `provider` with no user column — genuinely install-wide state. Two
-      // workers touching it would race, and it reaches further than it looks:
-      // whether the onboarding wizard offers its integrations step depends on
-      // what an admin has configured globally, so this spec can change what
-      // onboarding.spec.ts sees.
+      // integrations: IntegrationProviderConfig and MailProviderConfig are both
+      // unique on `provider` with no user column — genuinely install-wide
+      // state. Two workers touching it would race, and it reaches further than
+      // it looks: whether the onboarding wizard offers its integrations step
+      // depends on what an admin has configured globally, so this spec can
+      // change what onboarding.spec.ts sees.
+      //
+      // mercure: it stops and restarts the hub container to prove the stream
+      // recovers on its own. There is one hub for the whole stack, so running
+      // that alongside anything else takes live updates away from specs that
+      // did not ask for it — which is exactly how it first showed up, as an
+      // integrations failure that passed on its own.
       //
       // One worker, and `dependencies` so it starts only once everything else
       // has finished.
       name: "chromium-exclusive",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /integrations\.spec\.ts/,
+      testMatch: /(integrations|mercure)\.spec\.ts/,
       dependencies: ["chromium"],
     },
   ],

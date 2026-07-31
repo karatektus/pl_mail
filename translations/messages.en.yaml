@@ -463,6 +463,12 @@ message:
         heading: Original message
     save_to: 'Save to'
 
+mercure:
+    status:
+        connected: Live updates active
+        connecting: Reconnecting to live updates…
+        offline: Live updates unavailable — the inbox may be out of date
+
 modal:
     close: Close
     loading: Loading…

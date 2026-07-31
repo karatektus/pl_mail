@@ -335,7 +335,13 @@ services:
               export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
               exec "$$@"
             - --
-        command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+        # The image's default Caddyfile, NOT dev.Caddyfile — this is a
+        # production stack and the dev one turns on `anonymous`, which accepts
+        # subscribers with no JWT at all. Since the app proxies
+        # /.well-known/mercure* publicly, that let anyone who could reach this
+        # instance subscribe to mail/user/<any id> and watch that account sync.
+        # The default config requires the subscriber JWT the app now mints.
+        command: /usr/bin/caddy run --config /etc/caddy/Caddyfile
         depends_on:
             secrets-init:
                 condition: service_completed_successfully

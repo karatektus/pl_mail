@@ -178,7 +178,15 @@ services:
         export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
         exec "$$@"
       - --
-    command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+    # The image's default Caddyfile, NOT dev.Caddyfile. The dev one turns on
+    # `anonymous`, which accepts any subscriber without a JWT — and since
+    # frankenphp/Caddyfile proxies /.well-known/mercure* straight through, that
+    # let anyone reaching this instance subscribe to mail/user/<any id> and
+    # watch that account's sync activity. It also enables `demo`, `subscriptions`
+    # and `cors_origins *`. The default config requires the subscriber JWT the
+    # app now mints, and needs no CORS because the browser reaches the hub
+    # same-origin through our own Caddy.
+    command: /usr/bin/caddy run --config /etc/caddy/Caddyfile
     depends_on:
       secrets-init:
         condition: service_completed_successfully

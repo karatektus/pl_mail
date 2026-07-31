@@ -465,6 +465,12 @@ message:
         heading: Originalnachricht
     save_to: 'Speichern in'
 
+mercure:
+    status:
+        connected: Live-Aktualisierung aktiv
+        connecting: Verbindung zur Live-Aktualisierung wird wiederhergestellt…
+        offline: Keine Live-Aktualisierung — der Posteingang ist möglicherweise nicht aktuell
+
 modal:
     close: Schließen
     loading: Wird geladen…

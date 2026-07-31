@@ -57,10 +57,19 @@ x-test-app: &test-app
     MAILER_DSN: null://null
     APP_DEV_USER_EMAIL: e2e@plmail.test
     APP_DEV_USER_PASSWORD: e2e-password-change-me
-    # Same-origin so a missing hub fails fast instead of raising a cross-origin
-    # TLS error against https://localhost. There is no Mercure hub here; the
-    # suite does not assert on live updates.
+    # Same-origin: the browser reaches the hub through the app's own Caddy
+    # (`handle /.well-known/mercure*` in frankenphp/Caddyfile), so the
+    # subscriber cookie is a first-party cookie and needs no CORS.
+    #
+    # http, not https, on purpose — Symfony derives the cookie's `secure` flag
+    # from this URL's scheme, so an https value here would mint a cookie the
+    # browser refuses to send back over the test stack's plain HTTP.
     MERCURE_PUBLIC_URL: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+    MERCURE_URL: http://mercure/.well-known/mercure
+    # Fixed, like APP_SECRET above: the suite signs subscriber JWTs with it and
+    # the hub verifies them, so both sides have to agree without depending on
+    # generated secrets that differ per run.
+    MERCURE_JWT_SECRET: e2e-mercure-secret-not-for-production
   depends_on:
     database:
       condition: service_healthy
@@ -117,6 +126,23 @@ services:
         # run at least once.
         php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
+  # The real hub, so the suite can assert on live updates and on recovery after
+  # the stream drops. Runs the image's DEFAULT Caddyfile, not dev.Caddyfile:
+  # the default one requires a subscriber JWT, which is what production serves,
+  # so the tests exercise the authorization path rather than an anonymous hub
+  # that would accept anything and hide a broken cookie.
+  mercure:
+    image: dunglas/mercure
+    environment:
+      SERVER_NAME: ":80"
+      MERCURE_PUBLISHER_JWT_KEY: e2e-mercure-secret-not-for-production
+      MERCURE_SUBSCRIBER_JWT_KEY: e2e-mercure-secret-not-for-production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     <<: *test-app
     environment:
@@ -130,6 +156,8 @@ services:
         condition: service_healthy
       app-init:
         condition: service_completed_successfully
+      mercure:
+        condition: service_healthy
 
 volumes:
   app_var_test:

@@ -559,3 +559,84 @@
     scrollbar-width: thin;
     scrollbar-color: rgb(var(--rgb-ink) / 0.2) transparent;
 }
+
+/* ═══ Live-update indicator ════════════════════════════════════════════════
+   A glow behind the logo saying whether the Mercure stream is actually
+   carrying updates. It earns its place because the failure it reports is
+   otherwise invisible: the mail list has no polling fallback, so a dead stream
+   looks exactly like a quiet mailbox — the inbox simply stops changing, and
+   nothing on screen says why.
+
+   Deliberately quiet in the healthy state. This sits behind the logo on every
+   page, so anything eye-catching while things are fine would be noise, and the
+   states that matter would have nothing louder to escalate to.
+
+   Unlayered, like the blocks above, so it beats the utilities on the anchor.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.stream-glow {
+    position: relative;
+    display: inline-flex;
+    border-radius: 9999px;
+}
+
+.stream-glow::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 9999px;
+    pointer-events: none;
+    /* Behind the mark, never over it: the logo must stay the logo. */
+    z-index: -1;
+    opacity: 0;
+    background: radial-gradient(circle, rgb(var(--stream-glow-rgb) / 0.55) 0%, transparent 70%);
+    transition: opacity 400ms ease, background 400ms ease;
+}
+
+/* Healthy: a barely-there wash, enough to read as "live" once you know to look
+   for it, not enough to pull the eye. */
+.stream-glow[data-state="connected"] {
+    --stream-glow-rgb: var(--rgb-success);
+}
+
+.stream-glow[data-state="connected"]::before {
+    opacity: 0.35;
+}
+
+/* Reconnecting: the one animated state. Breathing rather than blinking —
+   a blink reads as an alarm, and this is usually resolved within a second. */
+.stream-glow[data-state="connecting"] {
+    --stream-glow-rgb: var(--rgb-warning);
+}
+
+.stream-glow[data-state="connecting"]::before {
+    opacity: 0.5;
+    animation: stream-breathe 1.8s ease-in-out infinite;
+}
+
+/* Offline: steady, not animated. It can persist for a long time, and something
+   pulsing indefinitely in the corner of the eye is exhausting. */
+.stream-glow[data-state="offline"] {
+    --stream-glow-rgb: var(--rgb-danger);
+}
+
+.stream-glow[data-state="offline"]::before {
+    opacity: 0.55;
+}
+
+@keyframes stream-breathe {
+    0%, 100% { opacity: 0.25; }
+    50%      { opacity: 0.65; }
+}
+
+/* Motion is decoration here — the colour already carries the whole message, so
+   removing the animation costs a reduced-motion user nothing. */
+@media (prefers-reduced-motion: reduce) {
+    .stream-glow[data-state="connecting"]::before {
+        animation: none;
+        opacity: 0.5;
+    }
+
+    .stream-glow::before {
+        transition: none;
+    }
+}

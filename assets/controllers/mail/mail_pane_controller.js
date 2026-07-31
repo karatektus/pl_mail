@@ -116,6 +116,13 @@ export default class extends Controller {
             return false;
         }
 
+        // The polling fallback carries no mailbox, because it is not reporting
+        // one — it fires when the stream is down and the list may be stale for
+        // any reason at all, so it has to refresh whatever view is open.
+        if (data.poll) {
+            return true;
+        }
+
         const scope = this.listTarget.dataset.syncScope || "*";
         if (scope === "*") {
             return true;
