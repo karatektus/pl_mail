@@ -9,8 +9,18 @@ mail/label.html.twig — thread list for a custom label.
 {% endblock %}
 
 {% block inbox_tabs %}
-    <div class="px-4 py-2.5 border-b border-line">
+    <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
         <h2 class="text-sm font-semibold text-ink-soft">{{ label.fullName }}</h2>
+        {# Narrowed to one account. Said out loud, and with a way back out:
+           the same label under a different account looks identical otherwise,
+           and an empty one is then indistinguishable from an empty label. #}
+        {% if account is defined and account %}
+            <span class="text-xs text-ink-faint">{{ account.displayAddress }}</span>
+            <a href="{{ path('app_mail_label', { id: label.id }) }}"
+               class="text-xs text-accent hover:underline">
+                {{ 'label.all_accounts'|trans }}
+            </a>
+        {% endif %}
     </div>
 {% endblock %}
 

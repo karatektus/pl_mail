@@ -10,6 +10,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -160,14 +161,53 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
-    public function findForLabel(Label $label, int $page = 1, int $perPage = 50): array
+    /**
+     * Threads carrying a label, optionally narrowed to one account.
+     *
+     * Labels are user-scoped and can be bound to several accounts at once, so
+     * a label on its own spans every account that has it. That is right for the
+     * sidebar's own label list — one "Receipts" across the whole mailbox — and
+     * wrong under an account, where the same entry is read as "this account's
+     * Receipts" and returned everybody's.
+     */
+    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50): array
+    {
+        $offset = ($page - 1) * $perPage;
+
+        $qb = $this->createQueryBuilder('t')
+            ->join('t.labels', 'l')
+            ->where('l = :label')
+            ->setParameter('label', $label)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage);
+
+        $this->narrowToAccount($qb, $account);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countForLabel(Label $label, ?Account $account = null): int
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->join('t.labels', 'l')
+            ->where('l = :label')
+            ->setParameter('label', $label);
+
+        $this->narrowToAccount($qb, $account);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /** Everything in one account, whatever it is labelled. */
+    public function findForAccount(Account $account, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
 
         return $this->createQueryBuilder('t')
-            ->join('t.labels', 'l')
-            ->where('l = :label')
-            ->setParameter('label', $label)
+            ->where('t.account = :account')
+            ->setParameter('account', $account)
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
@@ -175,15 +215,24 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function countForLabel(Label $label): int
+    public function countForAccount(Account $account): int
     {
         return (int) $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
-            ->join('t.labels', 'l')
-            ->where('l = :label')
-            ->setParameter('label', $label)
+            ->where('t.account = :account')
+            ->setParameter('account', $account)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /** No-op when no account was asked for, so callers need no branch. */
+    private function narrowToAccount(QueryBuilder $qb, ?Account $account): void
+    {
+        if (null === $account) {
+            return;
+        }
+
+        $qb->andWhere('t.account = :account')->setParameter('account', $account);
     }
     public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
     {

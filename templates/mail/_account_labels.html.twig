@@ -1,13 +1,19 @@
 {# Replaces mail/_account_folders.html.twig — an account's navigation is its
    labels now. System labels first (fixed sortOrder), custom labels after,
-   indented by tree depth. Every entry links to the generic label view, which
-   works for system labels too (an account's Inbox label = its inbox). #}
+   indented by tree depth.
+
+   Each entry carries `account`, which narrows the label view to this account.
+   Without it these linked to the plain label view, and since labels are
+   user-scoped and bind to several accounts at once, opening "Receipts" under
+   one account listed every account's Receipts — read as this account's, and it
+   was not. The sidebar's own label section still links without it, because
+   there the label genuinely does mean "across everything". #}
 <turbo-frame id="account-folders-{{ account.id }}">
     <nav class="pl-3 space-y-0.5">
         {% for label in labels %}
             <a
                 data-settings--account-expand-target="link"
-                href="{{ path('app_mail_label', { id: label.id }) }}"
+                href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
                 data-turbo-frame="_top"
                 data-turbo-prefetch="false"
                 class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors text-ink-muted hover:bg-hover"

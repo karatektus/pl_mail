@@ -379,6 +379,7 @@ integration:
         too_big: 'Too large to attach'
 
 label:
+    all_accounts: All accounts
     color:
         amber: Amber
         blue: Blue
@@ -1108,6 +1109,7 @@ sidebar:
         archive: Archive
         drafts: Drafts
         inbox: Inbox
+        more: More
         sent: Sent
         snoozed: Snoozed
         starred: Starred

@@ -381,6 +381,7 @@ integration:
         too_big: 'Zu groß zum Anhängen'
 
 label:
+    all_accounts: Alle Konten
     color:
         amber: Bernstein
         blue: Blau
@@ -1127,6 +1128,7 @@ sidebar:
         archive: Archiv
         drafts: Entwürfe
         inbox: Posteingang
+        more: Mehr
         sent: Gesendet
         snoozed: Zurückgestellt
         starred: Markiert

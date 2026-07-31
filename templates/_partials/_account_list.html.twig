@@ -5,18 +5,27 @@
          data-settings--account-expand-folders-url-value="{{ path('app_mail_account_folders', { account: account.id }) }}"
          data-settings--account-expand-active-value="false">
 
-        {# The whole row toggles the label list — per-account "folders" are
-           labels now, so there is no INBOX landing link anymore. #}
-        <div class="flex items-center cursor-pointer rounded-lg hover:bg-hover transition-colors"
-             data-action="click->settings--account-expand#toggle">
-            <div class="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-ink-muted">
+        {# Two targets, not one. The name opens the account — everything in it,
+           whatever it is labelled — and the chevron opens its label list. The
+           whole row used to toggle, which left no way to ask for the account
+           itself, and expanding was the only thing clicking an account could
+           do. #}
+        <div class="flex items-center rounded-lg hover:bg-hover transition-colors">
+            <a
+                href="{{ path('app_mail_account', { account: account.id }) }}"
+                data-ui--sidebar-target="link"
+                data-action="{{ _drawerClose }}"
+                class="nav-item flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-ink-muted"
+            >
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
                 <span class="truncate text-sm">{{ account.displayAddress }}</span>
-            </div>
+            </a>
             <button
                 type="button"
                 aria-label="{{ 'sidebar.accounts.toggle'|trans }}"
-                class="p-2 rounded-lg text-gray-400 pointer-events-none"
+                title="{{ 'sidebar.accounts.toggle'|trans }}"
+                class="p-2 rounded-lg text-gray-400 cursor-pointer hover:text-ink"
+                data-action="click->settings--account-expand#toggle"
             >
                 <i data-settings--account-expand-target="chevron"
                    class="fa-solid fa-chevron-right text-xs shrink-0 transition-transform duration-150"></i>

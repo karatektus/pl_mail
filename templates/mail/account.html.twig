@@ -1,0 +1,28 @@
+{#
+mail/account.html.twig — every thread in one account, whatever it is labelled.
+
+Reached by clicking the account itself in the sidebar. Its labels sit
+underneath it there and narrow this further, to that account's copy of the
+label rather than the label across the whole mailbox.
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block title %}{{ account.displayAddress }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ account.displayAddress }}</h2>
+    </div>
+{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
+            {{ 'label.empty'|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

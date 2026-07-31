@@ -9,6 +9,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
@@ -27,6 +28,7 @@ final class MailController extends AbstractController
         private readonly MessageRepository $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelRepository $labelRepository,
+        private readonly AccountRepository $accountRepository,
     )
     {
     }
@@ -94,14 +96,70 @@ final class MailController extends AbstractController
 
     private function renderLabel(Label $label, Request $request): Response
     {
+        $account = $this->requestedAccount($request);
         $page    = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForLabel($label, $page);
-        $total   = $this->threadRepository->countForLabel($label);
+        $threads = $this->threadRepository->findForLabel($label, $account, $page);
+        $total   = $this->threadRepository->countForLabel($label, $account);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/label.html.twig', [
             'label'    => $label,
+            'account'  => $account,
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
+    }
+
+    /**
+     * The `?account=` a label view may be narrowed by.
+     *
+     * A query parameter rather than a second route: it is a filter on the same
+     * view, and the label id alone still has to resolve — the sidebar's own
+     * label list means "across every account" and links without it.
+     *
+     * Ownership is checked here rather than trusted, because this comes
+     * straight off the query string: without it, appending someone else's
+     * account id would scope a label you own to threads you do not.
+     */
+    private function requestedAccount(Request $request): ?Account
+    {
+        $id = $request->query->get('account');
+
+        if (null === $id || '' === $id) {
+            return null;
+        }
+
+        $account = $this->accountRepository->find($id);
+
+        if (null === $account || $account->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $account;
+    }
+
+    /**
+     * Everything in one account — what clicking the account itself in the
+     * sidebar now does. Its labels sit underneath for narrowing further.
+     */
+    #[Route('/account/{account}', name: 'account')]
+    public function accountView(Account $account, Request $request): Response
+    {
+        if ($account->getUsr() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $page    = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForAccount($account, $page);
+        $total   = $this->threadRepository->countForAccount($account);
+
+        $this->threadRepository->preloadLabels($threads);
+
+        return $this->render('mail/account.html.twig', [
+            'account'  => $account,
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,
