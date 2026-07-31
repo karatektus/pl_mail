@@ -1,0 +1,187 @@
+import { Controller } from "@hotwired/stimulus";
+
+/*
+ * A draggable boundary between two panes that share a row.
+ *
+ * Lives in ui/ rather than calendar/ because nothing here knows what a calendar
+ * is — the same reasoning that puts sidebar_drawer here. It moves one number,
+ * --calendar-pane-width, and the layout does the rest: the docked pane takes
+ * its width from that variable and .main-pane is flex-1, so whatever one gains
+ * the other loses without a second number to keep in step.
+ *
+ * Scoped to the row containing the sidebar, the mail panes and the calendar
+ * pane, so the sidebar's toggle is inside it too.
+ *
+ * Persistence is server-side (see User::SETTING_CALENDAR_PANE_WIDTH) and only
+ * on release. Writing per pointermove would be a request per frame, and the
+ * width is already correct locally — the round trip is for the next page load
+ * and the user's other devices, not for this one.
+ */
+export default class extends Controller {
+    static targets = ["wrapper", "pane", "handle"];
+    static values = {
+        stateUrl: String,
+        token: String,
+        min: { type: Number, default: 320 },
+        max: { type: Number, default: 900 },
+        open: { type: Boolean, default: false },
+        step: { type: Number, default: 24 },
+    };
+
+    connect() {
+        this._onMove = this._onMove.bind(this);
+        this._onUp = this._onUp.bind(this);
+    }
+
+    disconnect() {
+        this._stopListening();
+    }
+
+    /*
+     * Open or close the pane. The href on the trigger stays a real URL so
+     * middle-click still opens the page, which means preventing the default
+     * navigation is this method's job.
+     */
+    toggle(event) {
+        event.preventDefault();
+
+        this.openValue = !this.openValue;
+
+        if (!this.hasWrapperTarget) {
+            return;
+        }
+
+        this.wrapperTarget.classList.toggle("hidden", !this.openValue);
+        this.wrapperTarget.classList.toggle("md:flex", this.openValue);
+
+        // The frame is lazy and has no src until the pane is first opened, so
+        // opening it is what loads the calendar. Turbo takes it from there.
+        if (this.openValue) {
+            const frame = this.wrapperTarget.querySelector("turbo-frame#calendar-pane-frame");
+
+            if (frame && !frame.getAttribute("src")) {
+                frame.setAttribute("src", "/calendar/pane");
+            }
+        }
+
+        this._persist({ open: this.openValue ? "1" : "0" });
+    }
+
+    start(event) {
+        if (!this.hasPaneTarget) {
+            return;
+        }
+
+        event.preventDefault();
+
+        this._startX = event.clientX;
+        this._startWidth = this.paneTarget.getBoundingClientRect().width;
+
+        // Capture on the handle so the drag survives the pointer leaving it —
+        // without this, moving faster than the layout reflows drops the drag.
+        this.handleTarget.setPointerCapture?.(event.pointerId);
+        this._pointerId = event.pointerId;
+
+        window.addEventListener("pointermove", this._onMove);
+        window.addEventListener("pointerup", this._onUp);
+        window.addEventListener("pointercancel", this._onUp);
+
+        document.body.classList.add("select-none", "cursor-col-resize");
+    }
+
+    /* Keyboard equivalent, so the separator is not mouse-only. */
+    nudge(event) {
+        const direction = { ArrowLeft: 1, ArrowRight: -1 }[event.key];
+
+        if (direction === undefined) {
+            return;
+        }
+
+        event.preventDefault();
+        this._apply(this._currentWidth() + direction * this.stepValue, { persist: true });
+    }
+
+    reset(event) {
+        event.preventDefault();
+        this._apply(380, { persist: true });
+    }
+
+    _onMove(event) {
+        // The pane is on the right, so dragging left makes it wider.
+        this._apply(this._startWidth + (this._startX - event.clientX));
+    }
+
+    _onUp() {
+        this._stopListening();
+        document.body.classList.remove("select-none", "cursor-col-resize");
+
+        this._persist({ width: String(Math.round(this._currentWidth())) });
+    }
+
+    _stopListening() {
+        window.removeEventListener("pointermove", this._onMove);
+        window.removeEventListener("pointerup", this._onUp);
+        window.removeEventListener("pointercancel", this._onUp);
+
+        if (this._pointerId !== undefined) {
+            this.handleTarget?.releasePointerCapture?.(this._pointerId);
+            this._pointerId = undefined;
+        }
+    }
+
+    /*
+     * The upper bound is the smaller of the configured maximum and half the
+     * row: a pane that can be dragged over the mail it sits beside is a pane
+     * that can hide it entirely, with no obvious way back.
+     */
+    _apply(width, { persist = false } = {}) {
+        const ceiling = Math.min(this.maxValue, this.element.getBoundingClientRect().width / 2);
+        const clamped = Math.max(this.minValue, Math.min(ceiling, width));
+
+        this.element.style.setProperty("--calendar-pane-width", `${Math.round(clamped)}px`);
+
+        if (persist) {
+            this._persist({ width: String(Math.round(clamped)) });
+        }
+    }
+
+    _currentWidth() {
+        return this.hasPaneTarget
+            ? this.paneTarget.getBoundingClientRect().width
+            : this.minValue;
+    }
+
+    /*
+     * Queued, not fired-and-forgotten.
+     *
+     * Several of these can be triggered in quick succession — a double-click to
+     * reset emits pointerup twice before the reset itself, and a drag right
+     * after it emits another. Sent concurrently they race, and the server keeps
+     * whichever finished last rather than whichever the user did last, so the
+     * pane comes back at a width nobody chose. Chaining makes the order the
+     * user's order.
+     *
+     * Still best-effort about failure: a write that does not land costs the
+     * memory, never the layout, which is already correct locally.
+     */
+    _persist(fields) {
+        if (!this.hasStateUrlValue) {
+            return;
+        }
+
+        const body = new FormData();
+        body.append("_token", this.tokenValue);
+
+        Object.entries(fields).forEach(([key, value]) => body.append(key, value));
+
+        this._queue = (this._queue ?? Promise.resolve())
+            .then(() =>
+                fetch(this.stateUrlValue, {
+                    method: "POST",
+                    body,
+                    headers: { "X-Requested-With": "fetch" },
+                }),
+            )
+            .catch(() => {});
+    }
+}

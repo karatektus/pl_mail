@@ -1,0 +1,46 @@
+{% extends '_layout/app.html.twig' %}
+
+{#
+The calendar as a page.
+
+Extends the app layout directly rather than _layout/_mailbox.html.twig, because
+on a phone this REPLACES the mail view — the point is a full-width calendar, not
+a calendar wedged beside a message list that has nowhere to go. On a wide screen
+the docked pane is the usual way in and this is what a direct link to /calendar
+gives you.
+#}
+
+{% block title %}{{ 'calendar.title'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="h-screen overflow-hidden app-bg" data-controller="ui--sidebar-drawer">
+
+        <div data-ui--sidebar-drawer-target="backdrop"
+             data-action="click->ui--sidebar-drawer#backdropClick"
+             class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm
+                    opacity-0 pointer-events-none transition-opacity duration-200"
+             aria-hidden="true"></div>
+
+        <div data-ui--sidebar-drawer-target="drawer"
+             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3
+                    -translate-x-full transition-transform duration-200 ease-out"
+             aria-label="{{ 'calendar.title'|trans }}">
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+        </div>
+
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter">
+            {% include '_partials/_topbar.html.twig' %}
+
+            <div class="flex flex-1 gap-gutter overflow-hidden">
+                <div class="hidden md:flex">
+                    {% include '_partials/_sidebar.html.twig' %}
+                </div>
+
+                <div class="flex flex-1 flex-col overflow-hidden main-pane">
+                    {% include 'calendar/_toolbar.html.twig' %}
+                    {% include 'calendar/_grid.html.twig' %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

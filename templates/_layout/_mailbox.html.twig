@@ -56,8 +56,21 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
             {# Full-width topbar #}
             {% include '_partials/_topbar.html.twig' %}
 
-            {# Sidebar + content #}
-            <div class="flex flex-1 gap-gutter overflow-hidden">
+            {# Sidebar + content.
+               ui--split sits here, not on the calendar pane, because its scope
+               has to cover both the pane it resizes and the sidebar link that
+               opens it. #}
+            <div class="flex flex-1 gap-gutter overflow-hidden"
+                 {% if app.user %}
+                 style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
+                 data-controller="ui--split"
+                 data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
+                 data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
+                 data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
+                 data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
+                 data-ui--split-open-value="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
+                 {% endif %}
+            >
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
                 <div class="hidden md:flex">
@@ -108,6 +121,14 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     </div>
 
                 </div>
+
+                {# Calendar — a sibling of .main-pane, so the handle between
+                   them splits the row's width rather than shrinking one into
+                   the other. Below md it is absent and the sidebar link goes
+                   to the full page instead. #}
+                {% if app.user %}
+                    {% include '_partials/_calendar_pane.html.twig' %}
+                {% endif %}
             </div>
         </div>
     </div>

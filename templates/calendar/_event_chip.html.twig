@@ -1,0 +1,38 @@
+{#
+One occurrence, as it appears in any view.
+
+Opens the editor in the body-level modal frame — never inside the calendar
+pane, which carries backdrop-filter and would clip a fixed-position dialog to
+itself.
+#}
+
+{% set event = occurrence.event %}
+
+<button type="button"
+   data-controller="ui--modal"
+   data-action="click->ui--modal#open"
+   data-ui--modal-src-value="{{ path('app_calendar_event_edit', { id: event.id }) }}"
+   data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
+   class="group flex items-start gap-1.5 px-1.5 py-1 rounded-md text-xs
+          hover:bg-hover transition-colors min-w-0
+          {{ occurrence.cancelled ? 'opacity-50' : '' }}"
+   title="{{ event.title }}"
+>
+    <span class="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
+          style="background-color: {{ event.calendar.color }}"
+          aria-hidden="true"></span>
+
+    <span class="min-w-0 flex-1">
+        <span class="block truncate {{ occurrence.cancelled ? 'line-through' : '' }}">
+            {%- if event.kind is not null -%}
+                <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>
+            {%- endif -%}
+            {{ event.title }}
+        </span>
+        {% if not event.isAllDay %}
+            <span class="block text-[11px] text-ink-faint">
+                {{ occurrence.startsAt|date('H:i') }}
+            </span>
+        {% endif %}
+    </span>
+</button>

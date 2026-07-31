@@ -1,0 +1,169 @@
+{#
+The event editor, loaded into the app's body-level modal frame.
+
+Never rendered inside the calendar pane. Both .main-pane and the docked pane
+carry backdrop-filter, which makes them containing blocks for position:fixed —
+a dialog opened inside one is clipped to it rather than covering the screen.
+The compose window found this out the hard way; see the note on --radius-pane
+and the fullscreen compose work.
+
+Hand-written rather than a FormType because it is six fields and a datetime
+pair whose values are read straight off the request with a CSRF check, and the
+recurrence dropdown maps to a JSCalendar rule rather than to a property. If it
+grows a real recurrence editor it should become a form.
+#}
+
+<turbo-frame id="modal">
+    {# data-turbo-frame="_top" so the response replaces the page rather than
+       this frame. A redirect rendered back into #modal would find no matching
+       frame in it and quietly do nothing, leaving the dialog open over an
+       event that had in fact been saved. #}
+    <form method="post"
+          action="{{ path('app_calendar_event_save') }}"
+          data-turbo-frame="_top"
+          class="flex flex-col min-h-0 flex-1"
+    >
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar_event') }}">
+        <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
+        <input type="hidden" name="eventId" value="{{ event ? event.id : 0 }}">
+        <input type="hidden" name="timeZone" value="{{ timeZone }}">
+        <input type="hidden" name="view" value="{{ app.request.query.get('view', 'week') }}">
+
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+
+            <div>
+                <label for="event-title" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.title'|trans }}
+                </label>
+                <input id="event-title" name="title" type="text" required autofocus
+                       value="{{ event ? event.title : '' }}"
+                       class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                              focus:outline-none focus:ring-2 focus:ring-accent">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="event-starts" class="block text-xs text-ink-muted mb-1">
+                        {{ 'calendar.event.starts'|trans }}
+                    </label>
+                    <input id="event-starts" name="startsAt" type="datetime-local" required
+                           value="{{ startsAt|date('Y-m-d\\TH:i') }}"
+                           class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                  focus:outline-none focus:ring-2 focus:ring-accent">
+                </div>
+                <div>
+                    <label for="event-ends" class="block text-xs text-ink-muted mb-1">
+                        {{ 'calendar.event.ends'|trans }}
+                    </label>
+                    <input id="event-ends" name="endsAt" type="datetime-local" required
+                           value="{{ endsAt|date('Y-m-d\\TH:i') }}"
+                           class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                  focus:outline-none focus:ring-2 focus:ring-accent">
+                </div>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-ink-muted">
+                <input type="checkbox" name="isAllDay" value="1"
+                       {{ event and event.isAllDay ? 'checked' : '' }}
+                       class="rounded border-line text-accent focus:ring-accent">
+                {{ 'calendar.event.all_day'|trans }}
+            </label>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="event-calendar" class="block text-xs text-ink-muted mb-1">
+                        {{ 'calendar.event.calendar'|trans }}
+                    </label>
+                    <select id="event-calendar" name="calendarId"
+                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                   focus:outline-none focus:ring-2 focus:ring-accent">
+                        {% for calendar in calendars %}
+                            <option value="{{ calendar.id }}"
+                                    {{ event and event.calendar.id == calendar.id ? 'selected' : (calendar.isDefault and not event ? 'selected' : '') }}>
+                                {{ calendar.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="event-repeat" class="block text-xs text-ink-muted mb-1">
+                        {{ 'calendar.event.repeat'|trans }}
+                    </label>
+                    {% set currentFrequency = event and event.jscalendar.recurrenceRules is defined
+                        ? event.jscalendar.recurrenceRules|first.frequency|default('')
+                        : '' %}
+                    <select id="event-repeat" name="repeat"
+                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                   focus:outline-none focus:ring-2 focus:ring-accent">
+                        {% for option in ['none', 'daily', 'weekly', 'monthly', 'yearly'] %}
+                            <option value="{{ option }}" {{ currentFrequency == option ? 'selected' : '' }}>
+                                {{ ('calendar.repeat.' ~ option)|trans }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="event-location" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.location'|trans }}
+                </label>
+                <input id="event-location" name="location" type="text"
+                       value="{{ event ? event.location : '' }}"
+                       class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                              focus:outline-none focus:ring-2 focus:ring-accent">
+            </div>
+
+            <div>
+                <label for="event-description" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.description'|trans }}
+                </label>
+                <textarea id="event-description" name="description" rows="3"
+                          class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                 focus:outline-none focus:ring-2 focus:ring-accent"
+                >{{ event ? event.jscalendar.description|default('') : '' }}</textarea>
+            </div>
+
+            {% if event and event.isExtracted %}
+                <p class="text-xs text-ink-faint flex items-start gap-1.5">
+                    <i class="{{ event.kind.icon }} mt-0.5" aria-hidden="true"></i>
+                    {{ 'calendar.event.extracted_note'|trans }}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center gap-2 px-6 py-4 border-t border-line shrink-0">
+            {% if event %}
+                <button type="submit"
+                        form="event-delete-form"
+                        class="text-sm text-danger hover:underline">
+                    {{ 'calendar.event.delete'|trans }}
+                </button>
+            {% endif %}
+
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="ml-auto px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+                {{ 'calendar.event.cancel'|trans }}
+            </button>
+
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg text-sm bg-accent text-white hover:opacity-90 transition-opacity">
+                {{ 'calendar.event.save'|trans }}
+            </button>
+        </div>
+    </form>
+
+    {# Outside the edit form: nesting forms is invalid HTML and the browser
+       silently drops the inner one, which would make Delete submit the edit. #}
+    {% if event %}
+        <form id="event-delete-form" method="post"
+              action="{{ path('app_calendar_event_delete', { id: event.id }) }}"
+              data-turbo-frame="_top" class="hidden">
+            <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_delete' ~ event.id) }}">
+            <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
+            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
+        </form>
+    {% endif %}
+</turbo-frame>

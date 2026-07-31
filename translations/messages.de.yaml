@@ -302,6 +302,56 @@ alias:
 app:
     name: Mail
 
+calendar:
+    empty: Nichts in nächster Zeit
+    event:
+        all_day: Ganztägig
+        calendar: Kalender
+        cancel: Abbrechen
+        delete: Löschen
+        description: Beschreibung
+        ends: Ende
+        extracted_note: >-
+            Dieser Termin stammt aus einer E-Mail. Wenn du ihn bearbeitest,
+            überschreiben spätere Nachrichten zur selben Buchung deine
+            Änderungen nicht mehr.
+        location: Ort
+        new: Neuer Termin
+        repeat: Wiederholung
+        save: Speichern
+        starts: Beginn
+        title: Titel
+    kind:
+        call: Anruf
+        delivery: Lieferung
+        dining: Reservierung
+        flight: Flug
+        lodging: Übernachtung
+        meeting: Termin
+        order: Bestellung
+        rental: Mietwagen
+        ticket: Ticket
+        train: Zug
+    more_count: '%count% weitere'
+    nav:
+        next: Weiter
+        previous: Zurück
+    pane:
+        resize: Kalender in der Breite ändern
+    repeat:
+        daily: Täglich
+        monthly: Monatlich
+        none: Wiederholt sich nicht
+        weekly: Wöchentlich
+        yearly: Jährlich
+    title: Kalender
+    today: Heute
+    view:
+        agenda: Agenda
+        day: Tag
+        month: Monat
+        week: Woche
+
 compose:
     no_account:
         body: Richte zuerst ein Postfach ein, dann kannst du sofort davon schreiben.
@@ -1125,6 +1175,7 @@ sidebar:
         heading: Labels
         none: Noch keine Labels
     nav:
+        calendar: Kalender
         archive: Archiv
         drafts: Entwürfe
         inbox: Posteingang

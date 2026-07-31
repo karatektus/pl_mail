@@ -1,0 +1,49 @@
+{#
+Day and week: one column per day, events listed inside it.
+
+Deliberately not a time-grid with absolutely positioned blocks. That is the
+right shape for a wide screen and the wrong one for a 380px pane, and one
+readable layout that works in both is worth more right now than two that each
+work in one place. The time-grid belongs with drag-to-move, which is its own
+piece of work.
+#}
+
+{% set dayKeys = days|keys %}
+
+<div class="grid gap-px bg-line
+            {{ dayKeys|length > 1 ? 'grid-cols-1 md:grid-cols-7' : 'grid-cols-1' }}">
+    {% for dayKey in dayKeys %}
+        {% set dayEvents = days[dayKey] %}
+        {% set day = dayKey|date_modify('+0 days') %}
+        {% set isToday = dayKey == 'now'|date('Y-m-d') %}
+
+        <div class="bg-surface min-h-[7rem] flex flex-col">
+            <div class="flex items-baseline gap-2 px-2 py-1.5 border-b border-line">
+                <span class="text-[11px] uppercase tracking-wide text-ink-faint">
+                    {{ dayKey|date('D') }}
+                </span>
+                <span class="text-sm {{ isToday ? 'font-semibold text-accent' : 'text-ink' }}">
+                    {{ dayKey|date('j') }}
+                </span>
+            </div>
+
+            <div class="flex-1 p-1 space-y-0.5">
+                {% for occurrence in dayEvents %}
+                    {% include 'calendar/_event_chip.html.twig' %}
+                {% else %}
+                    <button type="button"
+                       data-controller="ui--modal"
+                       data-action="click->ui--modal#open"
+                       data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
+                       data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                       class="block h-full min-h-[3rem] rounded-md text-xs text-transparent
+                              hover:text-ink-faint hover:bg-hover transition-colors
+                              flex items-center justify-center"
+                    >
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>

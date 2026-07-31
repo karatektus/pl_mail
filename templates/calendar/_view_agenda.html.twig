@@ -1,0 +1,52 @@
+{#
+Agenda: a flat list, skipping empty days.
+
+This is the pane's default view, and the reason the pane is useful at all — a
+narrow column beside your mail should answer "what is coming up", not draw a
+grid nobody can read at that width.
+#}
+
+{% set dayKeys = days|keys %}
+{% set anyEvents = false %}
+
+<div class="divide-y divide-line">
+    {% for dayKey in dayKeys %}
+        {% set dayEvents = days[dayKey] %}
+        {% if dayEvents|length > 0 %}
+            {% set anyEvents = true %}
+            {% set isToday = dayKey == 'now'|date('Y-m-d') %}
+
+            <div class="px-3 py-2">
+                <div class="flex items-baseline gap-2 mb-1">
+                    <span class="text-sm {{ isToday ? 'font-semibold text-accent' : 'text-ink' }}">
+                        {{ isToday ? 'calendar.today'|trans : dayKey|date('D j M') }}
+                    </span>
+                    {% if isToday %}
+                        <span class="text-[11px] text-ink-faint">{{ dayKey|date('D j M') }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-0.5">
+                    {% for occurrence in dayEvents %}
+                        {% include 'calendar/_event_chip.html.twig' %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+{% if not anyEvents %}
+    <div class="flex flex-col items-center justify-center gap-2 py-10 text-center text-ink-faint">
+        <i class="fa-regular fa-calendar text-2xl" aria-hidden="true"></i>
+        <p class="text-sm">{{ 'calendar.empty'|trans }}</p>
+        <button type="button"
+           data-controller="ui--modal"
+           data-action="click->ui--modal#open"
+           data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
+           data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+           class="text-sm text-accent hover:underline">
+            {{ 'calendar.event.new'|trans }}
+        </button>
+    </div>
+{% endif %}

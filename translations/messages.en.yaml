@@ -300,6 +300,55 @@ alias:
 app:
     name: Mail
 
+calendar:
+    empty: Nothing coming up
+    event:
+        all_day: All day
+        calendar: Calendar
+        cancel: Cancel
+        delete: Delete
+        description: Description
+        ends: Ends
+        extracted_note: >-
+            This event was found in an email. Editing it stops later messages
+            about the same booking from overwriting your changes.
+        location: Location
+        new: New event
+        repeat: Repeat
+        save: Save
+        starts: Starts
+        title: Title
+    kind:
+        call: Call
+        delivery: Delivery
+        dining: Reservation
+        flight: Flight
+        lodging: Stay
+        meeting: Meeting
+        order: Order
+        rental: Rental
+        ticket: Ticket
+        train: Train
+    more_count: '%count% more'
+    nav:
+        next: Next
+        previous: Previous
+    pane:
+        resize: Resize the calendar
+    repeat:
+        daily: Every day
+        monthly: Every month
+        none: Does not repeat
+        weekly: Every week
+        yearly: Every year
+    title: Calendar
+    today: Today
+    view:
+        agenda: Agenda
+        day: Day
+        month: Month
+        week: Week
+
 compose:
     no_account:
         body: Add a mailbox first, and you can write from it right away.
@@ -1106,6 +1155,7 @@ sidebar:
         heading: Labels
         none: No labels yet
     nav:
+        calendar: Calendar
         archive: Archive
         drafts: Drafts
         inbox: Inbox

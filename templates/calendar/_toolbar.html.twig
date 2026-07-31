@@ -1,0 +1,66 @@
+{#
+The row above the grid: where you are, how to move, and which view.
+
+compact is set by the docked pane, which has room for the date and the arrows
+and nothing else. The view switcher is a link per view rather than a select,
+because a view is a URL — every one of these is bookmarkable and back works.
+#}
+
+{% set compact = compact|default(false) %}
+{% set frame = frame|default(null) %}
+
+{% set prevDate = view.value == 'month'
+    ? anchor|date_modify('-1 month')|date('Y-m-d')
+    : (view.value == 'week' ? anchor|date_modify('-7 days')|date('Y-m-d') : anchor|date_modify('-1 day')|date('Y-m-d')) %}
+{% set nextDate = view.value == 'month'
+    ? anchor|date_modify('+1 month')|date('Y-m-d')
+    : (view.value == 'week' ? anchor|date_modify('+7 days')|date('Y-m-d') : anchor|date_modify('+1 day')|date('Y-m-d')) %}
+
+<div class="flex items-center gap-2 px-3 py-2 border-b border-line shrink-0">
+    <div class="flex items-center gap-0.5">
+        <a href="{{ path('app_calendar_view', { view: view.value, date: prevDate }) }}{{ compact ? '?pane=1' : '' }}"
+           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+           aria-label="{{ 'calendar.nav.previous'|trans }}"
+        ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
+
+        <a href="{{ path('app_calendar_view', { view: view.value, date: 'now'|date('Y-m-d') }) }}{{ compact ? '?pane=1' : '' }}"
+           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+           class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+        >{{ 'calendar.today'|trans }}</a>
+
+        <a href="{{ path('app_calendar_view', { view: view.value, date: nextDate }) }}{{ compact ? '?pane=1' : '' }}"
+           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+           aria-label="{{ 'calendar.nav.next'|trans }}"
+        ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
+    </div>
+
+    <h2 class="text-sm font-medium text-ink truncate">
+        {{ anchor|date(view.value == 'month' ? 'F Y' : 'j M Y') }}
+    </h2>
+
+    <div class="ml-auto flex items-center gap-1">
+        {% if not compact %}
+            <div class="flex items-center rounded-lg border border-line overflow-hidden">
+                {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+                    <a href="{{ path('app_calendar_view', { view: candidate.value, date: anchor|date('Y-m-d') }) }}"
+                       {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+                       class="px-2.5 py-1 text-xs transition-colors
+                              {{ candidate == view ? 'bg-accent text-white' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
+                    >{{ ('calendar.view.' ~ candidate.value)|trans }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <button type="button"
+           data-controller="ui--modal"
+           data-action="click->ui--modal#open"
+           data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
+           data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+           class="w-7 h-7 flex items-center justify-center rounded-lg
+                  bg-accent text-white hover:opacity-90 transition-opacity"
+           aria-label="{{ 'calendar.event.new'|trans }}"
+        ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>
+    </div>
+</div>

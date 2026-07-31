@@ -1,0 +1,67 @@
+{#
+_calendar_pane.html.twig — the calendar docked beside the mail panes.
+
+Placement is the whole point. This is a SIBLING of .main-pane, not a child, so
+the two split the row's width and the handle between them moves the boundary:
+one grows exactly as much as the other shrinks. .main-pane keeps flex-1 and
+absorbs whatever is left, so the split is one number — --calendar-pane-width —
+and the handle only ever writes that. Two numbers would be two sources of truth
+for one boundary.
+
+Hidden below md. There, the calendar is a sidebar link to a full page that
+replaces the mail view; a 380px pane next to a message list on a phone is
+neither.
+
+The width is rendered inline from the user's stored preference rather than
+restored by JavaScript, so the first paint is already the right size. A pane
+that appears at the default and jumps once the controller connects is worse
+than one that does not remember at all.
+#}
+
+{% set paneOpen = app.user.isCalendarPaneOpen %}
+
+{# The controller lives on the row in _mailbox.html.twig, not here: it owns the
+   boundary between two panes, and its scope has to reach the sidebar's toggle
+   as well as this. Visibility is one conditional class rather than
+   `md:flex md:hidden` — those two are the same breakpoint and which wins comes
+   down to CSS source order, which is not something to rely on. #}
+<div
+    data-ui--split-target="wrapper"
+    class="{{ paneOpen ? 'hidden md:flex' : 'hidden' }} shrink-0"
+>
+    {# The handle. role=separator with aria-orientation is what makes it
+       reachable and meaningful without a mouse; the arrow keys are handled by
+       the controller. #}
+    <div
+        data-ui--split-target="handle"
+        data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="{{ 'calendar.pane.resize'|trans }}"
+        tabindex="0"
+        class="group relative w-gutter shrink-0 cursor-col-resize
+               flex items-center justify-center
+               focus:outline-none"
+    >
+        <span class="w-0.5 h-8 rounded-full bg-line
+                     group-hover:bg-accent group-focus-visible:bg-accent
+                     transition-colors" aria-hidden="true"></span>
+    </div>
+
+    <div
+        data-ui--split-target="pane"
+        class="main-pane flex flex-col overflow-hidden"
+        style="width: var(--calendar-pane-width)"
+    >
+        <turbo-frame
+            id="calendar-pane-frame"
+            src="{{ paneOpen ? path('app_calendar_pane') : '' }}"
+            loading="lazy"
+            class="flex flex-col min-h-0 flex-1"
+        >
+            <div class="flex items-center justify-center h-24 text-ink-faint" aria-live="polite">
+                <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
+            </div>
+        </turbo-frame>
+    </div>
+</div>

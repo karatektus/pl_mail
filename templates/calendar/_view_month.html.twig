@@ -1,0 +1,55 @@
+{#
+Month: a six-week grid.
+
+Always six weeks, never five-or-six. The range enum asks for 42 days from the
+Monday on or before the first, so the grid does not change height between
+months — a calendar that reflows as you page through it is disorienting, and it
+means the surrounding layout never has to reserve for the taller case.
+#}
+
+{% set dayKeys = days|keys %}
+{% set anchorMonth = anchor|date('n') %}
+
+<div class="grid grid-cols-7 text-[11px] uppercase tracking-wide text-ink-faint border-b border-line">
+    {% for dayKey in dayKeys|slice(0, 7) %}
+        <div class="px-2 py-1.5">{{ dayKey|date('D') }}</div>
+    {% endfor %}
+</div>
+
+<div class="grid grid-cols-7 gap-px bg-line">
+    {% for dayKey in dayKeys %}
+        {% set dayEvents = days[dayKey] %}
+        {% set isToday = dayKey == 'now'|date('Y-m-d') %}
+        {% set isOtherMonth = dayKey|date('n') != anchorMonth %}
+
+        <div class="bg-surface min-h-[5.5rem] p-1 flex flex-col gap-0.5
+                    {{ isOtherMonth ? 'opacity-50' : '' }}">
+            <div class="flex items-center justify-between px-1">
+                <span class="text-xs {{ isToday ? 'font-semibold text-accent' : 'text-ink-muted' }}">
+                    {{ dayKey|date('j') }}
+                </span>
+                <button type="button"
+                   data-controller="ui--modal"
+                   data-action="click->ui--modal#open"
+                   data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
+                   data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                   class="opacity-0 hover:opacity-100 focus:opacity-100 text-[10px] text-ink-faint"
+                   aria-label="{{ 'calendar.event.new'|trans }}"
+                ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+            </div>
+
+            {# Three, then a count. A month cell that grows to fit everything
+               makes every other row taller for one busy day. #}
+            {% for occurrence in dayEvents|slice(0, 3) %}
+                {% include 'calendar/_event_chip.html.twig' %}
+            {% endfor %}
+
+            {% if dayEvents|length > 3 %}
+                <a href="{{ path('app_calendar_view', { view: 'day', date: dayKey }) }}"
+                   class="px-1.5 text-[11px] text-ink-faint hover:text-ink">
+                    {{ 'calendar.more_count'|trans({ '%count%': dayEvents|length - 3 }) }}
+                </a>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>

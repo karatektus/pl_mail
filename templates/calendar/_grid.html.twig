@@ -1,0 +1,19 @@
+{#
+_grid.html.twig — the calendar itself, view-agnostic.
+
+Rendered identically by the docked pane and the full page. The only thing that
+differs between them is which view they open on, so there is exactly one set of
+these partials rather than a pane version and a page version drifting apart.
+#}
+
+{% set days = range.days %}
+
+<div class="flex-1 min-h-0 overflow-y-auto" data-controller="calendar--grid">
+    {% if view.value == 'month' %}
+        {% include 'calendar/_view_month.html.twig' %}
+    {% elseif view.value == 'agenda' %}
+        {% include 'calendar/_view_agenda.html.twig' %}
+    {% else %}
+        {% include 'calendar/_view_days.html.twig' %}
+    {% endif %}
+</div>

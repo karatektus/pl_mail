@@ -383,6 +383,40 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
 
     /**
+     * Whether the calendar pane is docked open beside the mail panes, and how
+     * wide it is in pixels.
+     *
+     * Server-side rather than in localStorage so the width is rendered into
+     * the first paint — a pane that appears at 380px and jumps to the user's
+     * 520px once JavaScript runs is worse than no memory at all — and so it
+     * follows the user to their other devices, which is the whole reason this
+     * bag exists.
+     */
+    public const string SETTING_CALENDAR_PANE_OPEN = 'calendar.pane_open';
+    public const string SETTING_CALENDAR_PANE_WIDTH = 'calendar.pane_width';
+
+    /** Matches the clamp in ui--split; the server is what enforces it. */
+    public const int CALENDAR_PANE_MIN_WIDTH = 320;
+    public const int CALENDAR_PANE_MAX_WIDTH = 900;
+    public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
+
+    public function getCalendarPaneWidth(): int
+    {
+        $width = $this->getSetting(self::SETTING_CALENDAR_PANE_WIDTH, self::CALENDAR_PANE_DEFAULT_WIDTH);
+
+        if (false === is_int($width)) {
+            return self::CALENDAR_PANE_DEFAULT_WIDTH;
+        }
+
+        return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+    }
+
+    public function isCalendarPaneOpen(): bool
+    {
+        return true === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN, false);
+    }
+
+    /**
      * When setup was finished or dismissed, ISO-8601. Absent means pending,
      * which is the right default for a user who has never seen the wizard —
      * including everyone who existed before it did, so there is nothing to

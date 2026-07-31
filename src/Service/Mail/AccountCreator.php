@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Calendar\CalendarProvisioner;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Throwable;
@@ -35,6 +36,7 @@ final readonly class AccountCreator
         private EntityManagerInterface $entityManager,
         private AliasSeeder $aliasSeeder,
         private ConnectionTester $connectionTester,
+        private CalendarProvisioner $calendarProvisioner,
     ) {
     }
 
@@ -71,6 +73,12 @@ final readonly class AccountCreator
 
         // After the flush: the seeder reads the persisted account.
         $this->aliasSeeder->seed($account);
+
+        // The account's own calendar, so anything extracted from its mail has
+        // a home before the first sync rather than after someone notices.
+        $this->calendarProvisioner->defaultFor($user);
+        $this->calendarProvisioner->forAccount($account);
+        $this->entityManager->flush();
 
         $this->probe($account);
     }

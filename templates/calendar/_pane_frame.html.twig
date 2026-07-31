@@ -1,0 +1,13 @@
+{#
+The docked pane's body, inside its own Turbo Frame.
+
+Navigating within the pane — a different week, a different view — replaces only
+this, so the mail beside it never reloads and never loses its scroll position.
+Every link inside targets the frame by name; without that, clicking "next week"
+in the pane would navigate the whole page to a calendar and take the mail away.
+#}
+
+<turbo-frame id="calendar-pane-frame" class="flex flex-col min-h-0 flex-1">
+    {% include 'calendar/_toolbar.html.twig' with { compact: true, frame: 'calendar-pane-frame' } %}
+    {% include 'calendar/_grid.html.twig' %}
+</turbo-frame>
