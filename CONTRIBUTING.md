@@ -74,8 +74,8 @@ Two suites: PHPUnit for unit tests (`tests/`, mirroring `src/`) and Playwright f
 tests (`tests/e2e/`).
 
 Both run against `compose.test.yaml` — a separate compose project with its own Postgres, so they never
-touch the dev stack or the database holding your mail. Playwright runs on the host (Node 18+; the repo
-ships an `.nvmrc`).
+touch the dev stack or the database holding your mail. Playwright runs on the host; the repo
+ships an `.nvmrc` and CI reads it, so that file is the one place the version is set.
 
 ```bash
 npm ci

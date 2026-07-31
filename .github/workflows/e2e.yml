@@ -79,7 +79,11 @@ jobs:
             - name: Setup Node
               uses: actions/setup-node@v4
               with:
-                  node-version: 20
+                  # From .nvmrc rather than pinned here. The two drifted —
+                  # .nvmrc said 22, this said 20, and the machine the suite was
+                  # actually developed on ran 24 — so "works locally, fails in
+                  # CI" had three plausible causes instead of none.
+                  node-version-file: .nvmrc
                   cache: npm
 
             - name: Install Node dependencies
