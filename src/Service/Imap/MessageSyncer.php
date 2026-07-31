@@ -48,6 +48,26 @@ class MessageSyncer
         private readonly HeaderNormalizer $headerNormalizer,
     ) {}
 
+    /**
+     * A UID range as a search criterion the library will not quote.
+     *
+     * `where('UID', '1:*')` looks right and is not: Query::generate_query()
+     * emits the value bare only when `is_numeric()` says so, and a range is not
+     * numeric, so it goes out as `UID "1:*"`. Servers reject that outright —
+     * Dovecot with `BAD expected DIGIT instead of '"'` — and since every
+     * incremental sync asks for a range, IMAP sync failed for every mailbox
+     * while the logs showed only a protocol error with no obvious cause.
+     *
+     * `CUSTOM ` is the library's own escape hatch: validate_criteria() strips
+     * the prefix and the remainder is pushed as a single token, which
+     * generate_query() appends verbatim. A single UID would have been fine
+     * either way, which is why this never showed up in a first sync of one.
+     */
+    private static function uidRangeCriteria(string $uidRange): string
+    {
+        return 'CUSTOM UID '.$uidRange;
+    }
+
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
         $mailboxId   = $mailbox->getId();
@@ -83,7 +103,7 @@ class MessageSyncer
         $synced = 0;
 
         $folder->messages()
-            ->where('UID', $uidRange)
+            ->where(self::uidRangeCriteria($uidRange))
             ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids) {
                 $this->processBatch($batch, $mailboxId, $accountId, $syncedUids);
                 $synced += count($batch);
@@ -113,7 +133,7 @@ class MessageSyncer
     private function cappedUidRange(Folder $folder, string $uidRange, int $limit): string
     {
         try {
-            $uids = $folder->messages()->where('UID', $uidRange)->search()->all();
+            $uids = $folder->messages()->where(self::uidRangeCriteria($uidRange))->search()->all();
         } catch (\Throwable $e) {
             $this->logger->warning('Could not apply sync limit, syncing full range', [
                 'range' => $uidRange,
