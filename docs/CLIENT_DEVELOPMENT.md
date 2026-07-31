@@ -469,12 +469,21 @@ So an Android client has three options, and only the first needs nothing from th
 For (1) this repository can supply the push service too, so a self-hoster does not have to find one:
 
 ```bash
-NTFY_BASE_URL=https://push.example.com docker compose --profile push up -d ntfy
+docker compose --profile push up -d ntfy
 ```
 
-It is off by default and adds no plMail code — ntfy is simply a push service that speaks the
-protocol `WebPushSender` already emits. `NTFY_BASE_URL` must be reachable **from the phone**, and is
-baked into every endpoint issued, so changing it later forces every device to re-register.
+That is the whole setup. It is off by default, adds no plMail code, and needs no configuration of
+its own: the endpoint URL is derived from the `SERVER_NAME` set at first boot, because the host
+phones already reach is the only thing it has to be. Override `NTFY_BASE_URL` if push should live
+somewhere else.
+
+The derived URL is `http://$SERVER_NAME:8090`. Two consequences worth knowing. It cannot be folded
+behind the app's own Caddy at a path the way the Mercure hub is at `/.well-known/mercure` — ntfy
+refuses a `base-url` with a path at startup — so it takes a port of its own. And the endpoint URL is
+itself the secret, so facing the open internet you want TLS in front of it and `NTFY_BASE_URL` set to
+the https address; over a LAN or Tailscale the default is fine as it stands.
+
+It is baked into every endpoint issued, so changing it later forces every device to re-register.
 
 Payloads are encrypted to the device's own key before they reach it, so the push service cannot read
 mail whichever one you use. It does learn *when* mail arrives, which is the argument for running

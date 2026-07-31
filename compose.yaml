@@ -221,11 +221,20 @@ services:
     restart: unless-stopped
     command: serve
     environment:
-      # The URL *phones* will use, so it has to be reachable from outside this
-      # machine — a LAN address, a Tailscale name, or a public hostname. It is
-      # baked into every endpoint handed out, so changing it later invalidates
-      # every existing subscription and every device has to re-register.
-      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8090}
+      # Derived from SERVER_NAME, so push needs no configuration of its own:
+      # the host set at first boot is already the one phones can reach, which is
+      # the only thing this has to be. Set NTFY_BASE_URL explicitly to override
+      # it — a separate hostname, or TLS terminated in front (see below).
+      #
+      # It is baked into every endpoint handed out, so changing it later
+      # invalidates every existing subscription and every device must
+      # re-register. Worth getting right before handing the address to phones.
+      #
+      # ntfy cannot be hosted under a sub-path — it refuses a base-url with one
+      # at startup — so it cannot be folded behind the app's own Caddy at
+      # /push the way the Mercure hub is at /.well-known/mercure. Hence a port
+      # of its own.
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}}
       NTFY_LISTEN_HTTP: ':80'
       NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
       NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
@@ -234,6 +243,12 @@ services:
       # encrypted to the device's own key before it ever reaches here — so this
       # service cannot read your mail, and someone who guessed a topic could
       # only send noise the app fails to decrypt and discards.
+      #
+      # The default URL above is http, which is right for the LAN and Tailscale
+      # deployments this is usually reached over, and not for the open
+      # internet: the endpoint URL is itself the secret, so anyone able to watch
+      # the traffic could learn a topic. Facing the internet, put TLS in front
+      # and set NTFY_BASE_URL to the https address.
       #
       # To lock it down anyway, set this to deny-all and create a user:
       #   docker compose exec ntfy ntfy user add --role=admin plmail
