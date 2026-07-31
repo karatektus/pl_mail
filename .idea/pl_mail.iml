@@ -191,6 +191,10 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/scheb/2fa-totp" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/scheb/2fa-trusted-device" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/spomky-labs/otphp" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/phpstan/phpstan" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/phpstan/phpstan-doctrine" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/phpstan/phpstan-symfony" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/rate-limiter" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
