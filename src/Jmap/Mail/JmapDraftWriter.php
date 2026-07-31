@@ -8,8 +8,12 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
+use App\Jmap\Blob\BlobId;
+use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Repository\Mail\MailboxRepository;
+use App\Domain\Helper\AttachmentStorageHelper;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -34,6 +38,8 @@ final class JmapDraftWriter
         private readonly MessageThreader $threader,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly MailBodySanitizer $bodySanitizer,
+        private readonly BlobResolver $blobResolver,
+        private readonly AttachmentStorageHelper $attachmentStorage,
     ) {
     }
 
@@ -56,6 +62,10 @@ final class JmapDraftWriter
         $this->applyReplyContext($message, $create);
         $this->applyAccount($message, $account);
         $this->persistDraft($message, $account, $now);
+        // After the flush, not before: the storage path is bucketed by message
+        // id, and a draft has none until it is persisted. This mirrors the web
+        // composer, which forces a save before it will accept an upload.
+        $this->applyAttachments($message, $account, $create);
 
         return $message;
     }
@@ -100,6 +110,121 @@ final class JmapDraftWriter
         $this->threadLabelSynchronizer->sync($message->getThread());
 
         $this->entityManager->flush();
+    }
+
+    /**
+     * Turns uploaded blobs into draft attachments.
+     *
+     * RFC 8621 has a client upload bytes to /jmap/upload and then name the
+     * returned blobId in Email.attachments. The bytes are *copied* into
+     * attachment storage rather than referenced in place: an UploadedBlob is
+     * scratch space that PruneBlobsCommand reclaims on a timer, so a draft
+     * pointing at one would lose its files days later, with nothing to say
+     * why.
+     *
+     * Resolution goes through BlobResolver, which filters by account — so a
+     * blobId belonging to another account, or another user, resolves to null
+     * and is refused rather than attached.
+     *
+     * @param array<string,mixed> $create
+     */
+    private function applyAttachments(Message $message, Account $account, array $create): void
+    {
+        $attachments = $create['attachments'] ?? null;
+
+        if (false === is_array($attachments) || 0 === count($attachments)) {
+            return;
+        }
+
+        $stored = 0;
+
+        foreach ($attachments as $index => $attachment) {
+            if (false === is_array($attachment)) {
+                throw new MethodException('invalidProperties', sprintf('attachments[%s] must be an object.', (string) $index));
+            }
+
+            $rawId = $attachment['blobId'] ?? null;
+
+            if (false === is_string($rawId) || '' === $rawId) {
+                throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId must be a non-empty string.', (string) $index));
+            }
+
+            $blobId = BlobId::parse($rawId);
+            $blob = null !== $blobId ? $this->blobResolver->resolve($account, $blobId) : null;
+
+            if (null === $blob) {
+                // Deliberately the same answer for "expired", "never existed"
+                // and "belongs to someone else": distinguishing them would tell
+                // a caller which blob ids are real.
+                throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId cannot be resolved.', (string) $index));
+            }
+
+            // A resolved blob carries either bytes or a path, depending on
+            // which of the four blob kinds it came from.
+            $content = $blob->content ?? (null !== $blob->path ? (string) file_get_contents($blob->path) : '');
+
+            if ('' === $content) {
+                throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId resolved to no content.', (string) $index));
+            }
+
+            $filename = $this->attachmentName($attachment, $index);
+
+            $storagePath = $this->attachmentStorage->store(
+                (int) $account->getId(),
+                (int) ($message->getMailbox()?->getId() ?? 0),
+                (int) $message->getId(),
+                $filename,
+                $content,
+            );
+
+            $part = new MessagePart()
+                ->setMessage($message)
+                // The client's declared type, as the spec requires it be
+                // echoed — but the download endpoint still refuses to render
+                // anything but images inline, so a lie here buys nothing.
+                ->setContentType($this->attachmentType($attachment))
+                ->setFilename($filename)
+                ->setDisposition('attachment')
+                ->setSize(strlen($content))
+                ->setStoragePath($storagePath)
+                ->setIsInline(false);
+
+            $message->addMessagePart($part);
+            $this->entityManager->persist($part);
+
+            ++$stored;
+        }
+
+        $message->setHasAttachments($stored > 0);
+        $this->entityManager->flush();
+    }
+
+    /**
+     * @param array<string,mixed> $attachment
+     */
+    private function attachmentName(array $attachment, int|string $index): string
+    {
+        $name = $attachment['name'] ?? null;
+
+        if (false === is_string($name) || '' === trim($name)) {
+            return sprintf('attachment-%s', (string) $index);
+        }
+
+        // basename() only: a name is a display label, and a client that sends
+        // "../../etc/passwd" must not be able to steer where it is written.
+        return basename(trim($name));
+    }
+
+    /**
+     * @param array<string,mixed> $attachment
+     */
+    private function attachmentType(array $attachment): string
+    {
+        $type = $attachment['type'] ?? null;
+
+        return is_string($type) && '' !== trim($type)
+            ? trim($type)
+            : 'application/octet-stream';
     }
 
     /**
