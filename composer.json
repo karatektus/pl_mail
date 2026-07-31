@@ -1,6 +1,6 @@
 {
     "type": "project",
-    "license": "proprietary",
+    "license": "AGPL-3.0-or-later",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
@@ -44,6 +44,7 @@
         "symfony/process": "8.1.*",
         "symfony/property-access": "8.1.*",
         "symfony/property-info": "8.1.*",
+        "symfony/rate-limiter": "8.1.*",
         "symfony/runtime": "8.1.*",
         "symfony/scheduler": "8.1.*",
         "symfony/security-bundle": "8.1.*",
@@ -113,10 +114,14 @@
         ],
         "test": [
             "vendor/bin/phpunit"
+        ],
+        "stan": [
+            "vendor/bin/phpstan analyse --configuration=phpstan.dist.neon"
         ]
     },
     "scripts-descriptions": {
-        "test": "Run the PHPUnit suite (unit tests). Browser end-to-end tests live in tests/e2e and run via `npm run test:e2e`."
+        "test": "Run the PHPUnit suite (unit tests). Browser end-to-end tests live in tests/e2e and run via `npm run test:e2e`.",
+        "stan": "Run PHPStan at level 5 against src/ and tests/, ignoring what phpstan-baseline.neon already records."
     },
     "conflict": {
         "symfony/symfony": "*"
@@ -128,6 +133,9 @@
         }
     },
     "require-dev": {
+        "phpstan/phpstan": "^2.2",
+        "phpstan/phpstan-doctrine": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^13.2.5",
         "symfony/browser-kit": "8.1.*",
         "symfony/css-selector": "8.1.*",
