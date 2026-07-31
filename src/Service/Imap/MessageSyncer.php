@@ -2,6 +2,7 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageIdHelper;
@@ -11,20 +12,16 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
-use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\InlineAttachmentDetector;
-use App\Service\Mail\MailBodySanitizer;
-use App\Service\Mail\MessageCategorizer;
-use App\Service\Mail\RawMessageResolver;
+use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
-use App\Service\Rule\MailRuleEngine;
 use App\Service\Mail\HeaderNormalizer;
 
 class MessageSyncer
@@ -36,15 +33,10 @@ class MessageSyncer
         private readonly MailboxRepository       $mailboxRepository,
         private readonly EntityManagerInterface  $em,
         private readonly LoggerInterface         $logger,
-        private readonly MessageThreader         $messageThreader,
         private readonly MessageRepository       $messageRepository,
-        private readonly MailBodySanitizer       $sanitizer,
-        private readonly MessageCategorizer      $categorizer,
-        private readonly ContactRepository       $contactRepository,
         private readonly StateManager            $stateManager,
-        private readonly RawMessageResolver      $rawResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
-        private readonly MailRuleEngine $ruleEngine,
+        private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
     ) {}
 
@@ -199,6 +191,11 @@ class MessageSyncer
             // (same RFC Message-ID, gmailId set, no IMAP location yet) gets linked
             // to this mailbox/UID instead of inserting a duplicate row. From here
             // on, IMAP operations (flags, moves) work on it normally.
+            //
+            // Deliberately outside PostIngestPipeline: this row already went
+            // through it on the Gmail side, so re-running would record a second
+            // create for an id JMAP clients hold, and re-apply rules to mail the
+            // user may since have filed by hand.
             $rfcMessageId = MessageIdHelper::normalise($imapMessage->getMessageId());
 
             if ('' !== $rfcMessageId) {
@@ -268,71 +265,28 @@ class MessageSyncer
         // Flush so all new messages have IDs before the threader queries them
         $this->em->flush();
 
-        $correspondents = $this->contactRepository->findCorrespondentEmails($mailbox->getAccount()->getUsr());
-        // Pass 2 — assign threads now that all messages exist in DB
-        /** @var list<\App\Entity\Mail\Message> $ruleTargets */
-        $ruleTargets = [];
-
-        foreach ($messages as $index => $message) {
-            $this->sanitizer->sanitize($message);
-
-            // Store the original bytes now that the row has an id. IMAP is the
-            // only provider that gets this for free — Gmail and Graph need a
-            // second API call, so they are fetched lazily by RawMessageResolver.
-            $this->rawResolver->store($message, $rawBodies[$index] ?? '');
-
-            // JMAP state: the ids exist after the flush above. record() only
-            // persists, so these rows ride along on the flush below.
-            $this->stateManager->recordCreated(
-                (int) $accountId,
-                JmapObjectType::Email,
-                (string) $message->getId(),
-            );
-
-            $message->setCategory($this->categorizer->categorize($message, $correspondents));
-            try {
-                $this->messageThreader->assignThread(
-                    $message,
-                    $mailbox->getAccount(),
-                );
-            } catch (\Throwable $e) {
-                $this->logger->error('Failed to assign thread', [
-                    'messageId' => $message->getId(),
-                    'error'     => $e->getMessage(),
-                ]);
-            }
-
-            $ruleTargets[] = $message;
-        }
-
-        // One query per rule for the whole batch, after threading so archive
-        // and trash actions can reach each message's thread.
-        $this->ruleEngine->applyToBatch($ruleTargets, $mailbox->getAccount());
-
+        // Set before the pipeline runs so its flush carries the write. It has
+        // to land even when this batch built nothing — every message may have
+        // been seen already, and the range would otherwise be re-fetched
+        // forever.
         if (true === ($maxUid > 0)) {
             $mailbox->setLastSeenUid($maxUid);
         }
 
-        // Threads exist only after assignThread() above, so this runs as a
-        // second pass rather than inside the loop — and only after the flush,
-        // which is where a thread created moments ago gets its id. Reading
-        // them before it published every new thread to JMAP clients as id 0.
-        $this->em->flush();
+        // Pass 2 — the shared post-ingest sequence. IMAP is the only provider
+        // holding the original bytes at this point, so it is the only one that
+        // passes rawSource.
+        $ingested = [];
 
-        $threadIds = [];
-
-        foreach ($messages as $message) {
-            $thread = $message->getThread();
-
-            if (null !== $thread) {
-                $threadIds[] = (int) $thread->getId();
-            }
+        foreach ($messages as $index => $message) {
+            $ingested[] = new IngestedMessage(
+                $message,
+                $mailbox->getAccount(),
+                $rawBodies[$index] ?? '',
+            );
         }
 
-        $this->stateManager->recordThreadsTouched((int) $accountId, $threadIds);
-
-        // The change-log rows recorded just now.
-        $this->em->flush();
+        $this->postIngest->run($mailbox->getAccount(), $ingested);
     }
 
     /**

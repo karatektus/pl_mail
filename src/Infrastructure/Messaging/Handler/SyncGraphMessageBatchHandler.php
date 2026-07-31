@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;
-use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GraphApiClient;
-use App\Service\Mail\MailBodySanitizer;
-use App\Service\Mail\MessageCategorizer;
+use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
-use App\Service\Rule\MailRuleEngine;
 
 /**
  * Imports one chunk of Graph messages.
@@ -49,19 +44,14 @@ final readonly class SyncGraphMessageBatchHandler
     public function __construct(
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
-        private ContactRepository      $contactRepository,
         private GraphApiClient         $apiClient,
         private GraphMessageBuilder    $messageBuilder,
-        private MessageThreader        $messageThreader,
-        private MessageCategorizer     $categorizer,
         private HarvestContactsService $harvestService,
         private SyncNotifier           $syncNotifier,
         private MessageBusInterface    $bus,
-        private MailBodySanitizer      $sanitizer,
+        private PostIngestPipeline     $postIngest,
         private EntityManagerInterface $em,
-        private StateManager           $stateManager,
         private LoggerInterface        $logger,
-        private MailRuleEngine $ruleEngine,
     ) {}
 
     public function __invoke(SyncGraphMessageBatchMessage $message): void
@@ -152,64 +142,19 @@ final readonly class SyncGraphMessageBatchHandler
             return;
         }
 
-        $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
-
-        /** @var list<\App\Entity\Mail\Message> $ruleTargets */
-        $ruleTargets = [];
-
-        foreach ($built as $entity) {
-            $this->sanitizer->sanitize($entity);
-
-            // JMAP state: the ids exist after the flush above. record() only
-            // persists, so these rows ride along on the flush below.
-            $this->stateManager->recordCreated(
-                (int) $account->getId(),
-                JmapObjectType::Email,
-                (string) $entity->getId(),
-            );
-
-            $entity->setCategory($this->categorizer->categorize($entity, $correspondents));
-
-            try {
-                $this->messageThreader->assignThread($entity, $account);
-            } catch (\Throwable $e) {
-                $this->logger->error('SyncGraphMessageBatch: threading failed', [
-                    'messageId' => $entity->getId(),
-                    'error'     => $e->getMessage(),
-                ]);
-            }
-
-            $ruleTargets[] = $entity;
-        }
-
-        // One query per rule for the whole batch, after threading so archive
-        // and trash actions can reach each message's thread.
-        $this->ruleEngine->applyToBatch($ruleTargets, $account);
-
-        // Threads exist only after assignThread() above, so this runs as a
-        // second pass rather than inside the loop — and only after the flush,
-        // which is where a thread created moments ago gets its id. Reading
-        // them before it published every new thread to JMAP clients as id 0.
-        $this->em->flush();
-
-        $threadIds = [];
+        // Exchange has no Gmailify equivalent, so every message in the batch is
+        // owned by the account that fetched it.
+        $ingested = [];
 
         foreach ($built as $entity) {
-            $thread = $entity->getThread();
-
-            if (null !== $thread) {
-                $threadIds[] = (int) $thread->getId();
-            }
+            $ingested[] = new IngestedMessage($entity, $account);
         }
 
-        $this->stateManager->recordThreadsTouched((int) $account->getId(), $threadIds);
-
-        // The change-log rows recorded just now.
-        $this->em->flush();
+        $result = $this->postIngest->run($account, $ingested);
 
         $this->harvestService->harvestMessages(
             $account->getUsr(),
-            $built,
+            $result->messages,
             $account->getEmail(),
         );
 

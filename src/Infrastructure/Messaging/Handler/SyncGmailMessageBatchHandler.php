@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -11,22 +12,18 @@ use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailMessageBuilder;
 use App\Service\HarvestContactsService;
-use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
-use App\Service\Mail\MailBodySanitizer;
-use App\Service\Mail\MessageCategorizer;
+use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
-use App\Service\Rule\MailRuleEngine;
 
 #[AsMessageHandler]
 final readonly class SyncGmailMessageBatchHandler
@@ -37,20 +34,16 @@ final readonly class SyncGmailMessageBatchHandler
     public function __construct(
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
-        private ContactRepository      $contactRepository,
         private GmailApiClient         $apiClient,
         private GmailMessageBuilder    $messageBuilder,
         private GmailAddressFilter     $addressFilter,
-        private MessageThreader        $messageThreader,
-        private MessageCategorizer     $categorizer,
         private HarvestContactsService $harvestService,
         private SyncNotifier           $syncNotifier,
         private MessageBusInterface    $bus,
-        private MailBodySanitizer      $sanitizer,
+        private PostIngestPipeline     $postIngest,
         private EntityManagerInterface $em,
         private StateManager           $stateManager,
         private LoggerInterface        $logger,
-        private MailRuleEngine $ruleEngine,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -195,66 +188,21 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->em->flush();
 
-        $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
-
-        /** @var list<\App\Entity\Mail\Message> $ruleTargets */
-        $ruleTargets = [];
-
-        foreach ($built as $item) {
-            $this->sanitizer->sanitize($item['message']);
-
-            // JMAP state: the ids exist after the flush above. record() only
-            // persists, so these rows ride along on the flush below.
-            $this->stateManager->recordCreated(
-                (int) $item['account']->getId(),
-                JmapObjectType::Email,
-                (string) $item['message']->getId(),
-            );
-
-            $item['message']->setCategory($this->categorizer->categorize($item['message'], $correspondents));
-            try {
-                $this->messageThreader->assignThread($item['message'], $item['account']);
-            } catch (\Throwable $e) {
-                $this->logger->error('SyncGmailMessageBatch: threading failed', [
-                    'messageId' => $item['message']->getId(),
-                    'error'     => $e->getMessage(),
-                ]);
-            }
-
-            $ruleTargets[] = $item['message'];
-        }
-
-        // One query per rule for the whole batch, after threading so archive
-        // and trash actions can reach each message's thread.
-        $this->ruleEngine->applyToBatch($ruleTargets, $account);
-
-        // Threads exist only after assignThread() above, so this runs as a
-        // second pass rather than inside the loop — and only after the flush,
-        // which is where a thread created moments ago gets its id. Reading
-        // them before it published every new thread to JMAP clients as id 0.
-        $this->em->flush();
-
-        $threadIdsByAccount = [];
+        // Gmailify means the owning account is not always the carrier, so each
+        // message carries its own — threading and JMAP state belong to the
+        // sibling that owns the address, rules to the account that fetched.
+        $ingested = [];
 
         foreach ($built as $item) {
-            $thread = $item['message']->getThread();
-
-            if (null !== $thread) {
-                $threadIdsByAccount[(int) $item['account']->getId()][] = (int) $thread->getId();
-            }
+            $ingested[] = new IngestedMessage($item['message'], $item['account']);
         }
 
-        foreach ($threadIdsByAccount as $threadAccountId => $threadIds) {
-            $this->stateManager->recordThreadsTouched($threadAccountId, $threadIds);
-        }
+        $result = $this->postIngest->run($account, $ingested);
 
-        // The change-log rows recorded just now.
-        $this->em->flush();
-
-        if (count($built) > 0) {
+        if (false === $result->isEmpty()) {
             $this->harvestService->harvestMessages(
                 $account->getUsr(),
-                array_column($built, 'message'),
+                $result->messages,
                 $account->getEmail()
             );
         }
@@ -274,6 +222,11 @@ final readonly class SyncGmailMessageBatchHandler
      * gmailLabelIds, and the carrier's labels translated onto the target
      * account, propagated to the thread. Flags/read state stay untouched —
      * the IMAP copy owns those.
+     *
+     * Deliberately outside PostIngestPipeline: the row already went through it
+     * on the IMAP side, so re-running would record a second create for an id
+     * JMAP clients hold, and re-apply rules to mail the user may since have
+     * filed by hand. Enrichment adds Gmail's label knowledge, not new content.
      *
      * @param list<string> $labelIds
      */
