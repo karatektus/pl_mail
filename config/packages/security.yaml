@@ -67,6 +67,10 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
+        # Docker healthchecks and uptime monitors hold no session. It answers
+        # only what such a caller could infer by trying the app anyway — see
+        # App\Controller\HealthController on why it stays deliberately vague.
+        - { path: ^/healthz$, roles: PUBLIC_ACCESS }
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
         - { path: ^/webhook/graph, roles: PUBLIC_ACCESS }
         - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED }

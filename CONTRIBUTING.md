@@ -283,6 +283,30 @@ This is not exposed to administrators through the web UI on purpose. An admin wh
 user's second factor from a browser would be a second way into every mailbox on the install, reachable
 with nothing but a stolen admin session.
 
+## Health
+
+`GET /healthz` — unauthenticated, because Docker healthchecks and uptime
+monitors hold no session. It reports whether the database is reachable, whether
+the queue is draining, and whether every process that has ever reported a
+heartbeat is still beating.
+
+503 only when the database is down, since that is the one failure where serving
+is impossible. A backed-up queue stays 200 on purpose: mail is late, not gone,
+and restarting the container would not help.
+
+It answers with verdicts and nothing else — no counts, no addresses, no
+version. Anyone who can reach the port can read it, so it must never become a
+place to learn about the instance; `/admin` is where the numbers live, behind
+`ROLE_ADMIN`. `HealthTest` asserts that shape, so an addition that leaks
+something fails the suite.
+
+The image's `HEALTHCHECK` points here. It used to probe Caddy's metrics port,
+which answers as soon as the web server is listening — well before PHP can
+reach the database — so a stack with an unreachable database reported itself
+healthy and `depends_on: service_healthy` waited for nothing. The worker
+services have no HTTP server and disable the healthcheck; their liveness
+reaches this endpoint through heartbeats instead.
+
 ## Console commands
 
 | Command | Description |
@@ -304,6 +328,7 @@ with nothing but a stolen admin session.
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:monitoring:prune [--days=N]` | Prune old log entries and dead process heartbeats |
+| `app:backup [dir] [--skip-secrets] [--skip-storage]` | Write a restorable snapshot: `pg_dump`, the stored files, and the generated secrets. Says explicitly when `APP_ENCRYPTION_KEY` is *not* in it |
 | `app:reset` | Truncate synced data — useful during development |
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |

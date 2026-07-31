@@ -31,6 +31,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	git \
 	&& rm -rf /var/lib/apt/lists/*
 
+# pg_dump, for `app:backup`.
+#
+# From PGDG rather than Debian, and pinned to the same major as the server:
+# pg_dump refuses outright to dump a server newer than itself, and Debian's
+# postgresql-client trails 18 — so the distro package would install cleanly and
+# then fail at the moment someone actually needed a backup.
+#
+# PGDG publishes amd64 and arm64, which the two-runner image build requires.
+# hadolint ignore=DL3008
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends curl ca-certificates gnupg; \
+	install -d /usr/share/postgresql-common/pgdg; \
+	curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+		-o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc; \
+	echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo "$VERSION_CODENAME")-pgdg main" \
+		> /etc/apt/sources.list.d/pgdg.list; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends postgresql-client-18; \
+	rm -rf /var/lib/apt/lists/*
+
 RUN set -eux; \
 	install-php-extensions \
 		@composer \
@@ -60,7 +81,16 @@ COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 
 ENTRYPOINT ["docker-entrypoint"]
 
-HEALTHCHECK --start-period=60s CMD curl -f http://localhost:2019/metrics || exit 1
+# /healthz, not Caddy's metrics port. The old probe answered as soon as the web
+# server was listening, which is true well before PHP can reach the database —
+# so a stack with an unreachable database reported itself healthy, and
+# `depends_on: service_healthy` waited for nothing worth waiting for.
+#
+# The app endpoint returns 503 when the database is down and 200 otherwise; see
+# App\Controller\HealthController for why a backed-up queue deliberately stays
+# 200. The worker services have no HTTP server and disable this in compose —
+# their liveness reaches the same endpoint through heartbeats instead.
+HEALTHCHECK --start-period=60s CMD curl -f http://localhost/healthz || exit 1
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile" ]
 
 # Dev FrankenPHP image

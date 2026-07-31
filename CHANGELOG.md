@@ -27,6 +27,13 @@ The published image tags: `latest` follows the most recent release below,
   and removes people. An administrator deliberately cannot change an existing
   user's password or remove anyone's second factor — both would make an admin
   session a way into someone else's mailbox.
+- **`GET /healthz`** — reports database, queue and worker health without a
+  session, so Docker healthchecks and uptime monitors can use it. The image's
+  healthcheck now points here instead of at Caddy's metrics port, which
+  answered before PHP could reach the database.
+- **`app:backup`** — one command for the database dump, the stored files and
+  the generated secrets, and it says explicitly when `APP_ENCRYPTION_KEY` is
+  *not* in the backup because the install supplies it from the environment.
 - **PHPStan** at level 5, with a baseline, in CI. **Dependabot** for composer,
   npm and GitHub Actions.
 - **LICENSE.** The project has always said AGPL-3.0 in its README; the licence
@@ -49,6 +56,11 @@ The published image tags: `latest` follows the most recent release below,
 - **User search in the admin area returned everything**, and soft-deleted users
   were visible to every query that claimed to exclude them. Both were the same
   mistake: a Doctrine expression built and never passed to `andWhere()`.
+- **Gmail label changes ran inside the HTTP request.**
+  `ApplyGmailLabelsMessage` was never routed to the async transport, so archive,
+  trash, star and mark-read made a live Google API call while the user waited —
+  where the IMAP and Graph equivalents were queued. A Gmail outage surfaced as a
+  500 on a UI action rather than a retry on the worker.
 - **JMAP `Email/set` rejected valid mailbox patches.** Current `mailboxIds` were
   emitted as label ids where the protocol expects per-account binding ids; since
   both are autoincrement ints, a patch removing one mailbox failed with "No such
