@@ -731,6 +731,13 @@ settings:
         refresh: 'Vom Anbieter aktualisieren'
         subheading: 'Adressen, unter denen dieses Konto sendet und empfängt.'
         system: 'System'
+    device_pairing:
+        pair_device: "Gerät koppeln"
+        scan_title: "Mit der plMail-App scannen"
+        scan_hint: "Der Code funktioniert einmal und läuft in zwei Minuten ab. Er enthält nicht dein App-Passwort — die App tauscht ihn gegen ein neues ein."
+        qr_alt: "Kopplungscode"
+        expires: "Läuft um %time% ab."
+        open_in_app: "In der App öffnen"
     app_passwords:
         copy: Kopieren
         copy_now: Hier ist dein neues App-Passwort

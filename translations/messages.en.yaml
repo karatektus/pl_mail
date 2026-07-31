@@ -719,6 +719,13 @@ settings:
         refresh: 'Refresh from provider'
         subheading: 'Addresses this account sends and receives as.'
         system: 'system'
+    device_pairing:
+        pair_device: "Pair a device"
+        scan_title: "Scan this with the plMail app"
+        scan_hint: "The code works once and expires in two minutes. It doesn't contain your app password — the app exchanges it for a new one."
+        qr_alt: "Pairing code"
+        expires: "Expires at %time%."
+        open_in_app: "Open in the app"
     app_passwords:
         copy: Copy
         copy_now: Here is your new app password

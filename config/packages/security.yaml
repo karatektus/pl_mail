@@ -73,6 +73,12 @@ security:
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
+        # Device pairing, by necessity: a device that could authenticate here
+        # would not need to pair. The gate is the code itself — 32 bytes of
+        # CSPRNG, valid two minutes, burned on first use — see
+        # App\Service\User\DevicePairingService. Note this is /device/pair,
+        # not /settings/pair: issuing a code still requires a session.
+        - { path: ^/device/pair$, roles: PUBLIC_ACCESS }
         # The code form sits between the two factors: the password is in, the
         # second factor is not, and ROLE_USER has not been granted yet. It must
         # be reachable in exactly that state and in no other, which is what

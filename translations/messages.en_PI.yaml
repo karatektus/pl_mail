@@ -717,6 +717,13 @@ settings:
         refresh: 'Fetch from the harbourmaster'
         subheading: 'Addresses this crew member sends and receives under.'
         system: 'ship''s own'
+    device_pairing:
+        pair_device: "Sign on a spyglass"
+        scan_title: "Point th' plMail app at this"
+        scan_hint: "Th' mark works once and fades in two minutes. It carries no spare key — th' app trades it for a fresh one."
+        qr_alt: "Pairing mark"
+        expires: "Fades at %time%."
+        open_in_app: "Open it in th' app"
     app_passwords:
         copy: Copy
         copy_now: Here be yer new spare key
