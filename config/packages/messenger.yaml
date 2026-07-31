@@ -33,6 +33,14 @@ framework:
             App\Infrastructure\Messaging\Message\SyncAccountMessage: async
             App\Infrastructure\Messaging\Message\SendMessageMessage: async
             App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: async
+            # Unrouted until now, which meant every Gmail label change — archive,
+            # trash, star, mark read, attach a label — made a live Google API
+            # call inside the HTTP request the user was waiting on. Its IMAP and
+            # Graph counterparts above were always queued, so the same click
+            # behaved differently depending on the account it landed on, and a
+            # Gmail outage or rate limit surfaced as a 500 on a UI action rather
+            # than a retry on the worker.
+            App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: async
             App\Infrastructure\Messaging\Message\HarvestContactsMessage: async
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: async
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: async
