@@ -32,6 +32,11 @@ export default class extends Controller {
     open() {
         this.menuTarget.hidden = false;
 
+        // For menus whose contents go stale while closed — the snooze menu
+        // recomputes its wake times here, so one left open across midnight
+        // cannot offer a "tomorrow" that is already today.
+        this.dispatch("opened", { target: this.menuTarget });
+
         document.addEventListener("click", this._boundOutside, { capture: true });
         document.addEventListener("keydown", this._boundEscape);
     }

@@ -1,0 +1,240 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Controller;
+
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
+use App\Service\Label\LabelResolver;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+/**
+ * The web snooze endpoint has to mean the same thing as Thread/set.
+ *
+ * It did not. `POST /status/thread/{id}/snooze` wrote snoozedUntil and nothing
+ * else — no labels moved, nothing propagated — so the conversation stayed in
+ * the Inbox locally and at the provider while its row vanished from the list,
+ * until the sweep "woke" a thread that had never left. Both callers now go
+ * through ThreadSnoozeService, and this pins the endpoint to that.
+ *
+ * Deliberately asserted on labels rather than on the column: the column was
+ * always written correctly, and a test that checked it would have passed
+ * against the broken implementation.
+ */
+final class ThreadSnoozeEndpointTest extends WebTestCase
+{
+    private EntityManagerInterface $em;
+    private Connection $connection;
+    private LabelResolver $labelResolver;
+    private Account $account;
+
+    protected function tearDown(): void
+    {
+        if (isset($this->connection) && true === $this->connection->isTransactionActive()) {
+            $this->connection->rollBack();
+        }
+
+        parent::tearDown();
+    }
+
+    public function testSnoozingMovesTheThreadOutOfTheInbox(): void
+    {
+        $client   = $this->signIn();
+        $threadId = (int) $this->inboxThread()->getId();
+
+        $client->request(
+            'POST',
+            sprintf('/status/thread/%d/snooze', $threadId),
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
+        );
+
+        self::assertResponseIsSuccessful();
+
+        $thread = $this->reload($threadId);
+
+        // Looked up, never created: systemLabel() would mint a Snoozed label
+        // as a side effect of asserting, so a broken endpoint would fail here
+        // on fixture mechanics instead of on the thing being tested.
+        $roles = [];
+
+        foreach ($thread->getMessages() as $message) {
+            foreach ($message->getLabels() as $label) {
+                $roles[] = $label->role;
+            }
+        }
+
+        self::assertNotContains(
+            LabelRole::Inbox,
+            $roles,
+            'the endpoint wrote the column but left the thread in the inbox',
+        );
+        self::assertContains(
+            LabelRole::Snoozed,
+            $roles,
+            'the endpoint wrote the column but never applied the Snoozed label',
+        );
+
+        self::assertNotNull($thread->getSnoozedUntil());
+    }
+
+    public function testSendingNoUntilClearsTheSnoozeAndRestoresTheInbox(): void
+    {
+        $client   = $this->signIn();
+        $threadId = (int) $this->inboxThread()->getId();
+        $path     = sprintf('/status/thread/%d/snooze', $threadId);
+
+        $client->request(
+            'POST',
+            $path,
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
+        );
+
+        $client->request(
+            'POST',
+            $path,
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['until' => null]),
+        );
+
+        self::assertResponseIsSuccessful();
+
+        $thread = $this->reload($threadId);
+        $roles  = [];
+
+        foreach ($thread->getMessages()->first()->getLabels() as $label) {
+            $roles[] = $label->role;
+        }
+
+        self::assertNull($thread->getSnoozedUntil());
+        self::assertContains(LabelRole::Inbox, $roles);
+        self::assertNotContains(LabelRole::Snoozed, $roles);
+    }
+
+    // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * Re-read the thread from the container's current EntityManager.
+     *
+     * By id rather than refresh(): the kernel is rebooted between requests, so
+     * the instance the fixtures returned is detached by the time the
+     * assertions run and refresh() would reject it.
+     */
+    private function reload(int $id): MessageThread
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+
+        $thread = $em->find(MessageThread::class, $id);
+
+        self::assertNotNull($thread, 'thread vanished');
+
+        return $thread;
+    }
+
+    private function signIn(): KernelBrowser
+    {
+        $client = static::createClient();
+
+        // One kernel across the whole test. The client reboots between
+        // requests by default, which detaches the EntityManager this test
+        // holds — and the unsnooze case needs two requests against the same
+        // fixtures.
+        $client->disableReboot();
+
+        $container = static::getContainer();
+        $this->em            = $container->get(EntityManagerInterface::class);
+        $this->connection    = $container->get(Connection::class);
+        $this->labelResolver = $container->get(LabelResolver::class);
+
+        // Rolled back in tearDown. Without it this test commits an Account
+        // onto a shared user, and AccountFormControllersTest — which renders
+        // the onboarding account step — starts seeing a different page.
+        $this->connection->beginTransaction();
+
+        // Its own user rather than the seeded admin, for the same reason: the
+        // fixtures here change what onboarding thinks the account holds.
+        $user = new User();
+        $user
+            ->setEmail('snooze-endpoint-' . uniqid('', true) . '@example.test')
+            ->setNameFirst('Snooze')
+            ->setNameLast('Endpoint')
+            ->setRoles(['ROLE_USER'])
+            ->setPassword('x');
+        $this->em->persist($user);
+        $this->em->flush();
+
+        $client->loginUser($user);
+
+        $this->account = new Account();
+        $this->account
+            ->setUsr($user)
+            ->setEmail('Snooze Endpoint')
+            ->setUsername('snooze-endpoint-' . uniqid('', true) . '@example.test')
+            ->setImapHost('localhost')
+            ->setImapPort(993)
+            ->setImapEncryption('ssl')
+            ->setSmtpHost('localhost')
+            ->setSmtpPort(587)
+            ->setSmtpEncryption('starttls')
+            ->setPassword('x')
+            ->setAuthType('password')
+            ->setIsActive(true);
+        $this->em->persist($this->account);
+        $this->em->flush();
+
+        return $client;
+    }
+
+    private function inboxThread(): MessageThread
+    {
+        $mailbox = new Mailbox();
+        $mailbox
+            ->setAccount($this->account)
+            ->setName('INBOX')
+            ->setFullPath('INBOX')
+            ->setIsSyncEnabled(true)
+            ->setIsIdleEnabled(false)
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->em->persist($mailbox);
+
+        $thread = new MessageThread();
+        $thread
+            ->setAccount($this->account)
+            ->setSubject('Endpoint fixture')
+            ->setNormalizedSubject('endpoint fixture')
+            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
+            ->setThreadingMethod(ThreadingMethod::References)
+            ->setUnreadCount(0);
+        $this->em->persist($thread);
+
+        $message = new Message();
+        $message
+            ->setAccount($this->account)
+            ->setSubject('Endpoint fixture')
+            ->setFromAddress('sender@example.test')
+            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
+            ->setHasAttachments(false)
+            ->setMessageId(sprintf('<snooze-endpoint-%s@example.test>', uniqid('', true)))
+            ->setMailbox($mailbox)
+            ->setImapUid(4242)
+            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+
+        $thread->addMessage($message);
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $thread;
+    }
+}

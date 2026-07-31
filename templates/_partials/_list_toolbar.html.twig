@@ -209,7 +209,16 @@ The button itself carries `group` and `relative`.
         {{ m.tbtn('click->mail--list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
         {{ m.tbtn('click->mail--list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
         {{ m.tbtn('click->mail--list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
-        {{ m.tbtn('click->mail--list-toolbar#snoozeSelected',     'fa-solid fa-clock',         'toolbar.actions.snooze'|trans) }}
+        {# A menu, not a direct action: this used to hardcode "tomorrow 8am"
+           with a comment asking for a picker. #}
+        <div class="relative" data-controller="ui--dropdown">
+            {{ m.tbtn('click->ui--dropdown#toggle', 'fa-solid fa-clock', 'toolbar.actions.snooze'|trans) }}
+            {% include '_partials/_snooze_menu.html.twig' with {
+                controller: 'mail--list-toolbar',
+                method:     'snoozeSelected',
+                snoozed:    false,
+            } only %}
+        </div>
         {% include '_partials/_label_menu.html.twig' with {
             labels: sidebarCounts.flattenedUserLabels,
             targetType: 'thread',

@@ -17,6 +17,7 @@ use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\ThreadSnoozeService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -48,6 +49,7 @@ class ThreadStatusController extends AbstractController
         private readonly LabelChangePropagator   $propagator,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly StateManager            $stateManager,
+        private readonly ThreadSnoozeService     $snoozeService,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -211,19 +213,34 @@ class ThreadStatusController extends AbstractController
         $body  = json_decode($request->getContent(), true);
         $until = null;
 
-        if (true === array_key_exists('until', $body)) {
+        if (true === is_array($body) && true === array_key_exists('until', $body)) {
             if (null !== $body['until']) {
                 try {
-                    $until = new DateTimeImmutable($body['until']);
-                } catch (\Exception $e) {
+                    $until = new DateTimeImmutable((string) $body['until']);
+                } catch (\Exception) {
                     $until = new DateTimeImmutable('in 1 day');
                 }
             }
         }
 
-        $thread->setSnoozedUntil($until);
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        // Through the service, not setSnoozedUntil(): snoozing has to move the
+        // Inbox label off and propagate that outward. Writing the column here
+        // is what this endpoint used to do, and it left the conversation
+        // sitting in the inbox — locally and at the provider — while the row
+        // vanished from the list, until the sweep "woke" a thread that had
+        // never left. Thread/set goes through the same service for the same
+        // reason. The one deliberate difference is above: a form post gets the
+        // "in 1 day" fallback on an unparseable date, where the JMAP method
+        // refuses it — see ThreadSetMethod::snoozeDate().
+        if (null === $until) {
+            $this->snoozeService->wake($thread);
+        } else {
+            $this->snoozeService->snooze($thread, $until);
+        }
+
+        // No recordJmapUpdates/flush: the service records its own state
+        // changes and flushes, because the label moves have to be visible to
+        // the propagator jobs it queues.
 
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,

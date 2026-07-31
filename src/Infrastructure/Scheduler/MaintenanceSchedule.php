@@ -52,6 +52,12 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // gone degraded.
                 RecurringMessage::cron('0 4 * * *', new RunCommandMessage('app:push:renew --repair')),
 
+                // Snooze is only a snooze if something brings the thread
+                // back. Every minute, because a minute is the unit people
+                // pick a wake time in, and the sweep costs one indexed query
+                // when nothing is due — which is almost always.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:wake-snoozed')),
+
                 // Log entries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 

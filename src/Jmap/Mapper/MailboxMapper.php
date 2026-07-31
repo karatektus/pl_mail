@@ -125,6 +125,11 @@ final class MailboxMapper
             'Starred', 'Flagged' => 'flagged',
             'Important' => 'important',
             'All', 'AllMail' => 'all',
+            // Vendor role: there is no IANA special-use for snoozed, so this
+            // is plMail's own. A standard client reads an unrecognised role
+            // exactly as this method's default does — no role, mailbox still
+            // listed — which is the intended degradation.
+            'Snoozed' => 'snoozed',
             default => null,
         };
     }

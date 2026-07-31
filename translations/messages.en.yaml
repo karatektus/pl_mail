@@ -1069,9 +1069,23 @@ sidebar:
         drafts: Drafts
         inbox: Inbox
         sent: Sent
+        snoozed: Snoozed
         starred: Starred
         trash: Trash
     toggle: Show or hide the sidebar
+
+snooze:
+    later_today: Later today
+    next_week: Next week
+    pick_date: Pick a date and time
+    this_weekend: This weekend
+    tomorrow: Tomorrow
+    unsnooze: Unsnooze
+
+snoozed:
+    empty: Nothing is snoozed.
+    heading: Snoozed
+    until: Comes back %when%
 
 starred:
     empty: No starred messages.

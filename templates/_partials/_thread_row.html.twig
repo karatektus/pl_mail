@@ -194,13 +194,26 @@ the conversation it answers.
                 </button>
 
                 {% if false == draft %}
-                    <button type="button" data-action="click->mail--message-row#snooze"
-                            data-mail--message-row-snooze-url-param="{{ path('app_status_snooze', {'type': type, 'id': rowId}) }}"
-                            aria-label="{{ 'thread_row.actions.snooze'|trans }}"
-                            title="{{ 'thread_row.actions.snooze'|trans }}"
-                            class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                        <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
-                    </button>
+                    {# The button opens a menu rather than snoozing directly:
+                       there is no defensible default wake time, and the one
+                       this had (none at all) cleared the snooze instead of
+                       setting it. #}
+                    <div class="relative z-10" data-controller="ui--dropdown">
+                        <button type="button"
+                                data-action="click->ui--dropdown#toggle click->mail--message-row#stop"
+                                aria-label="{{ 'thread_row.actions.snooze'|trans }}"
+                                title="{{ 'thread_row.actions.snooze'|trans }}"
+                                class="p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid fa-clock w-4 h-4" aria-hidden="true"></i>
+                        </button>
+
+                        {% include '_partials/_snooze_menu.html.twig' with {
+                            controller: 'mail--message-row',
+                            method:     'snooze',
+                            url:        path('app_status_snooze', {'type': type, 'id': rowId}),
+                            snoozed:    thread is defined and thread.snoozed|default(false),
+                        } only %}
+                    </div>
 
                     <button type="button" data-action="click->mail--message-row#markRead"
                             data-mail--message-row-read-url-param="{{ path('app_status_mark_read', {'type': type, 'id': rowId}) }}"

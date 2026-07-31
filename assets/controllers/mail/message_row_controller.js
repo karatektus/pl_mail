@@ -51,8 +51,18 @@ export default class extends Controller {
         await this.#post(trashUrl);
     }
 
-    async snooze(event, until = null) {
-        const { snoozeUrl } = event.params;
+    /**
+     * The wake time arrives as a param, set by the snooze menu — see
+     * mail--snooze-menu, which computes it in the browser because the server
+     * has no timezone for the session.
+     *
+     * Absent, this clears the snooze. That used to be the *only* behaviour:
+     * the signature took `until = null` as a second argument, and Stimulus
+     * calls actions with the event alone, so the row's snooze button silently
+     * unsnoozed instead of snoozing.
+     */
+    async snooze(event) {
+        const { snoozeUrl, until = null } = event.params;
         event.stopPropagation();
 
         await this.#post(snoozeUrl, { until });

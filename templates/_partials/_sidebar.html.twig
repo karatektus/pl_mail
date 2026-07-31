@@ -186,6 +186,19 @@ the layout.
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
+        {% if sidebarCounts.hasSnoozed %}
+            <a href="{{ path('app_mail_snoozed') }}"
+               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.snoozed'|trans }}">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.snoozed'|trans }}</span>
+                </span>
+                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed') }}
+            </a>
+        {% endif %}
         {% if sidebarCounts.hasVisibleArchive %}
             <a href="{{ path('app_mail_archive') }}"
                class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"

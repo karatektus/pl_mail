@@ -148,15 +148,18 @@ export default class extends Controller {
         await this._bulkPost(ids, "read", { read: false });
     }
 
-    async snoozeSelected() {
+    /**
+     * The wake time arrives as a param from the snooze menu (mail--snooze-menu),
+     * which computes it in the browser — the server has no timezone for the
+     * session. Absent, this clears the snooze on the selection.
+     */
+    async snoozeSelected(event) {
         const ids = this._selectedIds();
         if (ids.length === 0) { return; }
-        // Default: snooze until tomorrow morning.
-        // Replace with a date-picker dispatch if you add a snooze UI.
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(8, 0, 0, 0);
-        await this._bulkPost(ids, "snooze", { until: tomorrow.toISOString() });
+
+        const { until = null } = event?.params ?? {};
+
+        await this._bulkPost(ids, "snooze", { until });
     }
 
     // ── Private ───────────────────────────────────────────────────────────

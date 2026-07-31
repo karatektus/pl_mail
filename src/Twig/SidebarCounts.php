@@ -24,6 +24,7 @@ class SidebarCounts
     private ?array $roleCounts = null;
     private ?array $labelCounts = null;
     private ?int $starredCount = null;
+    private ?int $snoozedCount = null;
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
 
@@ -120,6 +121,27 @@ class SidebarCounts
         });
 
         return $children;
+    }
+
+    /**
+     * True when anything is currently snoozed — controls the Snoozed entry in
+     * the system nav block.
+     *
+     * Gated rather than always shown, on the same reasoning as Archive: the
+     * label is created lazily the first time something is snoozed, so on an
+     * install that has never used the feature there is nothing to link to.
+     */
+    public function hasSnoozed(): bool
+    {
+        if (null === $this->snoozedCount) {
+            $user = $this->security->getUser();
+
+            $this->snoozedCount = null === $user
+                ? 0
+                : $this->threadRepository->countSnoozedForUser($user);
+        }
+
+        return $this->snoozedCount > 0;
     }
 
     /**

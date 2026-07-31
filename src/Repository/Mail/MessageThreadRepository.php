@@ -554,6 +554,52 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many of the user's conversations are snoozed right now.
+     *
+     * Counts the column rather than the Snoozed label, because the column is
+     * what the wake sweep acts on: a thread whose time has passed but which
+     * the sweep has not reached yet is no longer snoozed, and counting the
+     * label would keep it in the total for up to a minute. Only used to decide
+     * whether the sidebar shows the entry at all.
+     */
+    public function countSnoozedForUser(UserInterface $user): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.snoozedUntil IS NOT NULL')
+            ->andWhere('t.snoozedUntil > :now')
+            ->setParameter('user', $user)
+            ->setParameter('now', new \DateTimeImmutable())
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Snoozed conversations whose wake time has passed.
+     *
+     * Ordered oldest-first so a backlog drains in the order the user asked
+     * for, and capped so one enormous backlog cannot hold the worker.
+     *
+     * @return list<MessageThread>
+     */
+    public function findDueSnoozed(\DateTimeImmutable $now, int $limit): array
+    {
+        return $this->createQueryBuilder('t')
+            ->addSelect('m')
+            ->leftJoin('t.messages', 'm')
+            ->where('t.snoozedUntil IS NOT NULL')
+            ->andWhere('t.snoozedUntil <= :now')
+            ->setParameter('now', $now)
+            ->orderBy('t.snoozedUntil', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * JMAP Thread/get: fetch by id, scoped to the account. Messages are
      * eager-joined because a Thread object is nothing but its email id list.
      *

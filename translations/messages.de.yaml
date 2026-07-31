@@ -1088,9 +1088,23 @@ sidebar:
         drafts: Entwürfe
         inbox: Posteingang
         sent: Gesendet
+        snoozed: Zurückgestellt
         starred: Markiert
         trash: Papierkorb
     toggle: Seitenleiste ein-/ausblenden
+
+snooze:
+    later_today: Später heute
+    next_week: Nächste Woche
+    pick_date: Datum und Uhrzeit wählen
+    this_weekend: Dieses Wochenende
+    tomorrow: Morgen
+    unsnooze: Zurückholen
+
+snoozed:
+    empty: Nichts ist zurückgestellt.
+    heading: Zurückgestellt
+    until: Kommt %when% zurück
 
 starred:
     empty: Keine markierten Nachrichten.

@@ -203,6 +203,33 @@ final class MailController extends AbstractController
         ]);
     }
 
+    /**
+     * Snoozed role view — where conversations wait for their wake time.
+     *
+     * Ordered by lastMessageAt like every other list rather than by wake time,
+     * which is the less obvious choice: the row shows when it comes back, so
+     * sorting by it would be legible. But this list is reached to *find* a
+     * conversation, and "the one from Tuesday" is how people look, not "the
+     * one due third".
+     */
+    #[Route('/snoozed', name: 'snoozed')]
+    public function snoozed(Request $request): Response
+    {
+        $user  = $this->getUser();
+        $page  = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Snoozed, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Snoozed);
+
+        $this->threadRepository->preloadLabels($threads);
+
+        return $this->render('mail/snoozed.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
+    }
+
     #[Route('/account/{account}/folders', name: 'account_folders')]
     public function accountFolders(Account $account): Response
     {

@@ -1,0 +1,58 @@
+{#
+    The snooze menu.
+
+    Labels come from here because they are translated; the wake times are filled
+    in by mail--snooze-menu once the page is running, because only the browser
+    knows what timezone "tomorrow morning" is in. Each option therefore carries a
+    data-snooze-key rather than a value, and the controller matches on it.
+
+    Parameters:
+      controller — the Stimulus identifier handling the click, e.g.
+                   "mail--message-row". Used for both the action and the
+                   namespaced url param.
+      method     — the action method on it, e.g. "snooze"
+      url        — optional endpoint for the url param; the toolbar omits it and
+                   derives per-row URLs itself
+      snoozed    — whether the target is currently snoozed, which is the only
+                   thing that puts "Unsnooze" on the menu
+#}
+{% set snoozed = snoozed|default(false) %}
+{% set url = url|default(null) %}
+{% set fire = 'click->' ~ controller ~ '#' ~ method ~ ' click->ui--dropdown#close' %}
+
+<div data-ui--dropdown-target="menu" hidden
+     data-controller="mail--snooze-menu"
+     data-action="ui--dropdown:opened->mail--snooze-menu#refresh"
+     class="absolute top-full mt-1 right-0 z-20 min-w-56 popover py-1">
+
+    <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+        {{ 'thread_row.actions.snooze'|trans }}
+    </p>
+
+    {% for key in ['later_today', 'tomorrow', 'this_weekend', 'next_week'] %}
+        <button type="button"
+                hidden
+                data-mail--snooze-menu-target="option"
+                data-snooze-key="{{ key }}"
+                {% if url %}data-{{ controller }}-snooze-url-param="{{ url }}"{% endif %}
+                data-action="{{ fire }}"
+                class="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink-muted
+                       hover:bg-hover hover:text-ink transition-colors text-left">
+            <span>{{ ('snooze.' ~ key)|trans }}</span>
+            <span data-snooze-when class="text-xs text-ink-faint tabular-nums"></span>
+        </button>
+    {% endfor %}
+
+    {% if snoozed %}
+        <div class="my-1 border-t border-line"></div>
+        {# No until param at all: its absence is what clears the snooze. #}
+        <button type="button"
+                {% if url %}data-{{ controller }}-snooze-url-param="{{ url }}"{% endif %}
+                data-action="{{ fire }}"
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                       hover:bg-hover hover:text-ink transition-colors text-left">
+            <i class="fa-solid fa-arrow-rotate-left w-4 text-center" aria-hidden="true"></i>
+            <span>{{ 'snooze.unsnooze'|trans }}</span>
+        </button>
+    {% endif %}
+</div>

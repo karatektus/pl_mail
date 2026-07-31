@@ -22,6 +22,17 @@ enum LabelRole: string
     case Trash = 'trash';
     case Spam = 'spam';
     case Archive = 'archive';
+    /**
+     * Where a conversation waits while it is snoozed.
+     *
+     * Unlike the others this has no IMAP special-use and no provider
+     * counterpart — nothing sets it but plMail, and MailboxSpecialUse
+     * therefore never maps to it. It exists so that snoozing is expressible in
+     * the same vocabulary as everything else: a conversation leaves the Inbox
+     * and carries this instead, which keeps the "a message is always in at
+     * least one label" invariant without a second mechanism.
+     */
+    case Snoozed = 'snoozed';
 
     public static function fromSpecialUse(MailboxSpecialUse $specialUse): self
     {
@@ -44,6 +55,7 @@ enum LabelRole: string
             self::Trash => 'Trash',
             self::Spam => 'Spam',
             self::Archive => 'Archive',
+            self::Snoozed => 'Snoozed',
         };
     }
 
@@ -60,6 +72,9 @@ enum LabelRole: string
             self::Spam => 30,
             self::Trash => 40,
             self::Archive => 50,
+            // After Archive, before custom labels: it is a system place, but
+            // the least-visited one.
+            self::Snoozed => 60,
         };
     }
 

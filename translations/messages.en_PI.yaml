@@ -1064,9 +1064,23 @@ sidebar:
         drafts: Scrolls in the works
         inbox: Bottles washed ashore
         sent: Cast off
+        snoozed: Kept below deck
         starred: Marked with an X
         trash: Davy Jones' locker
     toggle: Raise or lower th' side riggin'
+
+snooze:
+    later_today: Later this watch
+    next_week: Next se'nnight
+    pick_date: Name th' day and th' hour
+    this_weekend: Come th' weekend
+    tomorrow: On th' morrow
+    unsnooze: Haul it back up
+
+snoozed:
+    empty: Naught kept below deck.
+    heading: Kept below deck
+    until: Surfaces %when%
 
 starred:
     empty: Naught marked with an X.

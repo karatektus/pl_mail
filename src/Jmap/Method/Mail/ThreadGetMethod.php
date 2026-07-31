@@ -77,6 +77,20 @@ final class ThreadGetMethod implements JmapMethod
             $list[] = [
                 'id' => (string) $thread->getId(),
                 'emailIds' => $emailIds,
+                // plMail extension. RFC 8621's Thread has only id and emailIds;
+                // this is the one piece of thread state the product owns, and
+                // the web UI already acts on it. A client that computed snooze
+                // locally instead would disagree with the browser and lose it
+                // on reinstall, which is exactly the case the client guide
+                // names as ask-don't-work-around.
+                //
+                // Null when never snoozed *and* when the snooze has already
+                // expired — a past timestamp is not a state anything should
+                // render, and leaving it would have every client re-implement
+                // the comparison.
+                'snoozedUntil' => $this->utcOrNull(
+                    $thread->isSnoozed() ? $thread->getSnoozedUntil() : null,
+                ),
             ];
         }
 
@@ -86,5 +100,15 @@ final class ThreadGetMethod implements JmapMethod
             'list' => $list,
             'notFound' => array_values(array_diff($requestedIds, $found)),
         ];
+    }
+
+    /**
+     * The same shape EmailMapper::utcOrNull emits, and for the same reason:
+     * clients parse this format exactly, and a value left in the server's
+     * local zone would be read as UTC and land hours out.
+     */
+    private function utcOrNull(?\DateTimeImmutable $date): ?string
+    {
+        return $date?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z');
     }
 }
