@@ -1,17 +1,31 @@
+# Every app service builds the same dev stage, so they share one image — one
+# build instead of six.
+#
+# The `image` line is the load-bearing part. compose.yaml names these services
+# `ghcr.io/karatektus/pl_mail:latest`, and compose tags what it builds with the
+# service's image name — so without this, every `docker compose up --build`
+# overwrites the published tag locally with a dev image. That image carries no
+# application code (the source arrives via the bind mount below), which is
+# correct for dev and fatal anywhere else: if this override ever goes missing,
+# compose finds that local tag, does not pull, and boots an app-less container
+# that falls into the entrypoint's symfony/skeleton branch and crash-loops.
+# Building under our own name leaves the published tag alone.
+x-dev-build: &dev-build
+  image: pl_mail-dev:latest
+  build:
+    context: .
+    target: frankenphp_dev
+
 services:
   # Builds locally like every other app service. Without this it is the one
   # service still pulling ghcr.io/karatektus/pl_mail, which would run emulated
   # on an arm64 host — and since everything else waits on it completing
   # successfully, that one container gates the whole stack.
   secrets-init:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
 
   php:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
     volumes:
       - ./:/app
       - app_var:/app/var
@@ -33,9 +47,7 @@ services:
     tty: true
 
   imap-supervisor:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
     volumes:
       - ./:/app
       # Durable mail data must be visible to BOTH the web container (which
@@ -50,9 +62,7 @@ services:
       APP_ENV: ${APP_ENV:-dev}
 
   messenger-worker:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
     volumes:
       - ./:/app
       # Durable mail data must be visible to BOTH the web container (which
@@ -67,9 +77,7 @@ services:
       APP_ENV: ${APP_ENV:-dev}
 
   scheduler:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
     volumes:
       - ./:/app
     environment:
@@ -97,9 +105,7 @@ services:
       ADMINER_DEFAULT_SERVER: database
 
   tailwind:
-    build:
-      context: .
-      target: frankenphp_dev
+    <<: *dev-build
     volumes:
       - .:/app
       # Runs bin/console, so it goes through the app entrypoint and needs the
