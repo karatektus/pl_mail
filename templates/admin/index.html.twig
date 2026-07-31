@@ -89,6 +89,9 @@
                                                      src="{{ path('app_admin_db') }}"
                                                      loading="lazy"
                                                      data-controller="mail--auto-refresh"
+                                                     {# Panels inside write to the server; a refresh mid-write
+                                                        would swap their pre-write markup back in. #}
+                                                     data-action="admin--admin-panel:persisting->mail--auto-refresh#hold admin--admin-panel:persisted->mail--auto-refresh#release"
                                                      data-mail--auto-refresh-interval-value="20000">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
@@ -136,6 +139,9 @@
                                                      src="{{ path('app_admin_live') }}"
                                                      loading="lazy"
                                                      data-controller="mail--auto-refresh"
+                                                     {# Panels inside write to the server; a refresh mid-write
+                                                        would swap their pre-write markup back in. #}
+                                                     data-action="admin--admin-panel:persisting->mail--auto-refresh#hold admin--admin-panel:persisted->mail--auto-refresh#release"
                                                      data-mail--auto-refresh-interval-value="10000">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

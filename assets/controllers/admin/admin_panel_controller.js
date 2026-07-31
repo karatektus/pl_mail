@@ -22,10 +22,17 @@ export default class extends Controller {
         // The frame this lives in auto-refreshes, which re-renders the
         // <details> from server state. Without keepalive an in-flight request
         // can be cancelled by that swap and the toggle silently lost.
+        //
+        // keepalive is not enough on its own, though: a refresh *issued*
+        // before this write commits still answers with the pre-toggle markup
+        // and swaps the panel back. So the frame is told to hold off until the
+        // write lands — see mail--auto-refresh#hold.
         const body = JSON.stringify({
             key: this.keyValue,
             collapsed: !this.element.open,
         })
+
+        this.dispatch("persisting", { prefix: "admin--admin-panel" })
 
         fetch(this.urlValue, {
             method: "POST",
@@ -37,6 +44,11 @@ export default class extends Controller {
             keepalive: true,
         }).catch(() => {
             // Deliberately silent — see the class comment.
+        }).finally(() => {
+            // finally, not then: a failed write must still release the frame,
+            // or one dropped request stops the dashboard refreshing until the
+            // page is reloaded.
+            this.dispatch("persisted", { prefix: "admin--admin-panel" })
         })
     }
 }
