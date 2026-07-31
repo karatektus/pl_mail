@@ -1,0 +1,12 @@
+{#
+    The tab icon, for every page that has a <head> of its own.
+
+    Included rather than repeated because a page that omits it does not merely
+    look unbranded: the browser falls back to requesting /favicon.ico, which
+    matches no route, and Symfony logs the 404 at error level. The admin log
+    filled with "No route found for GET /favicon.ico" every time someone opened
+    "show original", which is a real fault report about nothing.
+
+    A data URI, so there is no file to serve and no second request to make.
+#}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%221em%22 font-size=%2224%22>✉️</text></svg>">

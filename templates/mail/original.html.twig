@@ -8,6 +8,7 @@ independent of the app layout; the source is printed escaped, never |raw.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include '_partials/_favicon.html.twig' %}
     <title>{{ 'message.actions.show_original'|trans }} — {{ message.subject ?: ('thread.no_subject'|trans) }}</title>
     <style>
         :root { color-scheme: light dark; }
