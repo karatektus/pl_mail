@@ -140,13 +140,37 @@ export default class extends Controller {
 
         const text = trigger.dataset.tooltip;
 
-        if (!text) {
+        if (!text || this._alreadySaysIt(trigger, text)) {
             return;
         }
 
         this.current = trigger;
         clearTimeout(this.timer);
         this.timer = setTimeout(() => this._show(trigger, text), SHOW_DELAY_MS);
+    }
+
+    /**
+     * Is the element already showing this text?
+     *
+     * The sidebar links are the case that prompted it: each carries a `title`
+     * repeating the word printed right next to the icon, so hovering "Inbox"
+     * popped up a bubble saying "Inbox". A hint that restates what is on screen
+     * is noise, and there were eight of them stacked down the left edge.
+     *
+     * Deliberately a rule rather than deleting those attributes. Collapsed to
+     * the icon rail the label text is hidden (`.rail-hide`), and then the title
+     * is the only thing identifying the icon — so the same markup has to behave
+     * differently depending on a class toggled at runtime, which the template
+     * cannot know. `innerText` is what makes this work: it reports rendered text
+     * only, so the hidden span simply is not in it.
+     *
+     * `includes` rather than equality because the badge counts sit in the same
+     * element — "Inbox 4" still says Inbox.
+     */
+    _alreadySaysIt(trigger, text) {
+        const shown = (trigger.innerText || "").replace(/\s+/g, " ").trim();
+
+        return shown !== "" && shown.includes(text.trim());
     }
 
     _maybeHide(target) {
