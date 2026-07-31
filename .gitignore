@@ -32,6 +32,12 @@ docker-compose.override.yml
 # Mutex directory for the one-time `composer install` in the dev entrypoint.
 /.composer-install.lock/
 
+# Symfony CLI reads a php.ini here and passes it to the PHP-FPM behind
+# `symfony serve`. CI writes one (a copy of frankenphp/conf.d/10-app.ini) so the
+# local server gets the same upload limits as the Docker image. Committing one
+# would override those limits for everyone, from a file nothing points at.
+/php.ini
+
 truenas.compose.yaml.local
 
 ###> lexik/jwt-authentication-bundle ###
