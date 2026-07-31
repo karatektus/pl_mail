@@ -19,20 +19,53 @@ Development setup, test suites and console reference. For installing and running
 | Runtime | FrankenPHP |
 | Credentials | libsodium secretbox via the `encrypted_string` Doctrine type |
 | Dev tooling | Docker Compose, Adminer, Mailpit |
+| Architectures | `linux/amd64` and `linux/arm64` |
 
 ## Development setup
+
+Create your local compose override first — this is the step that switches you from the published
+image to a dev stack built from source:
+
+```bash
+cp compose.override.yaml.dist compose.override.yaml
+```
+
+Then:
 
 ```bash
 docker compose up --build
 ```
 
-There is nothing to fill in first: the secrets are generated on first start (see below), and the one
-setting with no sensible default — the address plMail is reached at — is asked for on the setup
-screen. Open the app and it offers to create the first administrator; `app:setup` does the same
-thing from a terminal.
+`compose.override.yaml` is deliberately **not** tracked, and `.gitignore` keeps it that way. Compose
+auto-loads it whenever it exists, so a committed one would silently opt every *user* into building
+from source instead of pulling the release image — which is exactly the thing they should never have
+to do. Its `.dist` is the tracked template.
+
+> **Changing the override? Change the `.dist` too.** They are meant to stay identical, and
+> `diff compose.override.yaml.dist compose.override.yaml` should come back empty. The two drifted
+> apart once before and it cost real data: the `.dist` was missing the `app_attachments`, `app_raw`
+> and `app_uploads` mounts, so anyone starting from a fresh clone got attachment downloads that
+> 404'd and blob data that vanished on container recreate. The `Dockerfile` comment about the
+> removed `VOLUME /app/var/` explains why those mounts have to be declared per service.
+
+There is nothing else to fill in: dependencies install themselves on first boot, the secrets are
+generated on first start (see below), and the one setting with no sensible default — the address
+plMail is reached at — is asked for on the setup screen. Open the app and it offers to create the
+first administrator; `app:setup` does the same thing from a terminal.
+
+That first boot takes a few minutes. The dev stack bind-mounts the source tree over `/app`, so the
+`vendor/` baked into the image is hidden and a fresh clone has none; the entrypoint runs
+`composer install` once to fill it, under a lock so the five services sharing the mount cannot race.
+Later boots skip it.
 
 Migrations run automatically via the entrypoint. The `imap-supervisor`, `messenger-worker` and
 `scheduler` services start with the stack and restart on failure.
+
+`.github/workflows/docker.yml` builds the published image for both `linux/amd64` and `linux/arm64`,
+each on a native runner, then merges the two into one manifest. A change to the `Dockerfile` must
+therefore hold on both — nothing may assume x86, and any binary fetched during the build has to
+resolve an arm64 asset too. ARM is not a niche here: a NAS or a Raspberry Pi is squarely the kind of
+machine plMail is meant to run on.
 
 ## Tests
 

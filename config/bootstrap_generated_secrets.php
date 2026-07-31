@@ -63,12 +63,27 @@ declare(strict_types=1);
     // The database password is generated too, so the connection string has to
     // be assembled after the fact — the same rule the entrypoint applies, kept
     // here as well so an `exec` session reaches the same database.
-    if (false === $isSet('DATABASE_URL') && true === $isSet('POSTGRES_PASSWORD')) {
+    //
+    // "Is it set" is not the test, because it is always set: compose resolves
+    // ${DATABASE_URL:-} against the project .env, whose default is deliberately
+    // a credential-less DSN (Doctrine needs a driver in the scheme, and a blank
+    // DSN has none — see the note in .env). Only a DSN carrying a password
+    // represents a database an operator actually chose; the placeholder must
+    // not suppress the generated one, or nothing can authenticate.
+    $databaseUrlHasPassword = static function (): bool {
+        $password = parse_url(trim((string) ($_SERVER['DATABASE_URL'] ?? $_ENV['DATABASE_URL'] ?? '')), PHP_URL_PASS);
+
+        return \is_string($password) && '' !== $password;
+    };
+
+    if (false === $databaseUrlHasPassword() && true === $isSet('POSTGRES_PASSWORD')) {
         $get = static fn (string $name, string $default): string => '' !== trim((string) ($_SERVER[$name] ?? $_ENV[$name] ?? ''))
             ? trim((string) ($_SERVER[$name] ?? $_ENV[$name]))
             : $default;
 
-        $put('DATABASE_URL', sprintf(
+        // Assigned rather than $put(): the placeholder DSN counts as "set", so
+        // $put would decline to replace it.
+        $assembled = sprintf(
             'postgresql://%s:%s@%s:5432/%s?serverVersion=%s&charset=%s',
             $get('POSTGRES_USER', 'app'),
             rawurlencode($get('POSTGRES_PASSWORD', '')),
@@ -76,7 +91,10 @@ declare(strict_types=1);
             $get('POSTGRES_DB', 'app'),
             $get('POSTGRES_VERSION', '18'),
             $get('POSTGRES_CHARSET', 'utf8'),
-        ));
+        );
+
+        $_SERVER['DATABASE_URL'] = $assembled;
+        $_ENV['DATABASE_URL']    = $assembled;
     }
 
     // The hub is proxied on the app's own origin (frankenphp/Caddyfile routes

@@ -38,10 +38,42 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	export APP_SECRETS_FILE="$SECRETS_FILE"
 	load_generated_secrets "$SECRETS_FILE"
 
+	# True only for a DSN that carries a password, i.e. one an operator actually
+	# configured.
+	#
+	# "Is it empty" is not the test, because it is never empty: compose resolves
+	# ${DATABASE_URL:-} against the project .env, and the .env default is a
+	# credential-less DSN on purpose — Doctrine reads the driver out of the
+	# scheme, and a blank DSN has none, which breaks the prod cache warmup during
+	# the image build. Treating that placeholder as operator intent is what stops
+	# the generated password from ever being spliced in, and Postgres then
+	# refuses the connection with "no password supplied".
+	database_url_has_password() {
+		case "$1" in
+			*://*) ;;
+			*) return 1 ;;
+		esac
+
+		_userinfo="${1#*://}"
+
+		# No "@" at all, or one that only shows up later in the path or query:
+		# no userinfo, so no password.
+		case "$_userinfo" in
+			*@*) _userinfo="${_userinfo%%@*}" ;;
+			*) return 1 ;;
+		esac
+
+		case "$_userinfo" in
+			*/*) return 1 ;;
+			*:*) return 0 ;;
+			*) return 1 ;;
+		esac
+	}
+
 	# The database password is generated too, so the connection string has to be
 	# assembled after the fact. Only when nothing supplied one: an operator with
 	# an external database sets DATABASE_URL and never reaches this.
-	if [ -z "$DATABASE_URL" ] && [ -n "$POSTGRES_PASSWORD" ]; then
+	if ! database_url_has_password "$DATABASE_URL" && [ -n "$POSTGRES_PASSWORD" ]; then
 		export DATABASE_URL="postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-database}:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-18}&charset=${POSTGRES_CHARSET:-utf8}"
 	fi
 
@@ -58,6 +90,59 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		cp -Rp . ..
 		cd -
 		rm -Rf tmp/
+	fi
+
+	# Dependencies are baked into the prod image, so none of this runs for the
+	# published one — vendor/ is already there. It runs for the dev stack, which
+	# bind-mounts the source tree over /app: a fresh clone has no vendor/, and
+	# every bin/console below would die on "Dependencies are missing. Try running
+	# composer install." Doing it here is what keeps `docker compose up` the only
+	# command a contributor has to run.
+	#
+	# php, the three workers and tailwind all start within milliseconds of each
+	# other against that one shared bind mount, so this has to be mutually
+	# exclusive — five concurrent installs over the same vendor/ can leave a
+	# corrupt autoloader behind.
+	#
+	# mkdir is the mutex, not flock. flock is advisory and does not reliably
+	# exclude across containers on a macOS bind mount: the lock file is created
+	# by the very redirect that acquires it, and two simultaneous O_CREATs over
+	# VirtioFS do not necessarily end up sharing lock state. Measured, not
+	# assumed — php and imap-supervisor both entered a flock-guarded block 17ms
+	# apart. mkdir is a single atomic operation that fails with EEXIST, which is
+	# the property actually needed here.
+	install_dependencies_once() {
+		_lock='.composer-install.lock'
+		_waited=0
+
+		while [ ! -f vendor/autoload_runtime.php ]; do
+			if mkdir "$_lock" 2>/dev/null; then
+				echo 'Installing PHP dependencies — first run only, this takes a few minutes...'
+				composer install --prefer-dist --no-progress --no-interaction
+				_status=$?
+				rmdir "$_lock" 2>/dev/null || true
+
+				return $_status
+			fi
+
+			[ "$_waited" -eq 0 ] && echo 'Another container is installing PHP dependencies; waiting...'
+
+			sleep 5
+			_waited=$((_waited + 5))
+
+			# Nothing should take this long. If it has, the container that held
+			# the lock died mid-install and left it behind — clear it and take
+			# over rather than waiting out the clock forever.
+			if [ "$_waited" -ge 900 ]; then
+				echo 'Timed out waiting for the install to finish; clearing a stale lock.' >&2
+				rmdir "$_lock" 2>/dev/null || true
+				_waited=0
+			fi
+		done
+	}
+
+	if [ -f composer.json ] && [ ! -f vendor/autoload_runtime.php ]; then
+		install_dependencies_once
 	fi
 
 	if grep -q ^DATABASE_URL= .env; then

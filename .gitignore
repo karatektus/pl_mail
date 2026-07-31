@@ -23,8 +23,14 @@
 .idea/
 .vscode/
 
-# Docker override
+# Docker override. Local by design: compose auto-loads it, so a committed one
+# would silently switch every user off the published image and onto a
+# build-from-source dev stack. Copy compose.override.yaml.dist to create it.
+compose.override.yaml
 docker-compose.override.yml
+
+# Mutex directory for the one-time `composer install` in the dev entrypoint.
+/.composer-install.lock/
 
 truenas.compose.yaml.local
 

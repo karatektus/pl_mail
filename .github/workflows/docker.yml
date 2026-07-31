@@ -11,8 +11,25 @@ env:
     IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+    # One job per architecture, each on a runner of that architecture. The prod
+    # stage runs composer install, dump-autoload, tailwind:build --minify and
+    # asset-map:compile — all CPU-bound PHP, which is why this is a matrix of
+    # native runners rather than a single job cross-building under QEMU.
+    #
+    # Neither job pushes a tag. Both push an untagged digest, and `merge` below
+    # assembles them into the one manifest list the tags point at.
     build:
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: linux/amd64
+                      arch: amd64
+                      runner: ubuntu-latest
+                    - platform: linux/arm64
+                      arch: arm64
+                      runner: ubuntu-24.04-arm
         permissions:
             contents: read
             packages: write
@@ -27,7 +44,76 @@ jobs:
             - name: Log in to GitHub Container Registry
               uses: docker/login-action@v3
               with:
-                  registry: ghcr.io
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            # Labels only. Tags belong to the manifest list, which does not
+            # exist until the merge job runs.
+            - name: Extract metadata
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+            - name: Build and push by digest
+              id: build
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  target: frankenphp_prod
+                  platforms: ${{ matrix.platform }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  provenance: false
+                  outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+                  # Scoped per architecture: a shared scope would have the two
+                  # jobs evicting each other's layers on every run.
+                  cache-from: type=gha,scope=frankenphp_prod-${{ matrix.arch }}
+                  cache-to: type=gha,mode=max,scope=frankenphp_prod-${{ matrix.arch }}
+
+            - name: Export digest
+              if: github.event_name != 'pull_request'
+              run: |
+                  digest="${{ steps.build.outputs.digest }}"
+                  mkdir -p "${{ runner.temp }}/digests"
+                  touch "${{ runner.temp }}/digests/${digest#sha256:}"
+              shell: bash
+
+            - name: Upload digest
+              if: github.event_name != 'pull_request'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: digests-${{ matrix.arch }}
+                  path: ${{ runner.temp }}/digests/*
+                  if-no-files-found: error
+                  retention-days: 1
+
+    # Collects the per-architecture digests into a single manifest list and
+    # applies the tags to it. Pull requests never push, so there is nothing to
+    # merge for them.
+    merge:
+        runs-on: ubuntu-latest
+        needs: build
+        if: github.event_name != 'pull_request'
+        permissions:
+            contents: read
+            packages: write
+
+        steps:
+            - name: Download digests
+              uses: actions/download-artifact@v4
+              with:
+                  path: ${{ runner.temp }}/digests
+                  pattern: digests-*
+                  merge-multiple: true
+
+            - name: Set up Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -35,20 +121,18 @@ jobs:
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ghcr.io/${{ github.repository }}
+                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
                   tags: |
                       type=ref,event=branch
                       type=sha,prefix=sha-
                       type=raw,value=latest,enable={{is_default_branch}}
 
-            - name: Build and push
-              uses: docker/build-push-action@v6
-              with:
-                  context: .
-                  target: frankenphp_prod
-                  push: ${{ github.event_name != 'pull_request' }}
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
-                  provenance: false
-                  cache-from: type=gha,scope=frankenphp_prod
-                  cache-to: type=gha,mode=max,scope=frankenphp_prod
+            - name: Create manifest list and push
+              working-directory: ${{ runner.temp }}/digests
+              run: |
+                  docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+                    $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+            - name: Inspect image
+              run: |
+                  docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}

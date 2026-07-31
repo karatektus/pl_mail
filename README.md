@@ -77,6 +77,9 @@ unreachable, and search runs against your own database rather than someone else'
 - A machine running Docker and Docker Compose
 - A few minutes
 
+Images are published for both `linux/amd64` and `linux/arm64`, so an Apple Silicon Mac, an ARM NAS
+or a 64-bit Raspberry Pi runs plMail natively — no emulation.
+
 That's enough for IMAP accounts. Gmail and Outlook additionally need OAuth credentials from Google or
 Microsoft — see [Connecting Gmail](#connecting-gmail) below.
 
