@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -31,8 +32,21 @@ final class EmailPatchApplier
         private readonly LabelBindingRepository $bindingRepository,
         private readonly LabelChangePropagator $propagator,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
+        private readonly JmapDraftWriter $draftWriter,
     ) {
     }
+
+    /**
+     * What a client may rewrite on a draft.
+     *
+     * Everything a composer owns, and nothing else — no receivedAt, no
+     * messageId, no threadId. Those describe where a message came from, and a
+     * draft that could rewrite them could forge one.
+     */
+    private const array DRAFT_PROPERTIES = [
+        'subject', 'to', 'cc', 'bcc', 'textBody', 'htmlBody', 'bodyValues',
+        'inReplyTo', 'references', 'attachments',
+    ];
 
     /**
      * Accepts both the patch form ("keywords/$seen": true) and the whole-value
@@ -46,6 +60,7 @@ final class EmailPatchApplier
         $mailboxIds = $this->currentMailboxIds($account, $message);
         $touchesKeywords = false;
         $touchesMailboxes = false;
+        $content = [];
 
         foreach ($patch as $path => $value) {
             $path = (string) $path;
@@ -74,7 +89,26 @@ final class EmailPatchApplier
                 continue;
             }
 
+            // Content, which is editable on a draft and on nothing else. A
+            // received message's body is a record of what arrived; letting a
+            // client rewrite it would make the mailbox unfalsifiable.
+            if (true === in_array($path, self::DRAFT_PROPERTIES, true)) {
+                if (false === $message->hasFlag(MessageFlag::DRAFT)) {
+                    throw new MethodException(
+                        'invalidPatch',
+                        sprintf('"%s" can only be changed on a draft.', $path),
+                    );
+                }
+
+                $content[$path] = $value;
+                continue;
+            }
+
             throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated.', $path));
+        }
+
+        if ([] !== $content) {
+            $this->draftWriter->update($message, $content);
         }
 
         if (true === $touchesKeywords) {

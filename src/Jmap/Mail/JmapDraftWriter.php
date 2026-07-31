@@ -71,6 +71,47 @@ final class JmapDraftWriter
     }
 
     /**
+     * Rewrites an existing draft in place.
+     *
+     * Only the properties the patch actually named. A composer that sends the
+     * whole object every save is normal, but so is one that sends just the
+     * body, and treating an absent key as "clear this" would silently drop a
+     * subject the user never touched.
+     *
+     * The message keeps its id, its thread and its place in the Drafts label,
+     * so a draft edited from three devices stays one draft.
+     *
+     * @param array<string,mixed> $patch already filtered to draft properties
+     */
+    public function update(Message $message, array $patch): void
+    {
+        if (true === array_key_exists('subject', $patch)) {
+            $message->setSubject($this->stringOrNull($patch['subject'], 'subject'));
+        }
+
+        foreach (['to' => 'setToAddresses', 'cc' => 'setCcAddresses', 'bcc' => 'setBccAddresses'] as $property => $setter) {
+            if (true === array_key_exists($property, $patch)) {
+                $message->{$setter}($this->addresses($patch[$property], $property));
+            }
+        }
+
+        $this->applyReplyContext($message, $patch);
+
+        // Body only when this patch carried one. `body()` reads bodyValues
+        // through the part ids in textBody/htmlBody, so naming either without
+        // the other's values is what an editor sends.
+        if (true === array_key_exists('bodyValues', $patch)) {
+            $message->setBodyHtml($this->body($patch));
+            $this->bodySanitizer->sanitize($message);
+            $message->setBodyText($this->plainText($message->getBodyHtml()));
+        }
+
+        $message->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->entityManager->flush();
+    }
+
+    /**
      * Mirrors ComposeController::applyAccount(): exactly one Drafts label, and
      * the mailbox pointer aimed at its backing folder.
      */
