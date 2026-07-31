@@ -6,8 +6,8 @@ namespace App\Service\Graph;
 
 use App\Entity\Mail\Account;
 use App\Service\Label\LabelResolver;
+use App\Domain\Exception\GraphApiException;
 use App\Service\Mail\GraphApiClient;
-use App\Service\Mail\GraphApiException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

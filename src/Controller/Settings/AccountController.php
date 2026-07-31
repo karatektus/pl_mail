@@ -220,7 +220,9 @@ final class AccountController extends AbstractController
             return $this->json(new ConnectionTestResult(
                 false,
                 'Enter at least an email address and an IMAP host first.',
+                '',
                 null,
+                '',
                 '',
             )->toArray());
         }
@@ -229,7 +231,9 @@ final class AccountController extends AbstractController
             return $this->json(new ConnectionTestResult(
                 false,
                 'No password available to test with. Enter one above — on the edit form a blank field means "keep the stored password", which the tester can only resolve once the account id reaches it.',
+                '',
                 null,
+                '',
                 '',
             )->toArray());
         }

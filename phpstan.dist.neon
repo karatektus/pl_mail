@@ -1,0 +1,38 @@
+# Static analysis for src/ and tests/.
+#
+# Level 5 to start, with everything already failing captured in a baseline. The
+# alternative — level 0 with no baseline — reports nothing interesting, and
+# level 9 buys a week of triage before it finds its first real bug. Five is
+# where the class of defect this codebase actually has starts showing up:
+# nullable entity getters (`?int getId()`, `?Account getAccount()`) flowing into
+# parameters and return types that are not nullable.
+#
+# The baseline is a debt ledger, not a licence. It shrinks; raise the level when
+# it is small enough that doing so is a day's work rather than a fortnight's.
+includes:
+    - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-symfony/rules.neon
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-doctrine/rules.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - src
+        - tests
+
+    # Generated: 54 migrations nobody edits by hand, and a 1000-line dump of
+    # the framework config tree that exists to be read, not analysed.
+    excludePaths:
+        analyseAndScan:
+            - migrations
+            - config/reference.php
+
+    symfony:
+        containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml
+        consoleApplicationLoader: tests/phpstan-console-loader.php
+
+    doctrine:
+        objectManagerLoader: tests/phpstan-object-manager.php

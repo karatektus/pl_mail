@@ -1,0 +1,51 @@
+version: 2
+
+# A mail client's dependency tree is its attack surface: four OAuth clients, a
+# JWT library, an IMAP parser and an HTML sanitiser, all handling bytes that
+# arrive from outside. Nothing was watching them.
+#
+# Grouped and weekly rather than per-package and daily. plMail pins Symfony to
+# a single minor (8.1.*), so its packages move together and one PR per package
+# would be a dozen PRs that only make sense merged at once.
+updates:
+    - package-ecosystem: composer
+      directory: /
+      schedule:
+          interval: weekly
+      open-pull-requests-limit: 5
+      groups:
+          symfony:
+              patterns:
+                  - 'symfony/*'
+                  - 'symfonycasts/*'
+          doctrine:
+              patterns:
+                  - 'doctrine/*'
+          # Everything else together: these are the ones worth reading
+          # individually, and there are few enough of them to do that.
+          minor-and-patch:
+              update-types:
+                  - minor
+                  - patch
+
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: weekly
+      open-pull-requests-limit: 3
+      groups:
+          playwright:
+              patterns:
+                  - '@playwright/*'
+                  - 'playwright'
+
+    # The build publishes the image users actually run, so a stale or
+    # vulnerable action here reaches further than a stale library.
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+      groups:
+          actions:
+              patterns:
+                  - '*'

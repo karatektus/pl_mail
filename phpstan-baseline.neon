@@ -1,0 +1,1147 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Command/Diagnostics/GraphDiagnoseCommand.php
+
+		-
+			message: '#^Call to an undefined method Webklex\\PHPIMAP\\Connection\\Protocols\\ProtocolInterface\:\:nextLine\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Command/Imap/ImapIdleCommand.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 2
+			path: src/Command/Imap/ImapIdleCommand.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Command/Imap/ImapSuperviseCommand.php
+
+		-
+			message: '#^Parameter \#2 \$options of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects array\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/Imap/ImapTestCommand.php
+
+		-
+			message: '#^Parameter \#3 \$internal_date of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects Carbon\\Carbon\|string\|null, DateTimeImmutable given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/Imap/ImapTestCommand.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Command/Test/SeedTestEmailCommand.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between true and true will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: src/Command/Test/SeedTestEmailCommand.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$assign$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Controller/Admin/IntegrationProviderController.php
+
+		-
+			message: '#^Attribute class App\\Controller\\Admin\\User\\ParamConverter does not exist\.$#'
+			identifier: attribute.notFound
+			count: 2
+			path: src/Controller/Admin/User/DefaultController.php
+
+		-
+			message: '#^Attribute class JetBrains\\PhpStorm\\ArrayShape does not exist\.$#'
+			identifier: attribute.notFound
+			count: 1
+			path: src/Controller/Admin/User/DefaultController.php
+
+		-
+			message: '#^Call to an undefined method App\\Entity\\User\\User\:\:setName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Controller/Admin/User/DefaultController.php
+
+		-
+			message: '#^Class App\\Form\\Admin\\UserFormType not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Controller/Admin/User/DefaultController.php
+
+		-
+			message: '#^Parameter \#1 \$password of method App\\Entity\\User\\User\:\:setPassword\(\) expects string, null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Admin/User/DefaultController.php
+
+		-
+			message: '#^Parameter \#1 \$token of method League\\OAuth2\\Client\\Provider\\AbstractProvider\:\:getResourceOwner\(\) expects League\\OAuth2\\Client\\Token\\AccessToken, League\\OAuth2\\Client\\Token\\AccessTokenInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Auth/OAuthController.php
+
+		-
+			message: '#^Property App\\Controller\\Auth\\OAuthController\:\:\$graphSubscriptionManager is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Auth/OAuthController.php
+
+		-
+			message: '#^Property App\\Controller\\Integration\\FilePickerController\:\:\$integrationRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Integration/FilePickerController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type App\\Entity\\Mail\\Account\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: src/Controller/Integration/FilePickerController.php
+
+		-
+			message: '#^Constant App\\Controller\\Mail\\ComposeController\:\:INLINE_FRAME is unused\.$#'
+			identifier: classConstant.unused
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 4
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Method App\\Controller\\Mail\\ComposeController\:\:resolveAccount\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: bool, frame\: string, thread\: int\|null\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: true, frame\: string, thread\: int\|null\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\ContactRepository\:\:upsertBatch\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Property App\\Controller\\Mail\\ComposeController\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Variable \$contacts in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: src/Controller/Mail/ComposeController.php
+
+		-
+			message: '#^Parameter \#1 \$usr of method App\\Entity\\Label\\Label\:\:setUsr\(\) expects App\\Entity\\User\\User\|null, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Mail/LabelController.php
+
+		-
+			message: '#^Property App\\Controller\\Mail\\MailController\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Mail/MailController.php
+
+		-
+			message: '#^Property App\\Controller\\Mail\\MailController\:\:\$messageRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Mail/MailController.php
+
+		-
+			message: '#^Call to function is_array\(\) with string will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: src/Controller/Mail/MessageSourceController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Controller/Mail/MessageSourceController.php
+
+		-
+			message: '#^Instantiating DateTimeImmutable with in 1 day produces an error\: The timezone could not be found in the database$#'
+			identifier: new.dateTimeImmutable
+			count: 1
+			path: src/Controller/Mail/ThreadStatusController.php
+
+		-
+			message: '#^Property App\\Controller\\Mail\\ThreadStatusController\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Mail/ThreadStatusController.php
+
+		-
+			message: '#^Attribute class Symfony\\Component\\HttpKernel\\Attribute\\MapEntity does not exist\.$#'
+			identifier: attribute.notFound
+			count: 2
+			path: src/Controller/Onboarding/OnboardingController.php
+
+		-
+			message: '#^Parameter \#2 \$user of method App\\Service\\Mail\\AccountCreator\:\:create\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Settings/AccountController.php
+
+		-
+			message: '#^Property App\\Controller\\Settings\\AccountController\:\:\$aliasSeeder is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Settings/AccountController.php
+
+		-
+			message: '#^Property App\\Controller\\Settings\\AccountController\:\:\$graphSubscriptionManager is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Settings/AccountController.php
+
+		-
+			message: '#^Property App\\Controller\\Settings\\AccountController\:\:\$logger is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Settings/AccountController.php
+
+		-
+			message: '#^Method App\\Controller\\Settings\\IntegrationController\:\:nullIfBlank\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: src/Controller/Settings/IntegrationController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\MessageRepository\:\:countMatchingForUser\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Settings/MailRuleController.php
+
+		-
+			message: '#^Property App\\Controller\\Settings\\MailRuleController\:\:\$executor is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Settings/MailRuleController.php
+
+		-
+			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$usr \(App\\Entity\\User\\User\|null\) does not accept Symfony\\Component\\Security\\Core\\User\\UserInterface\|null\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/Controller/Settings/MailRuleController.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\HttpFoundation\\Session\\SessionInterface\:\:getFlashBag\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Controller/Settings/SettingsController.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getLocale\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Controller/Settings/SettingsController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Service\\User\\ProfileSectionViewData\:\:build\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Settings/SettingsController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Service\\User\\TwoFactor\\SecuritySectionViewData\:\:build\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Controller/Settings/SettingsController.php
+
+		-
+			message: '#^Property App\\Controller\\Settings\\SettingsController\:\:\$pushSubscriptionRegistry is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Controller/Settings/SettingsController.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\HttpFoundation\\Session\\SessionInterface\:\:getFlashBag\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Controller/Settings/TwoFactorController.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Contracts\\Translation\\TranslatorInterface\:\:setLocale\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Controller/Setup/InstallController.php
+
+		-
+			message: '#^Match arm comparison between \$this\(App\\Domain\\Enum\\Integration\\Provider\)&App\\Domain\\Enum\\Integration\\Provider\:\:Dropbox and App\\Domain\\Enum\\Integration\\Provider\:\:Dropbox is always true\.$#'
+			identifier: match.alwaysTrue
+			count: 1
+			path: src/Domain/Enum/Integration/Provider.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Domain/Helper/MessageIdHelper.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Domain/Helper/MessageIdHelper.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\Integration\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/Integration.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\Integration\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/Integration.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\IntegrationProviderConfig\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/IntegrationProviderConfig.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\IntegrationProviderConfig\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/IntegrationProviderConfig.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\MailProviderConfig\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/MailProviderConfig.php
+
+		-
+			message: '#^Property App\\Entity\\Integration\\MailProviderConfig\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Integration/MailProviderConfig.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Label/Label.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$name type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Label/Label.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Label/Label.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Label/Label.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$account type mapping mismatch\: property can contain App\\Entity\\Mail\\Account\|null but database expects App\\Entity\\Mail\\Account\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Label/LabelBinding.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Label/LabelBinding.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$label type mapping mismatch\: property can contain App\\Entity\\Label\\Label\|null but database expects App\\Entity\\Label\\Label\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Label/LabelBinding.php
+
+		-
+			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Label/LabelBinding.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$authType type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$isActive type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$username type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Account\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/Account.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$email type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$firstSeenAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$lastSeenAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/Contact.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\EmailAlias\:\:\$account type mapping mismatch\: property can contain App\\Entity\\Mail\\Account\|null but database expects App\\Entity\\Mail\\Account\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/EmailAlias.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\EmailAlias\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/EmailAlias.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\EmailAlias\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/EmailAlias.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$account type mapping mismatch\: property can contain App\\Entity\\Mail\\Account\|null but database expects App\\Entity\\Mail\\Account\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$fullPath type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$isSyncEnabled type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$name type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Mailbox.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Message\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Message.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Message\:\:\$hasAttachments type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Message.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\Message\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/Message.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessagePart\:\:\$contentType type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessagePart.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessagePart\:\:\$disposition type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessagePart.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessagePart\:\:\$isInline type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessagePart.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessagePart\:\:\$message type mapping mismatch\: property can contain App\\Entity\\Mail\\Message\|null but database expects App\\Entity\\Mail\\Message\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/MessagePart.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessageThread\:\:\$account type mapping mismatch\: property can contain App\\Entity\\Mail\\Account\|null but database expects App\\Entity\\Mail\\Account\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Mail/MessageThread.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessageThread\:\:\$messageCount type mapping mismatch\: property can contain int\|null but database expects int\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessageThread.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessageThread\:\:\$normalizedSubject type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessageThread.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessageThread\:\:\$threadingMethod type mapping mismatch\: property can contain App\\Domain\\Enum\\Mail\\ThreadingMethod\|null but database expects App\\Domain\\Enum\\Mail\\ThreadingMethod\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessageThread.php
+
+		-
+			message: '#^Property App\\Entity\\Mail\\MessageThread\:\:\$unreadCount type mapping mismatch\: property can contain int\|null but database expects int\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Mail/MessageThread.php
+
+		-
+			message: '#^Property App\\Entity\\Monitoring\\LogEntry\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Monitoring/LogEntry.php
+
+		-
+			message: '#^Property App\\Entity\\Monitoring\\ProcessHeartbeat\:\:\$lastBeatAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Monitoring/ProcessHeartbeat.php
+
+		-
+			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Rule/MailRule.php
+
+		-
+			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$name type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Rule/MailRule.php
+
+		-
+			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/Rule/MailRule.php
+
+		-
+			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
+			identifier: doctrine.associationType
+			count: 1
+			path: src/Entity/Rule/MailRule.php
+
+		-
+			message: '#^Property App\\Entity\\User\\ApiToken\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/ApiToken.php
+
+		-
+			message: '#^Property App\\Entity\\User\\ApiToken\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/ApiToken.php
+
+		-
+			message: '#^Property App\\Entity\\User\\TrustedDevice\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/TrustedDevice.php
+
+		-
+			message: '#^Property App\\Entity\\User\\TrustedDevice\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/TrustedDevice.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$email type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$nameFirst type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$nameLast type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$password type mapping mismatch\: property can contain string\|null but database expects string\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Property App\\Entity\\User\\User\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
+			identifier: doctrine.columnType
+			count: 1
+			path: src/Entity/User/User.php
+
+		-
+			message: '#^Offset ''\\\\Archive''\|''\\\\Trash'' on array\{\\Trash\: array\{''Trash'', ''Deleted'', ''Deleted Items'', ''Deleted Messages''\}, \\Archive\: array\{''Archive'', ''Archives''\}\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Infrastructure/Messaging/Handler/ApplyImapFlagsHandler.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Message will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Infrastructure/Messaging/Handler/SendMessageHandler.php
+
+		-
+			message: '#^Offset ''name'' on array\{name\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Infrastructure/Messaging/Handler/SyncGmailMessageBatchHandler.php
+
+		-
+			message: '#^Offset ''value'' on array\{name\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Infrastructure/Messaging/Handler/SyncGmailMessageBatchHandler.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between true and 0\|1 will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Jmap/Controller/JmapEventSourceController.php
+
+		-
+			message: '#^Method App\\Jmap\\Mail\\EmailPatchApplier\:\:currentMailboxIds\(\) should return array\<string, bool\> but returns array\<int, true\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Jmap/Mail/EmailPatchApplier.php
+
+		-
+			message: '#^Property App\\Jmap\\Mail\\EmailPatchApplier\:\:\$labelRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Jmap/Mail/EmailPatchApplier.php
+
+		-
+			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
+			identifier: greater.alwaysTrue
+			count: 1
+			path: src/Jmap/Mail/JmapDraftWriter.php
+
+		-
+			message: '#^Property App\\Jmap\\Mail\\JmapDraftWriter\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Jmap/Mail/JmapDraftWriter.php
+
+		-
+			message: '#^Method App\\Jmap\\Mapper\\EmailMapper\:\:mailboxIds\(\) never returns array\<string, bool\> so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Jmap/Mapper/EmailMapper.php
+
+		-
+			message: '#^Method App\\Jmap\\Mapper\\EmailMapper\:\:mailboxIds\(\) should return array\<string, bool\>\|stdClass but returns array\<int, bool\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Jmap/Mapper/EmailMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Archive''\|''Snoozed'' and ''Junk'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Archive''\|''Snoozed''\|''Spam'' and ''Bin'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Archive''\|''Snoozed''\|''Spam'' and ''Deleted'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''All'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''AllMail'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''Flagged'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''Important'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''Snoozed'' is always true\.$#'
+			identifier: match.alwaysTrue
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Match arm comparison between ''Snoozed'' and ''Starred'' is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: src/Jmap/Mapper/MailboxMapper.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Core/PushSubscriptionSetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/EmailSetMethod.php
+
+		-
+			message: '#^Property App\\Jmap\\Method\\Mail\\EmailSetMethod\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Jmap/Method/Mail/EmailSetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/IdentitySetMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<''''\|decimal\-int\-string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/MailboxQueryMethod.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Jmap/Method/Mail/MailboxSetMethod.php
+
+		-
+			message: '#^Property App\\Jmap\\Method\\Mail\\ThreadSetMethod\:\:\$entityManager is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Jmap/Method/Mail/ThreadSetMethod.php
+
+		-
+			message: '#^Method App\\Jmap\\Push\\PushDispatcher\:\:groupByUser\(\) should return array\<int, array\<string, array\<string, string\>\>\> but returns array\<int, array\<int, array\<string, string\>\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Jmap/Push/PushDispatcher.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 2
+			path: src/Jmap/Query/EmailQueryRunner.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 3
+			path: src/Jmap/State/StateManager.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: src/Kernel.php
+
+		-
+			message: '#^Method App\\Kernel\:\:getAllowedEnvs\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: src/Kernel.php
+
+		-
+			message: '#^PHPDoc tag @return with type iterable\<App\\Entity\\Mail\\Account\> is not subtype of native type array\.$#'
+			identifier: return.phpDocType
+			count: 2
+			path: src/Repository/Mail/AccountRepository.php
+
+		-
+			message: '#^Offset ''correspondent'' on array\{email\: string, name\: string\|null\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Repository/Mail/ContactRepository.php
+
+		-
+			message: '#^Offset ''email'' on array\{email\: string, name\: string\|null\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Repository/Mail/ContactRepository.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Repository/Mail/MessageRepository.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Repository/Mail/MessageThreadRepository.php
+
+		-
+			message: '#^Call to sprintf contains an invalid placeholder\.$#'
+			identifier: argument.sprintf
+			count: 1
+			path: src/Repository/User/UserRepository.php
+
+		-
+			message: '#^Method App\\Security\\ApiTokenAuthenticator\:\:onAuthenticationFailure\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Security/ApiTokenAuthenticator.php
+
+		-
+			message: '#^Method App\\Security\\ApiTokenAuthenticator\:\:supports\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Security/ApiTokenAuthenticator.php
+
+		-
+			message: '#^Attribute class JetBrains\\PhpStorm\\ArrayShape does not exist\.$#'
+			identifier: attribute.notFound
+			count: 1
+			path: src/Security/LoginFormAuthenticator.php
+
+		-
+			message: '#^Offset ''name'' on array\{name\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Service/Gmail/GmailMessageBuilder.php
+
+		-
+			message: '#^Offset ''value'' on array\{name\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Service/Gmail/GmailMessageBuilder.php
+
+		-
+			message: '#^Offset ''expiration'' on array\{historyId\: string, expiration\: string, resourceName\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Service/Gmail/GmailWatchService.php
+
+		-
+			message: '#^Offset ''historyId'' on array\{historyId\: string, expiration\: string, resourceName\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Service/Gmail/GmailWatchService.php
+
+		-
+			message: '#^Offset ''resourceName'' on array\{historyId\: string, expiration\: string, resourceName\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Service/Gmail/GmailWatchService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(non\-empty\-list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Service/Graph/GraphApiSyncer.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Service/Imap/MessageSendService.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 2
+			path: src/Service/Imap/MessageSyncer.php
+
+		-
+			message: '#^Parameter &\$syncedUids by\-ref type of method App\\Service\\Imap\\MessageSyncer\:\:processBatch\(\) expects array\<int, bool\>, array\<bool\> given\.$#'
+			identifier: parameterByRef.type
+			count: 2
+			path: src/Service/Imap/MessageSyncer.php
+
+		-
+			message: '#^Property App\\Service\\Label\\LabelChangePropagator\:\:\$mailboxRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Service/Label/LabelChangePropagator.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>gmailLabelId" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Service/Label/LabelStructurePropagator.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Service/Mail/AttachmentResolver.php
+
+		-
+			message: '#^Method App\\Service\\Mail\\GraphApiClient\:\:batchWrite\(\) never assigns null to &\$resultIds so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: src/Service/Mail/GraphApiClient.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 2
+			path: src/Service/Mail/GraphApiClient.php
+
+		-
+			message: '#^Parameter \#1 \$array \(non\-empty\-list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: src/Service/Mail/GraphApiClient.php
+
+		-
+			message: '#^Call to function is_array\(\) with string will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: src/Service/Mail/MessageSourceBuilder.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Service/Mail/MessageSourceBuilder.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: src/Service/OAuth/OAuthProviderFactory.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\HttpFoundation\\Session\\SessionInterface\:\:getFlashBag\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Service/Onboarding/Step/SecurityStepHandler.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Service/Rule/FilterDescriber.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Service/Rule/RuleActionExecutor.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Service/Rule/RuleActionExecutor.php
+
+		-
+			message: '#^Call to new App\\Infrastructure\\Encryption\\Encryptor\(\) on a separate line has no effect\.$#'
+			identifier: new.resultUnused
+			count: 1
+			path: tests/Infrastructure/Encryption/EncryptorTest.php
+
+		-
+			message: '#^Instanceof between Symfony\\Component\\Cache\\Adapter\\TraceableAdapter and Psr\\Cache\\CacheItemPoolInterface will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: tests/Security/LoginThrottlingTest.php
+
+		-
+			message: '#^Call to an undefined method App\\Repository\\Mail\\MessageRepository\:\:method\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Service/Gmail/GmailApiSyncerBackfillTest.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: tests/Service/Imap/MessageThreaderTest.php
+
+		-
+			message: '#^Offset ''body'' does not exist on array\{method\: string, url\: string, options\: array\<string, mixed\>\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 2
+			path: tests/Service/Integration/ImmichDriverTest.php
+
+		-
+			message: '#^Offset ''body'' does not exist on array\{method\: ''SEARCH'', url\: string, options\: array\<string, mixed\>\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: tests/Service/Integration/NextcloudDriverTest.php
+
+		-
+			message: '#^Offset ''body'' does not exist on array\{method\: string, url\: string, options\: array\<string, mixed\>\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: tests/Service/Integration/NextcloudDriverTest.php
+
+		-
+			message: '#^Method App\\Tests\\Service\\Mail\\ThreadSnoozeServiceTest\:\:transport\(\) should return Symfony\\Component\\Messenger\\Transport\\InMemory\\InMemoryTransport but returns Symfony\\Component\\Messenger\\Transport\\TransportInterface\.$#'
+			identifier: return.type
+			count: 1
+			path: tests/Service/Mail/ThreadSnoozeServiceTest.php
+
+		-
+			message: '#^Property App\\Tests\\Service\\Mail\\ThreadSnoozeServiceTest\:\:\$labelRepository is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/Service/Mail/ThreadSnoozeServiceTest.php
+
+		-
+			message: '#^Access to an undefined property League\\OAuth2\\Client\\Provider\\AbstractProvider\:\:\$tenant\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Service/OAuth/OAuthProviderFactoryTest.php
+
+		-
+			message: '#^Call to function method_exists\(\) with ''Symfony\\\\Component\\\\Dotenv\\\\Dotenv'' and ''bootEnv'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/bootstrap.php

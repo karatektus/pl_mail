@@ -142,6 +142,12 @@ jobs:
                   php bin/console app:test:seed-user
                   php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
+            # Needs the compiled test container for phpstan-symfony to resolve
+            # service ids, and a booted kernel for the Doctrine metadata — both
+            # of which the seeding above has already produced.
+            - name: Run PHPStan
+              run: composer stan
+
             # Fast and dependency-free, so it runs before the browser suite:
             # a failure here is far quicker to read than a Playwright trace.
             - name: Run PHPUnit tests
