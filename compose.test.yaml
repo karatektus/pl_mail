@@ -26,6 +26,19 @@ x-test-app: &test-app
     # named volume overlaying the bind mount, so sharing it would let the two
     # environments write each other's caches and built assets.
     - app_var_test:/app/var
+    # Same trick, same reason, for the compiled assets `asset-map:compile`
+    # writes in app-init. `public/assets/` does not exist in the repo and the
+    # dev stack bind-mounts this very directory, so without an overlay the
+    # compiled output would land on the host and be served — stale — by the
+    # dev stack on every source edit, since Caddy prefers a real file over
+    # index.php. Keeping it in a volume means the test stack gets static assets
+    # and development is untouched by it.
+    #
+    # Docker does create an *empty* `public/assets/` on the host as the mount
+    # point. That is harmless and expected: the compiled files live in the
+    # volume, so the dev stack finds nothing there and falls through to PHP
+    # exactly as it did before. `.gitignore` already covers the directory.
+    - app_public_assets_test:/app/public/assets
   environment: &test-env
     APP_ENV: test
     APP_DEBUG: "1"
@@ -87,7 +100,22 @@ services:
         # Tailwind's `.hidden { display: none }`. Building here also keeps this
         # stack independent of the dev `tailwind` watcher.
         php bin/console tailwind:build
+        # Compiled, not served through PHP. Without this, `try_files {path}
+        # index.php` in frankenphp/Caddyfile sends every asset request into a
+        # full Symfony kernel boot: /login alone pulls 54 modulepreload entries
+        # plus 2 stylesheets, measured at ~35ms each against ~1.6ms for a real
+        # static file. Playwright gives every test a cold HTTP cache, so that
+        # was ~1.9s of PHP spent serving JavaScript once per test — about 40%
+        # of the whole e2e suite.
+        php bin/console asset-map:compile
         php bin/console app:test:seed-user
+        # The admin the PHPUnit controller tests look for. Seeded here rather
+        # than left to the Playwright suite, which is where it used to come
+        # from: PageRendersTest and friends skip themselves when the user is
+        # missing, so `npm run test:unit:docker` on a fresh volume quietly ran
+        # ~50 fewer tests than it appeared to until the browser suite had been
+        # run at least once.
+        php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
   app:
     <<: *test-app
@@ -105,4 +133,5 @@ services:
 
 volumes:
   app_var_test:
+  app_public_assets_test:
   database_data_test:

@@ -1,6 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import { login, seed } from "./support/config";
-import { execSync } from "node:child_process";
+import { test, expect, type Page } from "./support/test";
+import { TEST_ADMIN, login, seed, seedUser } from "./support/config";
 
 /**
  * The admin side of integrations: every provider is listed with its own
@@ -17,20 +16,19 @@ import { execSync } from "node:child_process";
  * does it: granting ROLE_ADMIN to the shared e2e user mid-run invalidates
  * every other spec's token.
  */
-const CONSOLE = process.env.E2E_CONSOLE ?? "php bin/console";
-
-const ADMIN = {
-    email: "e2e-admin@plmail.test",
-    password: "e2e-admin-password",
-};
+/**
+ * This file runs in its own Playwright project, alone and after everything
+ * else — see the `chromium-exclusive` project in playwright.config.ts.
+ * IntegrationProviderConfig and MailProviderConfig are unique on `provider`
+ * with no user column, so unlike mail or labels this state cannot be split per
+ * worker however many users we invent.
+ */
+const ADMIN = TEST_ADMIN;
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.beforeAll(() => {
-    execSync(
-        `${CONSOLE} app:test:seed-user --admin --email=${ADMIN.email} --password=${ADMIN.password}`,
-        { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } },
-    );
+    seedUser({ email: ADMIN.email, password: ADMIN.password, admin: true });
 });
 
 /**

@@ -1,8 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  *
  * Reseeds a fresh inbox plus one visible custom label ("E2E Label") before
  * each test, then exercises the "Label as" attach flow from the toolbar.

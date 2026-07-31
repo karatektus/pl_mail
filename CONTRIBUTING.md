@@ -106,6 +106,38 @@ reseed their own fixtures, so tests are independent and re-runnable.
 
 CI runs the same suites without Docker — see [.github/workflows/e2e.yml](.github/workflows/e2e.yml).
 
+### How the browser suite stays fast
+
+Three things carry almost all of it, and each is easy to undo by accident.
+
+**Assets are compiled, not served through PHP.** `app-init` runs `asset-map:compile`, and the output
+lives in the `app_public_assets_test` volume rather than on the host — the same overlay trick as
+`app_var_test`, and for the same reason: the dev stack bind-mounts this directory, and a compiled
+`public/assets/` there would be served stale after every source edit. Without the compile, Caddy's
+`try_files {path} index.php` sends every asset request into a full Symfony kernel boot. `/login`
+alone pulls 54 module preloads plus 2 stylesheets, measured at ~35ms each against ~1.6ms for a real
+static file, and Playwright hands every test a cold cache. That one change took the suite from 255s
+to 138s.
+
+**Every worker owns its own user.** `tests/e2e/support/config.ts` derives `e2e-w{N}@plmail.test` from
+Playwright's `TEST_PARALLEL_INDEX`, and the `app:test:*` commands take a matching `--email`
+(`App\Command\Test\TargetsTestUser`). This is what makes `workers > 1` safe: `seed-mail` deletes every
+thread on the account it seeds, which is fine per-user and catastrophic shared. Signing in is a
+worker-scoped fixture in `tests/e2e/support/test.ts`, which is why specs import `test` from there and
+not from `@playwright/test`.
+
+`fullyParallel` is deliberately **false**. Files run in parallel, tests inside a file run in order —
+which is what lets the integration describes and the two-factor spec keep depending on their own
+ordering without declaring anything.
+
+**`integrations.spec.ts` runs alone, last.** `IntegrationProviderConfig` and `MailProviderConfig` are
+unique on `provider` with no user column, so that state is install-wide and no amount of per-worker
+users isolates it. It has its own `chromium-exclusive` project with `dependencies` on the main one.
+
+Two smaller things: `video` is off (the trace is the useful artifact and costs nothing on a passing
+run), and nothing waits for a TOTP window to roll over — otphp accepts a code minted in window `W`
+for any submission in `[30W-15, 30W+45)`, so the wait was superstition.
+
 ## README screenshots
 
 `tests/e2e/screenshots.spec.ts` regenerates the images in `docs/screenshots/`. It asserts nothing and

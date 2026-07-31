@@ -105,18 +105,42 @@ jobs:
               if: steps.playwright-cache.outputs.cache-hit == 'true'
               run: npx playwright install-deps chromium
 
+            # Tailwind scans the templates, so they belong in the key alongside
+            # the importmap and the sources themselves.
+            - name: Cache frontend build
+              id: frontend-cache
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      public/assets
+                      assets/vendor
+                  key: frontend-${{ runner.os }}-${{ hashFiles('importmap.php', 'package-lock.json', 'assets/**', 'templates/**') }}
+
             - name: Build frontend assets
+              if: steps.frontend-cache.outputs.cache-hit != 'true'
               run: |
                   php bin/console importmap:install
                   php bin/console tailwind:build
+                  # Compiled rather than served through PHP. Without this every
+                  # asset request falls through to a full Symfony kernel boot —
+                  # /login alone pulls 56 of them, and Playwright gives every
+                  # test a cold cache. It was about 40% of the whole suite.
+                  php bin/console asset-map:compile
 
             - name: Prepare database
               run: |
                   php bin/console doctrine:database:create --if-not-exists --no-interaction
                   php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
-            - name: Seed E2E user
-              run: php bin/console app:test:seed-user
+            # The Playwright suite seeds its own per-worker users, so this is
+            # only what PHPUnit needs: the default user, and the admin the
+            # controller tests look for. That admin used to be created by a
+            # browser spec, which meant PHPUnit silently skipped ~50 tests
+            # whenever it ran first — which is exactly the order used here.
+            - name: Seed fixture users
+              run: |
+                  php bin/console app:test:seed-user
+                  php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
             # Fast and dependency-free, so it runs before the browser suite:
             # a failure here is far quicker to read than a Playwright trace.

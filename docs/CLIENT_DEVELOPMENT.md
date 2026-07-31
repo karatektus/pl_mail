@@ -206,15 +206,37 @@ Composed surfaces: `pane` (card with border + shadow), `pane-flat` (no shadow), 
 opaque** — a translucent dropdown over a photo grid is illegible), `main-pane` (the content card,
 respects `mainTint`/`mainAlpha`), and `app-bg` (the gradient/image background plus scrim).
 
-### The mail sheet — the one place the theme stops
+### The mail sheet — where the theme stops, and how it stops
 
-Rendered mail bodies are shown on a **permanently light sheet**, regardless of theme, exactly like
-Gmail. Mail arrives authored for a white background; rendering it on a dark surface produces black
-text on black. The `mail-sheet` utility redeclares the palette channels locally so *everything
-inside* — including your own chrome, if you nest any — resolves to light values.
+Rendered mail bodies do not take the app's palette. Mail arrives authored for a white background, so
+handing it a dark surface produces black text on black. The web UI's `mail-sheet` utility redeclares
+the palette channels locally so *everything inside* — including your own chrome, if you nest any —
+resolves to light values.
 
-**In a native client: render message bodies in a light-background webview, always.** Do not pass the
-user's dark theme into the message renderer.
+**On the web that means a permanently light sheet.** On a phone it cannot: a mail app whose reading
+pane is the one screen that stays white at night is not acceptable, and users will say so.
+
+So a native client should render dark — but **not by inverting everything**, which is the approach
+that reliably looks broken. Photographs come out as negatives, logos come out in the wrong brand
+colours, and a message that already ships its own dark styles double-inverts into something worse
+than either extreme.
+
+Choose a strategy per message, from what its HTML declares about itself:
+
+| The message | What to do |
+|---|---|
+| Brings no colours of its own — a typed reply, most personal mail | **Restyle it** in your dark palette. Nothing is inverted, so nothing can look like a negative. This is the best available result. |
+| Has a palette of its own — newsletters, anything designed | **Invert with `hue-rotate(180deg)`**, then invert `img`, `picture`, `video`, `svg` and background-image elements *back*. That second rule is the one everyone forgets, and skipping it is what gives inversion its reputation. |
+| Already declares `prefers-color-scheme` | Tell it the scheme is dark and **leave it alone.** The sender did the work. |
+| Any of the above, in light appearance | Render exactly as sent. |
+
+Two things follow. **Offer a way back to the original** wherever you transformed a message —
+inversion gets some mail wrong, and being told a mangled message is fine is worse than seeing that it
+was mangled. And note `invert`+`hue-rotate` is a matrix approximation rather than a true HSL
+rotation, so round-tripped colours come back slightly desaturated; that is the cost of the technique.
+
+What has not changed: **never pass the user's *theme* into the message renderer.** The message gets
+one of the treatments above, not the accent colour, the pane alpha or the background image.
 
 ### Layout and navigation
 
@@ -835,7 +857,9 @@ Ordered roughly by how much users will miss them.
 - **Don't parse `blobId`.** It's namespaced server-side and the spec forbids it.
 - **Don't assume one account.** Ever.
 - **Don't hold an SSE connection in the background.** You will take down someone's mail server.
-- **Don't render message HTML on a dark background**, and don't render non-image blobs inline.
+- **Don't render message HTML on a dark background naively** — pick a strategy per message, and
+  invert imagery back if you invert (see [§2](#the-mail-sheet--where-the-theme-stops-and-how-it-stops)).
+  And don't render non-image blobs inline.
 - **Don't invent keywords** — anything beyond `$seen`, `$flagged`, `$draft`, `$answered` is rejected.
 - **Don't implement hard delete.** It doesn't exist and shouldn't.
 - **Don't build a workaround for a missing server feature without asking first.** The server is

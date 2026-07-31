@@ -45,6 +45,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 )]
 final class SeedTestEmailCommand extends Command
 {
+    use TargetsTestUser;
+
     private const string SEED_ACCOUNT_USERNAME = 'mailbox@e2e.test';
 
     /**
@@ -71,6 +73,11 @@ final class SeedTestEmailCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->configureUserOption();
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
@@ -81,7 +88,7 @@ final class SeedTestEmailCommand extends Command
             return Command::FAILURE;
         }
 
-        $userEmail = $_SERVER['APP_DEV_USER_EMAIL'] ?? 'e2e@plmail.test';
+        $userEmail = $this->resolveUserEmail($input);
         $user      = $this->userRepository->findOneBy(['email' => $userEmail]);
 
         if (null === $user) {

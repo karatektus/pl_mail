@@ -1,8 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 import { seed } from "./support/config";
 
 /**
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  *
  * Recipients use Symfony UX Autocomplete (Tom Select under the hood, auto-
  * initialised from the <select> — no custom Stimulus controller). Chips render

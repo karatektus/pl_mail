@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Response } from "@playwright/test";
+import { test, expect, type Page, type Response } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
@@ -26,12 +26,18 @@ async function composeDraft(page: Page, subject: string): Promise<void> {
     );
 }
 
+// The seeded inbox is read-only here — only the drafts these tests write need
+// resetting — so seed-mail runs once and clear-drafts runs per test.
+test.beforeAll(() => {
+    seed("seed-mail");
+});
+
 test.beforeEach(() => {
-    // clear-drafts as well as seed-mail: these drafts are written through the
-    // UI, so they land on the user's default account rather than the one
-    // seed-mail owns and wipes. Left in place they accumulate across runs and
-    // the subject filters below match several rows at once.
-    seed("seed-mail", "clear-drafts");
+    // Every test writes a draft through the UI, and those land on the user's
+    // default account rather than the one seed-mail owns and wipes. Left in
+    // place they accumulate across runs and the subject filters below match
+    // several rows at once.
+    seed("clear-drafts");
 });
 
 test.describe("drafts list", () => {

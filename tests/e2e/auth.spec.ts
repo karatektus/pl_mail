@@ -1,9 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 import { TEST_USER, login } from "./support/config";
 
 /**
  * Login is exercised in a fresh, unauthenticated context — separate from the
- * shared storage state produced by auth.setup.ts.
+ * session the worker fixture signs in for every other spec. This is the only
+ * place the login form itself is covered.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 

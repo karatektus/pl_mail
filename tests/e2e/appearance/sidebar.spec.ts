@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../support/test";
 
 /**
  * The sidebar has two ways of getting out of the way, and one button drives
@@ -7,7 +7,8 @@ import { test, expect, type Page } from "@playwright/test";
  * these specs also cover it surviving a reload without a flash of the wide
  * sidebar.
  *
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  */
 
 const DESKTOP = { width: 1280, height: 900 };

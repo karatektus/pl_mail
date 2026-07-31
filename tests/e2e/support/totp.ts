@@ -45,8 +45,9 @@ function decodeBase32(secret: string): Buffer {
 /**
  * The code an authenticator app would be showing for this secret right now.
  *
- * `atSecond` exists so a caller can ask for the code in the next window — see
- * secondsUntilNextWindow().
+ * `atSecond` is injectable so a test can ask for a deliberately stale or future
+ * code; nothing does today, and callers should not wait for window boundaries
+ * — see the note on the removed wait in twofactor.spec.ts's submitCode().
  */
 export function totp(secret: string, atSecond: number = Date.now() / 1000): string {
     const counter = Math.floor(atSecond / PERIOD);
@@ -66,16 +67,4 @@ export function totp(secret: string, atSecond: number = Date.now() / 1000): stri
         (digest[offset + 3] & 0xff);
 
     return (binary % 10 ** DIGITS).toString().padStart(DIGITS, "0");
-}
-
-/**
- * How long until the current code rolls over.
- *
- * Used to avoid the one flaky shape this spec can have: generating a code with
- * a fraction of a second left in its window, then submitting it after the
- * window has passed. plMail allows 15 seconds of leeway either side, so this
- * only has to wait when there is less than that left.
- */
-export function secondsUntilNextWindow(): number {
-    return PERIOD - (Math.floor(Date.now() / 1000) % PERIOD);
 }

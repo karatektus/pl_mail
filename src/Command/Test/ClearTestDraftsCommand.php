@@ -42,6 +42,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 )]
 final class ClearTestDraftsCommand extends Command
 {
+    use TargetsTestUser;
+
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
@@ -51,6 +53,11 @@ final class ClearTestDraftsCommand extends Command
         private readonly string                  $environment,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->configureUserOption();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -63,7 +70,7 @@ final class ClearTestDraftsCommand extends Command
             return Command::FAILURE;
         }
 
-        $userEmail = $_SERVER['APP_DEV_USER_EMAIL'] ?? 'e2e@plmail.test';
+        $userEmail = $this->resolveUserEmail($input);
         $user      = $this->userRepository->findOneBy(['email' => $userEmail]);
 
         if (null === $user) {

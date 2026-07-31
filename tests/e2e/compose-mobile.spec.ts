@@ -1,4 +1,4 @@
-import { test, expect, devices, type Page } from "@playwright/test";
+import { test, expect, devices, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**

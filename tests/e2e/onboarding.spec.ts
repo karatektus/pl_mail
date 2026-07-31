@@ -1,7 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
-import { login } from "./support/config";
-import { secondsUntilNextWindow, totp } from "./support/totp";
-import { execSync } from "node:child_process";
+import { test, expect, type Page } from "./support/test";
+import { WORKER_SLOT, consoleCommand, login, seedUser } from "./support/config";
+import { totp } from "./support/totp";
 
 /**
  * The setup wizard: it opens by itself for someone who has not been through it,
@@ -15,28 +14,23 @@ import { execSync } from "node:child_process";
  *
  * Located by element id throughout, never by visible text.
  */
-const CONSOLE = process.env.E2E_CONSOLE ?? "php bin/console";
-
+// Slot-suffixed like every other fixture user. This file cannot itself split
+// across workers, but the address must still be unique per worker: a retry
+// spawns a replacement worker, and two processes reseeding one pending user
+// would fight over whether the wizard is finished.
 const PENDING = {
-    email: "e2e-onboarding@plmail.test",
+    email: `e2e-onboarding-w${WORKER_SLOT}@plmail.test`,
     password: "e2e-onboarding-password",
 };
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-function seedUser(pending: boolean): void {
-    execSync(
-        [
-            CONSOLE,
-            "app:test:seed-user",
-            `--email=${PENDING.email}`,
-            `--password=${PENDING.password}`,
-            pending ? "--pending-onboarding" : "",
-        ]
-            .filter(Boolean)
-            .join(" "),
-        { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } },
-    );
+function seedPendingUser(pending: boolean): void {
+    seedUser({
+        email: PENDING.email,
+        password: PENDING.password,
+        pendingOnboarding: pending,
+    });
 }
 
 const backdrop = (page: Page) => page.locator("#modal-backdrop");
@@ -45,7 +39,7 @@ const wizard = (page: Page) => page.locator("#onboarding-wizard");
 test.beforeEach(() => {
     // Re-seeded per test: finishing setup is persistent, so a second test would
     // otherwise run against a user the first one already took through it.
-    seedUser(true);
+    seedPendingUser(true);
 
     // Two-factor is persistent too, and the seeder does not clear it. Without
     // this, the enrolment test below leaves the user needing a code, and every
@@ -55,10 +49,7 @@ test.beforeEach(() => {
     // In beforeEach rather than afterAll on purpose: the point is that each
     // test starts from a known state, not that this file tidies up after
     // itself. afterAll fires too late to help the test that runs next.
-    execSync(`${CONSOLE} app:user:2fa-disable ${PENDING.email} --force`, {
-        stdio: "inherit",
-        env: { ...process.env, APP_ENV: "test" },
-    });
+    consoleCommand(`app:user:2fa-disable ${PENDING.email} --force`);
 });
 
 test("it opens by itself after signing in, without leaving the mail page", async ({ page }) => {
@@ -172,7 +163,7 @@ test("skipping setup ends it, and it does not come back on the next load", async
 });
 
 test("the user menu opens it again once it has been finished", async ({ page }) => {
-    seedUser(false);
+    seedPendingUser(false);
 
     await login(page, PENDING.email, PENDING.password);
 
@@ -200,8 +191,8 @@ test("the user menu opens it again once it has been finished", async ({ page }) 
  * Both failures need a real click from inside the modal.
  */
 test("enrols in two-factor authentication without leaving the wizard", async ({ page }) => {
-    // Skipping through steps, then possibly sitting out a TOTP window.
-    test.setTimeout(90_000);
+    // Skips through several steps before it gets to the interesting part.
+    test.setTimeout(45_000);
 
     await login(page, PENDING.email, PENDING.password);
     await expect(wizard(page)).toBeVisible();
@@ -221,10 +212,10 @@ test("enrols in two-factor authentication without leaving the wizard", async ({ 
     const secret = (await page.locator("#onboarding-2fa-secret").innerText()).trim();
     expect(secret).toMatch(/^[A-Z2-7]+$/);
 
-    if (secondsUntilNextWindow() < 15) {
-        await page.waitForTimeout(secondsUntilNextWindow() * 1000 + 500);
-    }
-
+    // No waiting for the TOTP window to roll over: otphp accepts a code minted
+    // in window W for any submission in [30W - 15, 30W + 45), so one generated
+    // right now is good for at least the next 15s. See submitCode() in
+    // twofactor.spec.ts for the derivation.
     await page.locator("#onboarding-step-security input[type='text']").fill(totp(secret));
     await page.locator("#onboarding-2fa-confirm").click();
 

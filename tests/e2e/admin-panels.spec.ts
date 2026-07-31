@@ -1,6 +1,5 @@
-import { test, expect } from "@playwright/test";
-import { login } from "./support/config";
-import { execSync } from "node:child_process";
+import { test, expect } from "./support/test";
+import { TEST_ADMIN, login, seedUser } from "./support/config";
 
 /**
  * Admin panels collapse, and the state is remembered server-side.
@@ -16,20 +15,15 @@ import { execSync } from "node:child_process";
  * mid-run would deauthenticate every other spec's session — Symfony treats a
  * token whose roles have changed as stale.
  */
-const CONSOLE = process.env.E2E_CONSOLE ?? "php bin/console";
-
-const ADMIN = {
-    email: "e2e-admin@plmail.test",
-    password: "e2e-admin-password",
-};
+// Per-worker, from support/config.ts. This file and integrations.spec.ts both
+// used one hardcoded admin address; with files running in parallel they could
+// land on different workers and overwrite each other's setup.
+const ADMIN = TEST_ADMIN;
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.beforeAll(() => {
-    execSync(
-        `${CONSOLE} app:test:seed-user --admin --email=${ADMIN.email} --password=${ADMIN.password}`,
-        { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } },
-    );
+    seedUser({ email: ADMIN.email, password: ADMIN.password, admin: true });
 });
 
 /** The panel's <details>, located fresh so it survives a reload. */

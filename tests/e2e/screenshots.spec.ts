@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 
 /**
  * Captures the README screenshots against the demo mailbox.

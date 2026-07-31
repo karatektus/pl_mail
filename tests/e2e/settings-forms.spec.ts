@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 
 /**
  * The two settings forms that are Symfony forms rather than hand-written
@@ -11,7 +11,14 @@ import { test, expect } from "@playwright/test";
  *
  * Each test cleans up what it creates: the alias and app-password lists are
  * not reseeded between runs, and leftovers from a previous run are how a green
- * suite starts hiding regressions.
+ * suite starts hiding regressions. Names carry a Date.now() suffix for the same
+ * reason — a fixed name accumulates rows until the locator matches several at
+ * once and the spec dies on strict mode.
+ *
+ * The app-password test also absorbed the former app-password.spec.ts, which
+ * covered the same lifecycle but additionally pinned the show-once guarantee.
+ * Those assertions are kept below; the duplicate file (and its duplicate
+ * browser context and colliding describe name) is gone.
  */
 test.describe("app passwords", () => {
     test("generates one, shows the secret once, and revokes it", async ({
@@ -26,11 +33,32 @@ test.describe("app passwords", () => {
 
         // The secret is handed over exactly once, on this response.
         await expect(page.getByText(/Copy it now|copy/i).first()).toBeVisible();
+
+        const list = page.locator("#settings-app-password-list");
+        await expect(list.locator("code").first()).toHaveText(
+            /^plmail_[0-9a-f]{64}$/,
+        );
+
         const row = page.locator("li").filter({ hasText: name });
         await expect(row).toHaveCount(1);
 
+        // Show-once is the whole security property, so it is asserted rather
+        // than assumed: after a reload the row survives, the plaintext is gone
+        // for good, and only the masked hint is left. Nothing else in the suite
+        // covers this.
+        await page.reload();
+
+        const reloaded = page.locator("#settings-app-password-list");
+        await expect(reloaded.getByText(name)).toBeVisible();
+        await expect(reloaded.getByText(/^plmail_[0-9a-f]{64}$/)).toHaveCount(0);
+        await expect(reloaded.getByText(/^plmail_[0-9a-f]{6}…$/)).toBeVisible();
+
         page.once("dialog", (dialog) => dialog.accept());
-        await row.getByRole("button", { name: "Revoke" }).click();
+        await reloaded
+            .locator("li")
+            .filter({ hasText: name })
+            .getByRole("button", { name: "Revoke" })
+            .click();
 
         await expect(page.locator("li").filter({ hasText: name })).toHaveCount(
             0,

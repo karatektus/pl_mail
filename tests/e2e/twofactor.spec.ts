@@ -1,6 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./support/test";
 import { TEST_USER, consoleCommand, login } from "./support/config";
-import { secondsUntilNextWindow, totp } from "./support/totp";
+import { totp } from "./support/totp";
 
 /**
  * Two-factor authentication, driven the way a person would drive it: enrol
@@ -18,16 +18,15 @@ import { secondsUntilNextWindow, totp } from "./support/totp";
 test.use({ storageState: { cookies: [], origins: [] } });
 
 /**
- * The whole file mutates one shared user, so it runs serially and puts them
- * back afterwards — including when a test fails halfway, which is what the
- * console escape hatch is for. Leaving 2FA on would break auth.setup.ts for
- * every later run, with a failure that points nowhere near this file.
+ * Runs serially and puts the user back afterwards — including when a test
+ * fails halfway, which is what the console escape hatch is for.
  *
- * The generous timeout is not slack: a test that signs in three times may have
- * to sit out two TOTP windows on the way, which is 30 seconds of deliberate
- * waiting before anything the app does is counted. See submitCode().
+ * The user is this worker's own, so no other file is at risk, but the cleanup
+ * still matters within this one: leaving 2FA on means the next test's login
+ * stops at /2fa instead of the inbox, and a re-run finds an account it cannot
+ * enrol again.
  */
-test.describe.configure({ mode: "serial", timeout: 120_000 });
+test.describe.configure({ mode: "serial" });
 
 test.afterAll(() => {
     consoleCommand(`app:user:2fa-disable ${TEST_USER.email} --force`);
@@ -56,18 +55,20 @@ async function enrol(page: Page): Promise<string> {
 }
 
 /**
- * Type a fresh code and submit it, waiting out a window that is about to roll
- * over first.
+ * Type a fresh code and submit it.
  *
- * plMail allows 15 seconds of leeway, so a code generated with more than that
- * left in its window is still valid by the time the request lands. Below that,
- * waiting is cheaper than a flake nobody can reproduce.
+ * Deliberately does NOT wait for the TOTP window to roll over — an earlier
+ * version did, and it was pure superstition costing ~16s a run.
+ *
+ * otphp's verify() does not widen the window when given a leeway; it compares
+ * exactly three codes, `at(t - leeway)`, `at(t)` and `at(t + leeway)`. With
+ * plMail's period of 30 and leeway of 15 (config/packages/scheb_2fa.yaml), a
+ * code minted in window W is therefore accepted for any submission in
+ * [30W - 15, 30W + 45) — from 15s before the window opens until 15s after it
+ * closes. A code generated with a hundredth of a second left is still good for
+ * another 15s, and the submit below takes about a quarter of one.
  */
 async function submitCode(page: Page, secret: string, submit = page.getByRole("button", { name: "Continue" })) {
-    if (secondsUntilNextWindow() < 15) {
-        await page.waitForTimeout(secondsUntilNextWindow() * 1000 + 500);
-    }
-
     await page.locator('input[name="code"], input[name="_auth_code"]').first().fill(totp(secret));
     await submit.click();
 }

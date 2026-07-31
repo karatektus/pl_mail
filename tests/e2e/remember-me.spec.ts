@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 import { login, seed } from "./support/config";
 
 /**
@@ -7,15 +7,19 @@ import { login, seed } from "./support/config";
  * cookie, so returning users get bounced off features that work fine on a
  * freshly-typed password.
  *
- * The rest of the suite cannot catch this — auth.setup.ts signs in with real
- * credentials, and such a session satisfies FULLY. So this spec opts out of
- * the shared storage state, logs in for itself, then throws the session cookie
- * away and keeps only REMEMBERME, which is exactly the returning-user state.
+ * The rest of the suite cannot catch this — the worker fixture signs in with
+ * real credentials, and such a session satisfies FULLY. So this spec opts out
+ * of that session, logs in for itself, then throws the session cookie away and
+ * keeps only REMEMBERME, which is exactly the returning-user state.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test.beforeEach(() => {
-    seed("seed-mail", "seed-label");
+// seed-mail only, for the message row the ThreadStatusController check ticks.
+// No seed-label: the assertion below opens the *Create* label modal, which
+// needs no existing label — that seed was doing nothing but costing a console
+// round trip.
+test.beforeAll(() => {
+    seed("seed-mail");
 });
 
 /**

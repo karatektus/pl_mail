@@ -1,8 +1,9 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  *
  * A fresh, deterministic inbox is reseeded before each test via the
  * `app:test:seed-mail` console command (Gmail-style messages: label

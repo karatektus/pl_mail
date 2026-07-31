@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 import { seed } from "./support/config";
 
 /**
@@ -10,7 +10,12 @@ import { seed } from "./support/config";
  */
 const URL = "/settings?section=filters";
 
-test.beforeEach(() => {
+// beforeAll, not beforeEach: nothing in this file mutates mail or labels. The
+// seeds exist only so the rule editor has an account and a label to point at,
+// and every rule is created with a Date.now() name used inside its own test.
+// Per-test reseeding was two console round trips a test for state nobody
+// touched.
+test.beforeAll(() => {
     seed("seed-mail", "seed-label");
 });
 

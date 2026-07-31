@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/test";
 
 /**
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  *
  * Adding a password (IMAP) account only persists the row — no IMAP
  * connection is attempted at creation time — so a fake host is fine and the

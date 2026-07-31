@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../support/test";
 
 /**
  * Layout is the second appearance axis: the theme picks the palette, the
@@ -9,7 +9,8 @@ import { test, expect, type Page } from "@playwright/test";
  * Picking a layout also seeds its glass knobs, so these specs check that the
  * sliders move with it and that a manual change afterwards still wins.
  *
- * Runs authenticated via the shared storage state from auth.setup.ts.
+ * Runs authenticated as this worker's own user, signed in by the worker
+ * fixture in support/test.ts.
  */
 
 const APPEARANCE = "/settings?section=appearance";

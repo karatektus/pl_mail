@@ -51,6 +51,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 )]
 final class SeedTestAttachmentCommand extends Command
 {
+    use TargetsTestUser;
+
     /** Shared with app:test:seed-mail — see the class docblock. */
     private const string SEED_ACCOUNT_USERNAME = 'mailbox@e2e.test';
     private const string SUBJECT = 'E2E Attachment';
@@ -70,6 +72,11 @@ final class SeedTestAttachmentCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->configureUserOption();
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
@@ -80,7 +87,7 @@ final class SeedTestAttachmentCommand extends Command
             return Command::FAILURE;
         }
 
-        $userEmail = $_SERVER['APP_DEV_USER_EMAIL'] ?? 'e2e@plmail.test';
+        $userEmail = $this->resolveUserEmail($input);
         $user = $this->userRepository->findOneBy(['email' => $userEmail]);
 
         if (null === $user) {
