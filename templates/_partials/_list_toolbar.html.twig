@@ -33,7 +33,8 @@ The button itself carries `group` and `relative`.
         type="button"
         data-action="{{ action }}"
         aria-label="{{ label }}"
-        class="group relative flex items-center justify-center
+        title="{{ label }}"
+        class="flex items-center justify-center
            w-8 h-8 rounded-full
            text-ink-muted
            hover:text-ink
@@ -41,18 +42,6 @@ The button itself carries `group` and `relative`.
            transition-colors duration-100 cursor-pointer {{ extra_classes ?? '' }}"
     >
         <i class="{{ icon }} text-[15px]" aria-hidden="true"></i>
-        <span class="
-    pointer-events-none select-none
-    absolute top-full left-1/2 -translate-x-1/2 mt-2
-    px-2 py-1 rounded-md
-    text-[11px] font-medium leading-none whitespace-nowrap
-    tooltip-bubble
-    opacity-0 group-hover:opacity-100
-    transition-opacity duration-100 delay-500
-    z-50
-    before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
-    before:border-[5px] before:border-transparent
-">{{ label }}</span>
     </button>
 {% endmacro %}
 
@@ -70,25 +59,14 @@ The button itself carries `group` and `relative`.
             data-turbo-frame="inbox-list-frame"
             data-turbo-action="advance"
             aria-label="{{ label }}"
-            class="group relative flex items-center justify-center w-8 h-8 rounded-full
+            title="{{ label }}"
+            class="flex items-center justify-center w-8 h-8 rounded-full
            text-ink-muted
            hover:text-ink
            hover:bg-hover
            transition-colors duration-100"
         >
             <i class="{{ icon }} text-[13px]" aria-hidden="true"></i>
-            <span class="
-                pointer-events-none select-none
-                absolute top-full left-1/2 -translate-x-1/2 mt-2
-                px-2 py-1 rounded-md
-                text-[11px] font-medium leading-none whitespace-nowrap
-                tooltip-bubble
-                opacity-0 group-hover:opacity-100
-                transition-opacity duration-100 delay-500
-                z-50
-                before:content-[''] before:absolute before:top-[-5px] before:left-1/2 before:-translate-x-1/2
-                before:border-[5px] before:border-transparent
-            ">{{ label }}</span>
         </a>
     {% endif %}
 {% endmacro %}

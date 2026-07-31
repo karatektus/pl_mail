@@ -100,8 +100,11 @@
    authorizes, and the two drifting apart is a silent no-updates bug. #}
 {% set mercure_topics = app.user ? ['mail/user/' ~ app.user.id] : [] %}
 <body
+    {# ui--tooltip is outside the block on purpose: it replaces the native
+       `title` tooltip application-wide, so a page overriding body_controllers
+       must not be able to drop it and fall back to the black box. #}
+    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}{% endif %}"
     {% if app.user %}
-        data-controller="{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}"
         {# URL only. The cookie that authorizes this subscription is attached by
            MercureCookieSubscriber — passing `subscribe:` here would mint it too,
            but that helper throws for a hub on another domain and would take the
