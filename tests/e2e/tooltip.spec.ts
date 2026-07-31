@@ -46,6 +46,40 @@ test.describe("tooltips", () => {
         expect(parent).toBe("BODY");
     });
 
+    /**
+     * The caret is aimed by the controller rather than parked at the bubble's
+     * midpoint, because the two only agree until a viewport edge pushes the
+     * bubble off centre — which for a control in the corner of the topbar is
+     * most of the time.
+     */
+    test("points a caret at the element it describes", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const control = trigger(page);
+        await control.hover();
+
+        const tip = page.locator(".app-tooltip");
+        await expect(tip).toBeVisible();
+        await expect(tip).toHaveAttribute("data-placement", /above|below/);
+
+        const aim = await page.evaluate(() => {
+            const bubble = document.querySelector(".app-tooltip") as HTMLElement;
+            const box = bubble.getBoundingClientRect();
+            const caretX = parseFloat(getComputedStyle(bubble).getPropertyValue("--caret-x"));
+            const anchor = document
+                .querySelector('[data-tooltip="Sync now"], [title="Sync now"]')!
+                .getBoundingClientRect();
+
+            return {
+                caretPageX: box.left + caretX,
+                anchorCentre: anchor.left + anchor.width / 2,
+            };
+        });
+
+        // Within a couple of pixels of the trigger's centre.
+        expect(Math.abs(aim.caretPageX - aim.anchorCentre)).toBeLessThan(3);
+    });
+
     test("hides again when the pointer leaves", async ({ page }) => {
         await page.goto("/mail/inbox");
         await trigger(page).hover();

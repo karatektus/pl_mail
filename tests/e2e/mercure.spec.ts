@@ -273,6 +273,31 @@ test.describe("mercure live updates", () => {
     });
 
     /**
+     * Turbo replaces <body> on every visit, so the dot is a brand-new element
+     * after each navigation while the connection behind it carries straight
+     * through. It used to render grey and untitled from there on — a working
+     * stream reported as unknown, and its tooltip gone with it — because the
+     * state event it needed had fired long before it existed.
+     */
+    test("keeps reporting the state after navigating between labels", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expectState(page, "connected");
+
+        // A sidebar destination, i.e. a real Turbo visit rather than a frame
+        // swap — the whole point is that <body> is replaced.
+        await page.locator('#sidebar a[href*="/mail/"]:visible, aside a[href*="/mail/"]:visible')
+            .filter({ hasText: /\S/ })
+            .nth(1)
+            .click();
+
+        await expect(page).not.toHaveURL(/\/mail\/inbox$/);
+
+        // Still connected, and still able to say so.
+        await expectState(page, "connected");
+        await expect(indicator(page)).toHaveAttribute("title", /live updates/i);
+    });
+
+    /**
      * The hub used to run dev.Caddyfile in every environment, including the
      * TrueNAS one, and dev.Caddyfile sets `anonymous`. Since the app proxies
      * /.well-known/mercure* publicly, anyone who could reach an instance could

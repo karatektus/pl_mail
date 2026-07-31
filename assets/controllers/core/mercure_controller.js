@@ -47,6 +47,26 @@ function setState(stream, state) {
 }
 
 /**
+ * The state right now, for anything that mounts after the last transition.
+ *
+ * The events above are a broadcast, not a store: a listener that appears later
+ * hears nothing until the state next changes, which on a healthy instance may
+ * be never. Turbo replaces <body> on every visit, so the indicator in the
+ * topbar is rebuilt constantly while this module — and the connection it owns —
+ * survives untouched. It reads the answer from here instead of waiting for an
+ * announcement it already missed.
+ */
+export function currentStreamState() {
+    for (const stream of streams.values()) {
+        if (stream.state !== null) {
+            return stream.state;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Backoff for reconnects. EventSource retries on its own ONLY when the
  * connection drops cleanly; an HTTP error response (our Caddy answers 502 while
  * the hub is restarting, and the hub answers 401 once the subscriber JWT has

@@ -34,8 +34,28 @@ import {Controller} from "@hotwired/stimulus";
  */
 const SHOW_DELAY_MS = 60;
 
-/** Gap between the trigger and the bubble. */
-const OFFSET = 8;
+/**
+ * Gap between the trigger's edge and the bubble. Wide enough for the caret to
+ * sit in without the bubble crowding the pointer.
+ */
+const OFFSET = 12;
+
+/**
+ * Minimum gap measured from the trigger's *centre* rather than its edge.
+ *
+ * An edge offset alone assumes the trigger has some size. It does for a button,
+ * where centre-to-edge already pushes the bubble clear of the pointer — but the
+ * status dot is 0.4rem across, so its edge is barely off its centre and the
+ * bubble landed almost under the cursor. Taking whichever of the two is larger
+ * spaces the small ones properly and leaves everything else exactly where it
+ * was, with no per-element markup to keep in sync.
+ *
+ * `data-tooltip-offset` (in px) overrides it for a one-off that needs more.
+ */
+const MIN_CENTRE_DISTANCE = 24;
+
+/** Half the caret's width — it is a 6px border triangle. */
+const CARET = 6;
 
 /** Keeps the bubble off the viewport edge when a trigger sits near one. */
 const MARGIN = 8;
@@ -161,12 +181,19 @@ export default class extends Controller {
         const anchor = trigger.getBoundingClientRect();
         const box = bubble.getBoundingClientRect();
 
+        const centreY = anchor.top + anchor.height / 2;
+        const minCentre = Number(trigger.dataset.tooltipOffset) || MIN_CENTRE_DISTANCE;
+
         // Below by default; above when there is no room, which is what a
-        // trigger in the last row of a long list needs.
-        let top = anchor.bottom + OFFSET;
+        // trigger in the last row of a long list needs. Both edges are held at
+        // least `minCentre` from the trigger's middle, which is what keeps a
+        // tiny trigger from wearing the bubble.
+        let top = Math.max(anchor.bottom + OFFSET, centreY + minCentre);
+        let placement = "below";
 
         if (top + box.height > window.innerHeight - MARGIN) {
-            top = anchor.top - box.height - OFFSET;
+            top = Math.min(anchor.top - OFFSET, centreY - minCentre) - box.height;
+            placement = "above";
         }
 
         const centred = anchor.left + anchor.width / 2 - box.width / 2;
@@ -177,6 +204,20 @@ export default class extends Controller {
 
         bubble.style.top = `${Math.max(MARGIN, top)}px`;
         bubble.style.left = `${left}px`;
+        bubble.dataset.placement = placement;
+
+        // The caret points at the trigger, not at the middle of the bubble.
+        // Those are the same thing only until the bubble is pushed off centre
+        // by a viewport edge — for a control in the far corner of the topbar
+        // that is most of the time, and a caret aimed at nothing looks broken.
+        // Kept a caret's width inside each end so it never overhangs a corner.
+        const anchorCentre = anchor.left + anchor.width / 2;
+        const caretX = Math.min(
+            Math.max(CARET + MARGIN, anchorCentre - left),
+            box.width - CARET - MARGIN,
+        );
+
+        bubble.style.setProperty("--caret-x", `${caretX}px`);
     }
 
     _hide() {

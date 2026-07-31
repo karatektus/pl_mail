@@ -1,4 +1,5 @@
 import {Controller} from "@hotwired/stimulus";
+import {currentStreamState} from "./mercure_controller.js";
 
 /**
  * Puts the Mercure connection state on the indicator dot beside the wordmark.
@@ -19,10 +20,13 @@ export default class extends Controller {
         this._onState = (event) => this._render(event.detail.state);
         document.addEventListener("core--mercure:state", this._onState);
 
-        // Nothing is dispatched between transitions, so a topbar mounted after
-        // the connection settled would otherwise sit blank until the next
-        // change — which, on a healthy instance, may be never.
-        this._render(this.element.dataset.state || null);
+        // Asked for, not waited for. Turbo replaces <body> on every visit, so
+        // this element is rebuilt on each navigation while the connection it
+        // reports on carries straight through — and the state event fired when
+        // that connection was established is long gone. Waiting for the next
+        // one left the dot grey and untitled after clicking any label, on a
+        // stream that was working perfectly.
+        this._render(currentStreamState() ?? this.element.dataset.state ?? null);
     }
 
     disconnect() {

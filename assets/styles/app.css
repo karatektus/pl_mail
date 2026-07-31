@@ -609,15 +609,15 @@
     top: 0;
     left: 0;
     z-index: 100;
-    max-width: 20rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: 0.375rem;
+    max-width: 22rem;
+    padding: 0.4rem 0.625rem;
+    border-radius: 0.5rem;
     background-color: rgb(var(--rgb-inverse));
     color: rgb(var(--rgb-inverse-ink));
     box-shadow: 0 4px 12px rgb(var(--rgb-shadow) / 0.18);
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 500;
-    line-height: 1.35;
+    line-height: 1.4;
     /* Wraps rather than running off: a few of these are whole sentences. */
     white-space: normal;
     /* Never a hover target itself — it sits where the pointer is heading, and
@@ -649,6 +649,29 @@
 .app-tooltip[data-state="hidden"] {
     visibility: hidden;
     opacity: 0;
+}
+
+/* The caret. Positioned from --caret-x, which the controller points at the
+   trigger rather than at the middle of the bubble — the two differ whenever a
+   viewport edge has pushed the bubble off centre, and a caret aimed at nothing
+   looks broken. Border-triangle rather than a rotated square so it takes the
+   same `inverse` token as the body and needs no separate theming. */
+.app-tooltip::after {
+    content: "";
+    position: absolute;
+    left: var(--caret-x, 50%);
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+}
+
+.app-tooltip[data-placement="below"]::after {
+    bottom: 100%;
+    border-bottom-color: rgb(var(--rgb-inverse));
+}
+
+.app-tooltip[data-placement="above"]::after {
+    top: 100%;
+    border-top-color: rgb(var(--rgb-inverse));
 }
 
 @media (prefers-reduced-motion: reduce) {
