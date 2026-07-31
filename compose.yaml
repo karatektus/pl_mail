@@ -200,6 +200,60 @@ services:
       - mercure_config:/config
       - app_secrets:/run/plmail:ro
 
+  # Push for Android, without Google.
+  #
+  # Optional and off by default: `docker compose --profile push up -d`. Nobody
+  # who does not want push pays for a container they never use.
+  #
+  # This needs no plMail code at all. The app already speaks Web Push — RFC 8030
+  # transport, RFC 8291 payload encryption, RFC 8292 VAPID signing — and ntfy is
+  # a push service that speaks exactly that. What it adds is the missing half on
+  # Android: RFC 8030 requires a *push service* that owns the endpoint URL and
+  # holds the connection to the device, browsers ship one and native apps do
+  # not. A UnifiedPush distributor on the phone talks to this.
+  #
+  # The alternative for an Android user is Firebase, which means Google sees
+  # that a message arrived and when. Running this instead keeps that on your own
+  # hardware, which is the reason to self-host mail in the first place.
+  ntfy:
+    image: binwiederhier/ntfy
+    profiles: [push]
+    restart: unless-stopped
+    command: serve
+    environment:
+      # The URL *phones* will use, so it has to be reachable from outside this
+      # machine — a LAN address, a Tailscale name, or a public hostname. It is
+      # baked into every endpoint handed out, so changing it later invalidates
+      # every existing subscription and every device has to re-register.
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8090}
+      NTFY_LISTEN_HTTP: ':80'
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      # Open by default, and that is a considered choice rather than laziness.
+      # UnifiedPush topics are random and unguessable, and the payload is
+      # encrypted to the device's own key before it ever reaches here — so this
+      # service cannot read your mail, and someone who guessed a topic could
+      # only send noise the app fails to decrypt and discards.
+      #
+      # To lock it down anyway, set this to deny-all and create a user:
+      #   docker compose exec ntfy ntfy user add --role=admin plmail
+      # then give the phone that login in the ntfy app. It is the right move if
+      # this is exposed to the internet rather than reached over a VPN.
+      NTFY_AUTH_DEFAULT_ACCESS: ${NTFY_AUTH_DEFAULT_ACCESS:-read-write}
+      # A personal server has a handful of devices; the defaults are sized for a
+      # public instance and would let one client exhaust it.
+      NTFY_VISITOR_REQUEST_LIMIT_BURST: '60'
+      NTFY_VISITOR_REQUEST_LIMIT_REPLENISH: '5s'
+    ports:
+      - "${NTFY_PORT:-8090}:80"
+    volumes:
+      - ntfy_data:/var/lib/ntfy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/v1/health"]
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   app_secrets:
   caddy_data:
@@ -207,3 +261,4 @@ volumes:
   database_data:
   mercure_data:
   mercure_config:
+  ntfy_data:

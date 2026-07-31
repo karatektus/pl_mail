@@ -449,6 +449,37 @@ you can create a Web Push subscription; RFC 8620 defines no standard place for i
 Note `capabilities` advertises the push URN but the *supported* `using` list is Core, Mail and
 Submission only. Do not put the push URN in `using`.
 
+#### Push on Android, without Google
+
+Web Push assumes a **push service**: something that owns the endpoint URL, holds the connection to
+the device and receives the server's encrypted POST. Browsers ship one. A native Android app does
+not, and Android's own service is FCM, which speaks its own protocol — `WebPushSender` cannot POST
+to it.
+
+So an Android client has three options, and only the first needs nothing from this server:
+
+1. **UnifiedPush.** The user installs a *distributor* app; it supplies an RFC 8030 endpoint and
+   decrypts the RFC 8291 `aes128gcm` payload this server already sends. No server change at all.
+2. **Firebase.** Nothing for the user to install, and what most Android users expect — but it needs
+   a Firebase project and an FCM sender here, and Google then learns that a message arrived and
+   when.
+3. **An embedded distributor**, where the app holds the socket itself. Costs a foreground service
+   and a permanent notification, per app.
+
+For (1) this repository can supply the push service too, so a self-hoster does not have to find one:
+
+```bash
+NTFY_BASE_URL=https://push.example.com docker compose --profile push up -d ntfy
+```
+
+It is off by default and adds no plMail code — ntfy is simply a push service that speaks the
+protocol `WebPushSender` already emits. `NTFY_BASE_URL` must be reachable **from the phone**, and is
+baked into every endpoint issued, so changing it later forces every device to re-register.
+
+Payloads are encrypted to the device's own key before they reach it, so the push service cannot read
+mail whichever one you use. It does learn *when* mail arrives, which is the argument for running
+your own rather than a public one.
+
 ### The API endpoint
 
 ```http
