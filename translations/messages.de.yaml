@@ -203,6 +203,7 @@ admin:
         integrations: Integrationen
         logs: Protokolle
         system: System
+        users: Benutzer
     processes:
         empty: 'Noch keine Heartbeats — Prozesse melden sich hier nach ihrem ersten Lebenszeichen.'
         heading: 'Prozesse'
@@ -262,6 +263,31 @@ admin:
             push_off: 'Push aus'
             push_on: 'Push an'
         watch_expiry: 'Watch läuft ab'
+    users:
+        add: Benutzer hinzufügen
+        console_note: 'Passwörter und die Wiederherstellung der Zwei-Faktor-Authentifizierung laufen über die Server-Konsole, nicht hier. Wer beides ändern könnte, hätte einen zweiten Weg in jedes Postfach dieser Installation.'
+        delete: Benutzer entfernen
+        delete_confirm: '%name% entfernen? Die Mails bleiben in der Datenbank, eine Anmeldung ist aber nicht mehr möglich.'
+        edit: Benutzer bearbeiten
+        field:
+            email: E-Mail-Adresse
+            is_admin: Administrator
+            is_admin_help: 'Erreicht diesen Bereich, verwaltet Benutzer und konfiguriert Anbieter. Kann keine fremden Mails lesen.'
+            name_first: Vorname
+            name_last: Nachname
+            password: Erstes Passwort
+            password_help: 'Wird einmalig beim Anlegen gesetzt. Später ändert es das Konto selbst, oder es wird über die Server-Konsole zurückgesetzt.'
+        heading: Benutzer
+        last_login: 'Zuletzt gesehen %when%'
+        never_signed_in: Noch nie angemeldet
+        no_password_edit: 'Passwörter lassen sich hier nicht ändern. Ein fremdes Passwort zu setzen würde eine Admin-Sitzung zum Weg in dieses Postfach machen — aus demselben Grund ist das Entfernen eines zweiten Faktors ein Konsolenbefehl.'
+        none: Noch keine Benutzer.
+        password_too_short: 'Mindestens 12 Zeichen — dieses Passwort wird für jemand anderen gewählt.'
+        role:
+            admin: Admin
+        search: Benutzer suchen…
+        two_factor_on: Zwei-Faktor-Authentifizierung ist aktiv
+        two_factor_short: 2FA
 
 alias:
     added: 'Adresse hinzugefügt.'

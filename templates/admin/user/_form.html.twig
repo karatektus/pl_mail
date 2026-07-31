@@ -1,0 +1,26 @@
+{#
+admin/user/_form.html.twig — creating or editing a user.
+
+The note under the fields is the important part of this template. An
+administrator arriving to "reset someone's password" needs to be told, on the
+screen where they expected the field, that it is not there and why — otherwise
+the absence reads as a bug and the next step is a patch that adds it back.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: isNew ? 'admin.users.add'|trans : 'admin.users.edit'|trans,
+        isNew: isNew,
+    } only %}
+        {% block after_fields %}
+            {% if not isNew %}
+                <p class="text-xs text-ink-faint leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                    {{ 'admin.users.no_password_edit'|trans }}
+                </p>
+            {% endif %}
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

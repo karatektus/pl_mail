@@ -203,6 +203,7 @@ admin:
         integrations: Integrations
         logs: Logs
         system: System
+        users: Users
     processes:
         empty: 'No heartbeats yet — processes report here after their first beat.'
         heading: 'Processes'
@@ -260,6 +261,31 @@ admin:
             push_off: 'push off'
             push_on: 'push on'
         watch_expiry: 'Watch expiry'
+    users:
+        add: Add user
+        console_note: 'Passwords and two-factor recovery are handled from the server console, not here. An administrator who could change either would be a second way into every mailbox on this install.'
+        delete: Remove user
+        delete_confirm: 'Remove %name%? Their mail stays in the database but they can no longer sign in.'
+        edit: Edit user
+        field:
+            email: Email address
+            is_admin: Administrator
+            is_admin_help: 'Can reach this panel, manage users and configure providers. Cannot read anyone else''s mail.'
+            name_first: First name
+            name_last: Last name
+            password: Initial password
+            password_help: 'Set once, when the account is created. Change it later from the account itself, or reset it from the server console.'
+        heading: Users
+        last_login: 'Last seen %when%'
+        never_signed_in: Never signed in
+        no_password_edit: 'Passwords cannot be changed from here. Setting someone else''s password would make an admin session a way into their mailbox — the same reason removing a second factor is a console command.'
+        none: No users yet.
+        password_too_short: 'Use at least 12 characters — this password is being chosen for someone else.'
+        role:
+            admin: Admin
+        search: Search users…
+        two_factor_on: Two-factor authentication is on
+        two_factor_short: 2FA
 
 alias:
     added: 'Address added.'

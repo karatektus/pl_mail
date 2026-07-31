@@ -71,6 +71,11 @@
                                         <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.integrations'|trans }}
                                     </a>
+                                    <a href="{{ path('app_admin_dashboard', { section: 'users' }) }}"
+                                       class="{{ section == 'users' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-users w-4 {{ section == 'users' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.users'|trans }}
+                                    </a>
                                 </nav>
 
                                 {# Single content wrapper — second (and last) grid child.
@@ -96,6 +101,19 @@
                                            telemetry, and a poll would fight the modal. #}
                                         <turbo-frame id="admin-integrations"
                                                      src="{{ path('app_admin_integrations_list') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'users' %}
+
+                                        {# No auto-refresh, same reasoning as
+                                           integrations: a poll would fight the
+                                           modal an admin is typing into. #}
+                                        <turbo-frame id="admin-users"
+                                                     src="{{ path('app_admin_user_default_index') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

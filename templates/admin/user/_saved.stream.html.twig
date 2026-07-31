@@ -1,0 +1,13 @@
+{#
+Response to creating, editing or removing a user: refresh the list and close.
+
+The whole frame is replaced rather than one row, for the same reason the
+integrations list is: adding or removing an administrator changes what the
+*other* rows may do — the delete button disappears from the last admin — and
+the list is small enough that redrawing it costs nothing.
+#}
+<turbo-stream action="replace" target="admin-users">
+    <template>
+        {% include 'admin/user/_users_frame.html.twig' %}
+    </template>
+</turbo-stream>

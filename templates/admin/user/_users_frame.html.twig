@@ -1,0 +1,124 @@
+{#
+admin/user/_users_frame.html.twig — everyone who can sign in.
+
+The list an administrator uses to add the second person to an install. Until
+this existed there was no way to: the setup wizard and `app:setup` both create
+the first user and then refuse to create another.
+
+Deliberately plain. It shows who exists, who is an administrator, and when they
+last signed in — the three things needed to decide whether an account should
+still be there. It shows nothing about anyone's mail, because an admin panel is
+not a way into a mailbox.
+#}
+<turbo-frame id="admin-users" class="block space-y-3">
+
+    <div class="flex items-center gap-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'admin.users.heading'|trans }}
+        </h3>
+
+        <form method="get" action="{{ path('app_admin_user_default_index') }}"
+              class="ml-auto flex items-center gap-2">
+            <input type="search" name="search" value="{{ table_search }}"
+                   placeholder="{{ 'admin.users.search'|trans }}"
+                   class="h-8 w-48 px-3 rounded-lg text-sm bg-field border border-field
+                          text-ink placeholder:text-ink-faint focus:outline-none
+                          focus:ring-2 focus:ring-accent transition-colors">
+        </form>
+
+        <button type="button"
+                data-controller="ui--modal"
+                data-ui--modal-src-value="{{ path('app_admin_user_default_form_create') }}"
+                data-ui--modal-title-value="{{ 'admin.users.add'|trans }}"
+                data-action="click->ui--modal#open"
+                class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+            <i class="fa-solid fa-user-plus text-xs" aria-hidden="true"></i>
+            {{ 'admin.users.add'|trans }}
+        </button>
+    </div>
+
+    <div class="space-y-2">
+        {% for user in pagination %}
+            {% set isAdmin = 'ROLE_ADMIN' in user.roles %}
+
+            <div class="flex items-center gap-3 px-5 h-14 rounded-pane border border-line bg-pane-soft">
+                <i class="fa-solid {{ isAdmin ? 'fa-user-shield text-accent' : 'fa-user text-ink-faint' }}
+                          text-base w-5 text-center" aria-hidden="true"></i>
+
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold text-ink truncate">{{ user.name }}</div>
+                    <div class="text-xs text-ink-faint truncate">{{ user.email }}</div>
+                </div>
+
+                {% if isAdmin %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent/15 text-accent">
+                        {{ 'admin.users.role.admin'|trans }}
+                    </span>
+                {% endif %}
+
+                {% if user.totpConfirmedAt is not null %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500"
+                          title="{{ 'admin.users.two_factor_on'|trans }}">
+                        {{ 'admin.users.two_factor_short'|trans }}
+                    </span>
+                {% endif %}
+
+                <span class="ml-auto text-xs text-ink-faint whitespace-nowrap">
+                    {% if user.lastLogin is not null %}
+                        {{ 'admin.users.last_login'|trans({'%when%': user.lastLogin|date('Y-m-d')}) }}
+                    {% else %}
+                        {{ 'admin.users.never_signed_in'|trans }}
+                    {% endif %}
+                </span>
+
+                <button type="button"
+                        data-controller="ui--modal"
+                        data-ui--modal-src-value="{{ path('app_admin_user_default_form_edit', { id: user.id }) }}"
+                        data-ui--modal-title-value="{{ user.name }}"
+                        data-action="click->ui--modal#open"
+                        class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-soft
+                               bg-field border border-field hover:bg-hover transition-colors"
+                        aria-label="{{ 'admin.users.edit'|trans }}">
+                    <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                </button>
+
+                {#
+                    Absent rather than disabled for the two accounts that must
+                    not go: your own, and the last administrator. A greyed
+                    button invites a click and then explains why it was never
+                    going to work.
+                #}
+                {% if user != app.user and not (isAdmin and adminCount <= 1) %}
+                    <form method="post"
+                          action="{{ path('app_admin_user_default_delete', { id: user.id }) }}"
+                          data-turbo-frame="_top"
+                          onsubmit="return confirm('{{ 'admin.users.delete_confirm'|trans({'%name%': user.name})|e('js') }}')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin-user-delete-' ~ user.id) }}">
+                        <button type="submit"
+                                class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-faint
+                                       bg-field border border-field hover:bg-hover hover:text-danger transition-colors"
+                                aria-label="{{ 'admin.users.delete'|trans }}">
+                            <i class="fa-solid fa-user-slash text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="px-5 py-8 text-center text-sm text-ink-faint">
+                {{ 'admin.users.none'|trans }}
+            </p>
+        {% endfor %}
+    </div>
+
+    {% if pagination.pageCount > 1 %}
+        <div class="flex justify-center pt-1">
+            {{ knp_pagination_render(pagination) }}
+        </div>
+    {% endif %}
+
+    <p class="text-xs text-ink-faint">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+        {{ 'admin.users.console_note'|trans }}
+    </p>
+</turbo-frame>

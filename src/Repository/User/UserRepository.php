@@ -157,12 +157,44 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->add($user, true);
     }
 
+    /**
+     * Every query that should not see soft-deleted users.
+     *
+     * The `andWhere` matters: this used to build the expression and drop it on
+     * the floor — `$qb->expr()->isNull(...)` returns a value, it does not
+     * modify the builder — so the filter was a no-op and every caller,
+     * findOneByEmailExcept included, still matched deleted rows.
+     */
     public function createUndeletedQueryBuilder(): QueryBuilder
     {
-        $qb = $this->createQueryBuilder('user');
-        $qb->expr()->isNull('user.deletedAt');
+        return $this->createQueryBuilder('user')
+            ->andWhere('user.deletedAt IS NULL');
+    }
 
-        return $qb;
+    /**
+     * How many undeleted users hold ROLE_ADMIN.
+     *
+     * Native SQL with an explicit cast, because `roles` is a `json` column and
+     * Postgres defines no LIKE operator on that type — the DQL version failed
+     * with "operator does not exist: json ~~ unknown". Casting to text makes it
+     * an ordinary substring test.
+     *
+     * A substring test rather than a containment one is safe here: ROLE_ADMIN
+     * is the only role ever stored (see UserEntityModel::ROLES), so there is no
+     * longer role name it could match a prefix of by accident. The quotes are
+     * part of the pattern so it cannot match a bare word elsewhere in the JSON.
+     */
+    public function countAdmins(): int
+    {
+        return (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                // "user" quoted: it is a reserved word in Postgres, which is
+                // why the entity maps to `#[ORM\Table(name: '`user`')]`.
+                'SELECT COUNT(*) FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchOne();
     }
 
     /**
@@ -191,13 +223,20 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $qb = $this->createUndeletedQueryBuilder();
 
         if (null !== $search && 2 < strlen($search)) {
-            $qb->expr()->orX(
-                $qb->expr()->like('user.email', ':search'),
-                $qb->expr()->like('user.nameFirst', ':search'),
-                $qb->expr()->like('user.nameLast', ':search'),
-            );
-
-            $qb->setParameter('search', sprintf('%%s%', $search));
+            // Same discarded-expression bug as createUndeletedQueryBuilder had:
+            // orX() was built and never passed to andWhere(), so searching did
+            // nothing at all and every search returned the unfiltered list.
+            //
+            // The pattern was wrong too. sprintf('%%s%', $search) is not
+            // "%search%" — `%%` is a literal percent and the trailing `%` is a
+            // truncated conversion spec, so the argument was never interpolated.
+            $qb
+                ->andWhere($qb->expr()->orX(
+                    $qb->expr()->like('LOWER(user.email)', ':search'),
+                    $qb->expr()->like('LOWER(user.nameFirst)', ':search'),
+                    $qb->expr()->like('LOWER(user.nameLast)', ':search'),
+                ))
+                ->setParameter('search', '%' . mb_strtolower($search) . '%');
         }
 
         return $qb;

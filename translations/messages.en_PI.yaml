@@ -203,6 +203,7 @@ admin:
         integrations: 'Friendly ports'
         logs: Ship's log
         system: Ship
+        users: Th' crew roster
     processes:
         empty: 'No heartbeats yet — hands report here after their first beat.'
         heading: 'Hands on deck'
@@ -260,6 +261,31 @@ admin:
             push_off: 'cannon stowed'
             push_on: 'cannon primed'
         watch_expiry: 'Watch ends'
+    users:
+        add: Sign on a hand
+        console_note: 'Secret words and second-factor rescues are done from th'' ship''s console, not here. A quartermaster who could change either would be a second way into every hold aboard.'
+        delete: Put ashore
+        delete_confirm: 'Put %name% ashore? Their post stays in th'' hold, but they''ll board no more.'
+        edit: Edit hand
+        field:
+            email: Bottle address
+            is_admin: Quartermaster
+            is_admin_help: 'Reaches this cabin, signs on hands and sets up friendly ports. Reads nobody else''s post.'
+            name_first: Given name
+            name_last: Family name
+            password: First secret word
+            password_help: 'Set once, when th'' hand signs on. Changed later by th'' hand, or reset from th'' console.'
+        heading: Th' crew roster
+        last_login: 'Last sighted %when%'
+        never_signed_in: Never came aboard
+        no_password_edit: 'Secret words cannot be changed here. Setting another hand''s word would make a quartermaster''s session a way into their hold — same reason pulling a second factor is a console affair.'
+        none: No hands aboard yet.
+        password_too_short: 'Twelve characters at least — ye''re choosing this for somebody else.'
+        role:
+            admin: Quartermaster
+        search: Search th' roster…
+        two_factor_on: Second factor is set
+        two_factor_short: 2FA
 
 alias:
     added: 'Address added, arr!'
@@ -391,7 +417,7 @@ login:
     form:
         email: Parrot address
         forgot_password: Forgot yer secret word?
-        forgot_password_hint: 'Only th' quartermaster can mint ye a new one, from th' ship's console.'
+        forgot_password_hint: 'Only th'' quartermaster can mint ye a new one, from th'' ship''s console.'
         password: Secret word
         remember_me: Keep me aboard
         submit: Come aboard

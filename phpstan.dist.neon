@@ -1,8 +1,8 @@
-# Static analysis for src/ and tests/.
+# Static analysis.
 #
-# Level 5 to start, with everything already failing captured in a baseline. The
+# Level 5 with everything already failing captured in a baseline. The
 # alternative — level 0 with no baseline — reports nothing interesting, and
-# level 9 buys a week of triage before it finds its first real bug. Five is
+# level 9 buys a fortnight of triage before it finds its first real bug. Five is
 # where the class of defect this codebase actually has starts showing up:
 # nullable entity getters (`?int getId()`, `?Account getAccount()`) flowing into
 # parameters and return types that are not nullable.
@@ -19,16 +19,67 @@ includes:
 parameters:
     level: 5
 
+    # The whole project, minus the exclusions below, rather than just src/ and
+    # tests/. bin/, config/ and public/ hold real PHP that can break the same
+    # way anything else does — config/bootstrap_generated_secrets.php is loaded
+    # into every process through composer's autoload.files.
     paths:
-        - src
-        - tests
+        - ./
 
-    # Generated: 54 migrations nobody edits by hand, and a 1000-line dump of
-    # the framework config tree that exists to be read, not analysed.
     excludePaths:
         analyseAndScan:
+            # Not PHP.
+            - assets
+            - docs
+            - frankenphp
+            - templates
+            - translations
+            # Third-party code, and its symbols come from the autoloader
+            # anyway — analysing it reports other people's debt.
+            - vendor
+            - node_modules (?)
+            # Build and run artefacts. public/assets is compiled output and
+            # var/ holds the container dumps this very config reads.
+            #
+            # The `(?)` marks a path that may legitimately be absent: PHPStan
+            # treats an excludePath that matches nothing as a config error, and
+            # none of these exist on a fresh clone or in a CI job that has not
+            # built assets yet.
+            - public/assets (?)
+            - public/bundles (?)
+            - var (?)
+            - playwright (?)
+            - playwright-report (?)
+            - test-results (?)
+            # Generated: 54 migrations nobody edits by hand, and a ~1000-line
+            # dump of the framework config tree that exists to be read.
             - migrations
             - config/reference.php
+            # Twig extensions lifted from upstream rather than written here.
+            # NOTE: only Vendor/ — the rest of src/Twig is application code
+            # (SidebarCounts and friends) and must stay analysed.
+            - src/Twig/Vendor
+
+    # ignoreErrors is deliberately empty.
+    #
+    # The rule usually wanted here — silencing "Property …::$id (int|null) is
+    # never assigned int" on Doctrine identifiers — is not needed: the
+    # phpstan-doctrine extension included above already understands that the
+    # ORM assigns identifiers by reflection, so the error never fires. Adding
+    # the pattern anyway would fail the build, because PHPStan treats an ignore
+    # that matches nothing as a config error.
+    #
+    # What property.onlyWritten does catch in this project is a different and
+    # genuine thing: controllers injecting repositories they never use
+    # (MailController::$mailboxRepository, ComposeController::$mailboxRepository
+    # and about fifteen more). Those are in the baseline as debt to delete, not
+    # noise to suppress — which is why there is no blanket ignore for them.
+    ignoreErrors: []
+
+    # Docblocks here are prose as much as types — plenty predate the signatures
+    # beside them. Trusting them as certain turns a stale @var into a stream of
+    # "condition is always false" on code that is fine.
+    treatPhpDocTypesAsCertain: false
 
     symfony:
         containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml

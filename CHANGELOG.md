@@ -21,6 +21,12 @@ The published image tags: `latest` follows the most recent release below,
   password form, and a separate limit on the two-factor code form — which the
   firewall's throttling does not cover, and which is the form an attacker
   reaches holding a stolen password.
+- **Admin user management.** plMail's data model has always been multi-user, but
+  there was no way to create the second user: the setup wizard and `app:setup`
+  both make the first one and then refuse. Admin → Users adds, edits, promotes
+  and removes people. An administrator deliberately cannot change an existing
+  user's password or remove anyone's second factor — both would make an admin
+  session a way into someone else's mailbox.
 - **PHPStan** at level 5, with a baseline, in CI. **Dependabot** for composer,
   npm and GitHub Actions.
 - **LICENSE.** The project has always said AGPL-3.0 in its README; the licence
@@ -40,6 +46,9 @@ The published image tags: `latest` follows the most recent release below,
   exists to report.
 - **The admin Graph category sync caught an exception class that does not
   exist**, so Graph failures propagated instead of degrading quietly.
+- **User search in the admin area returned everything**, and soft-deleted users
+  were visible to every query that claimed to exclude them. Both were the same
+  mistake: a Doctrine expression built and never passed to `andWhere()`.
 - **JMAP `Email/set` rejected valid mailbox patches.** Current `mailboxIds` were
   emitted as label ids where the protocol expects per-account binding ids; since
   both are autoincrement ints, a patch removing one mailbox failed with "No such
