@@ -1,22 +1,19 @@
 import {Controller} from "@hotwired/stimulus";
 
 /**
- * Reflects the Mercure connection state onto the element, for the glow behind
- * the logo (see `.stream-glow` in app.css).
+ * Puts the Mercure connection state on the indicator dot beside the wordmark.
+ *
+ * `data-state` is the whole output: `.stream-dot` colours itself from it, the
+ * tooltip explains it, and the e2e specs assert on it. Nothing here touches
+ * classes or styles, so restyling the dot never means editing this file.
  *
  * Separate from core--mercure rather than folded into it: that controller lives
  * on <body> and owns the connection, while this one is furniture inside the
  * topbar. Keeping them apart means the topbar can be rendered, replaced or
  * dropped by Turbo without touching the stream, and the indicator listens on
  * document so it picks up the state wherever it is mounted.
- *
- * The state is announced as well as shown. The whole point is a failure the UI
- * otherwise hides, so leaving it to colour alone would hide it again from
- * anyone who cannot see the colour — hence role="status" and the visually
- * hidden text, which is also what the e2e assertions read.
  */
 export default class extends Controller {
-    static targets = ["announcement"];
 
     connect() {
         this._onState = (event) => this._render(event.detail.state);
@@ -38,13 +35,7 @@ export default class extends Controller {
         }
 
         this.element.dataset.state = state;
-
-        const label = this._label(state);
-        this.element.setAttribute("title", label);
-
-        if (this.hasAnnouncementTarget) {
-            this.announcementTarget.textContent = label;
-        }
+        this.element.setAttribute("title", this._label(state));
     }
 
     _label(state) {

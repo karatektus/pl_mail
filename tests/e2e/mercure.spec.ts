@@ -126,6 +126,9 @@ async function observe(page: Page): Promise<void> {
 const updates = (page: Page) =>
     page.evaluate(() => (window as never as { __mercure: { updates: unknown[] } }).__mercure.updates);
 
+/** The status dot beside the wordmark. */
+const indicator = (page: Page) => page.locator(".stream-dot");
+
 /**
  * Waits for a connection state.
  *
@@ -136,7 +139,7 @@ const updates = (page: Page) =>
  * correct whenever it is read.
  */
 function expectState(page: Page, state: string, timeout = 15000) {
-    return expect(page.locator(".stream-glow")).toHaveAttribute("data-state", state, { timeout });
+    return expect(indicator(page)).toHaveAttribute("data-state", state, { timeout });
 }
 
 /** The signed-in user's id, which is what the topic is keyed by. */
@@ -240,27 +243,33 @@ test.describe("mercure live updates", () => {
      * The indicator is the whole reason a user ever learns the stream died —
      * there is nothing else on screen that changes when it does.
      */
-    test("shows the stream's health in the topbar, and updates it when it drops", async ({ page }) => {
+    test("shows the stream's health on the topbar dot, and updates it when it drops", async ({ page, baseURL }) => {
         test.slow();
 
         await page.goto("/mail/inbox");
 
-        const glow = page.locator(".stream-glow");
-        await expect(glow).toHaveAttribute("data-state", "connected", { timeout: 15000 });
+        // On screen without opening anything — this is the only surface that
+        // reports the fault, so it has to be there before someone goes looking.
+        const dot = indicator(page);
+        await expect(dot).toBeVisible();
 
-        // Announced, not merely coloured.
-        await expect(glow).toHaveAttribute("title", /live updates/i);
+        await expectState(page, "connected");
+
+        // A coloured dot means nothing on its own; the tooltip is what makes it
+        // readable, so it is part of the feature rather than a nicety.
+        await expect(dot).toHaveAttribute("title", /live updates/i);
 
         hub("stop");
 
         try {
-            await expect(glow).toHaveAttribute("data-state", "offline", { timeout: 30000 });
-            await expect(glow).toHaveAttribute("title", /unavailable/i);
+            await expectState(page, "offline", 30000);
+            await expect(dot).toHaveAttribute("title", /unavailable/i);
         } finally {
             hub("start");
         }
 
-        await expect(glow).toHaveAttribute("data-state", "connected", { timeout: 60000 });
+        await waitForHub(baseURL!);
+        await expectState(page, "connected", 60000);
     });
 
     /**
