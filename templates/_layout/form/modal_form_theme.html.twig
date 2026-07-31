@@ -51,7 +51,31 @@ a collection row — is one field to the reader and should stay tight.
 {% endblock %}
 
 {# ── Text / email / password / number / url / search inputs ─────────────── #}
+{#
+   Password managers may only touch fields that are actually credentials.
+
+   They classify by `autocomplete`, so a name field marked `given-name` reads to
+   Bitwarden as an *identity* field and it draws its overlay into it, offering to
+   fill a person's name on a self-hosted install screen. `autocomplete="off"` is
+   ignored by all of them; the vendor attributes below are the documented opt-out
+   (see App\Form\PasswordManagerIgnore, which is the same list for fields built
+   in PHP).
+
+   Applied by default and withdrawn only for the real credentials, because the
+   safe direction is opt-in: a new field that should be filled will be noticed
+   immediately, whereas one that should not be is exactly the bug this fixes and
+   nobody sees it until an extension misbehaves on someone else's machine.
+#}
 {% block text_widget %}
+    {% if attr.autocomplete|default('') not in ['username', 'email', 'current-password', 'new-password', 'one-time-code'] %}
+        {% set attr = attr|merge({
+            'data-bwignore':  'true',
+            'data-1p-ignore': 'true',
+            'data-lpignore':  'true',
+            'data-form-type': 'other',
+        }) %}
+    {% endif %}
+
     {% set attr = attr|merge({
         class: 'block w-full h-9 rounded-lg border border-field
             bg-field

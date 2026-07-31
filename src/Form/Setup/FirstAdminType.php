@@ -6,6 +6,7 @@ namespace App\Form\Setup;
 
 use App\Domain\Enum\AppLocale;
 use App\Entity\User\User;
+use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -58,15 +59,21 @@ final class FirstAdminType extends AbstractType
                     'data-action'     => 'change->setup--locale-switch#reload',
                 ],
             ])
+            // `given-name`/`family-name` are what the browser's own autofill
+            // reads, and they are worth keeping — but they also tell a password
+            // manager this is an identity form, and Bitwarden answers by drawing
+            // its "new identity" overlay into the first field of a self-hosted
+            // install screen. The ignore attributes keep the native autofill and
+            // send the extensions away.
             ->add('nameFirst', TextType::class, [
                 'label'       => 'setup.install.field.name_first',
                 'constraints' => [new NotBlank()],
-                'attr'        => ['autocomplete' => 'given-name', 'autofocus' => true],
+                'attr'        => ['autocomplete' => 'given-name', 'autofocus' => true] + PasswordManagerIgnore::ATTR,
             ])
             ->add('nameLast', TextType::class, [
                 'label'       => 'setup.install.field.name_last',
                 'constraints' => [new NotBlank()],
-                'attr'        => ['autocomplete' => 'family-name'],
+                'attr'        => ['autocomplete' => 'family-name'] + PasswordManagerIgnore::ATTR,
             ])
             ->add('email', EmailType::class, [
                 'label'       => 'setup.install.field.email',
@@ -84,6 +91,8 @@ final class FirstAdminType extends AbstractType
                 // a LAN is reached at https://plmail or https://localhost, and
                 // the default rejects the value this field prefills itself with.
                 'constraints'  => [new NotBlank(), new Url(requireTld: false)],
+                // A server address, not an account of any kind.
+                'attr'         => PasswordManagerIgnore::ATTR,
             ])
             ->add('plainPassword', RepeatedType::class, [
                 'type'            => PasswordType::class,
