@@ -26,14 +26,15 @@ than one that does not remember at all.
    `lg:flex lg:hidden` — those two are the same breakpoint and which wins comes
    down to CSS source order, which is not something to rely on.
 
-   lg, not md. Below 1024px the row cannot hold a sidebar, a usable mail pane
-   and a usable calendar at once: something has to be squeezed under its
-   minimum, and the honest answer is not to dock at all. Between md and lg the
-   sidebar's Calendar entry navigates to the full page instead — ui--split#toggle
-   checks the same breakpoint and steps out of the way. #}
+   Below lg it is still this pane, not a different page — it just takes the
+   whole row and the mail steps aside (see [data-calendar-open] in app.css).
+   The row cannot hold a sidebar, a usable list and a usable calendar at once
+   under 1024px, so rather than squeezing both under their minimums the
+   calendar takes over. Same toggle, same DOM, no navigation: closing it puts
+   the mail back exactly as it was. #}
 <div
     data-ui--split-target="wrapper"
-    class="{{ paneOpen ? 'hidden lg:flex' : 'hidden' }} shrink-0"
+    class="{{ paneOpen ? 'flex w-full lg:w-auto' : 'hidden' }} shrink-0 min-w-0"
 >
     {# The handle. role=separator with aria-orientation is what makes it
        reachable and meaningful without a mouse; the arrow keys are handled by
@@ -53,7 +54,7 @@ than one that does not remember at all.
         tabindex="0"
         class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
                cursor-col-resize
-               flex items-center justify-center
+               hidden lg:flex items-center justify-center
                focus:outline-none"
     >
         <span class="w-0.5 h-8 rounded-full bg-line
@@ -61,10 +62,13 @@ than one that does not remember at all.
                      transition-colors" aria-hidden="true"></span>
     </div>
 
+    {# Width in classes rather than an inline style: inline would beat the
+       breakpoint, and below lg this pane is full width rather than the stored
+       one. #}
     <div
         data-ui--split-target="pane"
-        class="main-pane flex flex-col overflow-hidden"
-        style="width: var(--calendar-pane-width)"
+        class="main-pane flex flex-col overflow-hidden min-w-0
+               w-full lg:w-[var(--calendar-pane-width)]"
     >
         <turbo-frame
             id="calendar-pane-frame"

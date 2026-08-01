@@ -102,6 +102,51 @@
         </div>
     </div>
 
+    {# ── Calendar ──────────────────────────────────────────────────────
+       Icon only, and here rather than in the sidebar: the sidebar is a
+       list of places mail lives, and a control that slides a panel in and
+       out beside that mail is not one of them — it read as a nav item that
+       did not navigate.
+
+       Beside the search box rather than in the right-hand group: it acts on
+       what is below it, not on the account.
+
+       The dot only appears when something is still ahead TODAY, and its
+       colour is how soon. Three bands, not a countdown: a colour you have to
+       read a number off is not a dot. See UpcomingEventIndicator.
+
+       One behaviour at every width — below lg the pane takes the row instead
+       of docking beside the mail. The href is still a real URL so middle-click
+       reaches the page; ui--split#toggle suppresses the navigation. #}
+    {% set upcoming = calendar.upcoming %}
+    <a
+        href="{{ path('app_calendar_index') }}"
+        data-calendar-toggle
+        data-action="click->ui--split#toggle"
+        class="relative flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+               text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
+        aria-label="{{ 'sidebar.nav.calendar'|trans }}"
+        title="{{ upcoming
+            ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date('g:i a')
+            : 'sidebar.nav.calendar'|trans }}"
+    >
+        <i class="fa-regular fa-calendar text-base" aria-hidden="true"></i>
+
+        {% if upcoming %}
+            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full
+                         ring-2 ring-surface
+                         {{ {
+                             'imminent': 'bg-danger',
+                             'soon':     'bg-warning',
+                             'later':    'bg-success',
+                         }[upcoming.state] ?? 'bg-success' }}"
+                  aria-hidden="true"></span>
+            <span class="sr-only">
+                {{ ('calendar.upcoming.' ~ upcoming.state)|trans }}
+            </span>
+        {% endif %}
+    </a>
+
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
         {# TEMPORARY: manual sync trigger (app:mail:sync) #}

@@ -14,10 +14,18 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Embeddable]
 final class Appearance
 {
-    public const string DEFAULT_ACCENT = '#2563eb';
+    /** Paper's clay, since Paper is what an account starts on — see $theme. */
+    public const string DEFAULT_ACCENT = '#7d6b4f';
 
-    #[ORM\Column(type: 'string', length: 16, enumType: Theme::class, options: ['default' => 'system'])]
-    public private(set) Theme $theme = Theme::System;
+    /**
+     * Paper rather than System. A new install should look like something
+     * somebody chose, and "follow the OS" resolves to whichever of plain white
+     * or plain dark the machine happens to prefer — the two least considered
+     * palettes here. Anyone who wants the OS to decide can still pick System;
+     * this only changes what an account starts as.
+     */
+    #[ORM\Column(type: 'string', length: 16, enumType: Theme::class, options: ['default' => 'paper'])]
+    public private(set) Theme $theme = Theme::Paper;
 
     #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'flat'])]
     public private(set) Layout $layout = Layout::Flat;

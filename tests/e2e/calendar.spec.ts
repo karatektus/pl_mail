@@ -95,7 +95,7 @@ test.describe("calendar pane", () => {
         const wrapper = page.locator('[data-ui--split-target="wrapper"]');
 
         if (await wrapper.isVisible()) {
-            await page.getByRole("link", { name: "Calendar" }).click();
+            await page.locator("[data-calendar-toggle]").click();
             await expect(wrapper).toBeHidden();
         }
     }
@@ -107,7 +107,7 @@ test.describe("calendar pane", () => {
         const mainPane = page.locator(".main-pane").first();
         const widthWithoutPane = (await mainPane.boundingBox())!.width;
 
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -118,7 +118,7 @@ test.describe("calendar pane", () => {
         // The mail is still there beside it — the pane took width, not the page.
         await expect(page.locator("#message-list")).toBeVisible();
 
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
         await expect(paneFrame).toBeHidden();
         expect((await mainPane.boundingBox())!.width).toBeCloseTo(widthWithoutPane, 0);
     });
@@ -126,7 +126,7 @@ test.describe("calendar pane", () => {
     test("remembers its width across a reload", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const pane = page.locator('[data-ui--split-target="pane"]');
         await expect(pane).toBeVisible();
@@ -173,7 +173,7 @@ test.describe("calendar pane", () => {
     test("the event dialog is not clipped by the pane", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -193,7 +193,7 @@ test.describe("calendar pane", () => {
     test("reaches the month view from inside the pane", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -213,7 +213,7 @@ test.describe("calendar pane", () => {
     test("will not squeeze the mail pane below its minimum", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
         await ensurePaneClosed(page);
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const mainPane = page.locator('[data-ui--split-target="main"]');
         const handle = page.locator('[data-ui--split-target="handle"]');
@@ -233,7 +233,7 @@ test.describe("calendar pane", () => {
     test("centres its grip in the gap between the panes", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
 
         const mainPane = page.locator('[data-ui--split-target="main"]');
         const pane = page.locator('[data-ui--split-target="pane"]');
@@ -269,7 +269,7 @@ test.describe("calendar pane", () => {
         await expect(inlineDate).toHaveCSS("display", "flex");
         await expect(stackedDate).toHaveCSS("display", "none");
 
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("[data-calendar-toggle]").click();
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
 
         // Drag the pane out to its limit, which is where the list is tightest.
@@ -284,14 +284,38 @@ test.describe("calendar pane", () => {
         await expect(inlineDate).toHaveCSS("display", "none");
     });
 
-    test("is absent on a phone, where the link opens the page instead", async ({ page }) => {
+    /**
+     * The same control at every width. On a phone there is no room to dock
+     * beside the mail, so the pane takes the row instead — but it is still the
+     * pane, on the same page, and closing it puts the mail back. Navigating to
+     * a separate calendar page could not do that.
+     */
+    test("takes over the row on a phone instead of navigating away", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        await page.goto("/mail/inbox");
+        await ensurePaneClosed(page);
 
-        await expect(page.locator('[data-ui--split-target="pane"]')).toBeHidden();
+        const mailPane = page.locator(".main-pane").first();
+        await expect(mailPane).toBeVisible();
+
+        await page.locator("[data-calendar-toggle]").click();
+
+        await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
+        await expect(mailPane).toBeHidden();
+
+        // Still /mail/inbox — nothing navigated.
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+
+        await page.locator("[data-calendar-toggle]").click();
+        await expect(mailPane).toBeVisible();
+    });
+
+    /** The drawer keeps a plain link to the full page, for a real destination. */
+    test("the drawer still links to the calendar page", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await ensurePaneClosed(page);
 
         await page.getByRole("button", { name: /menu|sidebar/i }).first().click();
-        await page.getByRole("link", { name: "Calendar" }).click();
+        await page.locator("#sidebar-drawer-inner").getByRole("link", { name: "Calendar" }).click();
 
         await expect(page).toHaveURL(/\/calendar$/);
         await expect(page.locator("#message-list")).toHaveCount(0);

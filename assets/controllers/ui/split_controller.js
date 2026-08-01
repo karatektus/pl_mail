@@ -17,12 +17,6 @@ import { Controller } from "@hotwired/stimulus";
  * width is already correct locally — the round trip is for the next page load
  * and the user's other devices, not for this one.
  */
-/* Below this the row cannot hold a sidebar, a usable mail pane and a usable
- * calendar at once, so the pane does not dock at all and the trigger navigates
- * to the full page instead. Matches the `lg:` the wrapper is shown at — the two
- * have to agree or the toggle points at something that cannot appear. */
-const DOCK_BREAKPOINT = "(min-width: 1024px)";
-
 export default class extends Controller {
     static targets = ["wrapper", "pane", "handle", "main"];
     static values = {
@@ -53,13 +47,17 @@ export default class extends Controller {
      * middle-click still opens the page, which means preventing the default
      * navigation is this method's job.
      */
+    /*
+     * One behaviour at every width. The pane opens beside the mail where there
+     * is room and takes the row where there is not — see the
+     * [data-calendar-open] rule in app.css — rather than the trigger meaning
+     * two different things depending on the window. Closing it puts the mail
+     * back exactly as it was, which navigating away could not.
+     *
+     * The href stays a real URL so middle-click still opens the page, which
+     * means suppressing the navigation is this method's job.
+     */
     toggle(event) {
-        // Narrower than the dock breakpoint there is nowhere to put it, so let
-        // the trigger do what its href says and open the calendar as a page.
-        if (!window.matchMedia(DOCK_BREAKPOINT).matches) {
-            return;
-        }
-
         event.preventDefault();
 
         this.openValue = !this.openValue;
@@ -68,8 +66,12 @@ export default class extends Controller {
             return;
         }
 
+        this.element.dataset.calendarOpen = this.openValue ? "true" : "false";
+
         this.wrapperTarget.classList.toggle("hidden", !this.openValue);
-        this.wrapperTarget.classList.toggle("lg:flex", this.openValue);
+        this.wrapperTarget.classList.toggle("flex", this.openValue);
+        this.wrapperTarget.classList.toggle("w-full", this.openValue);
+        this.wrapperTarget.classList.toggle("lg:w-auto", this.openValue);
 
         // The frame is lazy and has no src until the pane is first opened, so
         // opening it is what loads the calendar. Turbo takes it from there.

@@ -77,7 +77,7 @@ The button itself carries `group` and `relative`.
     class="flex items-center px-3 py-1
            border-b border-line
            bg-raised
-           shrink-0 min-h-[40px]"
+           shrink-0 min-h-[var(--pane-header-h)]"
     data-controller="mail--list-toolbar"
     data-mail--list-toolbar-total-value="{{ total }}"
 >
@@ -95,8 +95,12 @@ The button itself carries `group` and `relative`.
             aria-checked="false"
             data-mail--list-toolbar-target="checkboxBtn"
             data-action="click->mail--list-toolbar#toggleAll"
+            {# border-field-border, not border-field: the latter is the FILL
+               token — white at 0.6 alpha — so this box was drawing a white
+               border on a white surface and reading as a smudge next to the
+               row checkboxes below it. #}
             class="flex items-center justify-center w-4 h-4 rounded
-                   border border-field
+                   border border-field-border
                    bg-field
                    cursor-pointer transition-colors duration-100
                    hover:border-accent focus-visible:outline-none

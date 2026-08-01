@@ -344,6 +344,10 @@ calendar:
         yearly: Every year
     title: Calendar
     today: Today
+    upcoming:
+        imminent: Starting within the hour
+        later: Coming up today
+        soon: Coming up in a few hours
     view:
         agenda: Agenda
         day: Day
@@ -852,6 +856,7 @@ settings:
             heading: Theme
             light: Light
             nord: Nord
+            paper: Paper
             solar: Solar
             subheading: Colour scheme for the whole interface.
             system: System

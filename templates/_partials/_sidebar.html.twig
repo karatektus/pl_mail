@@ -187,23 +187,24 @@ the layout.
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
 
-        {# Calendar behaves differently in the two sidebars, and deliberately so.
-           In the drawer — which only exists below md — it is an ordinary link
-           to the full page, because there is no room to dock anything beside
-           the mail. In the desktop sidebar it toggles the docked pane instead,
-           and the href stays a real URL so middle-click and "open in new tab"
-           still reach the page. #}
-        <a href="{{ path('app_calendar_index') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
-           data-ui--sidebar-target="link"
-           data-action="{{ _drawerMode is defined and _drawerMode ? _drawerClose : 'click->ui--split#toggle' }}"
-           title="{{ 'sidebar.nav.calendar'|trans }}"
-        >
-            <span class="flex items-center gap-2">
-                <i class="fa-regular fa-calendar w-4" aria-hidden="true"></i>
-                <span class="rail-hide">{{ 'sidebar.nav.calendar'|trans }}</span>
-            </span>
-        </a>
+        {# Drawer only. On a wide screen the calendar is a panel that slides in
+           beside the mail, and a control for that is not a destination — as a
+           nav row it read as a link that did not navigate. It lives in the
+           topbar there instead. Below lg there is nowhere to dock it, so this
+           is a plain link to the page like any other row here. #}
+        {% if _drawerMode is defined and _drawerMode %}
+            <a href="{{ path('app_calendar_index') }}"
+               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.calendar'|trans }}"
+            >
+                <span class="flex items-center gap-2">
+                    <i class="fa-regular fa-calendar w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.calendar'|trans }}</span>
+                </span>
+            </a>
+        {% endif %}
         {# Snoozed and Archive live behind a disclosure: both are real
            destinations, and neither is somewhere you go often enough to
            spend a permanent row on. Archive in particular had no entry at

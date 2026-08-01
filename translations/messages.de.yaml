@@ -347,6 +347,10 @@ calendar:
         yearly: Jährlich
     title: Kalender
     today: Heute
+    upcoming:
+        imminent: Beginnt innerhalb einer Stunde
+        later: Heute noch
+        soon: In wenigen Stunden
     view:
         agenda: Agenda
         day: Tag
@@ -867,6 +871,7 @@ settings:
             heading: Theme
             light: Hell
             nord: Nord
+            paper: Papier
             solar: Solar
             subheading: Farbschema für die gesamte Oberfläche.
             system: System

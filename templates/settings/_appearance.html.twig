@@ -18,6 +18,7 @@
                 <button type="button"
                         data-theme="{{ theme.value }}"
                         data-dark="{{ theme.isDark ? '1' : '0' }}"
+                        data-theme-defaults="{{ theme.defaults|json_encode }}"
                         data-action="click->settings--appearance#pickTheme"
                         class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
                                {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">

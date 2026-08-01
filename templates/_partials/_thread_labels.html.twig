@@ -8,24 +8,37 @@ Variables:
 #}
 {% set chipLabels = item.labels|filter(chipLabel => chipLabel.role is null and chipLabel.isVisible) %}
 {% if chipLabels|length > 0 %}
-    <span class="hidden @lg:inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
+    {# Shown at every width now. They used to be hidden on a narrow list
+       because they competed with the subject on the same line; they sit on
+       their own line with the snippet there, so there is nothing to lose to. #}
+    <span class="inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
+        {#
+        An outlined pill rather than a filled block with a dot beside it. A row
+        carries three of these next to a subject and a snippet, and a filled
+        chip competes with both; an outline reads as an annotation on the row
+        instead of as another thing in it.
+
+        The colour moves into the border and the text rather than being a
+        separate dot. That keeps what the dot was for — which label this is at a
+        glance — while dropping a whole element from a row that already has
+        five, and it is what lets the pill stay legible at 11px on every theme.
+        #}
         {% for chipLabel in chipLabels|slice(0, 3) %}
-            <span class="inline-flex items-center gap-1 px-1.5 py-px rounded text-[11px] font-medium max-w-28
-                         bg-sunken text-ink-soft">
-                <span class="w-1.5 h-1.5 rounded-full shrink-0
-                    {{ {
-                        'gray':   'bg-ink-faint',
-                        'red':    'bg-red-500',
-                        'orange': 'bg-orange-500',
-                        'amber':  'bg-amber-500',
-                        'green':  'bg-green-500',
-                        'teal':   'bg-teal-500',
-                        'blue':   'bg-accent',
-                        'violet': 'bg-violet-500',
-                        'pink':   'bg-pink-500',
-                    }[chipLabel.color ?? 'gray'] ?? 'bg-ink-faint' }}"
-                    aria-hidden="true"></span>
-                <span class="truncate">{{ chipLabel.name }}</span>
+            {% set tone = {
+                'gray':   'border-ink-faint/40 text-ink-muted',
+                'red':    'border-red-500/40 text-red-700 dark:text-red-300',
+                'orange': 'border-orange-500/40 text-orange-700 dark:text-orange-300',
+                'amber':  'border-amber-500/40 text-amber-700 dark:text-amber-300',
+                'green':  'border-green-500/40 text-green-700 dark:text-green-300',
+                'teal':   'border-teal-500/40 text-teal-700 dark:text-teal-300',
+                'blue':   'border-accent/40 text-accent',
+                'violet': 'border-violet-500/40 text-violet-700 dark:text-violet-300',
+                'pink':   'border-pink-500/40 text-pink-700 dark:text-pink-300',
+            }[chipLabel.color ?? 'gray'] ?? 'border-ink-faint/40 text-ink-muted' %}
+
+            <span class="inline-flex items-center px-2 py-px rounded-full border
+                         text-[11px] leading-[1.35] max-w-28 truncate {{ tone }}">
+                {{ chipLabel.name }}
             </span>
         {% endfor %}
         {% if chipLabels|length > 3 %}

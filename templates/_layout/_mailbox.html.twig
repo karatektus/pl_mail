@@ -51,26 +51,27 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
             {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
         </div>
 
-        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter">
+        {# ui--split spans the topbar as well as the panes: the calendar
+           toggle lives in the topbar, and a Stimulus action only reaches a
+           controller mounted on an ancestor. #}
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter"
+             {% if app.user %}
+             style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
+             data-controller="ui--split"
+             data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
+             data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
+             data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
+             data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
+             data-ui--split-open-value="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
+             data-calendar-open="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
+             {% endif %}
+        >
 
             {# Full-width topbar #}
             {% include '_partials/_topbar.html.twig' %}
 
-            {# Sidebar + content.
-               ui--split sits here, not on the calendar pane, because its scope
-               has to cover both the pane it resizes and the sidebar link that
-               opens it. #}
-            <div class="flex flex-1 gap-gutter overflow-hidden"
-                 {% if app.user %}
-                 style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
-                 data-controller="ui--split"
-                 data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
-                 data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
-                 data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
-                 data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
-                 data-ui--split-open-value="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
-                 {% endif %}
-            >
+            {# Sidebar + content #}
+            <div class="flex flex-1 gap-gutter overflow-hidden">
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
                 <div class="hidden md:flex">

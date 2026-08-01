@@ -55,6 +55,11 @@
     --density-row-y: 0.875rem;
     --density-gap:   0.75rem;
 
+    /* One height for every pane's header row. The mail toolbar and the
+       calendar toolbar sit side by side once the pane is docked, so two
+       independently-derived heights are visibly two heights. */
+    --pane-header-h: 2.75rem;
+
 }
 
 .dark {
@@ -90,6 +95,65 @@
 }
 
 /* Theme blocks come AFTER .dark so they win at equal specificity. */
+
+/* Paper — warm, low-contrast, no gradient.
+   The point of this one is that the page is a single flat sheet: the app
+   background and the pane surface are the same cream, so the panes stop
+   reading as cards floating over a photo and the list becomes the whole
+   surface. Ink is a soft near-black rather than #000, and the accent is a
+   muted clay — a saturated blue on cream reads as a link, not as furniture. */
+[data-theme="paper"] {
+    --rgb-surface:   247 245 239;
+    --rgb-ink:        35  34  32;
+    --rgb-ink-muted: 107 102  94;
+    --rgb-ink-faint: 150 144 134;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-accent:    125 107  79;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-sunken:     35  34  32;
+
+    --border-alpha: 0.10;
+    --line-alpha:   0.09;
+    --sunken-alpha: 0.04;
+    --hover-alpha:  0.035;
+
+    --app-bg: #f2efe7;
+}
+
+/* Dark, retuned to the neutral near-black it always wanted to be.
+   It was #111827 — a slate blue that quietly tinted every surface above it,
+   which is why the greys elsewhere in the UI never looked neutral on it. This
+   is the closest existing theme to the one being matched, so it is the one
+   that changes rather than a seventh entry in the picker. */
+[data-theme="dark"] {
+    --rgb-surface:    18  18  18;
+    --rgb-ink:       232 230 225;
+    --rgb-ink-muted: 150 146 139;
+    --rgb-ink-faint: 110 107 101;
+    --rgb-ink-soft:  198 195 188;
+    --rgb-accent:    138 180 160;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-sunken:    255 255 255;
+
+    /* Fields lighten the surface instead of darkening it. .dark's field is
+       #27272a, which on its old #111827 surface read as an inset box and on
+       this near-black is the same colour as the page — the search input lost
+       its edges entirely. */
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+    --field-alpha:        0.05;
+    --field-border-alpha: 0.14;
+
+    --border-alpha: 0.09;
+    --line-alpha:   0.08;
+    --sunken-alpha: 0.05;
+    --hover-alpha:  0.045;
+
+    --app-bg: #0d0d0d;
+}
+
 [data-theme="nord"] {
     --rgb-surface:    46  52  64;
     --rgb-ink:       236 239 244;
@@ -112,6 +176,16 @@
     --rgb-ink-muted: 101 123 131;
     --rgb-ink-faint: 147 161 161;
     --app-bg: linear-gradient(to bottom right, #fdf6e3, #eee8d5, #f5e6c8);
+}
+
+/* Calendar open on a narrow screen: the pane takes the row and the mail
+   steps aside. One rule rather than a class toggled onto .main-pane from two
+   places — the server renders the open state and the controller changes it,
+   and those two must not be able to disagree. */
+@media (max-width: 1023px) {
+    [data-calendar-open="true"] .main-pane:not([data-ui--split-target="pane"]) {
+        display: none;
+    }
 }
 
 /* Accessibility: never force glass on people who opted out. */
@@ -540,9 +614,16 @@
 /* Flat has no card to respect: the sidebar sits straight against the window,
    so the shell's own left gutter goes too and the pill reaches the browser
    edge. Boxed keeps the gutter — a pill bleeding off a floating card would
-   just look broken. */
-.layout-flat .shell-frame {
-    padding-inline-start: 0;
+   just look broken.
+
+   Only where there IS a sidebar. Below md it is a drawer, so dropping the
+   start padding left nothing to bleed and simply glued the mail pane to the
+   left edge while the right kept its gutter — lopsided, and the reason the
+   list looked cut off on a phone. */
+@media (min-width: 768px) {
+    .layout-flat .shell-frame {
+        padding-inline-start: 0;
+    }
 }
 
 /* ═══ Scrollbars — now token-driven ════════════════════════════════════════ */

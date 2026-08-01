@@ -50,6 +50,12 @@ export default class extends Controller {
             button.classList.toggle('ring-accent', button.dataset.theme === theme);
         });
 
+        // A theme may seed knobs too, the way a layout does. The accent has to
+        // come through here rather than from the stylesheet: it is written
+        // inline on <html> from the user's setting, so a [data-theme] rule for
+        // it would never win.
+        this.applyDefaults(JSON.parse(event.currentTarget.dataset.themeDefaults || '{}'));
+
         this.queue();
     }
 
@@ -101,6 +107,15 @@ export default class extends Controller {
             }
 
             input.value = value;
+
+            // The accent is two derived variables rather than one literal, so
+            // the generic data-css-variable path below cannot preview it.
+            if (field === 'accent') {
+                this.root.style.setProperty('--rgb-accent', this.channels(value));
+                this.root.style.setProperty('--rgb-accent-ink', this.contrast(value));
+
+                return;
+            }
 
             if (input.dataset.cssVariable) {
                 this.root.style.setProperty(
