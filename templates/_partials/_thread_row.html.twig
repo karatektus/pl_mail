@@ -218,8 +218,7 @@ the conversation it answers.
                              text-xs text-ink-faint whitespace-nowrap
                              @xl:group-hover:invisible">
                     {% if hasAttachment %}
-                        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
-                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                        <i class="hidden @xl:inline fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
                     {% endif %}
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
@@ -293,6 +292,16 @@ the conversation it answers.
                is. The paperclip lives with the date above — it is a fact about
                the row, not a control, and it belongs to the same line. #}
             <div class="flex items-center gap-2 h-5 mt-1 @xl:mt-0 @xl:order-first">
+                {# Stacked, the paperclip belongs with the star: there is no
+                   hover for it to vanish under, and a three-line row reads
+                   better with its two marks together than with one stranded
+                   beside the time. The wide copy lives with the date. #}
+                {% if hasAttachment %}
+                    <span class="@xl:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
+                    </span>
+                    <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                {% endif %}
 
                 <button
                     type="button"
