@@ -87,15 +87,34 @@ final readonly class EventExtractionBackfillTask implements BackfillTaskInterfac
 
                     if ([] !== $extracted) {
                         $events += count($this->reconciler->reconcile($message, $extracted));
+
+                        // Per message, not per batch: one unparseable row must
+                        // not take the whole batch's events with it, and a
+                        // rejected flush leaves nothing to salvage.
+                        $this->em->flush();
                     }
                 } catch (\Throwable $e) {
                     $io->warning(sprintf('Message %d: %s', $lastId, $e->getMessage()));
                 }
 
+                // Doctrine closes the manager on a failed flush and every
+                // subsequent operation throws, so continuing is not resilience
+                // — it is several hundred more messages each making a real
+                // provider call to materialise a part that can no longer be
+                // saved. Stop while the failure still has a cause attached.
+                if (false === $this->em->isOpen()) {
+                    $io->progressFinish();
+                    $io->error(sprintf(
+                        'Stopped at message %d: the entity manager closed, so nothing further could be saved.',
+                        $lastId,
+                    ));
+
+                    return Command::FAILURE;
+                }
+
                 $io->progressAdvance();
             }
 
-            $this->em->flush();
             $this->em->clear();
         }
 

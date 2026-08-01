@@ -12,6 +12,8 @@ use App\Entity\Mail\MessagePart;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\Mail\AttachmentResolver;
 use DateTimeImmutable;
+use Doctrine\DBAL\Exception as DBALException;
+use Doctrine\ORM\Exception\ORMException;
 use DateTimeZone;
 use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCalendar;
@@ -308,7 +310,17 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
     {
         try {
             $path = $this->attachments->absolutePathFor($part);
+        } catch (ORMException | DBALException $e) {
+            // Not this part's fault, and not survivable: the resolver flushes
+            // to cache the path it just materialised, so a database failure
+            // arrives here wearing the part's clothes. Reported as "calendar
+            // part unavailable" it read as a bad attachment, when what had
+            // actually happened was a rejected write that closed the manager
+            // and doomed everything after it.
+            throw $e;
         } catch (\Throwable $e) {
+            // A part that genuinely cannot be read — expired provider id,
+            // missing file, revoked account. One missed event, nothing more.
             $this->logger->info('IcsEventExtractor: calendar part unavailable', [
                 'partId' => $part->getId(),
                 'error'  => $e->getMessage(),

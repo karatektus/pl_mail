@@ -89,7 +89,8 @@ final readonly class EventReconciler
                 continue;
             }
 
-            $existing = $this->events->findOneByUid($calendar, $claim->uid);
+            $existing = $this->events->findOneByUid($calendar, $claim->uid)
+                ?? $this->pendingByUid($calendar, $claim->uid);
 
             $event = null === $existing
                 ? $this->create($claim, $calendar, $user, $message)
@@ -160,7 +161,11 @@ final readonly class EventReconciler
         }
 
         $arrived = $message->getReceivedAt() ?? $message->getSentAt();
-        $latest  = $this->links->latestAppliedAt($event);
+
+        // An event this batch created has no id yet, so it cannot be bound as
+        // a query parameter — and it has no committed links to find either.
+        // Both facts say the same thing: there is nothing older to lose to.
+        $latest = null === $event->id ? null : $this->links->latestAppliedAt($event);
 
         return null === $arrived || null === $latest || $arrived >= $latest;
     }
@@ -193,6 +198,36 @@ final readonly class EventReconciler
                 $occurrence->cancelled = true;
             }
         }
+    }
+
+    /**
+     * An event this unit of work has created but not yet flushed.
+     *
+     * findOneByUid() asks the database, which cannot see a queued INSERT — so
+     * two messages in one batch carrying the same UID each found nothing, each
+     * created an event, and the flush was rejected by the unique constraint on
+     * (calendar_id, uid). A resend and its original land in the same batch
+     * routinely: a backfill processes a whole mailbox at once, and an invite
+     * is usually sent more than once.
+     *
+     * Read from the UnitOfWork rather than kept in a property here. The
+     * scheduled set is the actual answer to "what will exist after the flush",
+     * it is emptied by em->clear() between batches with nothing to remember to
+     * reset, and this service stays stateless.
+     */
+    private function pendingByUid(object $calendar, string $uid): ?CalendarEvent
+    {
+        foreach ($this->em->getUnitOfWork()->getScheduledEntityInsertions() as $queued) {
+            if (false === $queued instanceof CalendarEvent) {
+                continue;
+            }
+
+            if ($queued->calendar === $calendar && $queued->uid === $uid) {
+                return $queued;
+            }
+        }
+
+        return null;
     }
 
     /**

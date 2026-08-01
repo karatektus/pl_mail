@@ -66,6 +66,11 @@ final readonly class ExtractEventsHandler
                     continue;
                 }
 
+                // Per message, not once for the batch: a single bad row would
+                // otherwise take every event the batch found with it, and the
+                // job is retried as a whole.
+                $this->em->flush();
+
                 $found += count($touched);
 
                 $user = $mail->getAccount()->getUsr();
@@ -79,16 +84,27 @@ final readonly class ExtractEventsHandler
                     'error'     => $e->getMessage(),
                 ]);
             }
+
+            // Doctrine closes the manager on a failed flush, and everything
+            // after it throws — including the provider calls that materialise
+            // a part. Carrying on is not resilience, it is spending quota on
+            // work that cannot be saved.
+            if (false === $this->em->isOpen()) {
+                $this->logger->error('ExtractEvents: entity manager closed, abandoning the batch', [
+                    'messageId' => $messageId,
+                ]);
+
+                return;
+            }
         }
 
         if (0 === $found) {
             return;
         }
 
-        $this->em->flush();
-
-        // After the flush: a page told to look again before the rows are
-        // committed sees the calendar it already had.
+        // Each message was flushed as it went, so by here the rows are
+        // committed — a page told to look again any earlier would see the
+        // calendar it already had.
         foreach ($usersToNotify as $user) {
             $this->notifier->publishCalendarChanged($user);
         }

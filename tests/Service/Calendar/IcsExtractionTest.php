@@ -211,6 +211,56 @@ final class IcsExtractionTest extends KernelTestCase
         self::assertSame([], $this->eventsWithUid('unwanted@example.test'));
     }
 
+    /**
+     * The one that broke on a real mailbox.
+     *
+     * findOneByUid() asks the database, which cannot see a queued INSERT, so
+     * two messages carrying the same UID in one unflushed batch each found
+     * nothing, each created an event, and the flush was rejected by the unique
+     * constraint on (calendar_id, uid) — which closed the entity manager and
+     * took the rest of the run with it.
+     *
+     * A resend and its original land in the same batch routinely: a backfill
+     * walks a whole mailbox at once, and invites are sent more than once.
+     */
+    public function testTheSameUidTwiceBeforeAFlushIsStillOneEvent(): void
+    {
+        $ics = $this->ics('batched@example.test', 'Batched', '20260803T090000Z', '20260803T100000Z');
+
+        // BOTH messages first: creating one persists and flushes, and a flush
+        // between the two reconciles would commit the first event and hand the
+        // second a database lookup that finds it — which is exactly the
+        // situation this test exists to rule out.
+        $first  = $this->messageWithInvite($ics);
+        $second = $this->messageWithInvite($ics);
+
+        $this->reconciler->reconcile($first, $this->runner->run($first));
+        $this->reconciler->reconcile($second, $this->runner->run($second));
+
+        $this->em->flush();
+
+        self::assertCount(1, $this->eventsWithUid('batched@example.test'));
+    }
+
+    /** And a genuine second event in the same batch is still its own row. */
+    public function testTwoDifferentUidsInOneBatchAreTwoEvents(): void
+    {
+        $first  = $this->messageWithInvite(
+            $this->ics('first@example.test', 'First', '20260803T090000Z', '20260803T100000Z'),
+        );
+        $second = $this->messageWithInvite(
+            $this->ics('second@example.test', 'Second', '20260804T090000Z', '20260804T100000Z'),
+        );
+
+        $this->reconciler->reconcile($first, $this->runner->run($first));
+        $this->reconciler->reconcile($second, $this->runner->run($second));
+
+        $this->em->flush();
+
+        self::assertCount(1, $this->eventsWithUid('first@example.test'));
+        self::assertCount(1, $this->eventsWithUid('second@example.test'));
+    }
+
     /** No UID means no identity, so every resend would be a new event. */
     public function testAnInviteWithNoUidIsIgnored(): void
     {
@@ -247,6 +297,17 @@ final class IcsExtractionTest extends KernelTestCase
      */
     private function ingest(string $ics): ?CalendarEvent
     {
+        $message = $this->messageWithInvite($ics);
+
+        $touched = $this->reconciler->reconcile($message, $this->runner->run($message));
+        $this->em->flush();
+
+        return $touched[0] ?? null;
+    }
+
+    /** A persisted message carrying one text/calendar part with these bytes. */
+    private function messageWithInvite(string $ics): Message
+    {
         $message = new Message();
         $message
             ->setAccount($this->account)
@@ -282,10 +343,7 @@ final class IcsExtractionTest extends KernelTestCase
         // Read back, because the builder does not touch the inverse side.
         $this->em->refresh($message);
 
-        $touched = $this->reconciler->reconcile($message, $this->runner->run($message));
-        $this->em->flush();
-
-        return $touched[0] ?? null;
+        return $message;
     }
 
     /**
