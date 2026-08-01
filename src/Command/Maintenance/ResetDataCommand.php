@@ -2,12 +2,9 @@
 
 namespace App\Command\Maintenance;
 
-use App\Infrastructure\Setup\GeneratedSecretsFile;
-use App\Service\Monitoring\WorkerRestartSignal;
-use Throwable;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\Filesystem\Filesystem;
+use App\Service\Maintenance\DataResetter;
+use App\Service\Maintenance\ResetReport;
+use App\Service\Maintenance\ResetScope;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -15,36 +12,24 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/**
+ * The reset, on a terminal.
+ *
+ * The deleting itself moved to App\Service\Maintenance\DataResetter when the
+ * admin panel gained the same buttons; what is left here is the part that only
+ * makes sense with a TTY — flags, prompts, and saying what happened line by
+ * line. This is the documented way to reset an install whose web UI is
+ * unreachable, so it keeps its exact behaviour: same flags, same defaults, same
+ * output.
+ */
 #[AsCommand(
     name: 'app:reset',
     description: 'Truncate all synced message data, optionally including mailbox structure, contacts and monitoring data',
 )]
 class ResetDataCommand extends Command
 {
-    /**
-     * Everything generated on first run except the database password.
-     *
-     * That one stays: Postgres was initialised with it and keeps it in its own
-     * data directory, so regenerating it would leave the app unable to log in
-     * to the database it just reset. Wiping the database volume is the only way
-     * to change it, and that is `docker compose down -v`, not this command.
-     */
-    private const array RESETTABLE_SECRETS = [
-        'APP_SECRET',
-        'APP_ENCRYPTION_KEY',
-        'MERCURE_JWT_SECRET',
-        'VAPID_PUBLIC_KEY',
-        'VAPID_PRIVATE_KEY',
-        'APP_PUBLIC_URL',
-    ];
-
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly GeneratedSecretsFile $secrets,
-        private readonly Filesystem $filesystem,
-        private readonly WorkerRestartSignal $workerRestart,
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
+        private readonly DataResetter $resetter,
     ) {
         parent::__construct();
     }
@@ -111,87 +96,18 @@ class ResetDataCommand extends Command
 
         $io->section('Truncating tables...');
 
-        $connection = $this->em->getConnection();
+        $report = $this->resetter->reset(new ResetScope(
+            mailboxes: $deleteMailboxes,
+            contacts: $deleteContacts,
+            accounts: $deleteAccounts,
+            monitoring: $resetMonitoring,
+        ));
 
-        // Disable FK checks while truncating
-        $connection->executeStatement('SET session_replication_role = replica');
+        $this->reportTables($io, $report);
 
-        $tables = [
-            'messenger_messages',
-            'message_part',
-            'message_label',
-            'thread_label',
-            'message',
-            'message_thread',
-            'jmap_change_log',
-            'uploaded_blob',
-        ];
-
-        if (true === $deleteMailboxes) {
-            // Before label: label_binding FKs both, and mailbox is referenced
-            // by binding.mailbox_id.
-            $tables[] = 'label_binding';
-            $tables[] = 'label';
-            $tables[] = 'mailbox';
+        foreach ($report->cursorsCleared as $table) {
+            $io->text('✓ ' . $table . ' (sync cursors)');
         }
-
-        if (true === $deleteContacts) {
-            $tables[] = 'contact';
-        }
-
-        if (true === $deleteAccounts) {
-            // Every table with an account_id, then the accounts. The user rows
-            // stay: dropping those would lock you out of the app you are
-            // resetting.
-            $tables[] = 'email_alias';
-            $tables[] = 'account';
-        }
-
-        if (true === $resetMonitoring) {
-            $tables[] = 'log_entry';
-            $tables[] = 'process_heartbeat';
-        }
-
-        // Truncate against what the database actually has, not what this list
-        // claims. A table dropped by a later migration would otherwise abort the
-        // whole reset mid-way — with FK checks still disabled for the session.
-        $existing = $connection->createSchemaManager()->listTableNames();
-
-        foreach ($tables as $table) {
-            if (false === in_array($table, $existing, true)) {
-                $io->text('– '.$table.' (not in schema, skipped)');
-
-                continue;
-            }
-
-            $connection->executeStatement(sprintf('TRUNCATE TABLE %s CASCADE', $table));
-            $io->text('✓ '.$table);
-        }
-
-        // Clear per-account sync cursors so the next run re-syncs from scratch
-        if (false === $deleteAccounts) {
-            $connection->executeStatement(<<<'SQL'
-                UPDATE account SET
-                    gmail_history_id = NULL,
-                    graph_delta_links = '{}',
-                    last_synced_at = NULL
-                SQL);
-            $io->text('✓ account (sync cursors)');
-        }
-
-        // Kept mailboxes still carry IMAP cursors; without clearing them nothing would be re-fetched
-        if (true !== $deleteMailboxes) {
-            $connection->executeStatement(<<<'SQL'
-                UPDATE mailbox SET
-                    uid_validity = NULL,
-                    last_seen_uid = NULL,
-                    synced_at = NULL
-                SQL);
-            $io->text('✓ mailbox (sync cursors)');
-        }
-
-        // Re-enable FK checks
-        $connection->executeStatement('SET session_replication_role = DEFAULT');
 
         $io->success(true === $deleteAccounts
             ? 'Done. Add an account to start over.'
@@ -201,27 +117,17 @@ class ResetDataCommand extends Command
     }
 
     /**
-     * Delete everything inside a directory, but not the directory.
-     *
-     * These paths are bind mounts — attachments, raw messages and uploads are
-     * on host storage so the web container and the workers can both reach them
-     * — and a mount point cannot be removed from inside the container:
-     * rmdir() answers "Device or resource busy". Emptying is what was meant
-     * anyway; the directory itself has to survive for the next write.
-     *
-     * @return bool whether there was a directory to empty
+     * Table by table, in the order they were attempted, so a name missing from
+     * the schema is reported where it would have been truncated rather than
+     * collected into a footnote.
      */
-    private function emptyDirectory(string $path): bool
+    private function reportTables(SymfonyStyle $io, ResetReport $report): void
     {
-        if (false === is_dir($path)) {
-            return false;
+        foreach ($report->tables as $table => $truncated) {
+            $io->text(true === $truncated
+                ? '✓ ' . $table
+                : '– ' . $table . ' (not in schema, skipped)');
         }
-
-        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $child) {
-            $this->filesystem->remove($path.'/'.$child);
-        }
-
-        return true;
     }
 
     /**
@@ -259,44 +165,19 @@ class ResetDataCommand extends Command
             return Command::SUCCESS;
         }
 
-        $connection = $this->em->getConnection();
-
-        // Every table the schema has, rather than a list to keep in step —
-        // "everything" is the point, and a table added later must not survive a
-        // reset just because nobody remembered to add it here.
-        $tables = array_filter(
-            $connection->createSchemaManager()->listTableNames(),
-            static fn (string $table): bool => 'doctrine_migration_versions' !== $table,
-        );
-
         $io->section('Truncating every table...');
 
-        $connection->executeStatement('SET session_replication_role = replica');
+        $report = $this->resetter->fullReset($rotateSecrets);
 
-        foreach ($tables as $table) {
-            $connection->executeStatement(sprintf('TRUNCATE TABLE %s CASCADE', $table));
-        }
-
-        $connection->executeStatement('SET session_replication_role = DEFAULT');
-
-        $io->text(sprintf('✓ %d tables', count($tables)));
+        $io->text(sprintf('✓ %d tables', count($report->tables)));
 
         $io->section('Removing stored files...');
 
-        // Attachments, raw messages and uploads are all referenced by rows that
-        // no longer exist, so leaving them would be leaking disk to nothing.
-        foreach (['var/attachments', 'var/raw', 'var/uploads'] as $directory) {
-            if (true === $this->emptyDirectory($this->projectDir.'/'.$directory)) {
-                $io->text('✓ '.$directory);
-            }
+        foreach ($report->emptiedDirectories as $directory) {
+            $io->text('✓ ' . $directory);
         }
 
         if (false === $rotateSecrets) {
-            // Deliberately untouched. Rotating the encryption key cannot be
-            // made safe from inside a running fleet: the other services hold
-            // the old one in memory until they restart, so for a while half of
-            // them cannot read what the other half writes. The data it
-            // protected is gone anyway, which is most of the reason to rotate.
             $io->success([
                 'Done. Open plMail and create the first administrator.',
                 'The generated secrets were left alone — add --rotate-secrets to discard them,',
@@ -308,20 +189,7 @@ class ResetDataCommand extends Command
 
         $io->section('Clearing generated secrets...');
 
-        $removed = $this->secrets->remove(self::RESETTABLE_SECRETS);
-
-        $this->emptyDirectory($this->projectDir.'/var/secrets/jwt');
-
-        // Best effort: the workers recycle onto the new key rather than
-        // lingering on the old one. The web process cannot restart itself,
-        // which is why the instruction below is not optional.
-        try {
-            $this->workerRestart->request();
-        } catch (Throwable) {
-            // A nudge that fails changes nothing about what has to happen next.
-        }
-
-        $io->listing([...$removed, 'JWT keypair']);
+        $io->listing([...$report->removedSecrets, 'JWT keypair']);
         $io->text('POSTGRES_PASSWORD kept — Postgres was initialised with it. To change that, wipe the database volume.');
 
         $io->warning([

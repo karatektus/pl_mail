@@ -20,7 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class AdminDashboardController extends AbstractController
 {
-    private const array SECTIONS = ['system', 'database', 'logs', 'integrations', 'users'];
+    private const array SECTIONS = ['system', 'database', 'logs', 'integrations', 'users', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
     /** Monolog numeric levels offered as minimum-level filters. */

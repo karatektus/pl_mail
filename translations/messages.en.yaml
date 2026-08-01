@@ -176,6 +176,14 @@ admin:
         heartbeats_prune: 'Prune stale heartbeats'
         heartbeats_title: 'Stale heartbeats'
         restart: 'Restart workers'
+        restart_app: 'Restart now'
+        restart_app_help: >-
+            Ends the process serving this page so compose recreates it. Needed after
+            the generated secrets are rotated: the entrypoint exports them as
+            environment variables and the kernel boots once in worker mode, so a
+            running web container never picks up a new value. About two seconds of
+            downtime, and this page comes back on its own.
+        restart_app_title: 'Restart the web container'
         restart_confirm: 'Restart the workers, scheduler and IMAP supervisor? In-flight work finishes first.'
         restart_help: 'Stops the workers, scheduler and IMAP supervisor so their containers are recreated. Long-running processes cache database mappings for their whole lifetime, so they need this after a migration.'
         restart_pending: 'Restart requested %seconds%s ago — processes finish their current work, then reappear here within a minute or two.'
@@ -202,6 +210,7 @@ admin:
         database: Database
         integrations: Integrations
         logs: Logs
+        reset: Reset
         system: System
         users: Users
     processes:
@@ -218,6 +227,75 @@ admin:
         pending: 'Pending'
         queue: 'Queue'
     refresh_hint: 'Live panels refresh every 10s'
+    reset:
+        button: 'Reset'
+        confirm_label: 'Type %name% to confirm'
+        confirm_mismatch: 'That is not %name%, so nothing was deleted. Type the instance name exactly as it is shown.'
+        done:
+            continue: 'Create the first administrator'
+            footnote: 'plMail is back to the state a fresh install starts in.'
+            heading: 'plMail has been reset'
+            lead: 'All %count% tables were emptied, along with the stored attachments, raw messages and uploads. There are no users left, so this session has been signed out.'
+            page_title: 'Reset complete'
+            restart_failed: 'The web container could NOT be restarted from here — run the command above yourself before using plMail.'
+            restart_sent: 'The web container was asked to restart and comes back on its own. Everything else in the stack still needs the command above.'
+            secrets_heading: 'The generated secrets were discarded'
+            tagline: 'Nothing left to sign in to'
+            workers_failed: 'The workers could not be signalled either, so they keep using the old encryption key until something restarts them.'
+        heading: 'Reset data'
+        intro: 'This permanently deletes synced data from the database. Each step deletes everything the step above it does, and more.'
+        monitoring_kept: 'Monitoring data is kept. Clear the aggregated logs from Logs, and stale heartbeats from Maintenance.'
+        postgres_password: >-
+            POSTGRES_PASSWORD is not rotated. Postgres was initialised with it and keeps
+            it in its own data directory, so regenerating it would leave plMail unable to
+            log in to the database it just reset. Changing that one means wiping the
+            database volume — docker compose down -v — which this cannot do.
+        restart_required: 'Restart the whole stack immediately afterwards, and before using plMail:'
+        self_restart: 'The web container asks itself to exit once this page has been sent, and compose brings it straight back. The workers are signalled too; the command above covers the rest of the stack.'
+        self_restart_unavailable: 'This process cannot restart itself here, so the command above is the only way. Nothing will happen automatically.'
+        stage:
+            accounts:
+                confirm: 'Delete the accounts as well? Every mailbox password and OAuth connection has to be entered again.'
+                deletes: 'The above, plus the accounts themselves, aliases included. Every mailbox password and OAuth connection has to be set up from scratch. Your own sign-in is untouched.'
+                title: 'Mail, structure, contacts and accounts'
+            contacts:
+                confirm: 'Delete every synced message, folder, label and harvested contact?'
+                deletes: 'The above, plus harvested contacts. They are collected again from mail as it arrives, so address autocomplete starts empty.'
+                title: 'Mail, structure and contacts'
+            full:
+                button: 'Erase this install'
+                deletes: >-
+                    Everything, not just synced mail: every user (you included), every account
+                    and its stored password, and the files on disk. The install goes back to
+                    asking for its first administrator. You are signed out and cannot sign
+                    back in.
+                title: 'Full reset'
+            full_secrets:
+                button: 'Erase this install and rotate secrets'
+                deletes: >-
+                    Everything above, and the generated secrets. Every service is still
+                    running with the old APP_ENCRYPTION_KEY in memory and keeps using it
+                    until restarted, so anything saved before you restart the stack becomes
+                    unreadable to half of it.
+                title: 'Full reset and new secrets'
+            structure:
+                confirm: 'Delete every synced message, thread, folder and label? The next sync rebuilds them.'
+                deletes: 'The above, plus the mailbox structure — folders and labels. The next sync rebuilds both.'
+                title: 'Mail and mailbox structure'
+            synced_mail:
+                confirm: 'Delete every synced message and thread? Accounts and folders stay, and the next sync fetches the mail again.'
+                deletes: 'Messages, threads, message parts and anything queued. Accounts, folders and labels stay; the sync cursors are cleared so the next sync fetches everything again.'
+                title: 'Synced mail'
+        unrecoverable:
+            heading: 'Cannot be undone'
+            lead: 'Neither of these is recoverable by resyncing: they delete the users, the stored mailbox passwords and the files on disk. Type the instance name to confirm — a click on its own is not enough.'
+    restarting:
+        back: 'Back to the admin panel'
+        heading: 'plMail is restarting'
+        lead: 'The web container was asked to exit and compose brings it straight back. This page reloads itself in a few seconds.'
+        page_title: 'Restarting'
+        unavailable_heading: 'Nothing was restarted'
+        unavailable_lead: 'This process is not the container''s main process, so it cannot end it. Run this instead:'
     tables:
         heading: 'Table sizes'
     title: 'Admin'
