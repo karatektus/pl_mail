@@ -91,6 +91,22 @@ final class ThreadGetMethod implements JmapMethod
                 'snoozedUntil' => $this->utcOrNull(
                     $thread->isSnoozed() ? $thread->getSnoozedUntil() : null,
                 ),
+                // plMail extension, and the authoritative one for the inbox
+                // tabs: the resolved, most-recent-wins category of the whole
+                // conversation, which is what the web's tab bar shows and what
+                // Email/query's threadCategory filter agrees with.
+                //
+                // Published on Thread rather than only on Email because a tab
+                // holds conversations, not messages. Email.category is the raw
+                // signal this is derived from and is deliberately not
+                // filterable — see EmailFilterCompiler::threadCategory().
+                //
+                // Null means "never classified", which is a real state (mail
+                // that predates the classifier, a draft) and not the same as
+                // Primary. A client must not fold it into Primary: the server's
+                // own inbox query does not, so folding would put mail on the
+                // phone's Primary tab that the browser's does not have.
+                'category' => $thread->getCategory()?->value,
             ];
         }
 
