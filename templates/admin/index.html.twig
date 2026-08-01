@@ -39,7 +39,7 @@
                         <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
                             <i class="fa-solid fa-gauge-high text-zinc-400" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-ink">{{ 'admin.title'|trans }}</h1>
-                            {% if section not in ['logs', 'integrations'] %}
+                            {% if section not in ['logs', 'integrations', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -75,6 +75,13 @@
                                        class="{{ section == 'users' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-users w-4 {{ section == 'users' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.users'|trans }}
+                                    </a>
+                                    {# Last, and the only one tinted: everything above reads or
+                                       repairs, this one deletes. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'reset' }) }}"
+                                       class="{{ section == 'reset' ? navActive : navInactive }} {{ section == 'reset' ? '' : 'hover:text-danger' }}">
+                                        <i class="fa-solid fa-eraser w-4 {{ section == 'reset' ? 'text-danger' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.reset'|trans }}
                                     </a>
                                 </nav>
 
@@ -117,6 +124,23 @@
                                            modal an admin is typing into. #}
                                         <turbo-frame id="admin-users"
                                                      src="{{ path('app_admin_user_default_index') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'reset' %}
+
+                                        {# Emphatically no auto-refresh: one of the forms in
+                                           here is a text field the operator has to type an
+                                           instance name into, and a poll would empty it
+                                           mid-word. The error state travels on the query
+                                           string rather than through the flash bag, because
+                                           the frame is loaded by its own request and would
+                                           not see a flash set for the page around it. #}
+                                        <turbo-frame id="admin-reset"
+                                                     src="{{ path('app_admin_reset_panel', app.request.query.get('error') ? { error: app.request.query.get('error') } : {}) }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

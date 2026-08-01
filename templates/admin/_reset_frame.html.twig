@@ -1,0 +1,139 @@
+{#
+Admin → Reset data.
+
+Two cards on purpose, not one list of six buttons. The first four rungs are
+undone by a resync; the last two are undone by nothing, and putting them under
+their own heading, in danger colours, with a field that has to be typed into, is
+the difference the operator needs to see before deciding rather than after.
+
+Every "deletes" line is lifted from the warnings App\Command\Maintenance\
+ResetDataCommand already prints. Rewording them here would mean two descriptions
+of one operation, and the one nobody is looking at going quietly wrong.
+
+No auto-refresh wraps this frame — see the note where it is embedded in
+index.html.twig.
+#}
+
+{% import 'admin/_cards.html.twig' as cards %}
+
+<turbo-frame id="admin-reset">
+
+    <div class="space-y-6">
+
+        {% if error == 'confirmation-mismatch' %}
+            <div role="alert" class="flex items-start gap-2.5 rounded-pane alert-danger px-4 py-3 text-sm text-danger">
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                <p>{{ 'admin.reset.confirm_mismatch'|trans({ '%name%': instanceName }) }}</p>
+            </div>
+        {% endif %}
+
+        {# ── Recoverable ───────────────────────────────────────────────── #}
+        {{ cards.open('fa-eraser', 'admin.reset.heading'|trans, 'reset', []) }}
+            <div class="px-5 py-4">
+                <p class="text-sm text-ink-soft">{{ 'admin.reset.intro'|trans }}</p>
+                <p class="mt-1 text-xs text-ink-faint">{{ 'admin.reset.monitoring_kept'|trans }}</p>
+            </div>
+
+            <div class="divide-y divide-line border-t border-line">
+                {% for stage in ordinaryStages %}
+                    <div class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div class="min-w-0">
+                            <p class="text-sm text-ink">{{ (stage.translationKey ~ '.title')|trans }}</p>
+                            <p class="mt-0.5 text-xs text-ink-faint">{{ (stage.translationKey ~ '.deletes')|trans }}</p>
+                        </div>
+
+                        <form method="post"
+                              action="{{ path('app_admin_reset_run', { stage: stage.value }) }}"
+                              data-turbo-frame="_top"
+                              data-turbo-confirm="{{ (stage.translationKey ~ '.confirm')|trans }}"
+                              class="shrink-0">
+                            <input type="hidden" name="_token" value="{{ csrf_token(stage.csrfTokenId) }}">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer">
+                                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                {{ 'admin.reset.button'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {{ cards.close() }}
+
+        {# ── Unrecoverable ─────────────────────────────────────────────── #}
+        <div class="rounded-pane border border-danger/40 bg-pane-soft overflow-hidden">
+            <div class="flex items-center gap-2.5 px-5 h-11 border-b border-danger/40 alert-danger">
+                <i class="fa-solid fa-triangle-exclamation text-xs text-danger" aria-hidden="true"></i>
+                <h2 class="text-sm font-semibold text-danger">{{ 'admin.reset.unrecoverable.heading'|trans }}</h2>
+            </div>
+
+            <div class="px-5 py-4">
+                <p class="text-sm text-ink-soft">{{ 'admin.reset.unrecoverable.lead'|trans }}</p>
+            </div>
+
+            <div class="divide-y divide-line border-t border-line">
+                {% for stage in unrecoverableStages %}
+                    <div class="px-5 py-4">
+                        <p class="text-sm font-medium text-ink">{{ (stage.translationKey ~ '.title')|trans }}</p>
+                        <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ (stage.translationKey ~ '.deletes')|trans }}</p>
+
+                        {% if stage.rotatesSecrets %}
+                            {# Requirement 3: the one secret that is NOT rotated, said
+                               out loud. Silently leaving it out would read as an
+                               oversight to anyone who later found it unchanged. #}
+                            <p class="mt-2 text-xs text-ink-faint leading-relaxed">
+                                {{ 'admin.reset.postgres_password'|trans }}
+                            </p>
+
+                            <p class="mt-2 text-xs text-ink-faint leading-relaxed">
+                                {{ 'admin.reset.restart_required'|trans }}
+                                <code class="rounded bg-zinc-500/10 px-1.5 py-0.5 font-mono select-all">docker compose restart</code>
+                            </p>
+
+                            <p class="mt-2 text-xs {{ restartSupported ? 'text-ink-faint' : 'text-warning' }} leading-relaxed">
+                                {{ (restartSupported ? 'admin.reset.self_restart' : 'admin.reset.self_restart_unavailable')|trans }}
+                            </p>
+                        {% endif %}
+
+                        {#
+                            data-turbo="false", so the browser posts this itself.
+                            A full reset answers with a page rather than a redirect
+                            — the user it deleted has nowhere behind the firewall to
+                            be sent — and Turbo refuses to render a non-redirect
+                            response to a form submission.
+                        #}
+                        <form method="post"
+                              action="{{ path('app_admin_reset_run', { stage: stage.value }) }}"
+                              data-turbo="false"
+                              class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                            <input type="hidden" name="_token" value="{{ csrf_token(stage.csrfTokenId) }}">
+
+                            <div class="flex-1 min-w-0">
+                                <label for="reset-confirm-{{ stage.value }}" class="block text-xs font-medium text-ink-soft">
+                                    {{ 'admin.reset.confirm_label'|trans({ '%name%': instanceName }) }}
+                                </label>
+                                <input type="text"
+                                       id="reset-confirm-{{ stage.value }}"
+                                       name="confirmation"
+                                       autocomplete="off"
+                                       autocapitalize="none"
+                                       spellcheck="false"
+                                       placeholder="{{ instanceName }}"
+                                       class="mt-1 w-full rounded-lg border border-line bg-surface px-3 h-9 text-sm text-ink
+                                              focus:outline-none focus:ring-2 focus:ring-danger/50">
+                            </div>
+
+                            <button type="submit"
+                                    class="inline-flex items-center justify-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
+                                           bg-danger-soft text-danger hover:bg-danger hover:text-white transition-colors cursor-pointer shrink-0">
+                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                {{ (stage.translationKey ~ '.button')|trans }}
+                            </button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+</turbo-frame>

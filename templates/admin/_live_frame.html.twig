@@ -80,6 +80,30 @@
                 </div>
 
                 <div class="pt-4 border-t border-line">
+                    <p class="text-sm text-ink">{{ 'admin.maintenance.restart_app_title'|trans }}</p>
+                    <p class="mt-0.5 text-xs text-ink-faint">{{ 'admin.maintenance.restart_app_help'|trans }}</p>
+
+                    {# data-turbo="false": this answers with a page, not a redirect,
+                       because the process that would have served the redirect is the
+                       one being restarted, and Turbo will not render a non-redirect
+                       response to a form submission.
+                       No data-turbo-confirm for the same reason — Turbo is not
+                       handling this submission, so it would never fire, and an
+                       attribute that looks like a guard but is not is worse than
+                       none. The action is a two-second outage that recovers itself,
+                       which is what makes that acceptable here and not on the reset
+                       buttons. #}
+                    <form method="post" action="{{ path('app_admin_system_restart_app') }}" data-turbo="false" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_restart_app') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-power-off" aria-hidden="true"></i>
+                            {{ 'admin.maintenance.restart_app'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+                <div class="pt-4 border-t border-line">
                     <p class="text-sm text-ink">{{ 'admin.maintenance.run_title'|trans }}</p>
                     <p class="mt-0.5 text-xs text-ink-faint">{{ 'admin.maintenance.run_help'|trans }}</p>
 

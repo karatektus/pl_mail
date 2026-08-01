@@ -176,6 +176,15 @@ admin:
         heartbeats_prune: 'Alte Heartbeats entfernen'
         heartbeats_title: 'Veraltete Heartbeats'
         restart: 'Worker neu starten'
+        restart_app: 'Jetzt neu starten'
+        restart_app_help: >-
+            Beendet den Prozess, der diese Seite ausliefert, damit compose ihn neu
+            erstellt. Nötig, nachdem die generierten Geheimnisse erneuert wurden: das
+            Entrypoint-Skript exportiert sie als Umgebungsvariablen und der Kernel
+            startet im Worker-Modus nur ein einziges Mal, ein laufender Web-Container
+            übernimmt neue Werte also nie. Etwa zwei Sekunden Ausfall, danach kommt
+            diese Seite von selbst zurück.
+        restart_app_title: 'Web-Container neu starten'
         restart_confirm: 'Worker, Scheduler und IMAP-Supervisor neu starten? Laufende Arbeit wird zuerst abgeschlossen.'
         restart_help: 'Beendet Worker, Scheduler und IMAP-Supervisor, damit ihre Container neu erstellt werden. Langlaufende Prozesse halten das Datenbank-Mapping über ihre gesamte Laufzeit im Speicher und brauchen das deshalb nach einer Migration.'
         restart_pending: 'Neustart vor %seconds%s angefordert — die Prozesse beenden ihre laufende Arbeit und erscheinen ein bis zwei Minuten später wieder hier.'
@@ -202,6 +211,7 @@ admin:
         database: Datenbank
         integrations: Integrationen
         logs: Protokolle
+        reset: Zurücksetzen
         system: System
         users: Benutzer
     processes:
@@ -218,6 +228,77 @@ admin:
         pending: 'Ausstehend'
         queue: 'Warteschlange'
     refresh_hint: 'Live-Bereiche aktualisieren sich alle 10 s'
+    reset:
+        button: 'Zurücksetzen'
+        confirm_label: 'Zum Bestätigen %name% eingeben'
+        confirm_mismatch: 'Das ist nicht %name%, es wurde nichts gelöscht. Bitte den Instanznamen genau so eingeben, wie er angezeigt wird.'
+        done:
+            continue: 'Ersten Administrator anlegen'
+            footnote: 'plMail ist wieder in dem Zustand, in dem eine frische Installation startet.'
+            heading: 'plMail wurde zurückgesetzt'
+            lead: 'Alle %count% Tabellen wurden geleert, dazu die gespeicherten Anhänge, Rohnachrichten und Uploads. Es gibt keine Benutzer mehr, diese Sitzung wurde daher abgemeldet.'
+            page_title: 'Zurücksetzen abgeschlossen'
+            restart_failed: 'Der Web-Container konnte von hier aus NICHT neu gestartet werden — führe den Befehl oben selbst aus, bevor du plMail wieder benutzt.'
+            restart_sent: 'Der Web-Container wurde zum Neustart aufgefordert und kommt von selbst zurück. Der Rest des Stacks braucht weiterhin den Befehl oben.'
+            secrets_heading: 'Die generierten Geheimnisse wurden verworfen'
+            tagline: 'Hier ist niemand mehr, der sich anmelden könnte'
+            workers_failed: 'Auch die Worker konnten nicht benachrichtigt werden; sie verwenden den alten Verschlüsselungsschlüssel weiter, bis sie neu gestartet werden.'
+        heading: 'Daten zurücksetzen'
+        intro: 'Löscht synchronisierte Daten endgültig aus der Datenbank. Jede Stufe löscht alles, was die Stufe darüber löscht, und mehr.'
+        monitoring_kept: 'Monitoring-Daten bleiben erhalten. Die gesammelten Protokolle leerst du unter Protokolle, veraltete Heartbeats unter Wartung.'
+        postgres_password: >-
+            POSTGRES_PASSWORD wird nicht erneuert. Postgres wurde damit initialisiert und
+            hält es in seinem eigenen Datenverzeichnis; ein neues Passwort würde plMail
+            also die Anmeldung an genau der Datenbank verwehren, die es gerade
+            zurückgesetzt hat. Dafür muss das Datenbank-Volume gelöscht werden — docker
+            compose down -v — und das kann diese Funktion nicht.
+        restart_required: 'Danach sofort den gesamten Stack neu starten, bevor du plMail wieder benutzt:'
+        self_restart: 'Der Web-Container fordert sich selbst zum Beenden auf, sobald diese Seite ausgeliefert ist; compose startet ihn direkt neu. Die Worker werden ebenfalls benachrichtigt, der Befehl oben deckt den Rest des Stacks ab.'
+        self_restart_unavailable: 'Dieser Prozess kann sich hier nicht selbst neu starten, der Befehl oben ist also der einzige Weg. Von allein passiert nichts.'
+        stage:
+            accounts:
+                confirm: 'Auch die Konten löschen? Jedes Postfach-Passwort und jede OAuth-Verbindung muss danach neu eingetragen werden.'
+                deletes: 'Das Obige, dazu die Konten selbst samt Alias-Adressen. Jedes Postfach-Passwort und jede OAuth-Verbindung muss neu eingerichtet werden. Deine eigene Anmeldung bleibt unberührt.'
+                title: 'Mail, Struktur, Kontakte und Konten'
+            contacts:
+                confirm: 'Alle synchronisierten Nachrichten, Ordner, Labels und gesammelten Kontakte löschen?'
+                deletes: 'Das Obige, dazu die gesammelten Kontakte. Sie werden aus eintreffender Mail neu gesammelt, die Adress-Vervollständigung startet also leer.'
+                title: 'Mail, Struktur und Kontakte'
+            full:
+                button: 'Diese Installation löschen'
+                deletes: >-
+                    Alles, nicht nur synchronisierte Mail: jeden Benutzer (dich
+                    eingeschlossen), jedes Konto samt gespeichertem Passwort und die
+                    Dateien auf der Platte. Die Installation fragt danach wieder nach ihrem
+                    ersten Administrator. Du wirst abgemeldet und kannst dich nicht wieder
+                    anmelden.
+                title: 'Vollständig zurücksetzen'
+            full_secrets:
+                button: 'Installation löschen und Geheimnisse erneuern'
+                deletes: >-
+                    Alles vom Obigen, dazu die generierten Geheimnisse. Jeder Dienst hält
+                    den alten APP_ENCRYPTION_KEY weiter im Speicher und benutzt ihn bis zum
+                    Neustart. Alles, was du vor dem Neustart des Stacks speicherst, ist für
+                    die Hälfte davon unlesbar.
+                title: 'Vollständig zurücksetzen und Geheimnisse erneuern'
+            structure:
+                confirm: 'Alle synchronisierten Nachrichten, Threads, Ordner und Labels löschen? Die nächste Synchronisierung baut sie neu auf.'
+                deletes: 'Das Obige, dazu die Postfachstruktur — Ordner und Labels. Die nächste Synchronisierung baut beides neu auf.'
+                title: 'Mail und Postfachstruktur'
+            synced_mail:
+                confirm: 'Alle synchronisierten Nachrichten und Threads löschen? Konten und Ordner bleiben, die nächste Synchronisierung holt die Mail erneut.'
+                deletes: 'Nachrichten, Threads, Nachrichtenteile und alles in der Warteschlange. Konten, Ordner und Labels bleiben; die Sync-Marker werden zurückgesetzt, damit die nächste Synchronisierung alles erneut holt.'
+                title: 'Synchronisierte Mail'
+        unrecoverable:
+            heading: 'Nicht rückgängig zu machen'
+            lead: 'Beides lässt sich nicht durch erneutes Synchronisieren wiederherstellen: es löscht die Benutzer, die gespeicherten Postfach-Passwörter und die Dateien auf der Platte. Gib zur Bestätigung den Instanznamen ein — ein Klick allein genügt hier nicht.'
+    restarting:
+        back: 'Zurück zur Administration'
+        heading: 'plMail startet neu'
+        lead: 'Der Web-Container wurde zum Beenden aufgefordert, compose startet ihn direkt neu. Diese Seite lädt sich in wenigen Sekunden selbst neu.'
+        page_title: 'Neustart'
+        unavailable_heading: 'Es wurde nichts neu gestartet'
+        unavailable_lead: 'Dieser Prozess ist nicht der Hauptprozess des Containers und kann ihn daher nicht beenden. Führe stattdessen das hier aus:'
     tables:
         heading: 'Tabellengrößen'
     title: 'Administration'

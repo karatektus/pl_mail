@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Monitoring\QueueMonitor;
+use App\Service\Monitoring\WebProcessRestart;
 use App\Service\Monitoring\WorkerRestartSignal;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Messenger\RunCommandMessage;
@@ -29,6 +30,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * so the panel IS the feedback. The exception is the restart, which has no
  * visible effect; the live frame renders a banner from
  * WorkerRestartSignal::requestedAt() instead.
+ *
+ * restartApp() is the one action that answers with a page. Redirecting is only
+ * useful when there will be something there to serve the redirect, and that one
+ * ends the process that would have.
  */
 #[Route('/admin/system', name: 'app_admin_system_')]
 #[IsGranted('ROLE_ADMIN')]
@@ -51,6 +56,7 @@ final class SystemActionController extends AbstractController
 
     public function __construct(
         private readonly WorkerRestartSignal     $restartSignal,
+        private readonly WebProcessRestart       $webRestart,
         private readonly QueueMonitor            $queueMonitor,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly MessageBusInterface     $bus,
@@ -70,6 +76,32 @@ final class SystemActionController extends AbstractController
         $this->restartSignal->request();
 
         return $this->redirectToRoute('app_admin_dashboard');
+    }
+
+    /**
+     * The other half of that: the container serving this request.
+     *
+     * restartWorkers() above cannot reach it — its mechanism is a timestamp a
+     * worker loop rechecks, and the web process has no such loop.
+     * WebProcessRestart explains what does reach it and why nothing short of a
+     * new process would; the reason to want one is a rotated secret, which an
+     * already-booted kernel in worker mode has no opportunity to re-read.
+     *
+     * Answers with a page rather than the usual redirect, because the thing it
+     * redirected to would be requested while the container was down. The page
+     * reloads itself back into the panel once there is something to serve it.
+     */
+    #[Route('/restart-app', name: 'restart_app', methods: ['POST'])]
+    public function restartApp(Request $request): Response
+    {
+        $this->validateCsrf($request, 'admin_restart_app');
+
+        return $this->render('admin/restarting.html.twig', [
+            // False means nothing was scheduled and nothing will happen, and
+            // the page says so instead of promising a restart that is not
+            // coming.
+            'restartRequested' => $this->webRestart->request(),
+        ]);
     }
 
     #[Route('/run/{task}', name: 'run', methods: ['POST'])]
