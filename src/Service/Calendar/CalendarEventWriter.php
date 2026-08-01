@@ -33,7 +33,8 @@ final readonly class CalendarEventWriter
     }
 
     /**
-     * @param array<string,mixed>|null $recurrenceRule a JSCalendar RecurrenceRule, or null for a one-off
+     * @param array<string,mixed>|null $recurrenceRule    a JSCalendar RecurrenceRule, or null for a one-off
+     * @param array<string,mixed>|null $jscalendarOverlay a canonical object an extractor already built
      */
     public function write(
         CalendarEvent     $event,
@@ -48,6 +49,7 @@ final readonly class CalendarEventWriter
         ?string           $description = null,
         EventStatus       $status = EventStatus::Confirmed,
         ?array            $recurrenceRule = null,
+        ?array            $jscalendarOverlay = null,
     ): CalendarEvent {
         $event->calendar = $calendar;
         $event->usr      = $user;
@@ -64,6 +66,16 @@ final readonly class CalendarEventWriter
         }
 
         $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule);
+
+        // An extractor has already built the canonical object, and it carries
+        // things no parameter list should have to thread through —
+        // participants, alerts, the sender's own recurrence rule. It wins,
+        // with the derived version as the floor. Merged HERE rather than by
+        // the caller afterwards so the event is complete before occurrences
+        // are materialised from it.
+        if (null !== $jscalendarOverlay) {
+            $event->jscalendar = array_merge($event->jscalendar, $jscalendarOverlay);
+        }
 
         $this->em->persist($event);
 

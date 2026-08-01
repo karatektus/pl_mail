@@ -9,12 +9,118 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
+use App\Service\Graph\GraphMessageBuilder;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 class MessageRepository extends ServiceEntityRepository
 {
+    /**
+     * Content types that mean "there is an invite in here".
+     *
+     * @var list<string>
+     */
+    private const array CALENDAR_TYPES = ['text/calendar', 'application/ics'];
+
+    /**
+     * Messages that could plausibly carry an event.
+     *
+     * A mailbox is mostly newsletters, and parsing every one to find the few
+     * per cent that are bookings is work nobody gets back. Three signals, one
+     * per extractor: a text/calendar part (an invite, on IMAP or Gmail), the
+     * synthetic Graph meeting header (an invite with no part to find), and
+     * schema.org markup in the raw body (a reservation).
+     *
+     * Raw DBAL because none of the three is expressible otherwise: jsonb key
+     * existence has no DQL operator and no registered function, and the rest
+     * is an EXISTS correlated to a second entity. Written as jsonb_exists()
+     * rather than the `?` operator that means the same thing — DBAL reads a
+     * bare `?` as a positional placeholder and refuses the query — and cast,
+     * because message.headers is a json column rather than jsonb. The
+     * parameters are namespaced so they cannot collide if this is ever
+     * combined with a compiled filter, as MessageRepository::matchingIds does.
+     */
+    /**
+     * The WHERE both candidate queries share, so a change to what counts as a
+     * candidate cannot land in one and not the other. Built by concatenation
+     * rather than by editing a finished query — the first version pulled the
+     * LIMIT off with str_replace and silently stopped matching the moment the
+     * heredoc's indentation changed.
+     */
+    private const string EXTRACTION_CANDIDATE_WHERE = <<<'SQL'
+        m.id > :extAfterId
+        AND (
+              EXISTS (
+                  SELECT 1 FROM message_part p
+                  WHERE p.message_id = m.id
+                    AND LOWER(p.content_type) IN (:extCalendarTypes)
+              )
+           OR jsonb_exists(m.headers::jsonb, :extMeetingHeader)
+           OR m.body_html LIKE :extJsonLd
+        )
+        SQL;
+
+    public function countExtractionCandidates(): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE,
+            $this->candidateParameters(0),
+            $this->candidateTypes(),
+        );
+    }
+
+    /**
+     * @return list<Message>
+     */
+    public function extractionCandidates(int $afterId, int $limit): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT m.id FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE
+            . ' ORDER BY m.id ASC LIMIT ' . max(1, $limit),
+            $this->candidateParameters($afterId),
+            $this->candidateTypes(),
+        );
+
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('message')
+            ->where('message.id IN (:ids)')
+            ->setParameter('ids', array_map('intval', $ids))
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateParameters(int $afterId): array
+    {
+        return [
+            'extAfterId'       => $afterId,
+            'extCalendarTypes' => self::CALENDAR_TYPES,
+            'extMeetingHeader' => GraphMessageBuilder::MEETING_TYPE_HEADER,
+            'extJsonLd'        => '%application/ld+json%',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateTypes(): array
+    {
+        return [
+            'extAfterId'       => ParameterType::INTEGER,
+            'extCalendarTypes' => ArrayParameterType::STRING,
+            'extMeetingHeader' => ParameterType::STRING,
+            'extJsonLd'        => ParameterType::STRING,
+        ];
+    }
+
     /**
      * Which of these messages a compiled filter matches.
      *

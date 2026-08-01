@@ -563,6 +563,15 @@ class Account extends AccountModel
     /** Settings-bag key for the provider label-sync toggle. */
     public const string SETTING_LABEL_SYNC = 'labels.sync_to_provider';
 
+    /**
+     * Which calendar events extracted from this account's mail land on.
+     *
+     * Absent means the account's own calendar, which CalendarProvisioner
+     * creates with the account — so this only has to exist for the user who
+     * wants everything in one place, or one kind of thing somewhere else.
+     */
+    public const string SETTING_CALENDAR_TARGET = 'calendar.target_id';
+
     /** Settings-bag key for the newest-N sync cap. */
     public const string SETTING_SYNC_LIMIT = 'sync.message_limit';
 

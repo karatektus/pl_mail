@@ -73,7 +73,18 @@ final readonly class RecurrenceMaterialiser
             return;
         }
 
+        // Two steps, because they cover different rows. The DELETE clears what
+        // is committed; remove() clears what this unit of work has queued but
+        // not yet flushed — raw SQL cannot see those, and clearing the
+        // collection alone does not unschedule their INSERT. Without the
+        // second, materialising twice before a flush queues two rows with the
+        // same recurrence id and the unique constraint rejects the pair.
         $this->occurrences->deleteForEvent($event);
+
+        foreach ($event->occurrences as $existing) {
+            $this->em->remove($existing);
+        }
+
         $event->occurrences->clear();
 
         $rule = $this->firstRule($event);
