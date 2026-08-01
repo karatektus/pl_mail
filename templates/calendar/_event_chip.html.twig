@@ -1,38 +1,52 @@
 {#
 One occurrence, as it appears in any view.
 
+A single line: the calendar's colour, the time, then the title taking whatever
+is left. Time first because in a dense grid that is the column you scan — the
+title is what you read once you have found the row. `g:i a` matches how the
+mail list writes times; the grid drops the meridiem to save the width and keeps
+it in the tooltip.
+
+`text-left` is not decoration. This is a <button>, and a button centres its text
+by default, which is what had every chip in the month grid sitting oddly
+mid-cell.
+
 Opens the editor in the body-level modal frame — never inside the calendar
 pane, which carries backdrop-filter and would clip a fixed-position dialog to
-itself.
+itself. The controller has to be on the trigger: a Stimulus action only reaches
+controllers mounted on an ancestor, and the modal's lives on #modal-backdrop.
 #}
 
 {% set event = occurrence.event %}
+{% set showTime = showTime|default(true) and not event.isAllDay %}
 
 <button type="button"
    data-controller="ui--modal"
    data-action="click->ui--modal#open"
    data-ui--modal-src-value="{{ path('app_calendar_event_edit', { id: event.id }) }}"
    data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
-   class="group flex items-start gap-1.5 px-1.5 py-1 rounded-md text-xs
+   title="{{ event.title }}{{ showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '' }}"
+   class="w-full text-left flex items-center gap-1.5
+          px-1.5 py-0.5 rounded-md
           hover:bg-hover transition-colors min-w-0
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
-   title="{{ event.title }}"
 >
-    <span class="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
+    <span class="w-1.5 h-1.5 rounded-full shrink-0"
           style="background-color: {{ event.calendar.color }}"
           aria-hidden="true"></span>
 
-    <span class="min-w-0 flex-1">
-        <span class="block truncate {{ occurrence.cancelled ? 'line-through' : '' }}">
-            {%- if event.kind is not null -%}
-                <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>
-            {%- endif -%}
-            {{ event.title }}
+    {% if showTime %}
+        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint">
+            {{ occurrence.startsAt|date('g:i') }}
         </span>
-        {% if not event.isAllDay %}
-            <span class="block text-[11px] text-ink-faint">
-                {{ occurrence.startsAt|date('H:i') }}
-            </span>
-        {% endif %}
+    {% endif %}
+
+    <span class="min-w-0 flex-1 truncate text-xs text-ink
+                 {{ occurrence.cancelled ? 'line-through' : '' }}">
+        {%- if event.kind is not null -%}
+            <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>
+        {%- endif -%}
+        {{ event.title }}
     </span>
 </button>

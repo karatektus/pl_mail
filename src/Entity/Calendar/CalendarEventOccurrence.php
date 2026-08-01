@@ -32,11 +32,14 @@ use Doctrine\ORM\Mapping as ORM;
  * an `&&` overlap against a GiST index on it — see the repository for why that
  * beats comparing starts_at and ends_at separately.
  *
- * That index (idx_ceo_span) exists only in the migration: this DBAL has no flag
- * for `USING gist`, so the mapping cannot express it and every schema diff asks
- * to drop it. Nothing in this project runs doctrine:schema:update — the
- * entrypoint migrates — and it must stay that way, because dropping it turns
- * every calendar view into a sequential scan without failing anything.
+ * idx_ceo_span is declared below as a plain index and created `USING gist` by
+ * the migration. That is deliberate and is the same trick Message plays with
+ * idx_message_search_vector, which is really GIN: Doctrine's comparator matches
+ * an index on its name and columns and never looks at the method, so declaring
+ * it keeps the mapping and the database agreeing while the migration decides
+ * how it is actually built. Without the declaration every schema diff asks to
+ * drop it, and dropping it turns every calendar view into a sequential scan
+ * without failing anything.
  *
  * Non-recurring events get exactly one row here too. One code path for reads is
  * worth more than the rows saved by special-casing them.
@@ -45,6 +48,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'calendar_event_occurrence')]
 #[ORM\Index(name: 'idx_ceo_usr_starts', columns: ['usr_id', 'starts_at'])]
 #[ORM\Index(name: 'idx_ceo_calendar_starts', columns: ['calendar_id', 'starts_at'])]
+// Built `USING gist` by the migration — see the note above.
+#[ORM\Index(name: 'idx_ceo_span', columns: ['calendar_id', 'span'])]
 #[ORM\UniqueConstraint(name: 'uniq_ceo_event_recurrence', columns: ['event_id', 'recurrence_id'])]
 class CalendarEventOccurrence
 {

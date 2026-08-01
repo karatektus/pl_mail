@@ -317,6 +317,7 @@ calendar:
             Änderungen nicht mehr.
         location: Ort
         new: Neuer Termin
+        new_on: Neuer Termin am %date%
         repeat: Wiederholung
         save: Speichern
         starts: Beginn

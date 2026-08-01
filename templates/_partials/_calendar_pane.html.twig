@@ -23,15 +23,27 @@ than one that does not remember at all.
 {# The controller lives on the row in _mailbox.html.twig, not here: it owns the
    boundary between two panes, and its scope has to reach the sidebar's toggle
    as well as this. Visibility is one conditional class rather than
-   `md:flex md:hidden` — those two are the same breakpoint and which wins comes
-   down to CSS source order, which is not something to rely on. #}
+   `lg:flex lg:hidden` — those two are the same breakpoint and which wins comes
+   down to CSS source order, which is not something to rely on.
+
+   lg, not md. Below 1024px the row cannot hold a sidebar, a usable mail pane
+   and a usable calendar at once: something has to be squeezed under its
+   minimum, and the honest answer is not to dock at all. Between md and lg the
+   sidebar's Calendar entry navigates to the full page instead — ui--split#toggle
+   checks the same breakpoint and steps out of the way. #}
 <div
     data-ui--split-target="wrapper"
-    class="{{ paneOpen ? 'hidden md:flex' : 'hidden' }} shrink-0"
+    class="{{ paneOpen ? 'hidden lg:flex' : 'hidden' }} shrink-0"
 >
     {# The handle. role=separator with aria-orientation is what makes it
        reachable and meaningful without a mouse; the arrow keys are handled by
-       the controller. #}
+       the controller.
+
+       Two gutters wide and pulled left by one, so it spans the whole visual
+       space between the panes rather than sitting to one side of it. The row's
+       own gap-gutter falls to the LEFT of this wrapper, so a handle that was
+       merely one gutter wide put its grip 1.5 gutters from the mail pane and
+       0.5 from the calendar — visibly off-centre, and a thin target. #}
     <div
         data-ui--split-target="handle"
         data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
@@ -39,7 +51,8 @@ than one that does not remember at all.
         aria-orientation="vertical"
         aria-label="{{ 'calendar.pane.resize'|trans }}"
         tabindex="0"
-        class="group relative w-gutter shrink-0 cursor-col-resize
+        class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
+               cursor-col-resize
                flex items-center justify-center
                focus:outline-none"
     >

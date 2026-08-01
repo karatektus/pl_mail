@@ -1,48 +1,67 @@
 {#
-Day and week: one column per day, events listed inside it.
+Day and week: one column per day.
 
 Deliberately not a time-grid with absolutely positioned blocks. That is the
 right shape for a wide screen and the wrong one for a 380px pane, and one
-readable layout that works in both is worth more right now than two that each
-work in one place. The time-grid belongs with drag-to-move, which is its own
-piece of work.
+readable layout that works in both is worth more than two that each work in one
+place. The time-grid belongs with drag-to-move, which is its own piece of work.
+
+The columns fill the height rather than collapsing to their content — a week
+that stops a fifth of the way down the pane reads as a rendering fault, not as
+an empty week. Each column keeps an add affordance at the bottom, so a day that
+already has events is no harder to add to than an empty one.
 #}
 
 {% set dayKeys = days|keys %}
+{% set today = 'now'|date('Y-m-d') %}
 
-<div class="grid gap-px bg-line
-            {{ dayKeys|length > 1 ? 'grid-cols-1 md:grid-cols-7' : 'grid-cols-1' }}">
+<div class="h-full min-h-0 grid gap-px bg-line
+            {{ dayKeys|length > 1 ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-7' : 'grid-cols-1' }}">
     {% for dayKey in dayKeys %}
         {% set dayEvents = days[dayKey] %}
-        {% set day = dayKey|date_modify('+0 days') %}
-        {% set isToday = dayKey == 'now'|date('Y-m-d') %}
+        {% set isToday = dayKey == today %}
+        {% set isWeekend = dayKey|date('N') >= 6 %}
 
-        <div class="bg-surface min-h-[7rem] flex flex-col">
-            <div class="flex items-baseline gap-2 px-2 py-1.5 border-b border-line">
-                <span class="text-[11px] uppercase tracking-wide text-ink-faint">
+        <div class="flex flex-col min-h-0 min-w-0
+                    {{ isToday ? 'bg-accent/5' : (isWeekend ? 'bg-sunken/40' : 'bg-surface') }}">
+
+            {# Sticky so the date stays put once a busy day starts scrolling. #}
+            <div class="sticky top-0 z-10 flex items-baseline gap-1.5 px-2 py-1.5
+                        border-b border-line backdrop-blur-sm
+                        {{ isToday ? 'bg-accent/5' : (isWeekend ? 'bg-sunken/40' : 'bg-surface') }}">
+                <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
                     {{ dayKey|date('D') }}
                 </span>
-                <span class="text-sm {{ isToday ? 'font-semibold text-accent' : 'text-ink' }}">
-                    {{ dayKey|date('j') }}
-                </span>
+                {% if isToday %}
+                    <span class="w-5 h-5 -my-0.5 flex items-center justify-center rounded-full
+                                 bg-accent text-white text-xs font-semibold tabular-nums">
+                        {{ dayKey|date('j') }}
+                    </span>
+                {% else %}
+                    <span class="text-sm text-ink-muted tabular-nums">{{ dayKey|date('j') }}</span>
+                {% endif %}
             </div>
 
-            <div class="flex-1 p-1 space-y-0.5">
+            <div class="flex-1 min-h-0 overflow-y-auto p-1 space-y-0.5">
                 {% for occurrence in dayEvents %}
                     {% include 'calendar/_event_chip.html.twig' %}
-                {% else %}
-                    <button type="button"
-                       data-controller="ui--modal"
-                       data-action="click->ui--modal#open"
-                       data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
-                       data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-                       class="block h-full min-h-[3rem] rounded-md text-xs text-transparent
-                              hover:text-ink-faint hover:bg-hover transition-colors
-                              flex items-center justify-center"
-                    >
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                    </button>
                 {% endfor %}
+
+                {# Fills the rest of the column, so clicking anywhere below the
+                   last event adds one there — and stays reachable on a day that
+                   is already full. #}
+                <button type="button"
+                   data-controller="ui--modal"
+                   data-action="click->ui--modal#open"
+                   data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
+                   data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                   aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|date('D j M') }) }}"
+                   class="group/add w-full min-h-[2.5rem] {{ dayEvents|length > 0 ? '' : 'h-full' }}
+                          flex items-start justify-center pt-1 rounded-md
+                          text-ink-faint opacity-0 hover:opacity-100 focus:opacity-100
+                          hover:bg-hover transition-opacity
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                ><i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i></button>
             </div>
         </div>
     {% endfor %}

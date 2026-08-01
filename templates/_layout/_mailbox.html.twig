@@ -77,15 +77,24 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     {% include '_partials/_sidebar.html.twig' %}
                 </div>
 
-                {# Main content #}
-                <div class="flex flex-1 overflow-hidden relative main-pane">
+                {# Main content. Targeted by ui--split so the drag can enforce a
+                   minimum on this side too — the pane knows how much room it is
+                   taking only by measuring what is left. #}
+                <div class="flex flex-1 overflow-hidden relative main-pane"
+                     {% if app.user %}data-ui--split-target="main"{% endif %}>
 
                     {# List pane #}
                     <div
                         id="message-list"
                         data-sync-scope="{% block list_scope %}*{% endblock %}"
                         data-mail--mail-pane-target="list"
-                        class="flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
+                        {# @container, so the rows below switch to their stacked
+                           layout on the LIST's width. They used to switch on the
+                           viewport's, which is a different number entirely once
+                           the calendar pane is docked: a 1440px window with a
+                           wide pane leaves the list narrower than a phone, and
+                           every row stayed on one line and truncated to nothing. #}
+                        class="@container flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
                         <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
 
@@ -124,7 +133,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
 
                 {# Calendar — a sibling of .main-pane, so the handle between
                    them splits the row's width rather than shrinking one into
-                   the other. Below md it is absent and the sidebar link goes
+                   the other. Below lg it is absent and the sidebar link goes
                    to the full page instead. #}
                 {% if app.user %}
                     {% include '_partials/_calendar_pane.html.twig' %}

@@ -8,7 +8,7 @@ Variables:
 #}
 {% set chipLabels = item.labels|filter(chipLabel => chipLabel.role is null and chipLabel.isVisible) %}
 {% if chipLabels|length > 0 %}
-    <span class="hidden sm:inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
+    <span class="hidden @lg:inline-flex items-center gap-1 mr-0.5 shrink-0 align-middle">
         {% for chipLabel in chipLabels|slice(0, 3) %}
             <span class="inline-flex items-center gap-1 px-1.5 py-px rounded text-[11px] font-medium max-w-28
                          bg-sunken text-ink-soft">

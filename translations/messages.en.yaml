@@ -314,6 +314,7 @@ calendar:
             about the same booking from overwriting your changes.
         location: Location
         new: New event
+        new_on: New event on %date%
         repeat: Repeat
         save: Save
         starts: Starts

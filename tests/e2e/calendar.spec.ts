@@ -44,7 +44,7 @@ test.describe("calendar", () => {
     test("creates an event and shows it in the week", async ({ page }) => {
         await page.goto("/calendar/week");
 
-        await page.getByRole("button", { name: "New event" }).click();
+        await page.getByRole("button", { name: "New event", exact: true }).click();
 
         const modal = page.locator("#modal-backdrop");
         await expect(modal).toBeVisible();
@@ -67,7 +67,7 @@ test.describe("calendar", () => {
     test("a repeating event appears on more than one day", async ({ page }) => {
         await page.goto("/calendar/week");
 
-        await page.getByRole("button", { name: "New event" }).click();
+        await page.getByRole("button", { name: "New event", exact: true }).click();
 
         const modal = page.locator("#modal-backdrop");
         await modal.getByLabel("Title").fill(TITLE);
@@ -147,13 +147,24 @@ test.describe("calendar pane", () => {
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
         await page.mouse.down();
         await page.mouse.move(box.x - 120, box.y + box.height / 2, { steps: 10 });
+
+        // The write happens on release and is deliberately not awaited by the
+        // UI, so wait for it here rather than racing the reload against it.
+        const persisted = page.waitForResponse(
+            async (response) =>
+                response.url().includes("/calendar/pane-state") &&
+                "POST" === response.request().method() &&
+                (await response.json()).width > Math.round(before.width),
+        );
+
         await page.mouse.up();
+        await persisted;
 
         const dragged = (await pane.boundingBox())!.width;
         expect(dragged).toBeGreaterThan(before.width);
 
-        // The width is written on release, and rendered inline on the next
-        // paint — so the reload is the assertion, not the drag.
+        // The width is rendered inline on the next paint, so the reload is the
+        // assertion, not the drag.
         await page.reload();
         await expect(pane).toBeVisible();
         expect((await pane.boundingBox())!.width).toBeCloseTo(dragged, 0);
@@ -177,6 +188,100 @@ test.describe("calendar pane", () => {
 
         const paneWidth = (await page.locator('[data-ui--split-target="pane"]').boundingBox())!.width;
         expect((await backdrop.boundingBox())!.width).toBeGreaterThan(paneWidth * 2);
+    });
+
+    test("reaches the month view from inside the pane", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+        await page.getByRole("link", { name: "Calendar" }).click();
+
+        const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
+        await expect(paneFrame).toBeVisible();
+
+        // Icons, not words, at this width — but all four views are reachable,
+        // and switching one stays inside the frame rather than navigating the
+        // whole page away from the mail.
+        await paneFrame.getByRole("link", { name: "Month" }).click();
+
+        await expect(paneFrame.getByRole("link", { name: "Month" })).toHaveAttribute(
+            "aria-current",
+            "page",
+        );
+        await expect(page.locator("#message-list")).toBeVisible();
+    });
+
+    test("will not squeeze the mail pane below its minimum", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await ensurePaneClosed(page);
+        await page.getByRole("link", { name: "Calendar" }).click();
+
+        const mainPane = page.locator('[data-ui--split-target="main"]');
+        const handle = page.locator('[data-ui--split-target="handle"]');
+        await expect(handle).toBeVisible();
+
+        // Drag far past anywhere sensible: the clamp is what is under test, not
+        // the arithmetic of a modest drag.
+        const box = (await handle.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(20, box.y + box.height / 2, { steps: 12 });
+        await page.mouse.up();
+
+        expect((await mainPane.boundingBox())!.width).toBeGreaterThanOrEqual(419);
+    });
+
+    test("centres its grip in the gap between the panes", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+        await page.getByRole("link", { name: "Calendar" }).click();
+
+        const mainPane = page.locator('[data-ui--split-target="main"]');
+        const pane = page.locator('[data-ui--split-target="pane"]');
+        const grip = page.locator('[data-ui--split-target="handle"] span');
+
+        const mainBox = (await mainPane.boundingBox())!;
+        const paneBox = (await pane.boundingBox())!;
+        const gripBox = (await grip.boundingBox())!;
+
+        // The row's own gap falls to the left of the wrapper, so a handle only
+        // one gutter wide sits off to the calendar's side of the gap.
+        const gapCentre = (mainBox.x + mainBox.width + paneBox.x) / 2;
+        expect(gripBox.x + gripBox.width / 2).toBeCloseTo(gapCentre, 0);
+    });
+
+    /**
+     * The rows below the list respond to the LIST's width, not the window's.
+     * Before the container query they switched on the viewport, so a wide
+     * window with a wide calendar pane left a list narrower than a phone still
+     * rendering one-line rows, truncated to nothing.
+     */
+    test("stacks the mail rows once the pane has taken enough width", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+
+        const inlineDate = page.locator('[data-row-date="inline"]').first();
+        const stackedDate = page.locator('[data-row-date="stacked"]').first();
+
+        // On display rather than visibility: the inline date column is laid out
+        // as a zero-height positioning context for an absolutely placed span,
+        // so Playwright calls it hidden either way. Which layout the container
+        // query picked is the actual subject here.
+        await expect(inlineDate).toHaveCSS("display", "flex");
+        await expect(stackedDate).toHaveCSS("display", "none");
+
+        await page.getByRole("link", { name: "Calendar" }).click();
+        await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
+
+        // Drag the pane out to its limit, which is where the list is tightest.
+        const handle = page.locator('[data-ui--split-target="handle"]');
+        const box = (await handle.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(20, box.y + box.height / 2, { steps: 12 });
+        await page.mouse.up();
+
+        await expect(stackedDate).toHaveCSS("display", "block");
+        await expect(inlineDate).toHaveCSS("display", "none");
     });
 
     test("is absent on a phone, where the link opens the page instead", async ({ page }) => {

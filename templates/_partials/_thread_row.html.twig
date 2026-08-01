@@ -118,15 +118,16 @@ the conversation it answers.
         </button>
 
         {# Content — switches between mobile (2-row) and desktop (1-row) #}
-        <div class="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-4">
+        <div class="flex-1 min-w-0 flex flex-col @xl:flex-row @xl:items-center @xl:gap-4">
 
             {# Row 1 (mobile) / sender column (desktop) #}
-            <div class="flex items-center justify-between md:justify-start md:w-40 md:flex-shrink-0">
+            <div class="flex items-center justify-between @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-normal text-gray-600 dark:text-gray-400' }}">
                     {{ sender }}
                 </span>
                 {# Date — mobile only (top-right), hidden on desktop #}
-                <span class="md:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
+                <span data-row-date="stacked"
+                      class="@xl:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date('g:i a') }}
@@ -153,7 +154,8 @@ the conversation it answers.
         </div>
 
         {# Date + hover actions slot — desktop only #}
-        <div class="hidden md:flex flex-shrink-0 w-36 relative h-full items-center">
+        <div data-row-date="inline"
+             class="hidden @xl:flex flex-shrink-0 w-36 relative h-full items-center">
 
             <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-gray-400 dark:text-gray-600">
                                        {% if hasAttachment %}

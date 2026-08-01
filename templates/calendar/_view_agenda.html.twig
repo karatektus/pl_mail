@@ -4,9 +4,14 @@ Agenda: a flat list, skipping empty days.
 This is the pane's default view, and the reason the pane is useful at all — a
 narrow column beside your mail should answer "what is coming up", not draw a
 grid nobody can read at that width.
+
+Empty days are skipped rather than shown blank: the value here is density, and
+a fortnight of "nothing" between two events is noise. The grids are where an
+empty day still needs to occupy its place.
 #}
 
 {% set dayKeys = days|keys %}
+{% set today = 'now'|date('Y-m-d') %}
 {% set anyEvents = false %}
 
 <div class="divide-y divide-line">
@@ -14,19 +19,28 @@ grid nobody can read at that width.
         {% set dayEvents = days[dayKey] %}
         {% if dayEvents|length > 0 %}
             {% set anyEvents = true %}
-            {% set isToday = dayKey == 'now'|date('Y-m-d') %}
+            {% set isToday = dayKey == today %}
 
-            <div class="px-3 py-2">
-                <div class="flex items-baseline gap-2 mb-1">
-                    <span class="text-sm {{ isToday ? 'font-semibold text-accent' : 'text-ink' }}">
-                        {{ isToday ? 'calendar.today'|trans : dayKey|date('D j M') }}
-                    </span>
+            <div class="flex gap-3 px-3 py-2.5 {{ isToday ? 'bg-accent/5' : '' }}">
+                {# A fixed-width date rail, so the titles line up down the list
+                   rather than starting wherever the weekday name happens to
+                   end. #}
+                <div class="w-11 shrink-0 text-center">
+                    <div class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
+                        {{ dayKey|date('D') }}
+                    </div>
                     {% if isToday %}
-                        <span class="text-[11px] text-ink-faint">{{ dayKey|date('D j M') }}</span>
+                        <div class="mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full
+                                    bg-accent text-white text-sm font-semibold tabular-nums">
+                            {{ dayKey|date('j') }}
+                        </div>
+                    {% else %}
+                        <div class="mt-0.5 text-sm text-ink tabular-nums">{{ dayKey|date('j') }}</div>
                     {% endif %}
+                    <div class="text-[10px] text-ink-faint">{{ dayKey|date('M') }}</div>
                 </div>
 
-                <div class="space-y-0.5">
+                <div class="min-w-0 flex-1 space-y-0.5 self-center">
                     {% for occurrence in dayEvents %}
                         {% include 'calendar/_event_chip.html.twig' %}
                     {% endfor %}
@@ -37,7 +51,7 @@ grid nobody can read at that width.
 </div>
 
 {% if not anyEvents %}
-    <div class="flex flex-col items-center justify-center gap-2 py-10 text-center text-ink-faint">
+    <div class="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center text-ink-faint">
         <i class="fa-regular fa-calendar text-2xl" aria-hidden="true"></i>
         <p class="text-sm">{{ 'calendar.empty'|trans }}</p>
         <button type="button"

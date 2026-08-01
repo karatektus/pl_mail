@@ -17,15 +17,26 @@ import { Controller } from "@hotwired/stimulus";
  * width is already correct locally — the round trip is for the next page load
  * and the user's other devices, not for this one.
  */
+/* Below this the row cannot hold a sidebar, a usable mail pane and a usable
+ * calendar at once, so the pane does not dock at all and the trigger navigates
+ * to the full page instead. Matches the `lg:` the wrapper is shown at — the two
+ * have to agree or the toggle points at something that cannot appear. */
+const DOCK_BREAKPOINT = "(min-width: 1024px)";
+
 export default class extends Controller {
-    static targets = ["wrapper", "pane", "handle"];
+    static targets = ["wrapper", "pane", "handle", "main"];
     static values = {
         stateUrl: String,
         token: String,
         min: { type: Number, default: 320 },
         max: { type: Number, default: 900 },
+        // What the mail side is never dragged below. The pane's own minimum is
+        // not enough on its own: without this the handle happily shrinks the
+        // message list to a column of truncated subjects.
+        mainMin: { type: Number, default: 420 },
         open: { type: Boolean, default: false },
         step: { type: Number, default: 24 },
+        default: { type: Number, default: 380 },
     };
 
     connect() {
@@ -43,6 +54,12 @@ export default class extends Controller {
      * navigation is this method's job.
      */
     toggle(event) {
+        // Narrower than the dock breakpoint there is nowhere to put it, so let
+        // the trigger do what its href says and open the calendar as a page.
+        if (!window.matchMedia(DOCK_BREAKPOINT).matches) {
+            return;
+        }
+
         event.preventDefault();
 
         this.openValue = !this.openValue;
@@ -52,7 +69,7 @@ export default class extends Controller {
         }
 
         this.wrapperTarget.classList.toggle("hidden", !this.openValue);
-        this.wrapperTarget.classList.toggle("md:flex", this.openValue);
+        this.wrapperTarget.classList.toggle("lg:flex", this.openValue);
 
         // The frame is lazy and has no src until the pane is first opened, so
         // opening it is what loads the calendar. Turbo takes it from there.
@@ -103,7 +120,7 @@ export default class extends Controller {
 
     reset(event) {
         event.preventDefault();
-        this._apply(380, { persist: true });
+        this._apply(this.defaultValue, { persist: true });
     }
 
     _onMove(event) {
@@ -130,19 +147,43 @@ export default class extends Controller {
     }
 
     /*
-     * The upper bound is the smaller of the configured maximum and half the
-     * row: a pane that can be dragged over the mail it sits beside is a pane
-     * that can hide it entirely, with no obvious way back.
+     * Bounded from both sides, against what the two panes actually share.
+     *
+     * The pane is a fixed width and the mail side is flex-1, so their combined
+     * width is whatever the row has left after the sidebar and stays constant
+     * as the boundary moves — which makes it the right thing to measure. The
+     * earlier version bounded the pane at half the ROW, which counted the
+     * sidebar as space the panes had and let the mail side be squeezed to a
+     * column of truncated subjects on a narrower screen.
+     *
+     * Where the two minimums cannot both be met, the mail side wins: it is the
+     * thing the app is for, and the pane can be closed.
      */
     _apply(width, { persist = false } = {}) {
-        const ceiling = Math.min(this.maxValue, this.element.getBoundingClientRect().width / 2);
+        const combined = this._combinedWidth();
+        const ceiling = Math.min(this.maxValue, combined - this.mainMinValue);
         const clamped = Math.max(this.minValue, Math.min(ceiling, width));
 
-        this.element.style.setProperty("--calendar-pane-width", `${Math.round(clamped)}px`);
+        // Only true on a viewport too narrow to hold both, where clamping up to
+        // the pane's minimum would eat into the mail side's.
+        const bounded = ceiling < this.minValue ? Math.max(0, ceiling) : clamped;
+
+        this.element.style.setProperty("--calendar-pane-width", `${Math.round(bounded)}px`);
 
         if (persist) {
-            this._persist({ width: String(Math.round(clamped)) });
+            this._persist({ width: String(Math.round(bounded)) });
         }
+    }
+
+    _combinedWidth() {
+        const pane = this.hasPaneTarget ? this.paneTarget.getBoundingClientRect().width : 0;
+        const main = this.hasMainTarget ? this.mainTarget.getBoundingClientRect().width : 0;
+
+        // No main pane to measure (the calendar page itself) — fall back to the
+        // row, which is the same thing minus a sidebar.
+        return main > 0
+            ? main + pane
+            : this.element.getBoundingClientRect().width;
     }
 
     _currentWidth() {
@@ -152,20 +193,41 @@ export default class extends Controller {
     }
 
     /*
-     * Queued, not fired-and-forgotten.
+     * Coalesced, not fired-and-forgotten and not queued one behind another.
      *
-     * Several of these can be triggered in quick succession — a double-click to
-     * reset emits pointerup twice before the reset itself, and a drag right
-     * after it emits another. Sent concurrently they race, and the server keeps
-     * whichever finished last rather than whichever the user did last, so the
-     * pane comes back at a width nobody chose. Chaining makes the order the
-     * user's order.
+     * Several of these fire in quick succession — a double-click to reset emits
+     * pointerup twice before the reset itself, and a drag right after emits
+     * another. Sent concurrently they race, and the server keeps whichever
+     * finished last rather than whichever the user did last, so the pane comes
+     * back at a width nobody chose.
+     *
+     * Chaining fixes the order but makes it worse in the case that matters: the
+     * newest write, the one the user actually made, waits behind three stale
+     * ones and is the first thing lost if they navigate. So intermediate states
+     * are dropped instead — only the latest is ever in flight or pending, which
+     * is both correct and at most two requests.
      *
      * Still best-effort about failure: a write that does not land costs the
-     * memory, never the layout, which is already correct locally.
+     * memory, never the layout, which is already right locally.
      */
     _persist(fields) {
         if (!this.hasStateUrlValue) {
+            return;
+        }
+
+        this._pending = { ...(this._pending ?? {}), ...fields };
+
+        if (!this._inFlight) {
+            this._flush();
+        }
+    }
+
+    _flush() {
+        const fields = this._pending;
+        this._pending = null;
+
+        if (!fields) {
+            this._inFlight = null;
             return;
         }
 
@@ -174,14 +236,15 @@ export default class extends Controller {
 
         Object.entries(fields).forEach(([key, value]) => body.append(key, value));
 
-        this._queue = (this._queue ?? Promise.resolve())
-            .then(() =>
-                fetch(this.stateUrlValue, {
-                    method: "POST",
-                    body,
-                    headers: { "X-Requested-With": "fetch" },
-                }),
-            )
-            .catch(() => {});
+        this._inFlight = fetch(this.stateUrlValue, {
+            method: "POST",
+            body,
+            headers: { "X-Requested-With": "fetch" },
+        })
+            .catch(() => {})
+            .finally(() => {
+                this._inFlight = null;
+                this._flush();
+            });
     }
 }
