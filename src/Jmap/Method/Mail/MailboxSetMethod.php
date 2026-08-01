@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
+use App\Domain\Enum\Mail\LabelColor;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
@@ -125,6 +126,12 @@ final class MailboxSetMethod implements JmapMethod
                 $name = $this->requireName($properties['name'] ?? null);
                 $parent = $this->resolveParent($account, $properties['parentId'] ?? null, $context);
                 $this->assertNameFree($account, $parent, $name);
+                // Resolved before the Label is constructed, so an unusable
+                // colour fails the create outright. Accepting the create and
+                // dropping the colour is what this method used to do, and it is
+                // the worst of the three options: the client is told the label
+                // is exactly what it asked for.
+                $color = $this->requireColor($properties['color'] ?? null);
             } catch (MethodException $exception) {
                 $notCreated[$creationId] = $exception->toError();
                 continue;
@@ -134,6 +141,7 @@ final class MailboxSetMethod implements JmapMethod
                 ->setUsr($account->getUsr())
                 ->setParent($parent)
                 ->setName($name)
+                ->setColor($color?->value)
                 ->setIsVisible(true !== ($properties['isSubscribed'] ?? true) ? false : true);
 
             if (true === is_int($properties['sortOrder'] ?? null)) {
@@ -259,6 +267,18 @@ final class MailboxSetMethod implements JmapMethod
                     }
 
                     $label->setSortOrder($value);
+                    break;
+
+                case 'color':
+                    // Not guarded by assertMutable: a system label's colour is
+                    // the one thing about it the user may choose. Renaming or
+                    // deleting Inbox would break the invariants that depend on
+                    // the role; recolouring its chip breaks nothing.
+                    //
+                    // Null clears the colour, which is why this reads the value
+                    // rather than testing it for emptiness — "no colour" is a
+                    // choice a user can make and has to be expressible.
+                    $label->setColor($this->requireColor($value)?->value);
                     break;
 
                 default:
@@ -397,6 +417,42 @@ final class MailboxSetMethod implements JmapMethod
         }
 
         return $name;
+    }
+
+    /**
+     * A colour token, or null for "no colour".
+     *
+     * Rejects rather than ignores. The vocabulary is closed on purpose — a
+     * Tailwind token resolves per theme where a hex value does not — so a
+     * client sending "#ff0000" is asking for something this server cannot
+     * store, and the useful answer says so. Silently keeping null would leave
+     * that client redrawing an uncoloured chip forever with nothing to debug,
+     * which is precisely the bug this method is being fixed for.
+     *
+     * The error names the accepted values, because a closed vocabulary the
+     * caller cannot discover is only marginally better than no vocabulary.
+     */
+    private function requireColor(mixed $color): ?LabelColor
+    {
+        if (null === $color) {
+            return null;
+        }
+
+        if (false === is_string($color)) {
+            throw new MethodException('invalidProperties', '"color" must be a string or null.');
+        }
+
+        $resolved = LabelColor::tryFrom($color);
+
+        if (null === $resolved) {
+            throw new MethodException('invalidProperties', sprintf(
+                '"%s" is not a known color. Use one of: %s, or null for none.',
+                $color,
+                implode(', ', array_column(LabelColor::cases(), 'value')),
+            ));
+        }
+
+        return $resolved;
     }
 
     private function resolveParent(Account $account, mixed $parentId, JmapContext $context): ?Label
