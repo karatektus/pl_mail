@@ -124,8 +124,11 @@
         href="{{ path('app_calendar_index') }}"
         data-calendar-toggle
         data-action="click->ui--split#toggle"
+        aria-pressed="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
         class="relative flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
-               text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
+               transition-colors flex-shrink-0
+               text-ink-muted hover:bg-hover
+               aria-pressed:bg-accent-soft aria-pressed:text-accent"
         aria-label="{{ 'sidebar.nav.calendar'|trans }}"
         title="{{ upcoming
             ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date('g:i a')

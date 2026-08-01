@@ -71,6 +71,13 @@ export default class extends Controller {
 
         this.element.dataset.calendarOpen = this.openValue ? "true" : "false";
 
+        // The trigger is a toggle, so it says so. aria-pressed drives both the
+        // styling and what a screen reader announces — one attribute rather
+        // than a class plus a separate state nobody would keep in step.
+        this.element
+            .querySelectorAll("[data-calendar-toggle]")
+            .forEach((trigger) => trigger.setAttribute("aria-pressed", String(this.openValue)));
+
         this.wrapperTarget.classList.toggle("hidden", !this.openValue);
         this.wrapperTarget.classList.toggle("flex", this.openValue);
         this.wrapperTarget.classList.toggle("w-full", this.openValue);

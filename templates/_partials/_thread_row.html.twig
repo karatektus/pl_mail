@@ -157,7 +157,11 @@ the conversation it answers.
                     {% endif %}
                 </span>
 
-                <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm">
+                {# A little air above the preview when stacked. It separates the
+                   subject from the snippet, and because the meta column
+                   stretches and distributes, the dot rides down with it —
+                   which is what stops it crowding the star. #}
+                <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1 @xl:mt-0">
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                     <span class="truncate text-ink-faint">{{ snippet }}</span>
                 </span>
@@ -179,11 +183,16 @@ the conversation it answers.
            line, where the same stack has to spread out and leaves the date
            floating over a lone star with air between them. So: column when
            narrow, single line when wide. #}
+        {# The meta area takes the row's own shape. Stacked, it stretches to the
+           content's height and distributes, so the time sits on the sender's
+           line, the icons on the subject's and the dot on the preview's —
+           packing from the top instead left the third item hanging below the
+           last line of text. Wide, the row is one line and so is this. #}
         <div data-row-meta
              class="flex flex-shrink-0 ml-2
-                    flex-col items-end gap-1.5 self-start pt-0.5
-                    @xl:flex-row-reverse @xl:items-center @xl:gap-2
-                    @xl:self-center @xl:pt-0 @xl:w-36">
+                    flex-col items-end self-stretch justify-between py-0.5
+                    @xl:flex-row-reverse @xl:items-center @xl:justify-end @xl:gap-2
+                    @xl:self-center @xl:py-0 @xl:w-36">
 
             <div class="relative flex items-center justify-end w-full h-6 @xl:w-auto @xl:flex-1">
                 <span class="absolute inset-0 flex items-center justify-end
@@ -257,7 +266,13 @@ the conversation it answers.
             </div>
             </div>
 
+            {# Dot, star, paperclip on ONE line — two rows in the column, not
+               three. A third row packs past the snippet and hangs below the
+               last line of text, which is what made it read as falling out of
+               the row rather than belonging to it. The dot leads: it is a
+               state, the star is a control, the paperclip is a fact. #}
             <div class="flex items-center gap-2 @xl:order-first">
+
                 <button
                     type="button"
                     data-action="click->mail--message-row#toggleStar"
@@ -280,16 +295,12 @@ the conversation it answers.
                 {% endif %}
             </div>
 
-            {# Unread, as a dot. The bold text says it too, but a dot is what
-               you count down a column without reading anything. #}
-            {# Stacked only. A wide row says "unread" with a bold sender and a
-               bold subject already, so the dot there is a third voice saying
-               the same thing.
+            {# Stacked only — a wide row already says "unread" twice over, with
+               a bold sender and a bold subject.
 
                Boxed to the star's width rather than right-aligned on its own:
                the dot is 8px and the star glyph is 14, so aligning their right
-               edges puts their centres 3px apart — which is exactly the sort
-               of misalignment you see without being able to name. #}
+               edges puts their centres 3px apart. #}
             {% if unread %}
                 <span class="@xl:hidden w-3.5 flex justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
