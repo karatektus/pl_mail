@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Domain\DTO\Gmail\ExtractedBody;
 use App\Domain\Helper\AddressHelper;
+use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Mail\Account;
@@ -16,6 +18,7 @@ use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Converts a Gmail API message resource (format=full) into a Message entity.
@@ -45,6 +48,8 @@ final class GmailMessageBuilder
         private readonly LabelResolver          $localLabelResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly HeaderNormalizer       $headerNormalizer,
+        private readonly AttachmentStorageHelper $attachmentStorage,
+        private readonly LoggerInterface        $logger,
     )
     {
     }
@@ -145,15 +150,15 @@ final class GmailMessageBuilder
         // Attachment parts are collected first and persisted afterwards: the
         // inline/attachment decision needs the HTML body, which the same walk
         // is still assembling.
-        [$bodyText, $bodyHtml, $attachmentParts] = $this->extractBody(
-            $payload['payload'] ?? [],
-        );
+        $body = $this->extractBody($payload['payload'] ?? []);
 
-        $message->setBodyText($bodyText);
-        $message->setBodyHtml($bodyHtml);
-        $message->setHasAttachments(
-            $this->persistAttachmentStubs($attachmentParts, $message, $bodyHtml)
-        );
+        $message->setBodyText($body->bodyText);
+        $message->setBodyHtml($body->bodyHtml);
+
+        $hasAttachments = $this->persistAttachmentStubs($body->lazyParts, $message, $body->bodyHtml);
+        $this->persistInlineParts($body->inlineParts, $message, $account);
+
+        $message->setHasAttachments($hasAttachments);
         $message->setSyncedAt(new DateTimeImmutable());
 
         return $message;
@@ -212,18 +217,38 @@ final class GmailMessageBuilder
     }
 
     /**
-     * Walk the MIME tree and extract text/html body parts and attachments.
+     * MIME types kept whatever else the part looks like.
+     *
+     * The gate below exists to stop the text/plain and text/html body parts
+     * being persisted as attachments, and it does that by requiring a filename
+     * or a Content-ID. A calendar invite has neither: Google Calendar sends
+     * `text/calendar; method=REQUEST` inside multipart/alternative, unnamed,
+     * with no Content-ID, and — when it is small — no attachmentId either, so
+     * it matched no branch at all and no MessagePart row was ever written. On
+     * a Gmail account the invite simply did not exist.
+     *
+     * Kept deliberately narrow: these are types that are neither a body nor a
+     * user-facing attachment, and widening it re-opens the problem the gate
+     * was put there to solve.
+     *
+     * @var list<string>
+     */
+    private const array ALWAYS_KEEP_MIME = ['text/calendar', 'application/ics'];
+
+    /**
+     * Walk the MIME tree for the body and the parts worth keeping.
      *
      * @param array<string,mixed> $part
-     * @return array{string, string, list<array<string,mixed>>}  [bodyText, bodyHtml, attachmentParts]
      */
-    private function extractBody(array $part): array
+    private function extractBody(array $part): ExtractedBody
     {
-        $bodyText = '';
-        $bodyHtml = '';
-        $attachmentParts = [];
+        $bodyText    = '';
+        $bodyHtml    = '';
+        $lazyParts   = [];
+        $inlineParts = [];
 
         $mimeType = strtolower((string)($part['mimeType'] ?? ''));
+        $keepAlways = in_array($mimeType, self::ALWAYS_KEEP_MIME, true);
 
         if (true === isset($part['body']['data'])) {
             $decoded = base64_decode(strtr((string)$part['body']['data'], '-_', '+/'));
@@ -232,6 +257,10 @@ final class GmailMessageBuilder
                 $bodyText = $decoded;
             } elseif ('text/html' === $mimeType) {
                 $bodyHtml = $decoded;
+            } elseif (true === $keepAlways && '' !== $decoded) {
+                // Bytes are already here, so there is nothing to fetch later —
+                // this is the common shape for an invite, which is small.
+                $inlineParts[] = ['part' => $part, 'bytes' => $decoded];
             }
         }
 
@@ -240,24 +269,90 @@ final class GmailMessageBuilder
             $filename = (string)($part['filename'] ?? '');
             $hasContentId = '' !== trim(($partHeaders['content-id'] ?? ''), '<> ');
 
-            if ('' !== $filename || true === $hasContentId) {
-                $attachmentParts[] = $part;
+            if ('' !== $filename || true === $hasContentId || true === $keepAlways) {
+                $lazyParts[] = $part;
             }
         }
 
         foreach ($part['parts'] ?? [] as $subPart) {
-            [$t, $h, $a] = $this->extractBody($subPart);
+            $child = $this->extractBody($subPart);
+
             if ('' === $bodyText) {
-                $bodyText = $t;
+                $bodyText = $child->bodyText;
             }
             if ('' === $bodyHtml) {
-                $bodyHtml = $h;
+                $bodyHtml = $child->bodyHtml;
             }
 
-            $attachmentParts = array_merge($attachmentParts, $a);
+            $lazyParts   = array_merge($lazyParts, $child->lazyParts);
+            $inlineParts = array_merge($inlineParts, $child->inlineParts);
         }
 
-        return [$bodyText, $bodyHtml, $attachmentParts];
+        return new ExtractedBody($bodyText, $bodyHtml, $lazyParts, $inlineParts);
+    }
+
+    /**
+     * Persist parts whose bytes came inline in the payload.
+     *
+     * No `gmail://` stub and no lazy fetch: Gmail already sent the content, so
+     * storagePath is a real path from the start and AttachmentResolver never
+     * has to go back for it. MessagePart has no body column and does not need
+     * one — the bytes go where every other attachment's do.
+     *
+     * The bucket key mirrors AttachmentResolver::materialise(): an API-synced
+     * message has no mailbox and no IMAP UID, so 0 and a hash of the Gmail id
+     * stand in for them.
+     *
+     * Marked inline deliberately. persistAttachmentStubs() derives
+     * hasAttachments from the non-inline parts, and an invite counted as an
+     * attachment would put a paperclip and an "invite.ics" chip on every
+     * meeting in the thread view. Extraction finds these by content type, not
+     * by disposition, so nothing is lost by hiding them.
+     *
+     * @param list<array{part: array<string,mixed>, bytes: string}> $inlineParts
+     */
+    private function persistInlineParts(array $inlineParts, Message $message, Account $account): void
+    {
+        foreach ($inlineParts as $entry) {
+            $part  = $entry['part'];
+            $bytes = $entry['bytes'];
+
+            $filename = (string)($part['filename'] ?? '');
+
+            if ('' === $filename) {
+                $filename = 'invite.ics';
+            }
+
+            try {
+                $relativePath = $this->attachmentStorage->store(
+                    (int) $account->getId(),
+                    0,
+                    abs(crc32((string) $message->getGmailId())),
+                    $filename,
+                    $bytes,
+                );
+            } catch (\Throwable $e) {
+                // A part we could not store is a missed event, never a failed
+                // import — the message itself is fine.
+                $this->logger->warning('GmailMessageBuilder: inline part not stored', [
+                    'gmailId' => $message->getGmailId(),
+                    'error'   => $e->getMessage(),
+                ]);
+
+                continue;
+            }
+
+            $this->em->persist(
+                new MessagePart()
+                    ->setMessage($message)
+                    ->setContentType((string)($part['mimeType'] ?? 'application/octet-stream'))
+                    ->setFilename($filename)
+                    ->setDisposition('inline')
+                    ->setSize(strlen($bytes))
+                    ->setStoragePath($relativePath)
+                    ->setIsInline(true),
+            );
+        }
     }
 
     /**

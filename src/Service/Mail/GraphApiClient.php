@@ -49,11 +49,21 @@ final class GraphApiClient
     /** Graph caps $batch at 20 sub-requests (Gmail allows 100). */
     public const int BATCH_LIMIT = 20;
 
-    /** Properties fetched for a full message import. */
+    /**
+     * Properties fetched for a full message import.
+     *
+     * meetingMessageType is what makes an invite findable at all. A
+     * text/calendar part inside multipart/alternative is not an attachment in
+     * Graph's object model, so it never appears under /messages/{id}/attachments
+     * however the $select is written — there is nothing to widen. This flag is
+     * the only thing on the message resource that says "this is an invite",
+     * and the raw MIME is fetched later, once, for the ones that are.
+     */
     private const string MESSAGE_SELECT = 'id,internetMessageId,conversationId,conversationIndex,'
     . 'subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,'
     . 'receivedDateTime,sentDateTime,isRead,isDraft,flag,importance,categories,'
-    . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders';
+    . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders,'
+    . 'meetingMessageType';
 
     /** Light projection used while planning — ids only, no bodies. */
     private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';

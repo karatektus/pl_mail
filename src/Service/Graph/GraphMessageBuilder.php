@@ -48,6 +48,15 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final class GraphMessageBuilder
 {
+    /**
+     * Where Graph's meetingMessageType is kept once it is on the row.
+     *
+     * Named with an x- prefix so it cannot collide with a real header the
+     * sender set, and lower-cased because HeaderNormalizer stores keys that
+     * way — extraction reads it back by this exact name.
+     */
+    public const string MEETING_TYPE_HEADER = 'x-plmail-meeting-message-type';
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly GraphFolderResolver    $folderResolver,
@@ -111,6 +120,18 @@ final class GraphMessageBuilder
             }
 
             $rawHeaders[$name] = $value;
+        }
+
+        // Graph reports an invite on the message resource rather than in a
+        // header, so it goes into the header bag as a synthetic one. $headers
+        // is already a free-form jsonb bag that MessageCategorizer reads
+        // exactly this way, which means no migration and — because it is
+        // persisted — extraction can find these later without a resync. If a
+        // second synthetic key ever appears, promote them both to columns.
+        $meetingType = trim((string) ($payload['meetingMessageType'] ?? ''));
+
+        if ('' !== $meetingType && 'none' !== strtolower($meetingType)) {
+            $rawHeaders[self::MEETING_TYPE_HEADER] = $meetingType;
         }
 
         $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
