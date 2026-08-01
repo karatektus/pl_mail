@@ -118,40 +118,75 @@
     --sunken-alpha: 0.04;
     --hover-alpha:  0.035;
 
-    --app-bg: #f2efe7;
+    /* A flat colour still has to be written as a gradient: .app-bg paints
+       through background-image, and `background-image: #f2efe7` is not a
+       valid image — it is dropped, the element paints nothing, and the page
+       falls back to the browser's white. Same idiom BackgroundResolver uses
+       for a solid background. */
+    --app-bg: linear-gradient(#f2efe7, #f2efe7);
 }
 
-/* Dark, retuned to the neutral near-black it always wanted to be.
-   It was #111827 — a slate blue that quietly tinted every surface above it,
-   which is why the greys elsewhere in the UI never looked neutral on it. This
-   is the closest existing theme to the one being matched, so it is the one
-   that changes rather than a seventh entry in the picker. */
+/* Dark — a dim room, not a black one.
+
+   The first attempt at this was near-black panes on a blacker page with
+   near-white text, and it was harsh in two separate ways. Text at #eae7e2 on
+   #0a0a0a is roughly the contrast of a headlight; and lifting only the panes
+   out of the page made the mail list the one bright rectangle on screen with
+   everything around it falling away.
+
+   So: the floor comes up off pure black, the step between page and pane is
+   small enough to read as one continuous material rather than a card on a
+   void, and the ink stops well short of white. Panes are separated by their
+   hairlines instead — which is what Paper does too, and it is the same idea
+   in reverse. Warm rather than neutral grey throughout, because a pure grey
+   ramp on black is what makes a dark theme look like a terminal.
+
+   The accent is a FILL here, not just a tint: Compose, the active nav row and
+   every primary button paint it behind light text, so it has to be deep
+   enough to carry them — a pale sage, which is what the reference uses for
+   40px avatar circles, becomes a washed-out slab nothing can be read on. */
 [data-theme="dark"] {
-    --rgb-surface:    18  18  18;
-    --rgb-ink:       232 230 225;
-    --rgb-ink-muted: 150 146 139;
-    --rgb-ink-faint: 110 107 101;
-    --rgb-ink-soft:  198 195 188;
-    --rgb-accent:    138 180 160;
-    --rgb-border:    255 255 255;
-    --rgb-line:      255 255 255;
-    --rgb-sunken:    255 255 255;
+    --rgb-surface:     28  27  26;
+    --rgb-ink:        214 209 202;
+    --rgb-ink-soft:   186 181 174;
+    --rgb-ink-muted:  142 137 130;
+    --rgb-ink-faint:  108 104  98;
+    --rgb-accent:      58 111  92;
+    --rgb-accent-ink: 240 245 242;
+    --rgb-border:     255 255 255;
+    --rgb-line:       255 255 255;
+    --rgb-sunken:     255 255 255;
+    --rgb-inverse:    222 218 211;
+    --rgb-inverse-ink: 28  27  26;
+
+    /* Status colours want more light on a dark surface than the defaults
+       carry, but not so much that they glow — .dark's are tuned for #111827
+       and read as muddy here. */
+    --rgb-danger:  226 128 128;
+    --rgb-warning: 219 175  95;
+    --rgb-success: 118 192 150;
 
     /* Fields lighten the surface instead of darkening it. .dark's field is
-       #27272a, which on its old #111827 surface read as an inset box and on
-       this near-black is the same colour as the page — the search input lost
-       its edges entirely. */
+       #27272a, which is now the same colour as the surface itself — the search
+       input lost its edges entirely. */
     --rgb-field:        255 255 255;
     --rgb-field-border: 255 255 255;
-    --field-alpha:        0.05;
-    --field-border-alpha: 0.14;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
 
-    --border-alpha: 0.09;
-    --line-alpha:   0.08;
-    --sunken-alpha: 0.05;
-    --hover-alpha:  0.045;
+    /* The hairlines do the separating, so they have to be seen. A border at
+       .dark's 0.1 disappears against a surface this dark and the panes lose
+       their outline entirely. */
+    --border-alpha: 0.12;
+    --line-alpha:   0.09;
+    --raised-alpha: 0.06;
+    --sunken-alpha: 0.07;
+    --hover-alpha:  0.05;
+    --shadow-alpha: 0.45;
 
-    --app-bg: #0d0d0d;
+    /* Barely below the surface: enough that a pane has an edge, not so much
+       that the list becomes the only lit thing in the window. */
+    --app-bg: linear-gradient(#151413, #151413);
 }
 
 [data-theme="nord"] {

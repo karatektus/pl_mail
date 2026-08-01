@@ -49,7 +49,7 @@ enum Theme: string
     {
         return match ($this) {
             self::Paper => ['accent' => '#7d6b4f'],
-            self::Dark  => ['accent' => '#8ab4a0'],
+            self::Dark  => ['accent' => '#3a6f5c'],
             default     => [],
         };
     }
@@ -61,7 +61,7 @@ enum Theme: string
             self::System => ['#ffffff', '#111827', '#2563eb'],
             self::Light  => ['#ffffff', '#27272a', '#2563eb'],
             self::Paper  => ['#f7f5ef', '#232220', '#7d6b4f'],
-            self::Dark   => ['#121212', '#e8e6e1', '#8ab4a0'],
+            self::Dark   => ['#1c1b1a', '#d6d1ca', '#3a6f5c'],
             self::Nord   => ['#2e3440', '#eceff4', '#88c0d0'],
             self::Dusk   => ['#1e1b2e', '#ede9fe', '#a78bfa'],
             self::Solar  => ['#fdf6e3', '#586e75', '#b58900'],

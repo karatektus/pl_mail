@@ -24,10 +24,13 @@ export default class extends Controller {
         token: String,
         min: { type: Number, default: 320 },
         max: { type: Number, default: 900 },
-        // What the mail side is never dragged below. The pane's own minimum is
-        // not enough on its own: without this the handle happily shrinks the
-        // message list to a column of truncated subjects.
-        mainMin: { type: Number, default: 420 },
+        // What the mail side is never dragged below — a phone's width, not a
+        // comfortable one. The list has a stacked layout for exactly this size
+        // and it should be reachable by dragging: a floor set at "still looks
+        // like a desktop list" meant the handle stopped before the layout it
+        // was heading for, and on a 1024px screen it barely moved at all.
+        // The pane's own minimum still stops it going further.
+        mainMin: { type: Number, default: 340 },
         open: { type: Boolean, default: false },
         step: { type: Number, default: 24 },
         default: { type: Number, default: 380 },

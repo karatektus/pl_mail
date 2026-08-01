@@ -197,7 +197,10 @@ the conversation it answers.
                 {% endif %}
             </span>
 
-            <div class="flex flex-col items-end gap-1.5">
+            {# Attachment and star share a line, star outermost — it is the one
+               you reach for, so it sits where the thumb already is, and the
+               paperclip is a fact about the row rather than a control. #}
+            <div class="flex items-center gap-2">
                 {% if hasAttachment %}
                     <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
                         <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
@@ -214,14 +217,14 @@ the conversation it answers.
                 >
                     <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm"></i>
                 </button>
-
-                {# Unread, as a dot. The bold text says it too, but a dot is
-                   what you count down a column without reading anything. #}
-                {% if unread %}
-                    <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
-                    <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
-                {% endif %}
             </div>
+
+            {# Unread, as a dot, on its own line. The bold text says it too, but
+               a dot is what you count down a column without reading anything. #}
+            {% if unread %}
+                <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
+                <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
+            {% endif %}
         </div>
 
         {# Date + hover actions slot — desktop only #}
