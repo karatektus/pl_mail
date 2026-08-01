@@ -160,7 +160,10 @@ test.describe("label as", () => {
         await expect(row).toBeVisible();
 
         // Select the row so the toolbar's bulk actions (incl. "Label as") appear.
-        await row.locator('input[type="checkbox"]').check();
+        // The row's checkbox is the avatar now: the real input is sr-only and
+        // the label intercepts the click, so .check() cannot reach it. Clicking
+        // the control a person would click is the same assertion anyway.
+        await row.locator("label:has(input[data-thread-select])").click();
 
         const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
         await expect(actions).toBeVisible();
@@ -185,7 +188,10 @@ test.describe("label as", () => {
 
         const row = mailRow(page, INBOX_SUBJECTS.trash);
         await expect(row).toBeVisible();
-        await row.locator('input[type="checkbox"]').check();
+        // The row's checkbox is the avatar now: the real input is sr-only and
+        // the label intercepts the click, so .check() cannot reach it. Clicking
+        // the control a person would click is the same assertion anyway.
+        await row.locator("label:has(input[data-thread-select])").click();
 
         const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
         await actions.getByRole("button", { name: "Label as" }).click();

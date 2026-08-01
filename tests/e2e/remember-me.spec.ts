@@ -67,7 +67,8 @@ test("a remember-me session can still use the app", async ({ page }) => {
     const row = page
         .locator('#message-list li[data-controller="mail--message-row"]')
         .first();
-    await row.locator('input[type="checkbox"]').check();
+    // The row's checkbox is the avatar now — see the note in label.spec.ts.
+    await row.locator("label:has(input[data-thread-select])").click();
     await expect(
         page.locator('[data-mail--list-toolbar-target="actions"]'),
     ).toBeVisible();

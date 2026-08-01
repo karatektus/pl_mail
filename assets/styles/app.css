@@ -122,6 +122,10 @@
     --rgb-line:       35  34  32;
     --rgb-sunken:     35  34  32;
 
+    --rgb-info:       90 106 130;
+    --rgb-inverse:    45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
     --border-alpha: 0.10;
     --line-alpha:   0.09;
     --sunken-alpha: 0.04;
@@ -174,6 +178,7 @@
     --rgb-danger:  226 128 128;
     --rgb-warning: 219 175  95;
     --rgb-success: 118 192 150;
+    --rgb-info:    130 166 204;
 
     /* Fields lighten the surface instead of darkening it. .dark's field is
        #27272a, which is now the same colour as the surface itself — the search

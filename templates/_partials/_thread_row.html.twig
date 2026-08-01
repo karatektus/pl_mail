@@ -145,26 +145,43 @@ the conversation it answers.
                 </span>
             </div>
 
-            {# Rows 2 and 3 (stacked) / the rest of the line (wide).
-               One structure for both: stacked it is subject, then labels and
-               snippet beneath; wide the same three fall onto one line. #}
-            <div class="min-w-0 flex-1 flex flex-col @xl:flex-row @xl:items-baseline @xl:gap-2">
-                <span class="truncate text-sm mt-1 @xl:mt-0 @xl:flex-shrink-0 @xl:max-w-[45%]
-                             {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
-                    {{ subject }}
-                    {% if count > 1 %}
-                        <span class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
-                    {% endif %}
-                </span>
+            {# The rest of the row: subject, snippet, labels.
 
-                {# A little air above the preview when stacked. It separates the
-                   subject from the snippet, and because the meta column
-                   stretches and distributes, the dot rides down with it —
-                   which is what stops it crowding the star. #}
-                <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:mt-0">
+               Where the labels go differs by width, so the partial is included
+               twice and each copy is shown at one of them. It renders no
+               interactive element, so there is nothing to duplicate that a
+               screen reader or a click could reach twice — the hidden copy is
+               display:none and out of the tree entirely.
+
+               Stacked they ride in front of the snippet, which is what the
+               reference does and what reads well on three short lines. Wide,
+               that same position wedges them between a subject and a preview
+               that are already competing for one line, so they drop to a line
+               of their own underneath. #}
+            <div class="min-w-0 flex-1 flex flex-col">
+                <div class="min-w-0 flex flex-col @xl:flex-row @xl:items-baseline @xl:gap-2">
+                    <span class="truncate text-sm mt-1 @xl:mt-0 @xl:flex-shrink-0 @xl:max-w-[45%]
+                                 {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
+                        {{ subject }}
+                        {% if count > 1 %}
+                            <span class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
+                        {% endif %}
+                    </span>
+
+                    {# A little air above the preview when stacked. It separates
+                       the subject from the snippet, and the meta column mirrors
+                       the same margin so the dot stays level with it. #}
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:mt-0">
+                        <span class="@xl:hidden contents">
+                            {% include '_partials/_thread_labels.html.twig' with { item: item } %}
+                        </span>
+                        <span class="truncate text-ink-faint">{{ snippet }}</span>
+                    </span>
+                </div>
+
+                <div class="hidden @xl:flex items-center mt-1">
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
-                    <span class="truncate text-ink-faint">{{ snippet }}</span>
-                </span>
+                </div>
             </div>
         </div>
 
@@ -193,9 +210,17 @@ the conversation it answers.
                     @xl:self-center @xl:w-36">
 
             <div class="relative flex items-center justify-end w-full h-5 @xl:h-6 @xl:w-auto @xl:flex-1">
-                <span class="absolute inset-0 flex items-center justify-end
+                {# The paperclip rides with the date: wide, it sits just inboard
+                   of it and vanishes with it when the hover actions take the
+                   row over. Leaving it outside meant it stayed put underneath
+                   them. Stacked there is no hover, so it simply sits there. #}
+                <span class="absolute inset-0 flex items-center justify-end gap-1.5
                              text-xs text-ink-faint whitespace-nowrap
                              @xl:group-hover:invisible">
+                    {% if hasAttachment %}
+                        <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                    {% endif %}
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date('g:i a') }}
@@ -264,17 +289,10 @@ the conversation it answers.
             </div>
             </div>
 
-            {# Star outermost: it is the control you reach for, so it sits where
-               the pointer already is on the row's trailing edge. The paperclip
-               is only a fact about the row and sits inboard of it. #}
+            {# The star, on the row's trailing edge where the pointer already
+               is. The paperclip lives with the date above — it is a fact about
+               the row, not a control, and it belongs to the same line. #}
             <div class="flex items-center gap-2 h-5 mt-1 @xl:mt-0 @xl:order-first">
-
-                {% if hasAttachment %}
-                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
-                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
-                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
-                    </span>
-                {% endif %}
 
                 <button
                     type="button"

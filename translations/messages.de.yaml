@@ -1236,6 +1236,7 @@ thread_row:
 
 toast:
     dismiss: Schließen
+    undo: Rückgängig
     error:
         no_archive_mailbox: Es gibt kein Archiv-Postfach.
 

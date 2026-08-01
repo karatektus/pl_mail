@@ -1216,6 +1216,7 @@ thread_row:
 
 toast:
     dismiss: Dismiss
+    undo: Undo
     error:
         no_archive_mailbox: There is no archive mailbox.
 

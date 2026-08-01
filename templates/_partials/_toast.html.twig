@@ -1,50 +1,58 @@
-{# _toast.html.twig #}
-{% set colors = {
-    success: 'bg-inverse text-inverse-ink',
-    error:   'bg-danger text-white',
-    info:    'bg-info text-white',
-} %}
+{#
+_toast.html.twig
 
-{% set progress_colors = {
-    success: 'bg-white',
-    error:   'bg-white',
-    info:    'bg-white',
-} %}
+A pane with a coloured edge, not a coloured slab.
+
+The filled version could not follow a theme: success painted bg-inverse, but
+error and info were `text-white` over a fully saturated fill, and --rgb-info
+existed only in :root — so on any theme the informational toast was the same
+hard blue, and on a light-inked dark theme white-on-danger was barely legible.
+Every colour here now comes from a token, so a new theme gets matching toasts
+without touching this file.
+
+The edge and the icon carry the type; the surface and the text are the same as
+every other panel, which is also why a toast no longer shouts over the UI it is
+reporting on.
+#}
+
+{% set tone = {
+    success: { edge: 'border-success', icon: 'fa-circle-check',        text: 'text-success' },
+    error:   { edge: 'border-danger',  icon: 'fa-circle-exclamation',  text: 'text-danger'  },
+    info:    { edge: 'border-info',    icon: 'fa-circle-info',         text: 'text-info'    },
+}[type ?? 'success'] %}
 
 <div
     data-controller="ui--toast"
     data-ui--toast-duration-value="{{ extra.hide_after ?? 4000 }}"
     role="status"
-    class="relative rounded-pane shadow-xl overflow-hidden min-w-[280px] max-w-sm
-           {{ colors[type ?? 'success'] }}"
+    class="relative pane-flat shadow-float overflow-hidden min-w-[280px] max-w-sm
+           border-l-4 {{ tone.edge }}"
 >
-    {# ── flex row for content only ── #}
-    <div class="flex items-center gap-3 px-5 py-3.5 text-base font-medium">
-        {{ message }}
+    <div class="flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-ink">
+        <i class="fa-solid {{ tone.icon }} shrink-0 {{ tone.text }}" aria-hidden="true"></i>
+
+        <span class="min-w-0">{{ message }}</span>
+
         {% if extra.undo_url is defined %}
-            <span data-ui--toast-target="countdown"></span>s
+            <span data-ui--toast-target="countdown" class="text-ink-faint tabular-nums"></span>
             <button
                 data-controller="compose--undo-send"
                 data-compose--undo-send-url-value="{{ extra.undo_url }}"
                 data-compose--undo-send-hide-after-value="{{ extra.hide_after ?? 4000 }}"
                 data-action="click->compose--undo-send#abort"
-                class="ml-1 underline underline-offset-2 font-bold hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap"
+                class="text-accent underline underline-offset-2 font-semibold
+                       hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap"
             >
-                Undo
+                {{ 'toast.undo'|trans|default('Undo') }}
             </button>
         {% endif %}
 
-        <span class="ml-auto opacity-50 text-sm tabular-nums shrink-0">
-
-    </span>
-
         <button
             data-action="click->ui--toast#dismiss"
-            class="ml-auto opacity-50 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+            class="ml-auto shrink-0 text-ink-faint hover:text-ink transition-colors cursor-pointer"
             aria-label="{{ 'toast.dismiss'|trans }}"
         >
-            <i class="fa-solid fa-xmark text-base" aria-hidden="true"></i>
+            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
         </button>
     </div>
-
 </div>
