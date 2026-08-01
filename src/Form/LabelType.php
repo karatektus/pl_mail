@@ -60,11 +60,20 @@ final class LabelType extends AbstractType
                     return true;
                 },
             ])
+            // Expanded, so the theme can render it as swatches rather than a
+            // dropdown of colour names — picking a colour from a list of words
+            // is the one field in this form nobody can answer without trying
+            // it. Still a ChoiceType, so the vocabulary stays LabelColor and
+            // validation is unchanged.
             ->add('color', ChoiceType::class, [
-                'label'    => 'label.form.color',
-                'choices'  => LabelColor::choices(),
-                'required' => false,
+                'label'       => 'label.form.color',
+                'choices'     => LabelColor::choices(),
+                'required'    => false,
+                'expanded'    => true,
                 'placeholder' => 'label.form.no_color',
+                'choice_attr' => static fn (?string $value): array => [
+                    'data-swatch' => $value ?? 'none',
+                ],
             ]);
     }
 

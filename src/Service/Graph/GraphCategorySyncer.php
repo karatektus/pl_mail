@@ -24,16 +24,20 @@ use Psr\Log\LoggerInterface;
  * from messages would trickle labels in one at a time as mail imports, with no
  * complete list.
  *
- * Colour is deliberately not mapped. Graph uses preset0–preset24 rather than
- * hex, and a lossy bidirectional mapping would drift on every sync.
+ * Colour comes across, but only onto labels that have none. Graph uses
+ * preset0–preset24 rather than hex, so the map is lossy in one direction and
+ * would drift if it ran both ways on every sync; writing it only when there is
+ * nothing to overwrite removes the round trip that causes that. See
+ * GraphCategoryColorMapper.
  */
 final readonly class GraphCategorySyncer
 {
     public function __construct(
-        private GraphApiClient         $apiClient,
-        private LabelResolver          $labelResolver,
-        private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private GraphApiClient           $apiClient,
+        private LabelResolver            $labelResolver,
+        private GraphCategoryColorMapper $colorMapper,
+        private EntityManagerInterface   $em,
+        private LoggerInterface          $logger,
     ) {}
 
     public function sync(Account $account): void
@@ -72,6 +76,7 @@ final readonly class GraphCategorySyncer
         }
 
         $created = 0;
+        $colored = 0;
 
         foreach ($categories as $category) {
             $displayName = trim((string) ($category['displayName'] ?? ''));
@@ -87,6 +92,19 @@ final readonly class GraphCategorySyncer
 
             if (null !== $label) {
                 $created++;
+
+                // Only onto a label with no colour: a colour picked in plMail
+                // outranks the one Outlook happens to carry, and re-reading it
+                // on every sync is exactly the round trip that would make a
+                // 25-to-9 map drift.
+                if (null === $label->color) {
+                    $mapped = $this->colorMapper->toLabelColor($category['color'] ?? null);
+
+                    if (null !== $mapped) {
+                        $label->setColor($mapped->value);
+                        $colored++;
+                    }
+                }
             }
         }
 
@@ -96,6 +114,7 @@ final readonly class GraphCategorySyncer
             'accountId'  => $account->getId(),
             'categories' => count($categories),
             'linked'     => $created,
+            'colored'    => $colored,
         ]);
     }
 }

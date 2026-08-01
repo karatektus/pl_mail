@@ -8,6 +8,7 @@ use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphResyncRequiredException;
 use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Mail\Account;
+use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -503,18 +504,20 @@ final class GraphApiClient
     /**
      * Define a new category on the mailbox so it can be applied to messages.
      *
-     * Colour is fixed at preset0. Graph exposes colours as preset0–preset24
-     * rather than hex, and a lossy bidirectional mapping onto plMail's palette
-     * would drift on every sync — losing colour fidelity is much cheaper.
+     * The colour is the label's own, mapped through GraphCategoryColorMapper.
+     * Safe to send here because a category being created has no Outlook colour
+     * to lose — the drift a 25-to-9 map can cause needs a round trip, and this
+     * is the one direction that never makes one. Callers that have no label to
+     * hand pass null and get Graph's `none`.
      *
      * @return array<string,mixed>
      */
-    public function createMasterCategory(Account $account, string $displayName): array
+    public function createMasterCategory(Account $account, string $displayName, ?string $preset = null): array
     {
         return $this->request($account, 'POST', self::ME . '/outlook/masterCategories', [
             'json' => [
                 'displayName' => $displayName,
-                'color'       => 'preset0',
+                'color'       => $preset ?? GraphCategoryColorMapper::NO_COLOR,
             ],
         ])->toArray();
     }

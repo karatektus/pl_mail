@@ -266,6 +266,9 @@ final class ApplyGraphChangesHandler
             }
 
             try {
+                // No label in hand here — this is a category being defined so a
+                // message can carry it. Colour follows on the next structure
+                // sync rather than being guessed at.
                 $this->apiClient->createMasterCategory($account, $name);
             } catch (Throwable $e) {
                 $this->logger->error('ApplyGraphChangesHandler: could not create master category', [

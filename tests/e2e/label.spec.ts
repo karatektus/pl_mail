@@ -41,6 +41,40 @@ test.describe("create label", () => {
         ).toBeVisible();
     });
 
+    /**
+     * The colour field is an expanded choice with a placeholder, and that
+     * combination found a latent bug in the form theme: radio_widget only
+     * emitted a value attribute when the value was non-empty, so the "no
+     * colour" option submitted "on" and the whole form came back invalid with
+     * no field to blame. Saving a label with a colour picked is the assertion
+     * that keeps it fixed.
+     */
+    test("saves the colour picked from the swatches", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const created = `E2E Coloured ${Date.now()}`;
+
+        await page.locator("#sidebar").getByRole("button", { name: "Create label" }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+
+        await modal.getByLabel("Name").fill(created);
+        await modal.locator('input[type="radio"][value="violet"]').check({ force: true });
+        await modal.getByRole("button", { name: "Save" }).click();
+
+        await expect(modal).toBeHidden();
+
+        // The sidebar dot is the colour, so it is also the proof it was stored
+        // — and it reads the same value the chips and the editor do.
+        await expect(
+            page
+                .locator("#label-list .nav-item")
+                .filter({ hasText: created })
+                .locator(".bg-violet-500"),
+        ).toBeVisible();
+    });
+
     test("keeps the modal open and shows the error on a duplicate name", async ({
         page,
     }) => {

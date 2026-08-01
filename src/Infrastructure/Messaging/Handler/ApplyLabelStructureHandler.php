@@ -9,6 +9,8 @@ use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
+use App\Domain\Enum\Mail\LabelColor;
+use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
@@ -32,6 +34,7 @@ final readonly class ApplyLabelStructureHandler
     public function __construct(
         private AccountRepository      $accountRepository,
         private LabelRepository        $labelRepository,
+        private GraphCategoryColorMapper $colorMapper,
         private GmailApiClient         $gmailApiClient,
         private GraphApiClient         $graphApiClient,
         private GraphLabelPolicy       $labelPolicy,
@@ -138,7 +141,16 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        $created = $this->graphApiClient->createMasterCategory($account, $message->fullName);
+        // The label's own colour goes out with it. Creating a category is the
+        // one direction that cannot lose an Outlook colour, since there is not
+        // one yet — see GraphCategoryColorMapper.
+        $label = $this->labelRepository->find($message->labelId);
+
+        $created = $this->graphApiClient->createMasterCategory(
+            $account,
+            $message->fullName,
+            $this->colorMapper->toPreset(LabelColor::tryFrom((string) $label?->color)),
+        );
         $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), false);
     }
 

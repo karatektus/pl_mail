@@ -234,9 +234,63 @@ a collection row — is one field to the reader and should stay tight.
             cursor-pointer
             ' ~ (attr.class ?? '')
     }) %}
+    {# `value is defined`, not `is not empty`. An expanded choice with a
+       placeholder gives that option the empty string, and omitting the
+       attribute makes the browser submit "on" instead — which is not a valid
+       choice, so the whole form comes back "The selected choice is invalid"
+       with no field to blame. Latent until the first expanded choice with a
+       placeholder; the label colour picker is it. #}
     <input type="radio" {{ block('widget_attributes') }}
-           {%- if value is defined and value is not empty %} value="{{ value }}"{% endif %}
+           {%- if value is defined %} value="{{ value }}"{% endif %}
            {%- if checked %} checked="checked"{% endif %}>
+{% endblock %}
+
+{#
+The label colour picker.
+
+Named for the one field that wants it rather than themed globally: every other
+expanded choice in this app is a genuine list of options, and turning all of
+them into swatches would be wrong. Keyed on the block prefix Symfony builds
+from LabelType + the field, so it applies wherever that form is rendered.
+
+The radio itself is the peer and stays in the DOM — focusable, arrow-key
+navigable, and submitted like any other choice. The circle is its label.
+#}
+{% block _label_color_widget %}
+    <div class="flex flex-wrap items-center gap-2">
+        {% for child in form %}
+            {% set swatch = child.vars.attr['data-swatch']|default('none') %}
+            <label class="relative cursor-pointer"
+                   title="{{ child.vars.label|trans }}">
+                {{ form_widget(child, { attr: { class: 'peer sr-only' } }) }}
+
+                <span class="block w-7 h-7 rounded-full border-2 border-transparent
+                             ring-1 ring-inset ring-black/10 dark:ring-white/15
+                             transition-[border-color,transform]
+                             peer-checked:border-ink peer-checked:scale-110
+                             peer-focus-visible:ring-2 peer-focus-visible:ring-accent
+                             {{ {
+                                 'gray':   'bg-ink-faint',
+                                 'red':    'bg-red-500',
+                                 'orange': 'bg-orange-500',
+                                 'amber':  'bg-amber-500',
+                                 'green':  'bg-green-500',
+                                 'teal':   'bg-teal-500',
+                                 'blue':   'bg-blue-500',
+                                 'violet': 'bg-violet-500',
+                                 'pink':   'bg-pink-500',
+                             }[swatch]|default('bg-transparent') }}">
+                    {%- if swatch == 'none' -%}
+                        <span class="flex h-full w-full items-center justify-center text-ink-faint">
+                            <i class="fa-solid fa-ban text-xs" aria-hidden="true"></i>
+                        </span>
+                    {%- endif -%}
+                </span>
+
+                <span class="sr-only">{{ child.vars.label|trans }}</span>
+            </label>
+        {% endfor %}
+    </div>
 {% endblock %}
 
 {% block checkbox_row %}
