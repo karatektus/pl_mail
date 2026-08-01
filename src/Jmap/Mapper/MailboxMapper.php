@@ -40,6 +40,14 @@ final class MailboxMapper
             // the moment a label is renamed in one account. Unknown properties
             // are ignored by spec-conformant clients, so this is additive.
             'labelId' => (string) $label->id,
+            // plMail extension, like labelId above. RFC 8621 gives Mailbox no
+            // colour, but the label has one and every client draws chips with
+            // it — without this the phone can only draw them grey while the web
+            // draws them coloured, which reads as two different label systems.
+            //
+            // A Tailwind token, not hex: see LabelColor. Null is a label with
+            // no colour chosen, which is distinct from one coloured grey.
+            'color' => $label->color,
             'name' => (string) $label->name,
             'parentId' => $this->parentId($label, $bindingIdByLabelId),
             'role' => $this->roleOf($label),

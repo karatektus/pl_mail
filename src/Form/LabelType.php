@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Form;
 
+use App\Domain\Enum\Mail\LabelColor;
 use App\Entity\Label\Label;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
@@ -15,22 +16,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class LabelType extends AbstractType
 {
-    /**
-     * Tailwind color tokens rendered as chip backgrounds in the UI.
-     * Stored as-is on Label::$color.
-     */
-    private const array COLORS = [
-        'label.color.gray'   => 'gray',
-        'label.color.red'    => 'red',
-        'label.color.orange' => 'orange',
-        'label.color.amber'  => 'amber',
-        'label.color.green'  => 'green',
-        'label.color.teal'   => 'teal',
-        'label.color.blue'   => 'blue',
-        'label.color.violet' => 'violet',
-        'label.color.pink'   => 'pink',
-    ];
-
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $user        = $options['user'];
@@ -77,7 +62,7 @@ final class LabelType extends AbstractType
             ])
             ->add('color', ChoiceType::class, [
                 'label'    => 'label.form.color',
-                'choices'  => self::COLORS,
+                'choices'  => LabelColor::choices(),
                 'required' => false,
                 'placeholder' => 'label.form.no_color',
             ]);

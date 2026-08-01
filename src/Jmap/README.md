@@ -113,6 +113,18 @@ Get these wrong and things fail quietly rather than loudly.
   which is how this went unnoticed. `Mailbox.labelId` carries the label id
   deliberately, for cross-account grouping; it is not accepted anywhere as
   input.
+- **`Mailbox.color` is a plMail extension and a closed vocabulary.** RFC 8621
+  gives Mailbox no colour; labels have one and every client draws chips with it.
+  The value is a Tailwind token from `LabelColor` — `gray`, `red`, `orange`,
+  `amber`, `green`, `teal`, `blue`, `violet`, `pink` — or `null` for "no colour
+  chosen", which is distinct from grey. Not hex: a token resolves per theme,
+  where `#3b82f6` stays one fixed light-mode blue on a dark background. Accepted
+  on `Mailbox/set` create *and* update; anything outside the set is refused with
+  `invalidProperties` rather than dropped, and `null` clears it. The web form
+  reads the same enum, because two copies of this list is how a colour picked on
+  the phone becomes one the web renders unstyled. Colour is the only property a
+  **system** label accepts an update to — renaming or destroying Inbox breaks
+  the invariants hanging off its role, recolouring its chip breaks nothing.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
