@@ -120,11 +120,11 @@ Variables:
     {# ── Body — full pane width ─────────────────────────────────────────── #}
     <div data-mail--thread-message-target="body" class="{{ expanded ? '' : 'hidden' }} mt-4">
         {% if message.bodyHtmlSafe %}
-            <div class="text-sm overflow-x-auto">
+            <div class="mail-sheet text-sm overflow-x-auto">
                 {{ message.bodyHtmlSafe|raw }}
             </div>
         {% else %}
-            <pre class="whitespace-pre-wrap break-words font-sans text-sm text-ink-soft">{{ message.bodyText }}</pre>
+            <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ message.bodyText }}</pre>
         {% endif %}
 
         {% if message.hasAttachments %}

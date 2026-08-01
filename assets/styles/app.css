@@ -45,6 +45,15 @@
 
     --app-bg: linear-gradient(to bottom right, #eff6ff, #f1f5f9, #e0e7ff);
     --scrim-alpha: 0;
+    /* The sheet a message body is rendered on. Deliberately the same warm
+       paper in every theme: an email's HTML was authored against a light
+       background — senders set dark text and assume white behind it — so
+       rendering it on a near-black surface is both harsh to read and a
+       misrepresentation of what was sent. Themes may override it; none
+       currently need to. */
+    --rgb-sheet:     247 245 239;
+    --rgb-sheet-ink:  35  34  32;
+
 
     /* user-tunable — overwritten inline on <html> by AppearanceRenderer */
     --rgb-main:   var(--rgb-surface);
@@ -380,6 +389,47 @@
     border-radius: var(--app-radius);
     box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
     0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
+}
+
+@utility mail-sheet {
+    /* Re-points the whole palette, not just the background.
+       Everything inside here — dividers, muted labels, inset blocks, hover
+       states — is written against the theme's tokens, and on a dark theme
+       those are pale-on-dark: a border at white/0.09 is invisible on cream and
+       a bg-sunken of white/0.07 lightens where it should darken. Setting the
+       channels rather than restyling each descendant means every existing
+       utility keeps working and nothing new has to know about the sheet. */
+    --rgb-surface:      247 245 239;
+    --rgb-main:         247 245 239;
+    --rgb-ink:           35  34  32;
+    --rgb-ink-soft:      82  78  72;
+    --rgb-ink-muted:    107 102  94;
+    --rgb-ink-faint:    150 144 134;
+    --rgb-line:          35  34  32;
+    --rgb-border:        35  34  32;
+    --rgb-raised:        35  34  32;
+    --rgb-sunken:        35  34  32;
+    --rgb-field:         35  34  32;
+    --rgb-field-border:  35  34  32;
+    --rgb-inverse:       35  34  32;
+    --rgb-inverse-ink:  247 245 239;
+
+    --main-alpha:         1;
+    --line-alpha:         0.09;
+    --border-alpha:       0.10;
+    --raised-alpha:       0.04;
+    --sunken-alpha:       0.05;
+    --hover-alpha:        0.045;
+    --field-alpha:        0.03;
+    --field-border-alpha: 0.15;
+    --shadow-alpha:       0.06;
+
+    background-color: rgb(var(--rgb-surface));
+    color: rgb(var(--rgb-ink));
+
+    /* Plenty of mail leaves its links to the client, and an accent tuned for
+       the surrounding theme is not necessarily readable on paper. */
+    & a:not([class*="text-"]):not([class*="bg-"]) { color: #1d4ed8; }
 }
 
 @utility app-bg {

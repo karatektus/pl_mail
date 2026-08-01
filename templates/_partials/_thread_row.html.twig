@@ -134,20 +134,9 @@ the conversation it answers.
                   aria-hidden="true"><i class="fa-solid fa-check text-xs"></i></span>
         </label>
 
-        {# Star — wide layout only; the stacked one lives in the meta column
-           on the right, beside the time. #}
-        <button
-            type="button"
-            data-action="click->mail--message-row#toggleStar"
-            data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
-            class="hidden @xl:block z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-ink-faint hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
-            aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
-        >
-            <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-[18px]"></i>
-        </button>
-
         {# Content — one line when the list is wide, three when it is not #}
-        <div class="flex-1 min-w-0 flex flex-col @xl:flex-row @xl:items-center @xl:gap-4">
+        <div data-row-layout
+             class="flex-1 min-w-0 flex flex-col @xl:flex-row @xl:items-center @xl:gap-4">
 
             {# Row 1 (stacked) / sender column (wide) #}
             <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
@@ -175,82 +164,43 @@ the conversation it answers.
             </div>
         </div>
 
-        {# Meta column — stacked layout only.
-           Mirrors the reference app: the time sits top-right and the row's
-           three states hang under it. The star is duplicated rather than moved
-           because the wide layout keeps it on the left, and only one of the two
-           is ever rendered — display:none takes the other out of the
-           accessibility tree, so a screen reader still finds exactly one. That
-           is safe here because starring POSTs and the server re-renders the
-           whole row; neither button holds state of its own. #}
-        <div data-row-date="stacked"
-             class="@xl:hidden flex flex-col items-end gap-1.5 shrink-0 ml-2 self-start pt-0.5">
-            <span class="text-xs text-ink-faint whitespace-nowrap">
-                {% if date %}
-                    {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
-                        {{ date|date('g:i a') }}
-                    {% elseif date|date('Y') == 'now'|date('Y') %}
-                        {{ date|date('M j') }}
-                    {% else %}
-                        {{ date|date('M j Y') }}
+        {# Meta column — one column at every width.
+           Date on top, then the star and the paperclip, then the unread dot.
+           The star is a control and sits inboard of the paperclip, which is
+           only a fact about the row; both are on the trailing edge where the
+           eye already is after reading the time.
+
+           The hover actions still swap for the date, but only on the date's
+           own row and only where there is a hover to speak of — they used to
+           be absolutely positioned over the whole column, which is why the
+           star could not live here before. #}
+        {# The meta area takes the row's own shape. A stacked row is three
+           lines tall and a vertical stack sits beside it; a wide row is one
+           line, where the same stack has to spread out and leaves the date
+           floating over a lone star with air between them. So: column when
+           narrow, single line when wide. #}
+        <div data-row-meta
+             class="flex flex-shrink-0 ml-2
+                    flex-col items-end gap-1.5 self-start pt-0.5
+                    @xl:flex-row-reverse @xl:items-center @xl:gap-2
+                    @xl:self-center @xl:pt-0 @xl:w-36">
+
+            <div class="relative flex items-center justify-end w-full h-6 @xl:w-auto @xl:flex-1">
+                <span class="absolute inset-0 flex items-center justify-end
+                             text-xs text-ink-faint whitespace-nowrap
+                             @xl:group-hover:invisible">
+                    {% if date %}
+                        {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
+                            {{ date|date('g:i a') }}
+                        {% elseif date|date('Y') == 'now'|date('Y') %}
+                            {{ date|date('M j') }}
+                        {% else %}
+                            {{ date|date('M j Y') }}
+                        {% endif %}
                     {% endif %}
-                {% endif %}
-            </span>
-
-            {# Attachment and star share a line, star outermost — it is the one
-               you reach for, so it sits where the thumb already is, and the
-               paperclip is a fact about the row rather than a control. #}
-            <div class="flex items-center gap-2">
-                {% if hasAttachment %}
-                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
-                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
-                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
-                    </span>
-                {% endif %}
-
-                <button
-                    type="button"
-                    data-action="click->mail--message-row#toggleStar"
-                    data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
-                    class="z-10 pointer-events-auto cursor-pointer text-ink-faint hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
-                    aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
-                >
-                    <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm"></i>
-                </button>
-            </div>
-
-            {# Unread, as a dot, on its own line. The bold text says it too, but
-               a dot is what you count down a column without reading anything. #}
-            {% if unread %}
-                <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
-                <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
-            {% endif %}
-        </div>
-
-        {# Date + hover actions slot — desktop only #}
-        <div data-row-date="inline"
-             class="hidden @xl:flex flex-shrink-0 w-36 relative h-full items-center">
-
-            <span class="absolute inset-0 flex items-center justify-end group-hover:invisible text-xs text-gray-400 dark:text-gray-600">
-                                       {% if hasAttachment %}
-                                           <span class="flex-shrink-0 mr-2 text-gray-400 dark:text-gray-600"
-                                                 title="{{ 'thread_row.has_attachment'|trans }}">
-                    <i class="fa-solid fa-paperclip text-[12px]" aria-hidden="true"></i>
-                    <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
                 </span>
-                                       {% endif %}
-                {% if date %}
-                    {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
-                        {{ date|date('g:i a') }}
-                    {% elseif date|date('Y') == 'now'|date('Y') %}
-                        {{ date|date('M j') }}
-                    {% else %}
-                        {{ date|date('M j Y') }}
-                    {% endif %}
-                {% endif %}
-            </span>
 
-            <div class="absolute inset-0 flex items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
+                <div class="hidden @xl:flex absolute inset-0 items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
                 {% if false == draft %}
                     <button type="button" data-action="click->mail--message-row#archive"
                             data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
@@ -305,6 +255,37 @@ the conversation it answers.
                     </button>
                 {% endif %}
             </div>
+            </div>
+
+            <div class="flex items-center gap-2 @xl:order-first">
+                <button
+                    type="button"
+                    data-action="click->mail--message-row#toggleStar"
+                    data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
+                    class="z-10 pointer-events-auto cursor-pointer transition-colors
+                           hover:text-amber-400
+                           {{ starred
+                              ? 'text-amber-400'
+                              : 'text-ink-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100' }}"
+                    aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
+                >
+                    <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm"></i>
+                </button>
+
+                {% if hasAttachment %}
+                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
+                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                    </span>
+                {% endif %}
+            </div>
+
+            {# Unread, as a dot. The bold text says it too, but a dot is what
+               you count down a column without reading anything. #}
+            {% if unread %}
+                <span class="w-2 h-2 rounded-full bg-success shrink-0 @xl:order-first" aria-hidden="true"></span>
+                <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
+            {% endif %}
         </div>
 
     </div>

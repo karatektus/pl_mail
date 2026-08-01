@@ -39,11 +39,11 @@
         </div>
 
         {% if message.bodyHtmlSafe %}
-            <div class="text-sm overflow-x-auto">
+            <div class="mail-sheet text-sm overflow-x-auto">
                 {{ message.bodyHtmlSafe|raw }}
             </div>
         {% else %}
-            <div class="whitespace-pre-wrap text-sm text-ink-soft">
+            <div class="mail-sheet whitespace-pre-wrap text-sm">
                 {{ message.bodyText }}
             </div>
         {% endif %}

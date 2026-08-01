@@ -259,15 +259,13 @@ test.describe("calendar pane", () => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
 
-        const inlineDate = page.locator('[data-row-date="inline"]').first();
-        const stackedDate = page.locator('[data-row-date="stacked"]').first();
+        // The content block is what changes shape: a column when the list is
+        // narrow, a row when it is wide. Read on flex-direction rather than on
+        // visibility — the row's parts sit in zero-height positioning contexts
+        // that Playwright calls hidden either way.
+        const layout = page.locator("[data-row-layout]").first();
 
-        // On display rather than visibility: the inline date column is laid out
-        // as a zero-height positioning context for an absolutely placed span,
-        // so Playwright calls it hidden either way. Which layout the container
-        // query picked is the actual subject here.
-        await expect(inlineDate).toHaveCSS("display", "flex");
-        await expect(stackedDate).toHaveCSS("display", "none");
+        await expect(layout).toHaveCSS("flex-direction", "row");
 
         await page.locator("[data-calendar-toggle]").click();
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
@@ -280,8 +278,7 @@ test.describe("calendar pane", () => {
         await page.mouse.move(20, box.y + box.height / 2, { steps: 12 });
         await page.mouse.up();
 
-        await expect(stackedDate).toHaveCSS("display", "flex");
-        await expect(inlineDate).toHaveCSS("display", "none");
+        await expect(layout).toHaveCSS("flex-direction", "column");
     });
 
     /**
