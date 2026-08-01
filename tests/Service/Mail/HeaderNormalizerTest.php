@@ -90,4 +90,35 @@ final class HeaderNormalizerTest extends TestCase
     {
         self::assertSame([], $this->normalizer->normalize(['   ' => 'orphan']));
     }
+
+    /**
+     * A sender still emitting latin-1 headers without RFC 2047 encoding used
+     * to cost the whole message, not just the umlaut: $headers is a json
+     * column, Doctrine serialises it with JSON_THROW_ON_ERROR, and one raw
+     * 8-bit byte makes json_encode() return false for the entire bag.
+     */
+    public function testRawEightBitValuesSurviveAsUtf8(): void
+    {
+        $bag = $this->normalizer->normalize(['Subject' => "Gr\xfc\xdfe von J\xf6rg"]);
+
+        self::assertSame('Grüße von Jörg', $bag['subject']);
+        self::assertNotFalse(json_encode($bag), 'the bag must be serialisable');
+    }
+
+    /** Repeated headers arrive as a list, and the guard has to reach into it. */
+    public function testEveryValueOfARepeatedHeaderIsCleaned(): void
+    {
+        $bag = $this->normalizer->normalize(['Received' => ['from a', "from M\xfcnchen"]]);
+
+        self::assertSame(['from a', 'from München'], $bag['received']);
+        self::assertNotFalse(json_encode($bag));
+    }
+
+    /** Valid UTF-8 must pass through untouched rather than be re-read as cp1252. */
+    public function testCorrectUtf8IsLeftAlone(): void
+    {
+        $bag = $this->normalizer->normalize(['Subject' => 'Grüße von Jörg']);
+
+        self::assertSame('Grüße von Jörg', $bag['subject']);
+    }
 }

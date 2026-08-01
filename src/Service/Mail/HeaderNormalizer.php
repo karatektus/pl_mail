@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\CharsetHelper;
+
 /**
  * Puts raw header bags into one canonical shape, whatever provider they came
  * from.
@@ -44,6 +46,8 @@ final class HeaderNormalizer
                 continue;
             }
 
+            $value = $this->utf8($value);
+
             if (false === array_key_exists($key, $normalized)) {
                 $normalized[$key] = $value;
                 continue;
@@ -58,6 +62,33 @@ final class HeaderNormalizer
         }
 
         return $normalized;
+    }
+
+    /**
+     * Force a header value to UTF-8, whichever shape it arrived in.
+     *
+     * $headers is a `json` column, and Doctrine's converter serialises with
+     * JSON_THROW_ON_ERROR — so a single raw 8-bit byte anywhere in the bag
+     * does not corrupt one header, it throws and takes the whole message
+     * insert with it, and the batch around it. A sender still emitting
+     * latin-1 headers without RFC 2047 encoding therefore costs mail rather
+     * than costing an umlaut.
+     *
+     * Here rather than in each provider's builder because all three converge
+     * on this method, and a guard that only two of them reach is the kind
+     * that looks present and is not.
+     *
+     * @param string|list<string> $value
+     *
+     * @return string|list<string>
+     */
+    private function utf8(string|array $value): string|array
+    {
+        if (true === is_array($value)) {
+            return array_map(CharsetHelper::ensureUtf8(...), $value);
+        }
+
+        return CharsetHelper::ensureUtf8($value);
     }
 
     /**
