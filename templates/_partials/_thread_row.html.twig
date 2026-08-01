@@ -269,7 +269,7 @@ the conversation it answers.
                               : 'text-ink-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100' }}"
                     aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
                 >
-                    <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm"></i>
+                    <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm w-3.5 text-center"></i>
                 </button>
 
                 {% if hasAttachment %}
@@ -282,8 +282,18 @@ the conversation it answers.
 
             {# Unread, as a dot. The bold text says it too, but a dot is what
                you count down a column without reading anything. #}
+            {# Stacked only. A wide row says "unread" with a bold sender and a
+               bold subject already, so the dot there is a third voice saying
+               the same thing.
+
+               Boxed to the star's width rather than right-aligned on its own:
+               the dot is 8px and the star glyph is 14, so aligning their right
+               edges puts their centres 3px apart — which is exactly the sort
+               of misalignment you see without being able to name. #}
             {% if unread %}
-                <span class="w-2 h-2 rounded-full bg-success shrink-0 @xl:order-first" aria-hidden="true"></span>
+                <span class="@xl:hidden w-3.5 flex justify-center shrink-0" aria-hidden="true">
+                    <span class="w-2 h-2 rounded-full bg-success"></span>
+                </span>
                 <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
             {% endif %}
         </div>
