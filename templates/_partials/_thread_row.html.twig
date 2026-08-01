@@ -149,7 +149,7 @@ the conversation it answers.
                One structure for both: stacked it is subject, then labels and
                snippet beneath; wide the same three fall onto one line. #}
             <div class="min-w-0 flex-1 flex flex-col @xl:flex-row @xl:items-baseline @xl:gap-2">
-                <span class="truncate text-sm @xl:flex-shrink-0 @xl:max-w-[45%]
+                <span class="truncate text-sm mt-1 @xl:mt-0 @xl:flex-shrink-0 @xl:max-w-[45%]
                              {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
                     {{ subject }}
                     {% if count > 1 %}
@@ -161,23 +161,21 @@ the conversation it answers.
                    subject from the snippet, and because the meta column
                    stretches and distributes, the dot rides down with it —
                    which is what stops it crowding the star. #}
-                <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1 @xl:mt-0">
+                <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:mt-0">
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                     <span class="truncate text-ink-faint">{{ snippet }}</span>
                 </span>
             </div>
         </div>
 
-        {# Meta column — one column at every width.
-           Date on top, then the star and the paperclip, then the unread dot.
-           The star is a control and sits inboard of the paperclip, which is
-           only a fact about the row; both are on the trailing edge where the
-           eye already is after reading the time.
+        {# Meta column. Stacked it is three rows — time, then the paperclip and
+           the star, then the unread dot — mirroring the content's three text
+           lines beside it. Wide the row is one line, so this is too.
 
            The hover actions still swap for the date, but only on the date's
-           own row and only where there is a hover to speak of — they used to
-           be absolutely positioned over the whole column, which is why the
-           star could not live here before. #}
+           own row and only where there is a hover to speak of. They used to be
+           absolutely positioned over the whole column, which is why nothing
+           else could live here. #}
         {# The meta area takes the row's own shape. A stacked row is three
            lines tall and a vertical stack sits beside it; a wide row is one
            line, where the same stack has to spread out and leaves the date
@@ -190,11 +188,11 @@ the conversation it answers.
            last line of text. Wide, the row is one line and so is this. #}
         <div data-row-meta
              class="flex flex-shrink-0 ml-2
-                    flex-col items-end self-stretch justify-between py-0.5
+                    flex-col items-end self-start
                     @xl:flex-row-reverse @xl:items-center @xl:justify-end @xl:gap-2
-                    @xl:self-center @xl:py-0 @xl:w-36">
+                    @xl:self-center @xl:w-36">
 
-            <div class="relative flex items-center justify-end w-full h-6 @xl:w-auto @xl:flex-1">
+            <div class="relative flex items-center justify-end w-full h-5 @xl:h-6 @xl:w-auto @xl:flex-1">
                 <span class="absolute inset-0 flex items-center justify-end
                              text-xs text-ink-faint whitespace-nowrap
                              @xl:group-hover:invisible">
@@ -266,12 +264,17 @@ the conversation it answers.
             </div>
             </div>
 
-            {# Dot, star, paperclip on ONE line — two rows in the column, not
-               three. A third row packs past the snippet and hangs below the
-               last line of text, which is what made it read as falling out of
-               the row rather than belonging to it. The dot leads: it is a
-               state, the star is a control, the paperclip is a fact. #}
-            <div class="flex items-center gap-2 @xl:order-first">
+            {# Star outermost: it is the control you reach for, so it sits where
+               the pointer already is on the row's trailing edge. The paperclip
+               is only a fact about the row and sits inboard of it. #}
+            <div class="flex items-center gap-2 h-5 mt-1 @xl:mt-0 @xl:order-first">
+
+                {% if hasAttachment %}
+                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
+                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                    </span>
+                {% endif %}
 
                 <button
                     type="button"
@@ -286,13 +289,6 @@ the conversation it answers.
                 >
                     <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm w-3.5 text-center"></i>
                 </button>
-
-                {% if hasAttachment %}
-                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
-                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
-                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
-                    </span>
-                {% endif %}
             </div>
 
             {# Stacked only — a wide row already says "unread" twice over, with
@@ -302,7 +298,7 @@ the conversation it answers.
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@xl:hidden w-3.5 flex justify-center shrink-0" aria-hidden="true">
+                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
