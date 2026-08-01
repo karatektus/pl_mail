@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
 use App\Domain\Enum\Mail\LabelColor;
+use App\Service\Gmail\GmailLabelColorMapper;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelResolver;
@@ -35,6 +36,7 @@ final readonly class ApplyLabelStructureHandler
         private AccountRepository      $accountRepository,
         private LabelRepository        $labelRepository,
         private GraphCategoryColorMapper $colorMapper,
+        private GmailLabelColorMapper  $gmailColorMapper,
         private GmailApiClient         $gmailApiClient,
         private GraphApiClient         $graphApiClient,
         private GraphLabelPolicy       $labelPolicy,
@@ -99,7 +101,15 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        $created = $this->gmailApiClient->createLabel($account, $message->fullName);
+        // The label's colour goes out with it — creation is the one direction
+        // that cannot lose a Gmail colour, since there is not one yet.
+        $created = $this->gmailApiClient->createLabel(
+            $account,
+            $message->fullName,
+            $this->gmailColorMapper->toGmailColor(
+                LabelColor::tryFrom((string) $this->labelRepository->find($message->labelId)?->color),
+            ),
+        );
         $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), true);
     }
 

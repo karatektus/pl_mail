@@ -10,6 +10,8 @@ use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Domain\Enum\Mail\LabelColor;
+use App\Service\Gmail\GmailLabelColorMapper;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,6 +32,7 @@ final class ApplyGmailLabelsHandler
 {
     public function __construct(
         private readonly AccountRepository      $accountRepository,
+        private GmailLabelColorMapper  $colorMapper,
         private readonly MessageRepository      $messageRepository,
         private readonly LabelRepository        $labelRepository,
         private readonly GmailApiClient         $apiClient,
@@ -148,7 +151,11 @@ final class ApplyGmailLabelsHandler
         }
 
         try {
-            $created      = $this->apiClient->createLabel($account, $label->fullName);
+            $created      = $this->apiClient->createLabel(
+                $account,
+                $label->fullName,
+                $this->colorMapper->toGmailColor(LabelColor::tryFrom((string) $label->color)),
+            );
             $gmailLabelId = (string) ($created['id'] ?? '');
 
             if ('' === $gmailLabelId) {

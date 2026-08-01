@@ -512,19 +512,35 @@ final class GmailApiClient
     }
 
     /**
+     * Create a label, optionally with a colour.
+     *
+     * Safe to send a colour here because a label being created has none at
+     * Gmail to lose — the drift a 89-to-9 map can cause needs a round trip,
+     * and creation never makes one. The pair comes from
+     * GmailLabelColorMapper: Gmail rejects any hex outside its own palette,
+     * and takes background and text together or not at all.
+     *
+     * @param array{backgroundColor: string, textColor: string}|null $color
+     *
      * @return array<string,mixed>  the created label resource (id, name, …)
      */
-    public function createLabel(Account $account, string $name): array
+    public function createLabel(Account $account, string $name, ?array $color = null): array
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
+        $payload = [
+            'name'                  => $name,
+            'labelListVisibility'   => 'labelShow',
+            'messageListVisibility' => 'show',
+        ];
+
+        if (null !== $color) {
+            $payload['color'] = $color;
+        }
+
         $response = $this->httpClient->request('POST', self::BASE . '/labels', [
             'auth_bearer' => $token,
-            'json'        => [
-                'name'                  => $name,
-                'labelListVisibility'   => 'labelShow',
-                'messageListVisibility' => 'show',
-            ],
+            'json'        => $payload,
         ]);
 
         return $response->toArray();

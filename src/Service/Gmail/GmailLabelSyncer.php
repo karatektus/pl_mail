@@ -46,6 +46,7 @@ final readonly class GmailLabelSyncer
         private GmailApiClient         $apiClient,
         private LabelResolver          $labelResolver,
         private LabelRepository        $labelRepository,
+        private GmailLabelColorMapper  $colorMapper,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {}
@@ -92,6 +93,21 @@ final readonly class GmailLabelSyncer
 
             if (null === $label) {
                 continue;
+            }
+
+            // Gmail's colour, but only onto a label that has none — the same
+            // rule as the Outlook mapper. 89 colours onto 9 is lossy, so a
+            // value that is read back on every sync would drift; read once and
+            // then left alone, it cannot. A colour picked in plMail always
+            // wins.
+            if (null === $label->color) {
+                $mapped = $this->colorMapper->toLabelColor(
+                    $remoteLabel['color']['backgroundColor'] ?? null,
+                );
+
+                if (null !== $mapped) {
+                    $label->setColor($mapped->value);
+                }
             }
 
             $binding = $this->labelResolver->binding($label, $account);
