@@ -217,8 +217,16 @@ the conversation it answers.
                 <span class="absolute inset-0 flex items-center justify-end gap-1.5
                              text-xs text-ink-faint whitespace-nowrap
                              @xl:group-hover:invisible">
+                    {# The visibility classes go on a wrapper, never on the <i>
+                       itself: Font Awesome's own .fa-solid rule sets display,
+                       and it lands after Tailwind's utilities, so `hidden` on
+                       the icon is silently overridden and both copies render.
+                       Every other icon in this file is wrapped for the same
+                       reason. #}
                     {% if hasAttachment %}
-                        <i class="hidden @xl:inline fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>
+                        <span class="hidden @xl:inline" aria-hidden="true">
+                            <i class="fa-solid fa-paperclip text-[11px]"></i>
+                        </span>
                     {% endif %}
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
