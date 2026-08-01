@@ -95,38 +95,56 @@ the conversation it answers.
     ></a>
 
     <div
-        class="pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
+        class="pointer-events-auto flex items-center @xl:items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
             {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
             hover:bg-white/60 dark:hover:bg-white/[0.06]"
     >
-        {# Checkbox — fires custom event so the toolbar controller can react #}
-        <input
-            type="checkbox"
-            data-action="change->mail--message-row#toggleSelect"
-            data-thread-select value="{{ rowId }}"
-            class="z-10 w-4 h-4 rounded border-field-border text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer flex-shrink-0"
-            aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
-        >
+        {# Avatar, doubling as the row's checkbox.
+           The real input is still here and still named the same — the toolbar's
+           select-all and every bulk action read [data-thread-select], and none
+           of them should have to know the control became a circle. It is
+           sr-only rather than removed so it stays focusable and keyboard
+           users are not shut out; the avatar is its label, and `peer` drives
+           the tick.
 
-        {# Star toggle #}
+           Colour comes from the address and is never stored, so it is the same
+           circle for the same person on every device — see
+           SenderAvatarExtension. #}
+        <label class="relative z-10 pointer-events-auto flex-shrink-0 cursor-pointer group/avatar">
+            <input
+                type="checkbox"
+                data-action="change->mail--message-row#toggleSelect"
+                data-thread-select value="{{ rowId }}"
+                class="peer sr-only"
+                aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
+            >
+
+            <span class="flex items-center justify-center rounded-full
+                         w-9 h-9 text-sm font-semibold select-none
+                         transition-opacity
+                         peer-checked:opacity-0 group-hover/avatar:opacity-0
+                         {{ senderSeed|avatar_tone }}"
+                  aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}</span>
+
+            <span class="absolute inset-0 flex items-center justify-center rounded-full
+                         bg-accent text-white
+                         opacity-0 transition-opacity
+                         peer-checked:opacity-100 group-hover/avatar:opacity-100
+                         peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1"
+                  aria-hidden="true"><i class="fa-solid fa-check text-xs"></i></span>
+        </label>
+
+        {# Star — wide layout only; the stacked one lives in the meta column
+           on the right, beside the time. #}
         <button
             type="button"
             data-action="click->mail--message-row#toggleStar"
             data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
-            class="z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
+            class="hidden @xl:block z-10 pointer-events-auto cursor-pointer flex-shrink-0 text-ink-faint hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
             aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
         >
             <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-[18px]"></i>
         </button>
-
-        {# Avatar. Colour is derived from the address and never stored, so it is
-           the same circle for the same person on every device — see
-           SenderAvatarExtension. Hidden from assistive tech: it carries no
-           information the sender's name beside it does not. #}
-        <span class="flex-shrink-0 flex items-center justify-center rounded-full
-                     w-9 h-9 text-sm font-semibold select-none
-                     {{ senderSeed|avatar_tone }}"
-              aria-hidden="true">{{ sender|avatar_initial(senderSeed) }}</span>
 
         {# Content — one line when the list is wide, three when it is not #}
         <div class="flex-1 min-w-0 flex flex-col @xl:flex-row @xl:items-center @xl:gap-4">
@@ -135,19 +153,6 @@ the conversation it answers.
             <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
                     {{ sender }}
-                </span>
-                {# Date — mobile only (top-right), hidden on desktop #}
-                <span data-row-date="stacked"
-                      class="@xl:hidden flex-shrink-0 ml-2 text-xs text-gray-400 dark:text-gray-600">
-                    {% if date %}
-                        {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
-                            {{ date|date('g:i a') }}
-                        {% elseif date|date('Y') == 'now'|date('Y') %}
-                            {{ date|date('M j') }}
-                        {% else %}
-                            {{ date|date('M j Y') }}
-                        {% endif %}
-                    {% endif %}
                 </span>
             </div>
 
@@ -167,6 +172,55 @@ the conversation it answers.
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                     <span class="truncate text-ink-faint">{{ snippet }}</span>
                 </span>
+            </div>
+        </div>
+
+        {# Meta column — stacked layout only.
+           Mirrors the reference app: the time sits top-right and the row's
+           three states hang under it. The star is duplicated rather than moved
+           because the wide layout keeps it on the left, and only one of the two
+           is ever rendered — display:none takes the other out of the
+           accessibility tree, so a screen reader still finds exactly one. That
+           is safe here because starring POSTs and the server re-renders the
+           whole row; neither button holds state of its own. #}
+        <div data-row-date="stacked"
+             class="@xl:hidden flex flex-col items-end gap-1.5 shrink-0 ml-2 self-start pt-0.5">
+            <span class="text-xs text-ink-faint whitespace-nowrap">
+                {% if date %}
+                    {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
+                        {{ date|date('g:i a') }}
+                    {% elseif date|date('Y') == 'now'|date('Y') %}
+                        {{ date|date('M j') }}
+                    {% else %}
+                        {{ date|date('M j Y') }}
+                    {% endif %}
+                {% endif %}
+            </span>
+
+            <div class="flex flex-col items-end gap-1.5">
+                {% if hasAttachment %}
+                    <span class="text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                        <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
+                        <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
+                    </span>
+                {% endif %}
+
+                <button
+                    type="button"
+                    data-action="click->mail--message-row#toggleStar"
+                    data-mail--message-row-star-url-param="{{ path('app_status_star', {'type': type, 'id': rowId}) }}"
+                    class="z-10 pointer-events-auto cursor-pointer text-ink-faint hover:text-amber-400 transition-colors {{ starred ? '!text-amber-400' : '' }}"
+                    aria-label="{{ starred ? 'thread_row.unstar'|trans : 'thread_row.star'|trans }}"
+                >
+                    <i class="fa-{{ starred ? 'solid' : 'regular' }} fa-star text-sm"></i>
+                </button>
+
+                {# Unread, as a dot. The bold text says it too, but a dot is
+                   what you count down a column without reading anything. #}
+                {% if unread %}
+                    <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
+                    <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
+                {% endif %}
             </div>
         </div>
 

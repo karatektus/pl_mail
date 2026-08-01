@@ -280,7 +280,7 @@ test.describe("calendar pane", () => {
         await page.mouse.move(20, box.y + box.height / 2, { steps: 12 });
         await page.mouse.up();
 
-        await expect(stackedDate).toHaveCSS("display", "block");
+        await expect(stackedDate).toHaveCSS("display", "flex");
         await expect(inlineDate).toHaveCSS("display", "none");
     });
 

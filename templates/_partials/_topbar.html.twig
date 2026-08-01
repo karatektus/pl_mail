@@ -54,9 +54,10 @@
         ></span>
     </a>
 
-    {# ── Search ────────────────────────────────────────────────────────── #}
+    {# ── Search + calendar ─────────────────────────────────────────────── #}
+    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0">
     <div
-        class="flex-1 max-w-2xl mx-auto relative"
+        class="flex-1 relative min-w-0"
         data-controller="mail--search"
     >
         <div class="relative">
@@ -146,6 +147,7 @@
             </span>
         {% endif %}
     </a>
+    </div>
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
