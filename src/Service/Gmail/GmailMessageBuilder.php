@@ -7,6 +7,7 @@ namespace App\Service\Gmail;
 use App\Domain\DTO\Gmail\ExtractedBody;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\CharsetHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Mail\Account;
@@ -254,9 +255,9 @@ final class GmailMessageBuilder
             $decoded = base64_decode(strtr((string)$part['body']['data'], '-_', '+/'));
 
             if ('text/plain' === $mimeType) {
-                $bodyText = $decoded;
+                $bodyText = $this->toUtf8($decoded, $part);
             } elseif ('text/html' === $mimeType) {
-                $bodyHtml = $decoded;
+                $bodyHtml = $this->toUtf8($decoded, $part);
             } elseif (true === $keepAlways && '' !== $decoded) {
                 // Bytes are already here, so there is nothing to fetch later —
                 // this is the common shape for an invite, which is small.
@@ -292,6 +293,38 @@ final class GmailMessageBuilder
     }
 
     /**
+     * Read a body part's declared charset and convert its bytes to UTF-8.
+     *
+     * base64url only undoes the transfer encoding; what comes out is still in
+     * whatever charset the sender used, and until now nothing looked. The
+     * part's headers were consulted only to decide whether an attachment was
+     * inline — never for the body — so a German sender's `Content-Type:
+     * text/html; charset=ISO-8859-1` was stored byte for byte, 0xFC and all.
+     *
+     * That is not a mojibake bug. Postgres rejects the byte outright, so the
+     * INSERT failed and took the rest of its batch with it: the message did
+     * not arrive looking wrong, it did not arrive. Nothing in the log named a
+     * charset.
+     *
+     * Gmail-only. The IMAP path has always honoured the declared part charset,
+     * inside webklex's MessageDecoder::getEncoding().
+     *
+     * The mimeType field cannot be used for this — Gmail reports the bare type
+     * there ("text/html") with the parameters left on the header.
+     *
+     * @param array<string,mixed> $part
+     */
+    private function toUtf8(string $bytes, array $part): string
+    {
+        $headers = $this->indexHeaders($part['headers'] ?? []);
+
+        return CharsetHelper::toUtf8(
+            $bytes,
+            CharsetHelper::charsetFromContentType($headers['content-type'] ?? null),
+        );
+    }
+
+    /**
      * Persist parts whose bytes came inline in the payload.
      *
      * No `gmail://` stub and no lazy fetch: Gmail already sent the content, so
@@ -317,7 +350,10 @@ final class GmailMessageBuilder
             $part  = $entry['part'];
             $bytes = $entry['bytes'];
 
-            $filename = (string)($part['filename'] ?? '');
+            // Decoded at the assignment rather than at setFilename(), so the
+            // name written to disk and the name written to the row are the
+            // same one. See persistAttachmentStubs() for why it needs doing.
+            $filename = MimeHeaderHelper::decode((string)($part['filename'] ?? ''));
 
             if ('' === $filename) {
                 $filename = 'invite.ics';
@@ -368,7 +404,14 @@ final class GmailMessageBuilder
 
         foreach ($parts as $part) {
             $partHeaders = $this->indexHeaders($part['headers'] ?? []);
-            $filename = (string)($part['filename'] ?? 'attachment');
+            // The subject went through MimeHeaderHelper and the filename did
+            // not, which is the same header rules applied to two fields off
+            // the same message. An encoded word left alone is only ugly
+            // ("=?ISO-8859-1?Q?Geb=FChren.pdf?=" in the chip), but a raw 8-bit
+            // filename — a Windows client's "Übersicht.pdf", unencoded — is
+            // invalid UTF-8 reaching a UTF-8 column, and that is a rejected
+            // INSERT rather than a cosmetic problem.
+            $filename = MimeHeaderHelper::decode((string)($part['filename'] ?? 'attachment'));
             $contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
             $attachmentId = (string)($part['body']['attachmentId'] ?? '');
             $size = (int)($part['body']['size'] ?? 0);

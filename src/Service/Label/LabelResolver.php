@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Label;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Helper\ImapUtf7Helper;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
@@ -108,16 +109,47 @@ final class LabelResolver
     /**
      * Point a label's binding at the IMAP folder that feeds it. The inverse
      * read is Mailbox::getLabel(); this is the only way to write it.
+     *
+     * A folder that already feeds a different label is moved, not copied.
+     * label_binding.mailbox_id is unique — a folder feeds exactly one label —
+     * so claiming it without releasing it first is a constraint violation, and
+     * it takes the whole folder sync down with it rather than skipping one
+     * folder.
+     *
+     * That was unreachable until a folder could resolve to a different name
+     * than it did last time, which is precisely what decoding modified UTF-7
+     * did: the first sync after that change re-resolves "INBOX.Entw&APw-rfe"
+     * from the label it created before ("Entw&APw-rfe") to the one it should
+     * always have had ("Entwürfe"), and without this every account with a
+     * non-ASCII folder would have failed its next sync outright. A renamed
+     * folder reaches the same path and always could have.
      */
     public function bindMailbox(Label $label, Mailbox $mailbox): LabelBinding
     {
         $binding = $this->binding($label, $mailbox->getAccount());
 
-        if ($binding->mailbox !== $mailbox) {
-            $binding->mailbox = $mailbox;
-
-            $mailbox->setLabelBinding($binding);
+        if ($binding->mailbox === $mailbox) {
+            return $binding;
         }
+
+        $previous = $mailbox->getLabelBinding();
+
+        if (null !== $previous && $previous !== $binding) {
+            // Released in a flush of its own. Doctrine makes no promise about
+            // the order of two updates to the same table in one unit of work,
+            // so clearing and claiming together is a coin toss on the unique
+            // index — and one that would pass in testing and fail in the
+            // field, since the order it happens to pick depends on which
+            // entity entered the identity map first.
+            $previous->mailbox = null;
+            $mailbox->setLabelBinding(null);
+
+            $this->em->flush();
+        }
+
+        $binding->mailbox = $mailbox;
+
+        $mailbox->setLabelBinding($binding);
 
         return $binding;
     }
@@ -221,6 +253,19 @@ final class LabelResolver
      * account delimiter and stripping a leading INBOX namespace segment
      * (Courier/Dovecot-style "INBOX.Work.Invoices").
      *
+     * The path arrives raw, in modified UTF-7, and stays raw where it is
+     * stored — see Mailbox::$fullPath and ImapUtf7Helper. These segments are
+     * not stored: they become Label::$name, which is the string the sidebar
+     * renders. That is the whole reason for decoding them here, and the reason
+     * the bug was invisible from the syncer's side. Mailbox::$name has been
+     * correct all along (webklex decodes it), templates just never showed it,
+     * so a German account's sidebar read "Entw&APw-rfe" and "Gel&APY-schte
+     * Objekte" while the right names sat unused in the next column.
+     *
+     * Decoded per segment rather than over the whole path, because the
+     * delimiter is not part of any segment's encoding — which is exactly how
+     * webklex derives Folder::$full_name from Folder::$path.
+     *
      * @return list<string>
      */
     public function segmentsFromImapPath(string $fullPath, ?string $delimiter): array
@@ -229,7 +274,7 @@ final class LabelResolver
             $delimiter = '/';
         }
 
-        $segments = explode($delimiter, $fullPath);
+        $segments = array_map(ImapUtf7Helper::decode(...), explode($delimiter, $fullPath));
         $segments = array_values(array_filter($segments, function (string $segment): bool {
             return '' !== trim($segment);
         }));

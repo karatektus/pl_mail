@@ -22,9 +22,21 @@ class Mailbox
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Account $account = null;
 
+    /** The display name, decoded to UTF-8 — "Entwürfe", not "Entw&APw-rfe". */
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
+    /**
+     * The folder's name on the wire, RAW, in modified UTF-7 (RFC 3501 §5.1.3)
+     * — "INBOX.Entw&APw-rfe". Do not decode this, however wrong it looks in a
+     * database viewer.
+     *
+     * It is not a display string, it is the folder's identity in the protocol:
+     * MailboxSyncer indexes existing rows by it, and it is handed straight to
+     * openFolder()/SELECT. Decode it and every account with a non-ASCII folder
+     * stops being able to select that folder, and re-syncs as a duplicate.
+     * ImapUtf7Helper exists for the places a person reads the name instead.
+     */
     #[ORM\Column(length: 500)]
     private ?string $fullPath = null;
 
