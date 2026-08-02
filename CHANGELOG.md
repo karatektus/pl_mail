@@ -8,6 +8,104 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.0.6 — 2026-08-02
+
+### Added
+
+- **The inbox categories cross JMAP.** plMail has classified inbox mail the way
+  Gmail does for a long time and the web has had a tab bar over it, but no
+  client except the browser could see any of it. `Thread.category` carries the
+  conversation's resolved value, `Email.category` the raw per-message signal it
+  was derived from, and `Email/query` gained a `threadCategory` filter so a tab
+  is narrowed by the server rather than sieved from a page. Only the thread
+  value is filterable: offering the per-message one would put a newsletter
+  somebody answered into two tabs where the web shows it in one.
+- **A timezone, per user.** Settings → General now carries one, and everything
+  the app renders honours it. New installs fall back to `APP_DEFAULT_TIMEZONE`
+  rather than to the container's clock, which is how this went unnoticed.
+
+### Fixed
+
+- **Every date rendered two hours early for anyone outside UTC.** PHP's default
+  timezone is UTC, Twig was never told otherwise, and not one `|date()` call in
+  the templates passed a zone — so a correct UTC instant was printed verbatim
+  and an 11:00 appointment read 09:00 in Berlin. Mail dates and extracted
+  calendar events both.
+- **IMAP stored the sender's wall clock, not the instant.** The `Date:` header's
+  offset was parsed and then kept, and Doctrine writes a datetime in whatever
+  zone the object carries, so a `+0200` message landed in the column two hours
+  ahead of the UTC it claimed to be. Gmail and Graph already normalised; IMAP
+  now agrees with them. **Rows written before this are wrong by the sender's
+  offset**; a resync corrects them and no migration is attempted.
+- **Mail written or sent from the web never reached JMAP clients.** Composing,
+  sending and discarding all changed messages without recording anything in the
+  change log, so a phone learned about them only if something else happened to
+  move the state. A draft that became sent mail stayed a draft on the device
+  indefinitely.
+- **`app:test:seed-mail` could not be used to test sync**, because it wrote
+  messages without advancing the Email state — so `Email/changes` never
+  mentioned them and no push fired however much mail it created. This is what
+  made a genuinely broken client sync look like a server changelog gap.
+
+## v0.0.5 — 2026-08-01
+
+### Added
+
+- **schema.org extraction.** Reads the markup booking confirmations already
+  carry, so flights, parcels, hotels and restaurant bookings reach the calendar
+  without an invite attached.
+- An admin reset ladder, behind a door in the admin panel, exposing the reset
+  the console command already had.
+
+### Fixed
+
+- **Mail arriving in the wrong alphabet, or not arriving at all**, and one 8-bit
+  header byte costing the whole message.
+
+## v0.0.4 — 2026-08-01
+
+### Fixed
+
+- **A batch with two copies of one invite killed the whole run.** Found on a
+  real mailbox, 200 messages into `app:backfill events`; three defects that
+  compounded, starting with an invite arriving twice creating two events.
+
+## v0.0.3 — 2026-08-01
+
+### Added
+
+- **Calendar invites on the calendar.** Extraction end to end for the one source
+  that is not a guess: a `text/calendar` part becomes a `CalendarEvent`, and the
+  confirm/change/cancel life of a booking resolves to one row rather than three.
+
+### Fixed
+
+- The two API providers lost calendar invites at ingest.
+
+## v0.0.2 — 2026-08-01
+
+### Added
+
+- **A look.** Paper and a retuned Dark, a rebuilt mail row, themed toasts and
+  tooltips, and a Dark reworked into a dim room rather than flat backgrounds
+  that painted nothing.
+- **The calendar**, docked beside the mail and resizable against it, over a new
+  data layer of JSCalendar events with materialised occurrences.
+- **`Mailbox.color` over JMAP** — nine tokens or null, refused with
+  `invalidProperties` rather than dropped, and accepted on create as well as
+  update. Outlook and Gmail label colours are mapped onto the same vocabulary by
+  hue, so a real account arrives already coloured.
+- **A push service**, so Android does not have to mean Google; the push URL is
+  derived from the host set at first boot.
+
+### Changed
+
+- The three sync paths share one post-ingest sequence instead of three.
+
+## v0.0.1 — 2026-07-31
+
 ### Added
 
 - **Snooze.** Put a conversation away and have it come back later — from the
