@@ -167,8 +167,24 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 			echo 'The database is now ready and reachable'
 		fi
 
+		# app:db:migrate, not doctrine:migrations:migrate — it runs exactly
+		# that, with exactly these flags, but holds a Postgres advisory lock
+		# across the whole run.
+		#
+		# php, imap-supervisor, messenger-worker and scheduler all reach this
+		# line within milliseconds of each other against one database, and all
+		# four read the migration ledger before any of them writes to it. One
+		# applies the change and commits; the others block on its table lock and
+		# then fail on a schema that has already moved — "column ... already
+		# exists". With `set -e` above, that is three services that never start.
+		#
+		# The lock cannot live in this script: pg_advisory_lock is scoped to the
+		# database session, so a `dbal:run-sql` that takes it hands it straight
+		# back on exit and leaves the migrate that follows unprotected. It has
+		# to be the same connection that migrates, which means one PHP process
+		# doing both. See src/Command/Setup/MigrateCommand.php.
 		if [ "$( find ./migrations -iname '*.php' -print -quit )" ]; then
-			php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
+			php bin/console app:db:migrate --no-interaction
 		fi
 
 		# The secrets that need PHP: a VAPID keypair and the JWT keys. Runs

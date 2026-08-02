@@ -10,6 +10,21 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.7 — 2026-08-02
+
+### Fixed
+
+- **Three of the four services failed to start on any deploy that carried a
+  migration.** php, imap-supervisor, messenger-worker and scheduler run the same
+  entrypoint and all migrate on boot, within milliseconds of each other against
+  one database. All four read the migration ledger before any of them writes to
+  it, so all four try to apply the same migration; one succeeds and the rest die
+  on `column "timezone" of relation "user" already exists`, which under `set -e`
+  is a container that never comes up. Boot migrations now run under a Postgres
+  advisory lock held for the whole run (`app:db:migrate`), so the containers
+  that lose the race wait, find the ledger already current, and start normally.
+  Nothing to do on upgrade.
+
 ## v0.0.6 — 2026-08-02
 
 ### Added
