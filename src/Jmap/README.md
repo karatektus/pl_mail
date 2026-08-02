@@ -5,7 +5,7 @@ the state/change engine every `/changes` method builds on, the Mailbox / Email /
 Thread / Identity / EmailSubmission object methods, blob upload and download,
 and push over both EventSource and Web Push.
 
-**18 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**20 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -13,9 +13,10 @@ Mail (Basic).
 | `Core/` | `echo`, `PushSubscription/get\|set` |
 | `Mailbox/` | `get`, `query`, `changes`, `set` |
 | `Email/` | `get`, `query`, `changes`, `set` |
-| `Thread/` | `get`, `changes` |
+| `Thread/` | `get`, `changes`, `set` (plMail extension: snooze) |
 | `Identity/` | `get`, `set` |
 | `EmailSubmission/` | `get`, `set`, `changes` |
+| `SearchSnippet/` | `get` |
 
 ---
 
@@ -70,7 +71,7 @@ rather than leaking.
 
 **Push** — `Push/WebPushSender` (RFC 8030/8291/8292 via `minishlink/web-push`),
 `Push/PushDispatcher` (fan out to a user's devices). Draining is driven by
-`App\EventSubscriber\JmapPushSubscriber`.
+`App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
 
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
 account; a unified inbox is a client-side concern.
@@ -82,7 +83,7 @@ account; a unified inbox is a client-side concern.
 | Concern | Where |
 |---|---|
 | App-password auth | `App\Entity\ApiToken`, `App\Security\ApiTokenAuthenticator`, `App\Security\JwtBearerTokenExtractor` |
-| Push subscriptions | `App\Entity\PushSubscription`, `App\EventSubscriber\JmapPushSubscriber` |
+| Push subscriptions | `App\Entity\PushSubscription`, `App\Infrastructure\Event\Subscriber\JmapPushSubscriber` |
 | Uploaded blobs | `App\Entity\UploadedBlob`, `App\Domain\Helper\UploadStorage` |
 | Raw message bytes | `App\Domain\Helper\RawMessageStorage`, `App\Service\Mail\RawMessageResolver` |
 | Label structure sync | `App\Service\Label\LabelStructurePropagator` |
@@ -260,9 +261,11 @@ worker message, so a sync importing 50 messages sends **one** notification.
 
 ## Deliberate limitations
 
-- `Email/set destroy` moves to Trash and keeps the row. plMail has no
-  hard-delete path anywhere; deleting would discard the local copy of mail the
-  provider still holds.
+- `Email/set destroy` moves to Trash and keeps the row; deleting would discard
+  the local copy of mail the provider still holds. The web composer's discard
+  button is the one genuine hard delete in the app — an unsent draft exists
+  nowhere else — and it records a real `destroyed`, so the two cases are
+  distinguishable to a client.
 - `Mailbox/set` mirrors to Gmail/Microsoft only when the per-account toggle is
   on (`Account::isLabelSyncEnabled`, off by default). Graph folder *deletion* is
   refused outright — Graph deletes the messages inside the folder with it.
@@ -278,8 +281,16 @@ worker message, so a sync importing 50 messages sends **one** notification.
   sync time; Gmail/Graph fetch on first access) and a **reconstruction**
   otherwise. `MessageSourceBuilder` is the fallback, not the primary path, and
   its output will not verify a DKIM signature.
-- Not implemented: `Email/copy|import|parse`, `SearchSnippet/get`,
-  `VacationResponse/*`, `Blob/copy`.
+- `SearchSnippet/get` highlights through the same `ts_headline` /
+  `websearch_to_tsquery('english', …)` pair the query ran on, so two things
+  follow from Postgres rather than from us. A term that is an English stopword
+  (`the`, `is`, `a`) produces an empty tsquery and therefore no `<mark>`, and
+  the snippet comes back with `subject` and `preview` both null — the spec's
+  answer for "nothing to highlight", not a missing message. And matching is
+  **stemmed**: a search for `running` marks `run`, and a term whose stem
+  differs from the literal text still highlights. Re-implementing either in PHP
+  would let a snippet highlight something the search did not match on.
+- Not implemented: `Email/copy|import|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---
 
@@ -306,7 +317,7 @@ An app password works in place of the JWT, as `Bearer plmail_…` or
 
 - `Email/queryChanges` and `Mailbox/queryChanges` — they need the previous query
   result to diff against, which the change log does not store.
-- `Email/copy|import`, `SearchSnippet/get`, `Email/parse`, `VacationResponse/*`.
+- `Email/copy|import`, `Email/parse`, `VacationResponse/*`.
 - OAuth-as-provider (tier 3 of the auth plan).
 - Mailbox counts change whenever an Email moves, but only Mailbox
   create/rename/destroy is recorded. `Mailbox/changes` returns

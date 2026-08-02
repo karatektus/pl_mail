@@ -15,11 +15,18 @@ use App\Jmap\State\StateManager;
  * "Thread/changes" (RFC 8621 §3.2). Identical in shape to Email/changes — the
  * change log does the work.
  *
- * NOTE: nothing records JmapObjectType::Thread yet, so this correctly reports
- * "no changes" until the syncers start recording thread mutations. That is a
- * truthful answer (state "0" never advances), not a silent failure — but a
- * client relying on Thread/changes alone will not see new threads. Clients
- * pair it with Email/changes in practice, which is wired.
+ * Thread mutations are recorded: every path that touches an Email calls
+ * StateManager::recordThreadsTouched() with the thread ids it affected — the
+ * three sync paths through PostIngestPipeline, Email/set, Thread/set's snooze,
+ * the web's thread actions and the composer. So this method does report
+ * changes, and a client may rely on it.
+ *
+ * What it never reports is "created". recordThreadsTouched() logs everything as
+ * updated on purpose (StateManager.php:56-70): a Thread has no mutations of its
+ * own — it changes because one of its Emails did — and telling a brand-new
+ * thread from a grown one would mean asking whether every one of its messages
+ * is also new. RFC 8620 §5.2 already requires a client to fetch an id in
+ * "updated" that it does not yet hold, so the distinction buys nothing.
  */
 final class ThreadChangesMethod implements JmapMethod
 {

@@ -10,6 +10,8 @@ use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
@@ -67,6 +69,7 @@ final class SeedTestEmailCommand extends Command
         private readonly AccountRepository        $accountRepository,
         private readonly MessageThreadRepository  $threadRepository,
         private readonly LabelResolver            $labelResolver,
+        private readonly StateManager             $stateManager,
         #[Autowire('%kernel.environment%')]
         private readonly string                   $environment,
     ) {
@@ -126,6 +129,7 @@ final class SeedTestEmailCommand extends Command
         $now      = new DateTimeImmutable();
         $offset   = 0;
         $seeded   = 0;
+        $messages = [];
 
         foreach (self::SEED_THREADS as $subject => $unread) {
             $receivedAt = $now->modify(sprintf('-%d minutes', $offset));
@@ -169,8 +173,38 @@ final class SeedTestEmailCommand extends Command
 
             $message->setThread($thread);
 
+            $messages[] = $message;
             $seeded++;
         }
+
+        $this->entityManager->flush();
+
+        // Seeded mail is real mail as far as a JMAP client is concerned. Without
+        // this the change log never moves, Email/changes reports nothing after a
+        // reseed, and a delta sync that is working perfectly looks broken — which
+        // is exactly how this cost an afternoon once already.
+        //
+        // After the flush, like PostIngestPipeline: record() only persists and
+        // needs the ids the flush above just minted, so the log rows go out on
+        // the second flush.
+        $accountId = (int) $account->getId();
+        $threadIds = [];
+
+        foreach ($messages as $message) {
+            $this->stateManager->recordCreated(
+                $accountId,
+                JmapObjectType::Email,
+                (string) $message->getId(),
+            );
+
+            $thread = $message->getThread();
+
+            if (null !== $thread) {
+                $threadIds[] = (int) $thread->getId();
+            }
+        }
+
+        $this->stateManager->recordThreadsTouched($accountId, $threadIds);
 
         $this->entityManager->flush();
 
@@ -183,14 +217,46 @@ final class SeedTestEmailCommand extends Command
     {
         $threads = $this->threadRepository->findBy(['account' => $account]);
 
+        if (0 === count($threads)) {
+            return;
+        }
+
+        $accountId = (int) $account->getId();
+        $threadIds = array_map(
+            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            $threads,
+        );
+
+        // A reseed is the one place in this app that really deletes mail, so
+        // the ids have to be read while the rows still exist — a client told
+        // nothing goes on holding ids for messages that are gone, and can only
+        // find out by asking for each of them and being handed notFound.
+        //
+        // As scalars, not by walking $thread->getMessages(): hydrating the
+        // messages only to delete them leaves the unit of work in a state where
+        // the reseed's own flush, moments later, insists the threads it has
+        // just persisted were never persisted ("A new entity was found through
+        // the relationship Message#thread"). Nothing here wants the objects.
+        $messageIds = array_column(
+            $this->entityManager
+                ->createQuery('SELECT m.id FROM ' . Message::class . ' m WHERE m.thread IN (:threads)')
+                ->setParameter('threads', $threadIds)
+                ->getScalarResult(),
+            'id',
+        );
+
+        foreach ($messageIds as $messageId) {
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
+        }
+
         foreach ($threads as $thread) {
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+
             // Thread remove cascades to its messages (orphanRemoval); the
             // thread_label / message_label join rows drop via ON DELETE CASCADE.
             $this->entityManager->remove($thread);
         }
 
-        if (count($threads) > 0) {
-            $this->entityManager->flush();
-        }
+        $this->entityManager->flush();
     }
 }

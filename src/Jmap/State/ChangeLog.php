@@ -21,9 +21,14 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_jmap_change_scan', columns: ['account_id', 'object_type', 'sequence'])]
 class ChangeLog
 {
-    // integer (32-bit) is intentional: the log is pruned, so it never approaches
-    // the limit. If churn ever warrants bigint, switch this to type: 'bigint' AND
-    // retype the property to ?string (Doctrine hydrates bigint as a string).
+    // integer (32-bit), and nothing prunes this table: ChangeLogRepository has a
+    // pruneOlderThan() but no caller anywhere in src/, so the log grows for the
+    // life of the install — one row per message per sync, plus one per touched
+    // thread. 2.1 billion is a long way off at mailbox rates, but it is a
+    // ceiling rather than a design. Whichever comes first, a pruner or bigint:
+    // switching to type: 'bigint' means retyping the property to ?string too
+    // (Doctrine hydrates bigint as a string), and adding a pruner means clients
+    // below the new floor get cannotCalculateChanges and resync.
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]

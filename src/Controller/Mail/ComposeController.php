@@ -13,6 +13,8 @@ use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MailboxRepository;
@@ -72,6 +74,7 @@ class ComposeController extends AbstractController
         private readonly MailBodySanitizer       $bodySanitizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly IntegrationRepository   $integrationRepository,
+        private readonly StateManager            $stateManager,
     )
     {
     }
@@ -250,6 +253,10 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($message);
 
+        // Deliberately not recorded: `cancelled` is a flag SendMessageHandler
+        // reads and clears, and EmailMapper publishes nothing derived from it.
+        // The message is still the same unsent draft it was a moment ago, so
+        // waking every client for it would be a push about nothing changing.
         $message->setCancelled(true);
         $this->em->flush();
 
@@ -383,6 +390,7 @@ class ComposeController extends AbstractController
         }
 
         $this->syncAttachmentFlag($message);
+        $this->recordAttachmentChange($message);
         $this->em->flush();
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
@@ -435,6 +443,7 @@ class ComposeController extends AbstractController
         $this->em->remove($part);
 
         $this->syncAttachmentFlag($message);
+        $this->recordAttachmentChange($message);
         $this->em->flush();
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
@@ -460,6 +469,14 @@ class ComposeController extends AbstractController
         $this->deleteStoredAttachments($message);
         $this->em->remove($message);
 
+        // A genuine destroy, unlike Email/set destroy — that one moves to Trash
+        // and keeps the row, this one takes the id away. Recorded before the
+        // flush because the ids already exist; record() only persists, so the
+        // log rows go out with the removal itself.
+        $accountId = (int) $message->getAccount()->getId();
+
+        $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
+
         // Recount from the association, never from the stored counter — it
         // drifts, and the thread cascades removes to every message in it.
         // An emptied thread is left in place: harmless, and the sync layer
@@ -473,6 +490,11 @@ class ComposeController extends AbstractController
             $thread->removeMessage($message);
             $remaining = $thread->getMessages()->count();
             $thread->setMessageCount($remaining);
+
+            // Updated rather than destroyed even when it is now empty: the
+            // thread row is deliberately left standing (see above), so the id
+            // a client holds still resolves.
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
         }
 
         $this->em->flush();
@@ -1005,6 +1027,12 @@ class ComposeController extends AbstractController
         $this->bodySanitizer->sanitize($message);
         $message->setBodyText($this->plainTextBody($message->getBodyHtml()));
 
+        // Read before the flush below mints an id, which is the only moment a
+        // first save can still be told apart from an autosave of the same
+        // draft. Afterwards every call through here looks identical, and a
+        // client would be handed "created" for an id it already holds.
+        $isNew = null === $message->getId();
+
         $this->em->persist($message);
 
         if (null === $message->getThread()) {
@@ -1027,6 +1055,30 @@ class ComposeController extends AbstractController
         }
 
         $this->em->flush();
+
+        // Every route that makes a web-composed message real comes through
+        // here — both autosaves and the send — so this is the one place JMAP
+        // has to hear about it. Without it a draft written in the browser, and
+        // the mail it turns into, never appeared in Email/changes at all.
+        //
+        // After the flush, not before: record() only persists, so the id it is
+        // given has to exist already, and the thread the threader created
+        // moments ago only gets one here. Same shape as PostIngestPipeline —
+        // ids, record, flush the log rows.
+        $accountId = (int) $account->getId();
+        $messageId = (string) $message->getId();
+
+        if (true === $isNew) {
+            $this->stateManager->recordCreated($accountId, JmapObjectType::Email, $messageId);
+        } else {
+            $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, $messageId);
+        }
+
+        if (null !== $thread) {
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+        }
+
+        $this->em->flush();
     }
 
     /**
@@ -1043,6 +1095,31 @@ class ComposeController extends AbstractController
 
         if (false === $message->isDraft() || null !== $message->getSentAt()) {
             throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
+        }
+    }
+
+    /**
+     * Adding or dropping a file rewrites Email.attachments and
+     * Email.hasAttachment, both of which JMAP publishes — so a client left
+     * untold keeps showing the draft with the files it had at last sync.
+     *
+     * The row already exists here (the window forces a save before an upload),
+     * so this can sit ahead of the caller's flush and ride out on it.
+     */
+    private function recordAttachmentChange(Message $message): void
+    {
+        $accountId = (int) $message->getAccount()->getId();
+
+        $this->stateManager->recordUpdated(
+            $accountId,
+            JmapObjectType::Email,
+            (string) $message->getId(),
+        );
+
+        $thread = $message->getThread();
+
+        if (null !== $thread) {
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
         }
     }
 

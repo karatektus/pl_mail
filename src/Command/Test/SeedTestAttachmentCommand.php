@@ -12,6 +12,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Jmap\State\JmapObjectType;
+use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
@@ -66,6 +68,7 @@ final class SeedTestAttachmentCommand extends Command
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelResolver           $labelResolver,
         private readonly AttachmentStorageHelper $attachmentStorage,
+        private readonly StateManager            $stateManager,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
     ) {
@@ -139,6 +142,19 @@ final class SeedTestAttachmentCommand extends Command
         // before the file can be written.
         $this->entityManager->flush();
 
+        // Ids exist now, which is record()'s precondition — it only persists, so
+        // these rows ride out on the flush that stores the part below. One
+        // "created" covers the attachment as well: a client answers it by
+        // fetching the Email, and by then the part is there.
+        $accountId = (int) $account->getId();
+
+        $this->stateManager->recordCreated(
+            $accountId,
+            JmapObjectType::Email,
+            (string) $message->getId(),
+        );
+        $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+
         $storagePath = $this->attachmentStorage->store(
             (int) $account->getId(),
             0,
@@ -208,12 +224,38 @@ final class SeedTestAttachmentCommand extends Command
             'subject' => self::SUBJECT,
         ]);
 
+        if (0 === count($threads)) {
+            return;
+        }
+
+        $accountId = (int) $account->getId();
+        $threadIds = array_map(
+            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            $threads,
+        );
+
+        // Ids read before the delete, as scalars, for both of the reasons
+        // SeedTestEmailCommand::wipeThreads() gives: a client that is not told
+        // keeps asking for rows that no longer exist, and hydrating the
+        // messages to find them out breaks the reseed's own flush.
+        $messageIds = array_column(
+            $this->entityManager
+                ->createQuery('SELECT m.id FROM ' . Message::class . ' m WHERE m.thread IN (:threads)')
+                ->setParameter('threads', $threadIds)
+                ->getScalarResult(),
+            'id',
+        );
+
+        foreach ($messageIds as $messageId) {
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
+        }
+
         foreach ($threads as $thread) {
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+
             $this->entityManager->remove($thread);
         }
 
-        if (count($threads) > 0) {
-            $this->entityManager->flush();
-        }
+        $this->entityManager->flush();
     }
 }
