@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Query;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Jmap\Protocol\Exception\MethodException;
 
@@ -137,6 +138,8 @@ final class EmailFilterCompiler
             'notLabel' => $this->hasLabel($value, false, $parameters),
             'filename' => $this->filename($value, $parameters),
             'listId' => $this->header('list-id', $value, $parameters),
+            // plMail extension; see threadCategory() and src/Jmap/README.md.
+            'threadCategory' => $this->threadCategory($value, $parameters),
             default => throw new MethodException('unsupportedFilter', sprintf('Filter condition "%s" is not supported.', $property)),
         };
     }
@@ -200,6 +203,64 @@ final class EmailFilterCompiler
         }
 
         return 'NOT '.$exists;
+    }
+
+    /**
+     * The conversation's inbox category — the plMail extension that makes the
+     * Gmail-style tabs a server-side filter rather than a client-side sieve.
+     *
+     * **Thread-scoped, not message-scoped, and that is the whole design.**
+     * `message.category` is the raw per-message signal; `message_thread.category`
+     * is that signal resolved most-recent-wins, and it is what the web inbox
+     * filters on (`MessageThreadRepository::findForUnifiedInbox`). Filtering the
+     * per-message column instead would put one conversation in two tabs whenever
+     * its messages disagreed — a newsletter answered by a human is the ordinary
+     * case, not a corner — so the phone and the browser would show different
+     * mail under the same tab name.
+     *
+     * It also has to be the *server* that filters, which is why this condition
+     * exists at all rather than the client reading `Thread.category` and hiding
+     * rows. `Email/query` windows by position and limit; a client that fetched
+     * twenty-five and dropped twenty-three of them would draw a nearly empty
+     * Promotions tab under a scrollbar that had already reached the end.
+     *
+     * A message with no thread never matches, and cannot: the value being
+     * filtered on does not exist for it. A thread with a null category matches
+     * nothing either, which is deliberate — it is exactly what the web query
+     * does, and a JMAP tab that contained conversations the browser's tab did
+     * not is the "my phone shows different mail" bug this whole layer is
+     * careful about. `app:backfill category` is what fills those in.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function threadCategory(mixed $value, array &$parameters): string
+    {
+        if (false === is_string($value)) {
+            throw new MethodException('invalidArguments', '"threadCategory" must be a string.');
+        }
+
+        $category = MessageCategory::tryFrom($value);
+
+        // invalidArguments rather than unsupportedFilter, and the difference is
+        // real: the server supports every category there is, so an unknown token
+        // is not a condition it cannot answer — it is a value that names nothing.
+        // The description carries the vocabulary because a closed set the caller
+        // cannot discover is only marginally better than no set, which is the
+        // lesson Mailbox.color paid for.
+        if (null === $category) {
+            throw new MethodException('invalidArguments', sprintf(
+                '"%s" is not a known category. Use one of: %s.',
+                $value,
+                implode(', ', array_column(MessageCategory::cases(), 'value')),
+            ));
+        }
+
+        $name = $this->bind($category->value, $parameters);
+
+        return sprintf(
+            'EXISTS (SELECT 1 FROM message_thread mt WHERE mt.id = m.thread_id AND mt.category = :%s)',
+            $name,
+        );
     }
 
     /**

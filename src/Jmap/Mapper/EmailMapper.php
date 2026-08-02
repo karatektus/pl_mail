@@ -115,6 +115,17 @@ final class EmailMapper
             'bcc' => $this->addressList($message->getBccAddresses()),
             'replyTo' => null,
             'hasAttachment' => true === $message->hasAttachments(),
+            // plMail extension: the raw classification of *this message*, which
+            // is the signal Thread.category is resolved from and not the value a
+            // tab is drawn with. Published because a Promotions conversation
+            // containing one Primary reply is an ordinary outcome of
+            // most-recent-wins, and a client that could not see the messages'
+            // own values would have to conclude the classifier was broken.
+            //
+            // Read-only, and deliberately not accepted as an Email/query
+            // condition: filtering it would put that same conversation in two
+            // tabs. See EmailFilterCompiler::threadCategory().
+            'category' => $message->getCategory()?->value,
             'preview' => $this->preview($message),
             'textBody' => $textBody,
             'htmlBody' => $htmlBody,

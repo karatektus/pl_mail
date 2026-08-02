@@ -125,6 +125,34 @@ Get these wrong and things fail quietly rather than loudly.
   the phone becomes one the web renders unstyled. Colour is the only property a
   **system** label accepts an update to — renaming or destroying Inbox breaks
   the invariants hanging off its role, recolouring its chip breaks nothing.
+- **The inbox category is a plMail extension in three places, and only one of
+  them is filterable.** plMail classifies inbox mail the way Gmail does —
+  `primary`, `social`, `promotions`, `updates`, `forums` — and stores it twice:
+  raw on the message, and resolved most-recent-wins onto the thread.
+  - `Email.category` is the **raw per-message signal**, read-only.
+  - `Thread.category` is the **resolved conversation value**, and the only one a
+    tab may be drawn from. `null` means never classified, which is a real state
+    (mail older than the classifier, a locally-composed draft) and is *not*
+    Primary.
+  - `Email/query`'s `threadCategory` condition filters on the **thread's** value.
+    Anything outside the vocabulary is refused with `invalidArguments` naming it.
+
+  Thread-scoped rather than message-scoped because a tab holds conversations: a
+  newsletter somebody replied to has messages in two categories, and filtering
+  the per-message column would put that conversation in two tabs while the web —
+  which filters `message_thread.category` in
+  `MessageThreadRepository::findForUnifiedInbox` — shows it in one. It has to be
+  a *server-side* filter for a second reason: `Email/query` windows by
+  position/limit, so a client that fetched a page and sieved it locally would
+  draw a nearly-empty Promotions tab under a list that had already reached its
+  end.
+
+  A thread whose category is null matches no tab, exactly as the web query does.
+  That is the deliberate choice over folding null into Primary: the two surfaces
+  must contain the same conversations, and a phone that showed mail the browser
+  did not is the failure this whole layer is careful about. `app:backfill
+  category` is what fills those in, and re-running it after a change to
+  `MessageCategorizer` needs no resync — it reads only persisted data.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
