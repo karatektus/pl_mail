@@ -7,6 +7,13 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Which clock a user who has never picked one is shown. Read through the
+    # `default:` processor rather than straight from the env so a deployment
+    # that never heard of the variable still gets a real zone instead of an
+    # empty string — UserTimezoneResolver would then fall back on its own, but
+    # this keeps the answer to "what did the install configure?" in one place.
+    app.fallback_timezone: 'Europe/Berlin'
+    app.default_timezone: '%env(default:app.fallback_timezone:APP_DEFAULT_TIMEZONE)%'
 
 services:
     # default configuration for services in *this* file

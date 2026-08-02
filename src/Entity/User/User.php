@@ -2,6 +2,7 @@
 
 namespace App\Entity\User;
 
+use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
@@ -88,6 +89,15 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     #[ORM\Column(length: 16, nullable: true)]
     private ?string $locale = null;
+
+    /**
+     * Preferred display timezone, as an IANA identifier. Null means "never
+     * chose one" — see UserTimezoneResolver, which turns that into the
+     * install's configured default. Storage stays UTC throughout; this only
+     * decides what the user is shown.
+     */
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $timezone = null;
 
     /**
      * Free-form per-user preferences, mirroring Account::$settings. For UI
@@ -375,6 +385,25 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function setLocale(?string $locale): self
     {
         $this->locale = $locale;
+
+        return $this;
+    }
+
+    public function getTimezone(): ?string
+    {
+        return $this->timezone;
+    }
+
+    /**
+     * Anything the system does not recognise becomes null — the same clamping
+     * Appearance does with a bad hex colour, and for the same reason: a
+     * preference is not worth an exception, and null is a state the reader
+     * already handles. Storing an unknown identifier would make every later
+     * `new DateTimeZone()` throw somewhere far away from here.
+     */
+    public function setTimezone(?string $timezone): self
+    {
+        $this->timezone = true === TimezoneHelper::isKnown($timezone) ? $timezone : null;
 
         return $this;
     }

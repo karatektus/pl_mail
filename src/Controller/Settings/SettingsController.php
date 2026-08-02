@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
+use App\Domain\Helper\TimezoneHelper;
+use App\Entity\User\User;
 use App\Form\ApiTokenType;
 use App\Service\User\ProfileSectionViewData;
+use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
@@ -40,6 +43,7 @@ final class SettingsController extends AbstractController
         private readonly string $defaultLocale,
         private readonly ProfileSectionViewData $profileSection,
         private readonly SecuritySectionViewData $securitySection,
+        private readonly UserTimezoneResolver $timezones,
     ) {
     }
 
@@ -69,7 +73,35 @@ final class SettingsController extends AbstractController
             'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->getLocale())
                 ?? AppLocale::tryFromRequest($this->defaultLocale)
                 ?? AppLocale::English,
+            ...$this->timezoneSectionData($section),
         ]);
+    }
+
+    /**
+     * Only when the General section is on screen: grouped() walks every IANA
+     * identifier, which is not work to do for whoever opened the Labels tab.
+     *
+     * @return array<string, mixed>
+     */
+    private function timezoneSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('general' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        $zone = $this->timezones->resolve($user);
+
+        return [
+            'timezoneGroups'  => TimezoneHelper::grouped(),
+            'activeTimezone'  => $user->getTimezone(),
+            'defaultTimezone' => $this->timezones->defaultZone()->getName(),
+            // Rendered here rather than in the template so the sample is
+            // unambiguously the picked zone, not whatever Twig is currently set
+            // to — the point of the line is to let someone check their choice.
+            'currentTime'     => new \DateTimeImmutable('now', $zone)->format('H:i'),
+        ];
     }
 
     /**

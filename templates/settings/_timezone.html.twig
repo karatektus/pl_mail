@@ -1,0 +1,46 @@
+{#
+settings/_timezone.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Display timezone picker. Submits on change and redirects, because the choice
+changes every timestamp on the page rather than anything local to this form.
+
+The empty option is not a blank entry — it is "follow the server default", the
+state a user who has never chosen is already in.
+
+Variables:
+  timezoneGroups    {region: identifier[]}
+  activeTimezone    string|null   the user's own choice, null when unset
+  defaultTimezone   string        what null resolves to
+  currentTime       string        now, already rendered in the active zone
+#}
+<div class="px-4 py-3">
+    <form method="post" action="{{ path('app_settings_timezone_update') }}" data-turbo="false">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-timezone') }}">
+
+        <label for="settings-timezone" class="sr-only">{{ 'settings.timezone.label'|trans }}</label>
+
+        <select id="settings-timezone"
+                name="timezone"
+                onchange="this.form.requestSubmit();"
+                class="w-full h-9 rounded-lg border border-line bg-field px-2 text-sm text-ink-soft transition-colors
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+            <option value="" {{ activeTimezone is null ? 'selected' : '' }}>
+                {{ 'settings.timezone.follow_default'|trans({'%timezone%': defaultTimezone}) }}
+            </option>
+
+            {% for region, identifiers in timezoneGroups %}
+                <optgroup label="{{ region }}">
+                    {% for identifier in identifiers %}
+                        <option value="{{ identifier }}" {{ identifier == activeTimezone ? 'selected' : '' }}>
+                            {{ identifier }}
+                        </option>
+                    {% endfor %}
+                </optgroup>
+            {% endfor %}
+        </select>
+
+        <p class="text-[11px] text-ink-faint mt-2">
+            {{ 'settings.timezone.current_time'|trans({'%time%': currentTime}) }}
+        </p>
+    </form>
+</div>

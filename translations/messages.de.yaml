@@ -1247,6 +1247,12 @@ settings:
             on: Zwei-Faktor-Authentifizierung ist an
             on_since: 'Aktiviert am %date%'
         subheading: Wie du beim Anmelden nachweist, dass du es bist.
+    timezone:
+        heading: Zeitzone
+        subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.
+        label: Zeitzone
+        follow_default: 'Server-Standard (%timezone%)'
+        current_time: 'In dieser Zone ist es gerade %time%.'
     title: Einstellungen
 
 sidebar:

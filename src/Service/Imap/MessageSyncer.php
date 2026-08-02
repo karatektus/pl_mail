@@ -60,6 +60,26 @@ class MessageSyncer
         return 'CUSTOM UID '.$uidRange;
     }
 
+    /**
+     * The instant an RFC 2822 `Date:` header names, in UTC.
+     *
+     * Both halves of this are needed. webklex parses the header with a bare
+     * `Carbon::parse()` (vendor/webklex/php-imap/src/Header.php), which keeps
+     * the offset the sender wrote — a `+0200` header yields a 15:58:46 object
+     * for a 13:58:46 UTC instant. Doctrine's DateTimeImmutableType then formats
+     * in whatever zone the object carries, and the column is TIMESTAMP WITHOUT
+     * TIME ZONE, so the sender's wall clock is what lands in Postgres.
+     *
+     * Gmail and Graph both normalise to UTC before persisting. Without this,
+     * IMAP alone stored something else, and the rows were only ever readable by
+     * a renderer that was itself wrong in the opposite direction.
+     */
+    public static function toUtc(\DateTimeInterface $date): DateTimeImmutable
+    {
+        return DateTimeImmutable::createFromInterface($date)
+            ->setTimezone(new \DateTimeZone('UTC'));
+    }
+
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
         $mailboxId   = $mailbox->getId();
@@ -333,8 +353,7 @@ class MessageSyncer
         $message->setBccAddresses($this->formatAddresses($imapMessage->getBcc()));
 
         // Dates
-        $date = $imapMessage->getDate()->toDate();
-        $receivedAt = DateTimeImmutable::createFromInterface($date);
+        $receivedAt = self::toUtc($imapMessage->getDate()->toDate());
         $message->setSentAt($receivedAt);
         $message->setReceivedAt($receivedAt);
 

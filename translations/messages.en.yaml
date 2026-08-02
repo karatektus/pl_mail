@@ -1224,6 +1224,12 @@ settings:
             on: Two-factor authentication is on
             on_since: 'Enabled %date%'
         subheading: How you prove it is you when signing in.
+    timezone:
+        heading: Time zone
+        subheading: The clock times and dates are shown in. Nothing is rewritten — the same instant is simply read on your own clock.
+        label: Time zone
+        follow_default: 'Server default (%timezone%)'
+        current_time: 'It is currently %time% in this zone.'
     title: Settings
 
 sidebar:

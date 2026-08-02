@@ -9,6 +9,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
+use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -37,6 +38,7 @@ final readonly class CalendarProvisioner
     public function __construct(
         private CalendarRepository     $calendars,
         private EntityManagerInterface $em,
+        private UserTimezoneResolver   $timezones,
     ) {
     }
 
@@ -64,7 +66,11 @@ final readonly class CalendarProvisioner
         $calendar->role       = CalendarRole::Default;
         $calendar->isDefault  = true;
         $calendar->color      = self::ACCOUNT_COLORS[0];
-        $calendar->timeZone   = date_default_timezone_get();
+        // The user's zone, not the process's: PHP's default is pinned to UTC
+        // in this container, so seeding from it stamped every calendar ever
+        // provisioned UTC regardless of who owned it — and a calendar's zone is
+        // what an event with no zone of its own is read in.
+        $calendar->timeZone   = $this->timezones->nameFor($user);
         $calendar->sortOrder  = 0;
 
         $this->em->persist($calendar);
@@ -107,7 +113,8 @@ final readonly class CalendarProvisioner
         $calendar->name      = (string) $account->getUsername();
         $calendar->role      = CalendarRole::Account;
         $calendar->color     = self::ACCOUNT_COLORS[count($siblings) % count(self::ACCOUNT_COLORS)];
-        $calendar->timeZone  = date_default_timezone_get();
+        // See ensureDefault() — same reason.
+        $calendar->timeZone  = $this->timezones->nameFor($user);
         $calendar->sortOrder = count($siblings);
 
         $this->em->persist($calendar);

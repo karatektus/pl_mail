@@ -1079,6 +1079,12 @@ settings:
             on: The second lock be set
             on_since: 'Set %date%'
         subheading: How ye prove ye be ye when comin' aboard.
+    timezone:
+        heading: Ship's bells
+        subheading: The clock yer times be told by. Naught be rewrit — the same moment, read off yer own glass.
+        label: Ship's bells
+        follow_default: 'Th'' harbour''s own (%timezone%)'
+        current_time: 'It be %time% in these waters.'
     title: Riggin'
 
 sidebar:

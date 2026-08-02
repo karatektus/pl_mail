@@ -127,6 +127,20 @@
                                                     activeLocale: activeLocale,
                                                 } %}
                                             </div>
+
+                                            <div class="mb-4 mt-8">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.timezone.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.timezone.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                {% include 'settings/_timezone.html.twig' with {
+                                                    timezoneGroups: timezoneGroups,
+                                                    activeTimezone: activeTimezone,
+                                                    defaultTimezone: defaultTimezone,
+                                                    currentTime: currentTime,
+                                                } %}
+                                            </div>
                                         </section>
                                     {% elseif section == 'aliases' %}
                                         <section>
