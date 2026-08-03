@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\State;
 
-use App\Controller\Mail\ComposeController;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\MailSenderInterface;
@@ -25,7 +24,9 @@ use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
@@ -59,7 +60,7 @@ final class EmailChangesTest extends KernelTestCase
     private StateManager $stateManager;
     private EmailChangesMethod $emailChanges;
     private ThreadChangesMethod $threadChanges;
-    private ComposeController $compose;
+    private DraftPersister $drafts;
 
     private User $user;
     private Account $account;
@@ -76,7 +77,7 @@ final class EmailChangesTest extends KernelTestCase
         $this->stateManager  = $container->get(StateManager::class);
         $this->emailChanges  = $container->get(EmailChangesMethod::class);
         $this->threadChanges = $container->get(ThreadChangesMethod::class);
-        $this->compose       = $container->get(ComposeController::class);
+        $this->drafts        = $container->get(DraftPersister::class);
 
         $this->connection->beginTransaction();
 
@@ -158,7 +159,7 @@ final class EmailChangesTest extends KernelTestCase
     /**
      * The regression test for mail written in the browser.
      *
-     * Every autosave and every send goes through ComposeController::persistDraft
+     * Every autosave and every send goes through DraftPersister::save()
      * and, until this was fixed, none of them recorded anything: a draft written
      * on the desktop and the mail it turned into simply never existed as far as
      * a connected phone was concerned. Nothing about the draft itself is checked
@@ -202,7 +203,7 @@ final class EmailChangesTest extends KernelTestCase
         $draft  = $this->composeDraft('Threaded in the browser');
         $thread = $draft->thread;
 
-        self::assertNotNull($thread, 'persistDraft threads what it saves');
+        self::assertNotNull($thread, 'saving a draft threads it');
 
         $result = $this->threadChanges->handle(
             ['accountId' => (string) $this->accountId, 'sinceState' => $sinceState],
@@ -245,7 +246,7 @@ final class EmailChangesTest extends KernelTestCase
         $draft  = $this->composeDraft('Threaded on its way out');
         $thread = $draft->thread;
 
-        self::assertNotNull($thread, 'persistDraft threads what it saves');
+        self::assertNotNull($thread, 'saving a draft threads it');
 
         $sinceState = (string) $this->stateManager->stateFor($this->accountId, JmapObjectType::Thread);
 
@@ -339,12 +340,12 @@ final class EmailChangesTest extends KernelTestCase
     }
 
     /**
-     * A save through the composer's own private seam.
+     * A save through the seam the composer uses.
      *
-     * Reflection rather than a request because the route is what is uninteresting
-     * here: persistDraft() is the single point every autosave and every send
-     * funnels through, and driving it directly keeps the test on the recording
-     * rather than on form binding and CSRF.
+     * DraftPersister::save() is the single point every autosave and every send
+     * funnels through — it was ComposeController::persistDraft() until the two
+     * copies of it were merged — and driving it directly keeps the test on the
+     * recording rather than on form binding and CSRF.
      */
     private function composeDraft(string $subject, ?Message $message = null): Message
     {
@@ -358,8 +359,7 @@ final class EmailChangesTest extends KernelTestCase
         $message->fromAddress = 'composer@example.test';
         $message->bodyHtml = sprintf('<p>%s</p>', $subject);
 
-        new \ReflectionMethod($this->compose, 'persistDraft')
-            ->invoke($this->compose, $message, $this->account);
+        $this->drafts->save($message, $this->account);
 
         return $message;
     }
@@ -402,7 +402,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(AttachmentResolver::class),
             $container->get(LabelResolver::class),
             $container->get(LabelRepository::class),
-            $this->stateManager,
+            $container->get(MailChangeRecorder::class),
         );
     }
 
@@ -421,7 +421,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MessageCategorizer::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
-            $this->stateManager,
+            $container->get(MailChangeRecorder::class),
             $this->em,
             $container->get(LoggerInterface::class),
             [],
@@ -440,7 +440,7 @@ final class EmailChangesTest extends KernelTestCase
 
         $this->account = new Account();
         $this->account->usr = $this->user;
-        // An address, not a display name: persistDraft() copies this onto
+        // An address, not a display name: saving a draft copies this onto
         // the draft's From, and MessageSendService builds a real MIME
         // header out of it further down the same path.
         $this->account->email = 'changes-fixture@example.test';

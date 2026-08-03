@@ -43,6 +43,36 @@ final class ReplyDraftBuilder
             ? $this->everyoneElse($original, $account)
             : [];
 
+        $this->linkToOriginal($draft, $original);
+
+        return $draft;
+    }
+
+    /**
+     * Put a draft into the conversation it answers, and into its header chain.
+     *
+     * Separate from reply() because a reply written in the browser is built
+     * twice: once when the window opens, and again when the first autosave
+     * POSTs to a route with no message id and the server builds a brand new
+     * Message. Without this the second one would have lost the thread and the
+     * In-Reply-To the first was created with, and the reply would arrive as a
+     * conversation of its own.
+     */
+    public function linkToOriginal(Message $draft, Message $original): void
+    {
+        // A reply belongs to the conversation it answers. A forward starts one,
+        // which is why only replies come through here.
+        if (null !== $original->thread) {
+            $draft->thread = $original->thread;
+        }
+
+        // Whatever the draft already carries wins: it was linked when the
+        // window opened, and the original this is being re-derived from is the
+        // same message anyway.
+        if ([] !== ($draft->inReplyTo ?? [])) {
+            return;
+        }
+
         // in-reply-to is the one header a threading client keys on, and
         // references is the chain it walks when in-reply-to is missing. Both
         // are filtered because a message synced without a Message-ID would
@@ -52,14 +82,6 @@ final class ReplyDraftBuilder
             $original->references ?? [],
             array_filter([$original->messageId]),
         )));
-
-        // A reply belongs to the conversation it answers. A forward starts one,
-        // which is why only this branch carries the thread across.
-        if (null !== $original->thread) {
-            $draft->thread = $original->thread;
-        }
-
-        return $draft;
     }
 
     public function forward(Message $original): Message

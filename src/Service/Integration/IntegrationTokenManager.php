@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Service\Integration;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
+use App\Entity\User\User;
+use App\Repository\Integration\IntegrationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use League\OAuth2\Client\Token\AccessTokenInterface;
 use Throwable;
 
 /**
- * Single source of a valid access token for an OAuth integration.
+ * The stored OAuth credential for an integration, from first authorisation to
+ * every renewal after it.
  *
  * Every OAuth driver calls getValidAccessToken() and none of them touches the
  * refresh flow, exactly as OAuthTokenManager does for mail accounts. Keeping
@@ -34,7 +39,52 @@ final readonly class IntegrationTokenManager
     public function __construct(
         private IntegrationOAuthProviderFactory $providerFactory,
         private EntityManagerInterface          $em,
+        private IntegrationRepository           $integrations,
     ) {
+    }
+
+    /**
+     * Find-or-create the connection and write a just-authorised token onto it.
+     *
+     * Reconnecting updates the existing row rather than adding a second one:
+     * a SaaS provider has exactly one account per user from our side, so a
+     * repeat authorisation is a token refresh by another route — and creating a
+     * duplicate would leave filters pointing at the stale one.
+     */
+    public function storeAuthorization(
+        User                 $user,
+        Provider             $provider,
+        AccessTokenInterface $token,
+    ): Integration {
+        $integration = $this->integrations->findOneByProviderForUser($user, $provider);
+
+        if (null === $integration) {
+            $integration = new Integration($user, $provider, $provider->label());
+            $this->em->persist($integration);
+        }
+
+        $integration->oauthAccessToken = $token->getToken();
+
+        $expires = $token->getExpires();
+
+        if (null !== $expires) {
+            $integration->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
+        }
+
+        // Absent on a re-consent that Google decides not to re-issue for. The
+        // stored one is still good, so it must not be cleared.
+        $refresh = $token->getRefreshToken();
+
+        if (null !== $refresh && '' !== $refresh) {
+            $integration->oauthRefreshToken = $refresh;
+        }
+
+        $integration->isActive = true;
+        $integration->recordSuccess();
+
+        $this->em->flush();
+
+        return $integration;
     }
 
     /**

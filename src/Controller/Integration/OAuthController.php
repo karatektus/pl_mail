@@ -7,14 +7,11 @@ namespace App\Controller\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
-use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
-use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
-use League\OAuth2\Client\Token\AccessTokenInterface;
+use App\Service\Integration\IntegrationTokenManager;
+use App\Service\OAuth\OAuthStateStore;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,14 +36,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class OAuthController extends AbstractController
 {
-    private const string SESSION_STATE_KEY = 'integration_oauth_state';
-    private const string SESSION_PROVIDER_KEY = 'integration_oauth_provider';
+    private const string SESSION_NAMESPACE = 'integration_oauth';
 
     public function __construct(
         private readonly IntegrationOAuthProviderFactory     $providerFactory,
-        private readonly IntegrationRepository               $integrationRepository,
         private readonly IntegrationProviderConfigRepository $configRepository,
-        private readonly EntityManagerInterface              $em,
+        private readonly IntegrationTokenManager             $tokens,
+        private readonly OAuthStateStore                     $stateStore,
     ) {
     }
 
@@ -73,12 +69,12 @@ final class OAuthController extends AbstractController
             ['scope' => $provider->scopes()] + $provider->authorizationUrlOptions(),
         );
 
-        // State is bound to the session, and the provider is stored beside it:
-        // the callback route carries a provider in its path, and without this
-        // a state minted for one provider could be replayed against another.
-        $session = $request->getSession();
-        $session->set(self::SESSION_STATE_KEY, $client->getState());
-        $session->set(self::SESSION_PROVIDER_KEY, $provider->value);
+        $this->stateStore->remember(
+            $request->getSession(),
+            self::SESSION_NAMESPACE,
+            $client->getState(),
+            $provider->value,
+        );
 
         return new RedirectResponse($authUrl);
     }
@@ -86,12 +82,9 @@ final class OAuthController extends AbstractController
     #[Route('/{provider}/callback', name: 'callback', methods: ['GET'])]
     public function callback(Provider $provider, Request $request): RedirectResponse
     {
-        $session = $request->getSession();
-        $expectedState = $session->get(self::SESSION_STATE_KEY);
-        $expectedProvider = $session->get(self::SESSION_PROVIDER_KEY);
-
-        $session->remove(self::SESSION_STATE_KEY);
-        $session->remove(self::SESSION_PROVIDER_KEY);
+        $handshake = $this->stateStore->consume($request->getSession(), self::SESSION_NAMESPACE);
+        $expectedState = $handshake['state'];
+        $expectedProvider = $handshake['provider'];
 
         // The provider may say no before we get anywhere — a declined consent
         // screen lands here with an error and no code.
@@ -120,51 +113,12 @@ final class OAuthController extends AbstractController
             return $this->raw($e->getMessage());
         }
 
-        $this->store($provider, $token);
+        $this->tokens->storeAuthorization($this->user(), $provider, $token);
 
         return $this->back('settings.integrations.saved', false);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    /**
-     * Find-or-create the connection and write the tokens onto it.
-     *
-     * Reconnecting updates the existing row rather than adding a second one:
-     * a SaaS provider has exactly one account per user from our side, so a
-     * repeat authorisation is a token refresh by another route — and creating a
-     * duplicate would leave filters pointing at the stale one.
-     */
-    private function store(Provider $provider, AccessTokenInterface $token): void
-    {
-        $integration = $this->integrationRepository->findOneByProviderForUser($this->getUser(), $provider);
-
-        if (null === $integration) {
-            $integration = new Integration($this->user(), $provider, $provider->label());
-            $this->em->persist($integration);
-        }
-
-        $integration->oauthAccessToken = $token->getToken();
-
-        $expires = $token->getExpires();
-
-        if (null !== $expires) {
-            $integration->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
-        }
-
-        // Absent on a re-consent that Google decides not to re-issue for. The
-        // stored one is still good, so it must not be cleared.
-        $refresh = $token->getRefreshToken();
-
-        if (null !== $refresh && '' !== $refresh) {
-            $integration->oauthRefreshToken = $refresh;
-        }
-
-        $integration->isActive = true;
-        $integration->recordSuccess();
-
-        $this->em->flush();
-    }
 
     private function back(string $message, bool $isError): RedirectResponse
     {

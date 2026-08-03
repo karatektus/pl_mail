@@ -5,17 +5,9 @@ declare(strict_types=1);
 namespace App\Controller\Auth;
 
 use App\Domain\Enum\Account\MailProvider;
-use App\Entity\Mail\Account;
 use App\Entity\User\User;
-use App\Domain\Enum\Account\AuthType;
-use App\Repository\Mail\AccountRepository;
 use App\Service\Onboarding\OnboardingFlow;
-use App\Service\Gmail\GmailWatchService;
-use App\Service\Push\PushSubscriptionRegistry;
-use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
-use League\OAuth2\Client\Token\AccessTokenInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -25,22 +17,20 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
+use App\Service\OAuth\OAuthAccountLinker;
 use App\Service\OAuth\OAuthProviderFactory;
-use App\Service\Graph\GraphSubscriptionManager;
+use App\Service\OAuth\OAuthStateStore;
 
 #[IsGranted('ROLE_USER')]
 #[Route('/oauth', name: 'app_oauth_')]
 class OAuthController extends AbstractController
 {
-    private const string SESSION_STATE_KEY = 'oauth2_state';
+    private const string SESSION_NAMESPACE = 'oauth2';
 
     public function __construct(
         private readonly OAuthProviderFactory   $providerFactory,
-        private readonly AccountRepository      $accountRepository,
-        private readonly EntityManagerInterface $em,
-        private readonly GraphSubscriptionManager $graphSubscriptionManager,
-        private readonly PushSubscriptionRegistry $pushRegistry,
-        private readonly \App\Service\Mail\AliasSeeder $aliasSeeder,
+        private readonly OAuthStateStore        $stateStore,
+        private readonly OAuthAccountLinker     $accountLinker,
         private readonly OnboardingFlow $onboarding,
         private readonly MicrosoftOAuthErrorTranslator $microsoftErrorTranslator,
         private readonly TranslatorInterface $translator,
@@ -60,7 +50,7 @@ class OAuthController extends AbstractController
 
         $authUrl = $client->getAuthorizationUrl($options);
 
-        $request->getSession()->set(self::SESSION_STATE_KEY, $client->getState());
+        $this->stateStore->remember($request->getSession(), self::SESSION_NAMESPACE, $client->getState());
 
         return new RedirectResponse($authUrl);
     }
@@ -89,8 +79,7 @@ class OAuthController extends AbstractController
         $mailProvider = $this->resolveProvider($provider);
 
         $state         = $request->query->get('state');
-        $expectedState = $request->getSession()->get(self::SESSION_STATE_KEY);
-        $request->getSession()->remove(self::SESSION_STATE_KEY);
+        $expectedState = $this->stateStore->consume($request->getSession(), self::SESSION_NAMESPACE)['state'];
         $error = $request->query->get('error');
 
         if (null !== $error) {
@@ -139,7 +128,7 @@ class OAuthController extends AbstractController
         }
 
         $ownerData = $client->getResourceOwner($token)->toArray();
-        $email     = $this->extractEmail($ownerData);
+        $email     = $this->accountLinker->mailboxAddress($ownerData);
 
         if (null === $email) {
             throw $this->createAccessDeniedException(
@@ -147,127 +136,15 @@ class OAuthController extends AbstractController
             );
         }
 
-        $account = $this->upsertAccount($mailProvider, $email, $token);
+        /** @var User $user */
+        $user = $this->getUser();
 
-        $this->registerPush($account);
-        $this->aliasSeeder->seed($account);
+        $this->accountLinker->link($user, $mailProvider, $email, $token);
 
         return $this->redirectToRoute($this->landingRoute());
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    private function upsertAccount(
-        MailProvider       $provider,
-        string             $email,
-        AccessTokenInterface $token,
-    ): Account {
-        /** @var User $user */
-        $user = $this->getUser();
-
-        // Email alone does NOT identify an account: an OAuth provider's login
-        // address is independent of where the mail is hosted, so the same
-        // address can legitimately exist as both an IMAP account and an OAuth
-        // one. Adopting by email would silently convert the IMAP account and
-        // null its password. Match on the full identity instead.
-        $account = $this->accountRepository->findOneBy([
-            'usr'           => $user,
-            'email'         => $email,
-            'authType'      => AuthType::OAuth2->value,
-            'oauthProvider' => $provider->value,
-        ]);
-
-        if (null === $account) {
-            $duplicate = $this->accountRepository->count(['usr' => $user, 'email' => $email]) > 0;
-
-            $account = new Account();
-            $account->usr = $user;
-            $account->email = $email;
-            $account->name = $duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email;
-            $account->isActive = true;
-        }
-
-        $account->username = $email;
-        $account->authType = AuthType::OAuth2->value;
-        $account->oauthProvider = $provider->value;
-        $account->password = null;
-        $account->oauthAccessToken = $token->getToken();
-
-        $imapHost = $provider->imapHost();
-
-        if (null !== $imapHost) {
-            $account->imapHost = $imapHost;
-            $account->imapPort = $provider->imapPort();
-            $account->imapEncryption = $provider->imapEncryption();
-        }
-
-        $refreshToken = $token->getRefreshToken();
-        if (null !== $refreshToken) {
-            $account->oauthRefreshToken = $refreshToken;
-        }
-
-        $expires = $token->getExpires();
-        if (null !== $expires) {
-            $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
-        }
-
-
-        $this->em->persist($account);
-        $this->em->flush();
-
-        return $account;
-    }
-
-    /**
-     * Establish push for a freshly connected account.
-     *
-     * On by default at connect time, because that is the one moment we know the
-     * token is fresh and the user is present. Failure is non-fatal: the account
-     * falls back to scheduled polling and the settings pane shows it as such.
-     */
-    private function registerPush(Account $account): void
-    {
-        $manager = $this->pushRegistry->resolve($account);
-
-        if (null === $manager) {
-            return;
-        }
-
-        $account->pushEnabled = true;
-        $this->em->flush();
-
-        if (false === $manager->subscribe($account)) {
-            $account->pushEnabled = false;
-            $this->em->flush();
-        }
-    }
-    /**
-     * Resolve the mailbox address from the provider's resource-owner payload.
-     *
-     * Order matters. For Microsoft the Azure resource owner merges the id_token
-     * claims with the Graph /me response: the OIDC `email` claim is the *sign-in*
-     * identity , while Graph `mail` is the actual mailbox
-     * SMTP address — the one that matches synced
-     * messages' to_address. We want the mailbox, so `mail` is tried first.
-     * `userPrincipalName` stays last for org accounts exposing no distinct `mail`.
-     * Google has no `mail` key, so it falls through to `email` unchanged.
-     *
-     * @param array<string,mixed> $ownerData
-     */
-    private function extractEmail(array $ownerData): ?string
-    {
-        foreach (['mail', 'email', 'userPrincipalName'] as $key) {
-            if (
-                true === array_key_exists($key, $ownerData)
-                && true === is_string($ownerData[$key])
-                && '' !== $ownerData[$key]
-            ) {
-                return $ownerData[$key];
-            }
-        }
-
-        return null;
-    }
 
     private function resolveProvider(string $provider): MailProvider
     {

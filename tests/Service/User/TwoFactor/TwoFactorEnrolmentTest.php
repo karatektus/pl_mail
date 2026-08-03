@@ -378,4 +378,68 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
             'revoking one user\'s devices withdrew another user\'s',
         );
     }
+
+    // ── proving possession ────────────────────────────────────────────────────
+
+    /**
+     * The ordinary case: whoever is holding the authenticator may turn 2FA off
+     * or reissue their recovery codes.
+     */
+    public function testACurrentTotpCodeProvesPossession(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertTrue($enrolment->provesPossession($user, $this->currentCode($user)));
+    }
+
+    /**
+     * A user who has lost their authenticator still has to be able to turn 2FA
+     * off. That is what the recovery codes are for, and refusing one here would
+     * lock them out of their own account permanently.
+     */
+    public function testAnUnspentRecoveryCodeProvesPossession(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        self::assertTrue($enrolment->provesPossession($user, $codes[0]));
+    }
+
+    /**
+     * The one that matters: a recovery code is spent on the way past, so a
+     * leaked one cannot be replayed against a second action — disable 2FA
+     * *and* reissue the codes, say.
+     */
+    public function testARecoveryCodeCannotBeUsedTwice(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        $enrolment->provesPossession($user, $codes[0]);
+
+        self::assertFalse($enrolment->provesPossession($user, $codes[0]));
+        // And only that one is spent; the rest are still the user's way back in.
+        self::assertTrue($enrolment->provesPossession($user, $codes[1]));
+    }
+
+    public function testAWrongCodeProvesNothingAndSpendsNothing(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        self::assertFalse($enrolment->provesPossession($user, 'not-a-code-at-all'));
+        self::assertCount(User::BACKUP_CODE_COUNT, $user->backupCodes);
+    }
 }

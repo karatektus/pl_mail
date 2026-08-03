@@ -12,8 +12,9 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\CalendarRangeReader;
+use App\Service\Calendar\CalendarTimeResolver;
+use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
-use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -48,6 +49,8 @@ final class CalendarController extends AbstractController
         private readonly CalendarRangeReader    $rangeReader,
         private readonly CalendarEventWriter    $writer,
         private readonly CalendarProvisioner    $provisioner,
+        private readonly CalendarTimeResolver   $time,
+        private readonly RecurrenceRuleConverter $recurrence,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -76,7 +79,7 @@ final class CalendarController extends AbstractController
         $data = $this->viewData(
             $request,
             CalendarView::from($view),
-            null === $date ? null : $this->parseDate($date),
+            null === $date ? null : $this->time->parseDate($date, $this->time->zoneFor($this->currentUser())),
         );
 
         return $this->render(
@@ -92,9 +95,9 @@ final class CalendarController extends AbstractController
     public function eventNew(Request $request): Response
     {
         $user = $this->currentUser();
-        $zone = $this->zoneFor($user);
+        $zone = $this->time->zoneFor($user);
 
-        $startsAt = $this->parseDateTime($request->query->getString('start'), $zone)
+        $startsAt = $this->time->parseDateTime($request->query->getString('start'), $zone)
             ?? new DateTimeImmutable('today 09:00', $zone);
 
         return $this->render('calendar/_event_modal.html.twig', [
@@ -115,9 +118,9 @@ final class CalendarController extends AbstractController
         return $this->render('calendar/_event_modal.html.twig', [
             'event'     => $event,
             'calendars' => $this->calendars->findForUser($this->currentUser()),
-            'startsAt'  => $event->startsAt->setTimezone($this->eventZone($event)),
-            'endsAt'    => $event->endsAt->setTimezone($this->eventZone($event)),
-            'timeZone'  => $event->timeZone ?? $this->zoneFor($this->currentUser())->getName(),
+            'startsAt'  => $event->startsAt->setTimezone($this->time->eventZone($event, $this->currentUser())),
+            'endsAt'    => $event->endsAt->setTimezone($this->time->eventZone($event, $this->currentUser())),
+            'timeZone'  => $event->timeZone ?? $this->time->zoneFor($this->currentUser())->getName(),
             'returnTo'  => $this->returnTo($request),
         ]);
     }
@@ -133,12 +136,12 @@ final class CalendarController extends AbstractController
         $calendar = $this->calendars->findOneForUser($user, $request->request->getInt('calendarId'))
             ?? $this->provisioner->defaultFor($user);
 
-        $zoneName = $request->request->getString('timeZone') ?: $this->zoneFor($user)->getName();
-        $zone     = $this->safeZone($zoneName);
+        $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
+        $zone     = $this->time->safeZone($zoneName);
         $isAllDay = $request->request->getBoolean('isAllDay');
 
-        $startsAt = $this->parseDateTime($request->request->getString('startsAt'), $zone);
-        $endsAt   = $this->parseDateTime($request->request->getString('endsAt'), $zone);
+        $startsAt = $this->time->parseDateTime($request->request->getString('startsAt'), $zone);
+        $endsAt   = $this->time->parseDateTime($request->request->getString('endsAt'), $zone);
 
         if (null === $startsAt || null === $endsAt || $endsAt < $startsAt) {
             return $this->json(['error' => 'calendar.error.invalid_times'], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -158,7 +161,7 @@ final class CalendarController extends AbstractController
             location:       $request->request->getString('location') ?: null,
             description:    $request->request->getString('description') ?: null,
             status:         EventStatus::Confirmed,
-            recurrenceRule: $this->recurrenceRule($request->request->getString('repeat')),
+            recurrenceRule: $this->recurrence->fromRepeatChoice($request->request->getString('repeat')),
         );
 
         $this->em->flush();
@@ -306,7 +309,7 @@ final class CalendarController extends AbstractController
         }
 
         $view   = CalendarView::tryFrom($request->query->getString('view')) ?? $default;
-        $anchor = $date ?? new DateTimeImmutable('today', $this->zoneFor($user));
+        $anchor = $date ?? new DateTimeImmutable('today', $this->time->zoneFor($user));
 
         return [
             'view'      => $view,
@@ -314,24 +317,6 @@ final class CalendarController extends AbstractController
             'calendars' => $this->calendars->findForUser($user),
             'range'     => $this->rangeReader->read($user, $view, $anchor),
         ];
-    }
-
-    /**
-     * The repeat dropdown's four options as JSCalendar rules. Deliberately not
-     * a general recurrence editor — that is a UI of its own, and these four
-     * cover what a person types into a calendar by hand.
-     *
-     * @return array<string,mixed>|null
-     */
-    private function recurrenceRule(string $repeat): ?array
-    {
-        return match ($repeat) {
-            'daily'   => ['@type' => 'RecurrenceRule', 'frequency' => 'daily'],
-            'weekly'  => ['@type' => 'RecurrenceRule', 'frequency' => 'weekly'],
-            'monthly' => ['@type' => 'RecurrenceRule', 'frequency' => 'monthly'],
-            'yearly'  => ['@type' => 'RecurrenceRule', 'frequency' => 'yearly'],
-            default   => null,
-        };
     }
 
     private function ownedEvent(int $id): CalendarEvent
@@ -370,50 +355,5 @@ final class CalendarController extends AbstractController
         }
 
         return $user;
-    }
-
-    private function zoneFor(User $user): DateTimeZone
-    {
-        $calendar = $this->calendars->findDefaultForUser($user);
-
-        return $this->safeZone($calendar->timeZone ?? date_default_timezone_get());
-    }
-
-    private function eventZone(CalendarEvent $event): DateTimeZone
-    {
-        return $this->safeZone($event->timeZone ?? $this->zoneFor($this->currentUser())->getName());
-    }
-
-    private function safeZone(string $name): DateTimeZone
-    {
-        try {
-            return new DateTimeZone($name);
-        } catch (\Exception) {
-            return new DateTimeZone('UTC');
-        }
-    }
-
-    private function parseDate(string $date): ?DateTimeImmutable
-    {
-        $parsed = DateTimeImmutable::createFromFormat(
-            'Y-m-d',
-            $date,
-            $this->zoneFor($this->currentUser()),
-        );
-
-        return false === $parsed ? null : $parsed->setTime(0, 0);
-    }
-
-    private function parseDateTime(string $value, DateTimeZone $zone): ?DateTimeImmutable
-    {
-        if ('' === $value) {
-            return null;
-        }
-
-        try {
-            return new DateTimeImmutable($value, $zone);
-        } catch (\Exception) {
-            return null;
-        }
     }
 }

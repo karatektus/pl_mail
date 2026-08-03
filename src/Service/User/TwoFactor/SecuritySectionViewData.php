@@ -82,13 +82,11 @@ final readonly class SecuritySectionViewData
      */
     private function currentDeviceId(array $devices, Request $request): ?int
     {
-        $secret = $this->cookies->read($request);
+        $hash = $this->cookies->currentHash($request);
 
-        if (null === $secret) {
+        if (null === $hash) {
             return null;
         }
-
-        $hash = TrustedDevice::hash($secret);
 
         foreach ($devices as $device) {
             if (true === hash_equals($device->tokenHash, $hash)) {

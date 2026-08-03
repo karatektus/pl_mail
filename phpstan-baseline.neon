@@ -54,17 +54,7 @@ parameters:
 			count: 1
 			path: src/Controller/Auth/OAuthController.php
 
-		-
-			message: '#^Property App\\Controller\\Auth\\OAuthController\:\:\$graphSubscriptionManager is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Auth/OAuthController.php
 
-		-
-			message: '#^Property App\\Controller\\Integration\\FilePickerController\:\:\$integrationRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Integration/FilePickerController.php
 
 		-
 			message: '#^Constant App\\Controller\\Mail\\ComposeController\:\:INLINE_FRAME is unused\.$#'
@@ -81,18 +71,6 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: true, frame\: string, thread\: int\|null\} given\.$#'
 			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\ContactRepository\:\:upsertBatch\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Property App\\Controller\\Mail\\ComposeController\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
 			count: 1
 			path: src/Controller/Mail/ComposeController.php
 
@@ -126,11 +104,6 @@ parameters:
 			count: 1
 			path: src/Controller/Mail/ThreadStatusController.php
 
-		-
-			message: '#^Property App\\Controller\\Mail\\ThreadStatusController\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Mail/ThreadStatusController.php
 
 		-
 			message: '#^Attribute class Symfony\\Component\\HttpKernel\\Attribute\\MapEntity does not exist\.$#'
@@ -162,11 +135,6 @@ parameters:
 			count: 1
 			path: src/Controller/Settings/AccountController.php
 
-		-
-			message: '#^Method App\\Controller\\Settings\\IntegrationController\:\:nullIfBlank\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: src/Controller/Settings/IntegrationController.php
 
 		-
 			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\MessageRepository\:\:countMatchingForUser\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
@@ -759,12 +727,6 @@ parameters:
 		-
 			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
 			identifier: greater.alwaysTrue
-			count: 1
-			path: src/Jmap/Mail/JmapDraftWriter.php
-
-		-
-			message: '#^Property App\\Jmap\\Mail\\JmapDraftWriter\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
 			count: 1
 			path: src/Jmap/Mail/JmapDraftWriter.php
 

@@ -2,31 +2,23 @@
 
 namespace App\Controller\Mail;
 
-use App\Domain\Trait\ParsesAddressFields;
-use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Integration\Capability;
-use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
-use App\Repository\Mail\ContactRepository;
-use App\Repository\Mail\MailboxRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\MessageRepository;
-use App\Service\Imap\MessageThreader;
-use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\DraftAddressFields;
+use App\Service\Mail\DraftAttachmentService;
+use App\Service\Mail\DraftPersister;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\ReplyDraftBuilder;
-use DateTimeImmutable;
-use Doctrine\Common\Collections\Collection;
+use App\Service\Mail\SenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -42,12 +34,16 @@ use Symfony\Component\Routing\Attribute\Route;
  * not a Mailbox. Drafts carry the chosen account's Drafts label; for plain-
  * IMAP accounts the physical Drafts folder is attached as mailbox, for Gmail
  * accounts mailbox stays null.
+ *
+ * What a draft *is* — how it is addressed, saved, threaded, attached to and
+ * announced — lives in App\Service\Mail, next to the JMAP writer that has to
+ * agree with it. What is left here is the part that only makes sense in front
+ * of a browser: which frame the window is in, which template answers, and who
+ * is allowed to ask.
  */
 #[Route('/compose', name: 'app_compose_')]
 class ComposeController extends AbstractController
 {
-    use ParsesAddressFields;
-
     private const string DOCK_FRAME   = 'compose_dock';
     private const string INLINE_FRAME = 'compose_inline';
     private const string INLINE_FORM  = 'compose_inline';
@@ -55,28 +51,28 @@ class ComposeController extends AbstractController
     /**
      * Per-file ceiling for compose attachments. Public because the compose
      * window reads it too, to refuse an oversized file before it is uploaded.
-     * Must stay under upload_max_filesize (frankenphp/conf.d/10-app.ini).
+     *
+     * The rule itself belongs to DraftAttachmentService, which enforces it;
+     * this is the name the window and the file picker already know it by.
      */
-    public const int MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+    public const int MAX_ATTACHMENT_BYTES = DraftAttachmentService::MAX_BYTES;
 
     /** Matches the DelayStamp on the send job — the cancel window. */
     private const int SEND_DELAY_MS = 10_000;
 
     public function __construct(
         private readonly EntityManagerInterface  $em,
-        private readonly MailboxRepository       $mailboxRepository,
         private readonly MessageRepository       $messageRepository,
         private readonly AccountRepository       $accountRepository,
-        private readonly LabelResolver           $labelResolver,
         private readonly MessageBusInterface     $bus,
-        private readonly MessageThreader         $threader,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
-        private readonly ContactRepository       $contactRepository,
-        private readonly MailBodySanitizer       $bodySanitizer,
-        private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly IntegrationRepository   $integrationRepository,
-        private readonly StateManager            $stateManager,
         private readonly ReplyDraftBuilder       $replyDrafts,
+        private readonly DraftPersister          $drafts,
+        private readonly DraftAttachmentService  $attachments,
+        private readonly DraftAddressFields      $addressFields,
+        private readonly SenderResolver          $senders,
+        private readonly MailChangeRecorder      $changes,
     )
     {
     }
@@ -106,8 +102,8 @@ class ComposeController extends AbstractController
         }
 
         $form = $this->composeForm($message, $ctx);
-        $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $message);
+        $form->get('account')->setData($this->senders->token($account));
+        $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
     }
@@ -123,8 +119,8 @@ class ComposeController extends AbstractController
         $draft          = $this->replyDrafts->reply($original, $account);
 
         $form = $this->composeForm($draft, $ctx);
-        $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $draft);
+        $form->get('account')->setData($this->senders->token($account));
+        $this->addressFields->hydrate($form, $draft, $this->getUser());
 
         return $this->renderWindow($form, $draft, $ctx);
     }
@@ -140,8 +136,8 @@ class ComposeController extends AbstractController
         $draft          = $this->replyDrafts->reply($original, $account, replyAll: true);
 
         $form = $this->composeForm($draft, $ctx);
-        $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $draft);
+        $form->get('account')->setData($this->senders->token($account));
+        $this->addressFields->hydrate($form, $draft, $this->getUser());
 
         return $this->renderWindow($form, $draft, $ctx);
     }
@@ -156,8 +152,8 @@ class ComposeController extends AbstractController
         $draft   = $this->replyDrafts->forward($original);
 
         $form = $this->composeForm($draft, $ctx);
-        $form->get('account')->setData($this->senderToken($account));
-        $this->hydrateAddressFields($form, $draft);
+        $form->get('account')->setData($this->senders->token($account));
+        $this->addressFields->hydrate($form, $draft, $this->getUser());
 
         return $this->renderWindow($form, $draft, $ctx);
     }
@@ -180,20 +176,22 @@ class ComposeController extends AbstractController
         $form->handleRequest($request);
 
         // Apply Tom Select address fields (override whatever CollectionType bound)
-        $this->applyAddressFields($form, $message);
+        $this->addressFields->apply($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $account = $this->resolveAccount($form, $message);
+            $token   = $form->get('account')->getData();
+            $account = $this->senders->accountFor($token, $this->getUser())
+                ?? $message->account
+                ?? $this->defaultAccount();
 
             if (null === $account) {
                 throw $this->createNotFoundException('No active account to compose from.');
             }
 
-            $message->fromAddress = $this->resolveFromAddress($form, $account);
+            $message->fromAddress = $this->senders->addressFor($token, $account, $this->getUser());
             $message->fromName = $account->name ?? '';
 
-            $this->applyAccount($message, $account);
-            $this->persistDraft($message, $account);
+            $this->drafts->save($message, $account);
 
             return $this->renderWindow($form, $message, $ctx, ['saved' => true]);
         }
@@ -218,24 +216,26 @@ class ComposeController extends AbstractController
         $form->handleRequest($request);
 
         // Apply Tom Select address fields
-        $this->applyAddressFields($form, $message);
+        $this->addressFields->apply($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
             if (null !== $message->sentAt) {
                 return $this->sendResponse($message, $ctx);
             }
 
-            $account = $this->resolveAccount($form, $message);
+            $token   = $form->get('account')->getData();
+            $account = $this->senders->accountFor($token, $this->getUser())
+                ?? $message->account
+                ?? $this->defaultAccount();
 
             if (null === $account) {
                 throw $this->createNotFoundException('No active account to send from.');
             }
 
-            $message->fromAddress = $this->resolveFromAddress($form, $account);
+            $message->fromAddress = $this->senders->addressFor($token, $account, $this->getUser());
             $message->fromName = $account->name ?? '';
 
-            $this->applyAccount($message, $account);
-            $this->persistDraft($message, $account);
+            $this->drafts->save($message, $account);
 
             $this->bus->dispatch(
                 new SendMessageMessage($message->id),
@@ -262,8 +262,8 @@ class ComposeController extends AbstractController
 
         $ctx  = $this->composeContext($request);
         $form = $this->composeForm($message, $ctx);
-        $form->get('account')->setData($this->senderToken($message->account));
-        $this->hydrateAddressFields($form, $message);
+        $form->get('account')->setData($this->senders->token($message->account));
+        $this->addressFields->hydrate($form, $message, $this->getUser());
 
         // Inline: pull the message back out of the thread and re-open the
         // editor where it was. Dock: the original toast + re-docked window.
@@ -338,11 +338,10 @@ class ComposeController extends AbstractController
     {
         $this->assertDraft($message);
 
-        $account = $message->account;
-        $files   = array_filter(
+        $files = array_values(array_filter(
             $request->files->all('files'),
             static fn (mixed $file): bool => $file instanceof UploadedFile,
-        );
+        ));
 
         // Nothing arrived at all. Almost always post_max_size: PHP discards the
         // whole body, so $_FILES is empty and there is no per-file error to
@@ -352,69 +351,13 @@ class ComposeController extends AbstractController
             return $this->uploadError('Upload too large');
         }
 
-        // Everything is checked before anything is stored, so a rejected file
-        // cannot leave the ones before it attached.
-        foreach ($files as $file) {
-            $error = $this->attachmentError($file);
+        $refusal = $this->attachments->attach($message, $files);
 
-            if (null !== $error) {
-                return $this->uploadError($error);
-            }
+        if (null !== $refusal) {
+            return $this->uploadError($refusal);
         }
-
-        foreach ($files as $file) {
-            // Bucketed like synced attachments: account / mailbox (0 where the
-            // account has none) / message. Drafts have no UID, so the message
-            // id keeps one draft's files out of another's directory.
-            $storagePath = $this->attachmentStorage->store(
-                (int) $account->id,
-                (int) ($message->mailbox->id ?? 0),
-                (int) $message->id,
-                (string) $file->getClientOriginalName(),
-                (string) file_get_contents($file->getPathname()),
-            );
-
-            $part = new MessagePart();
-            $part->message = $message;
-            // Guessed from the bytes, not from the client's header — this
-            // value comes back out as a Content-Type on download.
-            $part->contentType = $file->getMimeType() ?? 'application/octet-stream';
-            $part->filename    = basename((string) $file->getClientOriginalName());
-            $part->disposition = 'attachment';
-            $part->size        = $file->getSize();
-            $part->storagePath = $storagePath;
-            $part->isInline    = false;
-
-            $message->addMessagePart($part);
-            $this->em->persist($part);
-        }
-
-        $this->syncAttachmentFlag($message);
-        $this->recordAttachmentChange($message);
-        $this->em->flush();
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
-    }
-
-    /**
-     * Why this upload cannot be attached, or null when it can. Short enough to
-     * show in the window's status line.
-     */
-    private function attachmentError(UploadedFile $file): ?string
-    {
-        if (UPLOAD_ERR_INI_SIZE === $file->getError() || UPLOAD_ERR_FORM_SIZE === $file->getError()) {
-            return 'File too large';
-        }
-
-        if (false === $file->isValid()) {
-            return 'Upload failed';
-        }
-
-        if ($file->getSize() > self::MAX_ATTACHMENT_BYTES) {
-            return sprintf('File too large (max %d MB)', intdiv(self::MAX_ATTACHMENT_BYTES, 1024 * 1024));
-        }
-
-        return null;
     }
 
     /**
@@ -437,14 +380,7 @@ class ComposeController extends AbstractController
 
         $this->assertDraft($message);
 
-        $this->attachmentStorage->delete($part->storagePath);
-
-        $message->removeMessagePart($part);
-        $this->em->remove($part);
-
-        $this->syncAttachmentFlag($message);
-        $this->recordAttachmentChange($message);
-        $this->em->flush();
+        $this->attachments->remove($part);
 
         return $this->render('compose/_attachments.html.twig', ['message' => $message]);
     }
@@ -465,17 +401,10 @@ class ComposeController extends AbstractController
         $ctx       = $this->composeContext($request);
         $messageId = $message->id;
         $thread    = $message->thread;
+        $account   = $message->account;
 
-        $this->deleteStoredAttachments($message);
+        $this->attachments->deleteStoredFiles($message);
         $this->em->remove($message);
-
-        // A genuine destroy, unlike Email/set destroy — that one moves to Trash
-        // and keeps the row, this one takes the id away. Recorded before the
-        // flush because the ids already exist; record() only persists, so the
-        // log rows go out with the removal itself.
-        $accountId = (int) $message->account->id;
-
-        $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
 
         // Recount from the association, never from the stored counter — it
         // drifts, and the thread cascades removes to every message in it.
@@ -490,12 +419,13 @@ class ComposeController extends AbstractController
             $thread->removeMessage($message);
             $remaining = $thread->messages->count();
             $thread->messageCount = $remaining;
-
-            // Updated rather than destroyed even when it is now empty: the
-            // thread row is deliberately left standing (see above), so the id
-            // a client holds still resolves.
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
+
+        // A genuine destroy, unlike Email/set destroy — that one moves to Trash
+        // and keeps the row, this one takes the id away. Ahead of the flush
+        // because the ids still exist; recording only persists, so the log rows
+        // go out with the removal itself.
+        $this->changes->emailDestroyed((int) $account->id, (string) $messageId, $thread);
 
         $this->em->flush();
 
@@ -614,6 +544,10 @@ class ComposeController extends AbstractController
     /**
      * Re-attach a freshly created draft to the conversation it answers.
      *
+     * The lookup is the controller's half of it: `replyTo` is a number that
+     * came back from the browser, so the message it names is only the original
+     * if the user owns it.
+     *
      * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null} $ctx
      */
     private function applyReplyContext(Message $message, array $ctx): void
@@ -628,17 +562,7 @@ class ComposeController extends AbstractController
             return;
         }
 
-        $message->thread = $original->thread;
-
-        if ([] === ($message->inReplyTo ?? [])) {
-            $references = array_merge(
-                $original->references ?? [],
-                array_filter([$original->messageId]),
-            );
-
-            $message->inReplyTo = array_filter([$original->messageId]);
-            $message->references = array_values(array_unique($references));
-        }
+        $this->replyDrafts->linkToOriginal($message, $original);
     }
 
     /**
@@ -686,99 +610,11 @@ class ComposeController extends AbstractController
         ]);
     }
 
-    /**
-     * The user's own writing as plain text: everything before the quoted
-     * original (marked with data-quoted by buildQuotedHtml). Drives the draft
-     * snippet in the conversation and the message list.
-     */
-    private function plainTextBody(?string $html): ?string
-    {
-        if (null === $html || '' === trim($html)) {
-            return null;
-        }
-
-        // data-quoted is the current marker; the other two cut drafts written
-        // before it existed (attribution div / bare blockquote).
-        $ownPart = preg_split(
-            '/<div[^>]*data-quote|<div[^>]*font-size:0\.85em|<blockquote/i',
-            $html,
-            2,
-        )[0];
-
-        $text = html_entity_decode(
-            strip_tags(preg_replace('/<(br|\/p|\/div)[^>]*>/i', "\n", $ownPart) ?? $ownPart),
-            ENT_QUOTES | ENT_HTML5,
-            'UTF-8',
-        );
-
-        $text = trim(preg_replace('/[ \t]*\R\s*/u', "\n", $text) ?? $text);
-
-        return '' === $text ? null : $text;
-    }
-
     private function turboStream(string $template, array $params): Response
     {
         return $this->render($template, $params, new Response(
             headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
         ));
-    }
-
-    /**
-     * Submitted From token → the sending account, falling back to the
-     * message's current account, then the user's default.
-     */
-    private function resolveAccount(FormInterface $form, Message $message): ?Account
-    {
-        $parsed = $this->parseSenderToken($form->get('account')->getData());
-
-        if (null !== $parsed) {
-            return $parsed[0];
-        }
-
-        return $message->account ?? $this->defaultAccount();
-    }
-
-    /**
-     * The exact From address the user picked, falling back to the account's
-     * display address when the token is absent or points elsewhere.
-     */
-    private function resolveFromAddress(FormInterface $form, Account $account): string
-    {
-        $parsed = $this->parseSenderToken($form->get('account')->getData());
-
-        if (null !== $parsed && $parsed[0] === $account) {
-            return $parsed[1];
-        }
-
-        return $account->displayAddress ?? $account->email ?? '';
-    }
-
-    /**
-     * @return array{0: Account, 1: string}|null
-     */
-    private function parseSenderToken(mixed $token): ?array
-    {
-        if (false === is_string($token) || false === str_contains($token, '|')) {
-            return null;
-        }
-
-        [$id, $address] = explode('|', $token, 2);
-        $account = $this->accountRepository->find((int) $id);
-
-        if (
-            null === $account
-            || $account->usr !== $this->getUser()
-            || false === (bool) $account->isActive
-        ) {
-            return null;
-        }
-
-        return [$account, $address];
-    }
-
-    private function senderToken(Account $account): string
-    {
-        return sprintf('%d|%s', $account->id, $account->displayAddress ?? $account->email ?? '');
     }
 
     private function defaultAccount(): ?Account
@@ -804,145 +640,6 @@ class ComposeController extends AbstractController
     }
 
     /**
-     * Wire the message to its From account: Drafts label of that account,
-     * plus the physical Drafts folder for plain-IMAP accounts (Gmail
-     * accounts have no mailboxes — mailbox stays null).
-     *
-     * Switching the From account on an existing draft moves it: Drafts
-     * labels of other accounts are dropped.
-     */
-    private function applyAccount(Message $message, Account $account): void
-    {
-        $message->account = $account;
-
-        $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
-
-        foreach ($message->labels as $label) {
-            if (LabelRole::Drafts === $label->role && $label !== $draftsLabel) {
-                $message->removeLabel($label);
-            }
-        }
-
-        $message->addLabel($draftsLabel);
-
-        $message->mailbox = $draftsLabel->bindingFor($account)?->mailbox;
-    }
-
-    /**
-     * Read compose_to[], compose_cc[], compose_bcc[] from the Tom Select
-     * fields and write them onto the Message, replacing whatever the
-     * Symfony CollectionType may have bound.
-     */
-    private function applyAddressFields(FormInterface $form, Message $message): void
-    {
-        $extract = static function (string $field) use ($form): array {
-            /** @var Collection $contacts */
-            $contacts = $form->get($field)->getData();
-
-            if (empty($contacts)) {
-                return [];
-            }
-
-            $result = [];
-            foreach ($contacts as $contact) {
-                $result[] = [
-                    'name' => $contact->displayName ?? '',
-                    'address' => $contact->email ?? '',
-                ];
-            }
-
-            return array_values(array_filter($result, static fn(array $a): bool => $a['address'] !== ''));
-        };
-
-        $to = $extract('toAddresses');
-        $cc = $extract('ccAddresses');
-        $bcc = $extract('bccAddresses');
-
-        if (!empty($to)) {
-            $message->toAddresses = $to;
-        }
-        if (!empty($cc)) {
-            $message->ccAddresses = $cc;
-        }
-        if (!empty($bcc)) {
-            $message->bccAddresses = $bcc;
-        }
-    }
-
-    private function persistDraft(Message $message, Account $account): void
-    {
-        $now = new DateTimeImmutable();
-
-        $message->fromAddress = $account->email;
-        $message->fromName = $account->name;
-        $message->addFlag(MessageFlag::DRAFT);
-        $message->seenAt ??= $now;
-
-        // Autosave runs on every keystroke: hardcoding false here used to wipe
-        // the flag off a draft that had files attached to it.
-        $this->syncAttachmentFlag($message);
-
-        // Only the sync layer sanitizes bodies, so without this a draft (and
-        // the message it becomes) renders blank in the conversation until the
-        // sent copy comes back from IMAP.
-        $this->bodySanitizer->sanitize($message);
-        $message->bodyText = $this->plainTextBody($message->bodyHtml);
-
-        // Read before the flush below mints an id, which is the only moment a
-        // first save can still be told apart from an autosave of the same
-        // draft. Afterwards every call through here looks identical, and a
-        // client would be handed "created" for an id it already holds.
-        $isNew = null === $message->id;
-
-        $this->em->persist($message);
-
-        if (null === $message->thread) {
-            // Uses in_reply_to / references, so reply drafts land on the
-            // original thread; fresh composes get a new one.
-            $this->threader->assignThread($message, $account);
-        }
-        $this->threader->resyncDraftThreadSubject($message);
-
-        $thread = $message->thread;
-
-        if (null !== $thread) {
-            // The threader only sets the owning side, so the thread does not
-            // know about this message yet — and sync() derives a thread's
-            // labels from the messages it can see. Without this it saw none of
-            // them, stripped the Drafts label the threader had just copied
-            // over, and the new draft never turned up in the Drafts list.
-            $thread->addMessage($message);
-            $this->threadLabelSynchronizer->sync($thread);
-        }
-
-        $this->em->flush();
-
-        // Every route that makes a web-composed message real comes through
-        // here — both autosaves and the send — so this is the one place JMAP
-        // has to hear about it. Without it a draft written in the browser, and
-        // the mail it turns into, never appeared in Email/changes at all.
-        //
-        // After the flush, not before: record() only persists, so the id it is
-        // given has to exist already, and the thread the threader created
-        // moments ago only gets one here. Same shape as PostIngestPipeline —
-        // ids, record, flush the log rows.
-        $accountId = (int) $account->id;
-        $messageId = (string) $message->id;
-
-        if (true === $isNew) {
-            $this->stateManager->recordCreated($accountId, JmapObjectType::Email, $messageId);
-        } else {
-            $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, $messageId);
-        }
-
-        if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
-        }
-
-        $this->em->flush();
-    }
-
-    /**
      * Attachments may only be touched on a draft the user owns that has not
      * gone out yet — a sent message's parts are a record of what was sent.
      */
@@ -959,124 +656,12 @@ class ComposeController extends AbstractController
         }
     }
 
-    /**
-     * Adding or dropping a file rewrites Email.attachments and
-     * Email.hasAttachment, both of which JMAP publishes — so a client left
-     * untold keeps showing the draft with the files it had at last sync.
-     *
-     * The row already exists here (the window forces a save before an upload),
-     * so this can sit ahead of the caller's flush and ride out on it.
-     */
-    private function recordAttachmentChange(Message $message): void
-    {
-        $accountId = (int) $message->account->id;
-
-        $this->stateManager->recordUpdated(
-            $accountId,
-            JmapObjectType::Email,
-            (string) $message->id,
-        );
-
-        $thread = $message->thread;
-
-        if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
-        }
-    }
-
-    /** Keep the attachment flag in step with the parts actually stored. */
-    private function syncAttachmentFlag(Message $message): void
-    {
-        $hasAttachments = false;
-
-        foreach ($message->messageParts as $part) {
-            if (false === (bool) $part->isInline) {
-                $hasAttachments = true;
-
-                break;
-            }
-        }
-
-        $message->hasAttachments = $hasAttachments;
-    }
-
-    /** Drop the files a discarded draft uploaded; the rows cascade. */
-    private function deleteStoredAttachments(Message $message): void
-    {
-        foreach ($message->messageParts as $part) {
-            $this->attachmentStorage->delete($part->storagePath);
-        }
-    }
-
     private function assertOwnership(Message $message): void
     {
         $account = $message->account;
 
         if (null === $account || $account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
-        }
-    }
-
-    /**
-     * Inverse of applyAddressFields(): turn the stored {name, address} JSON
-     * back into the Contact entities the autocomplete field renders as
-     * selected options. Addresses typed freehand may have no contact row yet,
-     * so those are harvested on the spot — the field cannot represent an
-     * address that is not a Contact.
-     */
-    private function hydrateAddressFields(FormInterface $form, Message $message): void
-    {
-        $groups = [
-            'toAddresses'  => $message->toAddresses ?? [],
-            'ccAddresses'  => $message->ccAddresses ?? [],
-            'bccAddresses' => $message->bccAddresses ?? [],
-        ];
-
-        $pending = [];
-
-        foreach ($groups as $addresses) {
-            foreach ($addresses as $addr) {
-                $email = mb_strtolower(trim($addr['address'] ?? ''));
-
-                if ($email === '') {
-                    continue;
-                }
-
-                $pending[$email] = ['email' => $email, 'name' => $addr['name'] ?? null];
-            }
-        }
-
-        if (count($pending) === 0) {
-            return;
-        }
-
-        $user     = $this->getUser();
-        $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($pending));
-
-        $missing = array_values(array_filter(
-            $pending,
-            static fn(array $addr): bool => false === array_key_exists($addr['email'], $contacts),
-        ));
-
-        // Only upsert what is genuinely absent — upsertBatch bumps frequency,
-        // and merely opening a draft is not a new contact signal.
-        if (count($missing) > 0) {
-            $this->contactRepository->upsertBatch($user, $missing);
-            $contacts = $this->contactRepository->findByEmailsForUser($user, array_keys($pending));
-        }
-
-        foreach ($groups as $field => $addresses) {
-            $selected = [];
-
-            foreach ($addresses as $addr) {
-                $email = mb_strtolower(trim($addr['address'] ?? ''));
-
-                if (true === array_key_exists($email, $contacts)) {
-                    $selected[] = $contacts[$email];
-                }
-            }
-
-            $form->get($field)->setData($selected);
         }
     }
 }

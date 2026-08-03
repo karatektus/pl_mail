@@ -20,6 +20,10 @@ final class ChangeLogRepository extends ServiceEntityRepository
     /**
      * The current state token for an account+objectType: the highest sequence
      * recorded, or 0 when nothing has ever been logged for it.
+     *
+     * MAX over one column, which Doctrine's API has no form of. The alternative
+     * is loading an account's entire change history to read the largest of one
+     * integer — on every JMAP request, since a state token is on every reply.
      */
     public function latestSequence(int $accountId, JmapObjectType $type): int
     {
@@ -42,6 +46,8 @@ final class ChangeLogRepository extends ServiceEntityRepository
     /**
      * The lowest sequence still retained for an account+objectType, or 0 when
      * none remain. Used to detect a state token that predates pruned history.
+     *
+     * MIN over one column, for the same reason latestSequence() uses MAX.
      */
     public function oldestSequence(int $accountId, JmapObjectType $type): int
     {
@@ -66,6 +72,9 @@ final class ChangeLogRepository extends ServiceEntityRepository
      * sequence ascending. Fetches one more than $limit so the caller can tell
      * whether more changes remain beyond the returned window.
      *
+     * QueryBuilder for `sequence > :since`: findBy() compares a field to a
+     * value, and a delta is by definition a range.
+     *
      * @return list<ChangeLog>
      */
     public function changesSince(int $accountId, JmapObjectType $type, int $since, int $limit): array
@@ -87,6 +96,10 @@ final class ChangeLogRepository extends ServiceEntityRepository
      * Prune rows older than $before for an account+objectType. Callers that
      * prune must accept that clients holding a state token below the new floor
      * will be told to resync (cannotCalculateChanges).
+     *
+     * A bulk DELETE for the `<` bound and because nothing here needs an entity
+     * — retention that hydrated its victims would scale with the history it
+     * exists to remove.
      */
     public function pruneOlderThan(int $accountId, JmapObjectType $type, \DateTimeImmutable $before): int
     {

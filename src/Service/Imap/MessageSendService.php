@@ -8,12 +8,11 @@ use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,7 +33,7 @@ class MessageSendService
         private readonly AttachmentResolver      $attachmentResolver,
         private readonly LabelResolver           $labelResolver,
         private readonly LabelRepository         $labelRepository,
-        private readonly StateManager            $stateManager,
+        private readonly MailChangeRecorder      $changes,
     ) {
     }
 
@@ -83,14 +82,14 @@ class MessageSendService
         // The draft->sent transition rewrites three properties JMAP publishes:
         // keywords (the $draft keyword goes away), mailboxIds (EmailMapper
         // reads those off the labels, so swapping Drafts for Sent is a move as
-        // far as a client is concerned) and sentAt. Nothing was recorded here,
+        // far as a client is concerned) and sentAt. Nothing was announced here,
         // so a client saw the draft appear and never heard another word about
         // it — mail that left the building hours ago sat in its cache as an
         // unsent draft until a full resync.
         //
         // Ahead of the flush below on purpose. The message was persisted long
         // before the send was queued and so was its thread, so both ids exist,
-        // and record() only persists — putting it here commits the log rows in
+        // and recording only persists — putting it here commits the log rows in
         // the same unit of work as the transition they describe, rather than
         // leaving a window where the mail is sent and the log does not say so.
         //
@@ -99,19 +98,12 @@ class MessageSendService
         // when it mints a binding, and per-mailbox counts are not a change
         // this codebase logs (see EmailSetMethod, which moves messages between
         // mailboxes and records only the Email and its Thread).
-        $accountId = (int) $account->id;
-
-        $this->stateManager->recordUpdated(
-            $accountId,
-            JmapObjectType::Email,
+        $this->changes->emailChanged(
+            (int) $account->id,
             (string) $message->id,
+            created: false,
+            thread: $message->thread,
         );
-
-        $thread = $message->thread;
-
-        if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
-        }
 
         $this->em->flush();
 

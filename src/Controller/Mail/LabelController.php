@@ -6,10 +6,9 @@ namespace App\Controller\Mail;
 
 use App\Entity\Label\Label;
 use App\Form\LabelType;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelStructurePropagator;
+use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -41,7 +40,7 @@ final class LabelController extends AbstractController
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
         private readonly LabelStructurePropagator $structurePropagator,
-        private readonly StateManager           $stateManager,
+        private readonly MailChangeRecorder     $changes,
         private readonly TranslatorInterface    $translator,
     ) {}
 
@@ -111,7 +110,7 @@ final class LabelController extends AbstractController
             $this->em->flush();
 
             $this->structurePropagator->renamed($label);
-            $this->recordForEveryBinding($label, 'updated');
+            $this->changes->labelChanged($label);
             $this->em->flush();
 
             return $this->labelListsStream('label.updated');
@@ -134,7 +133,7 @@ final class LabelController extends AbstractController
         // Dispatch before removal: the propagator reads the remote id and
         // name off the bindings, and there is nothing to read afterwards.
         $this->structurePropagator->deleted($label);
-        $this->recordForEveryBinding($label, 'destroyed');
+        $this->changes->labelDeleted($label);
 
         // parent FK cascades — children go with it, and so do the bindings.
         // message_label / thread_label rows cascade too; the messages stay.
@@ -173,7 +172,7 @@ final class LabelController extends AbstractController
             $toastMessage = 'label.visibility.hidden';
         }
 
-        $this->recordForEveryBinding($label, 'updated');
+        $this->changes->labelChanged($label);
         $this->em->flush();
 
         return $this->labelListsStream($toastMessage);
@@ -192,27 +191,6 @@ final class LabelController extends AbstractController
             'toastMessage' => $toastMessage,
             'labels'       => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
         ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
-    }
-
-    /**
-     * A label change is one JMAP Mailbox change per account it is bound to,
-     * because JMAP state is tracked per account and a Mailbox id is a binding
-     * id. A label with no bindings has no JMAP presence to update.
-     *
-     * @param 'updated'|'destroyed' $kind
-     */
-    private function recordForEveryBinding(Label $label, string $kind): void
-    {
-        foreach ($label->bindings as $binding) {
-            $accountId = (int) $binding->account->id;
-            $bindingId = (string) $binding->id;
-
-            if ('destroyed' === $kind) {
-                $this->stateManager->recordDestroyed($accountId, JmapObjectType::Mailbox, $bindingId);
-            } else {
-                $this->stateManager->recordUpdated($accountId, JmapObjectType::Mailbox, $bindingId);
-            }
-        }
     }
 
     /**

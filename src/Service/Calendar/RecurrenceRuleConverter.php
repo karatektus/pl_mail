@@ -54,6 +54,26 @@ final readonly class RecurrenceRuleConverter
     ];
 
     /**
+     * The event editor's repeat dropdown, as a JSCalendar rule.
+     *
+     * Deliberately not a general recurrence editor — that is a UI of its own,
+     * and these four cover what a person types into a calendar by hand.
+     * Anything else means "does not repeat", including the empty choice.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function fromRepeatChoice(string $repeat): ?array
+    {
+        return match ($repeat) {
+            'daily'   => ['@type' => 'RecurrenceRule', 'frequency' => 'daily'],
+            'weekly'  => ['@type' => 'RecurrenceRule', 'frequency' => 'weekly'],
+            'monthly' => ['@type' => 'RecurrenceRule', 'frequency' => 'monthly'],
+            'yearly'  => ['@type' => 'RecurrenceRule', 'frequency' => 'yearly'],
+            default   => null,
+        };
+    }
+
+    /**
      * @param array<string,mixed> $rule one JSCalendar RecurrenceRule
      *
      * @return string|null an RRULE value ("FREQ=WEEKLY;BYDAY=MO"), or null if

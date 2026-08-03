@@ -8,8 +8,6 @@ use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Entity\Mail\Account;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Rule\MailRuleEngine;
@@ -50,7 +48,7 @@ final readonly class PostIngestPipeline
         private MessageCategorizer     $categorizer,
         private MessageThreader        $messageThreader,
         private MailRuleEngine         $ruleEngine,
-        private StateManager           $stateManager,
+        private MailChangeRecorder     $changes,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
         #[AutowireIterator('app.post_ingest_step')]
@@ -100,12 +98,17 @@ final readonly class PostIngestPipeline
                 $this->rawResolver->store($message, $item->rawSource);
             }
 
-            // JMAP state: the ids exist after the caller's flush. record() only
-            // persists, so these rows ride along on the flush below.
-            $this->stateManager->recordCreated(
+            // JMAP state: the ids exist after the caller's flush. Recording
+            // only persists, so these rows ride along on the flush below.
+            //
+            // No thread yet on purpose. assignThread() runs below and a thread
+            // it creates has no id until the flush after this loop, so the
+            // conversations are announced in a second pass down there instead.
+            $this->changes->emailChanged(
                 $accountId,
-                JmapObjectType::Email,
                 (string) $message->id,
+                created: true,
+                thread: null,
             );
 
             $message->category = $this->categorizer->categorize($message, $correspondents);
@@ -145,7 +148,7 @@ final readonly class PostIngestPipeline
         }
 
         foreach ($threadIdsByAccount as $threadAccountId => $threadIds) {
-            $this->stateManager->recordThreadsTouched($threadAccountId, $threadIds);
+            $this->changes->threadsTouched($threadAccountId, $threadIds);
         }
 
         // The change-log rows recorded just now.

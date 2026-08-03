@@ -11,10 +11,10 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Jmap\State\StateManager;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\RawMessageResolver;
@@ -241,7 +241,7 @@ final class PostIngestPipelineTest extends KernelTestCase
             $container->get(MessageCategorizer::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
-            $container->get(StateManager::class),
+            $container->get(MailChangeRecorder::class),
             $this->em,
             $container->get(LoggerInterface::class),
             $steps,

@@ -89,6 +89,25 @@ final readonly class IntegrationConnector
         return $error;
     }
 
+    /**
+     * Try an existing connection again, for when a service was down or a
+     * credential was rotated at the other end.
+     *
+     * @return string|null the failure message, or null when the service answered
+     */
+    public function retest(Integration $integration): ?string
+    {
+        $error = $this->probe($integration);
+
+        $this->entityManager->flush();
+
+        return $error;
+    }
+
+    /**
+     * Ask the service whether the credentials work, recording the outcome on
+     * the entity either way. Returns the failure message, or null on success.
+     */
     private function probe(Integration $integration): ?string
     {
         try {

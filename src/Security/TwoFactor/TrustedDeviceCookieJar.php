@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security\TwoFactor;
 
+use App\Entity\User\TrustedDevice;
 use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,6 +50,22 @@ final class TrustedDeviceCookieJar
         $value = $request->cookies->get($this->cookieName);
 
         return is_string($value) && '' !== $value ? $value : null;
+    }
+
+    /**
+     * The presented secret as it is stored — the only form worth comparing.
+     *
+     * The database never holds the secret itself, so every caller that wants to
+     * know "is this row the browser I am talking to?" has to hash first. Doing
+     * that here means the hashing and the cookie name are decided together, and
+     * a caller comparing the raw cookie against a stored digest would simply
+     * never match anything.
+     */
+    public function currentHash(Request $request): ?string
+    {
+        $secret = $this->read($request);
+
+        return null === $secret ? null : TrustedDevice::hash($secret);
     }
 
     public function issue(string $secret, DateTimeImmutable $expiresAt, Request $request): void

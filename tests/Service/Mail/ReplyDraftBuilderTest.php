@@ -141,6 +141,43 @@ final class ReplyDraftBuilderTest extends TestCase
         self::assertNull($this->builder->forward($original)->thread, 'a forward joined the thread it quotes');
     }
 
+    /**
+     * The first autosave of a reply POSTs to a route with no message id, so
+     * the server builds a brand new Message and has to put it back where the
+     * reply belongs. Without this the reply arrived as a conversation of its
+     * own, addressed to the right person and threaded nowhere.
+     */
+    public function testAReplyRebuiltByAnAutosaveIsPutBackIntoTheConversation(): void
+    {
+        $thread           = new MessageThread();
+        $original         = $this->original();
+        $original->thread = $thread;
+
+        $draft = new Message();
+
+        $this->builder->linkToOriginal($draft, $original);
+
+        self::assertSame($thread, $draft->thread);
+        self::assertSame(['<orig@example.test>'], $draft->inReplyTo);
+        self::assertSame(['<older@example.test>', '<orig@example.test>'], $draft->references);
+    }
+
+    /**
+     * A draft that already names what it answers keeps its own chain: it was
+     * linked when the window opened, and re-deriving it is at best a no-op.
+     */
+    public function testADraftThatAlreadyNamesWhatItAnswersIsLeftAlone(): void
+    {
+        $draft             = new Message();
+        $draft->inReplyTo  = ['<something-else@example.test>'];
+        $draft->references = ['<something-else@example.test>'];
+
+        $this->builder->linkToOriginal($draft, $this->original());
+
+        self::assertSame(['<something-else@example.test>'], $draft->inReplyTo);
+        self::assertSame(['<something-else@example.test>'], $draft->references);
+    }
+
     // ── quoting ──────────────────────────────────────────────────────────────
 
     /**
