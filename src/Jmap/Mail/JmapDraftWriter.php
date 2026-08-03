@@ -147,7 +147,22 @@ final class JmapDraftWriter
         }
 
         $this->threader->resyncDraftThreadSubject($message);
-        $this->threadLabelSynchronizer->sync($message->thread);
+
+        $thread = $message->thread;
+
+        if (null !== $thread) {
+            // The threader sets only the owning side, so the thread does not
+            // hold this message yet — and sync() derives a thread's labels from
+            // the messages it can see. Without this it sees none of them,
+            // strips the Drafts label the threader had just copied across, and
+            // the new draft never appears in the Drafts list.
+            //
+            // ComposeController has carried this line, and that comment, since
+            // the web composer hit it. The JMAP writer did not, so every draft
+            // an app created went missing the same way.
+            $thread->addMessage($message);
+            $this->threadLabelSynchronizer->sync($thread);
+        }
 
         $this->entityManager->flush();
     }

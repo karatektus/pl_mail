@@ -6,6 +6,7 @@ namespace App\Tests\Jmap\Method\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Entity\Mail\Message;
 use App\Jmap\Method\Mail\EmailSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
@@ -478,4 +479,37 @@ final class EmailSetMethodTest extends JmapTestCase
 
         return $message;
     }
+
+    /**
+     * A draft created over JMAP has to show up in Drafts, which sounds obvious
+     * and was not true. ThreadLabelSynchronizer rebuilds a thread's labels from
+     * the messages the thread can see, the threader attaches a message by its
+     * owning side only, so the draft was invisible to the rebuild and the
+     * Drafts label it had just been given was taken straight back off.
+     */
+    public function testADraftCreatedOverJmapKeepsItsThreadInDrafts(): void
+    {
+        $result = $this->handle(['create' => ['d1' => [
+            'mailboxIds' => [$this->mailboxIdFor(LabelRole::Drafts) => true],
+            'subject'    => 'Kept in drafts',
+            'keywords'   => ['$draft' => true],
+        ]]]);
+
+        self::assertArrayHasKey('d1', (array) $result['created'], json_encode($result['notCreated'] ?? []));
+
+        $message = $this->em->find(Message::class, (int) ((array) $result['created'])['d1']['id']);
+        self::assertNotNull($message);
+        $thread  = $message->thread;
+
+        self::assertNotNull($thread, 'the draft was not threaded at all');
+
+        $roles = [];
+
+        foreach ($thread->labels as $label) {
+            $roles[] = $label->role?->value;
+        }
+
+        self::assertContains('drafts', $roles, 'the thread lost the Drafts label it was just given');
+    }
+
 }
