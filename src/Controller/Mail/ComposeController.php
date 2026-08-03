@@ -188,10 +188,11 @@ class ComposeController extends AbstractController
                 throw $this->createNotFoundException('No active account to compose from.');
             }
 
-            $message->fromAddress = $this->senders->addressFor($token, $account, $this->getUser());
-            $message->fromName = $account->name ?? '';
-
-            $this->drafts->save($message, $account);
+            $this->drafts->save(
+                $message,
+                $account,
+                $this->senders->addressFor($token, $account, $this->getUser()),
+            );
 
             return $this->renderWindow($form, $message, $ctx, ['saved' => true]);
         }
@@ -232,10 +233,11 @@ class ComposeController extends AbstractController
                 throw $this->createNotFoundException('No active account to send from.');
             }
 
-            $message->fromAddress = $this->senders->addressFor($token, $account, $this->getUser());
-            $message->fromName = $account->name ?? '';
-
-            $this->drafts->save($message, $account);
+            $this->drafts->save(
+                $message,
+                $account,
+                $this->senders->addressFor($token, $account, $this->getUser()),
+            );
 
             $this->bus->dispatch(
                 new SendMessageMessage($message->id),
@@ -271,10 +273,7 @@ class ComposeController extends AbstractController
             return $this->turboStream('compose/_inline_undo.stream.html.twig', [
                 'form'         => $form,
                 'message'      => $message,
-                'thread'       => $ctx['thread'],
-                'inline'       => true,
-                'frame'        => $ctx['frame'],
-                'urlParams'    => $this->urlParams($ctx),
+                'ctx'          => $ctx,
                 'threadEntity' => $message->thread,
             ]);
         }
@@ -289,7 +288,7 @@ class ComposeController extends AbstractController
      * Inline sends skip the toast: the message is appended to the open thread
      * and the reply bar becomes a countdown the user can click to cancel.
      *
-     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
     private function sendResponse(Message $message, array $ctx): Response
     {
@@ -304,7 +303,7 @@ class ComposeController extends AbstractController
             'thread'  => $message->thread,
             'undoUrl' => $this->generateUrl(
                 'app_compose_mail_undo',
-                $this->urlParams($ctx) + ['id' => $message->id],
+                $ctx['urlParams'] + ['id' => $message->id],
             ),
             'delay'   => self::SEND_DELAY_MS,
         ]);
@@ -436,8 +435,7 @@ class ComposeController extends AbstractController
 
         return $this->turboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
-            'frame'     => $ctx['frame'],
-            'inline'    => $ctx['inline'],
+            'ctx'       => $ctx,
             'threadId'  => $this->rowToDrop($thread, $messageId, $remaining, $request),
         ]);
     }
@@ -494,7 +492,7 @@ class ComposeController extends AbstractController
      * the server builds a brand new Message that would otherwise have lost
      * the thread and In-Reply-To the reply was created with.
      *
-     * @return array{inline: bool, frame: string, thread: int|null, replyTo: int|null}
+     * @return array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>}
      */
     private function composeContext(Request $request): array
     {
@@ -504,21 +502,30 @@ class ComposeController extends AbstractController
         // compose_draft_{id} is a draft being edited in place, in its own row.
         $inline = 1 === preg_match('/^compose_(inline|draft_\d+)$/', $frame);
 
-        return [
+        $ctx = [
             'inline'  => $inline,
             'frame'   => $inline ? $frame : self::DOCK_FRAME,
             'thread'  => $request->query->has('thread') ? $request->query->getInt('thread') : null,
             'replyTo' => $request->query->has('reply_to') ? $request->query->getInt('reply_to') : null,
         ];
+
+        // Carried on the context rather than derived at each render: every
+        // template that opens a compose window needs the same query params
+        // back, and three call sites recomputing them is three chances to
+        // disagree about which ones matter.
+        $ctx['urlParams'] = $this->urlParams($ctx);
+
+        return $ctx;
     }
 
     /**
      * Query params to bake into the draft/send URLs the window reports back.
      *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null} $ctx
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      *
      * @return array<string, int|string>
      */
+    /** Called once, from composeContext(); the result rides on the context. */
     private function urlParams(array $ctx): array
     {
         $params = [];
@@ -548,7 +555,7 @@ class ComposeController extends AbstractController
      * came back from the browser, so the message it names is only the original
      * if the user owns it.
      *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null} $ctx
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
     private function applyReplyContext(Message $message, array $ctx): void
     {
@@ -570,7 +577,7 @@ class ComposeController extends AbstractController
      * with a dock window open at the same time (compose_inline_subject vs
      * compose_subject). The CSRF token id is shared, so tokens interchange.
      *
-     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      * @param list<string>                                         $groups
      */
     private function composeForm(Message $message, array $ctx, array $groups = ['Default']): FormInterface
@@ -589,17 +596,14 @@ class ComposeController extends AbstractController
     }
 
     /**
-     * @param array{inline: bool, frame: string, thread: int|null} $ctx
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
     private function renderWindow(FormInterface $form, Message $message, array $ctx, array $extra = []): Response
     {
         return $this->render('compose/_window.html.twig', $extra + [
-            'form'      => $form,
-            'message'   => $message,
-            'inline'    => $ctx['inline'],
-            'frame'     => $ctx['frame'],
-            'thread'    => $ctx['thread'],
-            'urlParams' => $this->urlParams($ctx),
+            'form'    => $form,
+            'message' => $message,
+            'ctx'     => $ctx,
             // Services this user can pull files out of. Download rather than
             // Browse is the test that matters: a service you can list but not
             // fetch from would open a picker that cannot attach anything.

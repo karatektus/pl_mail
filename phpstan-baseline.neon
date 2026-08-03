@@ -63,18 +63,6 @@ parameters:
 			path: src/Controller/Mail/ComposeController.php
 
 		-
-			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: bool, frame\: string, thread\: int\|null\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: true, frame\: string, thread\: int\|null\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1

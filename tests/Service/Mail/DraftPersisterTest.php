@@ -211,6 +211,34 @@ final class DraftPersisterTest extends KernelTestCase
 
     // ── helpers ───────────────────────────────────────────────────────────
 
+    /**
+     * The From picker exists to let somebody send as an alias, and until now it
+     * did not work: the address it chose was written onto the message and then
+     * overwritten with the account's own one line later, inside this class. The
+     * mail went out as the primary address and nothing anywhere said so.
+     */
+    public function testADraftKeepsTheSenderItWasSavedWith(): void
+    {
+        $message = $this->draft();
+
+        $this->drafts->save($message, $this->account, 'alias@example.test');
+
+        self::assertSame('alias@example.test', $message->fromAddress);
+    }
+
+    /**
+     * A caller with no From picker — JmapDraftWriter, and the send path before
+     * a token is resolved — still gets the account's own address.
+     */
+    public function testADraftWithNoChosenSenderFallsBackToTheAccount(): void
+    {
+        $message = $this->draft();
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertSame($this->account->email, $message->fromAddress);
+    }
+
     private function draft(): Message
     {
         $message                 = new Message();

@@ -53,10 +53,10 @@ final readonly class DraftPersister
      * about it. Without that a draft written in the browser, and the mail it
      * turns into, never appeared in Email/changes at all.
      */
-    public function save(Message $message, Account $account): void
+    public function save(Message $message, Account $account, ?string $sender = null): void
     {
         $this->fileUnderAccount($message, $account);
-        $this->markAsDraft($message, $account);
+        $this->markAsDraft($message, $account, $sender);
 
         $message->bodyText = $this->plainTextBody($message->bodyHtml);
 
@@ -112,9 +112,16 @@ final readonly class DraftPersister
      * Leaves bodyText alone — see plainTextBody(), which the two callers of
      * this method do not agree on.
      */
-    public function markAsDraft(Message $message, Account $account): void
+    public function markAsDraft(Message $message, Account $account, ?string $sender = null): void
     {
-        $message->fromAddress = $account->email;
+        // Null means "whoever the account is", which is what a caller with no
+        // From picker wants. It is a parameter rather than a read of whatever
+        // the message already carries because this used to overwrite the
+        // address unconditionally: the web composer set the alias the user had
+        // just chosen, called through here, and had it replaced by the
+        // account's own address one line later. Every mail sent from an alias
+        // went out as the primary address, and nothing reported it.
+        $message->fromAddress = $sender ?? $account->email;
         $message->fromName    = $account->name;
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= new DateTimeImmutable();

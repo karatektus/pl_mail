@@ -10,7 +10,7 @@ from — the conversation row when reading a thread, the list row in Drafts —
 and a turbo-stream remove aimed at an absent id is a no-op, so each view gets
 exactly the one that applies to it.
 
-Variables: messageId, frame, inline, threadId (null unless the thread is now
+Variables: messageId, ctx (the compose context), threadId (null unless the thread is now
 empty)
 #}
 <turbo-stream action="remove" target="thread_message_{{ messageId }}">
@@ -21,6 +21,6 @@ empty)
     </turbo-stream>
 {% endif %}
 
-<turbo-stream action="update" target="{{ frame }}">
+<turbo-stream action="update" target="{{ ctx.frame }}">
     <template></template>
 </turbo-stream>
