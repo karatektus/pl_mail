@@ -10,6 +10,22 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.11 — 2026-08-03
+
+No schema change, no deployment change.
+
+### Added
+
+- **The queue panel says what the workers are doing.** It showed a depth and an
+  age per queue, which cannot tell a queue that is empty from a queue that is
+  stuck — both read as "nothing waiting". It now lists the messages a worker is
+  holding right now, each with its handler, its payload and how long it has been
+  held, above a per-queue breakdown of pending and in-flight counts, and the
+  backlog behind them: what is waiting, what is merely scheduled for later, and
+  how often each has already been retried. A message whose envelope no longer
+  deserialises is listed as undecodable rather than skipped — it is stuck
+  forever, and was previously invisible.
+
 ## v0.0.10 — 2026-08-03
 
 **Deployment shape changes.** The single `messenger-worker` service is replaced
