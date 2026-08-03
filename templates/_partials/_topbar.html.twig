@@ -81,7 +81,8 @@
             >
         </div>
 
-        {# Recent searches dropdown #}
+        {# Recent searches, and operator/contact suggestions while typing —
+           one list, since only one of the two is ever relevant. #}
         <div
             data-mail--search-target="dropdown"
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
@@ -90,9 +91,11 @@
                    rounded-pane shadow-xl overflow-hidden"
         >
             <div class="flex items-center justify-between px-3 py-1.5 border-b border-line">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
+                <span data-mail--search-target="dropdownTitle"
+                      class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
                 <button
                     type="button"
+                    data-mail--search-target="clear"
                     data-action="click->mail--search#clearRecents"
                     class="text-[11px] text-gray-400 hover:text-ink-soft transition-colors"
                 >

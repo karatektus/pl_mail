@@ -38,7 +38,23 @@ final class SearchController extends AbstractController
             ]);
         }
 
-        $parsed  = $this->parser->parse($raw);
+        $parsed = $this->parser->parse($raw);
+
+        // A query that is all half-typed operator — "from:" with nothing after
+        // it — parses to no filters at all. Searching on that would answer
+        // with the whole mailbox, which reads as the search having been
+        // ignored; the empty result says "nothing to go on yet" instead.
+        if (true === $parsed->isEmpty()) {
+            return $this->render('search/search.html.twig', [
+                'q'        => $raw,
+                'threads'  => [],
+                'total'    => 0,
+                'page'     => 1,
+                'per_page' => 50,
+                'parsed'   => $parsed,
+            ]);
+        }
+
         $user    = $this->getUser();
         $threads = $this->threadRepository->search($user, $parsed, $page);
         $total   = $this->threadRepository->countSearch($user, $parsed);

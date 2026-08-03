@@ -15,12 +15,14 @@ final class ParsedSearchQuery
     public ?string $label       = null;
     public ?string $from       = null;
     public ?string $to         = null;
+    public ?string $cc         = null;
     public ?string $subject    = null;
     public ?bool $hasAttachment = null;
     public bool $isUnread      = false;
     public bool $isRead        = false;
     public bool $isStarred     = false;
-    public ?string $mailboxRole = null;  // inbox, sent, drafts, trash, archive, junk
+    /** A label role, already resolved from what was typed — see SearchQueryParser::ROLES. */
+    public ?string $mailboxRole = null;
     public ?\DateTimeImmutable $after  = null;
     public ?\DateTimeImmutable $before = null;
 
@@ -30,6 +32,7 @@ final class ParsedSearchQuery
             && $this->label === null
             && $this->from === null
             && $this->to === null
+            && $this->cc === null
             && $this->subject === null
             && $this->hasAttachment === null
             && !$this->isUnread

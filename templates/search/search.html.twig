@@ -29,8 +29,14 @@
             {% if parsed.to %}
                 {{ _self.pill('To', parsed.to, q) }}
             {% endif %}
+            {% if parsed.cc %}
+                {{ _self.pill('Cc', parsed.cc, q) }}
+            {% endif %}
             {% if parsed.subject %}
                 {{ _self.pill('Subject', parsed.subject, q) }}
+            {% endif %}
+            {% if parsed.label %}
+                {{ _self.pill('Label', parsed.label, q) }}
             {% endif %}
             {% if parsed.hasAttachment %}
                 {{ _self.pill('Has', 'attachment', q) }}

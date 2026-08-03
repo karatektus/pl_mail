@@ -8,7 +8,36 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Added
+
+- **Collapsed admin panels say what is inside them.** A shut card showed a
+  heading and nothing else, so a collapsed dashboard was a list of nouns. Each
+  now carries a one-line summary in its header — "2 down", "14 waiting",
+  "3/4 armed" — coloured when it is worth noticing.
+- **The queue panel is searchable and no longer unbounded.** The backlog list
+  has a fixed height with its own scrollbar, loads the next page as that scroll
+  reaches the end, and its filter box queries the whole queue rather than the
+  page on screen: handler name, queue, or anything in the payload.
+- **Search suggests as you type.** The box offers the operators it actually
+  supports, and for `from:`, `to:` and `cc:` it completes against your contacts,
+  so a sender can be found without remembering how they spell their address.
+  Arrow keys move, Enter or Tab accepts, Escape dismisses the list before it
+  clears the box.
+- **`label:` and `cc:` search.** Both were half-built: `cc:` did nothing at all
+  and `label:` was understood by the query builder but never parsed.
+
 ### Fixed
+
+- **A collapsed panel beside an open one kept the open one's height.** Grid
+  items stretch by default, so shutting one of a side-by-side pair left a 40px
+  header inside a 400px outline.
+- **Search operators failed silently.** `in:archive` was documented but never
+  mapped, so it was dropped and the search answered with everything, unfiltered
+  — as did any unknown value, like `is:important`. A half-typed `from:` did the
+  same, matching every message through an empty LIKE. Unrecognised operators
+  now fall through to free text, an incomplete one filters nothing, and
+  `in:archive`, `in:snoozed` and the aliases `bin`, `deleted`, `archived` and
+  `draft` are understood.
 
 - **The dev override still described the pre-split worker.** v0.0.10 replaced
   `messenger-worker` with three services but left `compose.override.yaml.dist`

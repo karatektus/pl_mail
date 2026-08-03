@@ -540,6 +540,11 @@ class MessageThreadRepository extends ServiceEntityRepository
             $params['toAddr'] = '%' . $query->to . '%';
         }
 
+        if ($query->cc !== null) {
+            $where[]          = 'm.cc_addresses::text ILIKE :ccAddr';
+            $params['ccAddr'] = '%' . $query->cc . '%';
+        }
+
         if ($query->subject !== null) {
             $where[]           = 'LOWER(m.subject) LIKE :subject';
             $params['subject'] = '%' . strtolower($query->subject) . '%';
@@ -576,19 +581,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             $params['labelName'] = strtolower($query->label);
         }
         // ── Mailbox role filter ───────────────────────────────────────────
-        $roleMap = [
-            'inbox'   => 'inbox',
-            'sent'    => 'sent',
-            'drafts'  => 'drafts',
-            'draft'   => 'drafts',
-            'trash'   => 'trash',
-            'junk'    => 'spam',
-            'spam'    => 'spam',
-        ];
-
-        if ($query->mailboxRole !== null && true === isset($roleMap[$query->mailboxRole])) {
-            $where[]        = 'lbl.role = :labelRole';
-            $params['labelRole'] = $roleMap[$query->mailboxRole];
+        // Already a role: the parser resolves what was typed ("junk", "bin")
+        // and rejects what it cannot resolve, so a mailbox this install does
+        // not have never reaches the SQL as a filter that silently matches
+        // nothing — or, as it used to, a filter silently dropped.
+        if ($query->mailboxRole !== null) {
+            $where[]             = 'lbl.role = :labelRole';
+            $params['labelRole'] = $query->mailboxRole;
         }
 
         $whereClause = implode(' AND ', $where);
