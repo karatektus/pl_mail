@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Filter\FilterVocabulary;
+use App\Entity\Mail\Account;
 use App\Entity\Rule\MailRule;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
@@ -45,7 +46,7 @@ final class FilterDescriber
 
     public function describeRule(MailRule $rule): string
     {
-        return $this->describe($rule->conditions, $rule->actions, $rule->usr);
+        return $this->describe($rule->conditions, $rule->actions, $rule->usr, $rule->account);
     }
 
     /**
@@ -53,14 +54,23 @@ final class FilterDescriber
      * sentence, and resolving them globally would let one user's rule render
      * another user's label name.
      *
+     * The account matters to the sentence, not just to the engine. A rule with
+     * no conditions read "If this is any message → …" whatever it was scoped
+     * to, which is the one case where the scope is the entire filter — the
+     * sentence claimed the whole mailbox while the rule meant one account.
+     *
      * @param array<string,mixed>       $conditions
      * @param list<array<string,mixed>> $actions
      */
-    public function describe(array $conditions, array $actions, ?UserInterface $user): string
-    {
+    public function describe(
+        array $conditions,
+        array $actions,
+        ?UserInterface $user,
+        ?Account $account = null,
+    ): string {
         $this->subject = $user;
 
-        $when = $this->node($conditions);
+        $when = $this->scope($this->node($conditions), $conditions, $account);
         $then = [];
 
         foreach ($actions as $action) {
@@ -79,6 +89,35 @@ final class FilterDescriber
             '%conditions%' => $when,
             '%actions%' => implode(', ', $then),
         ]);
+    }
+
+    /**
+     * Adds "in <account>" to the condition half, where there is an account.
+     *
+     * Two phrasings rather than one, because with no conditions the account is
+     * the whole subject of the sentence — "every message in x@example.com" —
+     * while alongside conditions it is a clause narrowing them.
+     *
+     * @param array<string,mixed> $conditions
+     */
+    private function scope(string $when, array $conditions, ?Account $account): string
+    {
+        if (null === $account) {
+            return $when;
+        }
+
+        $address = (string) ($account->email ?? $account->username ?? '');
+
+        if ('' === $address) {
+            return $when;
+        }
+
+        return $this->translator->trans(
+            0 === count($conditions)
+                ? 'settings.filters.summary.every_message_in'
+                : 'settings.filters.summary.in_account',
+            ['%conditions%' => $when, '%account%' => $address],
+        );
     }
 
     /**

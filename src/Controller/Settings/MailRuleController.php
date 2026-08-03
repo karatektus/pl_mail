@@ -222,6 +222,10 @@ final class MailRuleController extends AbstractController
             return $this->json(['ok' => false, 'error' => 'Invalid conditions.']);
         }
 
+        // Read once and used twice: the count and the sentence under it have
+        // to be describing the same rule.
+        $account = $this->resolveAccount($payload['account'] ?? null);
+
         try {
             $this->validator->validate($conditions);
             // Scoped to the account the rule is being written for: it only
@@ -230,7 +234,7 @@ final class MailRuleController extends AbstractController
             $result = $this->messageRepository->countMatchingForUser(
                 $this->getUser(),
                 $this->compiler->compile($conditions),
-                account: $this->resolveAccount($payload['account'] ?? null),
+                account: $account,
             );
         } catch (InvalidFilterException $e) {
             return $this->json(['ok' => false, 'error' => $e->getMessage()]);
@@ -248,6 +252,9 @@ final class MailRuleController extends AbstractController
                 $conditions,
                 is_array($payload['actions'] ?? null) ? $payload['actions'] : [],
                 $this->getUser(),
+                // The same account the count is scoped to, so the sentence and
+                // the number under it cannot describe different rules.
+                $account,
             ),
         ]);
     }

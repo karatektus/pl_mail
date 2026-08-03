@@ -1105,6 +1105,8 @@ settings:
         subheading: Mail automatisch beim Eintreffen sortieren.
         summary:
             every_message: 'es sich um irgendeine Nachricht handelt'
+            every_message_in: 'es sich um irgendeine Nachricht in %account% handelt'
+            in_account: '%conditions%, in %account%'
             full: 'Wenn %conditions% → %actions%'
             no_actions: 'Wenn %conditions% → (noch keine Aktionen)'
         then: Dann

@@ -945,6 +945,8 @@ settings:
         subheading: Sort yarns automatic-like as they come aboard.
         summary:
             every_message: 'it be any bottle at all'
+            every_message_in: 'it be any bottle at all in %account%'
+            in_account: '%conditions%, aboard %account%'
             full: 'If %conditions% → %actions%'
             no_actions: 'If %conditions% → (no orders yet)'
         then: Then

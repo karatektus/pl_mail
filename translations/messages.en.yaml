@@ -1092,6 +1092,10 @@ settings:
         subheading: Sort mail automatically as it arrives.
         summary:
             every_message: 'this is any message'
+            # With an account chosen the scope IS the rule, so it is the
+            # subject of the sentence rather than a clause on the end.
+            every_message_in: 'this is any message in %account%'
+            in_account: '%conditions%, in %account%'
             full: 'If %conditions% → %actions%'
             no_actions: 'If %conditions% → (no actions yet)'
         then: Then
