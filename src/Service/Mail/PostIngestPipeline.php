@@ -140,7 +140,7 @@ final readonly class PostIngestPipeline
             $thread = $item->message->getThread();
 
             if (null !== $thread) {
-                $threadIdsByAccount[(int) $item->account->getId()][] = (int) $thread->getId();
+                $threadIdsByAccount[(int) $item->account->getId()][] = (int) $thread->id;
             }
         }
 

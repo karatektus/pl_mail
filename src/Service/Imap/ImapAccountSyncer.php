@@ -76,10 +76,10 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
             foreach ($mailboxes as $mailbox) {
                 try {
                     $this->messageSyncer->syncMailbox($mailbox, $client);
-                    $syncedMailboxIds[] = $mailbox->getId();
+                    $syncedMailboxIds[] = $mailbox->id;
                 } catch (\Throwable $e) {
                     $this->logger->error('ImapAccountSyncer: mailbox sync failed', [
-                        'mailboxId' => $mailbox->getId(),
+                        'mailboxId' => $mailbox->id,
                         'error'     => $e->getMessage(),
                     ]);
                 }

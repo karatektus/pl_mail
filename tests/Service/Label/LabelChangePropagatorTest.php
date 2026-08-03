@@ -263,13 +263,12 @@ final class LabelChangePropagatorTest extends KernelTestCase
         ?string  $gmailId = null,
     ): Message {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($account)
-            ->setSubject('Propagator fixture')
-            ->setNormalizedSubject('propagator fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $account;
+        $thread->subject = 'Propagator fixture';
+        $thread->normalizedSubject = 'propagator fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
@@ -341,14 +340,13 @@ final class LabelChangePropagatorTest extends KernelTestCase
     private function mailbox(Account $account): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
+        $mailbox->createdAt = new \DateTimeImmutable();
+        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

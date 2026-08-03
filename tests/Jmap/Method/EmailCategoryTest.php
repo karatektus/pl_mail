@@ -89,7 +89,7 @@ final class EmailCategoryTest extends KernelTestCase
         $thread = $this->thread(MessageCategory::Promotions, [MessageCategory::Promotions]);
 
         $result = $this->threadGet->handle(
-            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->getId()]],
+            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->id]],
             new JmapContext($this->user),
         );
 
@@ -108,7 +108,7 @@ final class EmailCategoryTest extends KernelTestCase
         $thread = $this->thread(null, [null]);
 
         $result = $this->threadGet->handle(
-            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->getId()]],
+            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->id]],
             new JmapContext($this->user),
         );
 
@@ -149,7 +149,7 @@ final class EmailCategoryTest extends KernelTestCase
 
         $expected = [];
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             $expected[(string) $message->getId()] = $message->getCategory()?->value;
         }
 
@@ -374,7 +374,7 @@ final class EmailCategoryTest extends KernelTestCase
     {
         $ids = [];
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             $ids[] = (string) $message->getId();
         }
 
@@ -399,14 +399,13 @@ final class EmailCategoryTest extends KernelTestCase
         bool $inbox = true,
     ): MessageThread {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Category fixture')
-            ->setNormalizedSubject('category fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setCategory($category)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Category fixture';
+        $thread->normalizedSubject = 'category fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->category = $category;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $offset = count($messageCategories);
@@ -472,14 +471,13 @@ final class EmailCategoryTest extends KernelTestCase
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
-        $this->mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->mailbox->account = $this->account;
+        $this->mailbox->name = 'INBOX';
+        $this->mailbox->fullPath = 'INBOX';
+        $this->mailbox->isSyncEnabled = true;
+        $this->mailbox->isIdleEnabled = false;
+        $this->mailbox->createdAt = new \DateTimeImmutable();
+        $this->mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

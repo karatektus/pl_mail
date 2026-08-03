@@ -210,13 +210,12 @@ final class EmailPatchApplierTest extends KernelTestCase
     private function message(bool $draft): Message
     {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Patch fixture')
-            ->setNormalizedSubject('patch fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Patch fixture';
+        $thread->normalizedSubject = 'patch fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
@@ -276,14 +275,13 @@ final class EmailPatchApplierTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
+        $mailbox->createdAt = new \DateTimeImmutable();
+        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

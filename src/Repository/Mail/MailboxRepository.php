@@ -25,7 +25,7 @@ class MailboxRepository extends ServiceEntityRepository
         $indexed = [];
 
         foreach ($mailboxes as $mailbox) {
-            $indexed[$mailbox->getFullPath()] = $mailbox;
+            $indexed[$mailbox->fullPath] = $mailbox;
         }
 
         return $indexed;

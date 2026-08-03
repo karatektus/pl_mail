@@ -213,7 +213,7 @@ final class GraphApiSyncer
         $thread = $message->getThread();
 
         if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
     }
 

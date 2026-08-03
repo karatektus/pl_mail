@@ -76,7 +76,7 @@ final class DevSyncController extends AbstractController
         }
 
         $mailboxIds = array_map(
-            static fn ($mailbox): int => (int) $mailbox->getId(),
+            static fn ($mailbox): int => (int) $mailbox->id,
             $this->mailboxRepository->findBy(['account' => $accounts]),
         );
 

@@ -142,7 +142,7 @@ final class EmailMapper
             return null;
         }
 
-        return (string) $thread->getId();
+        return (string) $thread->id;
     }
 
     /**

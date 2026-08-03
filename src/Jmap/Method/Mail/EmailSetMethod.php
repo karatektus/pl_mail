@@ -143,7 +143,7 @@ final class EmailSetMethod implements JmapMethod
             $created[$creationId] = [
                 'id' => $id,
                 'blobId' => (string) BlobId::forMessage((int) $message->getId()),
-                'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->getId(),
+                'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->id,
                 'size' => $message->getSize() ?? 0,
             ];
         }
@@ -253,7 +253,7 @@ final class EmailSetMethod implements JmapMethod
             return;
         }
 
-        $this->stateManager->recordThreadsTouched((int) $account->getId(), [(int) $thread->getId()]);
+        $this->stateManager->recordThreadsTouched((int) $account->getId(), [(int) $thread->id]);
     }
 
     private function findOne(Account $account, string $id): ?Message

@@ -76,7 +76,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         self::assertSame(0, $this->command->getStatusCode());
         self::assertStringContainsString('Woke 1', $this->command->getDisplay());
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
@@ -87,7 +87,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
 
         $this->command->execute([]);
 
-        self::assertNotNull($thread->getSnoozedUntil());
+        self::assertNotNull($thread->snoozedUntil);
         self::assertNotContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
@@ -108,7 +108,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         // the logs.
         self::assertSame('', $this->command->getDisplay());
         self::assertSame(0, $this->command->getStatusCode());
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
     }
 
     /** Nothing due is the normal case, and must stay quiet and successful. */
@@ -126,7 +126,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     {
         $roles = [];
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             foreach ($message->getLabels() as $label) {
                 $roles[] = $label->role;
             }
@@ -138,13 +138,12 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function snoozedThread(string $when): MessageThread
     {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Wake fixture')
-            ->setNormalizedSubject('wake fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Wake fixture';
+        $thread->normalizedSubject = 'wake fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
@@ -204,14 +203,13 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
+        $mailbox->createdAt = new \DateTimeImmutable();
+        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

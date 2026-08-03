@@ -118,6 +118,6 @@ final readonly class AttachmentResolver
             return 0;
         }
 
-        return (int) $mailbox->getId();
+        return (int) $mailbox->id;
     }
 }

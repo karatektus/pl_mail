@@ -97,7 +97,7 @@ final class PostIngestPipelineTest extends KernelTestCase
                 $this->observed = [
                     'count'    => count($result->messages),
                     'id'       => $id,
-                    'thread'   => $message->getThread()?->getId(),
+                    'thread'   => $message->getThread()?->id,
                     'category' => $message->getCategory(),
                     // Straight past the identity map, and deliberately on a
                     // column the PIPELINE writes rather than one the fixture
@@ -186,7 +186,7 @@ final class PostIngestPipelineTest extends KernelTestCase
      */
     public function testAnEmptyBatchStillFlushesTheCallersWork(): void
     {
-        $this->mailbox->setLastSeenUid(4242);
+        $this->mailbox->lastSeenUid = 4242;
 
         $this->pipeline()->run($this->account, []);
 
@@ -196,7 +196,7 @@ final class PostIngestPipelineTest extends KernelTestCase
             4242,
             (int) $this->connection->fetchOne(
                 'SELECT last_seen_uid FROM mailbox WHERE id = ?',
-                [$this->mailbox->getId()],
+                [$this->mailbox->id],
             ),
         );
     }
@@ -303,14 +303,13 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
+        $mailbox->createdAt = new \DateTimeImmutable();
+        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

@@ -66,16 +66,16 @@ final class ThreadGetMethod implements JmapMethod
         $found = [];
 
         foreach ($threads as $thread) {
-            $found[] = (string) $thread->getId();
+            $found[] = (string) $thread->id;
 
             $emailIds = [];
 
-            foreach ($thread->getMessages() as $message) {
+            foreach ($thread->messages as $message) {
                 $emailIds[] = (string) $message->getId();
             }
 
             $list[] = [
-                'id' => (string) $thread->getId(),
+                'id' => (string) $thread->id,
                 'emailIds' => $emailIds,
                 // plMail extension. RFC 8621's Thread has only id and emailIds;
                 // this is the one piece of thread state the product owns, and
@@ -89,7 +89,7 @@ final class ThreadGetMethod implements JmapMethod
                 // render, and leaving it would have every client re-implement
                 // the comparison.
                 'snoozedUntil' => $this->utcOrNull(
-                    $thread->isSnoozed() ? $thread->getSnoozedUntil() : null,
+                    $thread->isSnoozed() ? $thread->snoozedUntil : null,
                 ),
                 // plMail extension, and the authoritative one for the inbox
                 // tabs: the resolved, most-recent-wins category of the whole
@@ -106,7 +106,7 @@ final class ThreadGetMethod implements JmapMethod
                 // Primary. A client must not fold it into Primary: the server's
                 // own inbox query does not, so folding would put mail on the
                 // phone's Primary tab that the browser's does not have.
-                'category' => $thread->getCategory()?->value,
+                'category' => $thread->category?->value,
             ];
         }
 

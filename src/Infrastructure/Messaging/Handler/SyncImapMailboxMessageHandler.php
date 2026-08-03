@@ -35,12 +35,12 @@ final readonly class SyncImapMailboxMessageHandler
             return;
         }
 
-        if (false === $mailbox->isSyncEnabled()) {
+        if (false === $mailbox->isSyncEnabled) {
             $this->logger->info('Mailbox sync disabled', ['mailboxId' => $message->mailboxId]);
             return;
         }
 
-        $client = $this->imapConnectionFactory->connect($mailbox->getAccount());
+        $client = $this->imapConnectionFactory->connect($mailbox->account);
 
         try {
             $this->messageSyncer->syncMailbox($mailbox, $client);
@@ -55,7 +55,7 @@ final readonly class SyncImapMailboxMessageHandler
             return;
         }
 
-        $account = $mailbox->getAccount();
+        $account = $mailbox->account;
 
         $this->syncNotifier->publishMailboxSynced($account, $mailbox);
         $this->bus->dispatch(new HarvestContactsMessage((int) $account->getId()));

@@ -106,7 +106,7 @@ final class MessageThreaderTest extends TestCase
 
         $this->threaderWithThreadLookup(null)->assignThread($message, new Account());
 
-        self::assertSame(MessageCategory::Promotions, $message->getThread()?->getCategory());
+        self::assertSame(MessageCategory::Promotions, $message->getThread()?->category);
     }
 
     /**
@@ -118,18 +118,18 @@ final class MessageThreaderTest extends TestCase
         string $incomingReceivedAt,
         MessageCategory $expected,
     ): void {
-        $thread = new MessageThread()
-            ->setMessageCount(1)
-            ->setUnreadCount(0)
-            ->setAttachmentCount(0)
-            ->setCategory(MessageCategory::Updates)
-            ->setLastMessageAt(new \DateTimeImmutable('2026-07-28 12:00:00'));
+        $thread = new MessageThread();
+        $thread->messageCount = 1;
+        $thread->unreadCount = 0;
+        $thread->attachmentCount = 0;
+        $thread->category = MessageCategory::Updates;
+        $thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
 
         $message = $this->message(MessageCategory::Promotions, $incomingReceivedAt);
 
         $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
 
-        self::assertSame($expected, $thread->getCategory());
+        self::assertSame($expected, $thread->category);
     }
 
     /**
@@ -151,7 +151,7 @@ final class MessageThreaderTest extends TestCase
 
         $this->threaderWithThreadLookup(null)->assignThread($message, new Account());
 
-        self::assertSame(MessageCategory::Primary, $message->getThread()?->getCategory());
+        self::assertSame(MessageCategory::Primary, $message->getThread()?->category);
     }
 
     /**
@@ -174,7 +174,7 @@ final class MessageThreaderTest extends TestCase
 
         self::assertNotNull($first->getThread());
         self::assertSame($first->getThread(), $second->getThread());
-        self::assertSame(2, $first->getThread()?->getMessageCount());
+        self::assertSame(2, $first->getThread()?->messageCount);
     }
 
     /**

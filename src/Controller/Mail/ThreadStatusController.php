@@ -64,12 +64,12 @@ class ThreadStatusController extends AbstractController
             $message
                 ->addFlag(MessageFlag::FLAGGED)
                 ->setStarredAt(new DateTimeImmutable());
-            $message->getThread()->setStarredAt(new DateTimeImmutable());
+            $message->getThread()->starredAt = new DateTimeImmutable();
         } else {
             $message
                 ->removeFlag(MessageFlag::FLAGGED)
                 ->setStarredAt(null);
-            $message->getThread()->setStarredAt(null);
+            $message->getThread()->starredAt = null;
         }
 
         $this->propagator->star($messages, $starred);
@@ -223,7 +223,7 @@ class ThreadStatusController extends AbstractController
             }
         }
 
-        // Through the service, not setSnoozedUntil(): snoozing has to move the
+        // Through the service, not $thread->snoozedUntil: snoozing has to move the
         // Inbox label off and propagate that outward. Writing the column here
         // is what this endpoint used to do, and it left the conversation
         // sitting in the inbox — locally and at the provider — while the row
@@ -270,7 +270,7 @@ class ThreadStatusController extends AbstractController
             }
         }
 
-        $thread->setUnreadCount($unread);
+        $thread->unreadCount = $unread;
         $this->propagator->markRead($messages, $markAsRead);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
@@ -309,7 +309,7 @@ class ThreadStatusController extends AbstractController
             $thread = $message->getThread();
 
             if (null !== $thread) {
-                $threadIdsByAccount[$accountId][] = (int) $thread->getId();
+                $threadIdsByAccount[$accountId][] = (int) $thread->id;
             }
         }
 
@@ -327,7 +327,7 @@ class ThreadStatusController extends AbstractController
         }
 
         if ('thread' === $type) {
-            $messages = $this->threadRepository->find($id)->getMessages()->toArray();
+            $messages = $this->threadRepository->find($id)->messages->toArray();
         }
 
         $this->assertOwnership($messages);
@@ -340,11 +340,11 @@ class ThreadStatusController extends AbstractController
         $mailbox = $message->getMailbox();
 
         if (null !== $mailbox) {
-            return $mailbox->getAccount();
+            return $mailbox->account;
         }
 
         // Gmail-API messages have no mailbox — the thread carries the account.
-        return $message->getThread()->getAccount();
+        return $message->getThread()->account;
     }
 
     /**

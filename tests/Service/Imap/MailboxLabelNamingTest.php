@@ -103,12 +103,12 @@ final class MailboxLabelNamingTest extends KernelTestCase
         self::assertNotNull($mailbox, 'the mailbox must be findable by the path the server sent');
         self::assertSame(
             'INBOX.Entw&APw-rfe',
-            $mailbox->getFullPath(),
+            $mailbox->fullPath,
             'fullPath is the folder identity SELECT takes — decoding it breaks folder selection',
         );
 
         // And the decoded name was available beside it all along.
-        self::assertSame('Entwürfe', $mailbox->getName());
+        self::assertSame('Entwürfe', $mailbox->name);
     }
 
     /**
@@ -119,7 +119,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
     {
         $this->sync(['INBOX.Work.Invoices']);
 
-        $label = $this->mailboxFor('INBOX.Work.Invoices')?->getLabel();
+        $label = $this->mailboxFor('INBOX.Work.Invoices')?->label;
 
         self::assertNotNull($label);
         self::assertSame('Invoices', $label->name);
@@ -197,7 +197,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     private function corruptTheLabelName(string $fullPath, string $rawName): void
     {
-        $label = $this->mailboxFor($fullPath)?->getLabel();
+        $label = $this->mailboxFor($fullPath)?->label;
 
         self::assertNotNull($label);
 
@@ -297,7 +297,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
 
     private function labelNameFor(string $fullPath): ?string
     {
-        return $this->mailboxFor($fullPath)?->getLabel()?->name;
+        return $this->mailboxFor($fullPath)?->label?->name;
     }
 
     private function seedAccount(): Account

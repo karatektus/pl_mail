@@ -141,9 +141,12 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
-            ?? $this->createThread($message, $account, ThreadingMethod::Provider)
-                ->setProviderThreadKey($providerThreadKey);
+        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+
+        if (null === $thread) {
+            $thread = $this->createThread($message, $account, ThreadingMethod::Provider);
+            $thread->providerThreadKey = $providerThreadKey;
+        }
 
         // Long-running workers never stop adding keys, so the cache has to be
         // bounded — but only entries the repository lookup above can already
@@ -154,7 +157,7 @@ final class MessageThreader
         if (count($this->providerThreads) >= self::PROVIDER_THREAD_CACHE_LIMIT) {
             $this->providerThreads = array_filter(
                 $this->providerThreads,
-                static fn (MessageThread $cached): bool => null === $cached->getId(),
+                static fn (MessageThread $cached): bool => null === $cached->id,
             );
         }
 
@@ -223,13 +226,12 @@ final class MessageThreader
             return;
         }
 
-        if ($thread->getMessageCount() > 1) {
+        if ($thread->messageCount > 1) {
             return;
         }
 
-        $thread
-            ->setSubject($message->getSubject())
-            ->setNormalizedSubject($this->normalizeSubject($message->getSubject()));
+        $thread->subject = $message->getSubject();
+        $thread->normalizedSubject = $this->normalizeSubject($message->getSubject());
     }
 
     /**
@@ -269,16 +271,18 @@ final class MessageThreader
 
     private function createThread(Message $message, Account $account, ThreadingMethod $threadingMethod): MessageThread
     {
-        $thread = new MessageThread()
-            ->setAccount($account)->setSubject($message->getSubject())->setNormalizedSubject($this->normalizeSubject($message->getSubject()))
-            ->setThreadingMethod($threadingMethod)
-            ->setMessageCount(0)
-            ->setUnreadCount(0)
-            // Seed from the message that opens the thread; attachMessageToThread()
-            // takes over from here. Primary only when the message is uncategorised,
-            // which is the case for locally-composed drafts.
-            ->setCategory($message->getCategory() ?? MessageCategory::Primary)
-            ->setAttachmentCount(0);
+        $thread = new MessageThread();
+        $thread->account = $account;
+        $thread->subject = $message->getSubject();
+        $thread->normalizedSubject = $this->normalizeSubject($message->getSubject());
+        $thread->threadingMethod = $threadingMethod;
+        $thread->messageCount = 0;
+        $thread->unreadCount = 0;
+        // Seed from the message that opens the thread; attachMessageToThread()
+        // takes over from here. Primary only when the message is uncategorised,
+        // which is the case for locally-composed drafts.
+        $thread->category = $message->getCategory() ?? MessageCategory::Primary;
+        $thread->attachmentCount = 0;
 
         $this->entityManager->persist($thread);
 
@@ -288,18 +292,18 @@ final class MessageThreader
     {
         $message->setThread($thread);
 
-        $thread->setMessageCount($thread->getMessageCount() + 1);
+        $thread->messageCount = $thread->messageCount + 1;
 
         foreach ($message->getLabels() as $label) {
             $thread->addLabel($label);
         }
 
         if (null === $message->getSeenAt()) {
-            $thread->setUnreadCount($thread->getUnreadCount() + 1);
+            $thread->unreadCount = $thread->unreadCount + 1;
         }
 
         if (true === $message->hasAttachments()) {
-            $thread->setAttachmentCount($thread->getAttachmentCount() + 1);
+            $thread->attachmentCount = $thread->attachmentCount + 1;
         }
 
         $occurredAt = $message->getReceivedAt()
@@ -307,10 +311,10 @@ final class MessageThreader
             ?? $message->getCreatedAt();
 
         if (null !== $occurredAt) {
-            $currentLastMessageAt = $thread->getLastMessageAt();
+            $currentLastMessageAt = $thread->lastMessageAt;
 
             if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
-                $thread->setLastMessageAt($occurredAt);
+                $thread->lastMessageAt = $occurredAt;
 
                 // Most-recent-wins, the same rule the category backfill applies in
                 // SQL. Without this a thread would keep whatever category it was
@@ -319,7 +323,7 @@ final class MessageThreader
                 $category = $message->getCategory();
 
                 if (null !== $category) {
-                    $thread->setCategory($category);
+                    $thread->category = $category;
                 }
             }
         }

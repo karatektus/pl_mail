@@ -75,7 +75,7 @@ class ImapIdleCommand extends Command
             return Command::FAILURE;
         }
 
-        if (false === $mailbox->isIdleEnabled() || false === $mailbox->isSyncEnabled()) {
+        if (false === $mailbox->isIdleEnabled || false === $mailbox->isSyncEnabled) {
             $io->error('Mailbox is not enabled for IDLE.');
             return Command::FAILURE;
         }
@@ -84,8 +84,8 @@ class ImapIdleCommand extends Command
 
         $io->info(sprintf(
             'Starting IDLE on mailbox "%s" for account "%s"',
-            $mailbox->getName(),
-            $mailbox->getAccount()->getEmail(),
+            $mailbox->name,
+            $mailbox->account->getEmail(),
         ));
 
         $retries = 0;
@@ -128,13 +128,13 @@ class ImapIdleCommand extends Command
     private function idle(int $mailboxId, SymfonyStyle $io): void
     {
         $mailbox    = $this->mailboxRepository->find($mailboxId);
-        $account    = $mailbox->getAccount();
+        $account    = $mailbox->account;
         $client     = $this->imapConnectionFactory->connect($account);
-        $folder     = $client->getFolder($mailbox->getName());
+        $folder     = $client->getFolder($mailbox->name);
 
         if (null === $folder) {
             $client->disconnect();
-            throw new \RuntimeException(sprintf('Folder "%s" not found.', $mailbox->getName()));
+            throw new \RuntimeException(sprintf('Folder "%s" not found.', $mailbox->name));
         }
 
         $this->beat($mailbox, $account, true);
@@ -213,8 +213,8 @@ class ImapIdleCommand extends Command
 
         $this->heartbeats->beat(
             ProcessHeartbeatService::TYPE_IMAP_IDLE,
-            (string) $mailbox->getId(),
-            ['mailbox' => $mailbox->getFullPath(), 'account' => $account->getEmail()],
+            (string) $mailbox->id,
+            ['mailbox' => $mailbox->fullPath, 'account' => $account->getEmail()],
         );
     }
 }

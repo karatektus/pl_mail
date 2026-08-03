@@ -84,13 +84,13 @@ readonly class MailboxSyncer
     private function create(Account $account, Folder $folder): void
     {
         $mailbox = new Mailbox();
-        $mailbox->setAccount($account);
-        $mailbox->setIsSyncEnabled(true);
-        $mailbox->setIsIdleEnabled(in_array(
+        $mailbox->account = $account;
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = in_array(
             $this->detectSpecialUse($folder)?->value,
             ['\\Inbox', '\\Junk'],
             true,
-        ));
+        );
         // Persist before hydrate: hydrate() binds the folder to a label, and
         // LabelResolver flushes to mint the binding id — the mailbox has to be
         // managed by then or the binding's FK points at nothing. Every
@@ -106,17 +106,17 @@ readonly class MailboxSyncer
 
     private function hydrate(Mailbox $mailbox, Folder $folder, Account $account): void
     {
-        $mailbox->setName($folder->name);
-        $mailbox->setFullPath($folder->path);
-        $mailbox->setDelimiter($folder->delimiter);
-        $mailbox->setSpecialUse($this->detectSpecialUse($folder));
+        $mailbox->name = $folder->name;
+        $mailbox->fullPath = $folder->path;
+        $mailbox->delimiter = $folder->delimiter;
+        $mailbox->specialUse = $this->detectSpecialUse($folder);
 
         $this->linkLabel($mailbox, $account);
     }
 
     private function linkLabel(Mailbox $mailbox, Account $account): void
     {
-        $specialUse = $mailbox->getSpecialUse();
+        $specialUse = $mailbox->specialUse;
 
         if (null !== $specialUse) {
             $this->labelResolver->bindMailbox(
@@ -128,12 +128,12 @@ readonly class MailboxSyncer
         }
 
         $segments = $this->labelResolver->segmentsFromImapPath(
-            (string) $mailbox->getFullPath(),
-            $mailbox->getDelimiter(),
+            (string) $mailbox->fullPath,
+            $mailbox->delimiter,
         );
 
         if (count($segments) === 0) {
-            $segments = [(string) $mailbox->getName()];
+            $segments = [(string) $mailbox->name];
         }
 
         $label = $this->labelResolver->customChain($segments, $account);

@@ -53,7 +53,7 @@ final class ThreadSnoozeService
      */
     public function snooze(MessageThread $thread, \DateTimeImmutable $until): void
     {
-        $messages = $thread->getMessages()->toArray();
+        $messages = $thread->messages->toArray();
 
         if ([] === $messages) {
             return;
@@ -77,7 +77,7 @@ final class ThreadSnoozeService
             $message->addLabel($snoozed);
         }
 
-        $thread->setSnoozedUntil($until);
+        $thread->snoozedUntil = $until;
 
         $this->finish($thread, $messages);
     }
@@ -95,10 +95,10 @@ final class ThreadSnoozeService
      */
     public function wake(MessageThread $thread): void
     {
-        $messages = $thread->getMessages()->toArray();
+        $messages = $thread->messages->toArray();
 
         if ([] === $messages) {
-            $thread->setSnoozedUntil(null);
+            $thread->snoozedUntil = null;
 
             return;
         }
@@ -129,8 +129,8 @@ final class ThreadSnoozeService
             ++$unread;
         }
 
-        $thread->setUnreadCount($unread);
-        $thread->setSnoozedUntil(null);
+        $thread->unreadCount = $unread;
+        $thread->snoozedUntil = null;
 
         if (null !== $snoozed) {
             $this->propagator->detachLabel($messages, $snoozed);
@@ -159,7 +159,7 @@ final class ThreadSnoozeService
 
         $this->stateManager->recordThreadsTouched(
             (int) $messages[0]->getAccount()->getId(),
-            [(string) $thread->getId()],
+            [(string) $thread->id],
         );
 
         $this->entityManager->flush();

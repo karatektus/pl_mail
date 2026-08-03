@@ -82,23 +82,23 @@ class MessageSyncer
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
-        $mailboxId   = $mailbox->getId();
-        $accountId   = $mailbox->getAccount()->getId();
-        $lastSeenUid = $mailbox->getLastSeenUid() ?? 0;
+        $mailboxId   = $mailbox->id;
+        $accountId   = $mailbox->account->getId();
+        $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
-        $limit       = $mailbox->getAccount()->getSyncLimit();
+        $limit       = $mailbox->account->getSyncLimit();
 
         $this->logger->info('Syncing mailbox', [
-            'mailbox'     => $mailbox->getFullPath(),
+            'mailbox'     => $mailbox->fullPath,
             'account'     => $accountId,
             'lastSeenUid' => $lastSeenUid,
             'limit'       => 0 === $limit ? 'none' : $limit,
         ]);
 
-        $folder = $client->getFolder($mailbox->getName());
+        $folder = $client->getFolder($mailbox->name);
 
         if (null === $folder) {
-            $this->logger->error('Folder not found', ['mailbox' => $mailbox->getName()]);
+            $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);
             return;
         }
 
@@ -124,9 +124,9 @@ class MessageSyncer
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
-        $mailbox->setSyncedAt(new DateTimeImmutable());
-        $mailbox->setUnreadMessages($this->messageRepository->countUnseenForMailbox($mailbox));
-        $mailbox->setTotalMessages($this->messageRepository->countTotalForMailbox($mailbox));
+        $mailbox->syncedAt = new DateTimeImmutable();
+        $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
+        $mailbox->totalMessages = $this->messageRepository->countTotalForMailbox($mailbox);
         $this->em->flush();
     }
 
@@ -220,7 +220,7 @@ class MessageSyncer
 
             if ('' !== $rfcMessageId) {
                 $claimable = $this->messageRepository->findGmailOnlyByMessageId(
-                    $mailbox->getAccount(),
+                    $mailbox->account,
                     $rfcMessageId,
                 );
 
@@ -229,7 +229,7 @@ class MessageSyncer
                         ->setMailbox($mailbox)
                         ->setImapUid($uid);
 
-                    $mailboxLabel = $mailbox->getLabel();
+                    $mailboxLabel = $mailbox->label;
 
                     if (null !== $mailboxLabel) {
                         $claimable->addLabel($mailboxLabel);
@@ -249,7 +249,7 @@ class MessageSyncer
                         if (null !== $claimedThread) {
                             $this->stateManager->recordThreadsTouched(
                                 (int) $accountId,
-                                [(int) $claimedThread->getId()],
+                                [(int) $claimedThread->id],
                             );
                         }
                     }
@@ -290,7 +290,7 @@ class MessageSyncer
         // been seen already, and the range would otherwise be re-fetched
         // forever.
         if (true === ($maxUid > 0)) {
-            $mailbox->setLastSeenUid($maxUid);
+            $mailbox->lastSeenUid = $maxUid;
         }
 
         // Pass 2 — the shared post-ingest sequence. IMAP is the only provider
@@ -301,12 +301,12 @@ class MessageSyncer
         foreach ($messages as $index => $message) {
             $ingested[] = new IngestedMessage(
                 $message,
-                $mailbox->getAccount(),
+                $mailbox->account,
                 $rawBodies[$index] ?? '',
             );
         }
 
-        $this->postIngest->run($mailbox->getAccount(), $ingested);
+        $this->postIngest->run($mailbox->account, $ingested);
     }
 
     /**
@@ -327,9 +327,9 @@ class MessageSyncer
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message()
-            ->setAccount($mailbox->getAccount())
+            ->setAccount($mailbox->account)
             ->setMailbox($mailbox);
-        $mailboxLabel = $mailbox->getLabel();
+        $mailboxLabel = $mailbox->label;
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);
@@ -424,7 +424,7 @@ class MessageSyncer
 
         $storagePath = $this->attachmentStorage->store(
             $accountId,
-            $message->getMailbox()->getId(),
+            $message->getMailbox()->id,
             $message->getImapUid(),
             $filename,
             $content,

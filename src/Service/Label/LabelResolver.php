@@ -126,13 +126,13 @@ final class LabelResolver
      */
     public function bindMailbox(Label $label, Mailbox $mailbox): LabelBinding
     {
-        $binding = $this->binding($label, $mailbox->getAccount());
+        $binding = $this->binding($label, $mailbox->account);
 
         if ($binding->mailbox === $mailbox) {
             return $binding;
         }
 
-        $previous = $mailbox->getLabelBinding();
+        $previous = $mailbox->labelBinding;
 
         if (null !== $previous && $previous !== $binding) {
             // Released in a flush of its own. Doctrine makes no promise about
@@ -142,14 +142,14 @@ final class LabelResolver
             // field, since the order it happens to pick depends on which
             // entity entered the identity map first.
             $previous->mailbox = null;
-            $mailbox->setLabelBinding(null);
+            $mailbox->labelBinding = null;
 
             $this->em->flush();
         }
 
         $binding->mailbox = $mailbox;
 
-        $mailbox->setLabelBinding($binding);
+        $mailbox->labelBinding = $binding;
 
         return $binding;
     }

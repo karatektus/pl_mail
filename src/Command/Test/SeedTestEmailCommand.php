@@ -157,17 +157,16 @@ final class SeedTestEmailCommand extends Command
             $this->entityManager->persist($message);
 
             $thread = new MessageThread();
-            $thread
-                ->setAccount($account)
-                ->setSubject($subject)
-                ->setNormalizedSubject(mb_strtolower(trim($subject)))
-                ->setThreadingMethod(ThreadingMethod::SubjectFallback)
-                ->setMessageCount(1)
-                ->setUnreadCount(true === $unread ? 1 : 0)
-                ->setCategory(MessageCategory::Primary)
-                ->setAttachmentCount(0)
-                ->setLastMessageAt($receivedAt)
-                ->addLabel($inboxLabel);
+            $thread->account = $account;
+            $thread->subject = $subject;
+            $thread->normalizedSubject = mb_strtolower(trim($subject));
+            $thread->threadingMethod = ThreadingMethod::SubjectFallback;
+            $thread->messageCount = 1;
+            $thread->unreadCount = true === $unread ? 1 : 0;
+            $thread->category = MessageCategory::Primary;
+            $thread->attachmentCount = 0;
+            $thread->lastMessageAt = $receivedAt;
+            $thread->addLabel($inboxLabel);
 
             $this->entityManager->persist($thread);
 
@@ -200,7 +199,7 @@ final class SeedTestEmailCommand extends Command
             $thread = $message->getThread();
 
             if (null !== $thread) {
-                $threadIds[] = (int) $thread->getId();
+                $threadIds[] = (int) $thread->id;
             }
         }
 
@@ -223,7 +222,7 @@ final class SeedTestEmailCommand extends Command
 
         $accountId = (int) $account->getId();
         $threadIds = array_map(
-            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,
         );
 
@@ -232,7 +231,7 @@ final class SeedTestEmailCommand extends Command
         // nothing goes on holding ids for messages that are gone, and can only
         // find out by asking for each of them and being handed notFound.
         //
-        // As scalars, not by walking $thread->getMessages(): hydrating the
+        // As scalars, not by walking $thread->messages: hydrating the
         // messages only to delete them leaves the unit of work in a state where
         // the reseed's own flush, moments later, insists the threads it has
         // just persisted were never persisted ("A new entity was found through

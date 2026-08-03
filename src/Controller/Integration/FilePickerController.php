@@ -331,7 +331,7 @@ final class FilePickerController extends AbstractController
         // same place and are indistinguishable from then on.
         $storagePath = $this->attachmentStorage->store(
             (int) $message->getAccount()?->getId(),
-            (int) ($message->getMailbox()?->getId() ?? 0),
+            (int) ($message->getMailbox()->id ?? 0),
             (int) $message->getId(),
             $filename,
             $contents,

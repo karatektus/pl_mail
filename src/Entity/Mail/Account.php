@@ -471,7 +471,7 @@ class Account extends AccountModel
     {
         if (!$this->mailboxes->contains($mailbox)) {
             $this->mailboxes->add($mailbox);
-            $mailbox->setAccount($this);
+            $mailbox->account = $this;
         }
 
         return $this;
@@ -481,8 +481,8 @@ class Account extends AccountModel
     {
         if ($this->mailboxes->removeElement($mailbox)) {
             // set the owning side to null (unless already changed)
-            if ($mailbox->getAccount() === $this) {
-                $mailbox->setAccount(null);
+            if ($mailbox->account === $this) {
+                $mailbox->account = null;
             }
         }
 
@@ -501,7 +501,7 @@ class Account extends AccountModel
     {
         if (!$this->messageThreads->contains($messageThread)) {
             $this->messageThreads->add($messageThread);
-            $messageThread->setAccount($this);
+            $messageThread->account = $this;
         }
 
         return $this;
@@ -511,8 +511,8 @@ class Account extends AccountModel
     {
         if ($this->messageThreads->removeElement($messageThread)) {
             // set the owning side to null (unless already changed)
-            if ($messageThread->getAccount() === $this) {
-                $messageThread->setAccount(null);
+            if ($messageThread->account === $this) {
+                $messageThread->account = null;
             }
         }
 

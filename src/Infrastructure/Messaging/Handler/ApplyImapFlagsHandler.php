@@ -91,14 +91,14 @@ final class ApplyImapFlagsHandler
                 continue;
             }
 
-            $accountId = $sourceMailbox->getAccount()->getId();
+            $accountId = $sourceMailbox->account->getId();
 
             $byAccount[$accountId][$sourceMailboxId][] = $msg;
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
             $firstMailboxId = array_key_first($byMailbox);
-            $account        = $this->mailboxRepository->find($firstMailboxId)->getAccount();
+            $account        = $this->mailboxRepository->find($firstMailboxId)->account;
 
             try {
                 $client = $this->imapConnectionFactory->connect($account);
@@ -181,11 +181,11 @@ final class ApplyImapFlagsHandler
         string  $action,
         ?string $destinationPath,
     ): void {
-        $folder = $client->getFolder($sourceMailbox->getName());
+        $folder = $client->getFolder($sourceMailbox->name);
 
         if (null === $folder) {
             $this->logger->warning('ApplyImapFlagsHandler: source folder not found on server', [
-                'mailbox' => $sourceMailbox->getName(),
+                'mailbox' => $sourceMailbox->name,
             ]);
 
             return;
@@ -256,7 +256,7 @@ final class ApplyImapFlagsHandler
         ]);
 
         if (null !== $mailbox) {
-            return $mailbox->getFullPath();
+            return $mailbox->fullPath;
         }
 
         $nameMap = [

@@ -49,7 +49,7 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
     public function testSnoozingMovesTheThreadOutOfTheInbox(): void
     {
         $client   = $this->signIn();
-        $threadId = (int) $this->inboxThread()->getId();
+        $threadId = (int) $this->inboxThread()->id;
 
         $client->request(
             'POST',
@@ -67,7 +67,7 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         // on fixture mechanics instead of on the thing being tested.
         $roles = [];
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             foreach ($message->getLabels() as $label) {
                 $roles[] = $label->role;
             }
@@ -84,13 +84,13 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
             'the endpoint wrote the column but never applied the Snoozed label',
         );
 
-        self::assertNotNull($thread->getSnoozedUntil());
+        self::assertNotNull($thread->snoozedUntil);
     }
 
     public function testSendingNoUntilClearsTheSnoozeAndRestoresTheInbox(): void
     {
         $client   = $this->signIn();
-        $threadId = (int) $this->inboxThread()->getId();
+        $threadId = (int) $this->inboxThread()->id;
         $path     = sprintf('/status/thread/%d/snooze', $threadId);
 
         $client->request(
@@ -112,11 +112,11 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $thread = $this->reload($threadId);
         $roles  = [];
 
-        foreach ($thread->getMessages()->first()->getLabels() as $label) {
+        foreach ($thread->messages->first()->getLabels() as $label) {
             $roles[] = $label->role;
         }
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertContains(LabelRole::Inbox, $roles);
         self::assertNotContains(LabelRole::Snoozed, $roles);
     }
@@ -199,24 +199,22 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
     private function inboxThread(): MessageThread
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
+        $mailbox->createdAt = new \DateTimeImmutable();
+        $mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($mailbox);
 
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Endpoint fixture')
-            ->setNormalizedSubject('endpoint fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Endpoint fixture';
+        $thread->normalizedSubject = 'endpoint fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();

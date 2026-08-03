@@ -147,7 +147,13 @@ final class EmailPatchApplier
             $starredAt = true === $wantFlagged ? new \DateTimeImmutable() : null;
 
             $message->setStarredAt($starredAt);
-            $message->getThread()?->setStarredAt($starredAt);
+
+            $thread = $message->getThread();
+
+            if (null !== $thread) {
+                $thread->starredAt = $starredAt;
+            }
+
             $this->propagator->star([$message], $wantFlagged);
         }
     }

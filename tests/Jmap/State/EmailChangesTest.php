@@ -150,7 +150,7 @@ final class EmailChangesTest extends KernelTestCase
         );
 
         self::assertSame([], $result['created'], 'a new thread arrives in "updated" by design');
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── Web compose ───────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ final class EmailChangesTest extends KernelTestCase
             new JmapContext($this->user),
         );
 
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── Sending ───────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ final class EmailChangesTest extends KernelTestCase
             new JmapContext($this->user),
         );
 
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── The refusal ───────────────────────────────────────────────────────
@@ -463,14 +463,13 @@ final class EmailChangesTest extends KernelTestCase
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
-        $this->mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->mailbox->account = $this->account;
+        $this->mailbox->name = 'INBOX';
+        $this->mailbox->fullPath = 'INBOX';
+        $this->mailbox->isSyncEnabled = true;
+        $this->mailbox->isIdleEnabled = false;
+        $this->mailbox->createdAt = new \DateTimeImmutable();
+        $this->mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

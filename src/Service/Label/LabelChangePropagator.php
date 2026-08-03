@@ -167,7 +167,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            if ($sourceMailbox->getLabel() !== $label) {
+            if ($sourceMailbox->label !== $label) {
                 // Not the location label — DB-only, message stays put.
                 continue;
             }
@@ -181,7 +181,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $moves[$destinationMailbox->getFullPath()][$message->getId()] = $sourceMailbox->getId();
+            $moves[$destinationMailbox->fullPath][$message->getId()] = $sourceMailbox->id;
 
             // Optimistic re-point; UID goes stale until the destination
             // folder's next sync picks the message up again.
@@ -205,7 +205,7 @@ final readonly class LabelChangePropagator
      */
     private function resolveDestinationMailbox(Message $message): ?\App\Entity\Mail\Mailbox
     {
-        $account         = $message->getMailbox()->getAccount();
+        $account         = $message->getMailbox()->account;
         $systemCandidate = null;
         $customCandidate = null;
 
@@ -257,7 +257,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $idMap[$message->getId()] = $message->getMailbox()->getId();
+            $idMap[$message->getId()] = $message->getMailbox()->id;
         }
 
         if (count($idMap) === 0) {

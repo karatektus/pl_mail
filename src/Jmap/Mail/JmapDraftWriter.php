@@ -212,7 +212,7 @@ final class JmapDraftWriter
 
             $storagePath = $this->attachmentStorage->store(
                 (int) $account->getId(),
-                (int) ($message->getMailbox()?->getId() ?? 0),
+                (int) ($message->getMailbox()->id ?? 0),
                 (int) $message->getId(),
                 $filename,
                 $content,

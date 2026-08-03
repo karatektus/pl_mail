@@ -261,7 +261,7 @@ final readonly class SyncGmailMessageBatchHandler
                 $thread->addLabel($label);
             }
 
-            $this->stateManager->recordThreadsTouched((int) $target->getId(), [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched((int) $target->getId(), [(int) $thread->id]);
         }
     }
 

@@ -346,7 +346,7 @@ final class MailController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_USER');
 
         $thread = $message->getThread();
-        $account = $thread->getAccount();
+        $account = $thread->account;
 
         if ($account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
@@ -374,14 +374,14 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $account = $thread->getAccount();
+        $account = $thread->account;
         if ($account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
         // The association is ordered by receivedAt ASC, so the last entry is
         // the newest message.
-        $messages      = $thread->getMessages();
+        $messages      = $thread->messages;
         $latestMessage = false === $messages->isEmpty() ? $messages->last() : null;
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {

@@ -113,7 +113,7 @@ final class ClearTestDraftsCommand extends Command
                 // synchronizer derives a thread's labels from the messages it
                 // still holds.
                 $thread->removeMessage($draft);
-                $touchedThreads[(int) $thread->getId()] = $thread;
+                $touchedThreads[(int) $thread->id] = $thread;
             }
 
             $this->entityManager->remove($draft);
@@ -122,7 +122,7 @@ final class ClearTestDraftsCommand extends Command
         $this->entityManager->flush();
 
         foreach ($touchedThreads as $thread) {
-            $remaining = $thread->getMessages()->count();
+            $remaining = $thread->messages->count();
 
             if (0 === $remaining) {
                 $this->entityManager->remove($thread);
@@ -130,7 +130,7 @@ final class ClearTestDraftsCommand extends Command
                 continue;
             }
 
-            $thread->setMessageCount($remaining);
+            $thread->messageCount = $remaining;
             $this->threadLabelSynchronizer->sync($thread);
         }
 

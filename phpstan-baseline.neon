@@ -961,7 +961,7 @@ parameters:
 			path: tests/Service/Gmail/GmailApiSyncerBackfillTest.php
 
 		-
-			message: '#^Using nullsafe method call on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'
+			message: '#^Using nullsafe property access on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: tests/Service/Imap/MessageThreaderTest.php

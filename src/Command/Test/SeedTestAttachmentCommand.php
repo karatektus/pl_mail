@@ -123,17 +123,16 @@ final class SeedTestAttachmentCommand extends Command
         $this->entityManager->persist($message);
 
         $thread = new MessageThread();
-        $thread
-            ->setAccount($account)
-            ->setSubject(self::SUBJECT)
-            ->setNormalizedSubject(mb_strtolower(self::SUBJECT))
-            ->setThreadingMethod(ThreadingMethod::SubjectFallback)
-            ->setMessageCount(1)
-            ->setUnreadCount(1)
-            ->setCategory(MessageCategory::Primary)
-            ->setAttachmentCount(1)
-            ->setLastMessageAt($now)
-            ->addLabel($inboxLabel);
+        $thread->account = $account;
+        $thread->subject = self::SUBJECT;
+        $thread->normalizedSubject = mb_strtolower(self::SUBJECT);
+        $thread->threadingMethod = ThreadingMethod::SubjectFallback;
+        $thread->messageCount = 1;
+        $thread->unreadCount = 1;
+        $thread->category = MessageCategory::Primary;
+        $thread->attachmentCount = 1;
+        $thread->lastMessageAt = $now;
+        $thread->addLabel($inboxLabel);
 
         $this->entityManager->persist($thread);
         $message->setThread($thread);
@@ -153,7 +152,7 @@ final class SeedTestAttachmentCommand extends Command
             JmapObjectType::Email,
             (string) $message->getId(),
         );
-        $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+        $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
 
         $storagePath = $this->attachmentStorage->store(
             (int) $account->getId(),
@@ -230,7 +229,7 @@ final class SeedTestAttachmentCommand extends Command
 
         $accountId = (int) $account->getId();
         $threadIds = array_map(
-            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,
         );
 

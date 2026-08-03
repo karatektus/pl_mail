@@ -94,7 +94,7 @@ final class GmailLabelMailboxRouter
                 'specialUse' => $specialUse,
             ]);
 
-            $this->idCache[$accountId][$key] = $mailbox?->getId();
+            $this->idCache[$accountId][$key] = $mailbox?->id;
         }
 
         $id = $this->idCache[$accountId][$key];

@@ -98,7 +98,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
             'id' => $id,
             'identityId' => $accountId,
             'emailId' => $id,
-            'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->getId(),
+            'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->id,
             'envelope' => [
                 'mailFrom' => ['email' => (string) $message->getFromAddress(), 'parameters' => null],
                 'rcptTo' => $this->recipients($message),

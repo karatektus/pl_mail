@@ -368,7 +368,7 @@ class ComposeController extends AbstractController
             // id keeps one draft's files out of another's directory.
             $storagePath = $this->attachmentStorage->store(
                 (int) $account->getId(),
-                (int) ($message->getMailbox()?->getId() ?? 0),
+                (int) ($message->getMailbox()->id ?? 0),
                 (int) $message->getId(),
                 (string) $file->getClientOriginalName(),
                 (string) file_get_contents($file->getPathname()),
@@ -488,13 +488,13 @@ class ComposeController extends AbstractController
             // the thread's labels off the messages it still holds, and a
             // deleted draft left in there kept the thread in the Drafts list.
             $thread->removeMessage($message);
-            $remaining = $thread->getMessages()->count();
-            $thread->setMessageCount($remaining);
+            $remaining = $thread->messages->count();
+            $thread->messageCount = $remaining;
 
             // Updated rather than destroyed even when it is now empty: the
             // thread row is deliberately left standing (see above), so the id
             // a client holds still resolves.
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
 
         $this->em->flush();
@@ -532,14 +532,14 @@ class ComposeController extends AbstractController
         }
 
         if (0 === $remaining) {
-            return $thread->getId();
+            return $thread->id;
         }
 
         if ('drafts' !== $request->query->get('scope')) {
             return null;
         }
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             // The discarded message can still sit in the loaded collection.
             if ($message->getId() === $discardedId) {
                 continue;
@@ -550,7 +550,7 @@ class ComposeController extends AbstractController
             }
         }
 
-        return $thread->getId();
+        return $thread->id;
     }
 
     /**
@@ -1075,7 +1075,7 @@ class ComposeController extends AbstractController
         }
 
         if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
 
         $this->em->flush();
@@ -1119,7 +1119,7 @@ class ComposeController extends AbstractController
         $thread = $message->getThread();
 
         if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
     }
 

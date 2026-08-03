@@ -28,13 +28,13 @@ final readonly class SyncNotifier
         $this->hub->publish(new Update(
             topics: [
                 sprintf('mail/user/%d', $account->getUsr()->getId()),
-                sprintf('mail/mailbox/%d', $mailbox->getId()),
+                sprintf('mail/mailbox/%d', $mailbox->id),
             ],
             data: json_encode([
                 'type' => 'mailbox.synced',
-                'mailboxId' => $mailbox->getId(),
+                'mailboxId' => $mailbox->id,
                 'accountId' => $account->getId(),
-                'specialUse' => $mailbox->getSpecialUse(),
+                'specialUse' => $mailbox->specialUse,
             ]),
         ));
     }

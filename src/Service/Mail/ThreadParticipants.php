@@ -54,7 +54,7 @@ final class ThreadParticipants
     {
         $names = [];
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             $address = $this->normalise($message->getFromAddress());
 
             if ('' === $address) {
@@ -105,7 +105,7 @@ final class ThreadParticipants
 
         // The association is ordered by date, but a thread assembled in memory
         // during a sync is not, so the newest is picked rather than assumed.
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             $at = $message->getReceivedAt() ?? $message->getSentAt() ?? $message->getCreatedAt();
 
             if (null === $newest || null === $at) {
@@ -153,7 +153,7 @@ final class ThreadParticipants
      */
     private function ownedAddresses(MessageThread $thread): array
     {
-        $account = $thread->getAccount();
+        $account = $thread->account;
 
         if (null === $account) {
             return [];

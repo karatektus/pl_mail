@@ -110,7 +110,7 @@ class MessageSendService
         $thread = $message->getThread();
 
         if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
         }
 
         $this->em->flush();
@@ -127,7 +127,7 @@ class MessageSendService
         }
 
         $client = $this->imapConnectionFactory->connect($account);
-        $folder = $client->getFolder($sentMailbox->getName());
+        $folder = $client->getFolder($sentMailbox->name);
 
         $folder->appendMessage(
             $email->toString(),
