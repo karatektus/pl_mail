@@ -33,3 +33,16 @@ framework:
             cache.messenger.restart_workers_signal:
                 adapter: cache.adapter.doctrine_dbal
                 provider: doctrine.dbal.default_connection
+
+            # "Already logged this" markers, for conditions a remote service
+            # repeats far faster than anyone can act on them — a Graph
+            # subscription Microsoft still holds and this install does not
+            # arrives several times a second, for up to three days.
+            #
+            # Shared for the same reason as the signal above: any web container
+            # can take the notification, and a per-container marker would let
+            # each of them log it once over.
+            app.notice_throttle:
+                adapter: cache.adapter.doctrine_dbal
+                provider: doctrine.dbal.default_connection
+                default_lifetime: 3600

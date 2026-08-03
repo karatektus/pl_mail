@@ -7,7 +7,9 @@ namespace App\Controller\Webhook;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,10 +31,15 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class GraphNotificationController extends AbstractController
 {
+    /** How long one unknown subscription stays quiet after it is logged. */
+    private const int UNKNOWN_SUBSCRIPTION_QUIET_FOR = 3600;
+
     public function __construct(
         private readonly AccountRepository   $accountRepository,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface     $logger,
+        #[Autowire(service: 'app.notice_throttle')]
+        private readonly CacheItemPoolInterface $notificationCache,
     ) {}
 
     #[Route('/webhook/graph/notify', name: 'app_graph_notification', methods: ['POST'])]
@@ -139,6 +146,35 @@ final class GraphNotificationController extends AbstractController
     }
 
     /**
+     * A registration Microsoft still has and plMail no longer does — push
+     * turned off, an account removed, a database reset. Nothing can be done
+     * about it from this side: without a matching account there is no token to
+     * cancel the subscription with, and Microsoft keeps delivering until it
+     * expires, which for mail is up to three days.
+     *
+     * So it is logged once an hour per subscription rather than once per
+     * notification. Untouched it arrives several times a second — it filled
+     * the log browser, buried everything else in it, and lit the unread-log
+     * ring over a condition no admin can act on.
+     */
+    private function logUnknownSubscription(string $subscriptionId): void
+    {
+        $item = $this->notificationCache->getItem('graph.unknown_subscription.' . sha1($subscriptionId));
+
+        if (true === $item->isHit()) {
+            return;
+        }
+
+        $this->logger->warning('GraphNotification: unknown subscription', [
+            'subscriptionId' => $subscriptionId,
+            'note'           => 'Microsoft still holds this registration; it stops when it expires.',
+        ]);
+
+        $item->set(true)->expiresAfter(self::UNKNOWN_SUBSCRIPTION_QUIET_FOR);
+        $this->notificationCache->save($item);
+    }
+
+    /**
      * @param array<string,mixed> $notification
      */
     private function authenticate(array $notification): ?Account
@@ -153,9 +189,7 @@ final class GraphNotificationController extends AbstractController
         $account = $this->accountRepository->findOneBy(['graphSubscriptionId' => $subscriptionId]);
 
         if (null === $account) {
-            $this->logger->warning('GraphNotification: unknown subscription', [
-                'subscriptionId' => $subscriptionId,
-            ]);
+            $this->logUnknownSubscription($subscriptionId);
 
             return null;
         }

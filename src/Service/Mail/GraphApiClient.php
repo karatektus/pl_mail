@@ -62,8 +62,37 @@ final class GraphApiClient
     private const string MESSAGE_SELECT = 'id,internetMessageId,conversationId,conversationIndex,'
     . 'subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,'
     . 'receivedDateTime,sentDateTime,isRead,isDraft,flag,importance,categories,'
-    . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders,'
-    . 'meetingMessageType';
+    . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders';
+
+    /**
+     * The invite flag, selected through the type it actually belongs to.
+     *
+     * meetingMessageType is declared on microsoft.graph.eventMessage, not on
+     * the base message, so it has to be asked for with the cast. Named
+     * unqualified it is not merely ignored — the whole $select is rejected,
+     * every sub-request in the batch answers 400, and the account stops
+     * syncing entirely:
+     *
+     *   RequestBroker--ParseUri: Could not find a property named
+     *   'meetingMessageType' on type 'Microsoft.OutlookServices.Message'.
+     *
+     * Some mailboxes refuse the cast too — the error above names the older
+     * Outlook REST type, which is the shape of mailbox that does — so this is
+     * dropped for the rest of the process the first time a mailbox says so.
+     * See withoutInviteFlag().
+     */
+    private const string INVITE_SELECT = 'microsoft.graph.eventMessage/meetingMessageType';
+
+    /**
+     * Mailboxes that rejected INVITE_SELECT, by account id.
+     *
+     * Per process, deliberately: it is a property of the mailbox rather than
+     * of this install, and re-probing once per worker restart costs one failed
+     * batch and needs no column.
+     *
+     * @var array<int, true>
+     */
+    private array $inviteSelectUnsupported = [];
 
     /** Light projection used while planning — ids only, no bodies. */
     private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';
@@ -200,6 +229,64 @@ final class GraphApiClient
      * @param list<string> $ids
      * @return array{messages: list<array<string,mixed>>, throttled: list<string>, failed: array<string,int>, errors: array<string,string>}
      */
+    /** The $select for this mailbox: with the invite flag unless it refused it. */
+    private function messageSelect(Account $account): string
+    {
+        return true === isset($this->inviteSelectUnsupported[(int) $account->id])
+            ? self::MESSAGE_SELECT
+            : self::MESSAGE_SELECT . ',' . self::INVITE_SELECT;
+    }
+
+    /**
+     * @param list<string> $ids
+     *
+     * @return array<string,mixed>
+     */
+    private function fetchMessageBatch(Account $account, array $ids, string $select): array
+    {
+        $requests = [];
+
+        foreach ($ids as $index => $id) {
+            $requests[] = [
+                'id'      => (string) $index,
+                'method'  => 'GET',
+                'url'     => '/me/messages/' . rawurlencode($id) . '?$select=' . $select,
+                // Sub-request headers do NOT inherit from the outer POST.
+                'headers' => ['Prefer' => 'IdType="ImmutableId"'],
+            ];
+        }
+
+        return $this->request($account, 'POST', self::BATCH, [
+            'json' => ['requests' => $requests],
+        ])->toArray();
+    }
+
+    /**
+     * Whether a batch failed because the mailbox will not serve the invite
+     * flag, rather than for anything to do with the messages in it.
+     *
+     * One sub-response is enough to tell: the $select is parsed before the id
+     * is looked at, so a mailbox that refuses it refuses all of them.
+     *
+     * @param array<string,mixed> $response
+     */
+    private function rejectsInviteSelect(array $response): bool
+    {
+        foreach ($response['responses'] ?? [] as $sub) {
+            if (400 !== (int) ($sub['status'] ?? 0)) {
+                continue;
+            }
+
+            $message = (string) ($sub['body']['error']['message'] ?? '');
+
+            if (true === str_contains($message, 'meetingMessageType')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function batchGetMessages(Account $account, array $ids): array
     {
         $ids = array_values($ids);
@@ -216,21 +303,18 @@ final class GraphApiClient
             ));
         }
 
-        $requests = [];
+        $response = $this->fetchMessageBatch($account, $ids, $this->messageSelect($account));
 
-        foreach ($ids as $index => $id) {
-            $requests[] = [
-                'id'      => (string) $index,
-                'method'  => 'GET',
-                'url'     => '/me/messages/' . rawurlencode($id) . '?$select=' . self::MESSAGE_SELECT,
-                // Sub-request headers do NOT inherit from the outer POST.
-                'headers' => ['Prefer' => 'IdType="ImmutableId"'],
-            ];
+        // A mailbox that will not serve the invite flag fails EVERY
+        // sub-request on the $select, so the batch comes back entirely 400 and
+        // the account syncs nothing at all. Retried once without it, and
+        // remembered, so the cost is one wasted batch per worker rather than
+        // an account that never syncs again.
+        if (true === $this->rejectsInviteSelect($response)) {
+            $this->inviteSelectUnsupported[(int) $account->id] = true;
+
+            $response = $this->fetchMessageBatch($account, $ids, self::MESSAGE_SELECT);
         }
-
-        $response = $this->request($account, 'POST', self::BATCH, [
-            'json' => ['requests' => $requests],
-        ])->toArray();
 
         $messages  = [];
         $throttled = [];
@@ -292,8 +376,12 @@ final class GraphApiClient
      */
     public function getMessage(Account $account, string $messageId): array
     {
+        // Same select as the batch, invite flag included where the mailbox
+        // serves it — see messageSelect(). A single fetch asking for more than
+        // the batch did would return a differently-shaped message for the same
+        // id, which is the kind of difference that surfaces much later.
         return $this->request($account, 'GET', self::ME . '/messages/' . rawurlencode($messageId), [
-            'query' => ['$select' => self::MESSAGE_SELECT],
+            'query' => ['$select' => $this->messageSelect($account)],
         ])->toArray();
     }
 
