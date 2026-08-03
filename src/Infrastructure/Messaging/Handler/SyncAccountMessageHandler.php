@@ -6,7 +6,6 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
-use App\Infrastructure\Messaging\Message\HarvestContactsMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
@@ -14,7 +13,6 @@ use App\Service\Mail\SyncNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class SyncAccountMessageHandler
@@ -26,7 +24,6 @@ final readonly class SyncAccountMessageHandler
         private AccountRepository   $accountRepository,
         private MailboxRepository   $mailboxRepository,
         private SyncNotifier        $syncNotifier,
-        private MessageBusInterface $bus,
         private LoggerInterface     $logger,
         #[AutowireIterator('app.account_syncer')]
         private iterable            $syncers,
@@ -72,9 +69,6 @@ final readonly class SyncAccountMessageHandler
             $this->syncNotifier->publishMailboxSynced($account, $mailbox);
         }
 
-        // One account-scoped harvest per sync run — mailbox-scoped harvesting
-        // misses Gmail-API messages, which carry no mailbox row.
-        $this->bus->dispatch(new HarvestContactsMessage((int) $account->id));
     }
 
     private function resolveSyncer(Account $account): ?AccountSyncerInterface

@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\ImapConnectionFactory;
-use App\Infrastructure\Messaging\Message\HarvestContactsMessage;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\SyncNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class SyncImapMailboxMessageHandler
@@ -22,7 +20,6 @@ final readonly class SyncImapMailboxMessageHandler
         private MessageSyncer         $messageSyncer,
         private ImapConnectionFactory $imapConnectionFactory,
         private SyncNotifier          $syncNotifier,
-        private MessageBusInterface   $bus,
         private LoggerInterface       $logger,
     ) {}
 
@@ -58,6 +55,5 @@ final readonly class SyncImapMailboxMessageHandler
         $account = $mailbox->account;
 
         $this->syncNotifier->publishMailboxSynced($account, $mailbox);
-        $this->bus->dispatch(new HarvestContactsMessage((int) $account->id));
     }
 }

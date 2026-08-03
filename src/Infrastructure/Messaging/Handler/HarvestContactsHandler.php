@@ -11,6 +11,16 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
+/**
+ * Nothing dispatches this any more — HarvestContactsStep learns addresses from
+ * each ingested batch, and `app:backfill contacts` does the full sweep when one
+ * is actually wanted.
+ *
+ * Kept for one release rather than deleted with the dispatchers. Any message
+ * still sitting in the queue at upgrade time has to have a handler to land on;
+ * removing both at once turns a routine deploy into a pile of unhandleable
+ * envelopes in the failed transport. Delete after a release has drained.
+ */
 final readonly class HarvestContactsHandler
 {
     public function __construct(

@@ -840,18 +840,34 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Stream every message belonging to an account — via its mailbox (IMAP)
-     * or its thread (Gmail-API messages carry no mailbox row).
+     * Stream the address fields of every message belonging to an account — via
+     * its mailbox (IMAP) or its thread (Gmail-API messages carry no mailbox
+     * row).
      *
      * QueryBuilder twice over: the OR spans two joined associations, and the
      * result is streamed rather than returned, which findBy() cannot do at all.
      * Streaming is the point — an account's whole mail does not fit in memory.
      *
-     * @return iterable<Message>
+     * Five columns rather than the entity, and that is the whole reason this
+     * returns arrays. The only caller reads from/to/cc/bcc; hydrating Message
+     * also fetched body_html, body_text, body_html_safe, headers and the
+     * search_vector — the five widest columns in the table — and discarded
+     * them. On a fifty-thousand-message account that is most of a mailbox read
+     * off disk to learn some addresses. Scalars also keep the unit of work
+     * empty, which a toIterable() over entities does not.
+     *
+     * @return iterable<array{fromAddress: ?string, fromName: ?string, toAddresses: ?array<mixed>, ccAddresses: ?array<mixed>, bccAddresses: ?array<mixed>}>
      */
-    public function iterateForAccount(Account $account): iterable
+    public function iterateAddressesForAccount(Account $account): iterable
     {
         return $this->createQueryBuilder('message')
+            ->select(
+                'message.fromAddress AS fromAddress',
+                'message.fromName AS fromName',
+                'message.toAddresses AS toAddresses',
+                'message.ccAddresses AS ccAddresses',
+                'message.bccAddresses AS bccAddresses',
+            )
             ->leftJoin('message.mailbox', 'mailbox')
             ->leftJoin('message.thread', 'thread')
             ->where('mailbox.account = :account OR thread.account = :account')

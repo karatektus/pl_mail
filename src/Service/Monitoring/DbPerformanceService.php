@@ -164,7 +164,7 @@ final class DbPerformanceService
 
         foreach ($rows as $row) {
             $statements[] = [
-                'query'   => $this->truncate((string) $row['query']),
+                'query'   => (string) $row['query'],
                 'calls'   => (int) $row['calls'],
                 'meanMs'  => round((float) $row['mean_exec_time'], 2),
                 'maxMs'   => round((float) $row['max_exec_time'], 2),

@@ -28,10 +28,10 @@ final readonly class HarvestContactsService
     public function harvestForAccount(Account $account): int
     {
         $user  = $account->usr;
-        $total = $this->upsertFromMessages(
+        $total = $this->upsertFromRows(
             $user,
-            $this->messageRepository->iterateForAccount($account),
-            $account->email
+            $this->messageRepository->iterateAddressesForAccount($account),
+            (string) $account->email
         );
 
         $this->logger->info('HarvestContactsService: account done', [
@@ -47,26 +47,47 @@ final readonly class HarvestContactsService
      */
     public function harvestMessages(User $user, array $messages, string $ownAddress): int
     {
-        return $this->upsertFromMessages($user, $messages, $ownAddress);
+        $rows = [];
+
+        foreach ($messages as $message) {
+            $rows[] = [
+                'fromAddress'  => $message->fromAddress,
+                'fromName'     => $message->fromName,
+                'toAddresses'  => $message->toAddresses,
+                'ccAddresses'  => $message->ccAddresses,
+                'bccAddresses' => $message->bccAddresses,
+            ];
+        }
+
+        return $this->upsertFromRows($user, $rows, $ownAddress);
     }
 
     /**
-     * @param iterable<Message> $messages
+     * The five address fields are all this needs, so it takes them directly.
+     *
+     * Both callers reduce to the same rows: the sweep selects them out of the
+     * database, and the per-batch path reads them off messages it already
+     * holds. One loop rather than one that knew about entities and one that did
+     * not, which is what let the sweep quietly fetch whole messages for years.
+     *
+     * @param iterable<array{fromAddress: ?string, fromName: ?string, toAddresses: ?array<mixed>, ccAddresses: ?array<mixed>, bccAddresses: ?array<mixed>}> $rows
      */
-    private function upsertFromMessages(User $user, iterable $messages, string $ownAddress): int
+    private function upsertFromRows(User $user, iterable $rows, string $ownAddress): int
     {
         $batch = [];
         $total = 0;
 
-        foreach ($messages as $msg) {
-            $isOutbound = '' !== $ownAddress
-                && mb_strtolower(trim((string) $msg->fromAddress)) === $ownAddress;
+        foreach ($rows as $row) {
+            $from = $row['fromAddress'] ?? null;
 
-            if ($msg->fromAddress !== null && $msg->fromAddress !== '') {
-                $batch[] = ['email' => $msg->fromAddress, 'name' => $msg->fromName, 'correspondent' => false];
+            $isOutbound = '' !== $ownAddress
+                && mb_strtolower(trim((string) $from)) === $ownAddress;
+
+            if (null !== $from && '' !== $from) {
+                $batch[] = ['email' => $from, 'name' => $row['fromName'] ?? null, 'correspondent' => false];
             }
 
-            foreach ([$msg->toAddresses, $msg->ccAddresses, $msg->bccAddresses] as $group) {
+            foreach ([$row['toAddresses'] ?? null, $row['ccAddresses'] ?? null, $row['bccAddresses'] ?? null] as $group) {
                 if (null === $group) {
                     continue;
                 }
