@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Exception\GraphApiException;
+use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
@@ -18,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Throwable;
 
 /**
@@ -28,8 +31,22 @@ use Throwable;
  * per-message PATCHes would turn "mark 200 threads read" into a guaranteed
  * wall of 429s on an action that feels instant in the UI.
  *
- * Failures are logged and swallowed — the DB is the source of truth and the
- * next delta pass reconciles drift, exactly as with ApplyGmailLabelsHandler.
+ * Per-sub-request throttles are re-sliced and requeued here, because a Graph
+ * batch reports a status per sub-request and a partial success has to be
+ * turned into a partial retry.
+ *
+ * A failure of the batch *request itself* is different: nothing was applied,
+ * there is nothing to re-slice, and this used to log it and return — which
+ * lost the user's change outright. Transient failures now propagate so
+ * Messenger redelivers the envelope; only a refusal the mailbox will keep
+ * repeating is swallowed.
+ *
+ * The claim this docblock used to make — that the next delta pass reconciles
+ * drift — is not true of an outgoing push. Graph's delta feed reports what
+ * changed *in the mailbox*, so a change that never arrived produces no delta
+ * to reconcile from, and the next pass overwrites the local value with the
+ * server's. A swallowed push is reverted, not retried. Same reasoning as
+ * ApplyGmailLabelsHandler, which had the same wrong comment.
  */
 #[AsMessageHandler]
 final class ApplyGraphChangesHandler
@@ -118,6 +135,8 @@ final class ApplyGraphChangesHandler
         try {
             $result = $this->apiClient->batchPatchMessages($account, $patches);
         } catch (Throwable $e) {
+            $this->rethrowIfTransient($e);
+
             $this->logger->error('ApplyGraphChangesHandler: batch patch failed', [
                 'accountId' => $account->getId(),
                 'error'     => $e->getMessage(),
@@ -191,6 +210,8 @@ final class ApplyGraphChangesHandler
         try {
             $result = $this->apiClient->batchMoveMessages($account, array_keys($byGraphId), $folderId);
         } catch (Throwable $e) {
+            $this->rethrowIfTransient($e);
+
             $this->logger->error('ApplyGraphChangesHandler: batch move failed', [
                 'accountId' => $account->getId(),
                 'error'     => $e->getMessage(),
@@ -252,6 +273,11 @@ final class ApplyGraphChangesHandler
                 $existing[(string) ($category['displayName'] ?? '')] = true;
             }
         } catch (Throwable $e) {
+            // A throttle here is the same throttle the patch below is about to
+            // hit, so there is nothing to gain by pressing on and losing the
+            // push instead of retrying it.
+            $this->rethrowIfTransient($e);
+
             $this->logger->error('ApplyGraphChangesHandler: could not list master categories', [
                 'accountId' => $account->getId(),
                 'error'     => $e->getMessage(),
@@ -271,12 +297,41 @@ final class ApplyGraphChangesHandler
                 // sync rather than being guessed at.
                 $this->apiClient->createMasterCategory($account, $name);
             } catch (Throwable $e) {
+                // Retrying is safe to resume mid-loop: the categories already
+                // created are skipped by the existing check above.
+                $this->rethrowIfTransient($e);
+
                 $this->logger->error('ApplyGraphChangesHandler: could not create master category', [
                     'accountId' => $account->getId(),
                     'category'  => $name,
                     'error'     => $e->getMessage(),
                 ]);
             }
+        }
+    }
+
+    /**
+     * Re-throw anything the mailbox is likely to answer differently in a
+     * minute, so Messenger redelivers instead of this handler eating it.
+     *
+     * The split is the whole point of the change. A throttle, a 5xx or a
+     * request that never reached Microsoft says nothing about whether the
+     * change is *valid* — swallowing it discards a mutation the user made and
+     * can still see locally, and nothing afterwards goes looking for it. A
+     * 4xx does say something, and repeating it five times helps nobody.
+     *
+     * Status 0 is the client's own "no response" case, which is why it sits
+     * with the 5xx rather than with the refusals.
+     */
+    private function rethrowIfTransient(Throwable $error): void
+    {
+        if ($error instanceof GraphThrottledException || $error instanceof TransportExceptionInterface) {
+            throw $error;
+        }
+
+        if ($error instanceof GraphApiException
+            && (0 === $error->getStatus() || $error->getStatus() >= 500)) {
+            throw $error;
         }
     }
 
