@@ -10,6 +10,28 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.10 — 2026-08-03
+
+**Deployment shape changes.** The single `messenger-worker` service is replaced
+by three — `worker-export`, `worker-ingest`, `worker-maintenance` — so remove
+the old one when upgrading. Roughly 150MB more resident in total. No schema
+change.
+
+### Fixed
+
+- **Sending waited behind whatever the mailbox was doing.** Seventeen message
+  types shared one queue and one worker, so they were ordered by arrival:
+  pressing Send behind a Gmail batch meant waiting for the batch. Outgoing work
+  now has its own queue and its own process, and retries faster than the rest —
+  a relay refusing a connection clears in seconds, not minutes.
+- **Learning contacts re-read the whole mailbox after every sync.** A sync that
+  brought in twenty messages re-read all fifty thousand, hydrating whole
+  messages — bodies, headers and search vectors included — to use five address
+  fields. Measured on a real account at five and a half hours of database time
+  a day, more than every other query on the server combined. Addresses are
+  learned from each batch as it arrives; the full sweep is now
+  `app:backfill contacts`, run when it is actually wanted.
+
 ## v0.0.9 — 2026-08-03
 
 Mostly internal. **One schema change**: five tables gain an `updated_at`, added
