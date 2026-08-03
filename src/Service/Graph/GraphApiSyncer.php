@@ -27,10 +27,17 @@ use Symfony\Component\Messenger\MessageBusInterface;
  *
  * Message movement is visible but ambiguous: moving a message out of a folder
  * shows up as `@removed` on the source folder's delta and as an addition on
- * the destination folder's delta. With immutable ids both carry the SAME id,
- * so the two halves reconcile — the label is detached on one side and attached
- * on the other, and no body refetch is needed because delta already carries
- * parentFolderId.
+ * the destination folder's delta, and no body refetch is needed because delta
+ * already carries parentFolderId.
+ *
+ * The two halves were assumed to reconcile — detach on one side, attach on the
+ * other — which holds only where both carry the same id. Immutable ids are
+ * exactly what a personal outlook.com mailbox does not reliably give (see
+ * GraphApiClient), so the detach half regularly matched nothing and old
+ * location labels accumulated: deleted drafts sat in Drafts and Trash at once.
+ * So the attach is exclusive on its own and does not depend on its partner
+ * arriving — the last folder a message was seen in is the folder it is in,
+ * which is what Exchange means anyway.
  */
 final class GraphApiSyncer
 {
@@ -40,6 +47,7 @@ final class GraphApiSyncer
     public function __construct(
         private readonly GraphApiClient         $apiClient,
         private readonly GraphFolderResolver    $folderResolver,
+        private readonly GraphLabelPolicy       $labelPolicy,
         private readonly MessageRepository      $messageRepository,
         private readonly EntityManagerInterface $em,
         private readonly StateManager           $stateManager,
@@ -165,6 +173,27 @@ final class GraphApiSyncer
 
         if (null === $label) {
             return;
+        }
+
+        // Exclusive, not additive. An Exchange message is in exactly one
+        // folder, and this half of a move used to rely on the other half —
+        // the source folder's `@removed` — arriving to take the old label off.
+        //
+        // That pairing does not hold. The `@removed` entry carries the id the
+        // source folder knew, and on a mailbox without immutable ids (personal
+        // outlook.com, which is where this was found) that is not the id
+        // stored here, so detachFolderLabel silently matches nothing. Deleted
+        // drafts kept their Drafts label beside Trash, which is a state
+        // Exchange cannot represent — ApplyGraphChangesHandler warned about it
+        // on every push.
+        //
+        // Applying the destination exclusively makes the last move win, which
+        // is exactly what the server means. Non-folder labels are untouched:
+        // categories are the many-to-many axis, and Snoozed is plMail's own.
+        foreach ($this->labelPolicy->folderLabels($message) as $current) {
+            if ($current !== $label) {
+                $message->removeLabel($current);
+            }
         }
 
         $message->addLabel($label);

@@ -134,9 +134,15 @@ final readonly class GraphLabelPolicy
     }
 
     /**
+     * The folder-backed labels a message currently holds.
+     *
+     * Public because the syncer needs it too: a folder move has to take the
+     * old location off, and "which of these is a location" is this class's
+     * question, not the caller's.
+     *
      * @return list<Label>
      */
-    private function folderLabels(Message $message): array
+    public function folderLabels(Message $message): array
     {
         $labels  = [];
         $account = $message->account;
