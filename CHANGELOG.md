@@ -10,6 +10,57 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.9 — 2026-08-03
+
+Mostly internal. **One schema change**: five tables gain an `updated_at`, added
+nullable, backfilled from `created_at` and then made `NOT NULL`, so it is safe
+on a populated database. Restart the workers after upgrading — several service
+constructors changed and `messenger-worker` and `imap-supervisor` hold a
+compiled container.
+
+### Fixed
+
+- **A draft created by an app went missing from Drafts.** A thread's labels are
+  rebuilt from the messages it holds, and a freshly threaded draft was not in
+  that collection yet, so the rebuild took back the Drafts label it had just
+  been given. Drafts written in the browser were unaffected, which is why this
+  survived so long.
+- **Mail sent from an alias went out as the account's main address.** The
+  composer wrote the chosen address onto the message and the save overwrote it
+  one line later. Both the web composer and JMAP were affected.
+- **`Mailbox/set` could destroy a mailbox that had just been given a child.**
+  The refusal counts children, and a child created earlier in the same request
+  was not visible to the count — which JMAP makes reachable, since create and
+  destroy travel together.
+- **Editing a draft in place, popping the editor out and closing it** left the
+  conversation without that draft's row until a reload.
+- **A phone opened on the calendar** if the calendar pane had ever been opened
+  on a desktop. The pane state is one preference shared by every device, and
+  below 1024px the pane replaces the mail rather than sitting beside it.
+- Settings gets the same edge-to-edge cards on mobile the admin area got.
+
+### Added
+
+- **Statement statistics are enabled at boot**, so a slow query reported next
+  week is explained by numbers that were already being collected. Where the
+  database refuses, the admin Database tab offers a button; where the server
+  cannot support it at all, it says so instead.
+
+### Changed
+
+- Every entity is properties and hooks — no getters, no setters, no fluent
+  setters — and every one takes `TimestampableTrait` rather than tracking its
+  own timestamps. Both timestamps are non-nullable, which removed 35 suppressed
+  type mismatches.
+- All SQL, DQL and DBAL now lives in a repository, and every hand-written query
+  that stayed carries a comment saying why it could not be a plain Doctrine
+  call.
+- Controllers hold their actions and the responses those actions share.
+  Everything else moved into services grouped by purpose — draft persistence,
+  attachments, reply building, JMAP change announcements, OAuth state — several
+  of which were previously implemented twice, once for the browser and once for
+  JMAP.
+
 ## v0.0.8 — 2026-08-03
 
 ### Fixed
