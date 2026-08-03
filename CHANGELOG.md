@@ -10,6 +10,47 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.15 — 2026-08-03
+
+No schema change, no deployment change.
+
+### Fixed
+
+- **An Outlook account could stop syncing entirely.** `meetingMessageType` is
+  declared on Graph's event-message type, not on the base message, and naming it
+  unqualified does not get ignored — the whole `$select` is rejected, every
+  message in the batch answers 400, and nothing arrives. It is asked for through
+  the cast now, and a mailbox that refuses even that gets one retry without it
+  and is remembered, rather than never syncing again.
+- **Deleted Outlook drafts sat in Drafts and Trash at once.** Attaching a folder
+  label relied on the source folder's removal notice to take the old one off,
+  which only works while both carry the same message id — and personal
+  outlook.com mailboxes do not reliably provide those. A folder move now
+  replaces the location outright, which is what a single Exchange folder means.
+- **A filter with no conditions claimed the whole mailbox.** "If this is any
+  message → …" read the same whether the rule was scoped to one account or all
+  of them, which is exactly the case where the account *is* the rule. It says
+  which account now, and picking one updates the sentence and the match count
+  immediately instead of waiting for the next edit.
+- **A Graph subscription this install no longer has filled the log.** Microsoft
+  keeps delivering to a registration it still holds — several times a second,
+  for up to three days — and without the account there is nothing here that can
+  cancel it. Logged once an hour per subscription instead of once per
+  notification, so it stops burying everything else and lighting the unread-log
+  ring over something nobody can act on.
+- **"Matches 1 existing messages"** in the filter editor.
+
+### Changed
+
+- **The image tag is the first optional setting in the TrueNAS compose file**,
+  with what each channel means: `:latest` for releases, `:main` for every merge,
+  and the pinned forms. Also says the image tag carries no leading `v`, and that
+  downgrading is not supported because migrations run forward on boot.
+- **The README tour is current, and anyone can retake it.** `app:test:seed-demo`
+  writes a believable demo mailbox, so the screenshots no longer depend on one
+  person's installation; all eight are regenerated, and filters and the calendar
+  are in the tour for the first time.
+
 ## v0.0.14 — 2026-08-03
 
 No schema change, no deployment change.

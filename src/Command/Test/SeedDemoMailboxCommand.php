@@ -13,6 +13,8 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\StateManager;
 use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
@@ -115,6 +117,8 @@ final class SeedDemoMailboxCommand extends Command
         private readonly UserRepository          $userRepository,
         private readonly AccountRepository       $accountRepository,
         private readonly CalendarEventRepository $calendarEventRepository,
+        private readonly ContactRepository       $contactRepository,
+        private readonly LabelRepository         $labelRepository,
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelResolver           $labelResolver,
         private readonly StateManager            $stateManager,
@@ -195,6 +199,18 @@ final class SeedDemoMailboxCommand extends Command
 
         $this->entityManager->flush();
 
+        // Custom labels from other fixtures go too — "E2E Label" in the
+        // sidebar of a readme screenshot is the same tell as "E2E Trash Me" in
+        // the message list. System labels stay: they are this account's
+        // folders, not decoration.
+        foreach ($this->labelRepository->findBy(['usr' => $user, 'role' => null]) as $label) {
+            if (false === in_array((string) $label->name, self::LABELS, true)) {
+                $this->entityManager->remove($label);
+            }
+        }
+
+        $this->entityManager->flush();
+
         $inbox  = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $labels = [];
 
@@ -262,6 +278,17 @@ final class SeedDemoMailboxCommand extends Command
         foreach ($messages as $message) {
             $this->stateManager->recordCreated($accountId, JmapObjectType::Email, (string) $message->id);
         }
+
+        // The senders as contacts, which is what makes the compose screenshot
+        // possible: recipients autocomplete from the address book, and that is
+        // normally filled by harvesting synced mail rather than by seeding it.
+        $contacts = [];
+
+        foreach (self::THREADS as [, $fromName, $fromAddress]) {
+            $contacts[] = ['email' => $fromAddress, 'name' => $fromName, 'correspondent' => true];
+        }
+
+        $this->contactRepository->upsertBatch($user, $contacts);
 
         $this->entityManager->flush();
 
