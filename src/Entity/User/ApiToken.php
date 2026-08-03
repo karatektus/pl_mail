@@ -110,16 +110,19 @@ class ApiToken
         return $this;
     }
 
-    public function isActive(): bool
-    {
-        return null === $this->revokedAt;
+    /** Virtual: derived from revokedAt, never stored. */
+    public bool $active {
+        get => null === $this->revokedAt;
     }
 
     /**
      * How the secret is shown in listings once it can no longer be displayed.
+     *
+     * Virtual, so there is no column behind it — Doctrine refuses to map a
+     * property whose hooks do not touch a backing store, which is exactly what
+     * a derived value should be.
      */
-    public function getMasked(): string
-    {
-        return self::PREFIX.$this->hint.'…';
+    public string $masked {
+        get => self::PREFIX.$this->hint.'…';
     }
 }
