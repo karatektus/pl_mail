@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Service\Mail\GraphApiClient;
 use App\Service\OAuth\OAuthTokenManager;
@@ -180,7 +181,7 @@ final class GraphInviteSelectFallbackTest extends TestCase
     {
         $account                   = new Account();
         $account->email            = 'graph@example.test';
-        $account->authType         = 'oauth';
+        $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new DateTimeImmutable('+1 day');

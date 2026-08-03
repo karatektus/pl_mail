@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
+use App\Domain\Enum\Account\AuthType;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -255,7 +256,7 @@ final class GraphFolderMoveTest extends KernelTestCase
         // off to refresh — which fails, and the syncer swallows the failure as
         // "delta failed", leaving the test asserting against a sync that never
         // ran.
-        $account->authType         = 'oauth';
+        $account->authType         = AuthType::OAuth2->value;
         $account->oauthProvider    = 'microsoft';
         $account->oauthAccessToken = 'test-access-token';
         $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');

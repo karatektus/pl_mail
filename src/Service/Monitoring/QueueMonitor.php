@@ -8,6 +8,7 @@ use App\Repository\Monitoring\MessengerQueueRepository;
 use DateTimeInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\MessageDecodingFailedException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
@@ -272,13 +273,24 @@ final class QueueMonitor
     private function decode(array $row): ?Envelope
     {
         try {
-            return $this->serializer->decode([
+            $envelope = $this->serializer->decode([
                 'body'    => $row['body'],
                 'headers' => (array) json_decode($row['headers'], true, flags: JSON_THROW_ON_ERROR),
             ]);
         } catch (Throwable) {
             return null;
         }
+
+        // A failure does not always arrive as one. PhpSerializer hands back an
+        // envelope carrying the decoding exception as its message rather than
+        // throwing it, so taken at face value the panel would report the
+        // handler class as "MessageDecodingFailedException" — an implementation
+        // detail where it promised to say the message cannot be read.
+        if (true === $envelope->getMessage() instanceof MessageDecodingFailedException) {
+            return null;
+        }
+
+        return $envelope;
     }
 
     /**
