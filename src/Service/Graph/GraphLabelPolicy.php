@@ -99,9 +99,9 @@ final readonly class GraphLabelPolicy
     public function categoryNames(Message $message): array
     {
         $names   = [];
-        $account = $message->getAccount();
+        $account = $message->account;
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             if (true === $this->pushesAsFolder($label, $account)) {
                 continue;
             }
@@ -122,9 +122,9 @@ final readonly class GraphLabelPolicy
     private function folderLabels(Message $message): array
     {
         $labels  = [];
-        $account = $message->getAccount();
+        $account = $message->account;
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             if (true === $this->pushesAsFolder($label, $account)) {
                 $labels[] = $label;
             }

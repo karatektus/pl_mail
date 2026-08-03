@@ -14,7 +14,7 @@ use App\Jmap\Blob\BlobId;
  *
  * Two shape mismatches are resolved here and nowhere else:
  *
- * 1. mailboxIds comes from Message::getLabels() — the message<->label join is
+ * 1. mailboxIds comes from Message::$labels — the message<->label join is
  *    the authoritative per-message assignment. thread_label is NOT used: it is
  *    a derived union that ThreadLabelSynchronizer recomputes from these rows,
  *    so reading it would report a mailbox for every message in a thread.
@@ -96,25 +96,25 @@ final class EmailMapper
         $htmlBody = $this->htmlBodyParts($message, $bodyProperties);
 
         return [
-            'id' => (string) $message->getId(),
-            'blobId' => (string) BlobId::forMessage((int) $message->getId()),
+            'id' => (string) $message->id,
+            'blobId' => (string) BlobId::forMessage((int) $message->id),
             'threadId' => $this->threadId($message),
             'mailboxIds' => $this->mailboxIds($message, $bindingIdByLabelId),
             'keywords' => $this->keywords($message),
-            'size' => $message->getSize() ?? 0,
-            'receivedAt' => $this->utcOrNull($message->getReceivedAt() ?? $message->getSentAt() ?? $message->getCreatedAt()),
-            'sentAt' => $this->utcOrNull($message->getSentAt()),
-            'messageId' => $this->headerIdList($message->getMessageId()),
-            'inReplyTo' => $this->nonEmptyList($message->getInReplyTo()),
-            'references' => $this->nonEmptyList($message->getReferences()),
-            'subject' => $message->getSubject(),
+            'size' => $message->size ?? 0,
+            'receivedAt' => $this->utcOrNull($message->receivedAt ?? $message->sentAt ?? $message->createdAt),
+            'sentAt' => $this->utcOrNull($message->sentAt),
+            'messageId' => $this->headerIdList($message->messageId),
+            'inReplyTo' => $this->nonEmptyList($message->inReplyTo),
+            'references' => $this->nonEmptyList($message->references),
+            'subject' => $message->subject,
             'from' => $this->from($message),
             'sender' => null,
-            'to' => $this->addressList($message->getToAddresses()),
-            'cc' => $this->addressList($message->getCcAddresses()),
-            'bcc' => $this->addressList($message->getBccAddresses()),
+            'to' => $this->addressList($message->toAddresses),
+            'cc' => $this->addressList($message->ccAddresses),
+            'bcc' => $this->addressList($message->bccAddresses),
             'replyTo' => null,
-            'hasAttachment' => true === $message->hasAttachments(),
+            'hasAttachment' => true === $message->hasAttachments,
             // plMail extension: the raw classification of *this message*, which
             // is the signal Thread.category is resolved from and not the value a
             // tab is drawn with. Published because a Promotions conversation
@@ -125,7 +125,7 @@ final class EmailMapper
             // Read-only, and deliberately not accepted as an Email/query
             // condition: filtering it would put that same conversation in two
             // tabs. See EmailFilterCompiler::threadCategory().
-            'category' => $message->getCategory()?->value,
+            'category' => $message->category?->value,
             'preview' => $this->preview($message),
             'textBody' => $textBody,
             'htmlBody' => $htmlBody,
@@ -136,7 +136,7 @@ final class EmailMapper
 
     private function threadId(Message $message): ?string
     {
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null === $thread) {
             return null;
@@ -156,7 +156,7 @@ final class EmailMapper
     {
         $ids = [];
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             $bindingId = $bindingIdByLabelId[(int) $label->id] ?? null;
 
             if (null === $bindingId) {
@@ -185,15 +185,15 @@ final class EmailMapper
     {
         $keywords = [];
 
-        if (null !== $message->getSeenAt()) {
+        if (null !== $message->seenAt) {
             $keywords['$seen'] = true;
         }
 
-        if (null !== $message->getStarredAt()) {
+        if (null !== $message->starredAt) {
             $keywords['$flagged'] = true;
         }
 
-        $flags = $message->getFlags();
+        $flags = $message->flags;
 
         if (true === in_array(MessageFlag::DRAFT->value, $flags, true)) {
             $keywords['$draft'] = true;
@@ -215,14 +215,14 @@ final class EmailMapper
      */
     private function from(Message $message): ?array
     {
-        $address = $message->getFromAddress();
+        $address = $message->fromAddress;
 
         if (null === $address || '' === $address) {
             return null;
         }
 
         return [[
-            'name' => $message->getFromName(),
+            'name' => $message->fromName,
             'email' => $address,
         ]];
     }
@@ -312,7 +312,7 @@ final class EmailMapper
 
     private function preview(Message $message): string
     {
-        $text = $message->getBodyText();
+        $text = $message->bodyText;
 
         if (null === $text || '' === $text) {
             return '';
@@ -334,7 +334,7 @@ final class EmailMapper
      */
     private function textBodyParts(Message $message, ?array $bodyProperties): array
     {
-        $text = $message->getBodyText();
+        $text = $message->bodyText;
 
         if (null === $text || '' === $text) {
             return [];
@@ -342,7 +342,7 @@ final class EmailMapper
 
         return [$this->bodyPart(
             self::TEXT_PART_ID,
-            (string) BlobId::forMessage((int) $message->getId()),
+            (string) BlobId::forMessage((int) $message->id),
             'text/plain',
             strlen($text),
             $bodyProperties,
@@ -359,7 +359,7 @@ final class EmailMapper
      */
     private function htmlBodyParts(Message $message, ?array $bodyProperties): array
     {
-        $html = $message->getBodyHtmlSafe();
+        $html = $message->bodyHtmlSafe;
 
         if (null === $html || '' === $html) {
             return [];
@@ -367,7 +367,7 @@ final class EmailMapper
 
         return [$this->bodyPart(
             self::HTML_PART_ID,
-            (string) BlobId::forMessage((int) $message->getId()),
+            (string) BlobId::forMessage((int) $message->id),
             'text/html',
             strlen($html),
             $bodyProperties,
@@ -383,7 +383,7 @@ final class EmailMapper
     {
         $attachments = [];
 
-        foreach ($message->getMessageParts() as $part) {
+        foreach ($message->messageParts as $part) {
             if (false === $this->isAttachment($part)) {
                 continue;
             }
@@ -477,7 +477,7 @@ final class EmailMapper
         $values = [];
 
         if (true === $fetchText) {
-            $text = $message->getBodyText();
+            $text = $message->bodyText;
 
             if (null !== $text && '' !== $text) {
                 $values[self::TEXT_PART_ID] = $this->bodyValue($text);
@@ -485,7 +485,7 @@ final class EmailMapper
         }
 
         if (true === $fetchHtml) {
-            $html = $message->getBodyHtmlSafe();
+            $html = $message->bodyHtmlSafe;
 
             if (null !== $html && '' !== $html) {
                 $values[self::HTML_PART_ID] = $this->bodyValue($html);

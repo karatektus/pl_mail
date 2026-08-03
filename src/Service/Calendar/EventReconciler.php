@@ -71,7 +71,7 @@ final readonly class EventReconciler
             return [];
         }
 
-        $account  = $message->getAccount();
+        $account  = $message->account;
         $user     = $account->getUsr();
         $calendar = $this->calendarResolver->resolve($account);
 
@@ -160,7 +160,7 @@ final readonly class EventReconciler
             return false;
         }
 
-        $arrived = $message->getReceivedAt() ?? $message->getSentAt();
+        $arrived = $message->receivedAt ?? $message->sentAt;
 
         // An event this batch created has no id yet, so it cannot be bound as
         // a query parameter — and it has no committed links to find either.

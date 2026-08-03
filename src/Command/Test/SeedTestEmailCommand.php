@@ -135,23 +135,23 @@ final class SeedTestEmailCommand extends Command
             $receivedAt = $now->modify(sprintf('-%d minutes', $offset));
             $offset++;
 
-            $message = new Message()
-                ->setAccount($account)
-                ->setSubject($subject)
-                ->setFromName('E2E Sender')
-                ->setFromAddress('sender@e2e.test')
-                ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->email]])
-                ->setBodyText(sprintf('Seeded body for "%s".', $subject))
-                ->setReceivedAt($receivedAt)
-                ->setSentAt($receivedAt)
-                ->setHasAttachments(false)
-                ->setFlags([])
-                ->setSyncedAt($now)
-                ->setUpdatedAt($now)
-                ->addLabel($inboxLabel);
+            $message = new Message();
+            $message->account = $account;
+            $message->subject = $subject;
+            $message->fromName = 'E2E Sender';
+            $message->fromAddress = 'sender@e2e.test';
+            $message->toAddresses = [['name' => 'E2E Tester', 'address' => (string) $user->email]];
+            $message->bodyText = sprintf('Seeded body for "%s".', $subject);
+            $message->receivedAt = $receivedAt;
+            $message->sentAt = $receivedAt;
+            $message->hasAttachments = false;
+            $message->flags = [];
+            $message->syncedAt = $now;
+            $message->updatedAt = $now;
+            $message->addLabel($inboxLabel);
 
             if (false === $unread) {
-                $message->setSeenAt($now);
+                $message->seenAt = $now;
             }
 
             $this->entityManager->persist($message);
@@ -170,7 +170,7 @@ final class SeedTestEmailCommand extends Command
 
             $this->entityManager->persist($thread);
 
-            $message->setThread($thread);
+            $message->thread = $thread;
 
             $messages[] = $message;
             $seeded++;
@@ -193,10 +193,10 @@ final class SeedTestEmailCommand extends Command
             $this->stateManager->recordCreated(
                 $accountId,
                 JmapObjectType::Email,
-                (string) $message->getId(),
+                (string) $message->id,
             );
 
-            $thread = $message->getThread();
+            $thread = $message->thread;
 
             if (null !== $thread) {
                 $threadIds[] = (int) $thread->id;
@@ -249,7 +249,7 @@ final class SeedTestEmailCommand extends Command
         }
 
         foreach ($threads as $thread) {
-            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->id);
 
             // Thread remove cascades to its messages (orphanRemoval); the
             // thread_label / message_label join rows drop via ON DELETE CASCADE.

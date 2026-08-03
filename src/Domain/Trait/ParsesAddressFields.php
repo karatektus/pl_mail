@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Reads compose_to[], compose_cc[], compose_bcc[] values posted by Tom Select
  * (each value is a plain email address string) and converts them to the
- * [{name, address}] array format used by Message::setToAddresses() etc.
+ * [{name, address}] array format used by Message::$toAddresses etc.
  */
 trait ParsesAddressFields
 {

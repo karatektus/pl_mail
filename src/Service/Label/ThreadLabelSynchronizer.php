@@ -21,7 +21,7 @@ final class ThreadLabelSynchronizer
         $union = [];
 
         foreach ($thread->messages as $message) {
-            foreach ($message->getLabels() as $label) {
+            foreach ($message->labels as $label) {
                 $union[(int) $label->id] = $label;
             }
         }

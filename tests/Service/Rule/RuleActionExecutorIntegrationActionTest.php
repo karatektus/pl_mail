@@ -214,8 +214,10 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
         $account = new Account();
         $account->setUsr($this->user);
 
-        return new Message()
-            ->setAccount($account)
-            ->setHasAttachments($hasAttachments);
+        $message = new Message();
+        $message->account = $account;
+        $message->hasAttachments = $hasAttachments;
+
+        return $message;
     }
 }

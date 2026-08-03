@@ -309,13 +309,12 @@ final class IcsExtractionTest extends KernelTestCase
     private function messageWithInvite(string $ics): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Invitation')
-            ->setFromAddress('organiser@example.test')
-            ->setReceivedAt(new DateTimeImmutable())
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<%s@example.test>', uniqid('', true)));
+        $message->account = $this->account;
+        $message->subject = 'Invitation';
+        $message->fromAddress = 'organiser@example.test';
+        $message->receivedAt = new DateTimeImmutable();
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<%s@example.test>', uniqid('', true));
         $this->em->persist($message);
         $this->em->flush();
 

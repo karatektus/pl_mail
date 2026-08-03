@@ -67,11 +67,11 @@ final class ReclassifyAttachmentsCommand extends Command
             $messages = $this->em->getRepository(Message::class)->findBy(['id' => $chunk]);
 
             foreach ($messages as $message) {
-                $bodyHtml       = $message->getBodyHtml();
+                $bodyHtml       = $message->bodyHtml;
                 $hasAttachments = false;
                 $touched        = false;
 
-                foreach ($message->getMessageParts() as $part) {
+                foreach ($message->messageParts as $part) {
                     $isInline = $this->inlineDetector->isInline(
                         $part->disposition,
                         $part->contentId,
@@ -90,8 +90,8 @@ final class ReclassifyAttachmentsCommand extends Command
                     }
                 }
 
-                if ($hasAttachments !== $message->hasAttachments()) {
-                    $message->setHasAttachments($hasAttachments);
+                if ($hasAttachments !== $message->hasAttachments) {
+                    $message->hasAttachments = $hasAttachments;
                     $touched = true;
                 }
 

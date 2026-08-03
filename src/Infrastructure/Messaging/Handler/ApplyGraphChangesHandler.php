@@ -107,7 +107,7 @@ final class ApplyGraphChangesHandler
         $patches = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null === $graphId || '' === $graphId) {
                 continue;
@@ -115,14 +115,14 @@ final class ApplyGraphChangesHandler
 
             if (true === $this->labelPolicy->hasConflictingLocations($entity)) {
                 $this->logger->warning('ApplyGraphChangesHandler: message holds multiple folder-backed labels', [
-                    'messageId' => $entity->getId(),
+                    'messageId' => $entity->id,
                 ]);
             }
 
             $patches[$graphId] = [
                 'isRead'     => $entity->hasFlag(MessageFlag::SEEN),
                 'flag'       => [
-                    'flagStatus' => null !== $entity->getStarredAt() ? 'flagged' : 'notFlagged',
+                    'flagStatus' => null !== $entity->starredAt ? 'flagged' : 'notFlagged',
                 ],
                 'categories' => $this->labelPolicy->categoryNames($entity),
             ];
@@ -196,7 +196,7 @@ final class ApplyGraphChangesHandler
         $byGraphId = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null !== $graphId && '' !== $graphId) {
                 $byGraphId[$graphId] = $entity;
@@ -230,7 +230,7 @@ final class ApplyGraphChangesHandler
             $entity = $byGraphId[$oldId] ?? null;
 
             if (null !== $entity) {
-                $entity->setGraphId($newId);
+                $entity->graphId = $newId;
             }
         }
 
@@ -349,10 +349,10 @@ final class ApplyGraphChangesHandler
         $retryIds  = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null !== $graphId && true === in_array($graphId, $throttled, true)) {
-                $retryIds[] = (int) $entity->getId();
+                $retryIds[] = (int) $entity->id;
             }
         }
 

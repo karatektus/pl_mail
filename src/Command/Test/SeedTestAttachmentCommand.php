@@ -105,20 +105,20 @@ final class SeedTestAttachmentCommand extends Command
         $inboxLabel = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $now = new DateTimeImmutable();
 
-        $message = new Message()
-            ->setAccount($account)
-            ->setSubject(self::SUBJECT)
-            ->setFromName('E2E Sender')
-            ->setFromAddress('sender@e2e.test')
-            ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->email]])
-            ->setBodyText('Seeded message with one attachment.')
-            ->setReceivedAt($now)
-            ->setSentAt($now)
-            ->setHasAttachments(true)
-            ->setFlags([])
-            ->setSyncedAt($now)
-            ->setUpdatedAt($now)
-            ->addLabel($inboxLabel);
+        $message = new Message();
+        $message->account = $account;
+        $message->subject = self::SUBJECT;
+        $message->fromName = 'E2E Sender';
+        $message->fromAddress = 'sender@e2e.test';
+        $message->toAddresses = [['name' => 'E2E Tester', 'address' => (string) $user->email]];
+        $message->bodyText = 'Seeded message with one attachment.';
+        $message->receivedAt = $now;
+        $message->sentAt = $now;
+        $message->hasAttachments = true;
+        $message->flags = [];
+        $message->syncedAt = $now;
+        $message->updatedAt = $now;
+        $message->addLabel($inboxLabel);
 
         $this->entityManager->persist($message);
 
@@ -135,7 +135,7 @@ final class SeedTestAttachmentCommand extends Command
         $thread->addLabel($inboxLabel);
 
         $this->entityManager->persist($thread);
-        $message->setThread($thread);
+        $message->thread = $thread;
 
         // The message id is part of the storage path, so the row has to exist
         // before the file can be written.
@@ -150,14 +150,14 @@ final class SeedTestAttachmentCommand extends Command
         $this->stateManager->recordCreated(
             $accountId,
             JmapObjectType::Email,
-            (string) $message->getId(),
+            (string) $message->id,
         );
         $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
 
         $storagePath = $this->attachmentStorage->store(
             (int) $account->getId(),
             0,
-            (int) $message->getId(),
+            (int) $message->id,
             self::FILENAME,
             self::CONTENTS,
         );
@@ -250,7 +250,7 @@ final class SeedTestAttachmentCommand extends Command
         }
 
         foreach ($threads as $thread) {
-            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->id);
 
             $this->entityManager->remove($thread);
         }

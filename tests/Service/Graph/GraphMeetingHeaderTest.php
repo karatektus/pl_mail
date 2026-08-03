@@ -62,7 +62,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
         self::assertSame(
             'meetingRequest',
-            ($message->getHeaders() ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
+            ($message->headers ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
         );
     }
 
@@ -74,7 +74,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
             self::assertSame(
                 $type,
-                ($message->getHeaders() ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
+                ($message->headers ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
                 $type,
             );
         }
@@ -100,7 +100,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
             self::assertArrayNotHasKey(
                 GraphMessageBuilder::MEETING_TYPE_HEADER,
-                $message->getHeaders() ?? [],
+                $message->headers ?? [],
                 var_export($value, true),
             );
         }
@@ -110,7 +110,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
     public function testRealHeadersAreUnaffected(): void
     {
         $message = $this->builder->build($this->payload('meetingRequest'), $this->account, []);
-        $headers = $message->getHeaders() ?? [];
+        $headers = $message->headers ?? [];
 
         self::assertArrayHasKey('x-custom', $headers);
         self::assertSame('kept', $headers['x-custom']);

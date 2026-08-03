@@ -113,7 +113,7 @@ final readonly class SyncGraphMessageBatchHandler
                     // internal locator that appears in no Email property, so a
                     // push here would wake every client for nothing. Label and
                     // flag changes arrive via GraphApiSyncer, which does record.
-                    $existing->setGraphId($graphId);
+                    $existing->graphId = $graphId;
                     continue;
                 }
             }

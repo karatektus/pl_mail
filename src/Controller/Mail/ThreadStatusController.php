@@ -58,18 +58,16 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
 
         $message = $messages[0];
-        $starred = null === $message->getStarredAt();
+        $starred = null === $message->starredAt;
 
         if (true === $starred) {
-            $message
-                ->addFlag(MessageFlag::FLAGGED)
-                ->setStarredAt(new DateTimeImmutable());
-            $message->getThread()->starredAt = new DateTimeImmutable();
+            $message->addFlag(MessageFlag::FLAGGED);
+            $message->starredAt = new DateTimeImmutable();
+            $message->thread->starredAt = new DateTimeImmutable();
         } else {
-            $message
-                ->removeFlag(MessageFlag::FLAGGED)
-                ->setStarredAt(null);
-            $message->getThread()->starredAt = null;
+            $message->removeFlag(MessageFlag::FLAGGED);
+            $message->starredAt = null;
+            $message->thread->starredAt = null;
         }
 
         $this->propagator->star($messages, $starred);
@@ -77,7 +75,7 @@ class ThreadStatusController extends AbstractController
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
-            $type => 'message' === $type ? $message : $message->getThread(),
+            $type => 'message' === $type ? $message : $message->thread,
         ]);
     }
 
@@ -103,17 +101,17 @@ class ThreadStatusController extends AbstractController
             }
 
             // Plain-IMAP: the message physically moves to the Archive folder.
-            if (null !== $message->getImapUid() && null !== $archiveMailbox) {
-                $message->setMailbox($archiveMailbox);
+            if (null !== $message->imapUid && null !== $archiveMailbox) {
+                $message->mailbox = $archiveMailbox;
             }
         }
 
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->threadLabelSynchronizer->sync($messages[0]->thread);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
         ]);
     }
 
@@ -137,17 +135,17 @@ class ThreadStatusController extends AbstractController
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->getImapUid() && null !== $trashMailbox) {
-                $message->setMailbox($trashMailbox);
+            if (null !== $message->imapUid && null !== $trashMailbox) {
+                $message->mailbox = $trashMailbox;
             }
         }
 
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->threadLabelSynchronizer->sync($messages[0]->thread);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
         ]);
     }
 
@@ -191,12 +189,12 @@ class ThreadStatusController extends AbstractController
             $this->propagator->detachLabel($messages, $label);
         }
 
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
+        $this->threadLabelSynchronizer->sync($messages[0]->thread);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
 
         return $this->renderTurboStream('thread/status/_label.stream.html.twig', [
-            $type   => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type   => 'message' === $type ? $messages[0] : $messages[0]->thread,
             'label'  => $label,
             'attach' => $attach,
         ]);
@@ -206,7 +204,7 @@ class ThreadStatusController extends AbstractController
     public function snooze(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $thread   = $messages[0]->getThread();
+        $thread   = $messages[0]->thread;
 
         // Expects JSON body: { "until": "2026-07-10T08:00:00Z" }
         // Sending no / null "until" clears the snooze.
@@ -251,7 +249,7 @@ class ThreadStatusController extends AbstractController
     public function markRead(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $thread   = $messages[0]->getThread();
+        $thread   = $messages[0]->thread;
 
         $body       = json_decode($request->getContent(), true);
         $markAsRead = (true === array_key_exists('read', $body) && true === $body['read']);
@@ -259,13 +257,11 @@ class ThreadStatusController extends AbstractController
 
         foreach ($messages as $message) {
             if (true === $markAsRead) {
-                $message
-                    ->addFlag(MessageFlag::SEEN)
-                    ->setSeenAt(new DateTimeImmutable());
+                $message->addFlag(MessageFlag::SEEN);
+                $message->seenAt = new DateTimeImmutable();
             } else {
-                $message
-                    ->removeFlag(MessageFlag::SEEN)
-                    ->setSeenAt(null);
+                $message->removeFlag(MessageFlag::SEEN);
+                $message->seenAt = null;
                 $unread++;
             }
         }
@@ -298,15 +294,15 @@ class ThreadStatusController extends AbstractController
         $threadIdsByAccount = [];
 
         foreach ($messages as $message) {
-            $accountId = (int) $message->getAccount()->getId();
+            $accountId = (int) $message->account->getId();
 
             $this->stateManager->recordUpdated(
                 $accountId,
                 JmapObjectType::Email,
-                (string) $message->getId(),
+                (string) $message->id,
             );
 
-            $thread = $message->getThread();
+            $thread = $message->thread;
 
             if (null !== $thread) {
                 $threadIdsByAccount[$accountId][] = (int) $thread->id;
@@ -337,14 +333,14 @@ class ThreadStatusController extends AbstractController
 
     private function accountOf(Message $message): \App\Entity\Mail\Account
     {
-        $mailbox = $message->getMailbox();
+        $mailbox = $message->mailbox;
 
         if (null !== $mailbox) {
             return $mailbox->account;
         }
 
         // Gmail-API messages have no mailbox — the thread carries the account.
-        return $message->getThread()->account;
+        return $message->thread->account;
     }
 
     /**

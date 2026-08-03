@@ -96,7 +96,7 @@ class MessageThread
     {
         if (!$this->messages->contains($message)) {
             $this->messages->add($message);
-            $message->setThread($this);
+            $message->thread = $this;
         }
 
         return $this;
@@ -106,8 +106,8 @@ class MessageThread
     {
         if ($this->messages->removeElement($message)) {
             // set the owning side to null (unless already changed)
-            if ($message->getThread() === $this) {
-                $message->setThread(null);
+            if ($message->thread === $this) {
+                $message->thread = null;
             }
         }
 

@@ -60,13 +60,13 @@ final readonly class HarvestContactsService
 
         foreach ($messages as $msg) {
             $isOutbound = '' !== $ownAddress
-                && mb_strtolower(trim((string) $msg->getFromAddress())) === $ownAddress;
+                && mb_strtolower(trim((string) $msg->fromAddress)) === $ownAddress;
 
-            if ($msg->getFromAddress() !== null && $msg->getFromAddress() !== '') {
-                $batch[] = ['email' => $msg->getFromAddress(), 'name' => $msg->getFromName(), 'correspondent' => false];
+            if ($msg->fromAddress !== null && $msg->fromAddress !== '') {
+                $batch[] = ['email' => $msg->fromAddress, 'name' => $msg->fromName, 'correspondent' => false];
             }
 
-            foreach ([$msg->getToAddresses(), $msg->getCcAddresses(), $msg->getBccAddresses()] as $group) {
+            foreach ([$msg->toAddresses, $msg->ccAddresses, $msg->bccAddresses] as $group) {
                 if (null === $group) {
                     continue;
                 }

@@ -106,7 +106,7 @@ final class MessageThreaderTest extends TestCase
 
         $this->threaderWithThreadLookup(null)->assignThread($message, new Account());
 
-        self::assertSame(MessageCategory::Promotions, $message->getThread()?->category);
+        self::assertSame(MessageCategory::Promotions, $message->thread?->category);
     }
 
     /**
@@ -151,7 +151,7 @@ final class MessageThreaderTest extends TestCase
 
         $this->threaderWithThreadLookup(null)->assignThread($message, new Account());
 
-        self::assertSame(MessageCategory::Primary, $message->getThread()?->category);
+        self::assertSame(MessageCategory::Primary, $message->thread?->category);
     }
 
     /**
@@ -172,9 +172,9 @@ final class MessageThreaderTest extends TestCase
         $threader->assignThread($first, $account);
         $threader->assignThread($second, $account);
 
-        self::assertNotNull($first->getThread());
-        self::assertSame($first->getThread(), $second->getThread());
-        self::assertSame(2, $first->getThread()?->messageCount);
+        self::assertNotNull($first->thread);
+        self::assertSame($first->thread, $second->thread);
+        self::assertSame(2, $first->thread?->messageCount);
     }
 
     /**
@@ -198,18 +198,17 @@ final class MessageThreaderTest extends TestCase
         // Push the cache past its limit with unrelated conversations, as a
         // long-running worker does over the course of a large sync.
         for ($i = 0; $i <= $limit; ++$i) {
-            $threader->assignThread(
-                $this->message(MessageCategory::Primary, '2026-07-28 10:30:00')
-                    ->setProviderThreadKey('conversation-filler-'.$i),
-                $account,
-            );
+            $filler = $this->message(MessageCategory::Primary, '2026-07-28 10:30:00');
+            $filler->providerThreadKey = 'conversation-filler-'.$i;
+
+            $threader->assignThread($filler, $account);
         }
 
         $second = $this->message(MessageCategory::Primary, '2026-07-28 11:00:00');
         $threader->assignThread($second, $account);
 
-        self::assertNotNull($first->getThread());
-        self::assertSame($first->getThread(), $second->getThread());
+        self::assertNotNull($first->thread);
+        self::assertSame($first->thread, $second->thread);
     }
 
     /**
@@ -227,7 +226,7 @@ final class MessageThreaderTest extends TestCase
         $threader->assignThread($first, $account);
         $threader->assignThread($second, $account);
 
-        self::assertNotSame($first->getThread(), $second->getThread());
+        self::assertNotSame($first->thread, $second->thread);
     }
 
     /**
@@ -256,11 +255,13 @@ final class MessageThreaderTest extends TestCase
 
     private function message(?MessageCategory $category, string $receivedAt): Message
     {
-        return new Message()
-            ->setProviderThreadKey('conversation-1')
-            ->setSubject('Project update')
-            ->setFromAddress('sender@example.com')
-            ->setCategory($category)
-            ->setReceivedAt(new \DateTimeImmutable($receivedAt));
+        $message = new Message();
+        $message->providerThreadKey = 'conversation-1';
+        $message->subject = 'Project update';
+        $message->fromAddress = 'sender@example.com';
+        $message->category = $category;
+        $message->receivedAt = new \DateTimeImmutable($receivedAt);
+
+        return $message;
     }
 }

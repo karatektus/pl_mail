@@ -40,7 +40,7 @@ class MessageSendService
 
     public function send(Message $message): bool
     {
-        $account = $message->getAccount();
+        $account = $message->account;
 
         if (null === $account) {
             return false;
@@ -75,10 +75,10 @@ class MessageSendService
         }
 
         $message->removeFlag(MessageFlag::DRAFT);
-        $message->setSentAt(new DateTimeImmutable());
+        $message->sentAt = new DateTimeImmutable();
 
         // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
-        $message->setMailbox($sentLabel->bindingFor($account)?->mailbox);
+        $message->mailbox = $sentLabel->bindingFor($account)?->mailbox;
 
         // The draft->sent transition rewrites three properties JMAP publishes:
         // keywords (the $draft keyword goes away), mailboxIds (EmailMapper
@@ -104,10 +104,10 @@ class MessageSendService
         $this->stateManager->recordUpdated(
             $accountId,
             JmapObjectType::Email,
-            (string) $message->getId(),
+            (string) $message->id,
         );
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null !== $thread) {
             $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
@@ -144,12 +144,12 @@ class MessageSendService
             $fromName = '';
         }
 
-        $subject = $message->getSubject();
+        $subject = $message->subject;
         if (null === $subject) {
             $subject = '';
         }
 
-        $fromAddress = $message->getFromAddress();
+        $fromAddress = $message->fromAddress;
 
         if (null === $fromAddress || '' === $fromAddress) {
             $fromAddress = $account->getDisplayAddress() ?? $account->getEmail() ?? '';
@@ -159,36 +159,36 @@ class MessageSendService
             ->from(new Address($fromAddress, $fromName))
             ->subject($subject);
 
-        $toAddresses = $message->getToAddresses();
+        $toAddresses = $message->toAddresses;
         if (null !== $toAddresses) {
             foreach ($toAddresses as $addr) {
                 $email->addTo($this->toAddress($addr));
             }
         }
 
-        $ccAddresses = $message->getCcAddresses();
+        $ccAddresses = $message->ccAddresses;
         if (null !== $ccAddresses) {
             foreach ($ccAddresses as $addr) {
                 $email->addCc($this->toAddress($addr));
             }
         }
 
-        $bccAddresses = $message->getBccAddresses();
+        $bccAddresses = $message->bccAddresses;
         if (null !== $bccAddresses) {
             foreach ($bccAddresses as $addr) {
                 $email->addBcc($this->toAddress($addr));
             }
         }
 
-        if ($message->getBodyHtml()) {
-            $email->html($message->getBodyHtml());
+        if ($message->bodyHtml) {
+            $email->html($message->bodyHtml);
         }
 
-        if ($message->getBodyText()) {
-            $email->text($message->getBodyText());
+        if ($message->bodyText) {
+            $email->text($message->bodyText);
         }
 
-        foreach ($message->getMessageParts() as $part) {
+        foreach ($message->messageParts as $part) {
             if (true === $part->isInline) {
                 $contentId = $part->contentId;
                 if (null === $contentId) {

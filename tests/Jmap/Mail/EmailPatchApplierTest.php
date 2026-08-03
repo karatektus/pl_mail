@@ -86,7 +86,7 @@ final class EmailPatchApplierTest extends KernelTestCase
     public function testContentCannotBeRewrittenOnAReceivedMessage(string $property, mixed $value): void
     {
         $message = $this->message(draft: false);
-        $before  = $message->getSubject();
+        $before  = $message->subject;
 
         try {
             $this->applier->apply($this->account, $message, [$property => $value]);
@@ -95,7 +95,7 @@ final class EmailPatchApplierTest extends KernelTestCase
             // Expected.
         }
 
-        self::assertSame($before, $message->getSubject(), 'the message was mutated before the refusal');
+        self::assertSame($before, $message->subject, 'the message was mutated before the refusal');
     }
 
     public function testContentCanBeRewrittenOnADraft(): void
@@ -104,7 +104,7 @@ final class EmailPatchApplierTest extends KernelTestCase
 
         $this->applier->apply($this->account, $message, ['subject' => 'Rewritten']);
 
-        self::assertSame('Rewritten', $message->getSubject());
+        self::assertSame('Rewritten', $message->subject);
     }
 
     /**
@@ -115,12 +115,12 @@ final class EmailPatchApplierTest extends KernelTestCase
     public function testAnAbsentPropertyIsLeftAlone(): void
     {
         $message = $this->message(draft: true);
-        $message->setSubject('Kept');
+        $message->subject = 'Kept';
         $this->em->flush();
 
         $this->applier->apply($this->account, $message, ['to' => [['email' => 'x@example.test']]]);
 
-        self::assertSame('Kept', $message->getSubject());
+        self::assertSame('Kept', $message->subject);
     }
 
     /**
@@ -148,10 +148,10 @@ final class EmailPatchApplierTest extends KernelTestCase
         $message = $this->message(draft: false);
 
         $this->applier->apply($this->account, $message, ['keywords/$seen' => true]);
-        self::assertNotNull($message->getSeenAt());
+        self::assertNotNull($message->seenAt);
 
         $this->applier->apply($this->account, $message, ['keywords/$seen' => null]);
-        self::assertNull($message->getSeenAt());
+        self::assertNull($message->seenAt);
     }
 
     public function testFlaggedKeywordTogglesStarred(): void
@@ -159,10 +159,10 @@ final class EmailPatchApplierTest extends KernelTestCase
         $message = $this->message(draft: false);
 
         $this->applier->apply($this->account, $message, ['keywords/$flagged' => true]);
-        self::assertNotNull($message->getStarredAt());
+        self::assertNotNull($message->starredAt);
 
         $this->applier->apply($this->account, $message, ['keywords/$flagged' => null]);
-        self::assertNull($message->getStarredAt());
+        self::assertNull($message->starredAt);
     }
 
     // ── mailboxIds live in the binding id space ───────────────────────────
@@ -192,8 +192,8 @@ final class EmailPatchApplierTest extends KernelTestCase
             sprintf('mailboxIds/%d', $archiveBindingId) => null,
         ]);
 
-        self::assertTrue($message->getLabels()->contains($inbox), 'the kept mailbox was lost');
-        self::assertFalse($message->getLabels()->contains($archive));
+        self::assertTrue($message->labels->contains($inbox), 'the kept mailbox was lost');
+        self::assertFalse($message->labels->contains($archive));
     }
 
     public function testAnUnknownMailboxIdIsRefused(): void
@@ -219,14 +219,13 @@ final class EmailPatchApplierTest extends KernelTestCase
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Patch fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<patch-%s@example.test>', uniqid('', true)))
-            ->setMailbox($this->mailbox);
+        $message->account = $this->account;
+        $message->subject = 'Patch fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<patch-%s@example.test>', uniqid('', true));
+        $message->mailbox = $this->mailbox;
 
         if (true === $draft) {
             $message->addFlag(MessageFlag::DRAFT);

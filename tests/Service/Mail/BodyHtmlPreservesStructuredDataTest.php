@@ -46,19 +46,19 @@ final class BodyHtmlPreservesStructuredDataTest extends KernelTestCase
 
         self::assertStringContainsString(
             'FlightReservation',
-            (string) $message->getBodyHtml(),
+            (string) $message->bodyHtml,
             'bodyHtml is the extractor\'s input and must not be rewritten',
         );
-        self::assertStringContainsString('AB1234', (string) $message->getBodyHtml());
+        self::assertStringContainsString('AB1234', (string) $message->bodyHtml);
     }
 
     public function testTheSafeBodyDropsIt(): void
     {
         $message = $this->sanitize('<p>Your flight</p>' . self::JSON_LD);
 
-        self::assertStringNotContainsString('<script', (string) $message->getBodyHtmlSafe());
-        self::assertStringNotContainsString('FlightReservation', (string) $message->getBodyHtmlSafe());
-        self::assertStringContainsString('Your flight', (string) $message->getBodyHtmlSafe());
+        self::assertStringNotContainsString('<script', (string) $message->bodyHtmlSafe);
+        self::assertStringNotContainsString('FlightReservation', (string) $message->bodyHtmlSafe);
+        self::assertStringContainsString('Your flight', (string) $message->bodyHtmlSafe);
     }
 
     /** Microdata is the other half of the same vocabulary, and inert to boot. */
@@ -69,25 +69,25 @@ final class BodyHtmlPreservesStructuredDataTest extends KernelTestCase
 
         $message = $this->sanitize($html);
 
-        self::assertStringContainsString('ParcelDelivery', (string) $message->getBodyHtml());
-        self::assertStringContainsString('JD0002', (string) $message->getBodyHtml());
+        self::assertStringContainsString('ParcelDelivery', (string) $message->bodyHtml);
+        self::assertStringContainsString('JD0002', (string) $message->bodyHtml);
     }
 
     /** Sanitising twice must not start eating the raw copy either. */
     public function testSanitisingIsIdempotentForTheRawBody(): void
     {
         $message = $this->sanitize('<p>Your flight</p>' . self::JSON_LD);
-        $first   = (string) $message->getBodyHtml();
+        $first   = (string) $message->bodyHtml;
 
         $this->sanitizer->sanitize($message);
 
-        self::assertSame($first, (string) $message->getBodyHtml());
+        self::assertSame($first, (string) $message->bodyHtml);
     }
 
     private function sanitize(string $html): Message
     {
         $message = new Message();
-        $message->setBodyHtml($html);
+        $message->bodyHtml = $html;
 
         $this->sanitizer->sanitize($message);
 

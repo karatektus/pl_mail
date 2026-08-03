@@ -40,7 +40,7 @@ final class RawMessageResolver
      */
     public function absolutePathFor(Message $message): ?string
     {
-        $stored = $message->getRawPath();
+        $stored = $message->rawPath;
 
         if (null !== $stored && true === $this->storage->exists($stored)) {
             return $this->storage->getAbsolutePath($stored);
@@ -71,12 +71,12 @@ final class RawMessageResolver
     private function persist(Message $message, string $content, bool $flush = true): string
     {
         $relativePath = $this->storage->store(
-            (int) $message->getAccount()->getId(),
-            (int) $message->getId(),
+            (int) $message->account->getId(),
+            (int) $message->id,
             $content,
         );
 
-        $message->setRawPath($relativePath);
+        $message->rawPath = $relativePath;
 
         if (true === $flush) {
             $this->em->flush();
@@ -87,23 +87,23 @@ final class RawMessageResolver
 
     private function fetch(Message $message): ?string
     {
-        $account = $message->getAccount();
+        $account = $message->account;
 
         try {
-            $gmailId = $message->getGmailId();
+            $gmailId = $message->gmailId;
 
             if (null !== $gmailId && '' !== $gmailId) {
                 return $this->gmailApiClient->getRawMessage($account, $gmailId);
             }
 
-            $graphId = $message->getGraphId();
+            $graphId = $message->graphId;
 
             if (null !== $graphId && '' !== $graphId) {
                 return $this->graphApiClient->getRawMessage($account, $graphId);
             }
         } catch (\Throwable $exception) {
             $this->logger->warning('Raw message could not be fetched from the provider', [
-                'messageId' => $message->getId(),
+                'messageId' => $message->id,
                 'error' => $exception->getMessage(),
             ]);
 

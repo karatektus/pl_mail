@@ -69,8 +69,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: "<p>Gr\xfc\xdfe von J\xf6rg</p>",
         ));
 
-        self::assertSame('Grüße von Jörg', $message->getBodyText());
-        self::assertSame('<p>Grüße von Jörg</p>', $message->getBodyHtml());
+        self::assertSame('Grüße von Jörg', $message->bodyText);
+        self::assertSame('<p>Grüße von Jörg</p>', $message->bodyHtml);
     }
 
     /**
@@ -87,8 +87,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: "<p>Das \x93Sonderangebot\x94</p>",
         ));
 
-        self::assertSame('Das “Sonderangebot” – nur heute', $message->getBodyText());
-        self::assertStringContainsString('“Sonderangebot”', (string) $message->getBodyHtml());
+        self::assertSame('Das “Sonderangebot” – nur heute', $message->bodyText);
+        self::assertStringContainsString('“Sonderangebot”', (string) $message->bodyHtml);
     }
 
     /** The overwhelmingly common case has to be byte-for-byte untouched. */
@@ -100,8 +100,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>Grüße 🎉</p>',
         ));
 
-        self::assertSame('Grüße 🎉', $message->getBodyText());
-        self::assertSame('<p>Grüße 🎉</p>', $message->getBodyHtml());
+        self::assertSame('Grüße 🎉', $message->bodyText);
+        self::assertSame('<p>Grüße 🎉</p>', $message->bodyHtml);
     }
 
     /**
@@ -117,7 +117,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>ok</p>',
         ));
 
-        self::assertSame('Grüße', $message->getBodyText());
+        self::assertSame('Grüße', $message->bodyText);
     }
 
     /** A charset name mbstring cannot use is not a reason to lose a message. */
@@ -129,7 +129,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>ok</p>',
         ));
 
-        self::assertTrue(mb_check_encoding((string) $message->getBodyText(), 'UTF-8'));
+        self::assertTrue(mb_check_encoding((string) $message->bodyText, 'UTF-8'));
     }
 
     /**

@@ -79,18 +79,6 @@ parameters:
 			path: src/Controller/Mail/ComposeController.php
 
 		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 4
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Method App\\Controller\\Mail\\ComposeController\:\:resolveAccount\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
 			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: bool, frame\: string, thread\: int\|null\} given\.$#'
 			identifier: argument.type
 			count: 1
@@ -917,12 +905,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: src/Service/Label/LabelStructurePropagator.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Service/Mail/AttachmentResolver.php
 
 		-
 			message: '#^Method App\\Service\\Mail\\GraphApiClient\:\:batchWrite\(\) never assigns null to &\$resultIds so it can be removed from the by\-ref type\.$#'

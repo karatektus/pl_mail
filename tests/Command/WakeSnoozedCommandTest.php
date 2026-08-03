@@ -127,7 +127,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         $roles = [];
 
         foreach ($thread->messages as $message) {
-            foreach ($message->getLabels() as $label) {
+            foreach ($message->labels as $label) {
                 $roles[] = $label->role;
             }
         }
@@ -147,16 +147,15 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Wake fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<wake-%s@example.test>', uniqid('', true)))
-            ->setMailbox($this->mailbox)
-            ->setImapUid(7000)
-            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+        $message->account = $this->account;
+        $message->subject = 'Wake fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<wake-%s@example.test>', uniqid('', true));
+        $message->mailbox = $this->mailbox;
+        $message->imapUid = 7000;
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
 
         $thread->addMessage($message);
         $this->em->persist($message);

@@ -150,7 +150,7 @@ final class EmailCategoryTest extends KernelTestCase
         $expected = [];
 
         foreach ($thread->messages as $message) {
-            $expected[(string) $message->getId()] = $message->getCategory()?->value;
+            $expected[(string) $message->id] = $message->category?->value;
         }
 
         self::assertSame(['promotions', 'primary'], array_values($expected), 'fixture sanity');
@@ -375,7 +375,7 @@ final class EmailCategoryTest extends KernelTestCase
         $ids = [];
 
         foreach ($thread->messages as $message) {
-            $ids[] = (string) $message->getId();
+            $ids[] = (string) $message->id;
         }
 
         return array_reverse($ids);
@@ -415,20 +415,19 @@ final class EmailCategoryTest extends KernelTestCase
             --$offset;
 
             $message = new Message();
-            $message
-                ->setAccount($this->account)
-                ->setSubject('Category fixture')
-                ->setFromAddress('sender@example.test')
-                // Spaced so the ordering is total: Email/query sorts on
-                // received_at and ties are broken by id, and a fixture whose
-                // messages all share one second would compare equal to whatever
-                // order the database happened to return.
-                ->setReceivedAt(new \DateTimeImmutable(sprintf('-%d minutes', 10 + $offset)))
-                ->setHasAttachments(false)
-                ->setCategory($messageCategory)
-                ->setMessageId(sprintf('<category-%d@example.test>', $this->uid))
-                ->setMailbox($this->mailbox)
-                ->setImapUid($this->uid);
+            $message->account = $this->account;
+            $message->subject = 'Category fixture';
+            $message->fromAddress = 'sender@example.test';
+            // Spaced so the ordering is total: Email/query sorts on
+            // received_at and ties are broken by id, and a fixture whose
+            // messages all share one second would compare equal to whatever
+            // order the database happened to return.
+            $message->receivedAt = new \DateTimeImmutable(sprintf('-%d minutes', 10 + $offset));
+            $message->hasAttachments = false;
+            $message->category = $messageCategory;
+            $message->messageId = sprintf('<category-%d@example.test>', $this->uid);
+            $message->mailbox = $this->mailbox;
+            $message->imapUid = $this->uid;
 
             if (true === $inbox) {
                 $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));

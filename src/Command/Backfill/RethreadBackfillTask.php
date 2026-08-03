@@ -113,24 +113,23 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
 
         foreach ($this->idChunks($accountId) as $ids) {
             foreach ($this->messagesByIds($ids) as $message) {
-                $messageId  = $message->getMessageId();
-                $inReplyTo  = MessageIdHelper::normaliseList($message->getInReplyTo());
-                $references = MessageIdHelper::normaliseList($message->getReferences());
+                $messageId  = $message->messageId;
+                $inReplyTo  = MessageIdHelper::normaliseList($message->inReplyTo);
+                $references = MessageIdHelper::normaliseList($message->references);
 
                 $normalisedId = null === $messageId ? null : MessageIdHelper::normalise($messageId);
 
                 if (
                     $normalisedId === $messageId
-                    && $inReplyTo === $message->getInReplyTo()
-                    && $references === $message->getReferences()
+                    && $inReplyTo === $message->inReplyTo
+                    && $references === $message->references
                 ) {
                     continue;
                 }
 
-                $message
-                    ->setMessageId($normalisedId)
-                    ->setInReplyTo($inReplyTo)
-                    ->setReferences($references);
+                $message->messageId = $normalisedId;
+                $message->inReplyTo = $inReplyTo;
+                $message->references = $references;
 
                 ++$touched;
             }

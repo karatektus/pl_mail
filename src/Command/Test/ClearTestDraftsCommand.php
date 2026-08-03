@@ -100,13 +100,13 @@ final class ClearTestDraftsCommand extends Command
             // cascade, so leaving them to the database's ON DELETE CASCADE
             // strands managed MessagePart entities pointing at a message that
             // is already gone, and the flush fails on them.
-            foreach ($draft->getMessageParts() as $part) {
+            foreach ($draft->messageParts as $part) {
                 $this->attachmentStorage->delete($part->storagePath);
                 $draft->removeMessagePart($part);
                 $this->entityManager->remove($part);
             }
 
-            $thread = $draft->getThread();
+            $thread = $draft->thread;
 
             if (null !== $thread) {
                 // Off the collection as well as out of the database: the

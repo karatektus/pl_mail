@@ -248,7 +248,7 @@ final class FilePickerController extends AbstractController
             // hasAttachments drives the paperclip in the message list and the
             // thread header; a part added without it leaves the draft claiming
             // it has none.
-            $message->setHasAttachments(true);
+            $message->hasAttachments = true;
             $this->em->flush();
         }
 
@@ -278,7 +278,7 @@ final class FilePickerController extends AbstractController
 
         // Same ownership rule AttachmentController uses for downloads: the
         // part belongs to a message on one of this user's accounts.
-        if ($part->message?->getAccount()?->getUsr() !== $this->getUser()) {
+        if ($part->message?->account?->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -330,9 +330,9 @@ final class FilePickerController extends AbstractController
         // file pulled from a service and one uploaded from disk land in the
         // same place and are indistinguishable from then on.
         $storagePath = $this->attachmentStorage->store(
-            (int) $message->getAccount()?->getId(),
-            (int) ($message->getMailbox()->id ?? 0),
-            (int) $message->getId(),
+            (int) $message->account?->getId(),
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
             $filename,
             $contents,
         );
@@ -362,11 +362,11 @@ final class FilePickerController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if ($message->getAccount()?->getUsr() !== $this->getUser()) {
+        if ($message->account?->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
-        if (false === $message->isDraft() || null !== $message->getSentAt()) {
+        if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
         }
 

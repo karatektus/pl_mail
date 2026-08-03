@@ -110,7 +110,7 @@ final class ApplyGmailLabelsHandler
         $gmailIds = [];
 
         foreach ($messages as $msg) {
-            $gmailId = $msg->getGmailId();
+            $gmailId = $msg->gmailId;
 
             if (null !== $gmailId && '' !== $gmailId) {
                 $gmailIds[] = $gmailId;

@@ -174,7 +174,7 @@ final class GraphApiSyncer
         // this the message silently moves in Outlook and never in ltt.rs.
         $this->recordMoved($account, $message);
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null !== $thread) {
             $thread->addLabel($label);
@@ -208,9 +208,9 @@ final class GraphApiSyncer
     {
         $accountId = (int) $account->getId();
 
-        $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $message->getId());
+        $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $message->id);
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null !== $thread) {
             $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);

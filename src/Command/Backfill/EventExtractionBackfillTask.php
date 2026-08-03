@@ -79,7 +79,7 @@ final readonly class EventExtractionBackfillTask implements BackfillTaskInterfac
             }
 
             foreach ($batch as $message) {
-                $lastId = (int) $message->getId();
+                $lastId = (int) $message->id;
                 $processed++;
 
                 try {

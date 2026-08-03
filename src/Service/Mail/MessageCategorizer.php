@@ -49,14 +49,14 @@ final class MessageCategorizer
      */
     public function categorize(Message $message, array $correspondentEmails): MessageCategory
     {
-        $gmailLabelIds = $message->getGmailLabelIds();
+        $gmailLabelIds = $message->gmailLabelIds;
 
         // Gmail account: its own classification is authoritative.
         if (null !== $gmailLabelIds) {
             return MessageCategory::fromGmailLabels($gmailLabelIds);
         }
 
-        $from = mb_strtolower(trim((string) $message->getFromAddress()));
+        $from = mb_strtolower(trim((string) $message->fromAddress));
 
         // Correspondence override sits on top of the cascade: if the user has
         // mailed this sender, it belongs in Primary regardless of bulk headers.
@@ -64,7 +64,7 @@ final class MessageCategorizer
             return MessageCategory::Primary;
         }
 
-        $headers = $this->normaliseKeys($message->getHeaders() ?? []);
+        $headers = $this->normaliseKeys($message->headers ?? []);
 
         // Order matters: discussion lists also carry List-Unsubscribe, so
         // Forums must be tested before Promotions.

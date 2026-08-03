@@ -105,7 +105,7 @@ final readonly class ApplyMailRuleHandler
             }
 
             foreach ($this->messageRepository->findByIds($ids) as $entity) {
-                if (false === $rule->appliesTo($entity->getAccount())) {
+                if (false === $rule->appliesTo($entity->account)) {
                     continue;
                 }
 

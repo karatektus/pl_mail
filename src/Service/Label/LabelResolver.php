@@ -108,7 +108,7 @@ final class LabelResolver
 
     /**
      * Point a label's binding at the IMAP folder that feeds it. The inverse
-     * read is Mailbox::getLabel(); this is the only way to write it.
+     * read is Mailbox::$label; this is the only way to write it.
      *
      * A folder that already feeds a different label is moved, not copied.
      * label_binding.mailbox_id is unique — a folder feeds exactly one label —

@@ -24,16 +24,16 @@ final class MessageSourceBuilder
     {
         $lines = [];
 
-        foreach ($message->getHeaders() ?? [] as $key => $value) {
+        foreach ($message->headers ?? [] as $key => $value) {
             foreach (true === is_array($value) ? $value : [$value] as $single) {
                 $lines[] = $key.': '.$single;
             }
         }
 
-        $body = $message->getBodyText();
+        $body = $message->bodyText;
 
         if (null === $body || '' === $body) {
-            $body = $message->getBodyHtml() ?? '';
+            $body = $message->bodyHtml ?? '';
         }
 
         return implode("\n", $lines)."\n\n".$body;

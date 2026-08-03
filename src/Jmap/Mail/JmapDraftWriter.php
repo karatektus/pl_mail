@@ -50,14 +50,14 @@ final class JmapDraftWriter
     {
         $now = new \DateTimeImmutable();
 
-        $message = new Message()
-            ->setAccount($account)
-            ->setCreatedAt($now)
-            ->setSubject($this->stringOrNull($create['subject'] ?? null, 'subject'))
-            ->setToAddresses($this->addresses($create['to'] ?? null, 'to'))
-            ->setCcAddresses($this->addresses($create['cc'] ?? null, 'cc'))
-            ->setBccAddresses($this->addresses($create['bcc'] ?? null, 'bcc'))
-            ->setBodyHtml($this->body($create));
+        $message = new Message();
+        $message->account = $account;
+        $message->createdAt = $now;
+        $message->subject = $this->stringOrNull($create['subject'] ?? null, 'subject');
+        $message->toAddresses = $this->addresses($create['to'] ?? null, 'to');
+        $message->ccAddresses = $this->addresses($create['cc'] ?? null, 'cc');
+        $message->bccAddresses = $this->addresses($create['bcc'] ?? null, 'bcc');
+        $message->bodyHtml = $this->body($create);
 
         $this->applyReplyContext($message, $create);
         $this->applyAccount($message, $account);
@@ -86,12 +86,12 @@ final class JmapDraftWriter
     public function update(Message $message, array $patch): void
     {
         if (true === array_key_exists('subject', $patch)) {
-            $message->setSubject($this->stringOrNull($patch['subject'], 'subject'));
+            $message->subject = $this->stringOrNull($patch['subject'], 'subject');
         }
 
-        foreach (['to' => 'setToAddresses', 'cc' => 'setCcAddresses', 'bcc' => 'setBccAddresses'] as $property => $setter) {
-            if (true === array_key_exists($property, $patch)) {
-                $message->{$setter}($this->addresses($patch[$property], $property));
+        foreach (['to' => 'toAddresses', 'cc' => 'ccAddresses', 'bcc' => 'bccAddresses'] as $key => $property) {
+            if (true === array_key_exists($key, $patch)) {
+                $message->{$property} = $this->addresses($patch[$key], $key);
             }
         }
 
@@ -101,12 +101,12 @@ final class JmapDraftWriter
         // through the part ids in textBody/htmlBody, so naming either without
         // the other's values is what an editor sends.
         if (true === array_key_exists('bodyValues', $patch)) {
-            $message->setBodyHtml($this->body($patch));
+            $message->bodyHtml = $this->body($patch);
             $this->bodySanitizer->sanitize($message);
-            $message->setBodyText($this->plainText($message->getBodyHtml()));
+            $message->bodyText = $this->plainText($message->bodyHtml);
         }
 
-        $message->setUpdatedAt(new \DateTimeImmutable());
+        $message->updatedAt = new \DateTimeImmutable();
 
         $this->entityManager->flush();
     }
@@ -120,7 +120,7 @@ final class JmapDraftWriter
         $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
 
         $message->addLabel($draftsLabel);
-        $message->setMailbox($draftsLabel->bindingFor($account)?->mailbox);
+        $message->mailbox = $draftsLabel->bindingFor($account)?->mailbox;
     }
 
     /**
@@ -130,25 +130,24 @@ final class JmapDraftWriter
      */
     private function persistDraft(Message $message, Account $account, \DateTimeImmutable $now): void
     {
-        $message
-            ->setFromAddress($account->getEmail())
-            ->setFromName($account->getName())
-            ->addFlag(MessageFlag::DRAFT)
-            ->setHasAttachments(false)
-            ->setSeenAt($message->getSeenAt() ?? $now)
-            ->setUpdatedAt($now);
+        $message->fromAddress = $account->getEmail();
+        $message->fromName = $account->getName();
+        $message->addFlag(MessageFlag::DRAFT);
+        $message->hasAttachments = false;
+        $message->seenAt ??= $now;
+        $message->updatedAt = $now;
 
         $this->bodySanitizer->sanitize($message);
-        $message->setBodyText($this->plainText($message->getBodyHtml()));
+        $message->bodyText = $this->plainText($message->bodyHtml);
 
         $this->entityManager->persist($message);
 
-        if (null === $message->getThread()) {
+        if (null === $message->thread) {
             $this->threader->assignThread($message, $account);
         }
 
         $this->threader->resyncDraftThreadSubject($message);
-        $this->threadLabelSynchronizer->sync($message->getThread());
+        $this->threadLabelSynchronizer->sync($message->thread);
 
         $this->entityManager->flush();
     }
@@ -212,8 +211,8 @@ final class JmapDraftWriter
 
             $storagePath = $this->attachmentStorage->store(
                 (int) $account->getId(),
-                (int) ($message->getMailbox()->id ?? 0),
-                (int) $message->getId(),
+                (int) ($message->mailbox->id ?? 0),
+                (int) $message->id,
                 $filename,
                 $content,
             );
@@ -236,7 +235,7 @@ final class JmapDraftWriter
             ++$stored;
         }
 
-        $message->setHasAttachments($stored > 0);
+        $message->hasAttachments = $stored > 0;
         $this->entityManager->flush();
     }
 
@@ -276,13 +275,13 @@ final class JmapDraftWriter
         $inReplyTo = $create['inReplyTo'] ?? null;
 
         if (true === is_array($inReplyTo) && count($inReplyTo) > 0) {
-            $message->setInReplyTo(array_values(array_map('strval', $inReplyTo)));
+            $message->inReplyTo = array_values(array_map('strval', $inReplyTo));
         }
 
         $references = $create['references'] ?? null;
 
         if (true === is_array($references) && count($references) > 0) {
-            $message->setReferences(array_values(array_map('strval', $references)));
+            $message->references = array_values(array_map('strval', $references));
         }
     }
 

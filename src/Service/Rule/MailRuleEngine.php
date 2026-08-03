@@ -32,7 +32,7 @@ use Psr\Log\LoggerInterface;
  *     id-granting flush in all three sync paths, which is also what makes the
  *     generated tsvector available.
  *   - Rules run after threading, so archive/trash actions can reach
- *     Message::getThread().
+ *     Message::$thread.
  *   - Anything mutated in pass 2 but *not yet flushed* is invisible to the
  *     match. Today that is category and thread assignment, neither of which is
  *     a filter condition; labels are set pre-flush in all three builders, so
@@ -78,7 +78,7 @@ final readonly class MailRuleEngine
         $byId = [];
 
         foreach ($messages as $message) {
-            $id = $message->getId();
+            $id = $message->id;
 
             if (null !== $id) {
                 $byId[(int) $id] = $message;

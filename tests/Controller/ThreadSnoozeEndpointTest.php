@@ -68,7 +68,7 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $roles = [];
 
         foreach ($thread->messages as $message) {
-            foreach ($message->getLabels() as $label) {
+            foreach ($message->labels as $label) {
                 $roles[] = $label->role;
             }
         }
@@ -112,7 +112,7 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $thread = $this->reload($threadId);
         $roles  = [];
 
-        foreach ($thread->messages->first()->getLabels() as $label) {
+        foreach ($thread->messages->first()->labels as $label) {
             $roles[] = $label->role;
         }
 
@@ -217,16 +217,15 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Endpoint fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<snooze-endpoint-%s@example.test>', uniqid('', true)))
-            ->setMailbox($mailbox)
-            ->setImapUid(4242)
-            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+        $message->account = $this->account;
+        $message->subject = 'Endpoint fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<snooze-endpoint-%s@example.test>', uniqid('', true));
+        $message->mailbox = $mailbox;
+        $message->imapUid = 4242;
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
 
         $thread->addMessage($message);
         $this->em->persist($message);

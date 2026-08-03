@@ -92,13 +92,13 @@ final class PostIngestPipelineTest extends KernelTestCase
             public function afterCommit(PostIngestResult $result): void
             {
                 $message = $result->messages[0];
-                $id      = $message->getId();
+                $id      = $message->id;
 
                 $this->observed = [
                     'count'    => count($result->messages),
                     'id'       => $id,
-                    'thread'   => $message->getThread()?->id,
-                    'category' => $message->getCategory(),
+                    'thread'   => $message->thread?->id,
+                    'category' => $message->category,
                     // Straight past the identity map, and deliberately on a
                     // column the PIPELINE writes rather than one the fixture
                     // already flushed: still NULL here would mean a step is
@@ -158,7 +158,7 @@ final class PostIngestPipelineTest extends KernelTestCase
         ]);
 
         self::assertTrue($reached, 'a later step still runs');
-        self::assertNotNull($message->getThread(), 'the sync itself still succeeded');
+        self::assertNotNull($message->thread, 'the sync itself still succeeded');
     }
 
     /**
@@ -252,15 +252,14 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedMessage(string $slug): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setMailbox($this->mailbox)
-            ->setSubject('Post-ingest fixture ' . $slug)
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setBodyHtml('<p>hello</p>')
-            ->setMessageId(sprintf('<post-ingest-%s-%s@example.test>', $slug, uniqid('', true)));
+        $message->account = $this->account;
+        $message->mailbox = $this->mailbox;
+        $message->subject = 'Post-ingest fixture ' . $slug;
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->bodyHtml = '<p>hello</p>';
+        $message->messageId = sprintf('<post-ingest-%s-%s@example.test>', $slug, uniqid('', true));
 
         $this->em->persist($message);
         $this->em->flush();

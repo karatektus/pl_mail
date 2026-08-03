@@ -140,7 +140,7 @@ final readonly class UploadAttachmentsHandler
     {
         $parts = [];
 
-        foreach ($mail->getMessageParts() as $part) {
+        foreach ($mail->messageParts as $part) {
             if (false === (bool) $part->isInline) {
                 $parts[] = $part;
             }

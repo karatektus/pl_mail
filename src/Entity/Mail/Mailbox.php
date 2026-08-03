@@ -112,7 +112,7 @@ class Mailbox
     {
         if (!$this->messages->contains($message)) {
             $this->messages->add($message);
-            $message->setMailbox($this);
+            $message->mailbox = $this;
         }
 
         return $this;
@@ -122,8 +122,8 @@ class Mailbox
     {
         if ($this->messages->removeElement($message)) {
             // set the owning side to null (unless already changed)
-            if ($message->getMailbox() === $this) {
-                $message->setMailbox(null);
+            if ($message->mailbox === $this) {
+                $message->mailbox = null;
             }
         }
 

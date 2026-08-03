@@ -94,7 +94,7 @@ final class EmailGetMethod implements JmapMethod
         $found = [];
 
         foreach ($messages as $message) {
-            $found[] = (string) $message->getId();
+            $found[] = (string) $message->id;
             $list[] = $this->mapper->toJmap(
                 $message,
                 $properties,

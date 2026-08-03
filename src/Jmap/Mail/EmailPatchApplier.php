@@ -23,7 +23,7 @@ use App\Service\Label\ThreadLabelSynchronizer;
  * uses, so a change made by a JMAP client reaches Gmail/IMAP/Graph exactly as
  * one made in the browser. Its ordering contract is observed: mutate the
  * entities, call the propagator, and let the caller flush last — detachLabel
- * in particular reads message->getMailbox() before it is re-pointed.
+ * in particular reads message->mailbox before it is re-pointed.
  */
 final class EmailPatchApplier
 {
@@ -135,20 +135,20 @@ final class EmailPatchApplier
         $wantSeen = true === ($keywords['$seen'] ?? false);
         $wantFlagged = true === ($keywords['$flagged'] ?? false);
 
-        $isSeen = null !== $message->getSeenAt();
-        $isFlagged = null !== $message->getStarredAt();
+        $isSeen = null !== $message->seenAt;
+        $isFlagged = null !== $message->starredAt;
 
         if ($wantSeen !== $isSeen) {
-            $message->setSeenAt(true === $wantSeen ? new \DateTimeImmutable() : null);
+            $message->seenAt = true === $wantSeen ? new \DateTimeImmutable() : null;
             $this->propagator->markRead([$message], $wantSeen);
         }
 
         if ($wantFlagged !== $isFlagged) {
             $starredAt = true === $wantFlagged ? new \DateTimeImmutable() : null;
 
-            $message->setStarredAt($starredAt);
+            $message->starredAt = $starredAt;
 
-            $thread = $message->getThread();
+            $thread = $message->thread;
 
             if (null !== $thread) {
                 $thread->starredAt = $starredAt;
@@ -192,7 +192,7 @@ final class EmailPatchApplier
 
         $current = [];
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             $current[(int) $label->id] = $label;
         }
 
@@ -216,7 +216,7 @@ final class EmailPatchApplier
             $this->propagator->detachLabel([$message], $label);
         }
 
-        $this->threadLabelSynchronizer->sync($message->getThread());
+        $this->threadLabelSynchronizer->sync($message->thread);
     }
 
     /**
@@ -226,11 +226,11 @@ final class EmailPatchApplier
     {
         $keywords = [];
 
-        if (null !== $message->getSeenAt()) {
+        if (null !== $message->seenAt) {
             $keywords['$seen'] = true;
         }
 
-        if (null !== $message->getStarredAt()) {
+        if (null !== $message->starredAt) {
             $keywords['$flagged'] = true;
         }
 
@@ -258,7 +258,7 @@ final class EmailPatchApplier
         $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId((int) $account->getId());
         $ids = [];
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             $bindingId = $bindingIdByLabelId[(int) $label->id] ?? null;
 
             if (null === $bindingId) {

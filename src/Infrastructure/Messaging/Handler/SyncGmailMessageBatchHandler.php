@@ -238,10 +238,10 @@ final readonly class SyncGmailMessageBatchHandler
         Account $carrier,
     ): void {
         if ('' !== $gmailId) {
-            $existing->setGmailId($gmailId);
+            $existing->gmailId = $gmailId;
         }
 
-        $existing->setGmailLabelIds($labelIds);
+        $existing->gmailLabelIds = $labelIds;
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
 
@@ -251,13 +251,13 @@ final readonly class SyncGmailMessageBatchHandler
         $this->stateManager->recordUpdated(
             (int) $target->getId(),
             JmapObjectType::Email,
-            (string) $existing->getId(),
+            (string) $existing->id,
         );
 
-        $thread = $existing->getThread();
+        $thread = $existing->thread;
 
         if (null !== $thread) {
-            foreach ($existing->getLabels() as $label) {
+            foreach ($existing->labels as $label) {
                 $thread->addLabel($label);
             }
 

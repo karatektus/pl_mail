@@ -272,24 +272,23 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($account)
-            ->setSubject('Propagator fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<prop-%s@example.test>', uniqid('', true)));
+        $message->account = $account;
+        $message->subject = 'Propagator fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<prop-%s@example.test>', uniqid('', true));
 
         if (null !== $mailbox) {
-            $message->setMailbox($mailbox);
+            $message->mailbox = $mailbox;
         }
 
         if (null !== $uid) {
-            $message->setImapUid($uid);
+            $message->imapUid = $uid;
         }
 
         if (null !== $gmailId) {
-            $message->setGmailId($gmailId);
+            $message->gmailId = $gmailId;
         }
 
         $thread->addMessage($message);

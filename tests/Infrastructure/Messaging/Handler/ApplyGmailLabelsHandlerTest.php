@@ -183,7 +183,7 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
         $accountRepository->method('find')->willReturn($account);
 
         $entity = new Message();
-        $entity->setGmailId($gmailId);
+        $entity->gmailId = $gmailId;
 
         $messageRepository = $this->createStub(MessageRepository::class);
         $messageRepository->method('findBy')->willReturn([$entity]);

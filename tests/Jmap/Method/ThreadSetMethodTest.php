@@ -193,7 +193,7 @@ final class ThreadSetMethodTest extends KernelTestCase
         $roles = [];
 
         foreach ($thread->messages as $message) {
-            foreach ($message->getLabels() as $label) {
+            foreach ($message->labels as $label) {
                 $roles[] = $label->role;
             }
         }
@@ -213,16 +213,15 @@ final class ThreadSetMethodTest extends KernelTestCase
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Thread/set fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<threadset-%s@example.test>', uniqid('', true)))
-            ->setMailbox($this->mailbox)
-            ->setImapUid(8000)
-            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+        $message->account = $this->account;
+        $message->subject = 'Thread/set fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<threadset-%s@example.test>', uniqid('', true));
+        $message->mailbox = $this->mailbox;
+        $message->imapUid = 8000;
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
 
         $thread->addMessage($message);
         $this->em->persist($message);

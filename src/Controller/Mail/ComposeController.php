@@ -88,20 +88,20 @@ class ComposeController extends AbstractController
         if (null === $message) {
             $account = $this->defaultAccount();
 
-            // A fresh install has no account, and Message::setAccount() is not
+            // A fresh install has no account, and Message::$account is not
             // nullable — so composing used to fatal at exactly the moment the
             // app is emptiest. Say what is missing instead.
             if (null === $account) {
                 return $this->render('compose/_no_account.html.twig', [], new Response(null, Response::HTTP_OK));
             }
 
-            $message = new Message()
-                ->setAccount($account)
-                ->setCreatedAt(new DateTimeImmutable());
+            $message = new Message();
+            $message->account = $account;
+            $message->createdAt = new DateTimeImmutable();
 
         } else {
             $this->assertOwnership($message);
-            $account = $message->getAccount();
+            $account = $message->account;
         }
 
         $form = $this->composeForm($message, $ctx);
@@ -117,8 +117,8 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $ctx            = $this->composeContext($request);
-        $ctx['replyTo'] = $original->getId();
-        $account        = $original->getAccount() ?? $this->defaultAccount();
+        $ctx['replyTo'] = $original->id;
+        $account        = $original->account ?? $this->defaultAccount();
         $draft          = $this->buildReply($original, replyAll: false, account: $account);
 
         $form = $this->composeForm($draft, $ctx);
@@ -134,8 +134,8 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $ctx            = $this->composeContext($request);
-        $ctx['replyTo'] = $original->getId();
-        $account        = $original->getAccount() ?? $this->defaultAccount();
+        $ctx['replyTo'] = $original->id;
+        $account        = $original->account ?? $this->defaultAccount();
         $draft          = $this->buildReply($original, replyAll: true, account: $account);
 
         $form = $this->composeForm($draft, $ctx);
@@ -151,7 +151,7 @@ class ComposeController extends AbstractController
         $this->assertOwnership($original);
 
         $ctx     = $this->composeContext($request);
-        $account = $original->getAccount() ?? $this->defaultAccount();
+        $account = $original->account ?? $this->defaultAccount();
         $draft   = $this->buildForward($original);
 
         $form = $this->composeForm($draft, $ctx);
@@ -166,9 +166,9 @@ class ComposeController extends AbstractController
     public function draft(Request $request, ?Message $message = null): Response
     {
         if (null === $message) {
-            $message = new Message()
-                ->setAccount($this->defaultAccount())
-                ->setCreatedAt(new DateTimeImmutable());
+            $message = new Message();
+            $message->account = $this->defaultAccount();
+            $message->createdAt = new DateTimeImmutable();
         } else {
             $this->assertOwnership($message);
         }
@@ -189,8 +189,8 @@ class ComposeController extends AbstractController
                 throw $this->createNotFoundException('No active account to compose from.');
             }
 
-            $message->setFromAddress($this->resolveFromAddress($form, $account));
-            $message->setFromName($account->getName() ?? '');
+            $message->fromAddress = $this->resolveFromAddress($form, $account);
+            $message->fromName = $account->getName() ?? '';
 
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
@@ -221,7 +221,7 @@ class ComposeController extends AbstractController
         $this->applyAddressFields($form, $message);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            if (null !== $message->getSentAt()) {
+            if (null !== $message->sentAt) {
                 return $this->sendResponse($message, $ctx);
             }
 
@@ -231,14 +231,14 @@ class ComposeController extends AbstractController
                 throw $this->createNotFoundException('No active account to send from.');
             }
 
-            $message->setFromAddress($this->resolveFromAddress($form, $account));
-            $message->setFromName($account->getName() ?? '');
+            $message->fromAddress = $this->resolveFromAddress($form, $account);
+            $message->fromName = $account->getName() ?? '';
 
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
 
             $this->bus->dispatch(
-                new SendMessageMessage($message->getId()),
+                new SendMessageMessage($message->id),
                 [new DelayStamp(self::SEND_DELAY_MS)],
             );
 
@@ -257,12 +257,12 @@ class ComposeController extends AbstractController
         // reads and clears, and EmailMapper publishes nothing derived from it.
         // The message is still the same unsent draft it was a moment ago, so
         // waking every client for it would be a push about nothing changing.
-        $message->setCancelled(true);
+        $message->cancelled = true;
         $this->em->flush();
 
         $ctx  = $this->composeContext($request);
         $form = $this->composeForm($message, $ctx);
-        $form->get('account')->setData($this->senderToken($message->getAccount()));
+        $form->get('account')->setData($this->senderToken($message->account));
         $this->hydrateAddressFields($form, $message);
 
         // Inline: pull the message back out of the thread and re-open the
@@ -275,7 +275,7 @@ class ComposeController extends AbstractController
                 'inline'       => true,
                 'frame'        => $ctx['frame'],
                 'urlParams'    => $this->urlParams($ctx),
-                'threadEntity' => $message->getThread(),
+                'threadEntity' => $message->thread,
             ]);
         }
 
@@ -301,10 +301,10 @@ class ComposeController extends AbstractController
 
         return $this->turboStream('compose/_inline_send.stream.html.twig', [
             'message' => $message,
-            'thread'  => $message->getThread(),
+            'thread'  => $message->thread,
             'undoUrl' => $this->generateUrl(
                 'app_compose_mail_undo',
-                $this->urlParams($ctx) + ['id' => $message->getId()],
+                $this->urlParams($ctx) + ['id' => $message->id],
             ),
             'delay'   => self::SEND_DELAY_MS,
         ]);
@@ -338,7 +338,7 @@ class ComposeController extends AbstractController
     {
         $this->assertDraft($message);
 
-        $account = $message->getAccount();
+        $account = $message->account;
         $files   = array_filter(
             $request->files->all('files'),
             static fn (mixed $file): bool => $file instanceof UploadedFile,
@@ -368,8 +368,8 @@ class ComposeController extends AbstractController
             // id keeps one draft's files out of another's directory.
             $storagePath = $this->attachmentStorage->store(
                 (int) $account->getId(),
-                (int) ($message->getMailbox()->id ?? 0),
-                (int) $message->getId(),
+                (int) ($message->mailbox->id ?? 0),
+                (int) $message->id,
                 (string) $file->getClientOriginalName(),
                 (string) file_get_contents($file->getPathname()),
             );
@@ -458,13 +458,13 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($message);
 
-        if (false === $message->isDraft() || null !== $message->getSentAt()) {
+        if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be discarded.');
         }
 
         $ctx       = $this->composeContext($request);
-        $messageId = $message->getId();
-        $thread    = $message->getThread();
+        $messageId = $message->id;
+        $thread    = $message->thread;
 
         $this->deleteStoredAttachments($message);
         $this->em->remove($message);
@@ -473,7 +473,7 @@ class ComposeController extends AbstractController
         // and keeps the row, this one takes the id away. Recorded before the
         // flush because the ids already exist; record() only persists, so the
         // log rows go out with the removal itself.
-        $accountId = (int) $message->getAccount()->getId();
+        $accountId = (int) $message->account->getId();
 
         $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
 
@@ -541,7 +541,7 @@ class ComposeController extends AbstractController
 
         foreach ($thread->messages as $message) {
             // The discarded message can still sit in the loaded collection.
-            if ($message->getId() === $discardedId) {
+            if ($message->id === $discardedId) {
                 continue;
             }
 
@@ -618,27 +618,26 @@ class ComposeController extends AbstractController
      */
     private function applyReplyContext(Message $message, array $ctx): void
     {
-        if (null !== $message->getThread() || null === $ctx['replyTo']) {
+        if (null !== $message->thread || null === $ctx['replyTo']) {
             return;
         }
 
         $original = $this->messageRepository->find($ctx['replyTo']);
 
-        if (null === $original || $original->getAccount()->getUsr() !== $this->getUser()) {
+        if (null === $original || $original->account->getUsr() !== $this->getUser()) {
             return;
         }
 
-        $message->setThread($original->getThread());
+        $message->thread = $original->thread;
 
-        if ([] === ($message->getInReplyTo() ?? [])) {
+        if ([] === ($message->inReplyTo ?? [])) {
             $references = array_merge(
-                $original->getReferences() ?? [],
-                array_filter([$original->getMessageId()]),
+                $original->references ?? [],
+                array_filter([$original->messageId]),
             );
 
-            $message
-                ->setInReplyTo(array_filter([$original->getMessageId()]))
-                ->setReferences(array_values(array_unique($references)));
+            $message->inReplyTo = array_filter([$original->messageId]);
+            $message->references = array_values(array_unique($references));
         }
     }
 
@@ -736,7 +735,7 @@ class ComposeController extends AbstractController
             return $parsed[0];
         }
 
-        return $message->getAccount() ?? $this->defaultAccount();
+        return $message->account ?? $this->defaultAccount();
     }
 
     /**
@@ -814,11 +813,11 @@ class ComposeController extends AbstractController
      */
     private function applyAccount(Message $message, Account $account): void
     {
-        $message->setAccount($account);
+        $message->account = $account;
 
         $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             if (LabelRole::Drafts === $label->role && $label !== $draftsLabel) {
                 $message->removeLabel($label);
             }
@@ -826,7 +825,7 @@ class ComposeController extends AbstractController
 
         $message->addLabel($draftsLabel);
 
-        $message->setMailbox($draftsLabel->bindingFor($account)?->mailbox);
+        $message->mailbox = $draftsLabel->bindingFor($account)?->mailbox;
     }
 
     /**
@@ -860,29 +859,29 @@ class ComposeController extends AbstractController
         $bcc = $extract('bccAddresses');
 
         if (!empty($to)) {
-            $message->setToAddresses($to);
+            $message->toAddresses = $to;
         }
         if (!empty($cc)) {
-            $message->setCcAddresses($cc);
+            $message->ccAddresses = $cc;
         }
         if (!empty($bcc)) {
-            $message->setBccAddresses($bcc);
+            $message->bccAddresses = $bcc;
         }
     }
 
     private function buildReply(Message $original, bool $replyAll, Account $account): Message
     {
         $to = [[
-            'name' => $original->getFromName() ?? '',
-            'address' => $original->getFromAddress() ?? '',
+            'name' => $original->fromName ?? '',
+            'address' => $original->fromAddress ?? '',
         ]];
 
         $cc = [];
         if (true === $replyAll) {
             $ownAddresses = $account->getOwnedAddresses();
             $candidates = array_merge(
-                $original->getToAddresses() ?? [],
-                $original->getCcAddresses() ?? [],
+                $original->toAddresses ?? [],
+                $original->ccAddresses ?? [],
             );
             foreach ($candidates as $addr) {
                 if (false === in_array(strtolower($addr['address'] ?? ''), $ownAddresses, true)) {
@@ -891,29 +890,29 @@ class ComposeController extends AbstractController
             }
         }
 
-        $subject = $this->prefixSubject('Re', $original->getSubject());
+        $subject = $this->prefixSubject('Re', $original->subject);
 
         $references = array_merge(
-            $original->getReferences() ?? [],
-            array_filter([$original->getMessageId()]),
+            $original->references ?? [],
+            array_filter([$original->messageId]),
         );
 
         $quotedBody = $this->buildQuotedHtml($original, 'reply');
 
-        $draft = new Message()
-            ->setAccount($account)
-            ->setSubject($subject)
-            ->setToAddresses($to)
-            ->setCcAddresses($cc)
-            ->setBodyHtml($quotedBody)
-            ->setInReplyTo(array_filter([$original->getMessageId()]))
-            ->setReferences(array_values(array_unique($references)))
-            ->setHasAttachments(false)
-            ->setCreatedAt(new DateTimeImmutable())
-            ->setUpdatedAt(new DateTimeImmutable());
+        $draft = new Message();
+        $draft->account = $account;
+        $draft->subject = $subject;
+        $draft->toAddresses = $to;
+        $draft->ccAddresses = $cc;
+        $draft->bodyHtml = $quotedBody;
+        $draft->inReplyTo = array_filter([$original->messageId]);
+        $draft->references = array_values(array_unique($references));
+        $draft->hasAttachments = false;
+        $draft->createdAt = new DateTimeImmutable();
+        $draft->updatedAt = new DateTimeImmutable();
 
-        if (null !== $original->getThread()) {
-            $draft->setThread($original->getThread());
+        if (null !== $original->thread) {
+            $draft->thread = $original->thread;
         }
 
         return $draft;
@@ -921,17 +920,19 @@ class ComposeController extends AbstractController
 
     private function buildForward(Message $original): Message
     {
-        $subject = $this->prefixSubject('Fwd', $original->getSubject());
+        $subject = $this->prefixSubject('Fwd', $original->subject);
         $quotedBody = $this->buildQuotedHtml($original, 'forward');
 
-        return new Message()
-            ->setAccount($original->getAccount())
-            ->setSubject($subject)
-            ->setToAddresses([])
-            ->setBodyHtml($quotedBody)
-            ->setHasAttachments(false)
-            ->setCreatedAt(new DateTimeImmutable())
-            ->setUpdatedAt(new DateTimeImmutable());
+        $draft = new Message();
+        $draft->account = $original->account;
+        $draft->subject = $subject;
+        $draft->toAddresses = [];
+        $draft->bodyHtml = $quotedBody;
+        $draft->hasAttachments = false;
+        $draft->createdAt = new DateTimeImmutable();
+        $draft->updatedAt = new DateTimeImmutable();
+
+        return $draft;
     }
 
     private function prefixSubject(string $prefix, ?string $subject): string
@@ -957,13 +958,13 @@ class ComposeController extends AbstractController
     // your version; the forward branch is verbatim.
     private function buildQuotedHtml(Message $original, string $mode): string
     {
-        $dateStr = $original->getReceivedAt() ? $original->getReceivedAt()->format('D, M j, Y \a\t g:i a') : '';
-        $fromName = htmlspecialchars($original->getFromName() ?? '', ENT_QUOTES, 'UTF-8');
-        $fromAddr = htmlspecialchars($original->getFromAddress() ?? '', ENT_QUOTES, 'UTF-8');
+        $dateStr = $original->receivedAt ? $original->receivedAt->format('D, M j, Y \a\t g:i a') : '';
+        $fromName = htmlspecialchars($original->fromName ?? '', ENT_QUOTES, 'UTF-8');
+        $fromAddr = htmlspecialchars($original->fromAddress ?? '', ENT_QUOTES, 'UTF-8');
         $fromLine = $fromName !== '' ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
 
-        $bodyHtml = trim($original->getBodyHtml() ?? '');
-        $bodyText = trim($original->getBodyText() ?? '');
+        $bodyHtml = trim($original->bodyHtml ?? '');
+        $bodyText = trim($original->bodyText ?? '');
         $innerBody = $bodyHtml !== '' ? $bodyHtml : nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
 
         // data-quoted marks the whole quoted block — attribution line
@@ -983,14 +984,14 @@ class ComposeController extends AbstractController
                 HTML;
         }
 
-        $subjectLine = htmlspecialchars($original->getSubject() ?? '', ENT_QUOTES, 'UTF-8');
+        $subjectLine = htmlspecialchars($original->subject ?? '', ENT_QUOTES, 'UTF-8');
         $toLine = implode(', ', array_map(
             static fn(array $a) => htmlspecialchars(
                 ($a['name'] ? $a['name'] . ' <' . $a['address'] . '>' : $a['address']),
                 ENT_QUOTES,
                 'UTF-8',
             ),
-            $original->getToAddresses() ?? [],
+            $original->toAddresses ?? [],
         ));
 
         return <<<HTML
@@ -1010,12 +1011,11 @@ class ComposeController extends AbstractController
     {
         $now = new DateTimeImmutable();
 
-        $message
-            ->setFromAddress($account->getEmail())
-            ->setFromName($account->getName())
-            ->addFlag(MessageFlag::DRAFT)
-            ->setSeenAt($message->getSeenAt() ?? $now)
-            ->setUpdatedAt($now);
+        $message->fromAddress = $account->getEmail();
+        $message->fromName = $account->getName();
+        $message->addFlag(MessageFlag::DRAFT);
+        $message->seenAt ??= $now;
+        $message->updatedAt = $now;
 
         // Autosave runs on every keystroke: hardcoding false here used to wipe
         // the flag off a draft that had files attached to it.
@@ -1025,24 +1025,24 @@ class ComposeController extends AbstractController
         // the message it becomes) renders blank in the conversation until the
         // sent copy comes back from IMAP.
         $this->bodySanitizer->sanitize($message);
-        $message->setBodyText($this->plainTextBody($message->getBodyHtml()));
+        $message->bodyText = $this->plainTextBody($message->bodyHtml);
 
         // Read before the flush below mints an id, which is the only moment a
         // first save can still be told apart from an autosave of the same
         // draft. Afterwards every call through here looks identical, and a
         // client would be handed "created" for an id it already holds.
-        $isNew = null === $message->getId();
+        $isNew = null === $message->id;
 
         $this->em->persist($message);
 
-        if (null === $message->getThread()) {
+        if (null === $message->thread) {
             // Uses in_reply_to / references, so reply drafts land on the
             // original thread; fresh composes get a new one.
             $this->threader->assignThread($message, $account);
         }
         $this->threader->resyncDraftThreadSubject($message);
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null !== $thread) {
             // The threader only sets the owning side, so the thread does not
@@ -1066,7 +1066,7 @@ class ComposeController extends AbstractController
         // moments ago only gets one here. Same shape as PostIngestPipeline —
         // ids, record, flush the log rows.
         $accountId = (int) $account->getId();
-        $messageId = (string) $message->getId();
+        $messageId = (string) $message->id;
 
         if (true === $isNew) {
             $this->stateManager->recordCreated($accountId, JmapObjectType::Email, $messageId);
@@ -1093,7 +1093,7 @@ class ComposeController extends AbstractController
 
         $this->assertOwnership($message);
 
-        if (false === $message->isDraft() || null !== $message->getSentAt()) {
+        if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
         }
     }
@@ -1108,15 +1108,15 @@ class ComposeController extends AbstractController
      */
     private function recordAttachmentChange(Message $message): void
     {
-        $accountId = (int) $message->getAccount()->getId();
+        $accountId = (int) $message->account->getId();
 
         $this->stateManager->recordUpdated(
             $accountId,
             JmapObjectType::Email,
-            (string) $message->getId(),
+            (string) $message->id,
         );
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null !== $thread) {
             $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
@@ -1128,7 +1128,7 @@ class ComposeController extends AbstractController
     {
         $hasAttachments = false;
 
-        foreach ($message->getMessageParts() as $part) {
+        foreach ($message->messageParts as $part) {
             if (false === (bool) $part->isInline) {
                 $hasAttachments = true;
 
@@ -1136,20 +1136,20 @@ class ComposeController extends AbstractController
             }
         }
 
-        $message->setHasAttachments($hasAttachments);
+        $message->hasAttachments = $hasAttachments;
     }
 
     /** Drop the files a discarded draft uploaded; the rows cascade. */
     private function deleteStoredAttachments(Message $message): void
     {
-        foreach ($message->getMessageParts() as $part) {
+        foreach ($message->messageParts as $part) {
             $this->attachmentStorage->delete($part->storagePath);
         }
     }
 
     private function assertOwnership(Message $message): void
     {
-        $account = $message->getAccount();
+        $account = $message->account;
 
         if (null === $account || $account->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
@@ -1166,9 +1166,9 @@ class ComposeController extends AbstractController
     private function hydrateAddressFields(FormInterface $form, Message $message): void
     {
         $groups = [
-            'toAddresses'  => $message->getToAddresses() ?? [],
-            'ccAddresses'  => $message->getCcAddresses() ?? [],
-            'bccAddresses' => $message->getBccAddresses() ?? [],
+            'toAddresses'  => $message->toAddresses ?? [],
+            'ccAddresses'  => $message->ccAddresses ?? [],
+            'bccAddresses' => $message->bccAddresses ?? [],
         ];
 
         $pending = [];

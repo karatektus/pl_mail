@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  *   msgraph://{attachmentId}  → Graph /messages/{id}/attachments/{id}/$value
  *
  * NOTE — this file also fixes a live bug. The previous implementation read
- * `$message->getMailbox()->getAccount()`, which worked when Gmail messages
+ * the account through the message's mailbox, which worked when Gmail messages
  * still had Mailbox rows. Under the label architecture API-synced messages
  * have no mailbox, so the first attachment click on a Gmail message fatals on
  * a null mailbox. The account now comes from the message directly, and the
@@ -63,7 +63,7 @@ final readonly class AttachmentResolver
     {
         $attachmentId = substr($storagePath, strlen($scheme));
         $message      = $part->message;
-        $account      = $message->getAccount();
+        $account      = $message->account;
 
         if ('' === $attachmentId || null === $account) {
             throw new \RuntimeException(sprintf(
@@ -73,8 +73,8 @@ final readonly class AttachmentResolver
         }
 
         $remoteMessageId = self::GMAIL_SCHEME === $scheme
-            ? $message->getGmailId()
-            : $message->getGraphId();
+            ? $message->gmailId
+            : $message->graphId;
 
         if (null === $remoteMessageId || '' === $remoteMessageId) {
             throw new \RuntimeException(sprintf(
@@ -112,7 +112,7 @@ final readonly class AttachmentResolver
      */
     private function storageBucket(MessagePart $part): int
     {
-        $mailbox = $part->message->getMailbox();
+        $mailbox = $part->message->mailbox;
 
         if (null === $mailbox) {
             return 0;

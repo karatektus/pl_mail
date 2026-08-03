@@ -81,7 +81,7 @@ final class ApplyImapFlagsHandler
         $byAccount = [];
 
         foreach ($messages as $msg) {
-            $sourceMailboxId = $message->messageIds[$msg->getId()];
+            $sourceMailboxId = $message->messageIds[$msg->id];
             $sourceMailbox   = $this->mailboxRepository->find($sourceMailboxId);
 
             if (null === $sourceMailbox) {
@@ -192,16 +192,16 @@ final class ApplyImapFlagsHandler
         }
 
         foreach ($messages as $msg) {
-            if (null === $msg->getImapUid()) {
+            if (null === $msg->imapUid) {
                 continue;
             }
 
             try {
-                $this->applyToMessage($folder, $msg->getImapUid(), $action, $destinationPath);
+                $this->applyToMessage($folder, $msg->imapUid, $action, $destinationPath);
             } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: per-message error', [
-                    'messageId' => $msg->getId(),
-                    'uid'       => $msg->getImapUid(),
+                    'messageId' => $msg->id,
+                    'uid'       => $msg->imapUid,
                     'action'    => $action,
                     'error'     => $e->getMessage(),
                 ]);

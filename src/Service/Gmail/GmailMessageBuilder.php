@@ -63,19 +63,19 @@ final class GmailMessageBuilder
      */
     public function build(array $payload, Account $account, ?Account $carrierAccount = null): Message
     {
-        $message = new Message()
-            ->setAccount($account);
+        $message = new Message();
+        $message->account = $account;
 
         $gmailId = (string)($payload['id'] ?? '');
         $labelIds = array_values(array_map('strval', $payload['labelIds'] ?? []));
 
-        $message->setGmailId($gmailId);
-        $message->setGmailLabelIds($labelIds);
+        $message->gmailId = $gmailId;
+        $message->gmailLabelIds = $labelIds;
 
         // Gmail already grouped this conversation for the user; carrying its
         // threadId over means our threads match what they see in Gmail itself.
         $threadId = trim((string) ($payload['threadId'] ?? ''));
-        $message->setProviderThreadKey('' !== $threadId ? $threadId : null);
+        $message->providerThreadKey = '' !== $threadId ? $threadId : null;
 
         $this->applyTranslatedLabels($message, $labelIds, $account, $carrierAccount ?? $account);
 
@@ -83,19 +83,19 @@ final class GmailMessageBuilder
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
 
         $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
-        $message->setMessageId('' !== $rfcMessageId ? $rfcMessageId : $gmailId);
-        $message->setSubject($this->decodeMimeHeader($headers['subject'] ?? ''));
+        $message->messageId = '' !== $rfcMessageId ? $rfcMessageId : $gmailId;
+        $message->subject = $this->decodeMimeHeader($headers['subject'] ?? '');
 
         [$fromName, $fromAddress] = $this->parseAddress($headers['from'] ?? '');
-        $message->setFromAddress($fromAddress);
-        $message->setFromName($fromName);
+        $message->fromAddress = $fromAddress;
+        $message->fromName = $fromName;
 
-        $message->setToAddresses($this->parseAddressList($headers['to'] ?? ''));
-        $message->setCcAddresses($this->parseAddressList($headers['cc'] ?? ''));
-        $message->setBccAddresses($this->parseAddressList($headers['bcc'] ?? ''));
+        $message->toAddresses = $this->parseAddressList($headers['to'] ?? '');
+        $message->ccAddresses = $this->parseAddressList($headers['cc'] ?? '');
+        $message->bccAddresses = $this->parseAddressList($headers['bcc'] ?? '');
 
-        $message->setInReplyTo(MessageIdHelper::normaliseList($headers['in-reply-to'] ?? null));
-        $message->setReferences(MessageIdHelper::normaliseList($headers['references'] ?? null));
+        $message->inReplyTo = MessageIdHelper::normaliseList($headers['in-reply-to'] ?? null);
+        $message->references = MessageIdHelper::normaliseList($headers['references'] ?? null);
 
         // ── Date ──────────────────────────────────────────────────────────────
         $internalDateMs = (int)($payload['internalDate'] ?? 0);
@@ -103,27 +103,27 @@ final class GmailMessageBuilder
             ? new DateTimeImmutable()->setTimestamp((int)($internalDateMs / 1000))
             : new DateTimeImmutable();
 
-        $message->setReceivedAt($receivedAt);
-        $message->setSentAt($receivedAt);
+        $message->receivedAt = $receivedAt;
+        $message->sentAt = $receivedAt;
 
         // ── Flags (derived from label IDs) ────────────────────────────────────
         $flags = [];
 
         if (false === in_array('UNREAD', $labelIds, true)) {
             $flags[] = '\\Seen';
-            $message->setSeenAt(new DateTimeImmutable());
+            $message->seenAt = new DateTimeImmutable();
         }
 
         if (true === in_array('STARRED', $labelIds, true)) {
             $flags[] = '\\Flagged';
-            $message->setStarredAt(new DateTimeImmutable());
+            $message->starredAt = new DateTimeImmutable();
         }
 
         if (true === in_array('DRAFT', $labelIds, true)) {
             $flags[] = '\\Draft';
         }
 
-        $message->setFlags($flags);
+        $message->flags = $flags;
 
         // ── Headers ──────────────────────────────────────────────────────────
 
@@ -144,7 +144,7 @@ final class GmailMessageBuilder
             $rawHeaders[$name] = (string) ($header['value'] ?? '');
         }
 
-        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
+        $message->headers = $this->headerNormalizer->normalize($rawHeaders);
 
         // ── Body + attachments ────────────────────────────────────────────────
 
@@ -153,14 +153,14 @@ final class GmailMessageBuilder
         // is still assembling.
         $body = $this->extractBody($payload['payload'] ?? []);
 
-        $message->setBodyText($body->bodyText);
-        $message->setBodyHtml($body->bodyHtml);
+        $message->bodyText = $body->bodyText;
+        $message->bodyHtml = $body->bodyHtml;
 
         $hasAttachments = $this->persistAttachmentStubs($body->lazyParts, $message, $body->bodyHtml);
         $this->persistInlineParts($body->inlineParts, $message, $account);
 
-        $message->setHasAttachments($hasAttachments);
-        $message->setSyncedAt(new DateTimeImmutable());
+        $message->hasAttachments = $hasAttachments;
+        $message->syncedAt = new DateTimeImmutable();
 
         return $message;
     }
@@ -363,7 +363,7 @@ final class GmailMessageBuilder
                 $relativePath = $this->attachmentStorage->store(
                     (int) $account->getId(),
                     0,
-                    abs(crc32((string) $message->getGmailId())),
+                    abs(crc32((string) $message->gmailId)),
                     $filename,
                     $bytes,
                 );
@@ -371,7 +371,7 @@ final class GmailMessageBuilder
                 // A part we could not store is a missed event, never a failed
                 // import — the message itself is fine.
                 $this->logger->warning('GmailMessageBuilder: inline part not stored', [
-                    'gmailId' => $message->getGmailId(),
+                    'gmailId' => $message->gmailId,
                     'error'   => $e->getMessage(),
                 ]);
 

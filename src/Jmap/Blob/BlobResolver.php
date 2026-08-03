@@ -74,7 +74,7 @@ final class BlobResolver
 
         $message = $part->message;
 
-        if (null === $message || $message->getAccount()->getId() !== $account->getId()) {
+        if (null === $message || $message->account->getId() !== $account->getId()) {
             return null;
         }
 

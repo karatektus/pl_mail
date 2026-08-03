@@ -71,7 +71,7 @@ final class ThreadGetMethod implements JmapMethod
             $emailIds = [];
 
             foreach ($thread->messages as $message) {
-                $emailIds[] = (string) $message->getId();
+                $emailIds[] = (string) $message->id;
             }
 
             $list[] = [

@@ -345,7 +345,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
         $account = $thread->account;
 
         if ($account->getUsr() !== $this->getUser()) {

@@ -132,7 +132,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
     #[DataProvider('conditionProvider')]
     public function testMatchesExactly(array $ast, array $expectedIndexes): void
     {
-        $expected = array_map(fn (int $i): int => (int) $this->corpus[$i]->getId(), $expectedIndexes);
+        $expected = array_map(fn (int $i): int => (int) $this->corpus[$i]->id, $expectedIndexes);
         sort($expected);
 
         $actual = $this->messages->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
@@ -149,7 +149,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
      */
     public function testNullSizeMatchesNeitherBound(): void
     {
-        $sizeless = (int) $this->corpus[2]->getId();
+        $sizeless = (int) $this->corpus[2]->id;
 
         self::assertNotContains($sizeless, $this->match(['minSize' => 1]));
         self::assertNotContains($sizeless, $this->match(['maxSize' => 999999]));
@@ -172,7 +172,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
      */
     private function corpusIds(): array
     {
-        return array_map(static fn (Message $m): int => (int) $m->getId(), $this->corpus);
+        return array_map(static fn (Message $m): int => (int) $m->id, $this->corpus);
     }
 
     private function seedCorpus(): void
@@ -243,25 +243,24 @@ final class EmailFilterCompilerTest extends KernelTestCase
     private function message(Account $account, array $spec): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($account)
-            ->setSubject($spec['subject'])
-            ->setFromAddress($spec['from'])
-            ->setFromName($spec['fromName'])
-            ->setToAddresses($spec['to'] ?? null)
-            ->setCcAddresses($spec['cc'] ?? null)
-            ->setBodyText($spec['body'])
-            ->setSize($spec['size'])
-            ->setHeaders($spec['headers'] ?? null)
-            ->setReceivedAt(new \DateTimeImmutable($spec['received']))
-            ->setHasAttachments(true === isset($spec['attachment']));
+        $message->account = $account;
+        $message->subject = $spec['subject'];
+        $message->fromAddress = $spec['from'];
+        $message->fromName = $spec['fromName'];
+        $message->toAddresses = $spec['to'] ?? null;
+        $message->ccAddresses = $spec['cc'] ?? null;
+        $message->bodyText = $spec['body'];
+        $message->size = $spec['size'];
+        $message->headers = $spec['headers'] ?? null;
+        $message->receivedAt = new \DateTimeImmutable($spec['received']);
+        $message->hasAttachments = true === isset($spec['attachment']);
 
         if (true === ($spec['seen'] ?? false)) {
-            $message->setSeenAt(new \DateTimeImmutable('2026-07-16 08:00:00'));
+            $message->seenAt = new \DateTimeImmutable('2026-07-16 08:00:00');
         }
 
         if (true === ($spec['starred'] ?? false)) {
-            $message->setStarredAt(new \DateTimeImmutable('2026-07-16 08:00:00'));
+            $message->starredAt = new \DateTimeImmutable('2026-07-16 08:00:00');
         }
 
         $this->em->persist($message);

@@ -62,7 +62,7 @@ final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
             }
 
             foreach ($messages as $message) {
-                $lastId = (int) $message->getId();
+                $lastId = (int) $message->id;
 
                 $this->bodySanitizer->sanitize($message);
 

@@ -679,14 +679,13 @@ final class StructuredDataExtractionTest extends KernelTestCase
         string             $from = 'noreply@lufthansa.com',
     ): array {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Your booking')
-            ->setFromAddress($from)
-            ->setReceivedAt($receivedAt ?? new DateTimeImmutable())
-            ->setHasAttachments(false)
-            ->setBodyHtml($bodyHtml)
-            ->setMessageId(sprintf('<%s@example.test>', uniqid('', true)));
+        $message->account = $this->account;
+        $message->subject = 'Your booking';
+        $message->fromAddress = $from;
+        $message->receivedAt = $receivedAt ?? new DateTimeImmutable();
+        $message->hasAttachments = false;
+        $message->bodyHtml = $bodyHtml;
+        $message->messageId = sprintf('<%s@example.test>', uniqid('', true));
         $this->em->persist($message);
         $this->em->flush();
 

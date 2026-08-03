@@ -105,16 +105,16 @@ final readonly class PostIngestPipeline
             $this->stateManager->recordCreated(
                 $accountId,
                 JmapObjectType::Email,
-                (string) $message->getId(),
+                (string) $message->id,
             );
 
-            $message->setCategory($this->categorizer->categorize($message, $correspondents));
+            $message->category = $this->categorizer->categorize($message, $correspondents);
 
             try {
                 $this->messageThreader->assignThread($message, $item->account);
             } catch (\Throwable $e) {
                 $this->logger->error('PostIngest: threading failed', [
-                    'messageId' => $message->getId(),
+                    'messageId' => $message->id,
                     'error'     => $e->getMessage(),
                 ]);
             }
@@ -137,7 +137,7 @@ final readonly class PostIngestPipeline
         $threadIdsByAccount = [];
 
         foreach ($ingested as $item) {
-            $thread = $item->message->getThread();
+            $thread = $item->message->thread;
 
             if (null !== $thread) {
                 $threadIdsByAccount[(int) $item->account->getId()][] = (int) $thread->id;

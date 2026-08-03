@@ -92,7 +92,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     {
         $message = $this->build($this->payloadWithInlineInvite());
 
-        self::assertFalse((bool) $message->hasAttachments());
+        self::assertFalse((bool) $message->hasAttachments);
     }
 
     /**
@@ -135,8 +135,8 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     {
         $message = $this->build($this->payloadWithInlineInvite());
 
-        self::assertStringContainsString('Standup', (string) $message->getBodyText());
-        self::assertStringContainsString('Standup', (string) $message->getBodyHtml());
+        self::assertStringContainsString('Standup', (string) $message->bodyText);
+        self::assertStringContainsString('Standup', (string) $message->bodyHtml);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

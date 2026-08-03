@@ -55,7 +55,7 @@ final class ThreadParticipants
         $names = [];
 
         foreach ($thread->messages as $message) {
-            $address = $this->normalise($message->getFromAddress());
+            $address = $this->normalise($message->fromAddress);
 
             if ('' === $address) {
                 continue;
@@ -63,7 +63,7 @@ final class ThreadParticipants
 
             $names[$address] ??= true === in_array($address, $owned, true)
                 ? $me
-                : $this->displayName($message->getFromName(), $address);
+                : $this->displayName($message->fromName, $address);
         }
 
         return array_values($names);
@@ -86,7 +86,7 @@ final class ThreadParticipants
 
         $names = [];
 
-        foreach ($newest->getToAddresses() ?? [] as $entry) {
+        foreach ($newest->toAddresses ?? [] as $entry) {
             $address = $this->normalise($entry['address'] ?? null);
 
             if ('' === $address || true === in_array($address, $owned, true)) {
@@ -106,7 +106,7 @@ final class ThreadParticipants
         // The association is ordered by date, but a thread assembled in memory
         // during a sync is not, so the newest is picked rather than assumed.
         foreach ($thread->messages as $message) {
-            $at = $message->getReceivedAt() ?? $message->getSentAt() ?? $message->getCreatedAt();
+            $at = $message->receivedAt ?? $message->sentAt ?? $message->createdAt;
 
             if (null === $newest || null === $at) {
                 $newest ??= $message;
@@ -114,7 +114,7 @@ final class ThreadParticipants
                 continue;
             }
 
-            $newestAt = $newest->getReceivedAt() ?? $newest->getSentAt() ?? $newest->getCreatedAt();
+            $newestAt = $newest->receivedAt ?? $newest->sentAt ?? $newest->createdAt;
 
             if (null === $newestAt || $at >= $newestAt) {
                 $newest = $message;

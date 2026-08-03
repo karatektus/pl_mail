@@ -73,7 +73,7 @@ final readonly class ExtractEventsHandler
 
                 $found += count($touched);
 
-                $user = $mail->getAccount()->getUsr();
+                $user = $mail->account->getUsr();
 
                 if (true === $user instanceof User) {
                     $usersToNotify[(int) $user->id] = $user;

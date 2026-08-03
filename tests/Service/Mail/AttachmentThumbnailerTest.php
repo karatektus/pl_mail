@@ -165,14 +165,13 @@ final class AttachmentThumbnailerTest extends KernelTestCase
         $this->em->persist($account);
 
         $this->message = new Message();
-        $this->message
-            ->setAccount($account)
-            ->setSubject('Thumbnail fixture')
-            ->setFromAddress('sender@example.test')
-            ->setFromName('Sender')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-01 12:00:00'))
-            ->setHasAttachments(true);
+        $this->message->account = $account;
+        $this->message->subject = 'Thumbnail fixture';
+        $this->message->fromAddress = 'sender@example.test';
+        $this->message->fromName = 'Sender';
+        $this->message->bodyText = 'body';
+        $this->message->receivedAt = new \DateTimeImmutable('2026-07-01 12:00:00');
+        $this->message->hasAttachments = true;
         $this->em->persist($this->message);
 
         $this->em->flush();

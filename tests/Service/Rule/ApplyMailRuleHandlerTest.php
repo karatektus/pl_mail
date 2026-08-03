@@ -117,7 +117,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $labelled = 0;
 
         foreach ($this->messages->findByIds($this->matchingIds()) as $message) {
-            if (true === $message->getLabels()->contains($this->label)) {
+            if (true === $message->labels->contains($this->label)) {
                 $labelled++;
             }
         }
@@ -184,14 +184,13 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
     private function message(string $subject): void
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject($subject)
-            ->setFromAddress('sender@example.test')
-            ->setFromName('Sender')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-01 12:00:00'))
-            ->setHasAttachments(false);
+        $message->account = $this->account;
+        $message->subject = $subject;
+        $message->fromAddress = 'sender@example.test';
+        $message->fromName = 'Sender';
+        $message->bodyText = 'body';
+        $message->receivedAt = new \DateTimeImmutable('2026-07-01 12:00:00');
+        $message->hasAttachments = false;
 
         $this->em->persist($message);
     }

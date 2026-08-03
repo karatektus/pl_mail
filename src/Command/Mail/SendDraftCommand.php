@@ -55,14 +55,14 @@ class SendDraftCommand extends Command
             // Build choice list: "ID — Subject (account@email.com)"
             $choices = [];
             foreach ($drafts as $draft) {
-                $account = $draft->getAccount();
+                $account = $draft->account;
                 $label = sprintf(
                     '[%d] %s — %s',
-                    $draft->getId(),
-                    $draft->getSubject() ?: '(no subject)',
+                    $draft->id,
+                    $draft->subject ?: '(no subject)',
                     $account->getEmail() ?? $account->getUsername(),
                 );
-                $choices[$draft->getId()] = $label;
+                $choices[$draft->id] = $label;
             }
 
             $choice = $io->choice('Pick a draft to send', $choices);
@@ -77,11 +77,11 @@ class SendDraftCommand extends Command
             }
         }
 
-        $account = $message->getAccount();
+        $account = $message->account;
         $io->section(sprintf(
             'Sending message %d — "%s" via %s',
-            $message->getId(),
-            $message->getSubject() ?: '(no subject)',
+            $message->id,
+            $message->subject ?: '(no subject)',
             $account->getEmail() ?? $account->getUsername(),
         ));
 

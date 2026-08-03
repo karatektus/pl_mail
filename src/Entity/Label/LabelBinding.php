@@ -21,7 +21,7 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * All three providers land here — IMAP folder, Gmail label id, Graph folder
  * id — so one row is the complete answer to "how is this label materialized on
- * this account". Mailbox::getLabel() reads through this row rather than
+ * this account". Mailbox::$label reads through this row rather than
  * carrying its own FK; keeping a second link there would just recreate, in
  * mirror image, the asymmetry this table exists to remove.
  *

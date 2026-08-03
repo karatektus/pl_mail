@@ -77,11 +77,11 @@ final class ThreadParticipantsTest extends TestCase
      */
     public function testThreadWrittenOnlyByTheReaderShowsItsRecipients(): void
     {
-        $message = $this->message('me@example.test', 'Me Myself', '2026-07-28 09:00:00')
-            ->setToAddresses([
-                ['name' => 'Jörg Müller', 'address' => 'joerg@example.test'],
-                ['name' => '', 'address' => 'anna@example.test'],
-            ]);
+        $message = $this->message('me@example.test', 'Me Myself', '2026-07-28 09:00:00');
+        $message->toAddresses = [
+            ['name' => 'Jörg Müller', 'address' => 'joerg@example.test'],
+            ['name' => '', 'address' => 'anna@example.test'],
+        ];
 
         self::assertSame(
             ['Jörg Müller', 'anna@example.test'],
@@ -129,9 +129,11 @@ final class ThreadParticipantsTest extends TestCase
 
     private function message(string $from, ?string $name, string $receivedAt): Message
     {
-        return new Message()
-            ->setFromAddress($from)
-            ->setFromName($name)
-            ->setReceivedAt(new \DateTimeImmutable($receivedAt));
+        $message = new Message();
+        $message->fromAddress = $from;
+        $message->fromName = $name;
+        $message->receivedAt = new \DateTimeImmutable($receivedAt);
+
+        return $message;
     }
 }
