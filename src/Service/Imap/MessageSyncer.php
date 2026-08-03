@@ -82,23 +82,23 @@ class MessageSyncer
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
-        $mailboxId   = $mailbox->getId();
-        $accountId   = $mailbox->getAccount()->getId();
-        $lastSeenUid = $mailbox->getLastSeenUid() ?? 0;
+        $mailboxId   = $mailbox->id;
+        $accountId   = $mailbox->account->id;
+        $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
-        $limit       = $mailbox->getAccount()->getSyncLimit();
+        $limit       = $mailbox->account->syncLimit;
 
         $this->logger->info('Syncing mailbox', [
-            'mailbox'     => $mailbox->getFullPath(),
+            'mailbox'     => $mailbox->fullPath,
             'account'     => $accountId,
             'lastSeenUid' => $lastSeenUid,
             'limit'       => 0 === $limit ? 'none' : $limit,
         ]);
 
-        $folder = $client->getFolder($mailbox->getName());
+        $folder = $client->getFolder($mailbox->name);
 
         if (null === $folder) {
-            $this->logger->error('Folder not found', ['mailbox' => $mailbox->getName()]);
+            $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);
             return;
         }
 
@@ -124,9 +124,9 @@ class MessageSyncer
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
-        $mailbox->setSyncedAt(new DateTimeImmutable());
-        $mailbox->setUnreadMessages($this->messageRepository->countUnseenForMailbox($mailbox));
-        $mailbox->setTotalMessages($this->messageRepository->countTotalForMailbox($mailbox));
+        $mailbox->syncedAt = new DateTimeImmutable();
+        $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
+        $mailbox->totalMessages = $this->messageRepository->countTotalForMailbox($mailbox);
         $this->em->flush();
     }
 
@@ -220,20 +220,19 @@ class MessageSyncer
 
             if ('' !== $rfcMessageId) {
                 $claimable = $this->messageRepository->findGmailOnlyByMessageId(
-                    $mailbox->getAccount(),
+                    $mailbox->account,
                     $rfcMessageId,
                 );
 
                 if (null !== $claimable) {
-                    $claimable
-                        ->setMailbox($mailbox)
-                        ->setImapUid($uid);
+                    $claimable->mailbox = $mailbox;
+                    $claimable->imapUid = $uid;
 
-                    $mailboxLabel = $mailbox->getLabel();
+                    $mailboxLabel = $mailbox->label;
 
                     if (null !== $mailboxLabel) {
                         $claimable->addLabel($mailboxLabel);
-                        $claimable->getThread()?->addLabel($mailboxLabel);
+                        $claimable->thread?->addLabel($mailboxLabel);
 
                         // Claiming a Gmail-imported row for this mailbox adds a
                         // label, so mailboxIds changed even though no message
@@ -241,15 +240,15 @@ class MessageSyncer
                         $this->stateManager->recordUpdated(
                             (int) $accountId,
                             JmapObjectType::Email,
-                            (string) $claimable->getId(),
+                            (string) $claimable->id,
                         );
 
-                        $claimedThread = $claimable->getThread();
+                        $claimedThread = $claimable->thread;
 
                         if (null !== $claimedThread) {
                             $this->stateManager->recordThreadsTouched(
                                 (int) $accountId,
-                                [(int) $claimedThread->getId()],
+                                [(int) $claimedThread->id],
                             );
                         }
                     }
@@ -290,7 +289,7 @@ class MessageSyncer
         // been seen already, and the range would otherwise be re-fetched
         // forever.
         if (true === ($maxUid > 0)) {
-            $mailbox->setLastSeenUid($maxUid);
+            $mailbox->lastSeenUid = $maxUid;
         }
 
         // Pass 2 — the shared post-ingest sequence. IMAP is the only provider
@@ -301,12 +300,12 @@ class MessageSyncer
         foreach ($messages as $index => $message) {
             $ingested[] = new IngestedMessage(
                 $message,
-                $mailbox->getAccount(),
+                $mailbox->account,
                 $rawBodies[$index] ?? '',
             );
         }
 
-        $this->postIngest->run($mailbox->getAccount(), $ingested);
+        $this->postIngest->run($mailbox->account, $ingested);
     }
 
     /**
@@ -326,58 +325,54 @@ class MessageSyncer
 
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
-        $message = new Message()
-            ->setAccount($mailbox->getAccount())
-            ->setMailbox($mailbox);
-        $mailboxLabel = $mailbox->getLabel();
+        $message = new Message();
+        $message->account = $mailbox->account;
+        $message->mailbox = $mailbox;
+
+        $mailboxLabel = $mailbox->label;
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);
         }
-        $message->setImapUid($imapMessage->getUid());
-        $message->setMessageId(MessageIdHelper::normalise((string) $imapMessage->getMessageId()));
-        $message->setSubject(
-            $this->decodeMimeHeader((string) $imapMessage->getSubject())
-        );
+
+        $message->imapUid = $imapMessage->getUid();
+        $message->messageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
+        $message->subject = $this->decodeMimeHeader((string) $imapMessage->getSubject());
 
         // From
         $from = $imapMessage->getFrom()->first();
         if (null !== $from) {
-            $message->setFromAddress(AddressHelper::email($from->mail ?? ''));
-            $message->setFromName(AddressHelper::name($from->personal ?? ''));
+            $message->fromAddress = AddressHelper::email($from->mail ?? '');
+            $message->fromName = AddressHelper::name($from->personal ?? '');
         }
 
         // Recipients
-        $message->setToAddresses($this->formatAddresses($imapMessage->getTo()));
-        $message->setCcAddresses($this->formatAddresses($imapMessage->getCc()));
-        $message->setBccAddresses($this->formatAddresses($imapMessage->getBcc()));
+        $message->toAddresses = $this->formatAddresses($imapMessage->getTo());
+        $message->ccAddresses = $this->formatAddresses($imapMessage->getCc());
+        $message->bccAddresses = $this->formatAddresses($imapMessage->getBcc());
 
         // Dates
         $receivedAt = self::toUtc($imapMessage->getDate()->toDate());
-        $message->setSentAt($receivedAt);
-        $message->setReceivedAt($receivedAt);
+        $message->sentAt = $receivedAt;
+        $message->receivedAt = $receivedAt;
 
         // Flags
         $flagNames = array_values($imapMessage->getFlags()->toArray());
-        $message->setFlags($flagNames);
+        $message->flags = $flagNames;
 
         if (
             true === in_array('Seen', $flagNames, true)
             || true === in_array('\\Seen', $flagNames, true)
         ) {
-            $message->setSeenAt(new DateTimeImmutable());
+            $message->seenAt = new DateTimeImmutable();
         }
 
         // Threading headers
         $inReplyTo  = $imapMessage->getInReplyTo();
         $references = $imapMessage->getReferences();
 
-        $message->setInReplyTo(
-            $inReplyTo->exist() ? MessageIdHelper::normaliseList((string) $inReplyTo) : []
-        );
-        $message->setReferences(
-            $references->exist() ? MessageIdHelper::normaliseList((string) $references) : []
-        );
+        $message->inReplyTo  = $inReplyTo->exist() ? MessageIdHelper::normaliseList((string) $inReplyTo) : [];
+        $message->references = $references->exist() ? MessageIdHelper::normaliseList((string) $references) : [];
 
         // Headers
         $rawHeaders = [];
@@ -390,15 +385,15 @@ class MessageSyncer
                 : array_map(static fn($v): string => (string) $v, $values);
         }
 
-        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
+        $message->headers = $this->headerNormalizer->normalize($rawHeaders);
 
         // Body
-        $message->setBodyText($imapMessage->getTextBody() ?? '');
-        $message->setBodyHtml($imapMessage->getHTMLBody() ?? '');
+        $message->bodyText = $imapMessage->getTextBody() ?? '';
+        $message->bodyHtml = $imapMessage->getHTMLBody() ?? '';
 
         // Attachments
         $attachments = $imapMessage->getAttachments();
-        $message->setSyncedAt(new DateTimeImmutable());
+        $message->syncedAt = new DateTimeImmutable();
 
         $hasAttachments = false;
 
@@ -408,8 +403,7 @@ class MessageSyncer
             }
         }
 
-        $message->setHasAttachments($hasAttachments);
-
+        $message->hasAttachments = $hasAttachments;
 
         return $message;
     }
@@ -424,18 +418,18 @@ class MessageSyncer
 
         $storagePath = $this->attachmentStorage->store(
             $accountId,
-            $message->getMailbox()->getId(),
-            $message->getImapUid(),
+            $message->mailbox->id,
+            $message->imapUid,
             $filename,
             $content,
         );
 
         $part = new MessagePart();
-        $part->setMessage($message);
-        $part->setContentType($attachment->getContentType() ?? 'application/octet-stream');
-        $part->setFilename($filename);
-        $part->setSize(strlen($content));
-        $part->setStoragePath($storagePath);
+        $part->message     = $message;
+        $part->contentType = $attachment->getContentType() ?? 'application/octet-stream';
+        $part->filename    = $filename;
+        $part->size        = strlen($content);
+        $part->storagePath = $storagePath;
 
         // getId() falls back to a content hash when the part has no Content-ID,
         // so it only counts as a cid when the HTML body actually references it.
@@ -443,12 +437,12 @@ class MessageSyncer
         $isInline      = $this->inlineDetector->isInline(
             $attachment->getDisposition(),
             $normalizedCid,
-            $message->getBodyHtml(),
+            $message->bodyHtml,
         );
 
-        $part->setContentId('' !== $normalizedCid ? $normalizedCid : null);
-        $part->setDisposition($isInline ? 'inline' : 'attachment');
-        $part->setIsInline($isInline);
+        $part->contentId   = '' !== $normalizedCid ? $normalizedCid : null;
+        $part->disposition = $isInline ? 'inline' : 'attachment';
+        $part->isInline    = $isInline;
 
         $this->em->persist($part);
 

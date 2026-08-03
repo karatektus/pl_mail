@@ -81,6 +81,13 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
                 'context'    => false !== $context ? $context : null,
                 'source'     => mb_substr($this->source, 0, 64),
                 'created_at' => $record->datetime->format('Y-m-d H:i:s'),
+                // Written by hand because this insert deliberately bypasses the
+                // ORM — a log handler cannot flush an EntityManager that may be
+                // mid-transaction, or in the failed state that produced the log
+                // line in the first place. So TimestampableTrait's PrePersist
+                // never runs here and the NOT NULL column has to be filled from
+                // this side. A log line is written once, so it equals created_at.
+                'updated_at' => $record->datetime->format('Y-m-d H:i:s'),
             ]);
         } catch (\Throwable) {
             // Never let logging failures cascade.

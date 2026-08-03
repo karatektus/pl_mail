@@ -25,8 +25,13 @@ class ContactRepository extends ServiceEntityRepository
 
     /**
      * Insert a new contact or increment frequency + refresh display name
-     * on an existing one. Uses a raw DBAL upsert for performance so
-     * we can process thousands of addresses without loading entities.
+     * on an existing one.
+     *
+     * ON CONFLICT, which Doctrine's API has no form of: a sync processes
+     * thousands of addresses, most of which already exist, and the
+     * find-then-insert-or-update alternative is both a query per address and a
+     * race two concurrent syncs lose. The increment is computed by the database
+     * from the row it finds, so no read is needed to write it.
      *
      * @param array<array{email: string, name: string|null}> $addresses
      */
@@ -38,7 +43,7 @@ class ContactRepository extends ServiceEntityRepository
 
         $conn  = $this->getEntityManager()->getConnection();
         $now   = new DateTimeImmutable();
-        $userId = $user->getId();
+        $userId = $user->id;
 
         foreach ($addresses as $addr) {
             $email = AddressHelper::email($addr['email'] ?? '');
@@ -93,6 +98,10 @@ class ContactRepository extends ServiceEntityRepository
      * Ids of every contact, oldest first — the backfill cursor for address
      * normalisation.
      *
+     * QueryBuilder for the keyset bound and the projection: findBy() can
+     * neither say `id > :afterId` nor return bare ids, and hydrating a batch of
+     * contacts to read one column off each is what a cursor exists to avoid.
+     *
      * @return list<int>
      */
     public function findIdsAfter(int $afterId, int $limit): array
@@ -120,17 +129,16 @@ class ContactRepository extends ServiceEntityRepository
             return [];
         }
 
-        return $this->createQueryBuilder('c')
-            ->where('c.id IN (:ids)')
-            ->setParameter('ids', $ids)
-            ->orderBy('c.id', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['id' => $ids], ['id' => 'ASC']);
     }
 
     /**
      * Autocomplete: return up to $limit contacts whose email or display_name
      * starts with (or contains) the query string, ordered by frequency desc.
+     *
+     * QueryBuilder because the test is four case-folded LIKEs joined by OR.
+     * findBy() states equality on fields; prefix-or-substring across two
+     * columns is not something it can be asked.
      *
      * @return Contact[]
      */
@@ -157,7 +165,13 @@ class ContactRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** @return array<string,true> normalised correspondent emails as a set */
+    /**
+     * QueryBuilder for the projection: the categoriser wants a set of strings
+     * to test membership against, and hydrating a Contact per address to build
+     * it would make classifying one message cost the whole address book.
+     *
+     * @return array<string,true> normalised correspondent emails as a set
+     */
     public function findCorrespondentEmails(UserInterface $user): array
     {
         $rows = $this->createQueryBuilder('c')
@@ -178,6 +192,10 @@ class ContactRepository extends ServiceEntityRepository
     }
 
     /**
+     * QueryBuilder because the match is on LOWER(email): addresses are stored
+     * as they arrived and compared case-insensitively, and findBy() compares
+     * the stored value rather than an expression over it.
+     *
      * @param string[] $emails
      *
      * @return array<string, Contact> lowercase email => contact
@@ -199,7 +217,7 @@ class ContactRepository extends ServiceEntityRepository
         $indexed = [];
 
         foreach ($contacts as $contact) {
-            $indexed[mb_strtolower((string) $contact->getEmail())] = $contact;
+            $indexed[mb_strtolower((string) $contact->email)] = $contact;
         }
 
         return $indexed;
@@ -209,6 +227,11 @@ class ContactRepository extends ServiceEntityRepository
      * Insert placeholder contacts for addresses typed into a draft but never
      * sent to. frequency 0 keeps them out of the ranked suggestions until a
      * real send (or a sync) promotes them via upsertBatch().
+     *
+     * ON CONFLICT DO NOTHING for the same reason upsertBatch() needs ON
+     * CONFLICT: "insert unless it is already there" cannot be written as a
+     * check followed by an insert without losing the race between them, and
+     * a draft that mentions an existing contact must not fail to save.
      *
      * @param string[] $emails
      */
@@ -235,7 +258,7 @@ class ContactRepository extends ServiceEntityRepository
             ON CONFLICT (usr_id, email) DO NOTHING
             SQL,
                 [
-                    'userId' => $user->getId(),
+                    'userId' => $user->id,
                     'email'  => $email,
                     'now'    => $now,
                 ],

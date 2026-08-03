@@ -6,7 +6,6 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
-use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
@@ -14,8 +13,6 @@ use App\Form\Integration\IntegrationConnectType;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationConnector;
-use App\Service\Integration\IntegrationDriverRegistry;
-use App\Service\Integration\IntegrationUrlValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,8 +40,6 @@ final class IntegrationController extends AbstractController
     public function __construct(
         private readonly IntegrationRepository               $integrationRepository,
         private readonly IntegrationProviderConfigRepository $configRepository,
-        private readonly IntegrationDriverRegistry           $drivers,
-        private readonly IntegrationUrlValidator             $urlValidator,
         private readonly IntegrationConnector                $connector,
         private readonly EntityManagerInterface              $em,
     ) {
@@ -60,7 +55,7 @@ final class IntegrationController extends AbstractController
     #[Route('/connect/{provider}', name: 'connect', methods: ['GET', 'POST'])]
     public function connect(Provider $provider, Request $request): Response
     {
-        $config = $this->assertConnectable($provider);
+        $config = $this->connector->requireConnectable($provider);
 
         // OAuth providers have nothing to fill in — they bounce to the service.
         // The route exists so the button has one destination whatever the auth
@@ -105,8 +100,7 @@ final class IntegrationController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $error = $this->probe($integration);
-        $this->em->flush();
+        $error = $this->connector->retest($integration);
 
         return $this->listStream(null === $error
             ? 'settings.integrations.test_ok'
@@ -166,7 +160,7 @@ final class IntegrationController extends AbstractController
         // settings page instead of here.
         $form = $this->createForm(IntegrationConnectType::class, $integration, [
             'integration_provider' => $provider,
-            'url_editable'         => $this->urlValidator->isUserEditable($provider, $config),
+            'url_editable'         => $this->connector->isUrlEditable($provider, $config),
             'action'               => $action,
         ]);
         $form->handleRequest($request);
@@ -185,24 +179,6 @@ final class IntegrationController extends AbstractController
             'config'      => $config,
             'form'        => $form,
         ]);
-    }
-
-    /**
-     * Ask the service whether the credentials work, recording the outcome on
-     * the entity either way. Returns the failure message, or null on success.
-     */
-    private function probe(Integration $integration): ?string
-    {
-        try {
-            $this->drivers->forIntegration($integration)->verify($integration);
-            $integration->recordSuccess();
-
-            return null;
-        } catch (IntegrationException $e) {
-            $integration->recordFailure($e->getMessage());
-
-            return $e->getMessage();
-        }
     }
 
     private function listStream(string $toastMessage): Response
@@ -231,17 +207,6 @@ final class IntegrationController extends AbstractController
         ];
     }
 
-    private function assertConnectable(Provider $provider): IntegrationProviderConfig
-    {
-        $config = $this->configRepository->findOneByProvider($provider);
-
-        if (null === $config || false === $config->isConnectable()) {
-            throw $this->createNotFoundException();
-        }
-
-        return $config;
-    }
-
     private function assertOwned(Integration $integration): void
     {
         if ($integration->usr !== $this->getUser()) {
@@ -258,16 +223,5 @@ final class IntegrationController extends AbstractController
         }
 
         return $user;
-    }
-
-    private function nullIfBlank(mixed $value): ?string
-    {
-        if (false === is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return '' === $trimmed ? null : $trimmed;
     }
 }

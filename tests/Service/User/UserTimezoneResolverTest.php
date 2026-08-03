@@ -20,7 +20,8 @@ final class UserTimezoneResolverTest extends TestCase
 {
     public function testReturnsTheUsersOwnZone(): void
     {
-        $user = new User()->setTimezone('America/New_York');
+        $user = new User();
+        $user->timezone = 'America/New_York';
 
         self::assertSame('America/New_York', new UserTimezoneResolver('Europe/Berlin')->resolve($user)->getName());
     }
@@ -33,7 +34,7 @@ final class UserTimezoneResolverTest extends TestCase
     {
         $resolver = new UserTimezoneResolver('Europe/Berlin');
 
-        self::assertNull(new User()->getTimezone());
+        self::assertNull(new User()->timezone);
         self::assertSame('Europe/Berlin', $resolver->resolve(new User())->getName());
         self::assertSame('Europe/Berlin', $resolver->resolve(null)->getName());
     }
@@ -45,14 +46,15 @@ final class UserTimezoneResolverTest extends TestCase
 
     /**
      * An identifier the system does not know never reaches the column: the
-     * setter drops it, so the user simply stays on the default rather than
+     * set hook drops it, so the user simply stays on the default rather than
      * every later `new DateTimeZone()` throwing somewhere unrelated.
      */
     public function testRejectsAnInvalidIdentifier(): void
     {
-        $user = new User()->setTimezone('Mars/Olympus_Mons');
+        $user = new User();
+        $user->timezone = 'Mars/Olympus_Mons';
 
-        self::assertNull($user->getTimezone());
+        self::assertNull($user->timezone);
         self::assertSame('Europe/Berlin', new UserTimezoneResolver('Europe/Berlin')->resolve($user)->getName());
     }
 
@@ -63,9 +65,12 @@ final class UserTimezoneResolverTest extends TestCase
      */
     public function testRejectsAFixedOffsetAndAnAbbreviation(): void
     {
-        self::assertNull(new User()->setTimezone('+02:00')->getTimezone());
-        self::assertNull(new User()->setTimezone('CEST')->getTimezone());
-        self::assertNull(new User()->setTimezone('')->getTimezone());
+        foreach (['+02:00', 'CEST', ''] as $rejected) {
+            $user = new User();
+            $user->timezone = $rejected;
+
+            self::assertNull($user->timezone, sprintf('rejected %s', var_export($rejected, true)));
+        }
     }
 
     /**
@@ -91,6 +96,9 @@ final class UserTimezoneResolverTest extends TestCase
      */
     public function testUtcRemainsChoosable(): void
     {
-        self::assertSame('UTC', new UserTimezoneResolver('Europe/Berlin')->resolve(new User()->setTimezone('UTC'))->getName());
+        $user = new User();
+        $user->timezone = 'UTC';
+
+        self::assertSame('UTC', new UserTimezoneResolver('Europe/Berlin')->resolve($user)->getName());
     }
 }

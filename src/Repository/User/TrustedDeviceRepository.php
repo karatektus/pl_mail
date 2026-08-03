@@ -27,6 +27,9 @@ class TrustedDeviceRepository extends ServiceEntityRepository
      * Revoked and expired rows are excluded here rather than by the caller, so
      * there is no path that honours one by forgetting the check — the same
      * reasoning as ApiTokenRepository::findActiveBySecret().
+     *
+     * QueryBuilder for `expiresAt > :now`: findOneBy() compares a field to a
+     * value, and liveness is a comparison against the clock.
      */
     public function findActiveBySecret(string $secret, UserInterface|User $user, string $firewall): ?TrustedDevice
     {
@@ -45,6 +48,8 @@ class TrustedDeviceRepository extends ServiceEntityRepository
     }
 
     /**
+     * QueryBuilder for the same expiry comparison as findActiveBySecret().
+     *
      * @return list<TrustedDevice>
      */
     public function findActiveForUser(UserInterface|User $user): array
@@ -62,19 +67,18 @@ class TrustedDeviceRepository extends ServiceEntityRepository
 
     public function findOneOwnedBy(int $id, UserInterface|User $user): ?TrustedDevice
     {
-        return $this->createQueryBuilder('d')
-            ->where('d.id = :id')
-            ->andWhere('d.usr = :user')
-            ->setParameter('id', $id)
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['id' => $id, 'usr' => $user]);
     }
 
     /**
      * Withdraw every grant the user holds. Used by "sign out everywhere", and
      * unconditionally whenever 2FA is turned off or its secret is replaced —
      * a device trusted against the old secret must not survive it.
+     *
+     * A bulk UPDATE because it has to reach grants that are not loaded and must
+     * not become loaded: this runs on a 2FA change, where hydrating every
+     * device a user has ever trusted to stamp one column would put unrelated
+     * entities into the unit of work that is about to flush the secret.
      *
      * @return int number of grants withdrawn
      */
@@ -94,6 +98,10 @@ class TrustedDeviceRepository extends ServiceEntityRepository
     /**
      * Drop rows that can no longer authorise anything, so the table does not
      * grow without bound on an install that has been running for years.
+     *
+     * A bulk DELETE for the `<` bound and because nothing here needs an
+     * entity — a retention sweep that hydrated its victims would scale with
+     * the very history it exists to remove.
      */
     public function pruneExpired(DateTimeImmutable $before): int
     {

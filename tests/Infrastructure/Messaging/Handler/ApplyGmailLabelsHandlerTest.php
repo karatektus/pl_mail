@@ -177,13 +177,13 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
         $account = new Account();
-        $account->setUsr(new User());
+        $account->usr = new User();
 
         $accountRepository = $this->createStub(AccountRepository::class);
         $accountRepository->method('find')->willReturn($account);
 
         $entity = new Message();
-        $entity->setGmailId($gmailId);
+        $entity->gmailId = $gmailId;
 
         $messageRepository = $this->createStub(MessageRepository::class);
         $messageRepository->method('findBy')->willReturn([$entity]);

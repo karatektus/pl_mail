@@ -36,7 +36,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  *   3. no folder-backed label remains → this is an archive → 'archive' action
  *
  * IMPORTANT: for IMAP moves, callers must pass messages BEFORE flush() so
- * getMailbox() still reflects the source folder; this service captures the
+ * message->mailbox still reflects the source folder; this service captures the
  * messageId => sourceMailboxId map and optimistically re-points
  * message->mailbox to the destination for 'move'.
  */
@@ -161,13 +161,13 @@ final readonly class LabelChangePropagator
         $archives = [];
 
         foreach ($messages as $message) {
-            $sourceMailbox = $message->getMailbox();
+            $sourceMailbox = $message->mailbox;
 
-            if (null === $sourceMailbox || null === $message->getImapUid()) {
+            if (null === $sourceMailbox || null === $message->imapUid) {
                 continue;
             }
 
-            if ($sourceMailbox->getLabel() !== $label) {
+            if ($sourceMailbox->label !== $label) {
                 // Not the location label — DB-only, message stays put.
                 continue;
             }
@@ -181,11 +181,11 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $moves[$destinationMailbox->getFullPath()][$message->getId()] = $sourceMailbox->getId();
+            $moves[$destinationMailbox->fullPath][$message->id] = $sourceMailbox->id;
 
             // Optimistic re-point; UID goes stale until the destination
             // folder's next sync picks the message up again.
-            $message->setMailbox($destinationMailbox);
+            $message->mailbox = $destinationMailbox;
         }
 
         foreach ($moves as $destinationPath => $idMap) {
@@ -205,11 +205,11 @@ final readonly class LabelChangePropagator
      */
     private function resolveDestinationMailbox(Message $message): ?\App\Entity\Mail\Mailbox
     {
-        $account         = $message->getMailbox()->getAccount();
+        $account         = $message->mailbox->account;
         $systemCandidate = null;
         $customCandidate = null;
 
-        foreach ($message->getLabels() as $remaining) {
+        foreach ($message->labels as $remaining) {
             if (true === $remaining->isSystem) {
                 $role = $remaining->role;
 
@@ -253,11 +253,11 @@ final readonly class LabelChangePropagator
         $idMap = [];
 
         foreach ($messages as $message) {
-            if (null === $message->getImapUid() || null === $message->getMailbox()) {
+            if (null === $message->imapUid || null === $message->mailbox) {
                 continue;
             }
 
-            $idMap[$message->getId()] = $message->getMailbox()->getId();
+            $idMap[$message->id] = $message->mailbox->id;
         }
 
         if (count($idMap) === 0) {
@@ -281,7 +281,7 @@ final readonly class LabelChangePropagator
         $byAccount = [];
 
         foreach ($messages as $message) {
-            $gmailId = $message->getGmailId();
+            $gmailId = $message->gmailId;
 
             if (null === $gmailId || '' === $gmailId) {
                 continue;
@@ -293,7 +293,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $byAccount[(int) $account->getId()][] = (int) $message->getId();
+            $byAccount[(int) $account->id][] = (int) $message->id;
         }
 
         foreach ($byAccount as $accountId => $messageIds) {
@@ -318,7 +318,7 @@ final readonly class LabelChangePropagator
         $accounts = [];
 
         foreach ($messages as $message) {
-            $graphId = $message->getGraphId();
+            $graphId = $message->graphId;
 
             if (null === $graphId || '' === $graphId) {
                 continue;
@@ -330,8 +330,8 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $accountId               = (int) $account->getId();
-            $byAccount[$accountId][] = (int) $message->getId();
+            $accountId               = (int) $account->id;
+            $byAccount[$accountId][] = (int) $message->id;
             $accounts[$accountId]    = $account;
         }
 
@@ -346,11 +346,11 @@ final readonly class LabelChangePropagator
 
     private function graphDestinationLabelId(Account $account, LabelRole $role): ?int
     {
-        $label = $this->labelRepository->findOneByRoleForUser($role, $account->getUsr());
+        $label = $this->labelRepository->findOneByRoleForUser($role, $account->usr);
 
         if (null === $label) {
             $this->logger->warning('LabelChangePropagator: no destination label for Graph move', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'role'      => $role->value,
             ]);
 
@@ -367,7 +367,7 @@ final readonly class LabelChangePropagator
      */
     private function accountOf(Message $message): Account
     {
-        return $message->getAccount();
+        return $message->account;
     }
 
     /**

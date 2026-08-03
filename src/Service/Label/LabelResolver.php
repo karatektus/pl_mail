@@ -65,7 +65,7 @@ final class LabelResolver
     private function recordCreated(LabelBinding $binding): void
     {
         $this->stateManager->recordCreated(
-            (int) $binding->account->getId(),
+            (int) $binding->account->id,
             JmapObjectType::Mailbox,
             (string) $binding->id,
         );
@@ -77,7 +77,7 @@ final class LabelResolver
      */
     public function binding(Label $label, Account $account): LabelBinding
     {
-        $cacheKey = $label->id . ':' . $account->getId();
+        $cacheKey = $label->id . ':' . $account->id;
         $cachedId = $this->bindingIdCache[$cacheKey] ?? null;
 
         if (null !== $cachedId) {
@@ -108,7 +108,7 @@ final class LabelResolver
 
     /**
      * Point a label's binding at the IMAP folder that feeds it. The inverse
-     * read is Mailbox::getLabel(); this is the only way to write it.
+     * read is Mailbox::$label; this is the only way to write it.
      *
      * A folder that already feeds a different label is moved, not copied.
      * label_binding.mailbox_id is unique — a folder feeds exactly one label —
@@ -126,13 +126,13 @@ final class LabelResolver
      */
     public function bindMailbox(Label $label, Mailbox $mailbox): LabelBinding
     {
-        $binding = $this->binding($label, $mailbox->getAccount());
+        $binding = $this->binding($label, $mailbox->account);
 
         if ($binding->mailbox === $mailbox) {
             return $binding;
         }
 
-        $previous = $mailbox->getLabelBinding();
+        $previous = $mailbox->labelBinding;
 
         if (null !== $previous && $previous !== $binding) {
             // Released in a flush of its own. Doctrine makes no promise about
@@ -142,22 +142,22 @@ final class LabelResolver
             // field, since the order it happens to pick depends on which
             // entity entered the identity map first.
             $previous->mailbox = null;
-            $mailbox->setLabelBinding(null);
+            $mailbox->labelBinding = null;
 
             $this->em->flush();
         }
 
         $binding->mailbox = $mailbox;
 
-        $mailbox->setLabelBinding($binding);
+        $mailbox->labelBinding = $binding;
 
         return $binding;
     }
 
     public function systemLabel(LabelRole $role, Account $account): Label
     {
-        $user   = $account->getUsr();
-        $userId = (int) $user->getId();
+        $user   = $account->usr;
+        $userId = (int) $user->id;
 
         $cachedId = $this->roleIdCache[$userId][$role->value] ?? null;
         $label    = null;
@@ -171,12 +171,12 @@ final class LabelResolver
         }
 
         if (null === $label) {
-            $label = new Label()
-                ->setUsr($user)
-                ->setName($role->displayName())
-                ->setRole($role)
-                ->setSortOrder($role->sortOrder())
-                ->setIsVisible($role->isVisible());
+            $label            = new Label();
+            $label->usr       = $user;
+            $label->name      = $role->displayName();
+            $label->role      = $role;
+            $label->sortOrder = $role->sortOrder();
+            $label->isVisible = $role->isVisible();
 
             $this->em->persist($label);
             $this->em->flush();
@@ -207,8 +207,8 @@ final class LabelResolver
             return null;
         }
 
-        $user     = $account->getUsr();
-        $userId   = (int) $user->getId();
+        $user     = $account->usr;
+        $userId   = (int) $user->id;
         $fullName = implode('/', $segments);
         $cachedId = $this->pathIdCache[$userId][$fullName] ?? null;
 
@@ -229,10 +229,10 @@ final class LabelResolver
             $label = $this->labelRepository->findOneChildByName($user, $parent, $segment);
 
             if (null === $label) {
-                $label = new Label()
-                    ->setUsr($user)
-                    ->setParent($parent)
-                    ->setName($segment);
+                $label         = new Label();
+                $label->usr    = $user;
+                $label->parent = $parent;
+                $label->name   = $segment;
 
                 $this->em->persist($label);
                 $this->em->flush();

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Entity\Mail\Message;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Keyset pagination by id (not offset, not a shrinking IS NULL cursor) so the
  * scan can flush + clear each batch without a server-side cursor, and can't
  * loop on rows the sanitizer legitimately leaves null (whitespace-only bodies).
+ * The cursor itself is MessageRepository::findPendingSafeHtml().
  */
 final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
 {
@@ -41,7 +41,7 @@ final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->countPending();
+        $total = $this->messageRepository->countPendingSafeHtml();
 
         if (0 === $total) {
             $io->success('Nothing to backfill — every HTML body already has a sanitized copy.');
@@ -55,14 +55,14 @@ final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
         $processed = 0;
 
         while (true) {
-            $messages = $this->pendingBatch($lastId);
+            $messages = $this->messageRepository->findPendingSafeHtml($lastId, self::BATCH_SIZE);
 
             if (count($messages) === 0) {
                 break;
             }
 
             foreach ($messages as $message) {
-                $lastId = (int) $message->getId();
+                $lastId = (int) $message->id;
 
                 $this->bodySanitizer->sanitize($message);
 
@@ -78,35 +78,5 @@ final readonly class SafeHtmlBackfillTask implements BackfillTaskInterface
         $io->success(sprintf('Backfilled %d message(s).', $processed));
 
         return Command::SUCCESS;
-    }
-
-    private function countPending(): int
-    {
-        return (int) $this->pendingQueryBuilder(0)
-            ->select('COUNT(m.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    /**
-     * @return list<Message>
-     */
-    private function pendingBatch(int $afterId): array
-    {
-        return $this->pendingQueryBuilder($afterId)
-            ->orderBy('m.id', 'ASC')
-            ->setMaxResults(self::BATCH_SIZE)
-            ->getQuery()
-            ->getResult();
-    }
-
-    private function pendingQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
-    {
-        return $this->messageRepository->createQueryBuilder('m')
-            ->andWhere('m.id > :afterId')
-            ->andWhere('m.bodyHtml IS NOT NULL')
-            ->andWhere("m.bodyHtml <> ''")
-            ->andWhere('m.bodyHtmlSafe IS NULL')
-            ->setParameter('afterId', $afterId);
     }
 }

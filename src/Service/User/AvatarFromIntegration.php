@@ -118,9 +118,9 @@ final readonly class AvatarFromIntegration
             throw new RuntimeException('The chosen image is too large.');
         }
 
-        $userId = (string) $user->getId();
+        $userId = (string) $user->id;
 
-        $user->setAvatar($this->avatars->storeContents($userId, $file->filename, $file->contents));
+        $user->avatar = $this->avatars->storeContents($userId, $file->filename, $file->contents);
 
         $this->entityManager->flush();
     }

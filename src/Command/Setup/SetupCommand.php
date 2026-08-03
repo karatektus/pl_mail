@@ -53,10 +53,9 @@ class SetupCommand extends Command
         $password = $symfonyStyle->ask('What\'s the first users password?', $_ENV['APP_DEV_USER_PASSWORD']);
 
         $user = new User();
-        $user
-            ->setEmail($eMail)
-            ->setNameFirst('Admin')
-            ->setNameLast('Istrator');
+        $user->email = $eMail;
+        $user->nameFirst = 'Admin';
+        $user->nameLast = 'Istrator';
 
         // Same locked write as the /install page, so the terminal route and the
         // browser route cannot disagree about what "the first user" means.

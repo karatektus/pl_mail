@@ -110,6 +110,11 @@ class ApiToken
         return $this;
     }
 
+    /**
+     * Stays a method rather than becoming a property: this reads a timestamp
+     * and answers a question about it. A predicate over non-boolean state is
+     * an interpretation, not a plain read, and only a plain read is a property.
+     */
     public function isActive(): bool
     {
         return null === $this->revokedAt;
@@ -117,9 +122,12 @@ class ApiToken
 
     /**
      * How the secret is shown in listings once it can no longer be displayed.
+     *
+     * Virtual, so there is no column behind it — Doctrine refuses to map a
+     * property whose hooks do not touch a backing store, which is exactly what
+     * a derived value should be.
      */
-    public function getMasked(): string
-    {
-        return self::PREFIX.$this->hint.'…';
+    public string $masked {
+        get => self::PREFIX.$this->hint.'…';
     }
 }

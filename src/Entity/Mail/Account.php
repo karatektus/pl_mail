@@ -13,118 +13,118 @@ use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AccountRepository::class)]
 //#[Broadcast]
+#[ORM\HasLifecycleCallbacks]
 class Account extends AccountModel
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $name = null;
+    public ?string $name = null;
 
     #[ORM\Column(options: ['default' => 0])]
-    private int $sortOrder = 0;
+    public int $sortOrder = 0;
 
     #[ORM\Column]
-    private bool $isPrimary = false;
+    public bool $isPrimary = false;
 
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $usr = null;
+    public ?User $usr = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $email = null;
+    public ?string $email = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $imapHost = null;
+    public ?string $imapHost = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $imapPort = null;
+    public ?int $imapPort = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    private ?string $imapEncryption = null;
+    public ?string $imapEncryption = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $username = null;
+    public ?string $username = null;
 
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
-    private ?string $password = null;
+    public ?string $password = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $smtpHost = null;
+    public ?string $smtpHost = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $smtpPort = null;
+    public ?int $smtpPort = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    private ?string $smtpEncryption = null;
+    public ?string $smtpEncryption = null;
 
     #[ORM\Column(length: 20)]
-    private ?string $authType = null;
+    public ?string $authType = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $oauthProvider = null;
+    public ?string $oauthProvider = null;
 
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
-    private ?string $oauthAccessToken = null;
+    public ?string $oauthAccessToken = null;
 
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
-    private ?string $oauthRefreshToken = null;
+    public ?string $oauthRefreshToken = null;
 
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $oauthTokenExpiry = null;
+    public ?DateTimeImmutable $oauthTokenExpiry = null;
 
     #[ORM\Column]
-    private ?bool $isActive = null;
+    public ?bool $isActive = null;
 
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $lastSyncedAt = null;
+    public ?DateTimeImmutable $lastSyncedAt = null;
 
-    #[ORM\Column]
-    private ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    private ?DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $gmailHistoryId = null;
+    public ?string $gmailHistoryId = null;
 
     /**
      * When the users.watch() registration for this mailbox expires.
      * Google watch registrations last at most 7 days and must be renewed.
      */
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $gmailWatchExpiry = null;
+    public ?DateTimeImmutable $gmailWatchExpiry = null;
 
     /**
      * The resource name returned by users.watch() — stored so we can call
      * users.stop() if the account is disconnected.
      */
     #[ORM\Column(length: 512, nullable: true)]
-    private ?string $gmailWatchResourceName = null;
+    public ?string $gmailWatchResourceName = null;
 
     /**
      * @var Collection<int, EmailAlias>
      */
     #[ORM\OneToMany(targetEntity: EmailAlias::class, mappedBy: 'account', cascade: ['persist'], orphanRemoval: true)]
-    private Collection $aliases;
+    public private(set) Collection $aliases;
 
     /**
      * @var Collection<int, Mailbox>
      */
     #[ORM\OneToMany(targetEntity: Mailbox::class, mappedBy: 'account')]
-    private Collection $mailboxes;
+    public private(set) Collection $mailboxes;
 
     /**
      * @var Collection<int, MessageThread>
      */
     #[ORM\OneToMany(targetEntity: MessageThread::class, mappedBy: 'account')]
-    private Collection $messageThreads;
+    public private(set) Collection $messageThreads;
 
     /**
      * Not every message hangs off a mailbox or a thread (drafts and
@@ -138,7 +138,7 @@ class Account extends AccountModel
      * @var Collection<int, Message>
      */
     #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'account')]
-    private Collection $messages;
+    public private(set) Collection $messages;
 
     /**
      * Free-form per-account settings. Empty by default; readers assume their
@@ -153,16 +153,19 @@ class Account extends AccountModel
      * from "healthy but quiet".
      */
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $gmailLastPushAt = null;
+    public ?DateTimeImmutable $gmailLastPushAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $oauthLastRefreshAt = null;
+    public ?DateTimeImmutable $oauthLastRefreshAt = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $oauthLastRefreshError = null;
+    public ?string $oauthLastRefreshError = null;
 
+    /**
+     * @var array<string, string>  graphFolderId => deltaLink
+     */
     #[ORM\Column(type: Types::JSON)]
-    private array $graphDeltaLinks = [];
+    public array $graphDeltaLinks = [];
 
     /**
      * Whether this mailbox honours Prefer: IdType="ImmutableId".
@@ -170,19 +173,19 @@ class Account extends AccountModel
      * Message-ID — but means messages re-address on every folder move.
      */
     #[ORM\Column(nullable: true)]
-    private ?bool $graphImmutableIds = null;
+    public ?bool $graphImmutableIds = null;
 
     #[ORM\Column(options: ['default' => false])]
-    private bool $pushEnabled = false;
+    public bool $pushEnabled = false;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $graphSubscriptionId = null;
+    public ?string $graphSubscriptionId = null;
 
     #[ORM\Column(length: 128, nullable: true)]
-    private ?string $graphSubscriptionClientState = null;
+    public ?string $graphSubscriptionClientState = null;
 
     #[ORM\Column(nullable: true)]
-    private ?DateTimeImmutable $graphSubscriptionExpiresAt = null;
+    public ?DateTimeImmutable $graphSubscriptionExpiresAt = null;
 
     public function __construct()
     {
@@ -190,288 +193,15 @@ class Account extends AccountModel
         $this->mailboxes = new ArrayCollection();
         $this->messageThreads = new ArrayCollection();
         $this->messages = new ArrayCollection();
-        $this->setCreatedAt(new DateTimeImmutable());
-        $this->setUpdatedAt(new DateTimeImmutable());
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getUsr(): ?User
-    {
-        return $this->usr;
-    }
-
-    public function setUsr(?User $usr): static
-    {
-        $this->usr = $usr;
-
-        return $this;
-    }
-
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function setName(?string $name): static
-    {
-        $this->name = $name;
-        return $this;
-    }
-
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(?string $email): static
-    {
-        $this->email = $email;
-
-        return $this;
-    }
-
-    public function getImapHost(): ?string
-    {
-        return $this->imapHost;
-    }
-
-    public function setImapHost(?string $imapHost): static
-    {
-        $this->imapHost = $imapHost;
-
-        return $this;
-    }
-
-    public function getImapPort(): ?int
-    {
-        return $this->imapPort;
-    }
-
-    public function setImapPort(?int $imapPort): static
-    {
-        $this->imapPort = $imapPort;
-
-        return $this;
-    }
-
-    public function getImapEncryption(): ?string
-    {
-        return $this->imapEncryption;
-    }
-
-    public function setImapEncryption(?string $imapEncryption): static
-    {
-        $this->imapEncryption = $imapEncryption;
-
-        return $this;
-    }
-
-    public function getUsername(): ?string
-    {
-        return $this->username;
-    }
-
-    public function setUsername(string $username): static
-    {
-        $this->username = $username;
-
-        return $this;
-    }
-
-    public function getPassword(): ?string
-    {
-        return $this->password;
-    }
-
-    public function setPassword(?string $password): static
-    {
-        $this->password = $password;
-
-        return $this;
-    }
-
-    public function getSmtpHost(): ?string
-    {
-        return $this->smtpHost;
-    }
-
-    public function setSmtpHost(?string $smtpHost): static
-    {
-        $this->smtpHost = $smtpHost;
-
-        return $this;
-    }
-
-    public function getSmtpPort(): ?int
-    {
-        return $this->smtpPort;
-    }
-
-    public function setSmtpPort(?int $smtpPort): static
-    {
-        $this->smtpPort = $smtpPort;
-
-        return $this;
-    }
-
-    public function getSmtpEncryption(): ?string
-    {
-        return $this->smtpEncryption;
-    }
-
-    public function setSmtpEncryption(?string $smtpEncryption): static
-    {
-        $this->smtpEncryption = $smtpEncryption;
-
-        return $this;
-    }
-
-    public function getAuthType(): ?string
-    {
-        return $this->authType;
-    }
-
-    public function setAuthType(string $authType): static
-    {
-        $this->authType = $authType;
-
-        return $this;
-    }
-
-    public function getOauthProvider(): ?string
-    {
-        return $this->oauthProvider;
-    }
-
-    public function setOauthProvider(?string $oauthProvider): static
-    {
-        $this->oauthProvider = $oauthProvider;
-
-        return $this;
-    }
-
-    public function getOauthAccessToken(): ?string
-    {
-        return $this->oauthAccessToken;
-    }
-
-    public function setOauthAccessToken(?string $oauthAccessToken): static
-    {
-        $this->oauthAccessToken = $oauthAccessToken;
-
-        return $this;
-    }
-
-    public function getOauthRefreshToken(): ?string
-    {
-        return $this->oauthRefreshToken;
-    }
-
-    public function setOauthRefreshToken(?string $oauthRefreshToken): static
-    {
-        $this->oauthRefreshToken = $oauthRefreshToken;
-
-        return $this;
-    }
-
-    public function getOauthTokenExpiry(): ?DateTimeImmutable
-    {
-        return $this->oauthTokenExpiry;
-    }
-
-    public function setOauthTokenExpiry(?DateTimeImmutable $oauthTokenExpiry): static
-    {
-        $this->oauthTokenExpiry = $oauthTokenExpiry;
-
-        return $this;
-    }
-
-    public function isActive(): ?bool
-    {
-        return $this->isActive;
-    }
-
-    public function setIsActive(bool $isActive): static
-    {
-        $this->isActive = $isActive;
-
-        return $this;
-    }
-
-    public function getLastSyncedAt(): ?DateTimeImmutable
-    {
-        return $this->lastSyncedAt;
-    }
-
-    public function setLastSyncedAt(?DateTimeImmutable $lastSyncedAt): static
-    {
-        $this->lastSyncedAt = $lastSyncedAt;
-
-        return $this;
-    }
-
-    public function getCreatedAt(): ?DateTimeImmutable
-    {
-        return $this->createdAt;
-    }
-
-    public function setCreatedAt(DateTimeImmutable $createdAt): static
-    {
-        $this->createdAt = $createdAt;
-
-        return $this;
-    }
-
-    public function getUpdatedAt(): ?DateTimeImmutable
-    {
-        return $this->updatedAt;
-    }
-
-    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
-    {
-        $this->updatedAt = $updatedAt;
-
-        return $this;
-    }
-    public function getSortOrder(): int
-    {
-        return $this->sortOrder;
-    }
-
-    public function setSortOrder(int $sortOrder): static
-    {
-        $this->sortOrder = $sortOrder;
-
-        return $this;
-    }
-    public function isPrimary(): bool
-    {
-        return $this->isPrimary;
-    }
-
-    public function setIsPrimary(bool $isPrimary): static
-    {
-        $this->isPrimary = $isPrimary;
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Mailbox>
-     */
-    public function getMailboxes(): Collection
-    {
-        return $this->mailboxes;
+        $this->createdAt = new DateTimeImmutable();
+        $this->updatedAt = new DateTimeImmutable();
     }
 
     public function addMailbox(Mailbox $mailbox): static
     {
         if (!$this->mailboxes->contains($mailbox)) {
             $this->mailboxes->add($mailbox);
-            $mailbox->setAccount($this);
+            $mailbox->account = $this;
         }
 
         return $this;
@@ -481,27 +211,19 @@ class Account extends AccountModel
     {
         if ($this->mailboxes->removeElement($mailbox)) {
             // set the owning side to null (unless already changed)
-            if ($mailbox->getAccount() === $this) {
-                $mailbox->setAccount(null);
+            if ($mailbox->account === $this) {
+                $mailbox->account = null;
             }
         }
 
         return $this;
     }
 
-    /**
-     * @return Collection<int, MessageThread>
-     */
-    public function getMessageThreads(): Collection
-    {
-        return $this->messageThreads;
-    }
-
     public function addMessageThread(MessageThread $messageThread): static
     {
         if (!$this->messageThreads->contains($messageThread)) {
             $this->messageThreads->add($messageThread);
-            $messageThread->setAccount($this);
+            $messageThread->account = $this;
         }
 
         return $this;
@@ -511,52 +233,11 @@ class Account extends AccountModel
     {
         if ($this->messageThreads->removeElement($messageThread)) {
             // set the owning side to null (unless already changed)
-            if ($messageThread->getAccount() === $this) {
-                $messageThread->setAccount(null);
+            if ($messageThread->account === $this) {
+                $messageThread->account = null;
             }
         }
 
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Message>
-     */
-    public function getMessages(): Collection
-    {
-        return $this->messages;
-    }
-
-    public function getGmailHistoryId(): ?string
-    {
-        return $this->gmailHistoryId;
-    }
-
-    public function setGmailHistoryId(?string $gmailHistoryId): static
-    {
-        $this->gmailHistoryId = $gmailHistoryId;
-        return $this;
-    }
-
-    public function getGmailWatchExpiry(): ?DateTimeImmutable
-    {
-        return $this->gmailWatchExpiry;
-    }
-
-    public function setGmailWatchExpiry(?DateTimeImmutable $gmailWatchExpiry): static
-    {
-        $this->gmailWatchExpiry = $gmailWatchExpiry;
-        return $this;
-    }
-
-    public function getGmailWatchResourceName(): ?string
-    {
-        return $this->gmailWatchResourceName;
-    }
-
-    public function setGmailWatchResourceName(?string $gmailWatchResourceName): static
-    {
-        $this->gmailWatchResourceName = $gmailWatchResourceName;
         return $this;
     }
 
@@ -607,71 +288,14 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getGmailLastPushAt(): ?DateTimeImmutable
-    {
-        return $this->gmailLastPushAt;
-    }
-
-    public function setGmailLastPushAt(?DateTimeImmutable $gmailLastPushAt): static
-    {
-        $this->gmailLastPushAt = $gmailLastPushAt;
-
-        return $this;
-    }
-
-    public function getOauthLastRefreshAt(): ?DateTimeImmutable
-    {
-        return $this->oauthLastRefreshAt;
-    }
-
-    public function setOauthLastRefreshAt(?DateTimeImmutable $oauthLastRefreshAt): static
-    {
-        $this->oauthLastRefreshAt = $oauthLastRefreshAt;
-
-        return $this;
-    }
-
-    public function getOauthLastRefreshError(): ?string
-    {
-        return $this->oauthLastRefreshError;
-    }
-
-    public function setOauthLastRefreshError(?string $oauthLastRefreshError): static
-    {
-        $this->oauthLastRefreshError = $oauthLastRefreshError;
-
-        return $this;
-    }
     /**
-     * @return array<string, string>  graphFolderId => deltaLink
+     * Which provider this account talks to, read off the pair of columns that
+     * actually record it.
+     *
+     * Both stay methods: there is no boolean column here. They answer a
+     * question about $authType and $oauthProvider, which is an interpretation
+     * of two strings rather than the plain read $isActive and $pushEnabled are.
      */
-    public function getGraphDeltaLinks(): array
-    {
-        return $this->graphDeltaLinks;
-    }
-
-    /**
-     * @param array<string, string> $graphDeltaLinks
-     */
-    public function setGraphDeltaLinks(array $graphDeltaLinks): static
-    {
-        $this->graphDeltaLinks = $graphDeltaLinks;
-
-        return $this;
-    }
-
-    public function getGraphImmutableIds(): ?bool
-    {
-        return $this->graphImmutableIds;
-    }
-
-    public function setGraphImmutableIds(?bool $graphImmutableIds): static
-    {
-        $this->graphImmutableIds = $graphImmutableIds;
-
-        return $this;
-    }
-
     public function isMicrosoft(): bool
     {
         if (AuthType::OAuth2->value !== $this->authType) {
@@ -680,25 +304,27 @@ class Account extends AccountModel
 
         return MailProvider::Microsoft->value === $this->oauthProvider;
     }
+
     public function isGmail(): bool
     {
         return AuthType::OAuth2->value === $this->authType
             && MailProvider::Google->value === $this->oauthProvider;
     }
+
     /**
      * Whether label create/rename/delete is mirrored to the provider.
      *
      * Lives in the free-form settings bag rather than its own column: it is a
      * user preference with a safe default, not something queried or indexed.
+     * That is also why it stays a method — there is no boolean column here to
+     * expose, only an untyped bag entry that may be missing or hold anything,
+     * and reading it is an interpretation rather than a plain read. Writers go
+     * through setSetting(self::SETTING_LABEL_SYNC, …), which is all a setter
+     * here would have been.
      */
     public function isLabelSyncEnabled(): bool
     {
         return true === $this->getSetting(self::SETTING_LABEL_SYNC, false);
-    }
-
-    public function setLabelSyncEnabled(bool $enabled): static
-    {
-        return $this->setSetting(self::SETTING_LABEL_SYNC, $enabled);
     }
 
     /**
@@ -709,64 +335,67 @@ class Account extends AccountModel
      * usable, while the newest couple of thousand are what the user actually
      * reads. Older mail is not queued for later, it is simply not fetched
      * yet — raising the cap lets a later run walk further back, tracked by
-     * SETTING_BACKFILL_TARGET.
+     * $backfillTarget.
+     *
+     * Virtual, so there is no column behind it — the value lives in the
+     * settings bag, and Doctrine refuses to map a property whose hooks do not
+     * touch a backing store.
      */
-    public function getSyncLimit(): int
-    {
-        return max(0, (int) $this->getSetting(self::SETTING_SYNC_LIMIT, 0));
-    }
-
-    public function setSyncLimit(int $limit): static
-    {
-        return $this->setSetting(self::SETTING_SYNC_LIMIT, max(0, $limit));
+    public int $syncLimit {
+        get => max(0, (int) $this->getSetting(self::SETTING_SYNC_LIMIT, 0));
+        set (int $limit) {
+            $this->setSetting(self::SETTING_SYNC_LIMIT, max(0, $limit));
+        }
     }
 
     /**
      * How far back a completed backfill reached: 0 for the whole mailbox, a
      * positive count for the newest N, null when none has ever finished.
+     *
+     * Virtual for the same reason as $syncLimit.
      */
-    public function getBackfillTarget(): ?int
-    {
-        $target = $this->getSetting(self::SETTING_BACKFILL_TARGET);
+    public ?int $backfillTarget {
+        get {
+            $target = $this->getSetting(self::SETTING_BACKFILL_TARGET);
 
-        return null === $target ? null : max(0, (int) $target);
-    }
-
-    public function setBackfillTarget(?int $target): static
-    {
-        return $this->setSetting(
-            self::SETTING_BACKFILL_TARGET,
-            null === $target ? null : max(0, $target),
-        );
-    }
-
-    public function getBackfillRanAt(): ?DateTimeImmutable
-    {
-        $timestamp = $this->getSetting(self::SETTING_BACKFILL_RAN_AT);
-
-        if (null === $timestamp) {
-            return null;
+            return null === $target ? null : max(0, (int) $target);
         }
-
-        return (new DateTimeImmutable())->setTimestamp((int) $timestamp);
+        set (?int $target) {
+            $this->setSetting(
+                self::SETTING_BACKFILL_TARGET,
+                null === $target ? null : max(0, $target),
+            );
+        }
     }
 
-    public function setBackfillRanAt(?DateTimeImmutable $ranAt): static
-    {
-        return $this->setSetting(
-            self::SETTING_BACKFILL_RAN_AT,
-            $ranAt?->getTimestamp(),
-        );
+    /**
+     * Virtual for the same reason as $syncLimit, and stored as a Unix timestamp
+     * because the bag is JSON and a DateTimeImmutable does not survive it.
+     */
+    public ?DateTimeImmutable $backfillRanAt {
+        get {
+            $timestamp = $this->getSetting(self::SETTING_BACKFILL_RAN_AT);
+
+            if (null === $timestamp) {
+                return null;
+            }
+
+            return (new DateTimeImmutable())->setTimestamp((int) $timestamp);
+        }
+        set (?DateTimeImmutable $ranAt) {
+            $this->setSetting(
+                self::SETTING_BACKFILL_RAN_AT,
+                $ranAt?->getTimestamp(),
+            );
+        }
     }
 
-    public function getBackfillAttempts(): int
-    {
-        return max(0, (int) $this->getSetting(self::SETTING_BACKFILL_ATTEMPTS, 0));
-    }
-
-    public function setBackfillAttempts(int $attempts): static
-    {
-        return $this->setSetting(self::SETTING_BACKFILL_ATTEMPTS, max(0, $attempts));
+    /** Virtual for the same reason as $syncLimit. */
+    public int $backfillAttempts {
+        get => max(0, (int) $this->getSetting(self::SETTING_BACKFILL_ATTEMPTS, 0));
+        set (int $attempts) {
+            $this->setSetting(self::SETTING_BACKFILL_ATTEMPTS, max(0, $attempts));
+        }
     }
 
     /**
@@ -778,7 +407,7 @@ class Account extends AccountModel
      */
     public function needsBackfill(): bool
     {
-        $completed = $this->getBackfillTarget();
+        $completed = $this->backfillTarget;
 
         if (null === $completed) {
             return true;
@@ -790,7 +419,7 @@ class Account extends AccountModel
             return false;
         }
 
-        $limit = $this->getSyncLimit();
+        $limit = $this->syncLimit;
 
         return 0 === $limit || $limit > $completed;
     }
@@ -816,54 +445,11 @@ class Account extends AccountModel
         return true === $this->isGmail() || true === $this->isMicrosoft();
     }
 
-    public function isPushEnabled(): bool
-    {
-        return $this->pushEnabled;
-    }
-
-    public function setPushEnabled(bool $pushEnabled): static
-    {
-        $this->pushEnabled = $pushEnabled;
-
-        return $this;
-    }
-
-    public function getGraphSubscriptionId(): ?string
-    {
-        return $this->graphSubscriptionId;
-    }
-
-    public function setGraphSubscriptionId(?string $graphSubscriptionId): static
-    {
-        $this->graphSubscriptionId = $graphSubscriptionId;
-
-        return $this;
-    }
-
-    public function getGraphSubscriptionClientState(): ?string
-    {
-        return $this->graphSubscriptionClientState;
-    }
-
-    public function setGraphSubscriptionClientState(?string $graphSubscriptionClientState): static
-    {
-        $this->graphSubscriptionClientState = $graphSubscriptionClientState;
-
-        return $this;
-    }
-
-    public function getGraphSubscriptionExpiresAt(): ?\DateTimeImmutable
-    {
-        return $this->graphSubscriptionExpiresAt;
-    }
-
-    public function setGraphSubscriptionExpiresAt(?\DateTimeImmutable $graphSubscriptionExpiresAt): static
-    {
-        $this->graphSubscriptionExpiresAt = $graphSubscriptionExpiresAt;
-
-        return $this;
-    }
-
+    /**
+     * Stays a method rather than becoming a property: this reads a timestamp
+     * and answers a question about it against the clock, which is an
+     * interpretation, not the mapped boolean column that $isActive is.
+     */
     public function isGmailWatchActive(): bool
     {
         $expiry = $this->gmailWatchExpiry;
@@ -872,15 +458,7 @@ class Account extends AccountModel
             return false;
         }
 
-        return $expiry > new \DateTimeImmutable();
-    }
-
-    /**
-     * @return Collection<int, EmailAlias>
-     */
-    public function getAliases(): Collection
-    {
-        return $this->aliases;
+        return $expiry > new DateTimeImmutable();
     }
 
     public function addAlias(EmailAlias $alias): static
@@ -899,55 +477,66 @@ class Account extends AccountModel
         return $this;
     }
 
-    public function getPrimaryAlias(): ?EmailAlias
-    {
-        foreach ($this->aliases as $alias) {
-            if (EmailAliasStatus::Primary === $alias->status) {
-                return $alias;
+    /**
+     * Virtual, so there is no column behind it — the aliases are the state and
+     * this is only a view of them.
+     */
+    public ?EmailAlias $primaryAlias {
+        get {
+            foreach ($this->aliases as $alias) {
+                if (EmailAliasStatus::Primary === $alias->status) {
+                    return $alias;
+                }
             }
-        }
 
-        return null;
+            return null;
+        }
     }
 
     /**
      * The address to show in the UI and default the From to. Falls back to the
      * legacy email/username while an account has no aliases yet (pre-seed).
+     *
+     * Virtual for the same reason as $primaryAlias.
      */
-    public function getDisplayAddress(): ?string
-    {
-        $primary = $this->getPrimaryAlias();
+    public ?string $displayAddress {
+        get {
+            $primary = $this->primaryAlias;
 
-        if (null !== $primary) {
-            return $primary->address;
+            if (null !== $primary) {
+                return $primary->address;
+            }
+
+            return $this->email ?? $this->username;
         }
-
-        return $this->getEmail() ?? $this->getUsername();
     }
 
     /**
      * Sendable aliases (Primary first), for the From dropdown.
      *
-     * @return list<EmailAlias>
+     * Virtual for the same reason as $primaryAlias.
+     *
+     * @var list<EmailAlias>
      */
-    public function getSendableAliases(): array
-    {
-        $sendable = [];
+    public array $sendableAliases {
+        get {
+            $sendable = [];
 
-        foreach ($this->aliases as $alias) {
-            if (true === $alias->status->isSendable()) {
-                $sendable[] = $alias;
+            foreach ($this->aliases as $alias) {
+                if (true === $alias->status->isSendable()) {
+                    $sendable[] = $alias;
+                }
             }
+
+            usort(
+                $sendable,
+                static fn (EmailAlias $a, EmailAlias $b): int
+                => (EmailAliasStatus::Primary === $b->status ? 1 : 0)
+                    - (EmailAliasStatus::Primary === $a->status ? 1 : 0),
+            );
+
+            return $sendable;
         }
-
-        usort(
-            $sendable,
-            static fn (EmailAlias $a, EmailAlias $b): int
-            => (EmailAliasStatus::Primary === $b->status ? 1 : 0)
-                - (EmailAliasStatus::Primary === $a->status ? 1 : 0),
-        );
-
-        return $sendable;
     }
 
     /**
@@ -956,27 +545,30 @@ class Account extends AccountModel
      * (so an Inactive alias genuinely stops being claimed); before seeding it
      * falls back to the legacy email/username so behaviour is unchanged.
      *
-     * @return list<string>
+     * Virtual for the same reason as $primaryAlias.
+     *
+     * @var list<string>
      */
-    public function getOwnedAddresses(): array
-    {
-        $owned = [];
+    public array $ownedAddresses {
+        get {
+            $owned = [];
 
-        foreach ($this->aliases as $alias) {
-            if (true === $alias->status->countsForOwnership()) {
-                $owned[] = $alias->address;
+            foreach ($this->aliases as $alias) {
+                if (true === $alias->status->countsForOwnership()) {
+                    $owned[] = $alias->address;
+                }
             }
+
+            if (count($owned) > 0) {
+                return array_values(array_unique($owned));
+            }
+
+            $fallback = array_filter([
+                null !== $this->email ? strtolower($this->email) : null,
+                null !== $this->username ? strtolower($this->username) : null,
+            ]);
+
+            return array_values(array_unique($fallback));
         }
-
-        if (count($owned) > 0) {
-            return array_values(array_unique($owned));
-        }
-
-        $fallback = array_filter([
-            null !== $this->getEmail() ? strtolower($this->getEmail()) : null,
-            null !== $this->getUsername() ? strtolower($this->getUsername()) : null,
-        ]);
-
-        return array_values(array_unique($fallback));
     }
 }

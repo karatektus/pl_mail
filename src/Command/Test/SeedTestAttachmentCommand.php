@@ -15,6 +15,7 @@ use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
@@ -65,6 +66,7 @@ final class SeedTestAttachmentCommand extends Command
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
         private readonly AccountRepository       $accountRepository,
+        private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelResolver           $labelResolver,
         private readonly AttachmentStorageHelper $attachmentStorage,
@@ -105,38 +107,36 @@ final class SeedTestAttachmentCommand extends Command
         $inboxLabel = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $now = new DateTimeImmutable();
 
-        $message = new Message()
-            ->setAccount($account)
-            ->setSubject(self::SUBJECT)
-            ->setFromName('E2E Sender')
-            ->setFromAddress('sender@e2e.test')
-            ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->getEmail()]])
-            ->setBodyText('Seeded message with one attachment.')
-            ->setReceivedAt($now)
-            ->setSentAt($now)
-            ->setHasAttachments(true)
-            ->setFlags([])
-            ->setSyncedAt($now)
-            ->setUpdatedAt($now)
-            ->addLabel($inboxLabel);
+        $message = new Message();
+        $message->account = $account;
+        $message->subject = self::SUBJECT;
+        $message->fromName = 'E2E Sender';
+        $message->fromAddress = 'sender@e2e.test';
+        $message->toAddresses = [['name' => 'E2E Tester', 'address' => (string) $user->email]];
+        $message->bodyText = 'Seeded message with one attachment.';
+        $message->receivedAt = $now;
+        $message->sentAt = $now;
+        $message->hasAttachments = true;
+        $message->flags = [];
+        $message->syncedAt = $now;
+        $message->addLabel($inboxLabel);
 
         $this->entityManager->persist($message);
 
         $thread = new MessageThread();
-        $thread
-            ->setAccount($account)
-            ->setSubject(self::SUBJECT)
-            ->setNormalizedSubject(mb_strtolower(self::SUBJECT))
-            ->setThreadingMethod(ThreadingMethod::SubjectFallback)
-            ->setMessageCount(1)
-            ->setUnreadCount(1)
-            ->setCategory(MessageCategory::Primary)
-            ->setAttachmentCount(1)
-            ->setLastMessageAt($now)
-            ->addLabel($inboxLabel);
+        $thread->account = $account;
+        $thread->subject = self::SUBJECT;
+        $thread->normalizedSubject = mb_strtolower(self::SUBJECT);
+        $thread->threadingMethod = ThreadingMethod::SubjectFallback;
+        $thread->messageCount = 1;
+        $thread->unreadCount = 1;
+        $thread->category = MessageCategory::Primary;
+        $thread->attachmentCount = 1;
+        $thread->lastMessageAt = $now;
+        $thread->addLabel($inboxLabel);
 
         $this->entityManager->persist($thread);
-        $message->setThread($thread);
+        $message->thread = $thread;
 
         // The message id is part of the storage path, so the row has to exist
         // before the file can be written.
@@ -146,31 +146,31 @@ final class SeedTestAttachmentCommand extends Command
         // these rows ride out on the flush that stores the part below. One
         // "created" covers the attachment as well: a client answers it by
         // fetching the Email, and by then the part is there.
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $this->stateManager->recordCreated(
             $accountId,
             JmapObjectType::Email,
-            (string) $message->getId(),
+            (string) $message->id,
         );
-        $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
+        $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
 
         $storagePath = $this->attachmentStorage->store(
-            (int) $account->getId(),
+            (int) $account->id,
             0,
-            (int) $message->getId(),
+            (int) $message->id,
             self::FILENAME,
             self::CONTENTS,
         );
 
-        $part = new MessagePart()
-            ->setMessage($message)
-            ->setContentType('text/plain')
-            ->setFilename(self::FILENAME)
-            ->setDisposition('attachment')
-            ->setSize(strlen(self::CONTENTS))
-            ->setStoragePath($storagePath)
-            ->setIsInline(false);
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'text/plain';
+        $part->filename    = self::FILENAME;
+        $part->disposition = 'attachment';
+        $part->size        = strlen(self::CONTENTS);
+        $part->storagePath = $storagePath;
+        $part->isInline    = false;
 
         $message->addMessagePart($part);
         $this->entityManager->persist($part);
@@ -195,16 +195,15 @@ final class SeedTestAttachmentCommand extends Command
         // Normally seed-mail has already made this; creating it here only
         // matters when this command runs on its own.
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setName('E2E Mailbox')
-            ->setEmail('E2E Mailbox')
-            ->setUsername(self::SEED_ACCOUNT_USERNAME)
-            ->setImapHost('imap.e2e.test')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->name = 'E2E Mailbox';
+        $account->email = 'E2E Mailbox';
+        $account->username = self::SEED_ACCOUNT_USERNAME;
+        $account->imapHost = 'imap.e2e.test';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->authType = 'password';
+        $account->isActive = true;
 
         $this->entityManager->persist($account);
         $this->entityManager->flush();
@@ -228,9 +227,9 @@ final class SeedTestAttachmentCommand extends Command
             return;
         }
 
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = array_map(
-            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,
         );
 
@@ -238,20 +237,14 @@ final class SeedTestAttachmentCommand extends Command
         // SeedTestEmailCommand::wipeThreads() gives: a client that is not told
         // keeps asking for rows that no longer exist, and hydrating the
         // messages to find them out breaks the reseed's own flush.
-        $messageIds = array_column(
-            $this->entityManager
-                ->createQuery('SELECT m.id FROM ' . Message::class . ' m WHERE m.thread IN (:threads)')
-                ->setParameter('threads', $threadIds)
-                ->getScalarResult(),
-            'id',
-        );
+        $messageIds = $this->messageRepository->findIdsForThreads($threadIds);
 
         foreach ($messageIds as $messageId) {
             $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
         }
 
         foreach ($threads as $thread) {
-            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->id);
 
             $this->entityManager->remove($thread);
         }

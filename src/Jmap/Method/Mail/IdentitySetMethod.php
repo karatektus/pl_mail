@@ -47,7 +47,7 @@ final class IdentitySetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Identity);
         $ifInState = $arguments['ifInState'] ?? null;
@@ -134,7 +134,7 @@ final class IdentitySetMethod implements JmapMethod
             // The id is needed for the response and for "#creationId".
             $this->entityManager->flush();
 
-            $this->stateManager->recordCreated($account->getId(), JmapObjectType::Identity, (string) $alias->id);
+            $this->stateManager->recordCreated($account->id, JmapObjectType::Identity, (string) $alias->id);
             $context->recordCreatedId($creationId, (string) $alias->id);
 
             $created[$creationId] = [
@@ -191,7 +191,7 @@ final class IdentitySetMethod implements JmapMethod
                 $alias->displayName = $this->nameOrNull($patch['name']) ?? '';
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Identity, (string) $alias->id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Identity, (string) $alias->id);
             $updated[$id] = null;
         }
     }
@@ -240,7 +240,7 @@ final class IdentitySetMethod implements JmapMethod
                 continue;
             }
 
-            $this->stateManager->recordDestroyed($account->getId(), JmapObjectType::Identity, (string) $alias->id);
+            $this->stateManager->recordDestroyed($account->id, JmapObjectType::Identity, (string) $alias->id);
 
             $account->removeAlias($alias);
             $this->entityManager->remove($alias);
@@ -301,7 +301,7 @@ final class IdentitySetMethod implements JmapMethod
             return null;
         }
 
-        foreach ($account->getAliases() as $alias) {
+        foreach ($account->aliases as $alias) {
             if ((string) $alias->id === $id) {
                 return $alias;
             }

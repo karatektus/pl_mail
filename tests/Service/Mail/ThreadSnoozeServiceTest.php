@@ -83,12 +83,12 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         $inbox   = $this->role(LabelRole::Inbox);
         $snoozed = $this->role(LabelRole::Snoozed);
 
-        foreach ($thread->getMessages() as $message) {
-            self::assertFalse($message->getLabels()->contains($inbox), 'Inbox label should be gone');
-            self::assertTrue($message->getLabels()->contains($snoozed), 'Snoozed label should be set');
+        foreach ($thread->messages as $message) {
+            self::assertFalse($message->labels->contains($inbox), 'Inbox label should be gone');
+            self::assertTrue($message->labels->contains($snoozed), 'Snoozed label should be set');
         }
 
-        self::assertSame($until, $thread->getSnoozedUntil());
+        self::assertSame($until, $thread->snoozedUntil);
         self::assertTrue($thread->isSnoozed());
     }
 
@@ -122,12 +122,12 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         $inbox   = $this->role(LabelRole::Inbox);
         $snoozed = $this->role(LabelRole::Snoozed);
 
-        foreach ($thread->getMessages() as $message) {
-            self::assertTrue($message->getLabels()->contains($inbox));
-            self::assertFalse($message->getLabels()->contains($snoozed));
+        foreach ($thread->messages as $message) {
+            self::assertTrue($message->labels->contains($inbox));
+            self::assertFalse($message->labels->contains($snoozed));
         }
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertFalse($thread->isSnoozed());
     }
 
@@ -139,20 +139,21 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     {
         $thread = $this->inboxThread(3);
 
-        foreach ($thread->getMessages() as $message) {
-            $message->addFlag(MessageFlag::SEEN)->setSeenAt(new \DateTimeImmutable());
+        foreach ($thread->messages as $message) {
+            $message->addFlag(MessageFlag::SEEN);
+            $message->seenAt = new \DateTimeImmutable();
         }
 
         $this->em->flush();
 
         $this->service->wake($thread);
 
-        foreach ($thread->getMessages() as $message) {
+        foreach ($thread->messages as $message) {
             self::assertFalse($message->hasFlag(MessageFlag::SEEN));
-            self::assertNull($message->getSeenAt());
+            self::assertNull($message->seenAt);
         }
 
-        self::assertSame(3, $thread->getUnreadCount());
+        self::assertSame(3, $thread->unreadCount);
     }
 
     /**
@@ -167,9 +168,9 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         $this->service->wake($thread);
         $this->service->wake($thread);
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertTrue(
-            $thread->getMessages()->first()->getLabels()->contains($this->role(LabelRole::Inbox)),
+            $thread->messages->first()->labels->contains($this->role(LabelRole::Inbox)),
         );
     }
 
@@ -185,7 +186,7 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
 
         $this->service->snooze($thread, $past);
 
-        self::assertSame($past, $thread->getSnoozedUntil());
+        self::assertSame($past, $thread->snoozedUntil);
         self::assertFalse($thread->isSnoozed(), 'already due, so not snoozed');
     }
 
@@ -193,20 +194,19 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     public function testEmptyThreadIsSafe(): void
     {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Empty')
-            ->setNormalizedSubject('empty')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setSnoozedUntil(new \DateTimeImmutable('+1 day'));
+        $thread->account = $this->account;
+        $thread->subject = 'Empty';
+        $thread->normalizedSubject = 'empty';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->snoozedUntil = new \DateTimeImmutable('+1 day');
         $this->em->persist($thread);
         $this->em->flush();
 
         $this->service->snooze($thread, new \DateTimeImmutable('+2 days'));
         $this->service->wake($thread);
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
@@ -220,29 +220,27 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     {
         $inbox  = $this->role(LabelRole::Inbox);
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Snooze fixture')
-            ->setNormalizedSubject('snooze fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Snooze fixture';
+        $thread->normalizedSubject = 'snooze fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         for ($i = 0; $i < $messages; $i++) {
             $message = new Message();
-            $message
-                ->setAccount($this->account)
-                ->setSubject(sprintf('Snooze fixture %d', $i))
-                ->setFromAddress('sender@example.test')
-                ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-                ->setHasAttachments(false)
-                ->setMessageId(sprintf('<snooze-%s-%d@example.test>', uniqid('', true), $i))
-                // A mailbox and a UID, because LabelChangePropagator skips
-                // messages that have neither — without them the propagation
-                // assertion would be testing the fixture, not the service.
-                ->setMailbox($this->inboxMailbox)
-                ->setImapUid(1000 + $i);
+            $message->account = $this->account;
+            $message->subject = sprintf('Snooze fixture %d', $i);
+            $message->fromAddress = 'sender@example.test';
+            $message->receivedAt = new \DateTimeImmutable('-1 hour');
+            $message->hasAttachments = false;
+            $message->messageId = sprintf('<snooze-%s-%d@example.test>', uniqid('', true), $i);
+            // A mailbox and a UID, because LabelChangePropagator skips
+            // messages that have neither — without them the propagation
+            // assertion would be testing the fixture, not the service.
+            $message->mailbox = $this->inboxMailbox;
+            $message->imapUid = 1000 + $i;
 
             $message->addLabel($inbox);
             $thread->addMessage($message);
@@ -258,28 +256,26 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('snooze-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Snooze')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'snooze-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Snooze';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Snooze Fixture')
-            ->setUsername('snooze-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Snooze Fixture';
+        $account->username = 'snooze-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();
@@ -290,14 +286,11 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
 
         $this->em->persist($mailbox);
         $this->em->flush();

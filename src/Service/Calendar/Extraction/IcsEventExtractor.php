@@ -322,7 +322,7 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
             // A part that genuinely cannot be read — expired provider id,
             // missing file, revoked account. One missed event, nothing more.
             $this->logger->info('IcsEventExtractor: calendar part unavailable', [
-                'partId' => $part->getId(),
+                'partId' => $part->id,
                 'error'  => $e->getMessage(),
             ]);
 

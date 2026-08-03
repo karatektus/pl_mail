@@ -93,7 +93,7 @@ final readonly class CalendarProvisioner
     /** @return array{Calendar|null, bool} */
     private function ensureAccount(Account $account): array
     {
-        $user = $account->getUsr();
+        $user = $account->usr;
 
         if (false === $user instanceof User) {
             return [null, false];
@@ -110,7 +110,7 @@ final readonly class CalendarProvisioner
         $calendar            = new Calendar();
         $calendar->usr       = $user;
         $calendar->account   = $account;
-        $calendar->name      = (string) $account->getUsername();
+        $calendar->name      = (string) $account->username;
         $calendar->role      = CalendarRole::Account;
         $calendar->color     = self::ACCOUNT_COLORS[count($siblings) % count(self::ACCOUNT_COLORS)];
         // See ensureDefault() — same reason.

@@ -38,7 +38,7 @@ final class MimeHeaderHelper
         // 8-bit headers are routine from older German mail systems and from
         // mailing list software, they declare no charset anywhere, and webklex
         // passes them through untouched — so "Gr\xFC\xDFe von J\xF6rg" used to
-        // reach setSubject() as invalid UTF-8 and be rejected by Postgres,
+        // reach $subject as invalid UTF-8 and be rejected by Postgres,
         // losing the message rather than mangling it.
         $value = CharsetHelper::ensureUtf8($value);
 

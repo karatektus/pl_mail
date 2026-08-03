@@ -32,7 +32,7 @@ final readonly class ExtractEventsStep implements PostIngestStepInterface
         $ids = [];
 
         foreach ($result->messages as $message) {
-            $id = $message->getId();
+            $id = $message->id;
 
             if (null !== $id) {
                 $ids[] = (int) $id;

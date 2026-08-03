@@ -57,7 +57,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
         ]))->syncIncremental($account);
 
         self::assertTrue($this->profileWasFetched(), 'an expired cursor must trigger a full re-sync');
-        self::assertSame('999', $account->getGmailHistoryId(), 'the fresh cursor replaces the dead one');
+        self::assertSame('999', $account->gmailHistoryId, 'the fresh cursor replaces the dead one');
     }
 
     public function testAGoneHistoryIdRestartsToo(): void
@@ -95,7 +95,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
         }
 
         self::assertFalse($this->profileWasFetched(), 'a rate limit must not re-list the mailbox');
-        self::assertSame('12345', $account->getGmailHistoryId(), 'the cursor must survive');
+        self::assertSame('12345', $account->gmailHistoryId, 'the cursor must survive');
     }
 
     public function testAPermissionsFailureKeepsTheCursorEvenSpelledWith404(): void
@@ -116,7 +116,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             $syncer->syncIncremental($account);
         } finally {
             self::assertFalse($this->profileWasFetched());
-            self::assertSame('12345', $account->getGmailHistoryId());
+            self::assertSame('12345', $account->gmailHistoryId);
         }
     }
 
@@ -145,7 +145,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             ->syncIncremental($account);
 
         self::assertFalse($this->profileWasFetched());
-        self::assertSame('67890', $account->getGmailHistoryId());
+        self::assertSame('67890', $account->gmailHistoryId);
     }
 
     // ── Fixture ──────────────────────────────────────────────────────────────
@@ -220,9 +220,9 @@ final class GmailApiSyncerHistoryTest extends TestCase
     private function account(): Account
     {
         $account = new Account();
-        $account->setUsr(new User());
-        $account->setSyncLimit(500);
-        $account->setGmailHistoryId('12345');
+        $account->usr = new User();
+        $account->syncLimit = 500;
+        $account->gmailHistoryId = '12345';
 
         return $account;
     }

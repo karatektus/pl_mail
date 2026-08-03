@@ -117,7 +117,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $labelled = 0;
 
         foreach ($this->messages->findByIds($this->matchingIds()) as $message) {
-            if (true === $message->getLabels()->contains($this->label)) {
+            if (true === $message->labels->contains($this->label)) {
                 $labelled++;
             }
         }
@@ -141,32 +141,31 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('rule-run-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Rule')
-            ->setNameLast('Runner')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'rule-run-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Rule';
+        $this->user->nameLast = 'Runner';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            ->setEmail('Rule Runner')
-            ->setUsername('rule-runner@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        $this->account->email = 'Rule Runner';
+        $this->account->username = 'rule-runner@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
-        $this->label = new Label();
-        $this->label->setUsr($this->user)->setName('Walked');
+        $this->label       = new Label();
+        $this->label->usr  = $this->user;
+        $this->label->name = 'Walked';
         $this->em->persist($this->label);
 
         // Seven matches and three that must be left alone.
@@ -184,14 +183,13 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
     private function message(string $subject): void
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject($subject)
-            ->setFromAddress('sender@example.test')
-            ->setFromName('Sender')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-01 12:00:00'))
-            ->setHasAttachments(false);
+        $message->account = $this->account;
+        $message->subject = $subject;
+        $message->fromAddress = 'sender@example.test';
+        $message->fromName = 'Sender';
+        $message->bodyText = 'body';
+        $message->receivedAt = new \DateTimeImmutable('2026-07-01 12:00:00');
+        $message->hasAttachments = false;
 
         $this->em->persist($message);
     }

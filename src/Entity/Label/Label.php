@@ -12,6 +12,7 @@ use App\Repository\Label\LabelRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -38,8 +39,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: LabelRepository::class)]
 #[ORM\Table(name: 'label')]
 #[ORM\Index(name: 'idx_label_usr', columns: ['usr_id'])]
+#[ORM\HasLifecycleCallbacks]
 class Label
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -47,11 +51,11 @@ class Label
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    public private(set) ?User $usr = null;
+    public ?User $usr = null;
 
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
-    public private(set) ?self $parent = null;
+    public ?self $parent = null;
 
     /**
      * @var Collection<int, Label>
@@ -64,10 +68,10 @@ class Label
      * derived from the parent chain via $fullName.
      */
     #[ORM\Column(length: 255)]
-    public private(set) ?string $name = null;
+    public ?string $name = null;
 
     #[ORM\Column(length: 50, nullable: true, enumType: LabelRole::class)]
-    public private(set) ?LabelRole $role = null;
+    public ?LabelRole $role = null;
 
     /**
      * Per-account materialization. Provider ids (Gmail label id, Graph folder
@@ -83,10 +87,10 @@ class Label
      * Optional UI color (Tailwind token or hex, decided in Phase 5).
      */
     #[ORM\Column(length: 30, nullable: true)]
-    public private(set) ?string $color = null;
+    public ?string $color = null;
 
     #[ORM\Column(options: ['default' => true])]
-    public private(set) bool $isVisible = true;
+    public bool $isVisible = true;
 
     /**
      * Fixed ordering for system labels; null for custom labels, which sort
@@ -94,13 +98,9 @@ class Label
      * ASC by default).
      */
     #[ORM\Column(nullable: true)]
-    public private(set) ?int $sortOrder = null;
+    public ?int $sortOrder = null;
 
-    #[ORM\Column]
-    public private(set) ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public private(set) ?DateTimeImmutable $updatedAt = null;
 
     /**
      * Gmail-style full path, e.g. "Work/Invoices".
@@ -139,13 +139,6 @@ class Label
         $this->updatedAt = new DateTimeImmutable();
     }
 
-    public function setUsr(?User $usr): static
-    {
-        $this->usr = $usr;
-
-        return $this;
-    }
-
     /**
      * The materialization of this label on one account, or null when the
      * label has never been used there. LabelResolver::binding() is the
@@ -178,18 +171,11 @@ class Label
         return $this;
     }
 
-    public function setParent(?self $parent): static
-    {
-        $this->parent = $parent;
-
-        return $this;
-    }
-
     public function addChild(self $child): static
     {
         if (false === $this->children->contains($child)) {
             $this->children->add($child);
-            $child->setParent($this);
+            $child->parent = $this;
         }
 
         return $this;
@@ -199,51 +185,9 @@ class Label
     {
         if (true === $this->children->removeElement($child)) {
             if ($child->parent === $this) {
-                $child->setParent(null);
+                $child->parent = null;
             }
         }
-
-        return $this;
-    }
-
-    public function setName(string $name): static
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
-    public function setRole(?LabelRole $role): static
-    {
-        $this->role = $role;
-
-        return $this;
-    }
-
-    public function setColor(?string $color): static
-    {
-        $this->color = $color;
-
-        return $this;
-    }
-
-    public function setIsVisible(bool $isVisible): static
-    {
-        $this->isVisible = $isVisible;
-
-        return $this;
-    }
-
-    public function setSortOrder(?int $sortOrder): static
-    {
-        $this->sortOrder = $sortOrder;
-
-        return $this;
-    }
-
-    public function setUpdatedAt(DateTimeImmutable $updatedAt): static
-    {
-        $this->updatedAt = $updatedAt;
 
         return $this;
     }

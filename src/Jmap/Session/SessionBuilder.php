@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * client-side concern (one Email/query per account, merged in the client).
  *
  * NOTE — the ONLY place coupled to the mail-account entity shape. It uses:
- *   User::getAccounts(): iterable<Account>
+ *   User::$accounts: iterable<Account>
  *   Account::getId(): ?int
  *   Account::getEmail(): ?string
  * Adjust these three calls if the accessors move and nothing else changes.
@@ -41,12 +41,12 @@ final class SessionBuilder
         $accounts = [];
         $primaryId = null;
 
-        foreach ($user->getAccounts() as $account) {
-            $accountId = (string) $account->getId();
+        foreach ($user->accounts as $account) {
+            $accountId = (string) $account->id;
             $primaryId ??= $accountId;
 
             $accounts[$accountId] = [
-                'name' => (string) $account->getEmail(),
+                'name' => (string) $account->email,
                 'isPersonal' => true,
                 'isReadOnly' => false,
                 'accountCapabilities' => [

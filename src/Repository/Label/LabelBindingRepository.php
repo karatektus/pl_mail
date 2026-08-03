@@ -36,6 +36,9 @@ class LabelBindingRepository extends ServiceEntityRepository
     }
 
     /**
+     * QueryBuilder for `graphFolderId IS NOT NULL`: findBy() can ask for null,
+     * but not for its negation.
+     *
      * @return list<LabelBinding>
      */
     public function findWithGraphFolderIdForAccount(Account $account): array
@@ -83,6 +86,10 @@ class LabelBindingRepository extends ServiceEntityRepository
      * Binding ids on an account keyed by label id — lets callers translate
      * between the two id spaces without hydrating entities.
      *
+     * "Without hydrating entities" is the reason it is hand-written: findBy()
+     * returns bindings, and the JMAP mappers want two integers per row to
+     * translate ids with.
+     *
      * @return array<int, int> labelId => bindingId
      */
     public function bindingIdsByLabelId(int $accountId): array
@@ -103,6 +110,14 @@ class LabelBindingRepository extends ServiceEntityRepository
         return $map;
     }
 
+    /**
+     * The shared shape of every ordered binding read.
+     *
+     * Hand-written because both halves are beyond findBy(): the label is
+     * fetch-joined (every caller renders its name, so lazy loading is an N+1
+     * per mailbox), and the tiebreak is LOWER(name) rather than a field, so
+     * database collation cannot put "Zebra" before "apple".
+     */
     private function orderedQueryBuilder(int $accountId): \Doctrine\ORM\QueryBuilder
     {
         return $this->createQueryBuilder('binding')

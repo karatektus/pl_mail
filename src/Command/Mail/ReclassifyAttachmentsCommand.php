@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Mail;
 
 use App\Entity\Mail\Message;
-use App\Entity\Mail\MessagePart;
+use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\InlineAttachmentDetector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -34,6 +36,9 @@ final class ReclassifyAttachmentsCommand extends Command
 
     public function __construct(
         private readonly EntityManagerInterface   $em,
+        private readonly MessageRepository        $messages,
+        private readonly MessagePartRepository    $messageParts,
+        private readonly MessageThreadRepository  $threads,
         private readonly InlineAttachmentDetector $inlineDetector,
     ) {
         parent::__construct();
@@ -49,12 +54,7 @@ final class ReclassifyAttachmentsCommand extends Command
         $io     = new SymfonyStyle($input, $output);
         $dryRun = true === $input->getOption('dry-run');
 
-        $messageIds = array_column(
-            $this->em->createQuery(
-                'SELECT DISTINCT IDENTITY(p.message) AS id FROM ' . MessagePart::class . ' p'
-            )->getArrayResult(),
-            'id',
-        );
+        $messageIds = $this->messageParts->findDistinctMessageIds();
 
         $io->text(sprintf('%d messages with parts to inspect.', count($messageIds)));
 
@@ -64,23 +64,23 @@ final class ReclassifyAttachmentsCommand extends Command
 
         foreach (array_chunk($messageIds, self::BATCH_SIZE) as $chunk) {
             /** @var list<Message> $messages */
-            $messages = $this->em->getRepository(Message::class)->findBy(['id' => $chunk]);
+            $messages = $this->messages->findBy(['id' => $chunk]);
 
             foreach ($messages as $message) {
-                $bodyHtml       = $message->getBodyHtml();
+                $bodyHtml       = $message->bodyHtml;
                 $hasAttachments = false;
                 $touched        = false;
 
-                foreach ($message->getMessageParts() as $part) {
+                foreach ($message->messageParts as $part) {
                     $isInline = $this->inlineDetector->isInline(
-                        $part->getDisposition(),
-                        $part->getContentId(),
+                        $part->disposition,
+                        $part->contentId,
                         $bodyHtml,
                     );
 
-                    if ($isInline !== $part->isInline()) {
-                        $part->setIsInline($isInline);
-                        $part->setDisposition($isInline ? 'inline' : 'attachment');
+                    if ($isInline !== $part->isInline) {
+                        $part->isInline    = $isInline;
+                        $part->disposition = $isInline ? 'inline' : 'attachment';
                         ++$changedParts;
                         $touched = true;
                     }
@@ -90,8 +90,8 @@ final class ReclassifyAttachmentsCommand extends Command
                     }
                 }
 
-                if ($hasAttachments !== $message->hasAttachments()) {
-                    $message->setHasAttachments($hasAttachments);
+                if ($hasAttachments !== $message->hasAttachments) {
+                    $message->hasAttachments = $hasAttachments;
                     $touched = true;
                 }
 
@@ -111,7 +111,9 @@ final class ReclassifyAttachmentsCommand extends Command
         }
 
         if (false === $dryRun) {
-            $this->recountThreads();
+            // Thread counters are derived, so they are rebuilt from the
+            // repaired messages rather than patched by deltas.
+            $this->threads->recomputeAttachmentCounts();
         }
 
         $io->success(sprintf(
@@ -122,20 +124,5 @@ final class ReclassifyAttachmentsCommand extends Command
         ));
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * Thread counters are derived, so rebuild them from the repaired messages
-     * instead of trying to patch the deltas.
-     */
-    private function recountThreads(): void
-    {
-        $this->em->getConnection()->executeStatement(<<<'SQL'
-            UPDATE message_thread t
-            SET attachment_count = COALESCE((
-                SELECT COUNT(*) FROM message m
-                WHERE m.thread_id = t.id AND m.has_attachments = true
-            ), 0)
-        SQL);
     }
 }

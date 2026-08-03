@@ -196,7 +196,7 @@ final class FilterDescriber
             return $this->translator->trans('settings.filters.integration_missing');
         }
 
-        $userId = (int) $this->subject->getId();
+        $userId = (int) $this->subject->id;
 
         if (false === array_key_exists($userId, $this->integrationNames)) {
             $map = [];
@@ -220,7 +220,7 @@ final class FilterDescriber
             return $missing;
         }
 
-        $userId = (int) $this->subject->getId();
+        $userId = (int) $this->subject->id;
 
         if (false === array_key_exists($userId, $this->labelNames)) {
             $map = [];

@@ -45,7 +45,7 @@ final readonly class UserTimezoneResolver
      */
     public function resolve(?User $user): \DateTimeZone
     {
-        return self::zone($user?->getTimezone()) ?? $this->defaultZone();
+        return self::zone($user?->timezone) ?? $this->defaultZone();
     }
 
     public function nameFor(?User $user): string

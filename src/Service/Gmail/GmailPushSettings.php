@@ -32,7 +32,7 @@ final readonly class GmailPushSettings
     /** The topic to watch, or null when neither source has one. */
     public function topic(): ?string
     {
-        $stored = $this->configRepository->findOneByProvider(MailProvider::Google)?->getPubsubTopic();
+        $stored = $this->configRepository->findOneByProvider(MailProvider::Google)?->pubsubTopic;
 
         if (null !== $stored && '' !== $stored) {
             return $stored;

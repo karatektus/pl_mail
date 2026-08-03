@@ -42,7 +42,7 @@ final class GraphFolderResolver
             return null;
         }
 
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         if (true === array_key_exists($graphFolderId, $this->folderIdCache[$accountId] ?? [])) {
             $cachedId = $this->folderIdCache[$accountId][$graphFolderId];
@@ -83,7 +83,7 @@ final class GraphFolderResolver
      */
     public function resolveCategories(array $categories, Account $account): array
     {
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $labels    = [];
 
         foreach ($categories as $category) {
@@ -109,7 +109,7 @@ final class GraphFolderResolver
                 continue;
             }
 
-            $label = $this->labelRepository->findOneByFullNameForUser($name, $account->getUsr());
+            $label = $this->labelRepository->findOneByFullNameForUser($name, $account->usr);
 
             if (null === $label) {
                 $this->categoryIdCache[$accountId][$name] = null;

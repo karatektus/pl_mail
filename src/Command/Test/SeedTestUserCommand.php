@@ -90,19 +90,16 @@ final class SeedTestUserCommand extends Command
 
         if (null === $user) {
             $user = new User();
-            $user
-                ->setEmail($email)
-                ->setNameFirst('E2E')
-                ->setNameLast('Tester');
+            $user->email = $email;
+            $user->nameFirst = 'E2E';
+            $user->nameLast = 'Tester';
 
             $created = true;
         }
 
-        $user->setRoles($roles);
+        $user->roles = $roles;
 
-        $user->setPassword(
-            $this->passwordHasher->hashPassword($user, $plainPassword)
-        );
+        $user->password = $this->passwordHasher->hashPassword($user, $plainPassword);
 
         // Before the onboarding block, which flushes through OnboardingFlow: a
         // brand-new user has to be managed by then, or that flush writes

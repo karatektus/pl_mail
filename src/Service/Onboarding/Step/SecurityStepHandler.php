@@ -127,7 +127,7 @@ final readonly class SecurityStepHandler implements OnboardingStepHandlerInterfa
             // this method runs again on every rejected code, and minting a new
             // one would change the QR under a user who had already scanned it.
             'twoFactorQr'        => $enrolling ? $this->qrCodes->dataUri($this->enrolment->begin($user)) : null,
-            'twoFactorSecret'    => $enrolling ? $user->getTotpSecret() : null,
+            'twoFactorSecret'    => $enrolling ? $user->totpSecret : null,
             'enrolUrl'           => $this->stepUrl('1'),
             'cancelUrl'          => $this->stepUrl(),
         ];

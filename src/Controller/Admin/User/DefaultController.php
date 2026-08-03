@@ -95,25 +95,19 @@ final class DefaultController extends AbstractController
             'is_new' => $isNew,
             'action' => true === $isNew
                 ? $this->generateUrl('app_admin_user_default_form_create')
-                : $this->generateUrl('app_admin_user_default_form_edit', ['id' => $user->getId()]),
+                : $this->generateUrl('app_admin_user_default_form_edit', ['id' => $user->id]),
         ]);
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $now = new DateTimeImmutable();
-
             if (true === $isNew) {
-                $user
-                    ->setPassword($this->passwordHasher->hashPassword(
-                        $user,
-                        (string) $form->get('plainPassword')->getData(),
-                    ))
-                    ->setCreatedAt($now);
+                $user->password = $this->passwordHasher->hashPassword(
+                    $user,
+                    (string) $form->get('plainPassword')->getData(),
+                );
             }
 
             $this->applyAdminRole($user, true === $form->get('isAdmin')->getData());
-
-            $user->setUpdatedAt($now);
 
             $this->entityManager->persist($user);
             $this->entityManager->flush();
@@ -139,7 +133,7 @@ final class DefaultController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, User $user): Response
     {
-        if (false === $this->isCsrfTokenValid('admin-user-delete-' . $user->getId(), (string) $request->request->get('_token'))) {
+        if (false === $this->isCsrfTokenValid('admin-user-delete-' . $user->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
         }
 
@@ -151,18 +145,16 @@ final class DefaultController extends AbstractController
         // so leaving it in place would stop the same person ever being added
         // back — and a deleted user's real name has no reason to sit in a table
         // an administrator browses.
-        $tombstone = sprintf('deleted-%d@invalid', $user->getId());
+        $tombstone = sprintf('deleted-%d@invalid', $user->id);
 
-        $user
-            ->setEmail($tombstone)
-            ->setNameFirst('Deleted')
-            ->setNameLast(sprintf('User %d', $user->getId()))
-            // Not null: the column is not nullable, and an empty string would
-            // be a hash no password can produce — which is the intent, since
-            // this is what makes the row unable to authenticate.
-            ->setPassword('')
-            ->setDeletedAt($now)
-            ->setUpdatedAt($now);
+        $user->email = $tombstone;
+        $user->nameFirst = 'Deleted';
+        $user->nameLast = sprintf('User %d', $user->id);
+        // Not null: the column is not nullable, and an empty string would be a
+        // hash no password can produce — which is the intent, since this is
+        // what makes the row unable to authenticate.
+        $user->password = '';
+        $user->deletedAt = $now;
 
         $this->entityManager->flush();
 

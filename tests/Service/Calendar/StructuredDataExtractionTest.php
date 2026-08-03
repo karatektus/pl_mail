@@ -679,14 +679,13 @@ final class StructuredDataExtractionTest extends KernelTestCase
         string             $from = 'noreply@lufthansa.com',
     ): array {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Your booking')
-            ->setFromAddress($from)
-            ->setReceivedAt($receivedAt ?? new DateTimeImmutable())
-            ->setHasAttachments(false)
-            ->setBodyHtml($bodyHtml)
-            ->setMessageId(sprintf('<%s@example.test>', uniqid('', true)));
+        $message->account = $this->account;
+        $message->subject = 'Your booking';
+        $message->fromAddress = $from;
+        $message->receivedAt = $receivedAt ?? new DateTimeImmutable();
+        $message->hasAttachments = false;
+        $message->bodyHtml = $bodyHtml;
+        $message->messageId = sprintf('<%s@example.test>', uniqid('', true));
         $this->em->persist($message);
         $this->em->flush();
 
@@ -832,29 +831,27 @@ final class StructuredDataExtractionTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('jsonld-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Json')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'jsonld-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Json';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Json Fixture')
-            ->setUsername('jsonld-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Json Fixture';
+        $account->username = 'jsonld-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
         $this->em->flush();
 

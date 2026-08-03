@@ -26,19 +26,19 @@ readonly class SendMessageHandler
             return;
         }
 
-        if (true === $message->isCancelled()) {
+        if (true === $message->cancelled) {
             // Not recorded, for the same reason ComposeController::undo()
             // does not record setting it: `cancelled` is private traffic
             // between that button and this handler, EmailMapper publishes
             // nothing derived from it, and the message is still the same
             // unsent draft a client already holds.
-            $message->setCancelled(false);
+            $message->cancelled = false;
             $this->em->flush();
 
             return;
         }
 
-        if (null !== $message->getSentAt()) {
+        if (null !== $message->sentAt) {
             return;
         }
 

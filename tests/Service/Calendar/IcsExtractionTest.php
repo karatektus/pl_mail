@@ -309,13 +309,12 @@ final class IcsExtractionTest extends KernelTestCase
     private function messageWithInvite(string $ics): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Invitation')
-            ->setFromAddress('organiser@example.test')
-            ->setReceivedAt(new DateTimeImmutable())
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<%s@example.test>', uniqid('', true)));
+        $message->account = $this->account;
+        $message->subject = 'Invitation';
+        $message->fromAddress = 'organiser@example.test';
+        $message->receivedAt = new DateTimeImmutable();
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<%s@example.test>', uniqid('', true));
         $this->em->persist($message);
         $this->em->flush();
 
@@ -329,14 +328,14 @@ final class IcsExtractionTest extends KernelTestCase
         file_put_contents($absolute, $ics);
         $this->written[] = $absolute;
 
-        $part = new MessagePart()
-            ->setMessage($message)
-            ->setContentType('text/calendar')
-            ->setFilename('invite.ics')
-            ->setDisposition('inline')
-            ->setSize(strlen($ics))
-            ->setStoragePath($relative)
-            ->setIsInline(true);
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'text/calendar';
+        $part->filename    = 'invite.ics';
+        $part->disposition = 'inline';
+        $part->size        = strlen($ics);
+        $part->storagePath = $relative;
+        $part->isInline    = true;
         $this->em->persist($part);
         $this->em->flush();
 
@@ -374,29 +373,27 @@ final class IcsExtractionTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('ics-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Ics')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'ics-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Ics';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Ics Fixture')
-            ->setUsername('ics-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Ics Fixture';
+        $account->username = 'ics-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
         $this->em->flush();
 

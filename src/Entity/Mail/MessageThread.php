@@ -24,39 +24,39 @@ class MessageThread
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageThreads')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private ?Account $account = null;
+    public ?Account $account = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $subject = null;
+    public ?string $subject = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $lastMessageAt = null;
+    public ?\DateTimeImmutable $lastMessageAt = null;
 
     #[ORM\Column]
-    private ?int $messageCount = 0;
+    public ?int $messageCount = 0;
 
     #[ORM\Column]
-    private ?int $unreadCount = 0;
+    public ?int $unreadCount = 0;
 
     #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
-    private ?MessageCategory $category = null;
+    public ?MessageCategory $category = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $starredAt = null;
+    public ?\DateTimeImmutable $starredAt = null;
 
     #[ORM\Column]
-    private int $attachmentCount = 0;
+    public int $attachmentCount = 0;
 
     /**
      * @var Collection<int, Message>
      */
     #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'thread')]
     #[ORM\OrderBy(['receivedAt' => 'ASC', 'id' => 'ASC'])]
-    private Collection $messages;
+    public private(set) Collection $messages;
 
     /**
      * @var Collection<int, Label>
@@ -67,24 +67,24 @@ class MessageThread
         joinColumns: [new ORM\JoinColumn(name: 'message_thread_id', referencedColumnName: 'id', onDelete: 'CASCADE')],
         inverseJoinColumns: [new ORM\JoinColumn(name: 'label_id', referencedColumnName: 'id', onDelete: 'CASCADE')],
     )]
-    private Collection $labels;
+    public private(set) Collection $labels;
 
     #[ORM\Column(enumType: ThreadingMethod::class)]
-    private ?ThreadingMethod $threadingMethod = null;
+    public ?ThreadingMethod $threadingMethod = null;
 
     // TEXT, not VARCHAR: this is derived from `subject`, which is itself TEXT, so
     // any length cap here is a length cap that can reject a legitimate message.
     #[ORM\Column(type: Types::TEXT)]
-    private ?string $normalizedSubject = null;
+    public ?string $normalizedSubject = null;
 
     /**
      * Gmail threadId / Graph conversationId. Null for IMAP, which has no such concept.
      */
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $providerThreadKey = null;
+    public ?string $providerThreadKey = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $snoozedUntil = null;
+    public ?\DateTimeImmutable $snoozedUntil = null;
 
     public function __construct()
     {
@@ -92,120 +92,11 @@ class MessageThread
         $this->labels = new ArrayCollection();
     }
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getAccount(): ?Account
-    {
-        return $this->account;
-    }
-
-    public function setAccount(?Account $account): static
-    {
-        $this->account = $account;
-
-        return $this;
-    }
-
-    public function getSubject(): ?string
-    {
-        return $this->subject;
-    }
-
-    public function setSubject(?string $subject): static
-    {
-        $this->subject = $subject;
-
-        return $this;
-    }
-
-    public function getLastMessageAt(): ?\DateTimeImmutable
-    {
-        return $this->lastMessageAt;
-    }
-
-    public function setLastMessageAt(?\DateTimeImmutable $lastMessageAt): static
-    {
-        $this->lastMessageAt = $lastMessageAt;
-
-        return $this;
-    }
-
-    public function getMessageCount(): ?int
-    {
-        return $this->messageCount;
-    }
-
-    public function setMessageCount(int $messageCount): static
-    {
-        $this->messageCount = $messageCount;
-
-        return $this;
-    }
-
-    public function getUnreadCount(): ?int
-    {
-        return $this->unreadCount;
-    }
-
-    public function setUnreadCount(int $unreadCount): static
-    {
-        $this->unreadCount = $unreadCount;
-
-        return $this;
-    }
-
-    public function getCategory(): ?MessageCategory
-    {
-        return $this->category;
-    }
-
-    public function setCategory(?MessageCategory $category): static
-    {
-        $this->category = $category;
-
-        return $this;
-    }
-
-    public function getStarredAt(): ?\DateTimeImmutable
-    {
-        return $this->starredAt;
-    }
-
-    public function setStarredAt(?\DateTimeImmutable $starredAt): static
-    {
-        $this->starredAt = $starredAt;
-
-        return $this;
-    }
-
-    public function getAttachmentCount(): int
-    {
-        return $this->attachmentCount;
-    }
-
-    public function setAttachmentCount(int $attachmentCount): static
-    {
-        $this->attachmentCount = $attachmentCount;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Message>
-     */
-    public function getMessages(): Collection
-    {
-        return $this->messages;
-    }
-
     public function addMessage(Message $message): static
     {
         if (!$this->messages->contains($message)) {
             $this->messages->add($message);
-            $message->setThread($this);
+            $message->thread = $this;
         }
 
         return $this;
@@ -215,72 +106,24 @@ class MessageThread
     {
         if ($this->messages->removeElement($message)) {
             // set the owning side to null (unless already changed)
-            if ($message->getThread() === $this) {
-                $message->setThread(null);
+            if ($message->thread === $this) {
+                $message->thread = null;
             }
         }
 
         return $this;
     }
 
-    public function getThreadingMethod(): ?ThreadingMethod
-    {
-        return $this->threadingMethod;
-    }
-
-    public function setThreadingMethod(ThreadingMethod $threadingMethod): static
-    {
-        $this->threadingMethod = $threadingMethod;
-
-        return $this;
-    }
-
-    public function getNormalizedSubject(): ?string
-    {
-        return $this->normalizedSubject;
-    }
-
-    public function setNormalizedSubject(string $normalizedSubject): static
-    {
-        $this->normalizedSubject = $normalizedSubject;
-
-        return $this;
-    }
-
-    public function getProviderThreadKey(): ?string
-    {
-        return $this->providerThreadKey;
-    }
-
-    public function setProviderThreadKey(?string $providerThreadKey): static
-    {
-        $this->providerThreadKey = $providerThreadKey;
-
-        return $this;
-    }
-
-    public function getSnoozedUntil(): ?\DateTimeImmutable
-    {
-        return $this->snoozedUntil;
-    }
-
-    public function setSnoozedUntil(?\DateTimeImmutable $snoozedUntil): static
-    {
-        $this->snoozedUntil = $snoozedUntil;
-        return $this;
-    }
-
+    /**
+     * Stays a method rather than becoming a property: this reads a timestamp
+     * and answers a question about it — and about the clock as well, so the
+     * same stored value gives a different answer as the snooze expires. A
+     * predicate over non-boolean state is an interpretation, not a plain read,
+     * and only a plain read is a property.
+     */
     public function isSnoozed(): bool
     {
         return $this->snoozedUntil !== null && $this->snoozedUntil > new \DateTimeImmutable();
-    }
-
-    /**
-     * @return Collection<int, Label>
-     */
-    public function getLabels(): Collection
-    {
-        return $this->labels;
     }
 
     public function addLabel(Label $label): static
@@ -299,6 +142,10 @@ class MessageThread
         return $this;
     }
 
+    /**
+     * Stays a method: it takes an argument and asks the collection about it, so
+     * there is no single piece of state here to expose as a property.
+     */
     public function hasLabel(Label $label): bool
     {
         return $this->labels->contains($label);

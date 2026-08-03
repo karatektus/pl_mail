@@ -38,7 +38,7 @@ final class MailboxQueryMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $bindings           = $this->bindingRepository->findForAccountOrdered($accountId);
         $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);

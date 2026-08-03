@@ -8,7 +8,7 @@ use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\Mail\MessageRepository;
 
 /**
  * "SearchSnippet/get" (RFC 8621 §5).
@@ -38,7 +38,7 @@ final class SearchSnippetGetMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly MessageRepository $messages,
     ) {
     }
 
@@ -50,7 +50,7 @@ final class SearchSnippetGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $emailIds = $arguments['emailIds'] ?? null;
 
@@ -106,29 +106,11 @@ final class SearchSnippetGetMethod implements JmapMethod
         $options = 'StartSel=<mark>, StopSel=</mark>, MaxWords=24, MinWords=8, '
             .'ShortWord=3, MaxFragments=1, FragmentDelimiter=" … "';
 
-        $sql = <<<'SQL'
-            SELECT
-                m.id,
-                ts_headline('english', coalesce(m.subject, ''),
-                    websearch_to_tsquery('english', :text), :options) AS subject,
-                ts_headline('english', coalesce(m.body_text, ''),
-                    websearch_to_tsquery('english', :text), :options) AS preview
-            FROM message m
-            WHERE m.account_id = :account
-              AND m.id IN (:ids)
-            SQL;
-
-        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            $sql,
-            [
-                'text' => $text,
-                'options' => $options,
-                'account' => $accountId,
-                'ids' => array_map('intval', $requested),
-            ],
-            [
-                'ids' => \Doctrine\DBAL\ArrayParameterType::INTEGER,
-            ],
+        $rows = $this->messages->findSearchHeadlines(
+            $accountId,
+            array_map('intval', $requested),
+            $text,
+            $options,
         );
 
         $list = [];

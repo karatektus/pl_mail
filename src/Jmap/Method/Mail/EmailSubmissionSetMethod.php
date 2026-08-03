@@ -56,7 +56,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::EmailSubmission);
 
@@ -88,7 +88,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
                     continue;
                 }
 
-                $id = (string) $message->getId();
+                $id = (string) $message->id;
 
                 $this->stateManager->recordCreated($accountId, JmapObjectType::EmailSubmission, $id);
                 $context->recordCreatedId($creationId, $id);
@@ -150,15 +150,15 @@ final class EmailSubmissionSetMethod implements JmapMethod
             throw new MethodException('invalidProperties', 'No such Email in this account.');
         }
 
-        if (null !== $message->getSentAt()) {
+        if (null !== $message->sentAt) {
             throw new MethodException('alreadyExists', 'That Email has already been submitted.');
         }
 
-        if (null === $message->getToAddresses() && null === $message->getCcAddresses() && null === $message->getBccAddresses()) {
+        if (null === $message->toAddresses && null === $message->ccAddresses && null === $message->bccAddresses) {
             throw new MethodException('noRecipients', 'The Email has no recipients.');
         }
 
-        $this->bus->dispatch(new SendMessageMessage((int) $message->getId()));
+        $this->bus->dispatch(new SendMessageMessage((int) $message->id));
 
         return $message;
     }
@@ -192,9 +192,9 @@ final class EmailSubmissionSetMethod implements JmapMethod
             }
 
             $this->patchApplier->apply($account, $message, $patch);
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, (string) $message->getId());
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, (string) $message->id);
 
-            $updatedEmails[(string) $message->getId()] = null;
+            $updatedEmails[(string) $message->id] = null;
         }
 
         return $updatedEmails;
@@ -206,7 +206,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->getId(), [(int) $id]);
+        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

@@ -41,7 +41,7 @@ final readonly class SyncAccountMessageHandler
             return;
         }
 
-        if (true !== $account->isActive()) {
+        if (true !== $account->isActive) {
             $this->logger->info('Account inactive', ['accountId' => $message->accountId]);
             return;
         }
@@ -74,7 +74,7 @@ final readonly class SyncAccountMessageHandler
 
         // One account-scoped harvest per sync run — mailbox-scoped harvesting
         // misses Gmail-API messages, which carry no mailbox row.
-        $this->bus->dispatch(new HarvestContactsMessage((int) $account->getId()));
+        $this->bus->dispatch(new HarvestContactsMessage((int) $account->id));
     }
 
     private function resolveSyncer(Account $account): ?AccountSyncerInterface

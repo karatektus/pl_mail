@@ -96,7 +96,7 @@ final class AliasSeeder
             ];
         }
 
-        return [$entries, null !== $account->getEmail() ? strtolower($account->getEmail()) : null];
+        return [$entries, null !== $account->email ? strtolower($account->email) : null];
     }
 
     /**
@@ -119,8 +119,8 @@ final class AliasSeeder
             }
         }
 
-        if (null === $preferred && null !== $account->getEmail()) {
-            $preferred = strtolower($account->getEmail());
+        if (null === $preferred && null !== $account->email) {
+            $preferred = strtolower($account->email);
         }
 
         return [$entries, $preferred];
@@ -133,7 +133,7 @@ final class AliasSeeder
      */
     private function fromImap(Account $account): array
     {
-        $address = $account->getEmail() ?? $account->getUsername();
+        $address = $account->email ?? $account->username;
 
         if (null === $address || '' === $address) {
             return [[], null];
@@ -144,7 +144,7 @@ final class AliasSeeder
         return [
             [[
                 'address'     => $address,
-                'displayName' => $account->getName(),
+                'displayName' => $account->name,
                 'isSystem'    => false,
             ]],
             $address,
@@ -153,7 +153,7 @@ final class AliasSeeder
 
     private function ensurePrimary(Account $account, ?string $preferred): void
     {
-        if (null !== $account->getPrimaryAlias()) {
+        if (null !== $account->primaryAlias) {
             return;
         }
 
@@ -161,7 +161,7 @@ final class AliasSeeder
         $firstNonSystem = null;
         $first          = null;
 
-        foreach ($account->getAliases() as $alias) {
+        foreach ($account->aliases as $alias) {
             $first ??= $alias;
 
             if (null === $firstNonSystem && EmailAliasSource::System !== $alias->source) {

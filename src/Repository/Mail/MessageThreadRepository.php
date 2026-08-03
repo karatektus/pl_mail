@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -23,20 +24,19 @@ class MessageThreadRepository extends ServiceEntityRepository
 
     public function findOneByProviderThreadKeyForAccount(string $providerThreadKey, Account $account): ?MessageThread
     {
-        return $this->createQueryBuilder('thread')
-            ->where('thread.account = :account')
-            ->andWhere('thread.providerThreadKey = :providerThreadKey')
-            ->setParameter('account', $account)
-            ->setParameter('providerThreadKey', $providerThreadKey)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy([
+            'account'           => $account,
+            'providerThreadKey' => $providerThreadKey,
+        ]);
     }
 
     /**
      * Newest thread with this subject that is still recent enough to be a
      * plausible parent. The $since bound is what stops a recurring subject
      * ("Your order has shipped") from accreting into one endless thread.
+     *
+     * QueryBuilder because of that bound: findOneBy() compares fields to
+     * values, and `lastMessageAt >= :since` is a comparison it cannot state.
      */
     public function findMatchingNormalizedSubjectThreadForAccount(
         string             $normalizedSubject,
@@ -57,6 +57,15 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * The inbox as one list across every active account.
+     *
+     * QueryBuilder because the filter spans three entities: the owner is on
+     * Account, the Inbox role is on a Label reached through a to-many, and only
+     * the category is on the thread itself. findBy() filters on fields of one
+     * entity, so none of the two joins — nor the DISTINCT they make necessary —
+     * is available to it.
+     */
     public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
@@ -79,6 +88,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
     public function countForUnifiedInbox(UserInterface $user, MessageCategory $category): int
     {
         return $this->createQueryBuilder('t')
@@ -97,6 +107,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Unread threads per category in one grouped read.
+     *
+     * A GROUP BY with an aggregate, which Doctrine's API has no form of at all
+     * — count() answers one number, and asking it per category would be one
+     * query per tab on every page load.
+     */
     public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
     {
         $rows = $this->createQueryBuilder('t')
@@ -128,6 +145,11 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $counts;
     }
 
+    /**
+     * One system mailbox across every active account. Joined for the same
+     * reason findForUnifiedInbox() is: the role lives on a Label the thread
+     * reaches through a to-many, and the owner on the Account.
+     */
     public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
@@ -147,6 +169,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+    /** Same joins as findForRole(). */
     public function countForRole(UserInterface $user, LabelRole $role): int
     {
         return (int) $this->createQueryBuilder('t')
@@ -169,6 +192,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * sidebar's own label list — one "Receipts" across the whole mailbox — and
      * wrong under an account, where the same entry is read as "this account's
      * Receipts" and returned everybody's.
+     *
+     * QueryBuilder because the label is a to-many association: findBy() has no
+     * way to say "carries this label".
      */
     public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50): array
     {
@@ -187,6 +213,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /** Same to-many filter as findForLabel(). */
     public function countForLabel(Label $label, ?Account $account = null): int
     {
         $qb = $this->createQueryBuilder('t')
@@ -203,26 +230,17 @@ class MessageThreadRepository extends ServiceEntityRepository
     /** Everything in one account, whatever it is labelled. */
     public function findForAccount(Account $account, int $page = 1, int $perPage = 50): array
     {
-        $offset = ($page - 1) * $perPage;
-
-        return $this->createQueryBuilder('t')
-            ->where('t.account = :account')
-            ->setParameter('account', $account)
-            ->orderBy('t.lastMessageAt', 'DESC')
-            ->setFirstResult($offset)
-            ->setMaxResults($perPage)
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(
+            ['account' => $account],
+            ['lastMessageAt' => 'DESC'],
+            $perPage,
+            ($page - 1) * $perPage,
+        );
     }
 
     public function countForAccount(Account $account): int
     {
-        return (int) $this->createQueryBuilder('t')
-            ->select('COUNT(t.id)')
-            ->where('t.account = :account')
-            ->setParameter('account', $account)
-            ->getQuery()
-            ->getSingleScalarResult();
+        return $this->count(['account' => $account]);
     }
 
     /** No-op when no account was asked for, so callers need no branch. */
@@ -234,6 +252,10 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $qb->andWhere('t.account = :account')->setParameter('account', $account);
     }
+    /**
+     * QueryBuilder for the join to Account: both the owner and whether the
+     * account is still active live there, and neither is a field of the thread.
+     */
     public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
     {
         $offset = ($page - 1) * $perPage;
@@ -251,6 +273,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Same join as findForStarred(). */
     public function countForStarred(UserInterface $user): int
     {
         return $this->createQueryBuilder('t')
@@ -264,6 +287,9 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
     /**
+     * Grouped SUM per system role — an aggregate over a join, which is two
+     * things Doctrine's API cannot do and one query instead of a role's worth.
+     *
      * @return array<string,int> role value → unread thread-message sum
      */
     public function countUnreadPerRole(UserInterface $user): array
@@ -296,6 +322,8 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The same grouped SUM for custom labels.
+     *
      * @return array<int,int> label id → unread thread-message sum
      */
     public function countUnreadPerUserLabel(UserInterface $user): array
@@ -321,6 +349,10 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $counts;
     }
 
+    /**
+     * COUNT DISTINCT over a join to Account — neither expressible through
+     * count(), which takes field-to-value criteria on this entity alone.
+     */
     public function countUnreadForStarred(UserInterface $user): int
     {
         return $this->createQueryBuilder('t')
@@ -338,6 +370,10 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * Threads carrying ANY of the given labels — the merged path-based label
      * view aggregating same-named labels across accounts.
+     *
+     * QueryBuilder because the labels are a to-many association, and because a
+     * thread carrying two of them would otherwise come back twice — the
+     * GROUP BY is what makes one row mean one conversation.
      *
      * @param Label[] $labels
      * @return MessageThread[]
@@ -357,6 +393,8 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * Same to-many membership test as findForLabels().
+     *
      * @param Label[] $labels
      */
     public function countForLabels(array $labels): int
@@ -374,6 +412,11 @@ class MessageThreadRepository extends ServiceEntityRepository
      * Initialize the labels collection of every given thread in ONE query so
      * the list view's label chips don't lazy-load per row. Fetch-joining onto
      * already-managed entities marks their collections initialized.
+     *
+     * There is no Doctrine API for this: the whole method is a fetch mode, and
+     * findBy() would honour the mapped one, which is the lazy loading this
+     * exists to prevent. The result is deliberately discarded — the effect is
+     * on the entities already in the identity map.
      *
      * @param MessageThread[] $threads
      */
@@ -425,17 +468,15 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $ids = array_column($rows, 'thread_id');
 
-        // Hydrate via Doctrine so we get full entities (same as other finders)
-        $threads = $this->createQueryBuilder('t')
-            ->where('t.id IN (:ids)')
-            ->setParameter('ids', $ids)
-            ->getQuery()
-            ->getResult();
+        // Hydrate via Doctrine so we get full entities (same as other finders).
+        // Order does not matter here — relevance is restored below, from the
+        // order the SQL returned.
+        $threads = $this->findBy(['id' => $ids]);
 
         // Re-order to match relevance order from SQL
         $indexed = [];
         foreach ($threads as $thread) {
-            $indexed[$thread->getId()] = $thread;
+            $indexed[$thread->id] = $thread;
         }
 
         $ordered = [];
@@ -448,6 +489,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $ordered;
     }
 
+    /** The same SQL as search(), counted — see that method for why it is SQL. */
     public function countSearch(
         UserInterface     $user,
         ParsedSearchQuery $query,
@@ -471,7 +513,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $types  = [];
         $where  = ['a.usr_id = :userId', 'a.is_active = true'];
 
-        $params['userId'] = $user->getId();
+        $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
         // ── Free-text via tsvector ────────────────────────────────────────
@@ -582,6 +624,15 @@ class MessageThreadRepository extends ServiceEntityRepository
         return [$sql, $params, $types];
     }
 
+    /**
+     * Resolve every thread's category from its own messages, most-recent-wins,
+     * in one statement.
+     *
+     * Raw SQL because DISTINCT ON is a Postgres extension DQL has no form of,
+     * and because this is an UPDATE ... FROM over a derived table: the ORM's
+     * write path is per-entity, so the alternative is loading every thread and
+     * its messages to compute in PHP what the database can answer in one pass.
+     */
     public function recomputeCategoriesForAccount(Account $account): int
     {
         $sql = <<<'SQL'
@@ -598,7 +649,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         return (int) $this->getEntityManager()->getConnection()->executeStatement(
             $sql,
-            ['accountId' => $account->getId()],
+            ['accountId' => $account->id],
         );
     }
 
@@ -610,6 +661,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * the sweep has not reached yet is no longer snoozed, and counting the
      * label would keep it in the total for up to a minute. Only used to decide
      * whether the sidebar shows the entry at all.
+     *
+     * QueryBuilder for the join to Account and for `snoozedUntil > :now`,
+     * neither of which count() can state.
      */
     public function countSnoozedForUser(UserInterface $user): int
     {
@@ -632,6 +686,10 @@ class MessageThreadRepository extends ServiceEntityRepository
      * Ordered oldest-first so a backlog drains in the order the user asked
      * for, and capped so one enormous backlog cannot hold the worker.
      *
+     * QueryBuilder for the `<= :now` comparison, and for the fetch-join: the
+     * sweep touches every message of every thread it wakes, so leaving the
+     * collections lazy would be an N+1 across the whole backlog.
+     *
      * @return list<MessageThread>
      */
     public function findDueSnoozed(\DateTimeImmutable $now, int $limit): array
@@ -650,7 +708,9 @@ class MessageThreadRepository extends ServiceEntityRepository
 
     /**
      * JMAP Thread/get: fetch by id, scoped to the account. Messages are
-     * eager-joined because a Thread object is nothing but its email id list.
+     * eager-joined because a Thread object is nothing but its email id list —
+     * findBy() would honour the mapped fetch mode and load them one thread at
+     * a time.
      *
      * @param list<int> $ids
      *
@@ -671,5 +731,165 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Threads of one account with nothing left in them.
+     *
+     * `messages IS EMPTY` is a collection predicate; findBy() compares fields
+     * to values and has no way to ask about the size of an association.
+     *
+     * @return list<MessageThread>
+     */
+    public function findEmptyForUser(UserInterface $user): array
+    {
+        return $this->createQueryBuilder('t')
+            ->innerJoin('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('t.messages IS EMPTY')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Per-thread state worth carrying across a rethread, anchored to each
+     * thread's earliest message so it can be found again afterwards.
+     *
+     * Raw SQL, and scalars rather than entities, because the caller is about to
+     * delete every one of these rows: hydrating them would leave a unit of work
+     * full of entities whose tables are then truncated out from under it. The
+     * MIN(id) anchor is an aggregate the ORM would have to load a whole thread
+     * to compute.
+     *
+     * @return list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, anchor: int}>
+     */
+    public function findCarriedOverStateForAccount(int $accountId): array
+    {
+        /** @var list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, anchor: int}> */
+        return $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT t.id, t.starred_at, t.snoozed_until, t.category, MIN(m.id) AS anchor
+             FROM message_thread t
+             INNER JOIN message m ON m.thread_id = t.id
+             WHERE t.account_id = :accountId
+             GROUP BY t.id',
+            ['accountId' => $accountId],
+        );
+    }
+
+    /**
+     * Which labels each of these threads carries.
+     *
+     * Straight off the join table: thread_label has no entity, and reading it
+     * through the Label side would hydrate every label of every thread to
+     * recover two integers per row.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return array<int, list<int>> thread id => label ids
+     */
+    public function findLabelIdsByThread(array $threadIds): array
+    {
+        if (0 === count($threadIds)) {
+            return [];
+        }
+
+        $labelsByThread = [];
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT message_thread_id, label_id FROM thread_label WHERE message_thread_id IN (:threadIds)',
+            ['threadIds' => $threadIds],
+            ['threadIds' => ArrayParameterType::INTEGER],
+        );
+
+        foreach ($rows as $row) {
+            $labelsByThread[(int) $row['message_thread_id']][] = (int) $row['label_id'];
+        }
+
+        return $labelsByThread;
+    }
+
+    /**
+     * Drop every thread row of an account without touching its mail.
+     *
+     * Deliberately not the ORM: MessageThread cascades remove onto its
+     * messages, so removing threads through the EntityManager would delete the
+     * mail along with them. Callers detach the messages first — see
+     * MessageRepository::detachAllFromThreadsForAccount().
+     */
+    public function deleteAllForAccount(int $accountId): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            'DELETE FROM message_thread WHERE account_id = :accountId',
+            ['accountId' => $accountId],
+        );
+    }
+
+    /**
+     * Write a snapshot's starring, snoozing and category back onto a rebuilt
+     * thread.
+     *
+     * COALESCE, not assignment, and that is why this cannot be a property
+     * write: several old threads can collapse into one rebuilt thread, and a
+     * value already restored by an earlier snapshot must not be blanked by a
+     * later one that happened to be empty. The values arrive as the strings the
+     * snapshot read, so they go back the way they came rather than through a
+     * round trip that would have to guess their timezone.
+     */
+    public function restoreCarriedOverState(
+        int     $threadId,
+        ?string $starredAt,
+        ?string $snoozedUntil,
+        ?string $category,
+    ): void {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message_thread
+             SET starred_at    = COALESCE(starred_at, :starredAt),
+                 snoozed_until = COALESCE(snoozed_until, :snoozedUntil),
+                 category      = COALESCE(category, :category)
+             WHERE id = :threadId',
+            [
+                'starredAt'    => $starredAt,
+                'snoozedUntil' => $snoozedUntil,
+                'category'     => $category,
+                'threadId'     => $threadId,
+            ],
+        );
+    }
+
+    /**
+     * Put a label back on a rebuilt thread, tolerating the one that is already
+     * there.
+     *
+     * ON CONFLICT DO NOTHING because collapsed threads restore the same label
+     * more than once, and the join table has no entity to check for first.
+     */
+    public function addLabelIfAbsent(int $threadId, int $labelId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'INSERT INTO thread_label (message_thread_id, label_id)
+             VALUES (:threadId, :labelId)
+             ON CONFLICT DO NOTHING',
+            ['threadId' => $threadId, 'labelId' => $labelId],
+        );
+    }
+
+    /**
+     * Rebuild every thread's attachment counter from its messages.
+     *
+     * The counter is derived, so it is recomputed rather than patched by
+     * deltas — a repair that has to be right whatever state it starts from.
+     * One correlated UPDATE rather than loading every thread: nothing here
+     * needs an entity, and the alternative is the whole mailbox in memory.
+     */
+    public function recomputeAttachmentCounts(): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(<<<'SQL'
+            UPDATE message_thread t
+            SET attachment_count = COALESCE((
+                SELECT COUNT(*) FROM message m
+                WHERE m.thread_id = t.id AND m.has_attachments = true
+            ), 0)
+        SQL);
     }
 }

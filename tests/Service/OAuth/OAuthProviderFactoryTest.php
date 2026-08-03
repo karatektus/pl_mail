@@ -68,7 +68,7 @@ final class OAuthProviderFactoryTest extends TestCase
         $config = new MailProviderConfig(MailProvider::Microsoft);
         $config->clientId = 'db-ms-id';
         $config->clientSecret = 'db-ms-secret';
-        $config->setTenant('contoso.onmicrosoft.com');
+        $config->tenant = 'contoso.onmicrosoft.com';
 
         $stored = $this->factory($config)->create(MailProvider::Microsoft);
         self::assertInstanceOf(Azure::class, $stored);
@@ -79,9 +79,9 @@ final class OAuthProviderFactoryTest extends TestCase
     public function testAnEmptyTenantStringIsTreatedAsUnset(): void
     {
         $config = new MailProviderConfig(MailProvider::Microsoft);
-        $config->setTenant('   ');
+        $config->tenant = '   ';
 
-        self::assertNull($config->getTenant());
+        self::assertNull($config->tenant);
         self::assertSame('common', $this->factory($config)->create(MailProvider::Microsoft)->tenant);
     }
 

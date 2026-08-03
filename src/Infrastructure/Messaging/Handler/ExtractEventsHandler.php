@@ -73,10 +73,10 @@ final readonly class ExtractEventsHandler
 
                 $found += count($touched);
 
-                $user = $mail->getAccount()->getUsr();
+                $user = $mail->account->usr;
 
                 if (true === $user instanceof User) {
-                    $usersToNotify[(int) $user->getId()] = $user;
+                    $usersToNotify[(int) $user->id] = $user;
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('ExtractEvents: extraction failed for a message', [

@@ -20,14 +20,14 @@ final class ThreadLabelSynchronizer
     {
         $union = [];
 
-        foreach ($thread->getMessages() as $message) {
-            foreach ($message->getLabels() as $label) {
+        foreach ($thread->messages as $message) {
+            foreach ($message->labels as $label) {
                 $union[(int) $label->id] = $label;
             }
         }
 
         // Remove thread labels no message carries anymore.
-        foreach ($thread->getLabels() as $threadLabel) {
+        foreach ($thread->labels as $threadLabel) {
             if (false === array_key_exists((int) $threadLabel->id, $union)) {
                 $thread->removeLabel($threadLabel);
             }

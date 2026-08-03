@@ -4,7 +4,7 @@ compose/_inline_undo.stream.html.twig
 Cancelling an inline send: take the message back out of the conversation and
 re-open the draft in the inline editor with its text intact.
 
-Variables: form, message, threadEntity (MessageThread|null), frame, urlParams
+Variables: form, message, ctx (the compose context), threadEntity (MessageThread|null)
 #}
 <turbo-stream action="remove" target="thread_message_{{ message.id }}">
 </turbo-stream>
@@ -29,15 +29,12 @@ Variables: form, message, threadEntity (MessageThread|null), frame, urlParams
 
 {# The window's own root is <turbo-frame id="compose_inline">, so replacing
    the empty frame the reply zone just rendered swaps the editor back in. #}
-<turbo-stream action="replace" target="{{ frame }}">
+<turbo-stream action="replace" target="{{ ctx.frame }}">
     <template>
         {% include 'compose/_window.html.twig' with {
-            form:      form,
-            message:   message,
-            inline:    true,
-            frame:     frame,
-            thread:    threadEntity is not null ? threadEntity.id : null,
-            urlParams: urlParams,
+            form:    form,
+            message: message,
+            ctx:     ctx|merge({ thread: threadEntity is not null ? threadEntity.id : null }),
         } only %}
     </template>
 </turbo-stream>

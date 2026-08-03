@@ -62,7 +62,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
         self::assertSame(
             'meetingRequest',
-            ($message->getHeaders() ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
+            ($message->headers ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
         );
     }
 
@@ -74,7 +74,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
             self::assertSame(
                 $type,
-                ($message->getHeaders() ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
+                ($message->headers ?? [])[GraphMessageBuilder::MEETING_TYPE_HEADER] ?? null,
                 $type,
             );
         }
@@ -100,7 +100,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
 
             self::assertArrayNotHasKey(
                 GraphMessageBuilder::MEETING_TYPE_HEADER,
-                $message->getHeaders() ?? [],
+                $message->headers ?? [],
                 var_export($value, true),
             );
         }
@@ -110,7 +110,7 @@ final class GraphMeetingHeaderTest extends KernelTestCase
     public function testRealHeadersAreUnaffected(): void
     {
         $message = $this->builder->build($this->payload('meetingRequest'), $this->account, []);
-        $headers = $message->getHeaders() ?? [];
+        $headers = $message->headers ?? [];
 
         self::assertArrayHasKey('x-custom', $headers);
         self::assertSame('kept', $headers['x-custom']);
@@ -139,28 +139,26 @@ final class GraphMeetingHeaderTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('graph-meeting-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Graph')
-            ->setNameLast('Meeting')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'graph-meeting-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Graph';
+        $user->nameLast = 'Meeting';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Graph Meeting Fixture')
-            ->setUsername('graph-meeting-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Graph Meeting Fixture';
+        $account->username = 'graph-meeting-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();

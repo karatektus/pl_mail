@@ -37,10 +37,10 @@ final class ContactController extends AbstractController
 
         foreach ($contacts as $contact) {
             $results[] = [
-                'email'       => $contact->getEmail(),
-                'displayName' => $contact->getDisplayName(),
-                'initials'    => $contact->getInitials(),
-                'frequency'   => $contact->getFrequency(),
+                'email'       => $contact->email,
+                'displayName' => $contact->displayName,
+                'initials'    => $contact->initials,
+                'frequency'   => $contact->frequency,
             ];
         }
 

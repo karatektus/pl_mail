@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Connection;
+use App\Repository\Monitoring\ProcessHeartbeatRepository;
 
 /**
- * Records liveness beats for long-running processes via raw DBAL upsert —
- * the same pattern as ContactRepository, and deliberately ORM-free so a
- * beat can never entangle with (or be lost to) a handler's EntityManager
- * state. A beat must also never take its host process down, so failures
- * are swallowed.
+ * Liveness policy for long-running processes: what counts as stale, per
+ * process type, and when a row has lagged far enough to be reaped.
+ *
+ * The statements themselves live on ProcessHeartbeatRepository, which explains
+ * why they are raw DBAL. What stays here is the part that is a decision rather
+ * than a query — including that a beat must never take its host process down,
+ * which is why every call below swallows what it throws.
  */
 final class ProcessHeartbeatService
 {
@@ -37,7 +38,7 @@ final class ProcessHeartbeatService
     private const int PRUNE_STALE_FACTOR = 4;
 
     public function __construct(
-        private readonly Connection $connection,
+        private readonly ProcessHeartbeatRepository $heartbeats,
     ) {}
 
     public static function staleThreshold(string $type): int
@@ -51,18 +52,9 @@ final class ProcessHeartbeatService
     public function beat(string $type, string $key, ?array $meta = null): void
     {
         try {
-            $this->connection->executeStatement(
-                'INSERT INTO process_heartbeat (type, beat_key, pid, last_beat_at, meta)
-                 VALUES (:type, :key, :pid, NOW(), :meta)
-                 ON CONFLICT (type, beat_key) DO UPDATE
-                 SET pid = EXCLUDED.pid, last_beat_at = EXCLUDED.last_beat_at, meta = EXCLUDED.meta',
-                [
-                    'type' => $type,
-                    'key'  => $key,
-                    'pid'  => false !== getmypid() ? getmypid() : null,
-                    'meta' => null === $meta ? null : json_encode($meta, JSON_PARTIAL_OUTPUT_ON_ERROR),
-                ],
-            );
+            $pid = getmypid();
+
+            $this->heartbeats->upsertBeat($type, $key, false !== $pid ? $pid : null, $meta);
         } catch (\Throwable) {
             // Heartbeats must never take the process down.
         }
@@ -76,10 +68,7 @@ final class ProcessHeartbeatService
     public function clear(string $type, string $key): void
     {
         try {
-            $this->connection->executeStatement(
-                'DELETE FROM process_heartbeat WHERE type = :type AND beat_key = :key',
-                ['type' => $type, 'key' => $key],
-            );
+            $this->heartbeats->deleteBeat($type, $key);
         } catch (\Throwable) {
             // Cleanup must never take the process down.
         }
@@ -96,18 +85,7 @@ final class ProcessHeartbeatService
     public function clearOrphans(string $type, array $liveKeys): int
     {
         try {
-            if ([] === $liveKeys) {
-                return (int) $this->connection->executeStatement(
-                    'DELETE FROM process_heartbeat WHERE type = :type',
-                    ['type' => $type],
-                );
-            }
-
-            return (int) $this->connection->executeStatement(
-                'DELETE FROM process_heartbeat WHERE type = :type AND beat_key NOT IN (:keys)',
-                ['type' => $type, 'keys' => $liveKeys],
-                ['keys' => ArrayParameterType::STRING],
-            );
+            return $this->heartbeats->deleteOrphans($type, $liveKeys);
         } catch (\Throwable) {
             return 0;
         }
@@ -125,23 +103,15 @@ final class ProcessHeartbeatService
 
         try {
             foreach (self::STALE_THRESHOLDS as $type => $threshold) {
-                $deleted += (int) $this->connection->executeStatement(
-                    'DELETE FROM process_heartbeat
-                      WHERE type = :type
-                        AND last_beat_at < NOW() - (:seconds * INTERVAL \'1 second\')',
-                    ['type' => $type, 'seconds' => $threshold * self::PRUNE_STALE_FACTOR],
+                $deleted += $this->heartbeats->deleteStalerThan(
+                    $type,
+                    $threshold * self::PRUNE_STALE_FACTOR,
                 );
             }
 
-            $deleted += (int) $this->connection->executeStatement(
-                'DELETE FROM process_heartbeat
-                  WHERE type NOT IN (:known)
-                    AND last_beat_at < NOW() - (:seconds * INTERVAL \'1 second\')',
-                [
-                    'known'   => array_keys(self::STALE_THRESHOLDS),
-                    'seconds' => self::DEFAULT_STALE_THRESHOLD * self::PRUNE_STALE_FACTOR,
-                ],
-                ['known' => ArrayParameterType::STRING],
+            $deleted += $this->heartbeats->deleteStalerThanForUnknownTypes(
+                array_keys(self::STALE_THRESHOLDS),
+                self::DEFAULT_STALE_THRESHOLD * self::PRUNE_STALE_FACTOR,
             );
         } catch (\Throwable) {
             // Best-effort: this runs from inside long-lived processes.
@@ -152,9 +122,6 @@ final class ProcessHeartbeatService
 
     public function pruneOlderThan(\DateTimeImmutable $cutoff): int
     {
-        return (int) $this->connection->executeStatement(
-            'DELETE FROM process_heartbeat WHERE last_beat_at < :cutoff',
-            ['cutoff' => $cutoff->format('Y-m-d H:i:s')],
-        );
+        return $this->heartbeats->deleteOlderThan($cutoff);
     }
 }

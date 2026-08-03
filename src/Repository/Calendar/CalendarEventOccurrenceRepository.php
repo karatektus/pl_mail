@@ -70,7 +70,7 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
             $sql,
             [
-                'occUserId'      => $user->getId(),
+                'occUserId'      => $user->id,
                 'occCalendarIds' => $calendarIds,
                 'occFrom'        => $from->format('Y-m-d H:i:s'),
                 'occTo'          => $to->format('Y-m-d H:i:s'),
@@ -104,6 +104,10 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
      *
      * A kind is exactly what distinguishes an extracted event from one a person
      * typed, which is why that feature needs no table of its own.
+     *
+     * QueryBuilder for the window bounds, for `event.kind IS NOT NULL` on a
+     * joined entity, and for the fetch-join — the widget renders each event and
+     * its calendar, so lazy associations would be two queries per row.
      *
      * @param list<int> $calendarIds
      *

@@ -74,7 +74,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
 
     public function expiresAt(Account $account): ?DateTimeImmutable
     {
-        return $account->getGraphSubscriptionExpiresAt();
+        return $account->graphSubscriptionExpiresAt;
     }
 
     /**
@@ -86,17 +86,17 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
      */
     public function health(Account $account): PushHealth
     {
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return PushHealth::Inactive;
         }
 
-        $subscriptionId = $account->getGraphSubscriptionId();
+        $subscriptionId = $account->graphSubscriptionId;
 
         if (null === $subscriptionId || '' === $subscriptionId) {
             return PushHealth::Inactive;
         }
 
-        $expiresAt = $account->getGraphSubscriptionExpiresAt();
+        $expiresAt = $account->graphSubscriptionExpiresAt;
 
         if (null === $expiresAt || $expiresAt <= new DateTimeImmutable()) {
             return PushHealth::Degraded;
@@ -111,13 +111,13 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             return false;
         }
 
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return false;
         }
 
         if (false === $this->isPubliclyRoutable()) {
             $this->logger->warning('GraphSubscriptionManager: no usable public base URL, staying on polling', [
-                'accountId'     => $account->getId(),
+                'accountId'     => $account->id,
                 'publicBaseUrl' => $this->publicUrl->current() ?? '',
             ]);
 
@@ -141,7 +141,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             );
         } catch (\Throwable $e) {
             $this->logger->error('GraphSubscriptionManager: subscription failed, falling back to polling', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -154,17 +154,16 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             return false;
         }
 
-        $account
-            ->setGraphSubscriptionId($subscriptionId)
-            ->setGraphSubscriptionClientState($clientState)
-            ->setGraphSubscriptionExpiresAt($this->parseExpiry($subscription) ?? $expiresAt);
+        $account->graphSubscriptionId = $subscriptionId;
+        $account->graphSubscriptionClientState = $clientState;
+        $account->graphSubscriptionExpiresAt = $this->parseExpiry($subscription) ?? $expiresAt;
 
         $this->em->flush();
 
         $this->logger->info('GraphSubscriptionManager: subscribed', [
-            'accountId'      => $account->getId(),
+            'accountId'      => $account->id,
             'subscriptionId' => $subscriptionId,
-            'expiresAt'      => $account->getGraphSubscriptionExpiresAt()?->format(\DATE_ATOM),
+            'expiresAt'      => $account->graphSubscriptionExpiresAt->format(\DATE_ATOM),
         ]);
 
         return true;
@@ -176,7 +175,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
      */
     public function renew(Account $account): bool
     {
-        $subscriptionId = $account->getGraphSubscriptionId();
+        $subscriptionId = $account->graphSubscriptionId;
 
         if (null === $subscriptionId || '' === $subscriptionId) {
             return $this->subscribe($account);
@@ -188,7 +187,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             $subscription = $this->apiClient->renewSubscription($account, $subscriptionId, $expiresAt);
         } catch (\Throwable $e) {
             $this->logger->warning('GraphSubscriptionManager: renewal failed, recreating', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -197,7 +196,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             return $this->subscribe($account);
         }
 
-        $account->setGraphSubscriptionExpiresAt($this->parseExpiry($subscription) ?? $expiresAt);
+        $account->graphSubscriptionExpiresAt = $this->parseExpiry($subscription) ?? $expiresAt;
         $this->em->flush();
 
         return true;
@@ -210,7 +209,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
      */
     public function unsubscribe(Account $account): void
     {
-        $subscriptionId = $account->getGraphSubscriptionId();
+        $subscriptionId = $account->graphSubscriptionId;
 
         if (null === $subscriptionId || '' === $subscriptionId) {
             return;
@@ -220,7 +219,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             $this->apiClient->deleteSubscription($account, $subscriptionId);
         } catch (\Throwable $e) {
             $this->logger->info('GraphSubscriptionManager: teardown failed, letting it lapse', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
         }
@@ -231,11 +230,11 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
 
     public function needsRenewal(Account $account): bool
     {
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return false;
         }
 
-        $expiresAt = $account->getGraphSubscriptionExpiresAt();
+        $expiresAt = $account->graphSubscriptionExpiresAt;
 
         if (null === $expiresAt) {
             return true;
@@ -250,10 +249,9 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
 
     private function clearLocalState(Account $account): void
     {
-        $account
-            ->setGraphSubscriptionId(null)
-            ->setGraphSubscriptionClientState(null)
-            ->setGraphSubscriptionExpiresAt(null);
+        $account->graphSubscriptionId = null;
+        $account->graphSubscriptionClientState = null;
+        $account->graphSubscriptionExpiresAt = null;
     }
 
     private function notificationUrl(): string

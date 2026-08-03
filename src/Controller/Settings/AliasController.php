@@ -78,7 +78,7 @@ final class AliasController extends AbstractController
         $this->denyUnlessOwner($account);
         $target = $this->ownedAlias($account, $aliasId);
 
-        foreach ($account->getAliases() as $alias) {
+        foreach ($account->aliases as $alias) {
             if (EmailAliasStatus::Primary === $alias->status) {
                 $alias->status = EmailAliasStatus::Active;
             }
@@ -131,7 +131,7 @@ final class AliasController extends AbstractController
     #[Route('/refresh', name: 'refresh', methods: ['POST'])]
     public function refresh(Request $request, Account $account): Response
     {
-        $this->assertToken($request, 'alias-refresh' . $account->getId());
+        $this->assertToken($request, 'alias-refresh' . $account->id);
         $this->denyUnlessOwner($account);
 
         $this->aliasSeeder->seed($account);
@@ -143,7 +143,7 @@ final class AliasController extends AbstractController
 
     private function ownedAlias(Account $account, int $aliasId): EmailAlias
     {
-        foreach ($account->getAliases() as $alias) {
+        foreach ($account->aliases as $alias) {
             if ($alias->id === $aliasId) {
                 return $alias;
             }
@@ -165,7 +165,7 @@ final class AliasController extends AbstractController
 
     private function denyUnlessOwner(Account $account): void
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

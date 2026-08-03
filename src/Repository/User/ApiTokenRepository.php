@@ -26,6 +26,10 @@ class ApiTokenRepository extends ServiceEntityRepository
      *
      * Revoked tokens are excluded here rather than by the caller, so there is
      * no path that authenticates one by forgetting the check.
+     *
+     * QueryBuilder for the fetch-join: every caller authenticates the token's
+     * user in the same breath, and findOneBy() would honour the mapped fetch
+     * mode and make that a second query on every authenticated request.
      */
     public function findActiveBySecret(string $secret): ?ApiToken
     {
@@ -40,27 +44,18 @@ class ApiTokenRepository extends ServiceEntityRepository
     }
 
     /**
+     * A null criterion is Doctrine's IS NULL, which is all "not revoked" means.
+     *
      * @return list<ApiToken>
      */
     public function findForUser(UserInterface|User $user): array
     {
-        return $this->createQueryBuilder('t')
-            ->where('t.usr = :user')
-            ->andWhere('t.revokedAt IS NULL')
-            ->setParameter('user', $user)
-            ->orderBy('t.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['usr' => $user, 'revokedAt' => null], ['createdAt' => 'DESC']);
     }
 
+    /** Scoped to the owner, so another user's id can never resolve. */
     public function findOneOwnedBy(int $id, UserInterface|User $user): ?ApiToken
     {
-        return $this->createQueryBuilder('t')
-            ->where('t.id = :id')
-            ->andWhere('t.usr = :user')
-            ->setParameter('id', $id)
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['id' => $id, 'usr' => $user]);
     }
 }

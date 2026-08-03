@@ -83,25 +83,25 @@ class ComposeType extends AbstractType
         $choices = [];
 
         foreach ($this->accountRepository->findForUserOrdered($user) as $account) {
-            if (false === (bool) $account->isActive()) {
+            if (false === (bool) $account->isActive) {
                 continue;
             }
 
-            $sendable = $account->getSendableAliases();
+            $sendable = $account->sendableAliases;
 
             if (count($sendable) === 0) {
-                $address = $account->getDisplayAddress() ?? $account->getEmail();
+                $address = $account->displayAddress ?? $account->email;
 
                 if (null !== $address && '' !== $address) {
-                    $choices[$this->fromLabel($address, $account->getName())] = $account->getId() . '|' . $address;
+                    $choices[$this->fromLabel($address, $account->name)] = $account->id . '|' . $address;
                 }
 
                 continue;
             }
 
             foreach ($sendable as $alias) {
-                $choices[$this->fromLabel($alias->address, $alias->displayName ?? $account->getName())]
-                    = $account->getId() . '|' . $alias->address;
+                $choices[$this->fromLabel($alias->address, $alias->displayName ?? $account->name)]
+                    = $account->id . '|' . $alias->address;
             }
         }
 

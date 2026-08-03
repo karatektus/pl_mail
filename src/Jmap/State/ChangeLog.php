@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\State;
 
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -19,8 +20,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: ChangeLogRepository::class)]
 #[ORM\Table(name: 'jmap_change_log')]
 #[ORM\Index(name: 'idx_jmap_change_scan', columns: ['account_id', 'object_type', 'sequence'])]
+#[ORM\HasLifecycleCallbacks]
 class ChangeLog
 {
+    use TimestampableTrait;
+
     // integer (32-bit), and nothing prunes this table: ChangeLogRepository has a
     // pruneOlderThan() but no caller anywhere in src/, so the log grows for the
     // life of the install — one row per message per sync, plus one per touched
@@ -46,8 +50,6 @@ class ChangeLog
     #[ORM\Column(name: 'change_type', length: 16, enumType: ChangeType::class)]
     public private(set) ChangeType $changeType;
 
-    #[ORM\Column(name: 'created_at')]
-    public private(set) \DateTimeImmutable $createdAt;
 
     public function __construct(
         int $accountId,

@@ -29,6 +29,10 @@ class EventSourceLinkRepository extends ServiceEntityRepository
      * confirmation has only a date. Reads the MESSAGE's date rather than the
      * link's own createdAt: mail is not processed in the order it was sent,
      * and a backfill processes all of it at once.
+     *
+     * MAX over a COALESCE across a joined entity — an aggregate, an expression
+     * and a join, none of which Doctrine's API expresses. The alternative is
+     * loading every link and its message to compute one timestamp.
      */
     public function latestAppliedAt(CalendarEvent $event): ?DateTimeImmutable
     {
@@ -47,6 +51,10 @@ class EventSourceLinkRepository extends ServiceEntityRepository
     /**
      * What this message put on the calendar — the "Added to …" chip in the
      * thread view, and the answer to "why is this on my calendar?".
+     *
+     * QueryBuilder for the fetch-join: the chip names the event and the
+     * calendar it landed on, so leaving either lazy is two extra queries per
+     * chip on a thread that may carry several.
      *
      * @return list<EventSourceLink>
      */

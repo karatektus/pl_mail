@@ -76,7 +76,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         self::assertSame(0, $this->command->getStatusCode());
         self::assertStringContainsString('Woke 1', $this->command->getDisplay());
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
@@ -87,7 +87,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
 
         $this->command->execute([]);
 
-        self::assertNotNull($thread->getSnoozedUntil());
+        self::assertNotNull($thread->snoozedUntil);
         self::assertNotContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
@@ -108,7 +108,7 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         // the logs.
         self::assertSame('', $this->command->getDisplay());
         self::assertSame(0, $this->command->getStatusCode());
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
     }
 
     /** Nothing due is the normal case, and must stay quiet and successful. */
@@ -126,8 +126,8 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     {
         $roles = [];
 
-        foreach ($thread->getMessages() as $message) {
-            foreach ($message->getLabels() as $label) {
+        foreach ($thread->messages as $message) {
+            foreach ($message->labels as $label) {
                 $roles[] = $label->role;
             }
         }
@@ -138,26 +138,24 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function snoozedThread(string $when): MessageThread
     {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Wake fixture')
-            ->setNormalizedSubject('wake fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Wake fixture';
+        $thread->normalizedSubject = 'wake fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Wake fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<wake-%s@example.test>', uniqid('', true)))
-            ->setMailbox($this->mailbox)
-            ->setImapUid(7000)
-            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+        $message->account = $this->account;
+        $message->subject = 'Wake fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<wake-%s@example.test>', uniqid('', true));
+        $message->mailbox = $this->mailbox;
+        $message->imapUid = 7000;
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
 
         $thread->addMessage($message);
         $this->em->persist($message);
@@ -173,28 +171,26 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('wake-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Wake')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'wake-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Wake';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Wake Fixture')
-            ->setUsername('wake-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Wake Fixture';
+        $account->username = 'wake-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
         $this->em->flush();
 
@@ -204,14 +200,11 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
 
         $this->em->persist($mailbox);
         $this->em->flush();

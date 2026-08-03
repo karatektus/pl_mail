@@ -104,7 +104,7 @@ final class InstallEmptyInstallTest extends WebTestCase
         self::assertContains('ROLE_ADMIN', $created->getRoles(), 'the first user owns the install');
         self::assertNotSame('correct-horse-battery-staple', $created->getPassword(), 'the password must be hashed');
         // Chosen on the setup screen, and theirs from here on.
-        self::assertSame('de', $created->getLocale());
+        self::assertSame('de', $created->locale);
 
         // The public address is asked for here because a worker building a push
         // subscription has no request to infer one from.

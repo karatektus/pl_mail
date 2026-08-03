@@ -69,7 +69,7 @@ final readonly class MercureCookieSubscriber implements EventSubscriberInterface
 
         // The user's own topic and nothing else: the id comes from the session,
         // so a cookie can never authorize somebody else's mail.
-        $topics = ['mail/user/'.$user->getId()];
+        $topics = ['mail/user/'.$user->id];
 
         try {
             $response->headers->setCookie(

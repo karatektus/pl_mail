@@ -67,7 +67,7 @@ final class WakeSnoozedCommand extends Command
                 // next run tries again.
                 $io->warning(sprintf(
                     'Could not wake thread %d: %s',
-                    (int) $thread->getId(),
+                    (int) $thread->id,
                     $error->getMessage(),
                 ));
 

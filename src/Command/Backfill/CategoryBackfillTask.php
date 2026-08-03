@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Entity\Mail\Account;
-use App\Entity\Mail\Message;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
@@ -26,7 +25,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * re-runs everything, which is what you want after editing the classifier.
  *
  * Keyset pagination by id so each batch can flush + clear without a
- * server-side cursor, matching SafeHtmlBackfillTask.
+ * server-side cursor, matching SafeHtmlBackfillTask. The cursor itself is
+ * MessageRepository::findPendingCategorization().
  */
 final readonly class CategoryBackfillTask implements BackfillTaskInterface
 {
@@ -72,9 +72,9 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
     private function runForAccount(SymfonyStyle $io, Account $account, bool $force): void
     {
-        $io->section(sprintf('Account #%d (%s)', $account->getId(), $account->getEmail()));
+        $io->section(sprintf('Account #%d (%s)', $account->id, $account->email));
 
-        $total = $this->countPending($account, $force);
+        $total = $this->messageRepository->countPendingCategorization((int) $account->id, $force);
 
         if (0 === $total) {
             $io->text('Nothing to categorise.');
@@ -82,8 +82,8 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
             return;
         }
 
-        $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
-        $accountId      = (int) $account->getId();
+        $correspondents = $this->contactRepository->findCorrespondentEmails($account->usr);
+        $accountId      = (int) $account->id;
 
         $io->progressStart($total);
 
@@ -91,16 +91,21 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         $processed = 0;
 
         while (true) {
-            $messages = $this->pendingBatch($accountId, $force, $lastId);
+            $messages = $this->messageRepository->findPendingCategorization(
+                $accountId,
+                $force,
+                $lastId,
+                self::BATCH_SIZE,
+            );
 
             if (count($messages) === 0) {
                 break;
             }
 
             foreach ($messages as $message) {
-                $lastId = (int) $message->getId();
+                $lastId = (int) $message->id;
 
-                $message->setCategory($this->categorizer->categorize($message, $correspondents));
+                $message->category = $this->categorizer->categorize($message, $correspondents);
 
                 ++$processed;
                 $io->progressAdvance();
@@ -117,40 +122,5 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         $threads = $this->threadRepository->recomputeCategoriesForAccount($account);
 
         $io->success(sprintf('Categorised %d message(s), resolved %d thread(s).', $processed, $threads));
-    }
-
-    private function countPending(Account $account, bool $force): int
-    {
-        return (int) $this->pendingQueryBuilder((int) $account->getId(), $force, 0)
-            ->select('COUNT(m.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    /**
-     * @return list<Message>
-     */
-    private function pendingBatch(int $accountId, bool $force, int $afterId): array
-    {
-        return $this->pendingQueryBuilder($accountId, $force, $afterId)
-            ->orderBy('m.id', 'ASC')
-            ->setMaxResults(self::BATCH_SIZE)
-            ->getQuery()
-            ->getResult();
-    }
-
-    private function pendingQueryBuilder(int $accountId, bool $force, int $afterId): \Doctrine\ORM\QueryBuilder
-    {
-        $qb = $this->messageRepository->createQueryBuilder('m')
-            ->andWhere('m.account = :accountId')
-            ->andWhere('m.id > :afterId')
-            ->setParameter('accountId', $accountId)
-            ->setParameter('afterId', $afterId);
-
-        if (false === $force) {
-            $qb->andWhere('m.category IS NULL');
-        }
-
-        return $qb;
     }
 }

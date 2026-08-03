@@ -4,22 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
-use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageFlag;
-use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
-use App\Service\Label\LabelChangePropagator;
-use App\Service\Label\LabelResolver;
-use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\ThreadSnoozeService;
+use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,28 +18,23 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Status actions are label mutations first (DB = source of truth), then
- * propagated to the provider asynchronously via LabelChangePropagator:
- * IMAP as flag/move operations, Gmail as messages.batchModify.
+ * The mail list's status buttons: star, archive, trash, label, snooze, read.
  *
- * Archive is the removal of the Inbox label. Trash is Trash added and Inbox
- * removed. For plain-IMAP messages the local mailbox pointer is re-pointed
- * optimistically so the sync layer stays coherent.
+ * Each action resolves and authorises a set of messages, hands it to
+ * ThreadStatusUpdater — which owns what these mutations mean — and renders the
+ * Turbo Stream that patches the row. Every route addresses either one message
+ * or a whole thread through the same `{type}` segment, so the only thing that
+ * differs per action below is which template and which subject it renders.
  */
 #[Route('/status/{type}/{id}', name: 'app_status_')]
 #[IsGranted('IS_AUTHENTICATED')]
 class ThreadStatusController extends AbstractController
 {
     public function __construct(
-        private readonly EntityManagerInterface  $em,
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
-        private readonly MailboxRepository       $mailboxRepository,
         private readonly LabelRepository         $labelRepository,
-        private readonly LabelResolver           $labelResolver,
-        private readonly LabelChangePropagator   $propagator,
-        private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
-        private readonly StateManager            $stateManager,
+        private readonly ThreadStatusUpdater     $status,
         private readonly ThreadSnoozeService     $snoozeService,
     ) {}
 
@@ -56,28 +42,12 @@ class ThreadStatusController extends AbstractController
     public function star(string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
+        $message  = $messages[0];
 
-        $message = $messages[0];
-        $starred = null === $message->getStarredAt();
-
-        if (true === $starred) {
-            $message
-                ->addFlag(MessageFlag::FLAGGED)
-                ->setStarredAt(new DateTimeImmutable());
-            $message->getThread()->setStarredAt(new DateTimeImmutable());
-        } else {
-            $message
-                ->removeFlag(MessageFlag::FLAGGED)
-                ->setStarredAt(null);
-            $message->getThread()->setStarredAt(null);
-        }
-
-        $this->propagator->star($messages, $starred);
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        $this->status->star($messages);
 
         return $this->renderTurboStream('thread/status/_star.stream.html.twig', [
-            $type => 'message' === $type ? $message : $message->getThread(),
+            $type => 'message' === $type ? $message : $message->thread,
         ]);
     }
 
@@ -85,35 +55,11 @@ class ThreadStatusController extends AbstractController
     public function archive(string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
-
-        // Propagate BEFORE re-pointing mailboxes so the IMAP job captures
-        // the correct source folders.
-        $this->propagator->archive($messages);
-
-        $archiveMailbox = $this->labelResolver
-            ->systemLabel(LabelRole::Archive, $account)
-            ->bindingFor($account)?->mailbox;
-
-        foreach ($messages as $message) {
-            if (null !== $inboxLabel) {
-                $message->removeLabel($inboxLabel);
-            }
-
-            // Plain-IMAP: the message physically moves to the Archive folder.
-            if (null !== $message->getImapUid() && null !== $archiveMailbox) {
-                $message->setMailbox($archiveMailbox);
-            }
-        }
-
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        $this->status->archive($messages);
 
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
         ]);
     }
 
@@ -121,33 +67,11 @@ class ThreadStatusController extends AbstractController
     public function trash(string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
-        $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
-
-        $this->propagator->trash($messages);
-
-        $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
-
-        foreach ($messages as $message) {
-            $message->addLabel($trashLabel);
-
-            if (null !== $inboxLabel) {
-                $message->removeLabel($inboxLabel);
-            }
-
-            if (null !== $message->getImapUid() && null !== $trashMailbox) {
-                $message->setMailbox($trashMailbox);
-            }
-        }
-
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        $this->status->trash($messages);
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
         ]);
     }
 
@@ -175,28 +99,10 @@ class ThreadStatusController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        if (true === $attach) {
-            foreach ($messages as $message) {
-                $message->addLabel($label);
-            }
-
-            $this->propagator->attachLabel($messages, $label);
-        } else {
-            foreach ($messages as $message) {
-                $message->removeLabel($label);
-            }
-
-            // Handles the IMAP location-label replacement (physical move)
-            // internally; must run before flush.
-            $this->propagator->detachLabel($messages, $label);
-        }
-
-        $this->threadLabelSynchronizer->sync($messages[0]->getThread());
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        $this->status->applyLabel($messages, $label, $attach);
 
         return $this->renderTurboStream('thread/status/_label.stream.html.twig', [
-            $type   => 'message' === $type ? $messages[0] : $messages[0]->getThread(),
+            $type   => 'message' === $type ? $messages[0] : $messages[0]->thread,
             'label'  => $label,
             'attach' => $attach,
         ]);
@@ -206,7 +112,7 @@ class ThreadStatusController extends AbstractController
     public function snooze(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $thread   = $messages[0]->getThread();
+        $thread   = $messages[0]->thread;
 
         // Expects JSON body: { "until": "2026-07-10T08:00:00Z" }
         // Sending no / null "until" clears the snooze.
@@ -223,7 +129,7 @@ class ThreadStatusController extends AbstractController
             }
         }
 
-        // Through the service, not setSnoozedUntil(): snoozing has to move the
+        // Through the service, not $thread->snoozedUntil: snoozing has to move the
         // Inbox label off and propagate that outward. Writing the column here
         // is what this endpoint used to do, and it left the conversation
         // sitting in the inbox — locally and at the provider — while the row
@@ -251,29 +157,12 @@ class ThreadStatusController extends AbstractController
     public function markRead(Request $request, string $type, int $id): Response
     {
         $messages = $this->resolveMessages($type, $id);
-        $thread   = $messages[0]->getThread();
+        $thread   = $messages[0]->thread;
 
         $body       = json_decode($request->getContent(), true);
         $markAsRead = (true === array_key_exists('read', $body) && true === $body['read']);
-        $unread     = 0;
 
-        foreach ($messages as $message) {
-            if (true === $markAsRead) {
-                $message
-                    ->addFlag(MessageFlag::SEEN)
-                    ->setSeenAt(new DateTimeImmutable());
-            } else {
-                $message
-                    ->removeFlag(MessageFlag::SEEN)
-                    ->setSeenAt(null);
-                $unread++;
-            }
-        }
-
-        $thread->setUnreadCount($unread);
-        $this->propagator->markRead($messages, $markAsRead);
-        $this->recordJmapUpdates($messages);
-        $this->em->flush();
+        $this->status->markRead($messages, $markAsRead);
 
         return $this->renderTurboStream('thread/status/_read.stream.html.twig', [
             $type        => 'message' === $type ? $messages[0] : $thread,
@@ -286,38 +175,6 @@ class ThreadStatusController extends AbstractController
     /**
      * @return Message[]
      */
-    /**
-     * Record a web-UI mutation in the JMAP change log so connected JMAP
-     * clients see it on their next Email/changes. record() only persists, so
-     * these rows commit on the caller's existing flush().
-     *
-     * @param list<Message> $messages
-     */
-    private function recordJmapUpdates(array $messages): void
-    {
-        $threadIdsByAccount = [];
-
-        foreach ($messages as $message) {
-            $accountId = (int) $message->getAccount()->getId();
-
-            $this->stateManager->recordUpdated(
-                $accountId,
-                JmapObjectType::Email,
-                (string) $message->getId(),
-            );
-
-            $thread = $message->getThread();
-
-            if (null !== $thread) {
-                $threadIdsByAccount[$accountId][] = (int) $thread->getId();
-            }
-        }
-
-        foreach ($threadIdsByAccount as $accountId => $threadIds) {
-            $this->stateManager->recordThreadsTouched($accountId, $threadIds);
-        }
-    }
-
     private function resolveMessages(string $type, int $id): array
     {
         $messages = [];
@@ -327,24 +184,12 @@ class ThreadStatusController extends AbstractController
         }
 
         if ('thread' === $type) {
-            $messages = $this->threadRepository->find($id)->getMessages()->toArray();
+            $messages = $this->threadRepository->find($id)->messages->toArray();
         }
 
         $this->assertOwnership($messages);
 
         return array_values($messages);
-    }
-
-    private function accountOf(Message $message): \App\Entity\Mail\Account
-    {
-        $mailbox = $message->getMailbox();
-
-        if (null !== $mailbox) {
-            return $mailbox->getAccount();
-        }
-
-        // Gmail-API messages have no mailbox — the thread carries the account.
-        return $message->getThread()->getAccount();
     }
 
     /**
@@ -353,7 +198,7 @@ class ThreadStatusController extends AbstractController
     private function assertOwnership(iterable $messages): void
     {
         foreach ($messages as $message) {
-            if ($this->accountOf($message)->getUsr() !== $this->getUser()) {
+            if ($this->status->accountOf($message)->usr !== $this->getUser()) {
                 throw $this->createAccessDeniedException();
             }
         }

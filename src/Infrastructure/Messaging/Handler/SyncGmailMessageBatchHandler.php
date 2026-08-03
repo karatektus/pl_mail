@@ -68,7 +68,7 @@ final readonly class SyncGmailMessageBatchHandler
         // and re-insert on every retry. Enriched IMAP rows get their gmailId
         // set, so they are covered here too and enrichment runs exactly once.
         $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIdsForUser($account->getUsr())
+            $this->messageRepository->findSyncedGmailIdsForUser($account->usr)
         );
 
         $toFetch = [];
@@ -94,19 +94,19 @@ final readonly class SyncGmailMessageBatchHandler
         // logged as permanently gone. Nothing gets dropped silently.
         if (count($fetch['gone']) > 0) {
             $this->logger->warning('SyncGmailMessageBatch: messages permanently unfetchable, skipping', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'gmailIds'  => $fetch['gone'],
             ]);
         }
 
         if (count($fetch['retryable']) > 0) {
             $this->logger->info('SyncGmailMessageBatch: re-queueing failed sub-requests', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'count'     => count($fetch['retryable']),
             ]);
 
             $this->bus->dispatch(
-                new SyncGmailMessageBatchMessage($account->getId(), $fetch['retryable']),
+                new SyncGmailMessageBatchMessage($account->id, $fetch['retryable']),
                 [new DelayStamp(self::RETRY_DELAY_MS)],
             );
         }
@@ -134,7 +134,7 @@ final readonly class SyncGmailMessageBatchHandler
             if (null === $targetAccount) {
                 $this->logger->debug('SyncGmailMessageBatch: skipping message not attributable to any known account', [
                     'gmailId'   => '' !== $gmailId ? $gmailId : '(unknown)',
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                 ]);
                 continue;
             }
@@ -154,7 +154,7 @@ final readonly class SyncGmailMessageBatchHandler
                         $this->enrichExisting($existing, $labelIds, $gmailId, $targetAccount, $account);
 
                         $enriched++;
-                        $affectedAccounts[(int) $targetAccount->getId()] = $targetAccount;
+                        $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
                         continue;
                     }
                 }
@@ -173,7 +173,7 @@ final readonly class SyncGmailMessageBatchHandler
                     'account' => $targetAccount,
                 ];
 
-                $affectedAccounts[(int) $targetAccount->getId()] = $targetAccount;
+                $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGmailMessageBatch: build failed', [
                     'gmailId' => '' !== $gmailId ? $gmailId : '(unknown)',
@@ -201,9 +201,9 @@ final readonly class SyncGmailMessageBatchHandler
 
         if (false === $result->isEmpty()) {
             $this->harvestService->harvestMessages(
-                $account->getUsr(),
+                $account->usr,
                 $result->messages,
-                $account->getEmail()
+                $account->email
             );
         }
 
@@ -238,10 +238,10 @@ final readonly class SyncGmailMessageBatchHandler
         Account $carrier,
     ): void {
         if ('' !== $gmailId) {
-            $existing->setGmailId($gmailId);
+            $existing->gmailId = $gmailId;
         }
 
-        $existing->setGmailLabelIds($labelIds);
+        $existing->gmailLabelIds = $labelIds;
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
 
@@ -249,19 +249,19 @@ final readonly class SyncGmailMessageBatchHandler
         // change a JMAP client must see. The row already has an id, so this is
         // safe to record before the batch flush.
         $this->stateManager->recordUpdated(
-            (int) $target->getId(),
+            (int) $target->id,
             JmapObjectType::Email,
-            (string) $existing->getId(),
+            (string) $existing->id,
         );
 
-        $thread = $existing->getThread();
+        $thread = $existing->thread;
 
         if (null !== $thread) {
-            foreach ($existing->getLabels() as $label) {
+            foreach ($existing->labels as $label) {
                 $thread->addLabel($label);
             }
 
-            $this->stateManager->recordThreadsTouched((int) $target->getId(), [(int) $thread->getId()]);
+            $this->stateManager->recordThreadsTouched((int) $target->id, [(int) $thread->id]);
         }
     }
 
@@ -341,16 +341,16 @@ final readonly class SyncGmailMessageBatchHandler
      */
     private function buildSiblingAccountMap(Account $account): array
     {
-        $user     = $account->getUsr();
+        $user     = $account->usr;
         $siblings = $this->accountRepository->findBy(['usr' => $user, 'isActive' => true]);
         $map      = [];
 
         foreach ($siblings as $sibling) {
-            if ($sibling->getId() === $account->getId()) {
+            if ($sibling->id === $account->id) {
                 continue;
             }
 
-            $email = (string) $sibling->getEmail();
+            $email = (string) $sibling->email;
 
             if ('' === $email) {
                 continue;

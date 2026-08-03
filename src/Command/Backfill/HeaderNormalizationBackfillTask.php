@@ -60,7 +60,7 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
             }
 
             foreach ($this->messageRepository->findByIds($ids) as $message) {
-                $headers = $message->getHeaders();
+                $headers = $message->headers;
 
                 if (null === $headers || 0 === count($headers)) {
                     continue;
@@ -69,7 +69,7 @@ final readonly class HeaderNormalizationBackfillTask implements BackfillTaskInte
                 $normalized = $this->normalizer->normalize($headers);
 
                 if ($normalized !== $headers) {
-                    $message->setHeaders($normalized);
+                    $message->headers = $normalized;
                     $changed++;
                 }
             }

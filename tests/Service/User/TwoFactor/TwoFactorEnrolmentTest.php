@@ -64,10 +64,10 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
     private function user(): User
     {
         $user = new User();
-        $user->setEmail('2fa-'.bin2hex(random_bytes(6)).'@plmail.test');
-        $user->setPassword('irrelevant');
-        $user->setNameFirst('Two');
-        $user->setNameLast('Factor');
+        $user->email = '2fa-'.bin2hex(random_bytes(6)).'@plmail.test';
+        $user->password = 'irrelevant';
+        $user->nameFirst = 'Two';
+        $user->nameLast = 'Factor';
 
         $this->em->persist($user);
         $this->em->flush();
@@ -78,7 +78,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
     /** The code the user's app would be showing right now. */
     private function currentCode(User $user): string
     {
-        return TOTP::create($user->getTotpSecret(), 30, 'sha1', 6)->now();
+        return TOTP::create($user->totpSecret, 30, 'sha1', 6)->now();
     }
 
     public function testBeginStagesASecretWithoutEnablingAnything(): void
@@ -88,7 +88,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
         $uri = $this->enrolment()->begin($user);
 
         self::assertStringStartsWith('otpauth://totp/', $uri);
-        self::assertNotNull($user->getTotpSecret());
+        self::assertNotNull($user->totpSecret);
         self::assertFalse($user->isTotpAuthenticationEnabled());
     }
 
@@ -105,11 +105,11 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
         $user = $this->user();
 
         $this->enrolment()->begin($user);
-        $first = $user->getTotpSecret();
+        $first = $user->totpSecret;
 
         $this->enrolment()->begin($user);
 
-        self::assertSame($first, $user->getTotpSecret());
+        self::assertSame($first, $user->totpSecret);
     }
 
     /**
@@ -122,11 +122,11 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
         $this->enrolment()->begin($user);
         $this->enrolment()->confirm($user, $this->currentCode($user));
 
-        $confirmed = $user->getTotpSecret();
+        $confirmed = $user->totpSecret;
 
         $this->enrolment()->begin($user);
 
-        self::assertNotSame($confirmed, $user->getTotpSecret());
+        self::assertNotSame($confirmed, $user->totpSecret);
         self::assertFalse($user->isTotpAuthenticationEnabled());
     }
 
@@ -159,7 +159,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
 
         self::assertNull($this->enrolment()->confirm($user, '000000'));
         self::assertFalse($user->isTotpAuthenticationEnabled());
-        self::assertSame(0, $user->countBackupCodes());
+        self::assertSame(0, $user->backupCodeCount);
     }
 
     public function testARealCodeEnablesTwoFactorAndReturnsRecoveryCodes(): void
@@ -172,7 +172,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
         self::assertNotNull($codes);
         self::assertCount(User::BACKUP_CODE_COUNT, $codes);
         self::assertTrue($user->isTotpAuthenticationEnabled());
-        self::assertSame(User::BACKUP_CODE_COUNT, $user->countBackupCodes());
+        self::assertSame(User::BACKUP_CODE_COUNT, $user->backupCodeCount);
     }
 
     public function testEveryReturnedRecoveryCodeActuallyWorks(): void
@@ -205,7 +205,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
 
         $new = $this->enrolment()->regenerateBackupCodes($user);
 
-        self::assertSame(User::BACKUP_CODE_COUNT, $user->countBackupCodes());
+        self::assertSame(User::BACKUP_CODE_COUNT, $user->backupCodeCount);
 
         foreach ($old as $code) {
             self::assertFalse($user->isBackupCode($code), 'an old recovery code survived regeneration');
@@ -225,7 +225,7 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
         $this->enrolment()->disable($user);
 
         self::assertFalse($user->isTotpAuthenticationEnabled());
-        self::assertNull($user->getTotpSecret());
+        self::assertNull($user->totpSecret);
         self::assertFalse($user->isBackupCode($codes[0]));
     }
 
@@ -377,5 +377,69 @@ final class TwoFactorEnrolmentTest extends KernelTestCase
             $this->devices()->findActiveBySecret($otherSecret, $other, 'main'),
             'revoking one user\'s devices withdrew another user\'s',
         );
+    }
+
+    // ── proving possession ────────────────────────────────────────────────────
+
+    /**
+     * The ordinary case: whoever is holding the authenticator may turn 2FA off
+     * or reissue their recovery codes.
+     */
+    public function testACurrentTotpCodeProvesPossession(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertTrue($enrolment->provesPossession($user, $this->currentCode($user)));
+    }
+
+    /**
+     * A user who has lost their authenticator still has to be able to turn 2FA
+     * off. That is what the recovery codes are for, and refusing one here would
+     * lock them out of their own account permanently.
+     */
+    public function testAnUnspentRecoveryCodeProvesPossession(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        self::assertTrue($enrolment->provesPossession($user, $codes[0]));
+    }
+
+    /**
+     * The one that matters: a recovery code is spent on the way past, so a
+     * leaked one cannot be replayed against a second action — disable 2FA
+     * *and* reissue the codes, say.
+     */
+    public function testARecoveryCodeCannotBeUsedTwice(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        $enrolment->provesPossession($user, $codes[0]);
+
+        self::assertFalse($enrolment->provesPossession($user, $codes[0]));
+        // And only that one is spent; the rest are still the user's way back in.
+        self::assertTrue($enrolment->provesPossession($user, $codes[1]));
+    }
+
+    public function testAWrongCodeProvesNothingAndSpendsNothing(): void
+    {
+        $user = $this->user();
+        $enrolment = $this->enrolment();
+        $enrolment->begin($user);
+        $codes = $enrolment->confirm($user, $this->currentCode($user));
+
+        self::assertIsArray($codes);
+        self::assertFalse($enrolment->provesPossession($user, 'not-a-code-at-all'));
+        self::assertCount(User::BACKUP_CODE_COUNT, $user->backupCodes);
     }
 }

@@ -128,7 +128,7 @@ final class DevicePairingEndpointTest extends WebTestCase
 
         $body = json_decode((string) $client->getResponse()->getContent(), true);
 
-        self::assertSame($user->getEmail(), $body['username']);
+        self::assertSame($user->email, $body['username']);
         self::assertStringStartsWith('plmail_', $body['secret']);
     }
 
@@ -294,14 +294,11 @@ final class DevicePairingEndpointTest extends WebTestCase
     private function seedUser(): User
     {
         $user = new User();
-        $user
-            ->setEmail('pair-endpoint-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Pair')
-            ->setNameLast('Endpoint')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'pair-endpoint-'.uniqid('', true).'@example.test';
+        $user->nameFirst = 'Pair';
+        $user->nameLast = 'Endpoint';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
 
         $this->em->persist($user);
         $this->em->flush();

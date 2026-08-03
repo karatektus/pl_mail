@@ -39,6 +39,20 @@ export default class extends Controller {
     connect() {
         this._onMove = this._onMove.bind(this);
         this._onUp = this._onUp.bind(this);
+
+        // The server renders the pane closed below lg whatever the stored
+        // preference says — see _calendar_pane.html.twig. Match that here or
+        // the first tap would try to close something already hidden. No fetch:
+        // this corrects the value to what is on screen, it does not record a
+        // choice the user has not made.
+        if (this.openValue && this._isNarrow()) {
+            this.openValue = false;
+        }
+    }
+
+    /** Below lg the pane replaces the mail rather than sitting beside it. */
+    _isNarrow() {
+        return window.matchMedia("(max-width: 1023px)").matches;
     }
 
     disconnect() {
@@ -82,6 +96,10 @@ export default class extends Controller {
         this.wrapperTarget.classList.toggle("flex", this.openValue);
         this.wrapperTarget.classList.toggle("w-full", this.openValue);
         this.wrapperTarget.classList.toggle("lg:w-auto", this.openValue);
+        // lg:flex is part of the closed-below-lg state the server renders, so it
+        // has to come off on close: left on, it would out-specify `hidden` at lg
+        // and the pane would refuse to shut on a desktop.
+        this.wrapperTarget.classList.toggle("lg:flex", this.openValue);
 
         // The frame is lazy and has no src until the pane is first opened, so
         // opening it is what loads the calendar. Turbo takes it from there.

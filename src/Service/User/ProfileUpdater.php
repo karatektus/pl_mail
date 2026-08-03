@@ -29,7 +29,7 @@ final readonly class ProfileUpdater
 
     public function apply(User $user, FormInterface $form): void
     {
-        $userId = (string) $user->getId();
+        $userId = (string) $user->id;
 
         // A picture chosen from a connected service, if a thumbnail was the
         // thing that submitted the form. Before the upload, so picking one and
@@ -41,13 +41,13 @@ final readonly class ProfileUpdater
         // submission should leave the new file, not delete it.
         if (true === $form->has('removeAvatar') && true === $form->get('removeAvatar')->getData()) {
             $this->avatars->deleteAllFor($userId);
-            $user->setAvatar(null);
+            $user->avatar = null;
         }
 
         $file = true === $form->has('avatarFile') ? $form->get('avatarFile')->getData() : null;
 
         if ($file instanceof UploadedFile) {
-            $user->setAvatar($this->avatars->store($userId, $file));
+            $user->avatar = $this->avatars->store($userId, $file);
         }
 
         $this->entityManager->flush();

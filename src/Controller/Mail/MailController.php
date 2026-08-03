@@ -134,7 +134,7 @@ final class MailController extends AbstractController
 
         $account = $this->accountRepository->find($id);
 
-        if (null === $account || $account->getUsr() !== $this->getUser()) {
+        if (null === $account || $account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -148,7 +148,7 @@ final class MailController extends AbstractController
     #[Route('/account/{account}', name: 'account')]
     public function accountView(Account $account, Request $request): Response
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -293,7 +293,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -345,10 +345,10 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $thread = $message->getThread();
-        $account = $thread->getAccount();
+        $thread = $message->thread;
+        $account = $thread->account;
 
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -374,14 +374,14 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $account = $thread->getAccount();
-        if ($account->getUsr() !== $this->getUser()) {
+        $account = $thread->account;
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
         // The association is ordered by receivedAt ASC, so the last entry is
         // the newest message.
-        $messages      = $thread->getMessages();
+        $messages      = $thread->messages;
         $latestMessage = false === $messages->isEmpty() ? $messages->last() : null;
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {

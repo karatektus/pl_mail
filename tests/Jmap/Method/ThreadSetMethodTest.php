@@ -76,21 +76,21 @@ final class ThreadSetMethodTest extends KernelTestCase
 
         $result = $this->handle([
             'update' => [
-                (string) $thread->getId() => [
+                (string) $thread->id => [
                     'snoozedUntil' => (new \DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i:s\Z'),
                 ],
             ],
         ]);
 
-        self::assertArrayHasKey((string) $thread->getId(), (array) $result['updated']);
-        self::assertNotNull($thread->getSnoozedUntil());
+        self::assertArrayHasKey((string) $thread->id, (array) $result['updated']);
+        self::assertNotNull($thread->snoozedUntil);
         self::assertNotContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
     public function testNullClearsTheSnooze(): void
     {
         $thread = $this->inboxThread();
-        $id     = (string) $thread->getId();
+        $id     = (string) $thread->id;
 
         $this->handle([
             'update' => [$id => ['snoozedUntil' => (new \DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i:s\Z')]],
@@ -98,7 +98,7 @@ final class ThreadSetMethodTest extends KernelTestCase
 
         $this->handle(['update' => [$id => ['snoozedUntil' => null]]]);
 
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertNull($thread->snoozedUntil);
         self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
     }
 
@@ -129,10 +129,10 @@ final class ThreadSetMethodTest extends KernelTestCase
         $thread = $this->inboxThread();
 
         $result = $this->handle([
-            'update' => [(string) $thread->getId() => ['subject' => 'nope']],
+            'update' => [(string) $thread->id => ['subject' => 'nope']],
         ]);
 
-        self::assertArrayHasKey((string) $thread->getId(), (array) $result['notUpdated']);
+        self::assertArrayHasKey((string) $thread->id, (array) $result['notUpdated']);
         self::assertCount(0, (array) $result['updated']);
     }
 
@@ -146,11 +146,11 @@ final class ThreadSetMethodTest extends KernelTestCase
         $thread = $this->inboxThread();
 
         $result = $this->handle([
-            'update' => [(string) $thread->getId() => ['snoozedUntil' => 'next tuesday-ish']],
+            'update' => [(string) $thread->id => ['snoozedUntil' => 'next tuesday-ish']],
         ]);
 
-        self::assertArrayHasKey((string) $thread->getId(), (array) $result['notUpdated']);
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertArrayHasKey((string) $thread->id, (array) $result['notUpdated']);
+        self::assertNull($thread->snoozedUntil);
     }
 
     /** Scoped by account, so guessing an integer reaches nothing. */
@@ -166,10 +166,10 @@ final class ThreadSetMethodTest extends KernelTestCase
     {
         $thread = $this->inboxThread();
 
-        $result = $this->handle(['update' => [(string) $thread->getId() => []]]);
+        $result = $this->handle(['update' => [(string) $thread->id => []]]);
 
-        self::assertArrayHasKey((string) $thread->getId(), (array) $result['updated']);
-        self::assertNull($thread->getSnoozedUntil());
+        self::assertArrayHasKey((string) $thread->id, (array) $result['updated']);
+        self::assertNull($thread->snoozedUntil);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ final class ThreadSetMethodTest extends KernelTestCase
     private function handle(array $arguments): array
     {
         return $this->method->handle(
-            $arguments + ['accountId' => (string) $this->account->getId()],
+            $arguments + ['accountId' => (string) $this->account->id],
             new JmapContext($this->user),
         );
     }
@@ -192,8 +192,8 @@ final class ThreadSetMethodTest extends KernelTestCase
     {
         $roles = [];
 
-        foreach ($thread->getMessages() as $message) {
-            foreach ($message->getLabels() as $label) {
+        foreach ($thread->messages as $message) {
+            foreach ($message->labels as $label) {
                 $roles[] = $label->role;
             }
         }
@@ -204,26 +204,24 @@ final class ThreadSetMethodTest extends KernelTestCase
     private function inboxThread(): MessageThread
     {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Thread/set fixture')
-            ->setNormalizedSubject('thread/set fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Thread/set fixture';
+        $thread->normalizedSubject = 'thread/set fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setSubject('Thread/set fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<threadset-%s@example.test>', uniqid('', true)))
-            ->setMailbox($this->mailbox)
-            ->setImapUid(8000)
-            ->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+        $message->account = $this->account;
+        $message->subject = 'Thread/set fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<threadset-%s@example.test>', uniqid('', true));
+        $message->mailbox = $this->mailbox;
+        $message->imapUid = 8000;
+        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
 
         $thread->addMessage($message);
         $this->em->persist($message);
@@ -235,39 +233,34 @@ final class ThreadSetMethodTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('threadset-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Thread')
-            ->setNameLast('Set')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'threadset-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Thread';
+        $this->user->nameLast = 'Set';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            ->setEmail('Thread Set')
-            ->setUsername('threadset-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        $this->account->email = 'Thread Set';
+        $this->account->username = 'threadset-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
-        $this->mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->mailbox->account = $this->account;
+        $this->mailbox->name = 'INBOX';
+        $this->mailbox->fullPath = 'INBOX';
+        $this->mailbox->isSyncEnabled = true;
+        $this->mailbox->isIdleEnabled = false;
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

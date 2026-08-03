@@ -65,8 +65,26 @@
                         <i class="fa-solid fa-circle-info text-amber-500" aria-hidden="true"></i>
                         {{ 'admin.db.extension_missing'|trans }}
                     </p>
-                    <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
+                    {# The button only where pressing it could work. The library
+                       is read once at server start, so if it is not loaded the
+                       only honest instruction is the config plus a restart —
+                       CREATE EXTENSION would succeed and leave a view that
+                       raises on every read. #}
+                    {% if statStatementsPossible %}
+                        <p class="mt-1 text-xs text-ink-faint">{{ 'admin.db.extension_enable_hint'|trans }}</p>
+                        <form method="post" action="{{ path('app_admin_db_stat_statements_enable') }}" class="mt-3">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_db_stat_statements_enable') }}">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium
+                                           bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                                <i class="fa-solid fa-bolt text-[11px]" aria-hidden="true"></i>
+                                {{ 'admin.db.extension_enable'|trans }}
+                            </button>
+                        </form>
+                    {% else %}
+                        <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto">shared_preload_libraries = 'pg_stat_statements'   # postgresql.conf, then restart
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
+                    {% endif %}
                 </div>
             {% elseif slowestByMean|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.slow_mean.empty'|trans }}</p>

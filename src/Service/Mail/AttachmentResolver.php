@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  *   msgraph://{attachmentId}  → Graph /messages/{id}/attachments/{id}/$value
  *
  * NOTE — this file also fixes a live bug. The previous implementation read
- * `$message->getMailbox()->getAccount()`, which worked when Gmail messages
+ * the account through the message's mailbox, which worked when Gmail messages
  * still had Mailbox rows. Under the label architecture API-synced messages
  * have no mailbox, so the first attachment click on a Gmail message fatals on
  * a null mailbox. The account now comes from the message directly, and the
@@ -44,7 +44,7 @@ final readonly class AttachmentResolver
      */
     public function absolutePathFor(MessagePart $part): string
     {
-        $storagePath = (string) $part->getStoragePath();
+        $storagePath = (string) $part->storagePath;
 
         if (true === str_starts_with($storagePath, self::GMAIL_SCHEME)) {
             return $this->materialise($part, $storagePath, self::GMAIL_SCHEME);
@@ -62,24 +62,24 @@ final readonly class AttachmentResolver
     private function materialise(MessagePart $part, string $storagePath, string $scheme): string
     {
         $attachmentId = substr($storagePath, strlen($scheme));
-        $message      = $part->getMessage();
-        $account      = $message->getAccount();
+        $message      = $part->message;
+        $account      = $message->account;
 
         if ('' === $attachmentId || null === $account) {
             throw new \RuntimeException(sprintf(
                 'Cannot materialise attachment for part %d: missing account or attachmentId.',
-                (int) $part->getId(),
+                (int) $part->id,
             ));
         }
 
         $remoteMessageId = self::GMAIL_SCHEME === $scheme
-            ? $message->getGmailId()
-            : $message->getGraphId();
+            ? $message->gmailId
+            : $message->graphId;
 
         if (null === $remoteMessageId || '' === $remoteMessageId) {
             throw new \RuntimeException(sprintf(
                 'Cannot materialise attachment for part %d: message has no provider id.',
-                (int) $part->getId(),
+                (int) $part->id,
             ));
         }
 
@@ -88,18 +88,18 @@ final readonly class AttachmentResolver
             : $this->graphApiClient->getAttachmentContent($account, $remoteMessageId, $attachmentId);
 
         $relativePath = $this->attachmentStorage->store(
-            $account->getId(),
+            $account->id,
             $this->storageBucket($part),
             abs(crc32($remoteMessageId)),
-            (string) $part->getFilename(),
+            (string) $part->filename,
             $content,
         );
 
-        $part->setStoragePath($relativePath);
+        $part->storagePath = $relativePath;
         $this->em->flush();
 
         $this->logger->info('AttachmentResolver: materialised provider attachment', [
-            'partId' => $part->getId(),
+            'partId' => $part->id,
             'scheme' => $scheme,
         ]);
 
@@ -112,12 +112,12 @@ final readonly class AttachmentResolver
      */
     private function storageBucket(MessagePart $part): int
     {
-        $mailbox = $part->getMessage()->getMailbox();
+        $mailbox = $part->message->mailbox;
 
         if (null === $mailbox) {
             return 0;
         }
 
-        return (int) $mailbox->getId();
+        return (int) $mailbox->id;
     }
 }

@@ -45,7 +45,7 @@ final class AccountPushController extends AbstractController
 
         $token = (string) $request->request->get('_token');
 
-        if (false === $this->isCsrfTokenValid('account_push_' . $account->getId(), $token)) {
+        if (false === $this->isCsrfTokenValid('account_push_' . $account->id, $token)) {
             throw $this->createAccessDeniedException();
         }
 
@@ -57,13 +57,13 @@ final class AccountPushController extends AbstractController
 
         $failed = false;
 
-        if (false === $account->isPushEnabled()) {
+        if (false === $account->pushEnabled) {
             // subscribe() reads the flag, so it has to be set and flushed first.
-            $account->setPushEnabled(true);
+            $account->pushEnabled = true;
             $this->em->flush();
 
             if (false === $manager->subscribe($account)) {
-                $account->setPushEnabled(false);
+                $account->pushEnabled = false;
                 $this->em->flush();
 
                 $failed = true;
@@ -71,7 +71,7 @@ final class AccountPushController extends AbstractController
         } else {
             $manager->unsubscribe($account);
 
-            $account->setPushEnabled(false);
+            $account->pushEnabled = false;
             $this->em->flush();
         }
 
@@ -90,7 +90,7 @@ final class AccountPushController extends AbstractController
 
         $token = (string) $request->request->get('_token');
 
-        if (false === $this->isCsrfTokenValid('account_push_' . $account->getId(), $token)) {
+        if (false === $this->isCsrfTokenValid('account_push_' . $account->id, $token)) {
             throw $this->createAccessDeniedException();
         }
 
@@ -129,7 +129,7 @@ final class AccountPushController extends AbstractController
 
     private function assertOwnership(Account $account): void
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

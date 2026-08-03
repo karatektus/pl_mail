@@ -56,6 +56,9 @@ admin:
         connections: 'Verbindungen'
         deadlocks: 'Deadlocks'
         extension_missing: 'pg_stat_statements ist nicht aktiviert — die Auswertung langsamer Abfragen steht nicht zur Verfügung. Einmalig aktivieren:'
+        extension_enable: "Jetzt aktivieren"
+        extension_enable_hint: "Die Statistik beginnt, sobald die Erweiterung angelegt wird; fruehere Abfragen erscheinen nicht."
+        extension_enable_failed: "Erweiterung konnte nicht aktiviert werden - die Datenbankrolle darf sie nicht anlegen."
         heavy_total:
             heading: 'Aufwendigste Abfragen (nach Gesamtzeit)'
             hint: 'Kumulierte Zeit über alle Aufrufe — wofür die Datenbank ihre Zeit insgesamt aufwendet.'

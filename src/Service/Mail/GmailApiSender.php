@@ -32,11 +32,11 @@ class GmailApiSender implements MailSenderInterface
 
     public function supports(Account $account): bool
     {
-        if (AuthType::OAuth2->value !== $account->getAuthType()) {
+        if (AuthType::OAuth2->value !== $account->authType) {
             return false;
         }
 
-        if (MailProvider::Google->value !== $account->getOauthProvider()) {
+        if (MailProvider::Google->value !== $account->oauthProvider) {
             return false;
         }
 
@@ -64,7 +64,7 @@ class GmailApiSender implements MailSenderInterface
             if ($statusCode < 200 || $statusCode >= 300) {
                 $this->logger->error('GmailApiSender: send failed', [
                     'status'  => $statusCode,
-                    'account' => $account->getId(),
+                    'account' => $account->id,
                     'body'    => $response->getContent(false),
                 ]);
 
@@ -72,7 +72,7 @@ class GmailApiSender implements MailSenderInterface
             }
         } catch (HttpExceptionInterface $e) {
             $this->logger->error('GmailApiSender: request error', [
-                'account' => $account->getId(),
+                'account' => $account->id,
                 'error'   => $e->getMessage(),
             ]);
 

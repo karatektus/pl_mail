@@ -209,12 +209,11 @@ final class CalendarEventOccurrenceRepositoryTest extends KernelTestCase
     private function seedCalendar(): Calendar
     {
         $user = new User();
-        $user
-            ->setEmail('range-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Range')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'range-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Range';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 

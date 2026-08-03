@@ -117,7 +117,7 @@ final class AttachmentThumbnailerTest extends KernelTestCase
     public function testAnOversizeAttachmentIsNotPreviewable(): void
     {
         $part = $this->partFor($this->writePng('huge.png', 10, 10), 'image/png');
-        $part->setSize(64 * 1024 * 1024);
+        $part->size = 64 * 1024 * 1024;
 
         self::assertFalse($this->thumbnailer->isPreviewable($part));
     }
@@ -141,39 +141,36 @@ final class AttachmentThumbnailerTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('thumbs-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Thumb')
-            ->setNameLast('Nailer')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'thumbs-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Thumb';
+        $user->nameLast = 'Nailer';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Thumb Nailer')
-            ->setUsername('thumbs@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Thumb Nailer';
+        $account->username = 'thumbs@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->message = new Message();
-        $this->message
-            ->setAccount($account)
-            ->setSubject('Thumbnail fixture')
-            ->setFromAddress('sender@example.test')
-            ->setFromName('Sender')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-01 12:00:00'))
-            ->setHasAttachments(true);
+        $this->message->account = $account;
+        $this->message->subject = 'Thumbnail fixture';
+        $this->message->fromAddress = 'sender@example.test';
+        $this->message->fromName = 'Sender';
+        $this->message->bodyText = 'body';
+        $this->message->receivedAt = new \DateTimeImmutable('2026-07-01 12:00:00');
+        $this->message->hasAttachments = true;
         $this->em->persist($this->message);
 
         $this->em->flush();
@@ -181,13 +178,13 @@ final class AttachmentThumbnailerTest extends KernelTestCase
 
     private function partFor(string $relativePath, string $contentType): MessagePart
     {
-        $part = new MessagePart()
-            ->setMessage($this->message)
-            ->setContentType($contentType)
-            ->setFilename(basename($relativePath))
-            ->setDisposition('attachment')
-            ->setStoragePath($relativePath)
-            ->setIsInline(false);
+        $part = new MessagePart();
+        $part->message     = $this->message;
+        $part->contentType = $contentType;
+        $part->filename    = basename($relativePath);
+        $part->disposition = 'attachment';
+        $part->storagePath = $relativePath;
+        $part->isInline    = false;
 
         $this->em->persist($part);
         $this->em->flush();

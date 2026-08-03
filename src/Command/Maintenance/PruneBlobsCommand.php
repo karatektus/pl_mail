@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Command\Maintenance;
 
 use App\Domain\Helper\UploadStorage;
+use App\Repository\Mail\MessagePartRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\UploadedBlobRepository;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -55,21 +56,23 @@ final class PruneBlobsCommand extends Command
     private const int DEFAULT_DAYS = 7;
 
     /**
-     * Root directory => the column that references files in it.
+     * The roots this command sweeps. Which column references files in each is
+     * the repositories' business — see referencedPaths().
      *
-     * @var array<string, array{table: string, column: string}>
+     * @var list<string>
      */
     private const array STORES = [
-        'var/uploads' => ['table' => 'uploaded_blob', 'column' => 'path'],
-        'var/attachments' => ['table' => 'message_part', 'column' => 'storage_path'],
-        'var/raw' => ['table' => 'message', 'column' => 'raw_path'],
+        'var/uploads',
+        'var/attachments',
+        'var/raw',
     ];
 
     public function __construct(
         private readonly UploadedBlobRepository $repository,
+        private readonly MessagePartRepository $messageParts,
+        private readonly MessageRepository $messages,
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $em,
-        private readonly Connection $connection,
         private readonly string $projectDir,
     ) {
         parent::__construct();
@@ -113,7 +116,7 @@ final class PruneBlobsCommand extends Command
         }
 
         if (false === $input->getOption('skip-orphans')) {
-            foreach (array_keys(self::STORES) as $root) {
+            foreach (self::STORES as $root) {
                 [$count, $size] = $this->sweepOrphans($io, $root, $cutoff, $dryRun);
                 $files += $count;
                 $bytes += $size;
@@ -220,37 +223,27 @@ final class PruneBlobsCommand extends Command
     }
 
     /**
-     * Every path a row in this store still points at, as a lookup set.
+     * Every path a row still points at under this root, as a lookup set.
      *
-     * One streamed sequential scan per store rather than a batched IN() per
-     * thousand files: none of these columns is indexed, and indexing them to
-     * serve a maintenance command would tax every write to buy nothing the
-     * rest of the year.
-     *
-     * The set is held in memory, so this scales with referenced files rather
-     * than with message size — a few MB at 60k attachments. The LIKE keeps
-     * provider-scheme values (gmail://, msgraph://) out of it, since those
-     * name no local file.
+     * One store, one repository: each of the three columns belongs to a
+     * different entity, and asking each owner for its own paths is what keeps
+     * a table name out of this command. The set is held in memory, so this
+     * scales with referenced files rather than with message size — a few MB at
+     * 60k attachments.
      *
      * @return array<string, true>
      */
     private function referencedPaths(string $root): array
     {
-        $store = self::STORES[$root];
-
-        $result = $this->connection->executeQuery(sprintf(
-            'SELECT %1$s FROM %2$s WHERE %1$s LIKE :prefix',
-            $store['column'],
-            $store['table'],
-        ), ['prefix' => $root.'/%']);
-
-        $referenced = [];
-
-        foreach ($result->iterateColumn() as $path) {
-            $referenced[$path] = true;
-        }
-
-        return $referenced;
+        return match ($root) {
+            'var/uploads'     => $this->repository->findReferencedPaths($root),
+            'var/attachments' => $this->messageParts->findReferencedStoragePaths($root),
+            'var/raw'         => $this->messages->findReferencedRawPaths($root),
+            // Reached only by adding a root to STORES without saying who owns
+            // it. Loud, because the silent answer would be an empty keep-list,
+            // and an empty keep-list deletes the store.
+            default => throw new \LogicException(sprintf('No repository owns the blob store "%s".', $root)),
+        };
     }
 
     /**

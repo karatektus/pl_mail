@@ -8,6 +8,7 @@ use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationOAuthProviderFactory;
 use App\Service\Integration\IntegrationTokenManager;
 use DateTimeImmutable;
@@ -69,6 +70,7 @@ abstract class OAuthDriverTestCase extends TestCase
                 $this->createStub(UrlGeneratorInterface::class),
             ),
             $this->createStub(EntityManagerInterface::class),
+            $this->createStub(IntegrationRepository::class),
         );
     }
 

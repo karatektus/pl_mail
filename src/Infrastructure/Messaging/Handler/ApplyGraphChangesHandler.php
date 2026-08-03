@@ -107,7 +107,7 @@ final class ApplyGraphChangesHandler
         $patches = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null === $graphId || '' === $graphId) {
                 continue;
@@ -115,14 +115,14 @@ final class ApplyGraphChangesHandler
 
             if (true === $this->labelPolicy->hasConflictingLocations($entity)) {
                 $this->logger->warning('ApplyGraphChangesHandler: message holds multiple folder-backed labels', [
-                    'messageId' => $entity->getId(),
+                    'messageId' => $entity->id,
                 ]);
             }
 
             $patches[$graphId] = [
                 'isRead'     => $entity->hasFlag(MessageFlag::SEEN),
                 'flag'       => [
-                    'flagStatus' => null !== $entity->getStarredAt() ? 'flagged' : 'notFlagged',
+                    'flagStatus' => null !== $entity->starredAt ? 'flagged' : 'notFlagged',
                 ],
                 'categories' => $this->labelPolicy->categoryNames($entity),
             ];
@@ -138,7 +138,7 @@ final class ApplyGraphChangesHandler
             $this->rethrowIfTransient($e);
 
             $this->logger->error('ApplyGraphChangesHandler: batch patch failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -147,7 +147,7 @@ final class ApplyGraphChangesHandler
 
         foreach ($result['failed'] as $graphId => $status) {
             $this->logger->error('ApplyGraphChangesHandler: patch sub-request failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'graphId'   => $graphId,
                 'status'    => $status,
             ]);
@@ -175,7 +175,7 @@ final class ApplyGraphChangesHandler
         if (false === $this->labelPolicy->pushesAsFolder($label, $account)) {
             $this->logger->warning('ApplyGraphChangesHandler: move requested onto a non-folder label', [
                 'labelId'   => $moveToLabel,
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return [];
@@ -186,7 +186,7 @@ final class ApplyGraphChangesHandler
         if (null === $folderId || '' === $folderId) {
             $this->logger->warning('ApplyGraphChangesHandler: folder label has no graphFolderId on this account', [
                 'labelId'   => $moveToLabel,
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return [];
@@ -196,7 +196,7 @@ final class ApplyGraphChangesHandler
         $byGraphId = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null !== $graphId && '' !== $graphId) {
                 $byGraphId[$graphId] = $entity;
@@ -213,7 +213,7 @@ final class ApplyGraphChangesHandler
             $this->rethrowIfTransient($e);
 
             $this->logger->error('ApplyGraphChangesHandler: batch move failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -230,13 +230,13 @@ final class ApplyGraphChangesHandler
             $entity = $byGraphId[$oldId] ?? null;
 
             if (null !== $entity) {
-                $entity->setGraphId($newId);
+                $entity->graphId = $newId;
             }
         }
 
         foreach ($result['failed'] as $graphId => $status) {
             $this->logger->error('ApplyGraphChangesHandler: move sub-request failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'graphId'   => $graphId,
                 'status'    => $status,
             ]);
@@ -279,7 +279,7 @@ final class ApplyGraphChangesHandler
             $this->rethrowIfTransient($e);
 
             $this->logger->error('ApplyGraphChangesHandler: could not list master categories', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -302,7 +302,7 @@ final class ApplyGraphChangesHandler
                 $this->rethrowIfTransient($e);
 
                 $this->logger->error('ApplyGraphChangesHandler: could not create master category', [
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                     'category'  => $name,
                     'error'     => $e->getMessage(),
                 ]);
@@ -349,10 +349,10 @@ final class ApplyGraphChangesHandler
         $retryIds  = [];
 
         foreach ($messages as $entity) {
-            $graphId = $entity->getGraphId();
+            $graphId = $entity->graphId;
 
             if (null !== $graphId && true === in_array($graphId, $throttled, true)) {
-                $retryIds[] = (int) $entity->getId();
+                $retryIds[] = (int) $entity->id;
             }
         }
 
@@ -361,12 +361,12 @@ final class ApplyGraphChangesHandler
         }
 
         $this->logger->info('ApplyGraphChangesHandler: requeueing throttled writes', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'count'     => count($retryIds),
         ]);
 
         $this->bus->dispatch(
-            new ApplyGraphChangesMessage((int) $account->getId(), $retryIds, $moveToLabel),
+            new ApplyGraphChangesMessage((int) $account->id, $retryIds, $moveToLabel),
             [new DelayStamp(self::RETRY_DELAY_MS)],
         );
     }

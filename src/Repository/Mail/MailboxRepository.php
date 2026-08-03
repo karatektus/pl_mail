@@ -19,13 +19,14 @@ class MailboxRepository extends ServiceEntityRepository
         parent::__construct($registry, Mailbox::class);
     }
 
+    /** Doctrine's own findBy(), keyed in PHP — the index is not a query. */
     public function findIndexedByFullPath(Account $account): array
     {
         $mailboxes = $this->findBy(['account' => $account]);
         $indexed = [];
 
         foreach ($mailboxes as $mailbox) {
-            $indexed[$mailbox->getFullPath()] = $mailbox;
+            $indexed[$mailbox->fullPath] = $mailbox;
         }
 
         return $indexed;
@@ -51,6 +52,15 @@ class MailboxRepository extends ServiceEntityRepository
         return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::DRAFTS]);
     }
 
+    /**
+     * Mailboxes an IDLE supervisor should hold a connection for.
+     *
+     * QueryBuilder on two counts: whether the owning account is still active is
+     * a field of Account, which findBy() cannot reach, and the account is
+     * fetch-joined because the supervisor opens a connection with its
+     * credentials for every row — leaving it lazy is an N+1 across the whole
+     * install at boot.
+     */
     public function findIdleEnabledAndSyncEnabled(): array
     {
         $queryBuilder = $this->createQueryBuilder('mailbox');
@@ -68,6 +78,10 @@ class MailboxRepository extends ServiceEntityRepository
         return $queryBuilder->getQuery()->getResult();
     }
 
+    /**
+     * QueryBuilder for the join to Account and for the id-only projection —
+     * the caller compares sets of ids and has no use for a Mailbox.
+     */
     public function getIdsOfActiveInboxMailboxesForUser(UserInterface $user): array
     {
         return $this->createQueryBuilder('mailbox')

@@ -41,7 +41,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $requestedIds = $arguments['ids'] ?? null;
 
@@ -71,11 +71,11 @@ final class EmailSubmissionGetMethod implements JmapMethod
         $found = [];
 
         foreach ($messages as $message) {
-            if (null === $message->getSentAt()) {
+            if (null === $message->sentAt) {
                 continue;
             }
 
-            $found[] = (string) $message->getId();
+            $found[] = (string) $message->id;
             $list[] = $this->toJmap($message, (string) $accountId);
         }
 
@@ -92,18 +92,18 @@ final class EmailSubmissionGetMethod implements JmapMethod
      */
     private function toJmap(Message $message, string $accountId): array
     {
-        $id = (string) $message->getId();
+        $id = (string) $message->id;
 
         return [
             'id' => $id,
             'identityId' => $accountId,
             'emailId' => $id,
-            'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->getId(),
+            'threadId' => null === $message->thread ? null : (string) $message->thread->id,
             'envelope' => [
-                'mailFrom' => ['email' => (string) $message->getFromAddress(), 'parameters' => null],
+                'mailFrom' => ['email' => (string) $message->fromAddress, 'parameters' => null],
                 'rcptTo' => $this->recipients($message),
             ],
-            'sendAt' => $message->getSentAt()?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            'sendAt' => $message->sentAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'undoStatus' => 'final',
             'deliveryStatus' => null,
             'dsnBlobIds' => [],
@@ -118,7 +118,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
     {
         $recipients = [];
 
-        foreach ([$message->getToAddresses(), $message->getCcAddresses(), $message->getBccAddresses()] as $group) {
+        foreach ([$message->toAddresses, $message->ccAddresses, $message->bccAddresses] as $group) {
             if (false === is_array($group)) {
                 continue;
             }

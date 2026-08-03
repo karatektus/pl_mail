@@ -75,7 +75,7 @@ final readonly class RuleActionExecutor
             $touchedLabels = $this->one($type, $action, $message, $rule) || $touchedLabels;
         }
 
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (true === $touchedLabels && null !== $thread) {
             $this->threadSynchronizer->sync($thread);
@@ -89,7 +89,7 @@ final readonly class RuleActionExecutor
      */
     private function one(string $type, array $action, Message $message, MailRule $rule): bool
     {
-        $account = $message->getAccount();
+        $account = $message->account;
 
         switch ($type) {
             case self::APPLY_LABEL:
@@ -124,16 +124,16 @@ final readonly class RuleActionExecutor
                 return true;
 
             case self::MARK_READ:
-                if (null === $message->getSeenAt()) {
-                    $message->setSeenAt(new \DateTimeImmutable());
+                if (null === $message->seenAt) {
+                    $message->seenAt = new \DateTimeImmutable();
                     $this->propagator->markRead([$message], true);
                 }
 
                 return false;
 
             case self::STAR:
-                if (null === $message->getStarredAt()) {
-                    $message->setStarredAt(new \DateTimeImmutable());
+                if (null === $message->starredAt) {
+                    $message->starredAt = new \DateTimeImmutable();
                     $this->propagator->star([$message], true);
                 }
 
@@ -186,7 +186,7 @@ final readonly class RuleActionExecutor
             return;
         }
 
-        if (true !== $message->hasAttachments()) {
+        if (true !== $message->hasAttachments) {
             return;
         }
 
@@ -208,7 +208,7 @@ final readonly class RuleActionExecutor
         }
 
         $this->bus->dispatch(new UploadAttachmentsMessage(
-            (int) $message->getId(),
+            (int) $message->id,
             $integrationId,
             is_string($action['folder'] ?? null) ? $action['folder'] : null,
         ));
@@ -221,8 +221,8 @@ final readonly class RuleActionExecutor
      */
     private function moveOutOfInbox(Message $message, ?LabelRole $destination): bool
     {
-        $account = $message->getAccount();
-        $user    = $account->getUsr();
+        $account = $message->account;
+        $user    = $account->usr;
 
         $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $user);
 

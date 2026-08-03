@@ -59,7 +59,7 @@ final class MessageThreader
         // 1. The provider's own conversation id, when there is one. Gmail and
         //    Graph have already grouped the conversation the way the user sees
         //    it in their web client; nothing we derive can beat that.
-        $providerThreadKey = $message->getProviderThreadKey();
+        $providerThreadKey = $message->providerThreadKey;
 
         if (null !== $providerThreadKey && '' !== $providerThreadKey) {
             $this->attachMessageToThread(
@@ -76,8 +76,8 @@ final class MessageThreader
         if (count($referenceIds) > 0) {
             $parentMessage = $this->messageRepository->findOneByMessageIdsForAccount($referenceIds, $account);
 
-            if ($parentMessage !== null && $parentMessage->getThread() !== null) {
-                $thread = $parentMessage->getThread();
+            if ($parentMessage !== null && $parentMessage->thread !== null) {
+                $thread = $parentMessage->thread;
                 $this->attachMessageToThread($message, $thread);
 
                 return;
@@ -97,8 +97,8 @@ final class MessageThreader
         //    subject line. A message that is not itself a reply always starts its
         //    own thread — otherwise every "Your order has shipped" notification
         //    ever received collapses into one endless conversation.
-        if (true === $this->hasReplyPrefix($message->getSubject())) {
-            $normalizedSubject = $this->normalizeSubject($message->getSubject());
+        if (true === $this->hasReplyPrefix($message->subject)) {
+            $normalizedSubject = $this->normalizeSubject($message->subject);
 
             if ($normalizedSubject !== '') {
                 $candidateThread = $this->messageThreadRepository->findMatchingNormalizedSubjectThreadForAccount(
@@ -132,7 +132,7 @@ final class MessageThreader
      */
     private function providerThread(string $providerThreadKey, Account $account, Message $message): MessageThread
     {
-        $cacheKey = $account->getId() . '|' . $providerThreadKey;
+        $cacheKey = $account->id . '|' . $providerThreadKey;
         $pending  = $this->providerThreads[$cacheKey] ?? null;
 
         // A worker handles many messages, and the entity manager is cleared
@@ -141,9 +141,12 @@ final class MessageThreader
             return $pending;
         }
 
-        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account)
-            ?? $this->createThread($message, $account, ThreadingMethod::Provider)
-                ->setProviderThreadKey($providerThreadKey);
+        $thread = $this->messageThreadRepository->findOneByProviderThreadKeyForAccount($providerThreadKey, $account);
+
+        if (null === $thread) {
+            $thread = $this->createThread($message, $account, ThreadingMethod::Provider);
+            $thread->providerThreadKey = $providerThreadKey;
+        }
 
         // Long-running workers never stop adding keys, so the cache has to be
         // bounded — but only entries the repository lookup above can already
@@ -154,7 +157,7 @@ final class MessageThreader
         if (count($this->providerThreads) >= self::PROVIDER_THREAD_CACHE_LIMIT) {
             $this->providerThreads = array_filter(
                 $this->providerThreads,
-                static fn (MessageThread $cached): bool => null === $cached->getId(),
+                static fn (MessageThread $cached): bool => null === $cached->id,
             );
         }
 
@@ -172,8 +175,8 @@ final class MessageThreader
         // write paths were fixed still hold bracketed ids, and those have to keep
         // matching until the rethread backfill has run.
         return MessageIdHelper::normaliseList(array_merge(
-            MessageIdHelper::normaliseList($message->getInReplyTo()),
-            MessageIdHelper::normaliseList($message->getReferences()),
+            MessageIdHelper::normaliseList($message->inReplyTo),
+            MessageIdHelper::normaliseList($message->references),
         ));
     }
 
@@ -217,19 +220,18 @@ final class MessageThreader
      */
     public function resyncDraftThreadSubject(Message $message): void
     {
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null === $thread) {
             return;
         }
 
-        if ($thread->getMessageCount() > 1) {
+        if ($thread->messageCount > 1) {
             return;
         }
 
-        $thread
-            ->setSubject($message->getSubject())
-            ->setNormalizedSubject($this->normalizeSubject($message->getSubject()));
+        $thread->subject = $message->subject;
+        $thread->normalizedSubject = $this->normalizeSubject($message->subject);
     }
 
     /**
@@ -244,13 +246,13 @@ final class MessageThreader
     {
         $addresses = [];
 
-        $fromAddress = $message->getFromAddress();
+        $fromAddress = $message->fromAddress;
 
         if (null !== $fromAddress && '' !== $fromAddress) {
             $addresses[] = $fromAddress;
         }
 
-        foreach ([$message->getToAddresses(), $message->getCcAddresses()] as $recipients) {
+        foreach ([$message->toAddresses, $message->ccAddresses] as $recipients) {
             foreach ($recipients ?? [] as $recipient) {
                 $address = is_array($recipient) ? ($recipient['address'] ?? null) : $recipient;
 
@@ -269,16 +271,18 @@ final class MessageThreader
 
     private function createThread(Message $message, Account $account, ThreadingMethod $threadingMethod): MessageThread
     {
-        $thread = new MessageThread()
-            ->setAccount($account)->setSubject($message->getSubject())->setNormalizedSubject($this->normalizeSubject($message->getSubject()))
-            ->setThreadingMethod($threadingMethod)
-            ->setMessageCount(0)
-            ->setUnreadCount(0)
-            // Seed from the message that opens the thread; attachMessageToThread()
-            // takes over from here. Primary only when the message is uncategorised,
-            // which is the case for locally-composed drafts.
-            ->setCategory($message->getCategory() ?? MessageCategory::Primary)
-            ->setAttachmentCount(0);
+        $thread = new MessageThread();
+        $thread->account = $account;
+        $thread->subject = $message->subject;
+        $thread->normalizedSubject = $this->normalizeSubject($message->subject);
+        $thread->threadingMethod = $threadingMethod;
+        $thread->messageCount = 0;
+        $thread->unreadCount = 0;
+        // Seed from the message that opens the thread; attachMessageToThread()
+        // takes over from here. Primary only when the message is uncategorised,
+        // which is the case for locally-composed drafts.
+        $thread->category = $message->category ?? MessageCategory::Primary;
+        $thread->attachmentCount = 0;
 
         $this->entityManager->persist($thread);
 
@@ -286,41 +290,42 @@ final class MessageThreader
     }
     private function attachMessageToThread(Message $message, MessageThread $thread): void
     {
-        $message->setThread($thread);
+        $message->thread = $thread;
 
-        $thread->setMessageCount($thread->getMessageCount() + 1);
+        $thread->messageCount = $thread->messageCount + 1;
 
-        foreach ($message->getLabels() as $label) {
+        foreach ($message->labels as $label) {
             $thread->addLabel($label);
         }
 
-        if (null === $message->getSeenAt()) {
-            $thread->setUnreadCount($thread->getUnreadCount() + 1);
+        if (null === $message->seenAt) {
+            $thread->unreadCount = $thread->unreadCount + 1;
         }
 
-        if (true === $message->hasAttachments()) {
-            $thread->setAttachmentCount($thread->getAttachmentCount() + 1);
+        if (true === $message->hasAttachments) {
+            $thread->attachmentCount = $thread->attachmentCount + 1;
         }
 
-        $occurredAt = $message->getReceivedAt()
-            ?? $message->getSentAt()
-            ?? $message->getCreatedAt();
+        // createdAt closes the chain: every Message sets it in its constructor
+        // and the column is NOT NULL, so there is always an instant to order by
+        // even for a draft that has neither been received nor sent.
+        $occurredAt = $message->receivedAt
+            ?? $message->sentAt
+            ?? $message->createdAt;
 
-        if (null !== $occurredAt) {
-            $currentLastMessageAt = $thread->getLastMessageAt();
+        $currentLastMessageAt = $thread->lastMessageAt;
 
-            if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
-                $thread->setLastMessageAt($occurredAt);
+        if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
+            $thread->lastMessageAt = $occurredAt;
 
-                // Most-recent-wins, the same rule the category backfill applies in
-                // SQL. Without this a thread would keep whatever category it was
-                // created with and the inbox tabs — which filter on the thread, not
-                // the message — would only ever move after a backfill run.
-                $category = $message->getCategory();
+            // Most-recent-wins, the same rule the category backfill applies in
+            // SQL. Without this a thread would keep whatever category it was
+            // created with and the inbox tabs — which filter on the thread, not
+            // the message — would only ever move after a backfill run.
+            $category = $message->category;
 
-                if (null !== $category) {
-                    $thread->setCategory($category);
-                }
+            if (null !== $category) {
+                $thread->category = $category;
             }
         }
     }

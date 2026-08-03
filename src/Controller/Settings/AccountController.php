@@ -69,14 +69,14 @@ final class AccountController extends AbstractController
 
         // OAuth accounts have no editable password/host — they are managed
         // through connect/disconnect, not this form.
-        if ('password' !== $account->getAuthType()) {
+        if ('password' !== $account->authType) {
             throw $this->createAccessDeniedException();
         }
 
-        $existingPassword = $account->getPassword();
+        $existingPassword = $account->password;
 
         $form = $this->createForm(AccountType::class, $account, [
-            'action'           => $this->generateUrl('app_account_edit', ['id' => $account->getId()]),
+            'action'           => $this->generateUrl('app_account_edit', ['id' => $account->id]),
             'require_password' => false,
         ]);
         $form->handleRequest($request);
@@ -86,10 +86,9 @@ final class AccountController extends AbstractController
 
             // Blank password field means "keep the stored one".
             if (null === $submittedPassword || '' === $submittedPassword) {
-                $account->setPassword($existingPassword);
+                $account->password = $existingPassword;
             }
 
-            $account->setUpdatedAt(new DateTimeImmutable());
             $this->entityManager->flush();
 
             return $this->streamAccountList($request, 'account.updated');
@@ -106,15 +105,13 @@ final class AccountController extends AbstractController
     {
         $this->denyUnlessOwner($account);
 
-        if (false === $this->isCsrfTokenValid('toggle' . $account->getId(), (string) $request->request->get('_token'))) {
+        if (false === $this->isCsrfTokenValid('toggle' . $account->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
         }
 
-        $newActive = false === $account->isActive();
+        $newActive = false === $account->isActive;
 
-        $account
-            ->setIsActive($newActive)
-            ->setUpdatedAt(new DateTimeImmutable());
+        $account->isActive = $newActive;
         $this->entityManager->flush();
 
         if (true === $newActive) {
@@ -131,7 +128,7 @@ final class AccountController extends AbstractController
     {
         $this->denyUnlessOwner($account);
 
-        if (false === $this->isCsrfTokenValid('delete' . $account->getId(), (string) $request->request->get('_token'))) {
+        if (false === $this->isCsrfTokenValid('delete' . $account->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
         }
 
@@ -166,7 +163,7 @@ final class AccountController extends AbstractController
 
         // Pull the dragged account out, re-insert at the target index.
         $ordered = array_values(array_filter($ordered, static function (Account $candidate) use ($account): bool {
-            return $candidate->getId() !== $account->getId();
+            return $candidate->id !== $account->id;
         }));
 
         $targetIndex = max(0, min(count($ordered), $position - 1));
@@ -193,19 +190,19 @@ final class AccountController extends AbstractController
             throw new BadRequestHttpException('Malformed payload.');
         }
 
-        $account = new Account()
-            ->setAuthType('password')
-            ->setUsername((string) ($payload['username'] ?? ''))
-            ->setPassword((string) ($payload['password'] ?? ''))
-            ->setImapHost((string) ($payload['imapHost'] ?? ''))
-            ->setImapPort((int) ($payload['imapPort'] ?? 993))
-            ->setImapEncryption((string) ($payload['imapEncryption'] ?? 'ssl'))
-            ->setSmtpHost((string) ($payload['smtpHost'] ?? ''))
-            ->setSmtpPort((int) ($payload['smtpPort'] ?? 587))
-            ->setSmtpEncryption((string) ($payload['smtpEncryption'] ?? 'starttls'));
+        $account = new Account();
+        $account->authType = 'password';
+        $account->username = (string) ($payload['username'] ?? '');
+        $account->password = (string) ($payload['password'] ?? '');
+        $account->imapHost = (string) ($payload['imapHost'] ?? '');
+        $account->imapPort = (int) ($payload['imapPort'] ?? 993);
+        $account->imapEncryption = (string) ($payload['imapEncryption'] ?? 'ssl');
+        $account->smtpHost = (string) ($payload['smtpHost'] ?? '');
+        $account->smtpPort = (int) ($payload['smtpPort'] ?? 587);
+        $account->smtpEncryption = (string) ($payload['smtpEncryption'] ?? 'starttls');
 
         // Blank password on the edit form means "keep the stored one".
-        if ('' === $account->getPassword() && null !== ($payload['accountId'] ?? null)) {
+        if ('' === $account->password && null !== ($payload['accountId'] ?? null)) {
             $existing = $this->accountRepository->find((int) $payload['accountId']);
 
             if (null === $existing) {
@@ -213,10 +210,10 @@ final class AccountController extends AbstractController
             }
 
             $this->denyUnlessOwner($existing);
-            $account->setPassword($existing->getPassword());
+            $account->password = $existing->password;
         }
 
-        if ('' === $account->getUsername() || '' === $account->getImapHost()) {
+        if ('' === $account->username || '' === $account->imapHost) {
             return $this->json(new ConnectionTestResult(
                 false,
                 'Enter at least an email address and an IMAP host first.',
@@ -227,7 +224,7 @@ final class AccountController extends AbstractController
             )->toArray());
         }
 
-        if ('' === $account->getPassword()) {
+        if ('' === $account->password) {
             return $this->json(new ConnectionTestResult(
                 false,
                 'No password available to test with. Enter one above — on the edit form a blank field means "keep the stored password", which the tester can only resolve once the account id reaches it.',
@@ -257,7 +254,7 @@ final class AccountController extends AbstractController
 
     private function denyUnlessOwner(Account $account): void
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

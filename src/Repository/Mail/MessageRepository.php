@@ -41,13 +41,12 @@ class MessageRepository extends ServiceEntityRepository
      * because message.headers is a json column rather than jsonb. The
      * parameters are namespaced so they cannot collide if this is ever
      * combined with a compiled filter, as MessageRepository::matchingIds does.
-     */
-    /**
-     * The WHERE both candidate queries share, so a change to what counts as a
-     * candidate cannot land in one and not the other. Built by concatenation
-     * rather than by editing a finished query — the first version pulled the
-     * LIMIT off with str_replace and silently stopped matching the moment the
-     * heredoc's indentation changed.
+     *
+     * This is the WHERE both candidate queries share, so a change to what
+     * counts as a candidate cannot land in one and not the other. Built by
+     * concatenation rather than by editing a finished query — the first version
+     * pulled the LIMIT off with str_replace and silently stopped matching the
+     * moment the heredoc's indentation changed.
      */
     private const string EXTRACTION_CANDIDATE_WHERE = <<<'SQL'
         m.id > :extAfterId
@@ -62,6 +61,7 @@ class MessageRepository extends ServiceEntityRepository
         )
         SQL;
 
+    /** Raw DBAL for the reasons EXTRACTION_CANDIDATE_WHERE gives above. */
     public function countExtractionCandidates(): int
     {
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
@@ -87,12 +87,7 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        return $this->createQueryBuilder('message')
-            ->where('message.id IN (:ids)')
-            ->setParameter('ids', array_map('intval', $ids))
-            ->orderBy('message.id', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['id' => array_map('intval', $ids)], ['id' => 'ASC']);
     }
 
     /**
@@ -192,7 +187,7 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         $parameters = $filter->parameters;
-        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleUserId'] = $user->id;
         $parameters['ruleCap'] = $cap + 1;
 
         $count = (int) $this->getEntityManager()
@@ -229,7 +224,7 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         $parameters = $filter->parameters;
-        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleUserId'] = $user->id;
         $parameters['ruleAfterId'] = $afterId;
         $parameters['ruleBatchSize'] = $batchSize;
 
@@ -242,8 +237,171 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ids and thread ids of every message in an account matching a compiled
+     * JMAP filter, in the requested order — the whole of Email/query's read.
+     *
+     * Raw SQL for the same reason matchingIds() is: the filter arrives as a SQL
+     * fragment compiled from the client's request, because Postgres is the only
+     * implementation of what a JMAP filter means. Two integer columns are
+     * selected and nothing is hydrated; the spec's `position` and `total` are
+     * defined over the collapsed list, so the caller windows in PHP.
+     *
+     * $orderBySql is interpolated because ORDER BY takes expressions, not bound
+     * values. It is safe by construction: EmailQueryRunner builds it from a
+     * fixed property→column map and raises unsupportedSort for anything absent
+     * from it, so no client string ever reaches this.
+     *
+     * @return list<array{id: int|string, thread_id: int|string|null}>
+     */
+    public function findIdsForQuery(int $accountId, ?CompiledFilter $filter, string $orderBySql): array
+    {
+        $parameters = ['accountId' => $accountId];
+        $types      = [];
+        $where      = 'm.account_id = :accountId';
+
+        if (null !== $filter) {
+            $where     .= ' AND '.$filter->sql;
+            $parameters = array_merge($parameters, $filter->parameters);
+            $types      = $filter->parameterTypes();
+        }
+
+        /** @var list<array{id: int|string, thread_id: int|string|null}> */
+        return $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                sprintf('SELECT m.id, m.thread_id FROM message m WHERE %s ORDER BY %s', $where, $orderBySql),
+                $parameters,
+                $types,
+            )
+            ->fetchAllAssociative();
+    }
+
+    /**
+     * Highlighted subject and body fragments for a SearchSnippet/get.
+     *
+     * Raw SQL because `ts_headline` is the whole point — it is a Postgres
+     * full-text function with no DQL equivalent, and reproducing "which words
+     * matched, in context" in PHP would be a second, disagreeing implementation
+     * of the search that produced the hits.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{id: int|string, subject: mixed, preview: mixed}>
+     */
+    public function findSearchHeadlines(int $accountId, array $ids, string $text, string $headlineOptions): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        $sql = <<<'SQL'
+            SELECT
+                m.id,
+                ts_headline('english', coalesce(m.subject, ''),
+                    websearch_to_tsquery('english', :text), :options) AS subject,
+                ts_headline('english', coalesce(m.body_text, ''),
+                    websearch_to_tsquery('english', :text), :options) AS preview
+            FROM message m
+            WHERE m.account_id = :account
+              AND m.id IN (:ids)
+            SQL;
+
+        /** @var list<array{id: int|string, subject: mixed, preview: mixed}> */
+        return $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            $sql,
+            [
+                'text'    => $text,
+                'options' => $headlineOptions,
+                'account' => $accountId,
+                'ids'     => $ids,
+            ],
+            [
+                'ids' => ArrayParameterType::INTEGER,
+            ],
+        );
+    }
+
+    /**
+     * Per-label message totals and unread counts for one account, in one
+     * grouped query — the numbers behind a Mailbox/get.
+     *
+     * DBAL rather than DQL: this is a pure aggregate over the message↔label
+     * join table, nothing is hydrated, and counting per label through the ORM
+     * over a large label tree is a textbook N+1.
+     *
+     * Unread is "seen_at IS NULL", not the absence of the \Seen entry in
+     * Message::$flags. The two disagree: flags is an IMAP mirror that only the
+     * plain-IMAP sync path populates, so it is a strict subset of seen_at.
+     * seen_at is the field the web UI reads and writes, so it is authoritative.
+     *
+     * @return array<int,array{total:int,unread:int}> label id => counts
+     */
+    public function countEmailsPerLabelForAccount(int $accountId): array
+    {
+        return $this->labelCounts($accountId, <<<'SQL'
+            SELECT ml.label_id,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE m.seen_at IS NULL) AS unread
+            FROM message_label ml
+            JOIN message m ON m.id = ml.message_id
+            WHERE m.account_id = :accountId
+            GROUP BY ml.label_id
+            SQL);
+    }
+
+    /**
+     * The same per label, counting distinct threads instead of messages.
+     *
+     * Counted through message_label rather than thread_label so both grains
+     * stay consistent by construction — a thread is in a mailbox exactly when
+     * one of its messages is.
+     *
+     * Note this reads unreadThreads as "threads with an unread Email *in this
+     * mailbox*". RFC 8621 defines it slightly more loosely (an unread Email
+     * anywhere in the Thread). The stricter reading is what the plMail UI
+     * shows, and it cannot exceed totalThreads, which is what clients assert.
+     *
+     * @return array<int,array{total:int,unread:int}> label id => counts
+     */
+    public function countThreadsPerLabelForAccount(int $accountId): array
+    {
+        return $this->labelCounts($accountId, <<<'SQL'
+            SELECT ml.label_id,
+                   COUNT(DISTINCT m.thread_id) AS total,
+                   COUNT(DISTINCT m.thread_id) FILTER (WHERE m.seen_at IS NULL) AS unread
+            FROM message_label ml
+            JOIN message m ON m.id = ml.message_id
+            WHERE m.account_id = :accountId
+              AND m.thread_id IS NOT NULL
+            GROUP BY ml.label_id
+            SQL);
+    }
+
+    /**
+     * @return array<int,array{total:int,unread:int}>
+     */
+    private function labelCounts(int $accountId, string $sql): array
+    {
+        $counts = [];
+
+        foreach ($this->getEntityManager()->getConnection()->fetchAllAssociative($sql, ['accountId' => $accountId]) as $row) {
+            $counts[(int) $row['label_id']] = [
+                'total'  => (int) $row['total'],
+                'unread' => (int) $row['unread'],
+            ];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Ids of messages that have a header bag, oldest first — the backfill
      * cursor for header normalisation.
+     *
+     * QueryBuilder because this is keyset pagination over a projection:
+     * findBy() can neither express `id > :afterId` nor return bare ids, and
+     * hydrating a batch of entities to read one column off each is exactly the
+     * cost a backfill cursor exists to avoid.
      *
      * @return list<int>
      */
@@ -266,6 +424,8 @@ class MessageRepository extends ServiceEntityRepository
      * Ids of every message, oldest first — the backfill cursor for tasks that
      * rewrite a column present on every row (address normalisation).
      *
+     * Keyset over a projection, for the reason findIdsWithHeaders() gives.
+     *
      * @return list<int>
      */
     public function findIdsAfter(int $afterId, int $limit): array
@@ -283,6 +443,37 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every message id of an account, for a task that has to walk all of them.
+     *
+     * Ids rather than entities, and by arrival when the caller is replaying
+     * history: the rethread backfill clears the EntityManager on every batch,
+     * which would invalidate a cursor held across it.
+     *
+     * QueryBuilder for the projection — findBy() returns entities, which is the
+     * one thing this must not do.
+     *
+     * @return list<int>
+     */
+    public function findAllIdsForAccount(int $accountId, bool $orderByArrival = false): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.account = :accountId')
+            ->setParameter('accountId', $accountId);
+
+        if (true === $orderByArrival) {
+            $qb->orderBy('m.receivedAt', 'ASC');
+        }
+
+        $qb->addOrderBy('m.id', 'ASC');
+
+        return array_map(
+            static fn(array $row): int => (int) $row['id'],
+            $qb->getQuery()->getArrayResult(),
+        );
+    }
+
+    /**
      * @param list<int> $ids
      *
      * @return list<Message>
@@ -293,14 +484,218 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        return $this->createQueryBuilder('m')
-            ->where('m.id IN (:ids)')
-            ->setParameter('ids', $ids)
+        return $this->findBy(['id' => $ids], ['id' => 'ASC']);
+    }
+
+    /**
+     * The same set, ordered as the mail server delivered it.
+     *
+     * The tiebreak on id is what makes the order total: two messages that
+     * arrived in the same second have to thread in a stable sequence, or a
+     * rebuild is not reproducible.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Message>
+     */
+    public function findByIdsInArrivalOrder(array $ids): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->findBy(['id' => $ids], ['receivedAt' => 'ASC', 'id' => 'ASC']);
+    }
+
+    /**
+     * Ids of every message hanging off these threads, as scalars.
+     *
+     * Scalars on purpose. The callers are about to delete the threads, and
+     * hydrating the messages only to delete them leaves the unit of work in a
+     * state where the reseed's own flush insists the threads it has just
+     * persisted were never persisted ("A new entity was found through the
+     * relationship Message#thread"). Nothing here wants the objects.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return list<int>
+     */
+    public function findIdsForThreads(array $threadIds): array
+    {
+        if (0 === count($threadIds)) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.thread IN (:threads)')
+            ->setParameter('threads', $threadIds)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
+    /**
+     * Which thread a message currently belongs to, without loading either.
+     *
+     * The rethread backfill asks this between clearing the EntityManager and
+     * writing carried-over state back, so hydrating a Message here would pull
+     * an entity into a unit of work that is deliberately empty.
+     */
+    public function findThreadIdFor(int $messageId): ?int
+    {
+        $threadId = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT thread_id FROM message WHERE id = :messageId',
+            ['messageId' => $messageId],
+        );
+
+        if (false === $threadId || null === $threadId) {
+            return null;
+        }
+
+        return (int) $threadId;
+    }
+
+    /**
+     * Cut every message of an account loose from its thread.
+     *
+     * Deliberately a single UPDATE and deliberately not the ORM: MessageThread
+     * cascades remove onto its messages, so detaching by walking the
+     * association and then removing threads through the EntityManager would
+     * delete the mail along with them.
+     */
+    public function detachAllFromThreadsForAccount(int $accountId): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message SET thread_id = NULL WHERE account_id = :accountId',
+            ['accountId' => $accountId],
+        );
+    }
+
+    /**
+     * Messages with an HTML body but no sanitized copy — the safe-html
+     * backfill's cursor.
+     *
+     * QueryBuilder because `bodyHtml <> ''` and `id > :afterId` are comparisons
+     * findBy() cannot state. Keyset by id rather than a shrinking IS NULL
+     * cursor so the scan cannot loop on rows the sanitizer legitimately leaves
+     * null (whitespace-only bodies).
+     *
+     * @return list<Message>
+     */
+    public function findPendingSafeHtml(int $afterId, int $limit): array
+    {
+        return $this->pendingSafeHtmlQueryBuilder($afterId)
             ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }
 
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countPendingSafeHtml(): int
+    {
+        return (int) $this->pendingSafeHtmlQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function pendingSafeHtmlQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            ->andWhere('m.bodyHtmlSafe IS NULL')
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * One account's messages awaiting categorisation — everything when the
+     * classifier itself changed, otherwise only the rows that have no category
+     * yet.
+     *
+     * QueryBuilder for the keyset bound, as with the safe-html walk.
+     *
+     * @return list<Message>
+     */
+    public function findPendingCategorization(int $accountId, bool $includeCategorized, int $afterId, int $limit): array
+    {
+        return $this->pendingCategorizationQueryBuilder($accountId, $includeCategorized, $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countPendingCategorization(int $accountId, bool $includeCategorized): int
+    {
+        return (int) $this->pendingCategorizationQueryBuilder($accountId, $includeCategorized, 0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function pendingCategorizationQueryBuilder(int $accountId, bool $includeCategorized, int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->andWhere('m.account = :accountId')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('afterId', $afterId);
+
+        if (false === $includeCategorized) {
+            $qb->andWhere('m.category IS NULL');
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Every raw-message path still pointed at by a row, as a lookup set — the
+     * "keep" list for the blob sweep.
+     *
+     * One streamed sequential scan rather than a batched IN() per thousand
+     * files: raw_path is not indexed, and indexing it to serve a maintenance
+     * command would tax every write to buy nothing the rest of the year. The
+     * LIKE keeps provider-scheme values (gmail://, msgraph://) out of the set,
+     * since those name no local file.
+     *
+     * @return array<string, true>
+     */
+    public function findReferencedRawPaths(string $pathPrefix): array
+    {
+        return $this->referencedPathSet('SELECT raw_path FROM message WHERE raw_path LIKE :prefix', $pathPrefix);
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function referencedPathSet(string $sql, string $pathPrefix): array
+    {
+        $referenced = [];
+
+        $result = $this->getEntityManager()->getConnection()->executeQuery($sql, ['prefix' => $pathPrefix.'/%']);
+
+        foreach ($result->iterateColumn() as $path) {
+            $referenced[$path] = true;
+        }
+
+        return $referenced;
+    }
+
+    /**
+     * Every UID this mailbox has already stored.
+     *
+     * QueryBuilder for the projection: the syncer diffs a set of integers
+     * against what the server offers, and hydrating a Message per UID to read
+     * one column would make a routine poll cost a mailbox load.
+     */
     public function findSyncedUids(Mailbox $mailbox): array
     {
         return $this->createQueryBuilder('m')
@@ -312,6 +707,11 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
     }
 
+    /**
+     * QueryBuilder on two counts: the owner is reached through the account
+     * association, which findBy() cannot traverse, and only one column comes
+     * back.
+     */
     public function findSyncedGmailIdsForUser(User $user): array
     {
         return $this->createQueryBuilder('m')
@@ -325,7 +725,8 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Joined via thread since Gmail-API messages carry no mailbox.
+     * Joined via thread since Gmail-API messages carry no mailbox — a join
+     * across an association, which findOneBy() has no way to state.
      */
     public function findOneByMessageIdsForAccount(array $messageIds, Account $account): ?Message
     {
@@ -358,6 +759,11 @@ class MessageRepository extends ServiceEntityRepository
      * almost always names someone who has already posted. Checking senders only
      * would reject those replies.
      *
+     * QueryBuilder because the comparison is on LOWER(fromAddress) — addresses
+     * are stored as they arrived and matched case-insensitively — and because
+     * this only ever needs to know whether a row exists, which is why it
+     * selects a literal and stops at one instead of hydrating a Message.
+     *
      * @param list<string> $addresses
      */
     public function existsWithAnyFromAddressInThread(array $addresses, MessageThread $thread): bool
@@ -384,29 +790,20 @@ class MessageRepository extends ServiceEntityRepository
         return $result !== null;
     }
 
+    /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
     public function countUnseenForMailbox(Mailbox $mailbox): int
     {
-        return $this->createQueryBuilder('m')
-            ->select('COUNT(m.id)')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.seenAt IS NULL')
-            ->setParameter('mailbox', $mailbox)
-            ->getQuery()
-            ->getSingleScalarResult();
+        return $this->count(['mailbox' => $mailbox, 'seenAt' => null]);
     }
 
     public function countTotalForMailbox(Mailbox $mailbox): int
     {
-        return $this->createQueryBuilder('m')
-            ->select('COUNT(m.id)')
-            ->where('m.mailbox = :mailbox')
-            ->setParameter('mailbox', $mailbox)
-            ->getQuery()
-            ->getSingleScalarResult();
+        return $this->count(['mailbox' => $mailbox]);
     }
 
     /**
-     * Label-based: covers Gmail drafts too (no mailbox to join through).
+     * Label-based: covers Gmail drafts too (no mailbox to join through), and
+     * the label is a to-many association, which findBy() cannot filter on.
      */
     public function findDrafts(): array
     {
@@ -420,8 +817,35 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every draft a user owns, on every account.
+     *
+     * Selected by Drafts-role label the way the Drafts list selects them, so
+     * Gmail-style drafts with no mailbox are covered — a join over a to-many
+     * association plus a join to the owning account, neither of which findBy()
+     * can express.
+     *
+     * @return list<Message>
+     */
+    public function findDraftsForUser(User $user): array
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->innerJoin('m.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('l.role = :drafts')
+            ->setParameter('user', $user)
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Stream every message belonging to an account — via its mailbox (IMAP)
      * or its thread (Gmail-API messages carry no mailbox row).
+     *
+     * QueryBuilder twice over: the OR spans two joined associations, and the
+     * result is streamed rather than returned, which findBy() cannot do at all.
+     * Streaming is the point — an account's whole mail does not fit in memory.
      *
      * @return iterable<Message>
      */
@@ -439,6 +863,9 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * The account's own copy of a message (via mailbox or thread ownership)
      * by canonical RFC Message-ID — the enrichment target for Gmailify dedup.
+     *
+     * The OR across two joins is what findOneBy() cannot say: ownership lives
+     * on whichever of the two associations this message happens to have.
      */
     public function findOneForAccountByMessageId(Account $account, string $messageId): ?Message
     {
@@ -458,6 +885,8 @@ class MessageRepository extends ServiceEntityRepository
      * A Gmail-imported message on this account with the given RFC Message-ID
      * that has no IMAP location yet — claimable by the IMAP syncer when the
      * server-side copy shows up.
+     *
+     * QueryBuilder for the join to the owning account through the thread.
      */
     public function findGmailOnlyByMessageId(Account $account, string $messageId): ?Message
     {
@@ -474,7 +903,12 @@ class MessageRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** @return iterable<Message> */
+    /**
+     * Streamed, so recategorising a large account does not load it into memory
+     * — the reason this cannot be findBy().
+     *
+     * @return iterable<Message>
+     */
     public function iterateForRecategorization(Account $account, bool $includeCategorized): iterable
     {
         $qb = $this->createQueryBuilder('m')
@@ -489,6 +923,9 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * QueryBuilder for the join to the owning user and for the single-column
+     * projection, as with findSyncedGmailIdsForUser().
+     *
      * @return list<string>
      */
     public function findSyncedGraphIdsForUser(User $user): array
@@ -509,6 +946,11 @@ class MessageRepository extends ServiceEntityRepository
      * JMAP Email/get: fetch by id, scoped to the account so a foreign id can
      * never resolve. Labels and parts are eager-joined because the mapper
      * touches both for every message.
+     *
+     * The fetch-join is the reason this is not findBy(): findBy() honours the
+     * mapped fetch mode, so each message's labels and parts would be lazy-loaded
+     * one query at a time — the N+1 an Email/get over a page of ids exists to
+     * avoid.
      *
      * @param list<int> $ids
      *

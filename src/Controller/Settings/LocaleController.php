@@ -43,9 +43,7 @@ final class LocaleController extends AbstractController
             throw $this->createNotFoundException('Unknown locale.');
         }
 
-        $user
-            ->setLocale($locale->value)
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->locale = $locale->value;
 
         $this->entityManager->flush();
 

@@ -69,8 +69,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: "<p>Gr\xfc\xdfe von J\xf6rg</p>",
         ));
 
-        self::assertSame('Grüße von Jörg', $message->getBodyText());
-        self::assertSame('<p>Grüße von Jörg</p>', $message->getBodyHtml());
+        self::assertSame('Grüße von Jörg', $message->bodyText);
+        self::assertSame('<p>Grüße von Jörg</p>', $message->bodyHtml);
     }
 
     /**
@@ -87,8 +87,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: "<p>Das \x93Sonderangebot\x94</p>",
         ));
 
-        self::assertSame('Das “Sonderangebot” – nur heute', $message->getBodyText());
-        self::assertStringContainsString('“Sonderangebot”', (string) $message->getBodyHtml());
+        self::assertSame('Das “Sonderangebot” – nur heute', $message->bodyText);
+        self::assertStringContainsString('“Sonderangebot”', (string) $message->bodyHtml);
     }
 
     /** The overwhelmingly common case has to be byte-for-byte untouched. */
@@ -100,8 +100,8 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>Grüße 🎉</p>',
         ));
 
-        self::assertSame('Grüße 🎉', $message->getBodyText());
-        self::assertSame('<p>Grüße 🎉</p>', $message->getBodyHtml());
+        self::assertSame('Grüße 🎉', $message->bodyText);
+        self::assertSame('<p>Grüße 🎉</p>', $message->bodyHtml);
     }
 
     /**
@@ -117,7 +117,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>ok</p>',
         ));
 
-        self::assertSame('Grüße', $message->getBodyText());
+        self::assertSame('Grüße', $message->bodyText);
     }
 
     /** A charset name mbstring cannot use is not a reason to lose a message. */
@@ -129,7 +129,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
             html: '<p>ok</p>',
         ));
 
-        self::assertTrue(mb_check_encoding((string) $message->getBodyText(), 'UTF-8'));
+        self::assertTrue(mb_check_encoding((string) $message->bodyText, 'UTF-8'));
     }
 
     /**
@@ -147,7 +147,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
 
         $message = $this->build($payload);
 
-        self::assertSame('Übersicht.pdf', $this->attachmentPart($message)?->getFilename());
+        self::assertSame('Übersicht.pdf', $this->attachmentPart($message)?->filename);
     }
 
     /** And an encoded word in a filename is decoded rather than displayed. */
@@ -162,7 +162,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
 
         $message = $this->build($payload);
 
-        self::assertSame('Gebühren.pdf', $this->attachmentPart($message)?->getFilename());
+        self::assertSame('Gebühren.pdf', $this->attachmentPart($message)?->filename);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
@@ -241,28 +241,26 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('gmail-charset-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Gmail')
-            ->setNameLast('Charset')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'gmail-charset-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Gmail';
+        $user->nameLast = 'Charset';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Gmail Charset Fixture')
-            ->setUsername('gmail-charset-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Gmail Charset Fixture';
+        $account->username = 'gmail-charset-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();

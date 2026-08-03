@@ -111,34 +111,32 @@ final class DataResetterTest extends KernelTestCase
         $suffix = uniqid('', true);
 
         $user = new User();
-        $user
-            ->setEmail('reset-' . $suffix . '@example.test')
-            ->setNameFirst('Reset')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'reset-' . $suffix . '@example.test';
+        $user->nameFirst = 'Reset';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Reset Fixture')
-            ->setUsername('reset-' . $suffix . '@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Reset Fixture';
+        $account->username = 'reset-' . $suffix . '@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();
 
-        $this->userId    = (int) $user->getId();
-        $this->accountId = (int) $account->getId();
+        $this->userId    = (int) $user->id;
+        $this->accountId = (int) $account->id;
 
         // The rest goes in as rows rather than entities. Six entity APIs would
         // be six things this test knows about that have nothing to do with what

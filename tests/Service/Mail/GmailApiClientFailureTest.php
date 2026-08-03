@@ -343,7 +343,7 @@ final class GmailApiClientFailureTest extends TestCase
     private function account(): Account
     {
         $account = new Account();
-        $account->setUsr(new User());
+        $account->usr = new User();
 
         return $account;
     }

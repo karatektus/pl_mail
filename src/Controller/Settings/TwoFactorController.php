@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
-use App\Entity\User\TrustedDevice;
 use App\Entity\User\User;
 use App\Repository\User\TrustedDeviceRepository;
 use App\Security\TwoFactor\TrustedDeviceCookieJar;
@@ -94,7 +93,7 @@ final class TwoFactorController extends AbstractController
             return $this->redirectToSection();
         }
 
-        if (false === $this->proves($user, (string) $request->request->get('code', ''))) {
+        if (false === $this->enrolment->provesPossession($user, (string) $request->request->get('code', ''))) {
             $this->addFlash('error', 'two_factor.flash.code_rejected');
 
             return $this->redirectToSection();
@@ -118,7 +117,7 @@ final class TwoFactorController extends AbstractController
             return $this->redirectToSection();
         }
 
-        if (false === $this->proves($user, (string) $request->request->get('code', ''))) {
+        if (false === $this->enrolment->provesPossession($user, (string) $request->request->get('code', ''))) {
             $this->addFlash('error', 'two_factor.flash.code_rejected');
 
             return $this->redirectToSection();
@@ -148,7 +147,7 @@ final class TwoFactorController extends AbstractController
 
         // Revoking the device you are sitting at: drop the cookie too, so the
         // browser stops presenting a secret that will never be honoured again.
-        if (true === hash_equals($device->tokenHash, $this->currentDeviceHash($request) ?? '')) {
+        if (true === hash_equals($device->tokenHash, $this->cookies->currentHash($request) ?? '')) {
             $this->cookies->clear($request);
         }
 
@@ -168,36 +167,6 @@ final class TwoFactorController extends AbstractController
         $this->addFlash('success', 'two_factor.flash.devices_revoked');
 
         return $this->redirectToSection();
-    }
-
-    /**
-     * A TOTP code or an unspent recovery code — either proves possession of
-     * the second factor, which is all these actions are asking for.
-     *
-     * A spent recovery code is consumed on the way past, so a leaked one
-     * cannot be replayed against a second action.
-     */
-    private function proves(User $user, string $code): bool
-    {
-        if (true === $this->enrolment->verifyCode($user, $code)) {
-            return true;
-        }
-
-        if (true === $user->isBackupCode($code)) {
-            $user->invalidateBackupCode($code);
-            $this->em->flush();
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private function currentDeviceHash(Request $request): ?string
-    {
-        $secret = $this->cookies->read($request);
-
-        return null === $secret ? null : TrustedDevice::hash($secret);
     }
 
     private function assertCsrf(Request $request, string $id): void

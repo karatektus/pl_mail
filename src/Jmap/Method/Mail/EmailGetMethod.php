@@ -45,7 +45,7 @@ final class EmailGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $requestedIds = $arguments['ids'] ?? null;
 
@@ -94,7 +94,7 @@ final class EmailGetMethod implements JmapMethod
         $found = [];
 
         foreach ($messages as $message) {
-            $found[] = (string) $message->getId();
+            $found[] = (string) $message->id;
             $list[] = $this->mapper->toJmap(
                 $message,
                 $properties,

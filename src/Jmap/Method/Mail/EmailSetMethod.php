@@ -63,7 +63,7 @@ final class EmailSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Email);
         $ifInState = $arguments['ifInState'] ?? null;
@@ -132,9 +132,9 @@ final class EmailSetMethod implements JmapMethod
                 continue;
             }
 
-            $id = (string) $message->getId();
+            $id = (string) $message->id;
 
-            $this->stateManager->recordCreated($account->getId(), JmapObjectType::Email, $id);
+            $this->stateManager->recordCreated($account->id, JmapObjectType::Email, $id);
             // Lets a later call in the same request refer to "#creationId".
             $context->recordCreatedId($creationId, $id);
 
@@ -142,9 +142,9 @@ final class EmailSetMethod implements JmapMethod
             // requires them back on the created object.
             $created[$creationId] = [
                 'id' => $id,
-                'blobId' => (string) BlobId::forMessage((int) $message->getId()),
-                'threadId' => null === $message->getThread() ? null : (string) $message->getThread()->getId(),
-                'size' => $message->getSize() ?? 0,
+                'blobId' => (string) BlobId::forMessage((int) $message->id),
+                'threadId' => null === $message->thread ? null : (string) $message->thread->id,
+                'size' => $message->size ?? 0,
             ];
         }
     }
@@ -185,7 +185,7 @@ final class EmailSetMethod implements JmapMethod
                 continue;
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);
             $this->recordThread($account, $message);
             // null = "no properties changed beyond what the client asked for".
             $updated[$id] = null;
@@ -207,7 +207,7 @@ final class EmailSetMethod implements JmapMethod
         }
 
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
 
         foreach ($destroy as $id) {
@@ -229,12 +229,12 @@ final class EmailSetMethod implements JmapMethod
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->getImapUid() && null !== $trashMailbox) {
-                $message->setMailbox($trashMailbox);
+            if (null !== $message->imapUid && null !== $trashMailbox) {
+                $message->mailbox = $trashMailbox;
             }
 
-            $this->threadLabelSynchronizer->sync($message->getThread());
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->threadLabelSynchronizer->sync($message->thread);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);
             $this->recordThread($account, $message);
 
             $destroyed[] = $id;
@@ -247,13 +247,13 @@ final class EmailSetMethod implements JmapMethod
      */
     private function recordThread(Account $account, Message $message): void
     {
-        $thread = $message->getThread();
+        $thread = $message->thread;
 
         if (null === $thread) {
             return;
         }
 
-        $this->stateManager->recordThreadsTouched((int) $account->getId(), [(int) $thread->getId()]);
+        $this->stateManager->recordThreadsTouched((int) $account->id, [(int) $thread->id]);
     }
 
     private function findOne(Account $account, string $id): ?Message
@@ -262,7 +262,7 @@ final class EmailSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->getId(), [(int) $id]);
+        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

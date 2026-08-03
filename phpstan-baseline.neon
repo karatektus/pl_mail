@@ -54,63 +54,11 @@ parameters:
 			count: 1
 			path: src/Controller/Auth/OAuthController.php
 
-		-
-			message: '#^Property App\\Controller\\Auth\\OAuthController\:\:\$graphSubscriptionManager is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Auth/OAuthController.php
 
-		-
-			message: '#^Property App\\Controller\\Integration\\FilePickerController\:\:\$integrationRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Integration/FilePickerController.php
-
-		-
-			message: '#^Using nullsafe method call on non\-nullable type App\\Entity\\Mail\\Account\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: src/Controller/Integration/FilePickerController.php
 
 		-
 			message: '#^Constant App\\Controller\\Mail\\ComposeController\:\:INLINE_FRAME is unused\.$#'
 			identifier: classConstant.unused
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 4
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Method App\\Controller\\Mail\\ComposeController\:\:resolveAccount\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: bool, frame\: string, thread\: int\|null\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Parameter \#1 \$ctx of method App\\Controller\\Mail\\ComposeController\:\:urlParams\(\) expects array\{inline\: bool, frame\: string, thread\: int\|null, replyTo\: int\|null\}, array\{inline\: true, frame\: string, thread\: int\|null\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\ContactRepository\:\:upsertBatch\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Property App\\Controller\\Mail\\ComposeController\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
 			count: 1
 			path: src/Controller/Mail/ComposeController.php
 
@@ -121,8 +69,8 @@ parameters:
 			path: src/Controller/Mail/ComposeController.php
 
 		-
-			message: '#^Parameter \#1 \$usr of method App\\Entity\\Label\\Label\:\:setUsr\(\) expects App\\Entity\\User\\User\|null, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
-			identifier: argument.type
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$usr \(App\\Entity\\User\\User\|null\) does not accept Symfony\\Component\\Security\\Core\\User\\UserInterface\|null\.$#'
+			identifier: assign.propertyType
 			count: 1
 			path: src/Controller/Mail/LabelController.php
 
@@ -144,11 +92,6 @@ parameters:
 			count: 1
 			path: src/Controller/Mail/ThreadStatusController.php
 
-		-
-			message: '#^Property App\\Controller\\Mail\\ThreadStatusController\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Mail/ThreadStatusController.php
 
 		-
 			message: '#^Attribute class Symfony\\Component\\HttpKernel\\Attribute\\MapEntity does not exist\.$#'
@@ -180,11 +123,6 @@ parameters:
 			count: 1
 			path: src/Controller/Settings/AccountController.php
 
-		-
-			message: '#^Method App\\Controller\\Settings\\IntegrationController\:\:nullIfBlank\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: src/Controller/Settings/IntegrationController.php
 
 		-
 			message: '#^Parameter \#1 \$user of method App\\Repository\\Mail\\MessageRepository\:\:countMatchingForUser\(\) expects App\\Entity\\User\\User, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
@@ -211,8 +149,8 @@ parameters:
 			path: src/Controller/Settings/SettingsController.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getLocale\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$locale\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Controller/Settings/SettingsController.php
 
@@ -253,18 +191,6 @@ parameters:
 			path: src/Domain/Enum/Integration/Provider.php
 
 		-
-			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/Calendar.php
-
-		-
-			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/Calendar.php
-
-		-
 			message: '#^Property App\\Entity\\Calendar\\Calendar\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
 			identifier: doctrine.associationType
 			count: 1
@@ -277,12 +203,6 @@ parameters:
 			path: src/Entity/Calendar/CalendarEvent.php
 
 		-
-			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/CalendarEvent.php
-
-		-
 			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$endsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
@@ -290,12 +210,6 @@ parameters:
 
 		-
 			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$startsAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/CalendarEvent.php
-
-		-
-			message: '#^Property App\\Entity\\Calendar\\CalendarEvent\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Calendar/CalendarEvent.php
@@ -343,12 +257,6 @@ parameters:
 			path: src/Entity/Calendar/CalendarEventOccurrence.php
 
 		-
-			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/EventSourceLink.php
-
-		-
 			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$event type mapping mismatch\: property can contain App\\Entity\\Calendar\\CalendarEvent\|null but database expects App\\Entity\\Calendar\\CalendarEvent\.$#'
 			identifier: doctrine.associationType
 			count: 1
@@ -361,67 +269,13 @@ parameters:
 			path: src/Entity/Calendar/EventSourceLink.php
 
 		-
-			message: '#^Property App\\Entity\\Calendar\\EventSourceLink\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Calendar/EventSourceLink.php
-
-		-
 			message: '#^Property App\\Entity\\Calendar\\EventSuppression\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
 			identifier: doctrine.associationType
 			count: 1
 			path: src/Entity/Calendar/EventSuppression.php
 
 		-
-			message: '#^Property App\\Entity\\Integration\\Integration\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/Integration.php
-
-		-
-			message: '#^Property App\\Entity\\Integration\\Integration\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/Integration.php
-
-		-
-			message: '#^Property App\\Entity\\Integration\\IntegrationProviderConfig\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/IntegrationProviderConfig.php
-
-		-
-			message: '#^Property App\\Entity\\Integration\\IntegrationProviderConfig\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/IntegrationProviderConfig.php
-
-		-
-			message: '#^Property App\\Entity\\Integration\\MailProviderConfig\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/MailProviderConfig.php
-
-		-
-			message: '#^Property App\\Entity\\Integration\\MailProviderConfig\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Integration/MailProviderConfig.php
-
-		-
-			message: '#^Property App\\Entity\\Label\\Label\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Label/Label.php
-
-		-
 			message: '#^Property App\\Entity\\Label\\Label\:\:\$name type mapping mismatch\: property can contain string\|null but database expects string\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Label/Label.php
-
-		-
-			message: '#^Property App\\Entity\\Label\\Label\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Label/Label.php
@@ -439,20 +293,8 @@ parameters:
 			path: src/Entity/Label/LabelBinding.php
 
 		-
-			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Label/LabelBinding.php
-
-		-
 			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$label type mapping mismatch\: property can contain App\\Entity\\Label\\Label\|null but database expects App\\Entity\\Label\\Label\.$#'
 			identifier: doctrine.associationType
-			count: 1
-			path: src/Entity/Label/LabelBinding.php
-
-		-
-			message: '#^Property App\\Entity\\Label\\LabelBinding\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Label/LabelBinding.php
 
@@ -463,19 +305,7 @@ parameters:
 			path: src/Entity/Mail/Account.php
 
 		-
-			message: '#^Property App\\Entity\\Mail\\Account\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Account.php
-
-		-
 			message: '#^Property App\\Entity\\Mail\\Account\:\:\$isActive type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Account.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\Account\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Mail/Account.php
@@ -491,12 +321,6 @@ parameters:
 			identifier: doctrine.associationType
 			count: 1
 			path: src/Entity/Mail/Account.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Contact.php
 
 		-
 			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$email type mapping mismatch\: property can contain string\|null but database expects string\.$#'
@@ -517,12 +341,6 @@ parameters:
 			path: src/Entity/Mail/Contact.php
 
 		-
-			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Contact.php
-
-		-
 			message: '#^Property App\\Entity\\Mail\\Contact\:\:\$usr type mapping mismatch\: property can contain App\\Entity\\User\\User\|null but database expects App\\Entity\\User\\User\.$#'
 			identifier: doctrine.associationType
 			count: 1
@@ -535,26 +353,8 @@ parameters:
 			path: src/Entity/Mail/EmailAlias.php
 
 		-
-			message: '#^Property App\\Entity\\Mail\\EmailAlias\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/EmailAlias.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\EmailAlias\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/EmailAlias.php
-
-		-
 			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$account type mapping mismatch\: property can contain App\\Entity\\Mail\\Account\|null but database expects App\\Entity\\Mail\\Account\.$#'
 			identifier: doctrine.associationType
-			count: 1
-			path: src/Entity/Mail/Mailbox.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Mail/Mailbox.php
 
@@ -577,25 +377,7 @@ parameters:
 			path: src/Entity/Mail/Mailbox.php
 
 		-
-			message: '#^Property App\\Entity\\Mail\\Mailbox\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Mailbox.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\Message\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Message.php
-
-		-
 			message: '#^Property App\\Entity\\Mail\\Message\:\:\$hasAttachments type mapping mismatch\: property can contain bool\|null but database expects bool\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Mail/Message.php
-
-		-
-			message: '#^Property App\\Entity\\Mail\\Message\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Mail/Message.php
@@ -655,31 +437,13 @@ parameters:
 			path: src/Entity/Mail/MessageThread.php
 
 		-
-			message: '#^Property App\\Entity\\Monitoring\\LogEntry\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Monitoring/LogEntry.php
-
-		-
 			message: '#^Property App\\Entity\\Monitoring\\ProcessHeartbeat\:\:\$lastBeatAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Monitoring/ProcessHeartbeat.php
 
 		-
-			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Rule/MailRule.php
-
-		-
 			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$name type mapping mismatch\: property can contain string\|null but database expects string\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/Rule/MailRule.php
-
-		-
-			message: '#^Property App\\Entity\\Rule\\MailRule\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/Rule/MailRule.php
@@ -689,36 +453,6 @@ parameters:
 			identifier: doctrine.associationType
 			count: 1
 			path: src/Entity/Rule/MailRule.php
-
-		-
-			message: '#^Property App\\Entity\\User\\ApiToken\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/ApiToken.php
-
-		-
-			message: '#^Property App\\Entity\\User\\ApiToken\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/ApiToken.php
-
-		-
-			message: '#^Property App\\Entity\\User\\TrustedDevice\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/TrustedDevice.php
-
-		-
-			message: '#^Property App\\Entity\\User\\TrustedDevice\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/TrustedDevice.php
-
-		-
-			message: '#^Property App\\Entity\\User\\User\:\:\$createdAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/User.php
 
 		-
 			message: '#^Property App\\Entity\\User\\User\:\:\$email type mapping mismatch\: property can contain string\|null but database expects string\.$#'
@@ -740,12 +474,6 @@ parameters:
 
 		-
 			message: '#^Property App\\Entity\\User\\User\:\:\$password type mapping mismatch\: property can contain string\|null but database expects string\.$#'
-			identifier: doctrine.columnType
-			count: 1
-			path: src/Entity/User/User.php
-
-		-
-			message: '#^Property App\\Entity\\User\\User\:\:\$updatedAt type mapping mismatch\: property can contain DateTimeImmutable\|null but database expects DateTimeImmutable\.$#'
 			identifier: doctrine.columnType
 			count: 1
 			path: src/Entity/User/User.php
@@ -777,12 +505,6 @@ parameters:
 		-
 			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
 			identifier: greater.alwaysTrue
-			count: 1
-			path: src/Jmap/Mail/JmapDraftWriter.php
-
-		-
-			message: '#^Property App\\Jmap\\Mail\\JmapDraftWriter\:\:\$mailboxRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
 			count: 1
 			path: src/Jmap/Mail/JmapDraftWriter.php
 
@@ -853,8 +575,8 @@ parameters:
 			path: src/Kernel.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Repository/Calendar/CalendarEventOccurrenceRepository.php
 
@@ -865,8 +587,8 @@ parameters:
 			path: src/Repository/Mail/AccountRepository.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Repository/Mail/MessageThreadRepository.php
 
@@ -919,12 +641,6 @@ parameters:
 			path: src/Service/Label/LabelStructurePropagator.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Service/Mail/AttachmentResolver.php
-
-		-
 			message: '#^Method App\\Service\\Mail\\GraphApiClient\:\:batchWrite\(\) never assigns null to &\$resultIds so it can be removed from the by\-ref type\.$#'
 			identifier: parameterByRef.unusedType
 			count: 1
@@ -943,8 +659,8 @@ parameters:
 			path: src/Service/Onboarding/Step/SecurityStepHandler.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 2
 			path: src/Service/Rule/FilterDescriber.php
 
@@ -961,7 +677,7 @@ parameters:
 			path: tests/Service/Gmail/GmailApiSyncerBackfillTest.php
 
 		-
-			message: '#^Using nullsafe method call on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'
+			message: '#^Using nullsafe property access on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: tests/Service/Imap/MessageThreaderTest.php

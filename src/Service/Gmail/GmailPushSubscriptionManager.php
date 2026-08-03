@@ -75,13 +75,13 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
 
     public function subscribe(Account $account): bool
     {
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return false;
         }
 
         if (false === $this->isConfigured()) {
             $this->logger->warning('GmailPushSubscriptionManager: GMAIL_PUBSUB_TOPIC is not set, staying on polling', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return false;
@@ -94,7 +94,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
             // reason a watch was rejected — bad topicName, missing publisher
             // grant — in the response body, so it has to be pulled out here.
             $this->logger->error('GmailPushSubscriptionManager: watch failed, falling back to polling', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'topic'     => ($this->pushSettings->topic() ?? ''),
                 'error'     => $e->getMessage(),
                 'body'      => $e instanceof HttpExceptionInterface
@@ -124,17 +124,17 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
 
         // Silence is meaningless once there is no watch; clearing it prevents a
         // stale timestamp from making a freshly re-enabled account look healthy.
-        $account->setGmailLastPushAt(null);
+        $account->gmailLastPushAt = null;
         $this->em->flush();
     }
 
     public function needsRenewal(Account $account): bool
     {
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return false;
         }
 
-        $expiry = $account->getGmailWatchExpiry();
+        $expiry = $account->gmailWatchExpiry;
 
         if (null === $expiry) {
             return true;
@@ -145,16 +145,16 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
 
     public function expiresAt(Account $account): ?DateTimeImmutable
     {
-        return $account->getGmailWatchExpiry();
+        return $account->gmailWatchExpiry;
     }
 
     public function health(Account $account): PushHealth
     {
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return PushHealth::Inactive;
         }
 
-        $expiry = $account->getGmailWatchExpiry();
+        $expiry = $account->gmailWatchExpiry;
 
         if (null === $expiry) {
             return PushHealth::Inactive;
@@ -165,7 +165,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
             return PushHealth::Degraded;
         }
 
-        $lastPush = $account->getGmailLastPushAt();
+        $lastPush = $account->gmailLastPushAt;
 
         if (null !== $lastPush) {
             if ($lastPush >= new DateTimeImmutable(self::SILENCE_THRESHOLD)) {

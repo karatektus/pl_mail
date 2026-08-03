@@ -55,13 +55,13 @@ final readonly class AttachmentThumbnailer
             return false;
         }
 
-        $size = $part->getSize();
+        $size = $part->size;
 
         if (null !== $size && $size > self::MAX_BYTES) {
             return false;
         }
 
-        return in_array(strtolower((string) $part->getContentType()), self::TYPES, true);
+        return in_array(strtolower((string) $part->contentType), self::TYPES, true);
     }
 
     /**
@@ -71,11 +71,11 @@ final readonly class AttachmentThumbnailer
      */
     public function thumbnailPath(MessagePart $part): ?string
     {
-        if (false === $this->isPreviewable($part) || null === $part->getId()) {
+        if (false === $this->isPreviewable($part) || null === $part->id) {
             return null;
         }
 
-        $cachePath = sprintf('%s/var/attachments/thumbs/%d.webp', $this->projectDir, $part->getId());
+        $cachePath = sprintf('%s/var/attachments/thumbs/%d.webp', $this->projectDir, $part->id);
 
         if (true === is_file($cachePath)) {
             return $cachePath;
@@ -87,14 +87,14 @@ final readonly class AttachmentThumbnailer
             // A provider fetch can fail for reasons that have nothing to do
             // with previews; the download link surfaces the real error.
             $this->logger->debug('AttachmentThumbnailer: source unavailable', [
-                'partId' => $part->getId(),
+                'partId' => $part->id,
                 'error'  => $exception->getMessage(),
             ]);
 
             return null;
         }
 
-        return $this->generate($source, $cachePath, (int) $part->getId());
+        return $this->generate($source, $cachePath, (int) $part->id);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

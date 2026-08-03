@@ -51,8 +51,8 @@ final class MailSyncCommand extends Command
         }
 
         foreach ($accounts as $account) {
-            $this->bus->dispatch(new SyncAccountMessage($account->getId()));
-            $io->text(sprintf('→ dispatched sync for %s (#%d)', $account->getEmail(), $account->getId()));
+            $this->bus->dispatch(new SyncAccountMessage($account->id));
+            $io->text(sprintf('→ dispatched sync for %s (#%d)', $account->email, $account->id));
         }
 
         $io->success(sprintf('Dispatched %d account sync(s).', count($accounts)));

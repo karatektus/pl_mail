@@ -6,6 +6,7 @@ namespace App\Entity\Mail;
 
 use App\Repository\Mail\UploadedBlobRepository;
 use DateTimeImmutable;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -23,8 +24,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: UploadedBlobRepository::class)]
 #[ORM\Table(name: 'uploaded_blob')]
 #[ORM\Index(name: 'idx_uploaded_blob_created', columns: ['created_at'])]
+#[ORM\HasLifecycleCallbacks]
 class UploadedBlob
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -44,8 +48,6 @@ class UploadedBlob
     #[ORM\Column]
     public private(set) int $size;
 
-    #[ORM\Column]
-    public private(set) DateTimeImmutable $createdAt;
 
     public function __construct(
         Account $account,

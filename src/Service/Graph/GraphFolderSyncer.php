@@ -181,7 +181,7 @@ final readonly class GraphFolderSyncer
         $this->em->flush();
 
         $this->logger->info('GraphFolderSyncer: folders synced', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'folders'   => count($byId),
             'linked'    => $synced,
         ]);

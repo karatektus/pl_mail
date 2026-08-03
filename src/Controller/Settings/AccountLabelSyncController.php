@@ -39,7 +39,7 @@ final class AccountLabelSyncController extends AbstractController
 
         $token = (string) $request->request->get('_token');
 
-        if (false === $this->isCsrfTokenValid('account_label_sync_' . $account->getId(), $token)) {
+        if (false === $this->isCsrfTokenValid('account_label_sync_' . $account->id, $token)) {
             throw $this->createAccessDeniedException();
         }
 
@@ -50,7 +50,7 @@ final class AccountLabelSyncController extends AbstractController
         // Only ever affects labels changed from now on. Existing labels are not
         // retroactively pushed — that would mean bulk-creating the user's whole
         // local tree on the provider from a single click.
-        $account->setLabelSyncEnabled(false === $account->isLabelSyncEnabled());
+        $account->setSetting(Account::SETTING_LABEL_SYNC, false === $account->isLabelSyncEnabled());
         $this->em->flush();
 
         return $this->render('settings/accounts/_label_sync_control.html.twig', [
@@ -60,7 +60,7 @@ final class AccountLabelSyncController extends AbstractController
 
     private function assertOwnership(Account $account): void
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

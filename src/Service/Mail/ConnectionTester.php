@@ -36,10 +36,10 @@ final class ConnectionTester
         return new ConnectionTestResult(
             $imapOk,
             $imapMessage,
-            $this->target($account->getImapHost(), $account->getImapPort(), $account->getImapEncryption()),
+            $this->target($account->imapHost, $account->imapPort, $account->imapEncryption),
             $smtpOk,
             $smtpMessage,
-            $this->target($account->getSmtpHost(), $account->getSmtpPort(), $account->getSmtpEncryption()),
+            $this->target($account->smtpHost, $account->smtpPort, $account->smtpEncryption),
         );
     }
 
@@ -69,7 +69,7 @@ final class ConnectionTester
 
             return [true, sprintf('Connected — %d folders visible.', count($folders))];
         } catch (Throwable $e) {
-            return [false, $this->describe($e, $account, $account->getImapEncryption(), $account->getImapPort())];
+            return [false, $this->describe($e, $account, $account->imapEncryption, $account->imapPort)];
         } finally {
             if (null !== $client) {
                 try {
@@ -86,7 +86,7 @@ final class ConnectionTester
      */
     private function probeSmtp(Account $account): array
     {
-        $host = $account->getSmtpHost();
+        $host = $account->smtpHost;
 
         if (null === $host || '' === trim($host)) {
             return [null, 'No SMTP host configured — sending is disabled for this account.'];
@@ -113,7 +113,7 @@ final class ConnectionTester
 
             return [true, 'Connected and authenticated.'];
         } catch (Throwable $e) {
-            return [false, $this->describe($e, $account, $account->getSmtpEncryption(), $account->getSmtpPort())];
+            return [false, $this->describe($e, $account, $account->smtpEncryption, $account->smtpPort)];
         } finally {
             if (true === $transport instanceof SmtpTransport) {
                 try {

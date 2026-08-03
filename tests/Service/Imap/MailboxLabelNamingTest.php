@@ -103,12 +103,12 @@ final class MailboxLabelNamingTest extends KernelTestCase
         self::assertNotNull($mailbox, 'the mailbox must be findable by the path the server sent');
         self::assertSame(
             'INBOX.Entw&APw-rfe',
-            $mailbox->getFullPath(),
+            $mailbox->fullPath,
             'fullPath is the folder identity SELECT takes — decoding it breaks folder selection',
         );
 
         // And the decoded name was available beside it all along.
-        self::assertSame('Entwürfe', $mailbox->getName());
+        self::assertSame('Entwürfe', $mailbox->name);
     }
 
     /**
@@ -119,7 +119,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
     {
         $this->sync(['INBOX.Work.Invoices']);
 
-        $label = $this->mailboxFor('INBOX.Work.Invoices')?->getLabel();
+        $label = $this->mailboxFor('INBOX.Work.Invoices')?->label;
 
         self::assertNotNull($label);
         self::assertSame('Invoices', $label->name);
@@ -177,7 +177,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
         $this->sync(['INBOX.Entw&APw-rfe']);
 
         $stale = $this->em->getRepository(Label::class)->findOneBy([
-            'usr'  => $this->account->getUsr(),
+            'usr'  => $this->account->usr,
             'name' => 'Entw&APw-rfe',
         ]);
 
@@ -197,16 +197,16 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     private function corruptTheLabelName(string $fullPath, string $rawName): void
     {
-        $label = $this->mailboxFor($fullPath)?->getLabel();
+        $label = $this->mailboxFor($fullPath)?->label;
 
         self::assertNotNull($label);
 
-        $label->setName($rawName);
+        $label->name = $rawName;
 
         $this->em->flush();
         $this->em->clear();
 
-        $this->account = $this->em->getRepository(Account::class)->find((int) $this->account->getId());
+        $this->account = $this->em->getRepository(Account::class)->find((int) $this->account->id);
     }
 
     /**
@@ -297,34 +297,32 @@ final class MailboxLabelNamingTest extends KernelTestCase
 
     private function labelNameFor(string $fullPath): ?string
     {
-        return $this->mailboxFor($fullPath)?->getLabel()?->name;
+        return $this->mailboxFor($fullPath)?->label?->name;
     }
 
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('mailbox-naming-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Mailbox')
-            ->setNameLast('Naming')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'mailbox-naming-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Mailbox';
+        $user->nameLast = 'Naming';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Mailbox Naming Fixture')
-            ->setUsername('mailbox-naming-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Mailbox Naming Fixture';
+        $account->username = 'mailbox-naming-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();

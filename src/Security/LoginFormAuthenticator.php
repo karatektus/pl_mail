@@ -139,7 +139,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     {
         $user = $token->getUser();
         if ($user instanceof User) {
-            $user->setLastLogin(new DateTime());
+            $user->lastLogin = new DateTime();
             $this->documentManager->flush();
         }
 

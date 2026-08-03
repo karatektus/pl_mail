@@ -160,7 +160,7 @@ final class ImapSuperviseCommand extends Command
         $activeMailboxIds = [];
 
         foreach ($mailboxes as $mailbox) {
-            $mailboxId = $mailbox->getId();
+            $mailboxId = $mailbox->id;
             $activeMailboxIds[] = $mailboxId;
 
             if (array_key_exists($mailboxId, $this->processes) === false) {

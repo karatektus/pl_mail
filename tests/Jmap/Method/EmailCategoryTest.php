@@ -89,7 +89,7 @@ final class EmailCategoryTest extends KernelTestCase
         $thread = $this->thread(MessageCategory::Promotions, [MessageCategory::Promotions]);
 
         $result = $this->threadGet->handle(
-            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->getId()]],
+            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->id]],
             new JmapContext($this->user),
         );
 
@@ -108,7 +108,7 @@ final class EmailCategoryTest extends KernelTestCase
         $thread = $this->thread(null, [null]);
 
         $result = $this->threadGet->handle(
-            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->getId()]],
+            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->id]],
             new JmapContext($this->user),
         );
 
@@ -149,8 +149,8 @@ final class EmailCategoryTest extends KernelTestCase
 
         $expected = [];
 
-        foreach ($thread->getMessages() as $message) {
-            $expected[(string) $message->getId()] = $message->getCategory()?->value;
+        foreach ($thread->messages as $message) {
+            $expected[(string) $message->id] = $message->category?->value;
         }
 
         self::assertSame(['promotions', 'primary'], array_values($expected), 'fixture sanity');
@@ -336,7 +336,7 @@ final class EmailCategoryTest extends KernelTestCase
 
     private function accountId(): string
     {
-        return (string) $this->account->getId();
+        return (string) $this->account->id;
     }
 
     /**
@@ -374,8 +374,8 @@ final class EmailCategoryTest extends KernelTestCase
     {
         $ids = [];
 
-        foreach ($thread->getMessages() as $message) {
-            $ids[] = (string) $message->getId();
+        foreach ($thread->messages as $message) {
+            $ids[] = (string) $message->id;
         }
 
         return array_reverse($ids);
@@ -399,14 +399,13 @@ final class EmailCategoryTest extends KernelTestCase
         bool $inbox = true,
     ): MessageThread {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($this->account)
-            ->setSubject('Category fixture')
-            ->setNormalizedSubject('category fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setCategory($category)
-            ->setUnreadCount(0);
+        $thread->account = $this->account;
+        $thread->subject = 'Category fixture';
+        $thread->normalizedSubject = 'category fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->category = $category;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $offset = count($messageCategories);
@@ -416,20 +415,19 @@ final class EmailCategoryTest extends KernelTestCase
             --$offset;
 
             $message = new Message();
-            $message
-                ->setAccount($this->account)
-                ->setSubject('Category fixture')
-                ->setFromAddress('sender@example.test')
-                // Spaced so the ordering is total: Email/query sorts on
-                // received_at and ties are broken by id, and a fixture whose
-                // messages all share one second would compare equal to whatever
-                // order the database happened to return.
-                ->setReceivedAt(new \DateTimeImmutable(sprintf('-%d minutes', 10 + $offset)))
-                ->setHasAttachments(false)
-                ->setCategory($messageCategory)
-                ->setMessageId(sprintf('<category-%d@example.test>', $this->uid))
-                ->setMailbox($this->mailbox)
-                ->setImapUid($this->uid);
+            $message->account = $this->account;
+            $message->subject = 'Category fixture';
+            $message->fromAddress = 'sender@example.test';
+            // Spaced so the ordering is total: Email/query sorts on
+            // received_at and ties are broken by id, and a fixture whose
+            // messages all share one second would compare equal to whatever
+            // order the database happened to return.
+            $message->receivedAt = new \DateTimeImmutable(sprintf('-%d minutes', 10 + $offset));
+            $message->hasAttachments = false;
+            $message->category = $messageCategory;
+            $message->messageId = sprintf('<category-%d@example.test>', $this->uid);
+            $message->mailbox = $this->mailbox;
+            $message->imapUid = $this->uid;
 
             if (true === $inbox) {
                 $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
@@ -447,39 +445,34 @@ final class EmailCategoryTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('category-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Email')
-            ->setNameLast('Category')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'category-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Email';
+        $this->user->nameLast = 'Category';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            ->setEmail('Email Category')
-            ->setUsername('category-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        $this->account->email = 'Email Category';
+        $this->account->username = 'category-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
-        $this->mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->mailbox->account = $this->account;
+        $this->mailbox->name = 'INBOX';
+        $this->mailbox->fullPath = 'INBOX';
+        $this->mailbox->isSyncEnabled = true;
+        $this->mailbox->isIdleEnabled = false;
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

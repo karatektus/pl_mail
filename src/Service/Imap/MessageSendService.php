@@ -8,12 +8,11 @@ use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,13 +33,13 @@ class MessageSendService
         private readonly AttachmentResolver      $attachmentResolver,
         private readonly LabelResolver           $labelResolver,
         private readonly LabelRepository         $labelRepository,
-        private readonly StateManager            $stateManager,
+        private readonly MailChangeRecorder      $changes,
     ) {
     }
 
     public function send(Message $message): bool
     {
-        $account = $message->getAccount();
+        $account = $message->account;
 
         if (null === $account) {
             return false;
@@ -66,7 +65,7 @@ class MessageSendService
         }
 
         $sentLabel   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
-        $draftsLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Drafts, $account->getUsr());
+        $draftsLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Drafts, $account->usr);
 
         $message->addLabel($sentLabel);
 
@@ -75,22 +74,22 @@ class MessageSendService
         }
 
         $message->removeFlag(MessageFlag::DRAFT);
-        $message->setSentAt(new DateTimeImmutable());
+        $message->sentAt = new DateTimeImmutable();
 
         // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
-        $message->setMailbox($sentLabel->bindingFor($account)?->mailbox);
+        $message->mailbox = $sentLabel->bindingFor($account)?->mailbox;
 
         // The draft->sent transition rewrites three properties JMAP publishes:
         // keywords (the $draft keyword goes away), mailboxIds (EmailMapper
         // reads those off the labels, so swapping Drafts for Sent is a move as
-        // far as a client is concerned) and sentAt. Nothing was recorded here,
+        // far as a client is concerned) and sentAt. Nothing was announced here,
         // so a client saw the draft appear and never heard another word about
         // it — mail that left the building hours ago sat in its cache as an
         // unsent draft until a full resync.
         //
         // Ahead of the flush below on purpose. The message was persisted long
         // before the send was queued and so was its thread, so both ids exist,
-        // and record() only persists — putting it here commits the log rows in
+        // and recording only persists — putting it here commits the log rows in
         // the same unit of work as the transition they describe, rather than
         // leaving a window where the mail is sent and the log does not say so.
         //
@@ -99,19 +98,12 @@ class MessageSendService
         // when it mints a binding, and per-mailbox counts are not a change
         // this codebase logs (see EmailSetMethod, which moves messages between
         // mailboxes and records only the Email and its Thread).
-        $accountId = (int) $account->getId();
-
-        $this->stateManager->recordUpdated(
-            $accountId,
-            JmapObjectType::Email,
-            (string) $message->getId(),
+        $this->changes->emailChanged(
+            (int) $account->id,
+            (string) $message->id,
+            created: false,
+            thread: $message->thread,
         );
-
-        $thread = $message->getThread();
-
-        if (null !== $thread) {
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->getId()]);
-        }
 
         $this->em->flush();
 
@@ -127,7 +119,7 @@ class MessageSendService
         }
 
         $client = $this->imapConnectionFactory->connect($account);
-        $folder = $client->getFolder($sentMailbox->getName());
+        $folder = $client->getFolder($sentMailbox->name);
 
         $folder->appendMessage(
             $email->toString(),
@@ -139,72 +131,72 @@ class MessageSendService
 
     private function buildEmail(Message $message, Account $account): Email
     {
-        $fromName = $account->getName();
+        $fromName = $account->name;
         if (null === $fromName) {
             $fromName = '';
         }
 
-        $subject = $message->getSubject();
+        $subject = $message->subject;
         if (null === $subject) {
             $subject = '';
         }
 
-        $fromAddress = $message->getFromAddress();
+        $fromAddress = $message->fromAddress;
 
         if (null === $fromAddress || '' === $fromAddress) {
-            $fromAddress = $account->getDisplayAddress() ?? $account->getEmail() ?? '';
+            $fromAddress = $account->displayAddress ?? $account->email ?? '';
         }
 
         $email = new Email()
             ->from(new Address($fromAddress, $fromName))
             ->subject($subject);
 
-        $toAddresses = $message->getToAddresses();
+        $toAddresses = $message->toAddresses;
         if (null !== $toAddresses) {
             foreach ($toAddresses as $addr) {
                 $email->addTo($this->toAddress($addr));
             }
         }
 
-        $ccAddresses = $message->getCcAddresses();
+        $ccAddresses = $message->ccAddresses;
         if (null !== $ccAddresses) {
             foreach ($ccAddresses as $addr) {
                 $email->addCc($this->toAddress($addr));
             }
         }
 
-        $bccAddresses = $message->getBccAddresses();
+        $bccAddresses = $message->bccAddresses;
         if (null !== $bccAddresses) {
             foreach ($bccAddresses as $addr) {
                 $email->addBcc($this->toAddress($addr));
             }
         }
 
-        if ($message->getBodyHtml()) {
-            $email->html($message->getBodyHtml());
+        if ($message->bodyHtml) {
+            $email->html($message->bodyHtml);
         }
 
-        if ($message->getBodyText()) {
-            $email->text($message->getBodyText());
+        if ($message->bodyText) {
+            $email->text($message->bodyText);
         }
 
-        foreach ($message->getMessageParts() as $part) {
-            if (true === $part->isInline()) {
-                $contentId = $part->getContentId();
+        foreach ($message->messageParts as $part) {
+            if (true === $part->isInline) {
+                $contentId = $part->contentId;
                 if (null === $contentId) {
-                    $contentId = $part->getFilename();
+                    $contentId = $part->filename;
                 }
 
                 $email->embedFromPath(
                     $this->attachmentResolver->absolutePathFor($part),
                     $contentId,
-                    $part->getContentType(),
+                    $part->contentType,
                 );
             } else {
                 $email->attachFromPath(
                     $this->attachmentResolver->absolutePathFor($part),
-                    $part->getFilename(),
-                    $part->getContentType(),
+                    $part->filename,
+                    $part->contentType,
                 );
             }
         }

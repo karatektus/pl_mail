@@ -52,7 +52,7 @@ final readonly class TwoFactorEnrolment
      */
     public function begin(User $user): string
     {
-        if (null === $user->getTotpSecret() || true === $user->isTotpAuthenticationEnabled()) {
+        if (null === $user->totpSecret || true === $user->isTotpAuthenticationEnabled()) {
             $user->startTotpEnrolment($this->totpAuthenticator->generateSecret());
 
             $this->entityManager->flush();
@@ -68,11 +68,40 @@ final readonly class TwoFactorEnrolment
 
     public function verifyCode(User $user, string $code): bool
     {
-        if (null === $user->getTotpSecret()) {
+        if (null === $user->totpSecret) {
             return false;
         }
 
         return $this->totpAuthenticator->checkCode($user, trim($code));
+    }
+
+    /**
+     * Whether this code proves possession of the second factor: a current TOTP
+     * code, or an unspent recovery code.
+     *
+     * Both count, because a user who has lost their authenticator still has to
+     * be able to turn 2FA off — that is what the recovery codes are for. A
+     * recovery code is consumed on the way past, so a leaked one cannot be
+     * replayed against a second action.
+     *
+     * Here rather than in the caller because this is the only place outside the
+     * entity that spends a recovery code, and "spent" is an invariant this
+     * class already owns both ends of.
+     */
+    public function provesPossession(User $user, string $code): bool
+    {
+        if (true === $this->verifyCode($user, $code)) {
+            return true;
+        }
+
+        if (true === $user->isBackupCode($code)) {
+            $user->invalidateBackupCode($code);
+            $this->entityManager->flush();
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -144,7 +173,7 @@ final readonly class TwoFactorEnrolment
             $hashes[] = User::hashBackupCode($code);
         }
 
-        $user->setBackupCodeHashes($hashes);
+        $user->backupCodes = $hashes;
 
         return $codes;
     }

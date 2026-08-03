@@ -83,9 +83,9 @@ final class GmailPushController extends AbstractController
                 continue;
             }
 
-            $account->setGmailLastPushAt(new DateTimeImmutable());
+            $account->gmailLastPushAt = new DateTimeImmutable();
 
-            $this->bus->dispatch(new SyncAccountMessage((int) $account->getId()));
+            $this->bus->dispatch(new SyncAccountMessage((int) $account->id));
             $dispatched++;
         }
 
@@ -140,11 +140,11 @@ final class GmailPushController extends AbstractController
             return false;
         }
 
-        if (true !== $account->isPushEnabled()) {
+        if (true !== $account->pushEnabled) {
             return false;
         }
 
-        return null !== $account->getGmailWatchExpiry();
+        return null !== $account->gmailWatchExpiry;
     }
 
     /**

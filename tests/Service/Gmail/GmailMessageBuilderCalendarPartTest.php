@@ -74,13 +74,13 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $part = $this->calendarPart($message);
 
         self::assertNotNull($part, 'the invite must produce a MessagePart');
-        self::assertSame('text/calendar', $part->getContentType());
-        self::assertTrue($part->isInline());
+        self::assertSame('text/calendar', $part->contentType);
+        self::assertTrue($part->isInline);
 
         // A real path, not a gmail:// stub — the bytes were already in hand, so
         // there is nothing for AttachmentResolver to go back for.
-        self::assertStringStartsNotWith('gmail://', (string) $part->getStoragePath());
-        self::assertGreaterThan(0, (int) $part->getSize());
+        self::assertStringStartsNotWith('gmail://', (string) $part->storagePath);
+        self::assertGreaterThan(0, (int) $part->size);
     }
 
     /**
@@ -92,7 +92,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     {
         $message = $this->build($this->payloadWithInlineInvite());
 
-        self::assertFalse((bool) $message->hasAttachments());
+        self::assertFalse((bool) $message->hasAttachments);
     }
 
     /**
@@ -107,7 +107,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $part = $this->calendarPart($message);
 
         self::assertNotNull($part);
-        self::assertSame('gmail://att-invite-1', $part->getStoragePath());
+        self::assertSame('gmail://att-invite-1', $part->storagePath);
     }
 
     /**
@@ -123,7 +123,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
 
         foreach ($parts as $part) {
             self::assertNotContains(
-                $part->getContentType(),
+                $part->contentType,
                 ['text/plain', 'text/html'],
                 'a body part was persisted as an attachment',
             );
@@ -135,8 +135,8 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     {
         $message = $this->build($this->payloadWithInlineInvite());
 
-        self::assertStringContainsString('Standup', (string) $message->getBodyText());
-        self::assertStringContainsString('Standup', (string) $message->getBodyHtml());
+        self::assertStringContainsString('Standup', (string) $message->bodyText);
+        self::assertStringContainsString('Standup', (string) $message->bodyHtml);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $this->em->flush();
 
         foreach ($this->partsOf($message) as $part) {
-            $path = (string) $part->getStoragePath();
+            $path = (string) $part->storagePath;
 
             if ('' !== $path && false === str_starts_with($path, 'gmail://')) {
                 $this->written[] = self::getContainer()->getParameter('kernel.project_dir') . '/' . $path;
@@ -175,7 +175,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     private function calendarPart(Message $message): ?MessagePart
     {
         foreach ($this->partsOf($message) as $part) {
-            if ('text/calendar' === $part->getContentType()) {
+            if ('text/calendar' === $part->contentType) {
                 return $part;
             }
         }
@@ -249,28 +249,26 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('gmail-invite-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Gmail')
-            ->setNameLast('Invite')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'gmail-invite-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Gmail';
+        $user->nameLast = 'Invite';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Gmail Invite Fixture')
-            ->setUsername('gmail-invite-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Gmail Invite Fixture';
+        $account->username = 'gmail-invite-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();

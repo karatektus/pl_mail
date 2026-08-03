@@ -51,7 +51,7 @@ final class MimeHeaderHelperTest extends TestCase
         // Older German mail systems and mailing list software send raw 8-bit
         // bytes with no charset stated anywhere, webklex passes them through,
         // and this helper used to as well — so invalid UTF-8 reached
-        // setSubject() and Postgres rejected the INSERT. The message did not
+        // $subject and Postgres rejected the INSERT. The message did not
         // arrive mangled, it did not arrive.
         yield 'raw latin-1 subject' => ["Gr\xfc\xdfe von J\xf6rg", 'Grüße von Jörg'];
         yield 'raw latin-1 name'    => ["J\xf6rg M\xfcller", 'Jörg Müller'];

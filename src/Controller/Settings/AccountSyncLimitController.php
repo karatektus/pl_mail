@@ -39,7 +39,7 @@ final class AccountSyncLimitController extends AbstractController
 
         $token = (string) $request->request->get('_token');
 
-        if (false === $this->isCsrfTokenValid('account_sync_limit_' . $account->getId(), $token)) {
+        if (false === $this->isCsrfTokenValid('account_sync_limit_' . $account->id, $token)) {
             throw $this->createAccessDeniedException();
         }
 
@@ -58,14 +58,14 @@ final class AccountSyncLimitController extends AbstractController
 
         // Only affects future runs. Lowering it does not delete already-synced
         // mail — that is what app:reset is for.
-        $account->setSyncLimit($limit);
+        $account->syncLimit = $limit;
 
         // Raising the cap is a request for more mail now, so clear the
         // backfill cooldown instead of making the user wait out an hour left
         // over from an earlier listing. Account::needsBackfill() decides
         // whether there is actually anything further to fetch.
-        $account->setBackfillRanAt(null);
-        $account->setBackfillAttempts(0);
+        $account->backfillRanAt = null;
+        $account->backfillAttempts = 0;
 
         $this->em->flush();
 
@@ -76,7 +76,7 @@ final class AccountSyncLimitController extends AbstractController
 
     private function assertOwnership(Account $account): void
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

@@ -11,10 +11,10 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Jmap\State\StateManager;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\RawMessageResolver;
@@ -92,13 +92,13 @@ final class PostIngestPipelineTest extends KernelTestCase
             public function afterCommit(PostIngestResult $result): void
             {
                 $message = $result->messages[0];
-                $id      = $message->getId();
+                $id      = $message->id;
 
                 $this->observed = [
                     'count'    => count($result->messages),
                     'id'       => $id,
-                    'thread'   => $message->getThread()?->getId(),
-                    'category' => $message->getCategory(),
+                    'thread'   => $message->thread?->id,
+                    'category' => $message->category,
                     // Straight past the identity map, and deliberately on a
                     // column the PIPELINE writes rather than one the fixture
                     // already flushed: still NULL here would mean a step is
@@ -158,7 +158,7 @@ final class PostIngestPipelineTest extends KernelTestCase
         ]);
 
         self::assertTrue($reached, 'a later step still runs');
-        self::assertNotNull($message->getThread(), 'the sync itself still succeeded');
+        self::assertNotNull($message->thread, 'the sync itself still succeeded');
     }
 
     /**
@@ -186,7 +186,7 @@ final class PostIngestPipelineTest extends KernelTestCase
      */
     public function testAnEmptyBatchStillFlushesTheCallersWork(): void
     {
-        $this->mailbox->setLastSeenUid(4242);
+        $this->mailbox->lastSeenUid = 4242;
 
         $this->pipeline()->run($this->account, []);
 
@@ -196,7 +196,7 @@ final class PostIngestPipelineTest extends KernelTestCase
             4242,
             (int) $this->connection->fetchOne(
                 'SELECT last_seen_uid FROM mailbox WHERE id = ?',
-                [$this->mailbox->getId()],
+                [$this->mailbox->id],
             ),
         );
     }
@@ -241,7 +241,7 @@ final class PostIngestPipelineTest extends KernelTestCase
             $container->get(MessageCategorizer::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
-            $container->get(StateManager::class),
+            $container->get(MailChangeRecorder::class),
             $this->em,
             $container->get(LoggerInterface::class),
             $steps,
@@ -252,15 +252,14 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedMessage(string $slug): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setMailbox($this->mailbox)
-            ->setSubject('Post-ingest fixture ' . $slug)
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setBodyHtml('<p>hello</p>')
-            ->setMessageId(sprintf('<post-ingest-%s-%s@example.test>', $slug, uniqid('', true)));
+        $message->account = $this->account;
+        $message->mailbox = $this->mailbox;
+        $message->subject = 'Post-ingest fixture ' . $slug;
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->bodyHtml = '<p>hello</p>';
+        $message->messageId = sprintf('<post-ingest-%s-%s@example.test>', $slug, uniqid('', true));
 
         $this->em->persist($message);
         $this->em->flush();
@@ -271,28 +270,26 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('post-ingest-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Post')
-            ->setNameLast('Ingest')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'post-ingest-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Post';
+        $user->nameLast = 'Ingest';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Post Ingest Fixture')
-            ->setUsername('post-ingest-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Post Ingest Fixture';
+        $account->username = 'post-ingest-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();
@@ -303,14 +300,11 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedMailbox(): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $this->account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
 
         $this->em->persist($mailbox);
         $this->em->flush();

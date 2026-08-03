@@ -137,14 +137,11 @@ final class AdminDataResetTest extends WebTestCase
     private function seedUser(): User
     {
         $user = new User();
-        $user
-            ->setEmail('reset-panel-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Fixture')
-            ->setNameLast('Person')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('$2y$04$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'reset-panel-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Fixture';
+        $user->nameLast = 'Person';
+        $user->roles = ['ROLE_USER'];
+        $user->password = '$2y$04$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP';
 
         $this->em->persist($user);
         $this->em->flush();

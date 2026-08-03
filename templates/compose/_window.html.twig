@@ -11,14 +11,15 @@ name travel back to the server on every POST via the `frame`/`thread` query
 params baked into draftUrl/sendUrl, which is what keeps the named inline form
 ("compose_inline_*" ids) from colliding with the dock's.
 
-Variables: form, message, inline (bool), frame (string), thread (int|null)
+Variables: form, message, ctx (inline, frame, thread, urlParams)
 #}
-{% set inline = inline|default(false) %}
-{% set frame  = frame|default('compose_dock') %}
-{% set thread = thread|default(null) %}
+{% set ctx    = ctx|default({}) %}
+{% set inline = ctx.inline|default(false) %}
+{% set frame  = ctx.frame|default('compose_dock') %}
+{% set thread = ctx.thread|default(null) %}
 {# Query params the server needs back on every POST: which frame rendered us,
    which conversation we're in, and which message we're answering. #}
-{% set ctx    = urlParams|default({}) %}
+{% set params = ctx.urlParams|default({}) %}
 
 {# Window-chrome button. Larger below md so it clears the 44px touch target. #}
 {% set hc = "w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-lg
@@ -34,11 +35,11 @@ Variables: form, message, inline (bool), frame (string), thread (int|null)
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}
         {% if null == message.id %}
-            data-compose--compose-draft-url-value="{{ path('app_compose_form_new', ctx) }}"
-            data-compose--compose-send-url-value="{{ path('app_compose_mail_send', ctx) }}"
+            data-compose--compose-draft-url-value="{{ path('app_compose_form_new', params) }}"
+            data-compose--compose-send-url-value="{{ path('app_compose_mail_send', params) }}"
         {% else %}
-            data-compose--compose-draft-url-value="{{ path('app_compose_form_edit', ctx|merge({'id': message.id})) }}"
-            data-compose--compose-send-url-value="{{ path('app_compose_mail_send_draft', ctx|merge({'id': message.id})) }}"
+            data-compose--compose-draft-url-value="{{ path('app_compose_form_edit', params|merge({'id': message.id})) }}"
+            data-compose--compose-send-url-value="{{ path('app_compose_mail_send_draft', params|merge({'id': message.id})) }}"
         {% endif %}
          class="compose-window flex flex-col
        {% if inline %}

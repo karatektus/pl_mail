@@ -60,7 +60,7 @@ final class PromoteUserCommand extends Command
 
         // ROLE_USER is implied by getRoles(); persist without it to keep the
         // stored list minimal.
-        $user->setRoles(array_values(array_diff($roles, ['ROLE_USER'])));
+        $user->roles = array_values(array_diff($roles, ['ROLE_USER']));
         $this->em->flush();
 
         $io->success(sprintf(

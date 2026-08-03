@@ -36,9 +36,9 @@ final readonly class AliasAddFormFactory
         $views = [];
 
         foreach ($accounts as $account) {
-            $views[$account->getId()] = $this->forms
+            $views[$account->id] = $this->forms
                 ->create(EmailAliasType::class, null, [
-                    'action' => $this->urls->generate('app_alias_add', ['id' => $account->getId()]),
+                    'action' => $this->urls->generate('app_alias_add', ['id' => $account->id]),
                 ])
                 ->createView();
         }

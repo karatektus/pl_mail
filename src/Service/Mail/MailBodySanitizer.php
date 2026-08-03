@@ -44,10 +44,10 @@ final readonly class MailBodySanitizer
 
     public function sanitize(Message $message): void
     {
-        $html = $message->getBodyHtml();
+        $html = $message->bodyHtml;
 
         if (null === $html || '' === trim($html)) {
-            $message->setBodyHtmlSafe(null);
+            $message->bodyHtmlSafe = null;
 
             return;
         }
@@ -56,7 +56,7 @@ final readonly class MailBodySanitizer
         $html = $this->inlineStyles($html);
         $html = $this->buildSanitizer()->sanitize($html);
 
-        $message->setBodyHtmlSafe($html);
+        $message->bodyHtmlSafe = $html;
     }
 
     /**
@@ -68,8 +68,8 @@ final readonly class MailBodySanitizer
     {
         $map = [];
 
-        foreach ($message->getMessageParts() as $part) {
-            $cid = $part->getContentId();
+        foreach ($message->messageParts as $part) {
+            $cid = $part->contentId;
 
             if (null === $cid || '' === $cid) {
                 continue;
@@ -77,7 +77,7 @@ final readonly class MailBodySanitizer
 
             $map[strtolower($cid)] = $this->urlGenerator->generate(
                 'app_mail_attachment',
-                ['id' => $part->getId()],
+                ['id' => $part->id],
                 UrlGeneratorInterface::ABSOLUTE_PATH,
             );
         }

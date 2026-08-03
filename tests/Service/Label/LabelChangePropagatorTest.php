@@ -263,34 +263,32 @@ final class LabelChangePropagatorTest extends KernelTestCase
         ?string  $gmailId = null,
     ): Message {
         $thread = new MessageThread();
-        $thread
-            ->setAccount($account)
-            ->setSubject('Propagator fixture')
-            ->setNormalizedSubject('propagator fixture')
-            ->setLastMessageAt(new \DateTimeImmutable('-1 hour'))
-            ->setThreadingMethod(ThreadingMethod::References)
-            ->setUnreadCount(0);
+        $thread->account = $account;
+        $thread->subject = 'Propagator fixture';
+        $thread->normalizedSubject = 'propagator fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = 0;
         $this->em->persist($thread);
 
         $message = new Message();
-        $message
-            ->setAccount($account)
-            ->setSubject('Propagator fixture')
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setMessageId(sprintf('<prop-%s@example.test>', uniqid('', true)));
+        $message->account = $account;
+        $message->subject = 'Propagator fixture';
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->messageId = sprintf('<prop-%s@example.test>', uniqid('', true));
 
         if (null !== $mailbox) {
-            $message->setMailbox($mailbox);
+            $message->mailbox = $mailbox;
         }
 
         if (null !== $uid) {
-            $message->setImapUid($uid);
+            $message->imapUid = $uid;
         }
 
         if (null !== $gmailId) {
-            $message->setGmailId($gmailId);
+            $message->gmailId = $gmailId;
         }
 
         $thread->addMessage($message);
@@ -303,33 +301,29 @@ final class LabelChangePropagatorTest extends KernelTestCase
     private function account(AuthType $authType, ?string $oauthProvider = null): Account
     {
         $user = new User();
-        $user
-            ->setEmail('prop-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Prop')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'prop-'.uniqid('', true).'@example.test';
+        $user->nameFirst = 'Prop';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Prop Fixture')
-            ->setUsername('prop-'.uniqid('', true).'@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType($authType->value)
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Prop Fixture';
+        $account->username = 'prop-'.uniqid('', true).'@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = $authType->value;
+        $account->isActive = true;
 
         if (null !== $oauthProvider) {
-            $account->setOauthProvider($oauthProvider);
+            $account->oauthProvider = $oauthProvider;
         }
 
         $this->em->persist($account);
@@ -341,14 +335,11 @@ final class LabelChangePropagatorTest extends KernelTestCase
     private function mailbox(Account $account): Mailbox
     {
         $mailbox = new Mailbox();
-        $mailbox
-            ->setAccount($account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $mailbox->account = $account;
+        $mailbox->name = 'INBOX';
+        $mailbox->fullPath = 'INBOX';
+        $mailbox->isSyncEnabled = true;
+        $mailbox->isIdleEnabled = false;
 
         $this->em->persist($mailbox);
         $this->em->flush();

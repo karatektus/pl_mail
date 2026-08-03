@@ -136,7 +136,7 @@ final class EmailMapperTest extends KernelTestCase
     public function testEveryEmittedIdIsAUsableInMailboxFilter(): void
     {
         $compiler = new EmailFilterCompiler();
-        $messageId = (int) $this->message->getId();
+        $messageId = (int) $this->message->id;
 
         foreach (array_keys($this->mailboxIds($this->account)) as $mailboxId) {
             $matched = $this->messages->matchingIds(
@@ -156,14 +156,13 @@ final class EmailMapperTest extends KernelTestCase
     public function testEmptyMailboxIdsSerialisesAsAnObject(): void
     {
         $bare = new Message();
-        $bare
-            ->setAccount($this->account)
-            ->setSubject('No labels')
-            ->setFromAddress('nobody@example.test')
-            ->setFromName('Nobody')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-20 12:00:00'))
-            ->setHasAttachments(false);
+        $bare->account = $this->account;
+        $bare->subject = 'No labels';
+        $bare->fromAddress = 'nobody@example.test';
+        $bare->fromName = 'Nobody';
+        $bare->bodyText = 'body';
+        $bare->receivedAt = new \DateTimeImmutable('2026-07-20 12:00:00');
+        $bare->hasAttachments = false;
         $this->em->persist($bare);
         $this->em->flush();
 
@@ -212,7 +211,7 @@ final class EmailMapperTest extends KernelTestCase
      */
     private function bindingMap(Account $account): array
     {
-        return $this->bindings->bindingIdsByLabelId((int) $account->getId());
+        return $this->bindings->bindingIdsByLabelId((int) $account->id);
     }
 
     /**
@@ -236,14 +235,13 @@ final class EmailMapperTest extends KernelTestCase
     private function otherMessage(): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->otherAccount)
-            ->setSubject('Over here')
-            ->setFromAddress('someone@example.test')
-            ->setFromName('Someone')
-            ->setBodyText('body')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-18 12:00:00'))
-            ->setHasAttachments(false);
+        $message->account = $this->otherAccount;
+        $message->subject = 'Over here';
+        $message->fromAddress = 'someone@example.test';
+        $message->fromName = 'Someone';
+        $message->bodyText = 'body';
+        $message->receivedAt = new \DateTimeImmutable('2026-07-18 12:00:00');
+        $message->hasAttachments = false;
         $message->addLabel($this->inbox);
 
         $this->em->persist($message);
@@ -255,12 +253,11 @@ final class EmailMapperTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('mapper-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Mapper')
-            ->setNameLast('Corpus')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'mapper-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Mapper';
+        $user->nameLast = 'Corpus';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $this->account = $this->account($user, 'mapper-one@example.test');
@@ -279,14 +276,13 @@ final class EmailMapperTest extends KernelTestCase
         $this->binding($this->personal, $this->otherAccount);
 
         $this->message = new Message();
-        $this->message
-            ->setAccount($this->account)
-            ->setSubject('Invoice 42')
-            ->setFromAddress('billing@acme.test')
-            ->setFromName('Acme Billing')
-            ->setBodyText('Please arrange a wire transfer.')
-            ->setReceivedAt(new \DateTimeImmutable('2026-07-15 10:00:00'))
-            ->setHasAttachments(false);
+        $this->message->account = $this->account;
+        $this->message->subject = 'Invoice 42';
+        $this->message->fromAddress = 'billing@acme.test';
+        $this->message->fromName = 'Acme Billing';
+        $this->message->bodyText = 'Please arrange a wire transfer.';
+        $this->message->receivedAt = new \DateTimeImmutable('2026-07-15 10:00:00');
+        $this->message->hasAttachments = false;
         $this->message->addLabel($this->inbox);
         $this->message->addLabel($this->work);
         $this->em->persist($this->message);
@@ -297,19 +293,18 @@ final class EmailMapperTest extends KernelTestCase
     private function account(User $user, string $username): Account
     {
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Mapper Corpus')
-            ->setUsername($username)
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Mapper Corpus';
+        $account->username = $username;
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         return $account;
@@ -318,7 +313,9 @@ final class EmailMapperTest extends KernelTestCase
     private function label(User $user, string $name, ?LabelRole $role = null): Label
     {
         $label = new Label();
-        $label->setUsr($user)->setName($name)->setRole($role);
+        $label->usr  = $user;
+        $label->name = $name;
+        $label->role = $role;
         $this->em->persist($label);
 
         return $label;

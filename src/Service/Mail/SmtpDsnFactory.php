@@ -17,7 +17,7 @@ final class SmtpDsnFactory
 {
     public function forAccount(Account $account): string
     {
-        $rawEncryption = $account->getSmtpEncryption();
+        $rawEncryption = $account->smtpEncryption;
 
         if (null === $rawEncryption) {
             $encryption = 'tls';
@@ -31,7 +31,7 @@ final class SmtpDsnFactory
             $scheme = 'smtp';
         }
 
-        $port = $account->getSmtpPort();
+        $port = $account->smtpPort;
 
         if (null === $port) {
             $port = 587;
@@ -40,9 +40,9 @@ final class SmtpDsnFactory
         return sprintf(
             '%s://%s:%s@%s:%d',
             $scheme,
-            urlencode($account->getUsername()),
-            urlencode($account->getPassword()),
-            $account->getSmtpHost(),
+            urlencode($account->username),
+            urlencode($account->password),
+            $account->smtpHost,
             $port,
         );
     }
@@ -53,7 +53,7 @@ final class SmtpDsnFactory
      */
     public function redact(string $text, Account $account): string
     {
-        $password = (string) $account->getPassword();
+        $password = (string) $account->password;
 
         if ('' === $password) {
             return $text;

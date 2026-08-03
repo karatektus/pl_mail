@@ -64,7 +64,7 @@ final readonly class EventExtractionRunner
                 // found, nor the message.
                 $this->logger->error('EventExtraction: extractor failed', [
                     'extractor' => $extractor::class,
-                    'messageId' => $message->getId(),
+                    'messageId' => $message->id,
                     'error'     => $e->getMessage(),
                 ]);
 
@@ -99,7 +99,7 @@ final readonly class EventExtractionRunner
     {
         $calendarParts = [];
 
-        foreach ($message->getMessageParts() as $part) {
+        foreach ($message->messageParts as $part) {
             if (true === $this->isCalendar($part)) {
                 $calendarParts[] = $part;
             }
@@ -107,11 +107,11 @@ final readonly class EventExtractionRunner
 
         return new ExtractionContext(
             message:       $message,
-            account:       $message->getAccount(),
+            account:       $message->account,
             calendarParts: $calendarParts,
-            bodyHtml:      $message->getBodyHtml(),
-            headers:       $message->getHeaders() ?? [],
-            fromAddress:   mb_strtolower(trim((string) $message->getFromAddress())),
+            bodyHtml:      $message->bodyHtml,
+            headers:       $message->headers ?? [],
+            fromAddress:   mb_strtolower(trim((string) $message->fromAddress)),
             // Lazy: on Graph this is an API call, and most messages are not
             // invites.
             rawMimeLoader: function () use ($message): ?string {
@@ -134,7 +134,7 @@ final readonly class EventExtractionRunner
      */
     private function isCalendar(MessagePart $part): bool
     {
-        $type = mb_strtolower(trim((string) $part->getContentType()));
+        $type = mb_strtolower(trim((string) $part->contentType));
 
         return in_array($type, ['text/calendar', 'application/ics'], true);
     }

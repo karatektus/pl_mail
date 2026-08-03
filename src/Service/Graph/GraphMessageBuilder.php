@@ -70,35 +70,35 @@ final class GraphMessageBuilder
      */
     public function build(array $payload, Account $account, array $attachments = []): Message
     {
-        $message = new Message()
-            ->setAccount($account);
+        $message = new Message();
+        $message->account = $account;
 
         $graphId = (string) ($payload['id'] ?? '');
-        $message->setGraphId($graphId);
+        $message->graphId = $graphId;
 
         // Graph's own conversation grouping, already selected by MESSAGE_SELECT.
         // This is the only threading signal available for drafts and for messages
         // whose internetMessageHeaders came back truncated.
         $conversationId = trim((string) ($payload['conversationId'] ?? ''));
-        $message->setProviderThreadKey('' !== $conversationId ? $conversationId : null);
+        $message->providerThreadKey = '' !== $conversationId ? $conversationId : null;
 
         // ── Identity ──────────────────────────────────────────────────────────
         // The RFC Message-ID is the dedup key, not the Graph id: Graph ids are
         // locators and can rotate when a message moves. Fall back to the Graph
         // id only when the mailbox genuinely has no Message-ID (drafts).
         $rfcMessageId = MessageIdHelper::normalise((string) ($payload['internetMessageId'] ?? ''));
-        $message->setMessageId('' !== $rfcMessageId ? $rfcMessageId : $graphId);
+        $message->messageId = '' !== $rfcMessageId ? $rfcMessageId : $graphId;
 
-        $message->setSubject((string) ($payload['subject'] ?? ''));
+        $message->subject = (string) ($payload['subject'] ?? '');
 
         // ── Addresses ─────────────────────────────────────────────────────────
         [$fromName, $fromAddress] = $this->parseRecipient($payload['from'] ?? $payload['sender'] ?? null);
-        $message->setFromAddress($fromAddress);
-        $message->setFromName($fromName);
+        $message->fromAddress = $fromAddress;
+        $message->fromName = $fromName;
 
-        $message->setToAddresses($this->parseRecipientList($payload['toRecipients'] ?? []));
-        $message->setCcAddresses($this->parseRecipientList($payload['ccRecipients'] ?? []));
-        $message->setBccAddresses($this->parseRecipientList($payload['bccRecipients'] ?? []));
+        $message->toAddresses = $this->parseRecipientList($payload['toRecipients'] ?? []);
+        $message->ccAddresses = $this->parseRecipientList($payload['ccRecipients'] ?? []);
+        $message->bccAddresses = $this->parseRecipientList($payload['bccRecipients'] ?? []);
 
         // ── Headers ───────────────────────────────────────────────────────────
         $rawHeaders = [];
@@ -134,17 +134,17 @@ final class GraphMessageBuilder
             $rawHeaders[self::MEETING_TYPE_HEADER] = $meetingType;
         }
 
-        $message->setHeaders($this->headerNormalizer->normalize($rawHeaders));
+        $message->headers = $this->headerNormalizer->normalize($rawHeaders);
 
-        $message->setInReplyTo(MessageIdHelper::normaliseList($indexed['in-reply-to'] ?? null));
-        $message->setReferences(MessageIdHelper::normaliseList($indexed['references'] ?? null));
+        $message->inReplyTo = MessageIdHelper::normaliseList($indexed['in-reply-to'] ?? null);
+        $message->references = MessageIdHelper::normaliseList($indexed['references'] ?? null);
 
         // ── Dates ─────────────────────────────────────────────────────────────
         $receivedAt = $this->parseDate($payload['receivedDateTime'] ?? null) ?? new DateTimeImmutable();
         $sentAt     = $this->parseDate($payload['sentDateTime'] ?? null);
 
-        $message->setReceivedAt($receivedAt);
-        $message->setSentAt($sentAt ?? $receivedAt);
+        $message->receivedAt = $receivedAt;
+        $message->sentAt = $sentAt ?? $receivedAt;
 
         // ── Flags ─────────────────────────────────────────────────────────────
         $flags   = [];
@@ -154,19 +154,19 @@ final class GraphMessageBuilder
 
         if (true === $isRead) {
             $flags[] = '\\Seen';
-            $message->setSeenAt($receivedAt);
+            $message->seenAt = $receivedAt;
         }
 
         if (true === $flagged) {
             $flags[] = '\\Flagged';
-            $message->setStarredAt($receivedAt);
+            $message->starredAt = $receivedAt;
         }
 
         if (true === $isDraft) {
             $flags[] = '\\Draft';
         }
 
-        $message->setFlags($flags);
+        $message->flags = $flags;
 
         // ── Labels ────────────────────────────────────────────────────────────
         // Exchange messages live in exactly one folder, so there is exactly one
@@ -191,18 +191,18 @@ final class GraphMessageBuilder
         $bodyContent     = (string) ($payload['body']['content'] ?? '');
 
         if ('html' === $bodyContentType) {
-            $message->setBodyHtml($bodyContent);
-            $message->setBodyText((string) ($payload['bodyPreview'] ?? ''));
+            $message->bodyHtml = $bodyContent;
+            $message->bodyText = (string) ($payload['bodyPreview'] ?? '');
         } else {
-            $message->setBodyText($bodyContent);
-            $message->setBodyHtml('');
+            $message->bodyText = $bodyContent;
+            $message->bodyHtml = '';
         }
 
         // ── Attachments ───────────────────────────────────────────────────────
         $hasAttachments = $this->applyAttachments($message, $attachments);
 
-        $message->setHasAttachments($hasAttachments);
-        $message->setSyncedAt(new DateTimeImmutable());
+        $message->hasAttachments = $hasAttachments;
+        $message->syncedAt = new DateTimeImmutable();
 
         return $message;
     }
@@ -241,18 +241,18 @@ final class GraphMessageBuilder
             $isInline  = $this->inlineDetector->isInline(
                 true === ($attachment['isInline'] ?? false) ? 'inline' : 'attachment',
                 $contentId,
-                $message->getBodyHtml(),
+                $message->bodyHtml,
             );
 
-            $part = new MessagePart()
-                ->setMessage($message)
-                ->setContentType((string) ($attachment['contentType'] ?? 'application/octet-stream'))
-                ->setFilename((string) ($attachment['name'] ?? ''))
-                ->setContentId('' !== $contentId ? $contentId : null)
-                ->setDisposition($isInline ? 'inline' : 'attachment')
-                ->setSize((int) ($attachment['size'] ?? 0))
-                ->setStoragePath('msgraph://' . $attachmentId)
-                ->setIsInline($isInline);
+            $part = new MessagePart();
+            $part->message     = $message;
+            $part->contentType = (string) ($attachment['contentType'] ?? 'application/octet-stream');
+            $part->filename    = (string) ($attachment['name'] ?? '');
+            $part->contentId   = '' !== $contentId ? $contentId : null;
+            $part->disposition = $isInline ? 'inline' : 'attachment';
+            $part->size        = (int) ($attachment['size'] ?? 0);
+            $part->storagePath = 'msgraph://' . $attachmentId;
+            $part->isInline    = $isInline;
 
             $this->em->persist($part);
 

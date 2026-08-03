@@ -6,6 +6,7 @@ namespace App\Entity\Monitoring;
 
 use App\Repository\Monitoring\LogEntryRepository;
 use Doctrine\DBAL\Types\Types;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -17,8 +18,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_log_entry_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_log_entry_level', columns: ['level'])]
 #[ORM\Index(name: 'idx_log_entry_channel', columns: ['channel'])]
+#[ORM\HasLifecycleCallbacks]
 class LogEntry
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -45,6 +49,4 @@ class LogEntry
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $source = null;
 
-    #[ORM\Column]
-    public ?\DateTimeImmutable $createdAt = null;
 }

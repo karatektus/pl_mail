@@ -53,7 +53,7 @@ final class MailboxSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Mailbox);
         $ifInState = $arguments['ifInState'] ?? null;
@@ -137,15 +137,23 @@ final class MailboxSetMethod implements JmapMethod
                 continue;
             }
 
-            $label = new Label()
-                ->setUsr($account->getUsr())
-                ->setParent($parent)
-                ->setName($name)
-                ->setColor($color?->value)
-                ->setIsVisible(true !== ($properties['isSubscribed'] ?? true) ? false : true);
+            $label            = new Label();
+            $label->usr       = $account->usr;
+            $label->name      = $name;
+
+            // Through addChild rather than by assigning parent, so the parent's
+            // children collection knows about this one immediately. Doctrine
+            // only needs the owning side to persist it, which is why writing
+            // parent alone looks sufficient and is not: destroy() refuses a
+            // parent by counting children, and JMAP lets a client create a
+            // mailbox and destroy its parent in the same request. With a stale
+            // collection that guard sees nothing and the destroy goes through.
+            $parent?->addChild($label);
+            $label->color     = $color?->value;
+            $label->isVisible = true !== ($properties['isSubscribed'] ?? true) ? false : true;
 
             if (true === is_int($properties['sortOrder'] ?? null)) {
-                $label->setSortOrder($properties['sortOrder']);
+                $label->sortOrder = $properties['sortOrder'];
             }
 
             $this->entityManager->persist($label);
@@ -220,7 +228,7 @@ final class MailboxSetMethod implements JmapMethod
                 $this->propagator->renamed($label);
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Mailbox, (string) $binding->id);
             $updated[$id] = null;
         }
     }
@@ -240,7 +248,7 @@ final class MailboxSetMethod implements JmapMethod
                     $this->assertMutable($label);
                     $name = $this->requireName($value);
                     $this->assertNameFree($account, $label->parent, $name, $label);
-                    $label->setName($name);
+                    $label->name = $name;
                     $structural = true;
                     break;
 
@@ -249,7 +257,7 @@ final class MailboxSetMethod implements JmapMethod
                     $parent = $this->resolveParent($account, $value, $context);
                     $this->assertNoCycle($label, $parent);
                     $this->assertNameFree($account, $parent, (string) $label->name, $label);
-                    $label->setParent($parent);
+                    $label->parent = $parent;
                     $structural = true;
                     break;
 
@@ -258,7 +266,7 @@ final class MailboxSetMethod implements JmapMethod
                         throw new MethodException('invalidProperties', '"isSubscribed" must be a boolean.');
                     }
 
-                    $label->setIsVisible($value);
+                    $label->isVisible = $value;
                     break;
 
                 case 'sortOrder':
@@ -266,7 +274,7 @@ final class MailboxSetMethod implements JmapMethod
                         throw new MethodException('invalidProperties', '"sortOrder" must be an integer.');
                     }
 
-                    $label->setSortOrder($value);
+                    $label->sortOrder = $value;
                     break;
 
                 case 'color':
@@ -278,7 +286,7 @@ final class MailboxSetMethod implements JmapMethod
                     // Null clears the colour, which is why this reads the value
                     // rather than testing it for emptiness — "no colour" is a
                     // choice a user can make and has to be expressible.
-                    $label->setColor($this->requireColor($value)?->value);
+                    $label->color = $this->requireColor($value)?->value;
                     break;
 
                 default:
@@ -351,14 +359,14 @@ final class MailboxSetMethod implements JmapMethod
             // Dispatch before removal: the propagator reads the remote id and
             // name off the bindings, and there is nothing to read afterwards.
             $this->propagator->deleted($label);
-            $this->stateManager->recordDestroyed($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
+            $this->stateManager->recordDestroyed($account->id, JmapObjectType::Mailbox, (string) $binding->id);
 
             // A Mailbox is per-account, so destroying one un-materializes the
             // label HERE — it must not vanish from the user's other accounts.
             // The label row only goes when its last binding does; that is also
             // what drops the message_label rows, so mail stays labelled as long
             // as any account still uses the label.
-            $this->detachAccountMessages($account, $label);
+            $this->labelRepository->unlabelAccountMessagesAndThreads($account, $label);
             $this->entityManager->remove($binding);
             $label->removeBinding($binding);
 
@@ -368,34 +376,6 @@ final class MailboxSetMethod implements JmapMethod
 
             $destroyed[] = $id;
         }
-    }
-
-    /**
-     * Detach a label from every message of one account, leaving the other
-     * accounts' messages labelled. Raw SQL because this is a bulk delete on a
-     * join table with no entity of its own.
-     */
-    private function detachAccountMessages(Account $account, Label $label): void
-    {
-        $connection = $this->entityManager->getConnection();
-
-        $connection->executeStatement(
-            'DELETE FROM message_label ml
-             USING message m
-             WHERE ml.message_id = m.id
-               AND ml.label_id = :labelId
-               AND m.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->getId()],
-        );
-
-        $connection->executeStatement(
-            'DELETE FROM thread_label tl
-             USING message_thread t
-             WHERE tl.message_thread_id = t.id
-               AND tl.label_id = :labelId
-               AND t.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->getId()],
-        );
     }
 
     private function requireName(mixed $name): string
@@ -487,7 +467,7 @@ final class MailboxSetMethod implements JmapMethod
      */
     private function assertNameFree(Account $account, ?Label $parent, string $name, ?Label $ignore = null): void
     {
-        $existing = $this->labelRepository->findOneChildByName($account->getUsr(), $parent, $name);
+        $existing = $this->labelRepository->findOneChildByName($account->usr, $parent, $name);
 
         if (null === $existing) {
             return;
@@ -527,7 +507,7 @@ final class MailboxSetMethod implements JmapMethod
             return null;
         }
 
-        $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->getId(), [(int) $id]);
+        $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->id, [(int) $id]);
 
         return $bindings[0] ?? null;
     }

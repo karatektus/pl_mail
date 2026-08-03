@@ -25,16 +25,13 @@ class UploadedBlobRepository extends ServiceEntityRepository
      */
     public function findOneOwnedBy(int $id, Account $account): ?UploadedBlob
     {
-        return $this->createQueryBuilder('b')
-            ->where('b.id = :id')
-            ->andWhere('b.account = :account')
-            ->setParameter('id', $id)
-            ->setParameter('account', $account)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['id' => $id, 'account' => $account]);
     }
 
     /**
+     * QueryBuilder for the `<` bound: findBy() compares a field to a value and
+     * has no way to ask for everything before a moment.
+     *
      * @return list<UploadedBlob>
      */
     public function findOlderThan(\DateTimeImmutable $before): array
@@ -44,5 +41,31 @@ class UploadedBlobRepository extends ServiceEntityRepository
             ->setParameter('before', $before)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Every staged-upload path still pointed at by a row, as a lookup set —
+     * the "keep" list for the blob sweep.
+     *
+     * One streamed sequential scan rather than a batched IN() per thousand
+     * files: path is not indexed, and indexing it to serve a maintenance
+     * command would tax every write to buy nothing the rest of the year.
+     *
+     * @return array<string, true>
+     */
+    public function findReferencedPaths(string $pathPrefix): array
+    {
+        $referenced = [];
+
+        $result = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT path FROM uploaded_blob WHERE path LIKE :prefix',
+            ['prefix' => $pathPrefix.'/%'],
+        );
+
+        foreach ($result->iterateColumn() as $path) {
+            $referenced[$path] = true;
+        }
+
+        return $referenced;
     }
 }

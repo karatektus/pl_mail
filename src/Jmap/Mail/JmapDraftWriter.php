@@ -4,42 +4,37 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mail;
 
-use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Protocol\Exception\MethodException;
-use App\Repository\Mail\MailboxRepository;
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Service\Imap\MessageThreader;
-use App\Service\Label\LabelResolver;
-use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Turns a JMAP Email/set "create" object into a persisted plMail draft.
  *
- * This is the same sequence ComposeController::applyAccount() +
- * persistDraft() runs for the web composer — Drafts label, mailbox pointer,
- * sanitised body, threading, thread-label resync — reproduced here because
- * those are private controller methods. Any change to draft semantics has to
- * land in both places until they are extracted into one service.
+ * What a draft is — Drafts label, mailbox pointer, sanitised body, threading,
+ * thread-label resync — is DraftPersister's, shared with the web composer.
+ * Every draft an app created once went missing from the Drafts list because
+ * this class was a copy of the controller's version that had drifted one line
+ * behind it, so it is deliberately no longer a copy of anything.
+ *
+ * What is left here is the protocol: reading a JMAP Email object, refusing the
+ * ones that are malformed, and turning uploaded blobs into attachments.
  */
 final class JmapDraftWriter
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly LabelResolver $labelResolver,
-        private readonly MailboxRepository $mailboxRepository,
-        private readonly MessageThreader $threader,
-        private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly MailBodySanitizer $bodySanitizer,
         private readonly BlobResolver $blobResolver,
         private readonly AttachmentStorageHelper $attachmentStorage,
+        private readonly DraftPersister $drafts,
     ) {
     }
 
@@ -48,20 +43,17 @@ final class JmapDraftWriter
      */
     public function create(Account $account, array $create): Message
     {
-        $now = new \DateTimeImmutable();
-
-        $message = new Message()
-            ->setAccount($account)
-            ->setCreatedAt($now)
-            ->setSubject($this->stringOrNull($create['subject'] ?? null, 'subject'))
-            ->setToAddresses($this->addresses($create['to'] ?? null, 'to'))
-            ->setCcAddresses($this->addresses($create['cc'] ?? null, 'cc'))
-            ->setBccAddresses($this->addresses($create['bcc'] ?? null, 'bcc'))
-            ->setBodyHtml($this->body($create));
+        $message = new Message();
+        $message->account = $account;
+        $message->subject = $this->stringOrNull($create['subject'] ?? null, 'subject');
+        $message->toAddresses = $this->addresses($create['to'] ?? null, 'to');
+        $message->ccAddresses = $this->addresses($create['cc'] ?? null, 'cc');
+        $message->bccAddresses = $this->addresses($create['bcc'] ?? null, 'bcc');
+        $message->bodyHtml = $this->body($create);
 
         $this->applyReplyContext($message, $create);
-        $this->applyAccount($message, $account);
-        $this->persistDraft($message, $account, $now);
+        $this->drafts->fileUnderAccount($message, $account);
+        $this->persistDraft($message, $account);
         // After the flush, not before: the storage path is bucketed by message
         // id, and a draft has none until it is persisted. This mirrors the web
         // composer, which forces a save before it will accept an upload.
@@ -86,12 +78,12 @@ final class JmapDraftWriter
     public function update(Message $message, array $patch): void
     {
         if (true === array_key_exists('subject', $patch)) {
-            $message->setSubject($this->stringOrNull($patch['subject'], 'subject'));
+            $message->subject = $this->stringOrNull($patch['subject'], 'subject');
         }
 
-        foreach (['to' => 'setToAddresses', 'cc' => 'setCcAddresses', 'bcc' => 'setBccAddresses'] as $property => $setter) {
-            if (true === array_key_exists($property, $patch)) {
-                $message->{$setter}($this->addresses($patch[$property], $property));
+        foreach (['to' => 'toAddresses', 'cc' => 'ccAddresses', 'bcc' => 'bccAddresses'] as $key => $property) {
+            if (true === array_key_exists($key, $patch)) {
+                $message->{$property} = $this->addresses($patch[$key], $key);
             }
         }
 
@@ -101,56 +93,37 @@ final class JmapDraftWriter
         // through the part ids in textBody/htmlBody, so naming either without
         // the other's values is what an editor sends.
         if (true === array_key_exists('bodyValues', $patch)) {
-            $message->setBodyHtml($this->body($patch));
+            $message->bodyHtml = $this->body($patch);
             $this->bodySanitizer->sanitize($message);
-            $message->setBodyText($this->plainText($message->getBodyHtml()));
+            $message->bodyText = $this->plainText($message->bodyHtml);
         }
 
-        $message->setUpdatedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
     }
 
     /**
-     * Mirrors ComposeController::applyAccount(): exactly one Drafts label, and
-     * the mailbox pointer aimed at its backing folder.
+     * The shared draft save, minus the two things this caller does
+     * differently. Both are deliberate, and neither is a difference in what a
+     * draft is — which is why the rest of it is no longer copied here.
+     *
+     * Nothing is announced: Email/set records the create itself, because only
+     * it knows the creation id the client used and has to answer with it. A
+     * second announcement from down here would log a second row for the same
+     * message.
+     *
+     * bodyText is derived by plainText() rather than by the persister's
+     * quote-aware extractor. The two genuinely disagree — see plainText() — and
+     * resolving that changes what goes out in the text/plain part of mail sent
+     * from an app, which is not a refactoring.
      */
-    private function applyAccount(Message $message, Account $account): void
+    private function persistDraft(Message $message, Account $account): void
     {
-        $draftsLabel = $this->labelResolver->systemLabel(LabelRole::Drafts, $account);
+        $this->drafts->markAsDraft($message, $account);
 
-        $message->addLabel($draftsLabel);
-        $message->setMailbox($draftsLabel->bindingFor($account)?->mailbox);
-    }
+        $message->bodyText = $this->plainText($message->bodyHtml);
 
-    /**
-     * Mirrors ComposeController::persistDraft(). The sanitiser matters: only
-     * the sync layer sanitises bodies, so an unsanitised draft renders blank
-     * until the sent copy comes back from the provider.
-     */
-    private function persistDraft(Message $message, Account $account, \DateTimeImmutable $now): void
-    {
-        $message
-            ->setFromAddress($account->getEmail())
-            ->setFromName($account->getName())
-            ->addFlag(MessageFlag::DRAFT)
-            ->setHasAttachments(false)
-            ->setSeenAt($message->getSeenAt() ?? $now)
-            ->setUpdatedAt($now);
-
-        $this->bodySanitizer->sanitize($message);
-        $message->setBodyText($this->plainText($message->getBodyHtml()));
-
-        $this->entityManager->persist($message);
-
-        if (null === $message->getThread()) {
-            $this->threader->assignThread($message, $account);
-        }
-
-        $this->threader->resyncDraftThreadSubject($message);
-        $this->threadLabelSynchronizer->sync($message->getThread());
-
-        $this->entityManager->flush();
+        $this->drafts->storeAndThread($message, $account);
     }
 
     /**
@@ -211,24 +184,24 @@ final class JmapDraftWriter
             $filename = $this->attachmentName($attachment, $index);
 
             $storagePath = $this->attachmentStorage->store(
-                (int) $account->getId(),
-                (int) ($message->getMailbox()?->getId() ?? 0),
-                (int) $message->getId(),
+                (int) $account->id,
+                (int) ($message->mailbox->id ?? 0),
+                (int) $message->id,
                 $filename,
                 $content,
             );
 
-            $part = new MessagePart()
-                ->setMessage($message)
-                // The client's declared type, as the spec requires it be
-                // echoed — but the download endpoint still refuses to render
-                // anything but images inline, so a lie here buys nothing.
-                ->setContentType($this->attachmentType($attachment))
-                ->setFilename($filename)
-                ->setDisposition('attachment')
-                ->setSize(strlen($content))
-                ->setStoragePath($storagePath)
-                ->setIsInline(false);
+            $part = new MessagePart();
+            $part->message = $message;
+            // The client's declared type, as the spec requires it be echoed —
+            // but the download endpoint still refuses to render anything but
+            // images inline, so a lie here buys nothing.
+            $part->contentType = $this->attachmentType($attachment);
+            $part->filename    = $filename;
+            $part->disposition = 'attachment';
+            $part->size        = strlen($content);
+            $part->storagePath = $storagePath;
+            $part->isInline    = false;
 
             $message->addMessagePart($part);
             $this->entityManager->persist($part);
@@ -236,7 +209,7 @@ final class JmapDraftWriter
             ++$stored;
         }
 
-        $message->setHasAttachments($stored > 0);
+        $message->hasAttachments = $stored > 0;
         $this->entityManager->flush();
     }
 
@@ -276,13 +249,13 @@ final class JmapDraftWriter
         $inReplyTo = $create['inReplyTo'] ?? null;
 
         if (true === is_array($inReplyTo) && count($inReplyTo) > 0) {
-            $message->setInReplyTo(array_values(array_map('strval', $inReplyTo)));
+            $message->inReplyTo = array_values(array_map('strval', $inReplyTo));
         }
 
         $references = $create['references'] ?? null;
 
         if (true === is_array($references) && count($references) > 0) {
-            $message->setReferences(array_values(array_map('strval', $references)));
+            $message->references = array_values(array_map('strval', $references));
         }
     }
 
@@ -346,6 +319,20 @@ final class JmapDraftWriter
         return null;
     }
 
+    /**
+     * The flattened body a client that asked for textBody gets back, and the
+     * text/plain part of the mail when it is sent.
+     *
+     * Not DraftPersister::plainTextBody(), which keeps only the user's own
+     * writing and drops the quoted original underneath it. The web composer
+     * marks that boundary itself (`data-quoted`) and can rely on finding it;
+     * an app's editor marks nothing, so the same cut would land on whatever
+     * blockquote the mail happened to contain.
+     *
+     * The two answers therefore differ for any client that replies with a
+     * quote, and unifying them would change what goes out on the wire. It
+     * wants deciding rather than merging.
+     */
     private function plainText(?string $html): ?string
     {
         if (null === $html || '' === $html) {

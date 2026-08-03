@@ -190,7 +190,13 @@ class CalendarEvent
         $this->sourceLinks = new ArrayCollection();
     }
 
-    /** Whether a person, rather than an extractor, is responsible for this. */
+    /**
+     * Whether an extractor, rather than a person, is responsible for this.
+     *
+     * Stays a method rather than becoming a property: $kind is an enum, and
+     * reading "was this extracted" out of which kind it is — or out of the
+     * absence of one — is an interpretation, not a plain read.
+     */
     public function isExtracted(): bool
     {
         return null !== $this->kind;

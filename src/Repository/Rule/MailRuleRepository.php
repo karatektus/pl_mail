@@ -24,18 +24,15 @@ class MailRuleRepository extends ServiceEntityRepository
      */
     public function findForUserOrdered(UserInterface $user): array
     {
-        return $this->createQueryBuilder('rule')
-            ->where('rule.usr = :usr')
-            ->setParameter('usr', $user)
-            ->orderBy('rule.sortOrder', 'ASC')
-            ->addOrderBy('rule.id', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['usr' => $user], ['sortOrder' => 'ASC', 'id' => 'ASC']);
     }
 
     /**
-     * Enabled rules for a user, in execution order. Joins the account so the
-     * engine's appliesTo() check does not fire a query per rule per message.
+     * Enabled rules for a user, in execution order.
+     *
+     * QueryBuilder for the fetch-join alone: findBy() honours the mapped fetch
+     * mode, so the engine's appliesTo() check would lazy-load each rule's
+     * account — a query per rule per message, on the hot path of every sync.
      *
      * @return list<MailRule>
      */
@@ -100,6 +97,11 @@ class MailRuleRepository extends ServiceEntityRepository
         }
     }
 
+    /**
+     * MAX over one column, which Doctrine's API cannot express: the
+     * alternative is loading every rule the user has to read the largest of one
+     * integer field.
+     */
     public function nextSortOrder(UserInterface $user): int
     {
         $max = $this->createQueryBuilder('rule')

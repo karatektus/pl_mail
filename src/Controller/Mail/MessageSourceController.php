@@ -58,7 +58,7 @@ final class MessageSourceController extends AbstractController
      */
     private function authenticationResults(Message $message): array
     {
-        $headers = $message->getHeaders() ?? [];
+        $headers = $message->headers ?? [];
         $raw     = null;
 
         foreach ($headers as $key => $value) {
@@ -86,7 +86,7 @@ final class MessageSourceController extends AbstractController
 
     private function assertOwnership(Message $message): void
     {
-        if ($message->getAccount()->getUsr() !== $this->getUser()) {
+        if ($message->account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

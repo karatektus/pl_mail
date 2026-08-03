@@ -175,7 +175,7 @@ final class MailboxColorTest extends KernelTestCase
     public function testMailboxGetReportsTheColor(): void
     {
         $label   = $this->makeLabel('Farbe');
-        $label->setColor('violet');
+        $label->color = 'violet';
         $binding = $this->labelResolver->binding($label, $this->account);
         $this->em->flush();
 
@@ -226,7 +226,7 @@ final class MailboxColorTest extends KernelTestCase
     private function set(array $arguments): array
     {
         return $this->method->handle(
-            ['accountId' => (string) $this->account->getId()] + $arguments,
+            ['accountId' => (string) $this->account->id] + $arguments,
             new JmapContext($this->user),
         );
     }
@@ -256,7 +256,9 @@ final class MailboxColorTest extends KernelTestCase
 
     private function makeLabel(string $name): Label
     {
-        $label = new Label()->setUsr($this->user)->setName($name);
+        $label       = new Label();
+        $label->usr  = $this->user;
+        $label->name = $name;
 
         $this->em->persist($label);
         $this->em->flush();
@@ -267,28 +269,26 @@ final class MailboxColorTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('mailboxcolor-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Mailbox')
-            ->setNameLast('Color')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'mailboxcolor-'.uniqid('', true).'@example.test';
+        $this->user->nameFirst = 'Mailbox';
+        $this->user->nameLast = 'Color';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            ->setEmail('Mailbox Color')
-            ->setUsername('mailboxcolor-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        $this->account->email = 'Mailbox Color';
+        $this->account->username = 'mailboxcolor-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->em->flush();

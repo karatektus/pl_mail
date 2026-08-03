@@ -58,7 +58,7 @@ final class GraphNotificationController extends AbstractController
             // account in one POST. The sync is idempotent and delta-driven, so
             // dispatching per notification is harmless — but dedup anyway to
             // avoid pointless queue churn on busy mailboxes.
-            $seen[(int) $account->getId()] = true;
+            $seen[(int) $account->id] = true;
         }
 
         foreach (array_keys($seen) as $accountId) {
@@ -100,19 +100,18 @@ final class GraphNotificationController extends AbstractController
             $event = (string) ($notification['lifecycleEvent'] ?? '');
 
             $this->logger->info('GraphNotification: lifecycle event', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'event'     => $event,
             ]);
 
             if ('subscriptionRemoved' === $event) {
-                $account
-                    ->setGraphSubscriptionId(null)
-                    ->setGraphSubscriptionClientState(null)
-                    ->setGraphSubscriptionExpiresAt(null);
+                $account->graphSubscriptionId = null;
+                $account->graphSubscriptionClientState = null;
+                $account->graphSubscriptionExpiresAt = null;
             }
 
             // Every lifecycle event is a reason to reconcile.
-            $this->bus->dispatch(new SyncAccountMessage((int) $account->getId()));
+            $this->bus->dispatch(new SyncAccountMessage((int) $account->id));
         }
 
         return new Response('', Response::HTTP_ACCEPTED);
@@ -161,17 +160,17 @@ final class GraphNotificationController extends AbstractController
             return null;
         }
 
-        $expected = (string) $account->getGraphSubscriptionClientState();
+        $expected = (string) $account->graphSubscriptionClientState;
 
         if (false === hash_equals($expected, $clientState)) {
             $this->logger->warning('GraphNotification: clientState mismatch, ignoring', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return null;
         }
 
-        if (true !== $account->isActive()) {
+        if (true !== $account->isActive) {
             return null;
         }
 

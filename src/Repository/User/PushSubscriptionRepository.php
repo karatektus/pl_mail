@@ -25,18 +25,17 @@ class PushSubscriptionRepository extends ServiceEntityRepository
      */
     public function findForUser(UserInterface|User $user): array
     {
-        return $this->createQueryBuilder('s')
-            ->where('s.usr = :user')
-            ->setParameter('user', $user)
-            ->orderBy('s.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['usr' => $user], ['createdAt' => 'DESC']);
     }
 
     /**
      * Subscriptions eligible to actually receive a StateChange: verified, and
      * not past their requested expiry. Filtering here rather than at the call
      * site means there is no path that pushes to an unverified endpoint.
+     *
+     * QueryBuilder because "no expiry, or one still in the future" is an OR
+     * between a null test and a comparison — findBy() ANDs field equalities and
+     * can express neither half.
      *
      * @return list<PushSubscription>
      */
@@ -52,25 +51,14 @@ class PushSubscriptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Scoped to the owner, so another user's id can never resolve. */
     public function findOneOwnedBy(int $id, UserInterface|User $user): ?PushSubscription
     {
-        return $this->createQueryBuilder('s')
-            ->where('s.id = :id')
-            ->andWhere('s.usr = :user')
-            ->setParameter('id', $id)
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['id' => $id, 'usr' => $user]);
     }
 
     public function findOneByDeviceClientId(UserInterface|User $user, string $deviceClientId): ?PushSubscription
     {
-        return $this->createQueryBuilder('s')
-            ->where('s.usr = :user')
-            ->andWhere('s.deviceClientId = :device')
-            ->setParameter('user', $user)
-            ->setParameter('device', $deviceClientId)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['usr' => $user, 'deviceClientId' => $deviceClientId]);
     }
 }

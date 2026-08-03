@@ -416,7 +416,7 @@ final class MailRuleController extends AbstractController
 
         $account = $this->accountRepository->find((int) $id);
 
-        if (null === $account || $account->getUsr() !== $this->getUser()) {
+        if (null === $account || $account->usr !== $this->getUser()) {
             return null;
         }
 

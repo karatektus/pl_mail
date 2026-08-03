@@ -34,7 +34,12 @@ than one that does not remember at all.
    the mail back exactly as it was. #}
 <div
     data-ui--split-target="wrapper"
-    class="{{ paneOpen ? 'flex w-full lg:w-auto' : 'hidden' }} shrink-0 min-w-0"
+    {# hidden lg:flex when remembered open: the preference is one value shared by
+       every device, and below lg this pane does not sit beside the mail, it
+       replaces it. Opening the calendar once at a desk should not mean every
+       phone lands on it. The mail is the phone's home; the toggle still works
+       and the width is still remembered. #}
+    class="{{ paneOpen ? 'hidden lg:flex lg:w-auto' : 'hidden' }} shrink-0 min-w-0"
 >
     {# The handle. role=separator with aria-orientation is what makes it
        reachable and meaningful without a mouse; the arrow keys are handled by

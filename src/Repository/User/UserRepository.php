@@ -52,11 +52,33 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * One page of users, keyset by id — the walk a backfill makes over every
+     * account on the install.
+     *
+     * QueryBuilder because `id > :afterId` is a comparison findBy() cannot
+     * state, and keyset rather than OFFSET because each batch flushes and
+     * clears: an offset walk would skip rows as the set shifts underneath it.
+     *
+     * @return list<User>
+     */
+    public function findBatchAfterId(int $afterId, int $limit): array
+    {
+        return $this->createQueryBuilder('usr')
+            ->where('usr.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('usr.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Map account ids to the id of the user that owns them.
      *
      * Push subscriptions belong to a user but changes are recorded per
      * account, so delivery has to resolve one to the other. One query rather
-     * than hydrating an Account per changed id.
+     * than hydrating an Account per changed id — and a query over a second
+     * entity entirely, which no finder on this repository can reach.
      *
      * @param list<int> $accountIds
      *
@@ -110,6 +132,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      * both create an admin unless the count and the insert happen inside one
      * transaction that nothing else can interleave with. Postgres advisory
      * locks are the only way to hold a row that does not exist yet.
+     *
+     * The one raw statement is `pg_advisory_xact_lock`, which is a lock
+     * primitive rather than a query over data — there is nothing for Doctrine's
+     * API to express, and it must run on the connection the transaction below
+     * commits on.
      */
     public function createFirstAdmin(User $user): bool
     {
@@ -125,7 +152,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
                 return false;
             }
 
-            $user->setRoles([User::ROLE_ADMIN]);
+            $user->roles = [User::ROLE_ADMIN];
 
             $entityManager->persist($user);
             $entityManager->flush();
@@ -134,13 +161,10 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         });
     }
 
+    /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
     public function countUndeleted(): int
     {
-        return $this->createQueryBuilder('user')
-            ->select('count(user.id)')
-            ->where('user.deletedAt IS NULL')
-            ->getQuery()
-            ->getSingleScalarResult();
+        return $this->count(['deletedAt' => null]);
     }
 
     /**
@@ -152,13 +176,18 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', \get_class($user)));
         }
 
-        $user->setPassword($newHashedPassword);
+        $user->password = $newHashedPassword;
 
         $this->add($user, true);
     }
 
     /**
      * Every query that should not see soft-deleted users.
+     *
+     * A builder rather than results, because its callers page and sort it —
+     * the admin list hands it to a paginator. The query is still written here,
+     * and nowhere else, which is what stops a caller from forgetting the
+     * filter.
      *
      * The `andWhere` matters: this used to build the expression and drop it on
      * the floor — `$qb->expr()->isNull(...)` returns a value, it does not
@@ -198,6 +227,9 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Hand-written for the exclusion: "every undeleted user with this address
+     * except this one" needs `id != :id`, which findOneBy() cannot say.
+     *
      * @throws NonUniqueResultException
      */
     public function findOneByEmailExcept(string $email, User $user): ?User
@@ -207,10 +239,10 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->andWhere('user.email = :email')
             ->setParameter('email', $email);
 
-        if (null !== $user->getId()) {
+        if (null !== $user->id) {
             $qb
                 ->andWhere('user.id != :id')
-                ->setParameter('id', $user->getId());
+                ->setParameter('id', $user->id);
         }
 
         $result = $qb->getQuery()->getOneOrNullResult();
@@ -218,6 +250,12 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         return $result;
     }
 
+    /**
+     * The admin user list, filtered. A builder for the same reason
+     * createUndeletedQueryBuilder() is one, and hand-written because a LIKE
+     * across three case-folded columns is three expressions joined by OR —
+     * findBy() states equality on fields, and nothing else.
+     */
     public function createSearchQueryBuilder(?string $search): QueryBuilder
     {
         $qb = $this->createUndeletedQueryBuilder();

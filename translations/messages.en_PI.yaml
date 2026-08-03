@@ -56,6 +56,9 @@ admin:
         connections: 'Grapplin'' lines'
         deadlocks: 'Standoffs'
         extension_missing: 'pg_stat_statements ain''t hoisted — sluggish-query tallies be unavailable. Hoist it once:'
+        extension_enable: "Hoist it now"
+        extension_enable_hint: "Statistics start when th' extension be created, so earlier queries won't appear."
+        extension_enable_failed: "Could not hoist th' extension - th' database role not be allowed t' create it."
         heavy_total:
             heading: 'Heaviest queries (by total time)'
             hint: 'All the hours across every hail — where th'' database squanders its watch.'

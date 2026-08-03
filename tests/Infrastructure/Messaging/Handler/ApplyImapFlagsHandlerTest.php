@@ -99,11 +99,11 @@ final class ApplyImapFlagsHandlerTest extends TestCase
     private function handler(Throwable $failure): ApplyImapFlagsHandler
     {
         $account = new Account();
-        $account->setUsr(new User());
+        $account->usr = new User();
 
         $mailbox = new Mailbox();
-        $mailbox->setAccount($account);
-        $mailbox->setName('INBOX');
+        $mailbox->account = $account;
+        $mailbox->name = 'INBOX';
 
         $entity = new Message();
         // The handler keys its work by message id, so the entity needs one and

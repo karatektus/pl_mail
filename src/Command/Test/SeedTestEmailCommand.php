@@ -13,6 +13,7 @@ use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
@@ -67,6 +68,7 @@ final class SeedTestEmailCommand extends Command
         private readonly EntityManagerInterface   $entityManager,
         private readonly UserRepository           $userRepository,
         private readonly AccountRepository        $accountRepository,
+        private readonly MessageRepository        $messageRepository,
         private readonly MessageThreadRepository  $threadRepository,
         private readonly LabelResolver            $labelResolver,
         private readonly StateManager             $stateManager,
@@ -107,16 +109,15 @@ final class SeedTestEmailCommand extends Command
 
         if (null === $account) {
             $account = new Account();
-            $account
-                ->setUsr($user)
-                ->setName('E2E Mailbox')
-                ->setEmail('E2E Mailbox')
-                ->setUsername(self::SEED_ACCOUNT_USERNAME)
-                ->setImapHost('imap.e2e.test')
-                ->setImapPort(993)
-                ->setImapEncryption('ssl')
-                ->setAuthType('password')
-                ->setIsActive(true);
+            $account->usr = $user;
+            $account->name = 'E2E Mailbox';
+            $account->email = 'E2E Mailbox';
+            $account->username = self::SEED_ACCOUNT_USERNAME;
+            $account->imapHost = 'imap.e2e.test';
+            $account->imapPort = 993;
+            $account->imapEncryption = 'ssl';
+            $account->authType = 'password';
+            $account->isActive = true;
 
             $this->entityManager->persist($account);
             $this->entityManager->flush();
@@ -135,43 +136,41 @@ final class SeedTestEmailCommand extends Command
             $receivedAt = $now->modify(sprintf('-%d minutes', $offset));
             $offset++;
 
-            $message = new Message()
-                ->setAccount($account)
-                ->setSubject($subject)
-                ->setFromName('E2E Sender')
-                ->setFromAddress('sender@e2e.test')
-                ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->getEmail()]])
-                ->setBodyText(sprintf('Seeded body for "%s".', $subject))
-                ->setReceivedAt($receivedAt)
-                ->setSentAt($receivedAt)
-                ->setHasAttachments(false)
-                ->setFlags([])
-                ->setSyncedAt($now)
-                ->setUpdatedAt($now)
-                ->addLabel($inboxLabel);
+            $message = new Message();
+            $message->account = $account;
+            $message->subject = $subject;
+            $message->fromName = 'E2E Sender';
+            $message->fromAddress = 'sender@e2e.test';
+            $message->toAddresses = [['name' => 'E2E Tester', 'address' => (string) $user->email]];
+            $message->bodyText = sprintf('Seeded body for "%s".', $subject);
+            $message->receivedAt = $receivedAt;
+            $message->sentAt = $receivedAt;
+            $message->hasAttachments = false;
+            $message->flags = [];
+            $message->syncedAt = $now;
+            $message->addLabel($inboxLabel);
 
             if (false === $unread) {
-                $message->setSeenAt($now);
+                $message->seenAt = $now;
             }
 
             $this->entityManager->persist($message);
 
             $thread = new MessageThread();
-            $thread
-                ->setAccount($account)
-                ->setSubject($subject)
-                ->setNormalizedSubject(mb_strtolower(trim($subject)))
-                ->setThreadingMethod(ThreadingMethod::SubjectFallback)
-                ->setMessageCount(1)
-                ->setUnreadCount(true === $unread ? 1 : 0)
-                ->setCategory(MessageCategory::Primary)
-                ->setAttachmentCount(0)
-                ->setLastMessageAt($receivedAt)
-                ->addLabel($inboxLabel);
+            $thread->account = $account;
+            $thread->subject = $subject;
+            $thread->normalizedSubject = mb_strtolower(trim($subject));
+            $thread->threadingMethod = ThreadingMethod::SubjectFallback;
+            $thread->messageCount = 1;
+            $thread->unreadCount = true === $unread ? 1 : 0;
+            $thread->category = MessageCategory::Primary;
+            $thread->attachmentCount = 0;
+            $thread->lastMessageAt = $receivedAt;
+            $thread->addLabel($inboxLabel);
 
             $this->entityManager->persist($thread);
 
-            $message->setThread($thread);
+            $message->thread = $thread;
 
             $messages[] = $message;
             $seeded++;
@@ -187,20 +186,20 @@ final class SeedTestEmailCommand extends Command
         // After the flush, like PostIngestPipeline: record() only persists and
         // needs the ids the flush above just minted, so the log rows go out on
         // the second flush.
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = [];
 
         foreach ($messages as $message) {
             $this->stateManager->recordCreated(
                 $accountId,
                 JmapObjectType::Email,
-                (string) $message->getId(),
+                (string) $message->id,
             );
 
-            $thread = $message->getThread();
+            $thread = $message->thread;
 
             if (null !== $thread) {
-                $threadIds[] = (int) $thread->getId();
+                $threadIds[] = (int) $thread->id;
             }
         }
 
@@ -221,9 +220,9 @@ final class SeedTestEmailCommand extends Command
             return;
         }
 
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = array_map(
-            static fn (MessageThread $thread): int => (int) $thread->getId(),
+            static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,
         );
 
@@ -232,25 +231,19 @@ final class SeedTestEmailCommand extends Command
         // nothing goes on holding ids for messages that are gone, and can only
         // find out by asking for each of them and being handed notFound.
         //
-        // As scalars, not by walking $thread->getMessages(): hydrating the
+        // As scalars, not by walking $thread->messages: hydrating the
         // messages only to delete them leaves the unit of work in a state where
         // the reseed's own flush, moments later, insists the threads it has
         // just persisted were never persisted ("A new entity was found through
         // the relationship Message#thread"). Nothing here wants the objects.
-        $messageIds = array_column(
-            $this->entityManager
-                ->createQuery('SELECT m.id FROM ' . Message::class . ' m WHERE m.thread IN (:threads)')
-                ->setParameter('threads', $threadIds)
-                ->getScalarResult(),
-            'id',
-        );
+        $messageIds = $this->messageRepository->findIdsForThreads($threadIds);
 
         foreach ($messageIds as $messageId) {
             $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
         }
 
         foreach ($threads as $thread) {
-            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->getId());
+            $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $thread->id);
 
             // Thread remove cascades to its messages (orphanRemoval); the
             // thread_label / message_label join rows drop via ON DELETE CASCADE.

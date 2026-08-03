@@ -53,14 +53,14 @@ final class ThreadSnoozeService
      */
     public function snooze(MessageThread $thread, \DateTimeImmutable $until): void
     {
-        $messages = $thread->getMessages()->toArray();
+        $messages = $thread->messages->toArray();
 
         if ([] === $messages) {
             return;
         }
 
-        $account = $messages[0]->getAccount();
-        $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $account = $messages[0]->account;
+        $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $snoozed = $this->labelResolver->systemLabel(LabelRole::Snoozed, $account);
 
         // Before the labels move, so an IMAP job still sees the source folder.
@@ -77,7 +77,7 @@ final class ThreadSnoozeService
             $message->addLabel($snoozed);
         }
 
-        $thread->setSnoozedUntil($until);
+        $thread->snoozedUntil = $until;
 
         $this->finish($thread, $messages);
     }
@@ -95,19 +95,19 @@ final class ThreadSnoozeService
      */
     public function wake(MessageThread $thread): void
     {
-        $messages = $thread->getMessages()->toArray();
+        $messages = $thread->messages->toArray();
 
         if ([] === $messages) {
-            $thread->setSnoozedUntil(null);
+            $thread->snoozedUntil = null;
 
             return;
         }
 
-        $account = $messages[0]->getAccount();
+        $account = $messages[0]->account;
         $inbox = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $snoozed = $this->labelRepository->findOneByRoleForUser(
             LabelRole::Snoozed,
-            $account->getUsr(),
+            $account->usr,
         );
 
         $inboxMailbox = $inbox->bindingFor($account)?->mailbox;
@@ -121,16 +121,17 @@ final class ThreadSnoozeService
             }
 
             // Plain-IMAP: the message physically comes back to INBOX.
-            if (null !== $message->getImapUid() && null !== $inboxMailbox) {
-                $message->setMailbox($inboxMailbox);
+            if (null !== $message->imapUid && null !== $inboxMailbox) {
+                $message->mailbox = $inboxMailbox;
             }
 
-            $message->removeFlag(MessageFlag::SEEN)->setSeenAt(null);
+            $message->removeFlag(MessageFlag::SEEN);
+            $message->seenAt = null;
             ++$unread;
         }
 
-        $thread->setUnreadCount($unread);
-        $thread->setSnoozedUntil(null);
+        $thread->unreadCount = $unread;
+        $thread->snoozedUntil = null;
 
         if (null !== $snoozed) {
             $this->propagator->detachLabel($messages, $snoozed);
@@ -151,15 +152,15 @@ final class ThreadSnoozeService
 
         foreach ($messages as $message) {
             $this->stateManager->recordUpdated(
-                (int) $message->getAccount()->getId(),
+                (int) $message->account->id,
                 JmapObjectType::Email,
-                (string) $message->getId(),
+                (string) $message->id,
             );
         }
 
         $this->stateManager->recordThreadsTouched(
-            (int) $messages[0]->getAccount()->getId(),
-            [(string) $thread->getId()],
+            (int) $messages[0]->account->id,
+            [(string) $thread->id],
         );
 
         $this->entityManager->flush();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Setup;
 
+use App\Repository\Monitoring\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -83,8 +84,10 @@ final class MigrateCommand extends Command
     /** Between attempts. Contention lasts seconds, so polling is cheap. */
     private const int POLL_INTERVAL_MICROSECONDS = 250_000;
 
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly PostgresStatusRepository $statistics,
+    ) {
         parent::__construct();
     }
 
@@ -128,7 +131,17 @@ final class MigrateCommand extends Command
         }
 
         try {
-            return $this->runMigrations($output);
+            $result = $this->runMigrations($output);
+
+            // Under the same lock, so only the container that migrated tries it
+            // rather than all four racing a CREATE EXTENSION. Best effort by
+            // design: a server without the library preloaded, or a role without
+            // rights, is a legitimate install and must still start.
+            if (Command::SUCCESS === $result && true === $this->statistics->enableStatStatements()) {
+                $io->text('Statement statistics are enabled.');
+            }
+
+            return $result;
         } finally {
             $this->releaseLock($io);
         }
@@ -194,6 +207,17 @@ final class MigrateCommand extends Command
     }
 
     /**
+     * The one place in this project where SQL lives outside a repository, and
+     * deliberately so.
+     *
+     * `pg_try_advisory_lock` reads nothing and returns no rows — it is a lock
+     * primitive, not a query over domain data, so there is no entity it belongs
+     * to and no repository it would be at home in. More decisively, an advisory
+     * lock is scoped to the database SESSION: it has to be taken, held and
+     * released on the very connection that runs the migration. Routing it
+     * through a collaborator would put a second object between this command and
+     * the only property that makes the lock work, for no gain.
+     *
      * Cast to int in SQL: pg_try_advisory_lock returns a boolean, and what a
      * driver hands back for one is its own business — true, 't' and '1' are all
      * plausible. An integer is not.

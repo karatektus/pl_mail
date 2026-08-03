@@ -46,19 +46,20 @@ final readonly class AccountCreator
      */
     public function blank(): Account
     {
-        return new Account()
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls');
+        $account = new Account();
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+
+        return $account;
     }
 
     public function create(Account $account, User $user): void
     {
-        $account
-            ->setAuthType('password')
-            ->setIsActive(true)
-            ->setUsr($user);
+        $account->authType = 'password';
+        $account->isActive = true;
+        $account->usr = $user;
 
         // Appended, then the whole list renumbered: sortOrder and isPrimary are
         // positional, so the first account added has to come out primary
@@ -118,10 +119,8 @@ final readonly class AccountCreator
         $index = 0;
 
         foreach ($orderedAccounts as $account) {
-            $account
-                ->setSortOrder($index)
-                ->setIsPrimary(0 === $index)
-                ->setUpdatedAt(new DateTimeImmutable());
+            $account->sortOrder = $index;
+            $account->isPrimary = 0 === $index;
 
             ++$index;
         }

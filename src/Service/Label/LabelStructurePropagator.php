@@ -81,7 +81,7 @@ final readonly class LabelStructurePropagator
             }
 
             $this->bus->dispatch(new ApplyLabelStructureMessage(
-                accountId: (int) $account->getId(),
+                accountId: (int) $account->id,
                 action: $action,
                 labelId: $label->id,
                 fullName: $label->fullName,

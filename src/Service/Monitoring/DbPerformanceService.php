@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
-use Doctrine\DBAL\Connection;
+use App\Repository\Monitoring\PostgresStatusRepository;
 
 /**
  * Postgres performance read-model for the admin dashboard.
+ *
+ * The catalogue reads themselves live in PostgresStatusRepository; what is left
+ * here is the shaping the dashboard needs — deriving ratios, rounding, and
+ * cutting query text down to something that fits on a board.
  *
  * Slow-query aggregation relies on the pg_stat_statements contrib extension
  * (one-time shared_preload_libraries + CREATE EXTENSION). Everything else —
@@ -27,26 +31,16 @@ final class DbPerformanceService
     private ?bool $statStatementsAvailable = null;
 
     public function __construct(
-        private readonly Connection $connection,
+        private readonly PostgresStatusRepository $status,
     ) {}
 
+    /**
+     * Memoised: an admin page asks this once per panel, and whether an
+     * extension is installed cannot change inside one request.
+     */
     public function isStatStatementsAvailable(): bool
     {
-        if (null !== $this->statStatementsAvailable) {
-            return $this->statStatementsAvailable;
-        }
-
-        try {
-            $available = $this->connection->fetchOne(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')",
-            );
-
-            $this->statStatementsAvailable = (bool) $available;
-        } catch (\Throwable) {
-            $this->statStatementsAvailable = false;
-        }
-
-        return $this->statStatementsAvailable;
+        return $this->statStatementsAvailable ??= $this->status->hasStatStatements();
     }
 
     /**
@@ -57,7 +51,7 @@ final class DbPerformanceService
      */
     public function slowestByMean(int $limit = 20): array
     {
-        return $this->fetchStatements('mean_exec_time', $limit, true);
+        return $this->shapeStatements($this->status->statementsSlowestByMean($limit, self::SLOW_MEAN_MS));
     }
 
     /**
@@ -69,7 +63,7 @@ final class DbPerformanceService
      */
     public function heaviestByTotal(int $limit = 20): array
     {
-        return $this->fetchStatements('total_exec_time', $limit, false);
+        return $this->shapeStatements($this->status->statementsHeaviestByTotal($limit));
     }
 
     /**
@@ -81,30 +75,9 @@ final class DbPerformanceService
      */
     public function activeQueries(): array
     {
-        try {
-            $rows = $this->connection->fetchAllAssociative(
-                "SELECT
-                    pid,
-                    state,
-                    wait_event_type,
-                    wait_event,
-                    EXTRACT(EPOCH FROM (now() - query_start))::int AS duration_seconds,
-                    query
-                 FROM pg_stat_activity
-                 WHERE datname = current_database()
-                   AND pid <> pg_backend_pid()
-                   AND state IS DISTINCT FROM 'idle'
-                   AND query <> ''
-                 ORDER BY duration_seconds DESC NULLS LAST
-                 LIMIT 25",
-            );
-        } catch (\Throwable) {
-            return [];
-        }
-
         $active = [];
 
-        foreach ($rows as $row) {
+        foreach ($this->status->activeBackends() as $row) {
             $waitEvent = null;
 
             if (null !== $row['wait_event']) {
@@ -130,37 +103,19 @@ final class DbPerformanceService
      */
     public function healthGauges(): array
     {
-        $empty = [
-            'connections' => 0,
-            'cacheHitPct' => null,
-            'commits'     => 0,
-            'rollbacks'   => 0,
-            'rollbackPct' => null,
-            'deadlocks'   => 0,
-            'tempFiles'   => 0,
-            'tempBytes'   => 0,
-        ];
+        $row = $this->status->databaseStats();
 
-        try {
-            $row = $this->connection->fetchAssociative(
-                "SELECT
-                    numbackends,
-                    xact_commit,
-                    xact_rollback,
-                    blks_read,
-                    blks_hit,
-                    deadlocks,
-                    temp_files,
-                    temp_bytes
-                 FROM pg_stat_database
-                 WHERE datname = current_database()",
-            );
-        } catch (\Throwable) {
-            return $empty;
-        }
-
-        if (false === $row) {
-            return $empty;
+        if (null === $row) {
+            return [
+                'connections' => 0,
+                'cacheHitPct' => null,
+                'commits'     => 0,
+                'rollbacks'   => 0,
+                'rollbackPct' => null,
+                'deadlocks'   => 0,
+                'tempFiles'   => 0,
+                'tempBytes'   => 0,
+            ];
         }
 
         $blksHit  = (int) $row['blks_hit'];
@@ -193,67 +148,18 @@ final class DbPerformanceService
             return false;
         }
 
-        try {
-            $this->connection->executeStatement('SELECT pg_stat_statements_reset()');
-
-            return true;
-        } catch (\Throwable) {
-            return false;
-        }
+        return $this->status->resetStatStatements();
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
+     * @param list<array<string,mixed>> $rows
+     *
      * @return list<array{query: string, calls: int, meanMs: float, maxMs: float, totalMs: float, rows: int, hitPct: float|null}>
      */
-    private function fetchStatements(string $orderColumn, int $limit, bool $applyMeanFloor): array
+    private function shapeStatements(array $rows): array
     {
-        if (false === $this->isStatStatementsAvailable()) {
-            return [];
-        }
-
-        // shared_blks_hit/read may be absent on very old versions; COALESCE
-        // guards the hit-ratio expression regardless.
-        $meanFloor = true === $applyMeanFloor
-            ? 'AND s.mean_exec_time >= :floor'
-            : '';
-
-        $sql = "SELECT
-                    s.query,
-                    s.calls,
-                    s.mean_exec_time,
-                    s.max_exec_time,
-                    s.total_exec_time,
-                    s.rows,
-                    CASE
-                        WHEN (COALESCE(s.shared_blks_hit, 0) + COALESCE(s.shared_blks_read, 0)) > 0
-                        THEN (COALESCE(s.shared_blks_hit, 0)::float
-                              / (COALESCE(s.shared_blks_hit, 0) + COALESCE(s.shared_blks_read, 0))) * 100
-                        ELSE NULL
-                    END AS hit_pct
-                 FROM pg_stat_statements s
-                 JOIN pg_database d ON d.oid = s.dbid
-                 WHERE d.datname = current_database()
-                   AND s.query NOT LIKE '%pg_stat_statements%'
-                   {$meanFloor}
-                 ORDER BY s.{$orderColumn} DESC
-                 LIMIT :limit";
-
-        $params = ['limit' => $limit];
-
-        if (true === $applyMeanFloor) {
-            $params['floor'] = self::SLOW_MEAN_MS;
-        }
-
-        try {
-            $rows = $this->connection->fetchAllAssociative($sql, $params);
-        } catch (\Throwable) {
-            // Column-name mismatch on an unexpected PG version, or a
-            // permissions issue — degrade to empty rather than 500.
-            return [];
-        }
-
         $statements = [];
 
         foreach ($rows as $row) {

@@ -53,19 +53,20 @@ final class InstallController extends AbstractController
         }
 
         $user = new User();
-        $user->setLocale(($locale ?? AppLocale::tryFromRequest($request->getLocale()) ?? AppLocale::English)->value);
+        $user->locale = ($locale ?? AppLocale::tryFromRequest($request->getLocale()) ?? AppLocale::English)->value;
 
         // Switching language is a real navigation, so whatever had been typed
         // comes back through the query string rather than being thrown away.
         $carried = $request->query->all('first_admin');
 
-        foreach (['nameFirst' => $user->setNameFirst(...), 'nameLast' => $user->setNameLast(...), 'email' => $user->setEmail(...)] as $field => $set) {
-            $value = $carried[$field] ?? '';
+        // Written out rather than looped over a map of setters, because a
+        // property write is not a first-class callable. Blank stays blank: the
+        // user is new, so its fields are null either way.
+        $carry = static fn (mixed $value): ?string => is_string($value) && '' !== $value ? $value : null;
 
-            if (is_string($value) && '' !== $value) {
-                $set($value);
-            }
-        }
+        $user->nameFirst = $carry($carried['nameFirst'] ?? null);
+        $user->nameLast  = $carry($carried['nameLast'] ?? null);
+        $user->email     = $carry($carried['email'] ?? null);
 
         $form = $this->createForm(FirstAdminType::class, $user, [
             'action'           => $this->generateUrl('app_install'),

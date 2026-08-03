@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\State;
 
-use App\Controller\Mail\ComposeController;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\MailSenderInterface;
@@ -25,7 +24,9 @@ use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
@@ -59,7 +60,7 @@ final class EmailChangesTest extends KernelTestCase
     private StateManager $stateManager;
     private EmailChangesMethod $emailChanges;
     private ThreadChangesMethod $threadChanges;
-    private ComposeController $compose;
+    private DraftPersister $drafts;
 
     private User $user;
     private Account $account;
@@ -76,7 +77,7 @@ final class EmailChangesTest extends KernelTestCase
         $this->stateManager  = $container->get(StateManager::class);
         $this->emailChanges  = $container->get(EmailChangesMethod::class);
         $this->threadChanges = $container->get(ThreadChangesMethod::class);
-        $this->compose       = $container->get(ComposeController::class);
+        $this->drafts        = $container->get(DraftPersister::class);
 
         $this->connection->beginTransaction();
 
@@ -111,7 +112,7 @@ final class EmailChangesTest extends KernelTestCase
         self::assertGreaterThan($before, $this->emailState());
         self::assertSame(
             ['created'],
-            $this->loggedChangeTypes(JmapObjectType::Email, (string) $message->getId()),
+            $this->loggedChangeTypes(JmapObjectType::Email, (string) $message->id),
         );
     }
 
@@ -124,7 +125,7 @@ final class EmailChangesTest extends KernelTestCase
 
         $result = $this->emailChangesSince($sinceState);
 
-        self::assertSame([(string) $message->getId()], $result['created']);
+        self::assertSame([(string) $message->id], $result['created']);
         self::assertSame([], $result['updated']);
         self::assertSame([], $result['destroyed']);
         self::assertNotSame($sinceState, $result['newState']);
@@ -140,7 +141,7 @@ final class EmailChangesTest extends KernelTestCase
         $sinceState = (string) $this->stateManager->stateFor($this->accountId, JmapObjectType::Thread);
 
         $message = $this->ingest('threaded');
-        $thread  = $message->getThread();
+        $thread  = $message->thread;
 
         self::assertNotNull($thread, 'the pipeline threads what it ingests');
 
@@ -150,7 +151,7 @@ final class EmailChangesTest extends KernelTestCase
         );
 
         self::assertSame([], $result['created'], 'a new thread arrives in "updated" by design');
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── Web compose ───────────────────────────────────────────────────────
@@ -158,7 +159,7 @@ final class EmailChangesTest extends KernelTestCase
     /**
      * The regression test for mail written in the browser.
      *
-     * Every autosave and every send goes through ComposeController::persistDraft
+     * Every autosave and every send goes through DraftPersister::save()
      * and, until this was fixed, none of them recorded anything: a draft written
      * on the desktop and the mail it turned into simply never existed as far as
      * a connected phone was concerned. Nothing about the draft itself is checked
@@ -172,7 +173,7 @@ final class EmailChangesTest extends KernelTestCase
 
         $result = $this->emailChangesSince($sinceState);
 
-        self::assertSame([(string) $draft->getId()], $result['created']);
+        self::assertSame([(string) $draft->id], $result['created']);
     }
 
     /**
@@ -191,7 +192,7 @@ final class EmailChangesTest extends KernelTestCase
         $result = $this->emailChangesSince($sinceState);
 
         self::assertSame([], $result['created']);
-        self::assertSame([(string) $draft->getId()], $result['updated']);
+        self::assertSame([(string) $draft->id], $result['updated']);
     }
 
     /** A draft's thread moves with it, so the conversation list re-sorts. */
@@ -200,16 +201,16 @@ final class EmailChangesTest extends KernelTestCase
         $sinceState = (string) $this->stateManager->stateFor($this->accountId, JmapObjectType::Thread);
 
         $draft  = $this->composeDraft('Threaded in the browser');
-        $thread = $draft->getThread();
+        $thread = $draft->thread;
 
-        self::assertNotNull($thread, 'persistDraft threads what it saves');
+        self::assertNotNull($thread, 'saving a draft threads it');
 
         $result = $this->threadChanges->handle(
             ['accountId' => (string) $this->accountId, 'sinceState' => $sinceState],
             new JmapContext($this->user),
         );
 
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── Sending ───────────────────────────────────────────────────────────
@@ -231,21 +232,21 @@ final class EmailChangesTest extends KernelTestCase
         $sinceState = (string) $this->emailState();
 
         self::assertTrue($this->sendService()->send($draft), 'the fake sender accepts everything');
-        self::assertNotNull($draft->getSentAt(), 'the send committed the transition');
+        self::assertNotNull($draft->sentAt, 'the send committed the transition');
 
         $result = $this->emailChangesSince($sinceState);
 
         self::assertSame([], $result['created'], 'the client already holds this id from the draft save');
-        self::assertSame([(string) $draft->getId()], $result['updated']);
+        self::assertSame([(string) $draft->id], $result['updated']);
     }
 
     /** A conversation with a sent message in it re-sorts and re-summarises. */
     public function testSendingTouchesTheThread(): void
     {
         $draft  = $this->composeDraft('Threaded on its way out');
-        $thread = $draft->getThread();
+        $thread = $draft->thread;
 
-        self::assertNotNull($thread, 'persistDraft threads what it saves');
+        self::assertNotNull($thread, 'saving a draft threads it');
 
         $sinceState = (string) $this->stateManager->stateFor($this->accountId, JmapObjectType::Thread);
 
@@ -256,7 +257,7 @@ final class EmailChangesTest extends KernelTestCase
             new JmapContext($this->user),
         );
 
-        self::assertSame([(string) $thread->getId()], $result['updated']);
+        self::assertSame([(string) $thread->id], $result['updated']);
     }
 
     // ── The refusal ───────────────────────────────────────────────────────
@@ -320,15 +321,14 @@ final class EmailChangesTest extends KernelTestCase
     private function ingest(string $slug): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($this->account)
-            ->setMailbox($this->mailbox)
-            ->setSubject('Changes fixture ' . $slug)
-            ->setFromAddress('sender@example.test')
-            ->setReceivedAt(new \DateTimeImmutable('-1 hour'))
-            ->setHasAttachments(false)
-            ->setBodyHtml('<p>hello</p>')
-            ->setMessageId(sprintf('<changes-%s-%s@example.test>', $slug, uniqid('', true)));
+        $message->account = $this->account;
+        $message->mailbox = $this->mailbox;
+        $message->subject = 'Changes fixture ' . $slug;
+        $message->fromAddress = 'sender@example.test';
+        $message->receivedAt = new \DateTimeImmutable('-1 hour');
+        $message->hasAttachments = false;
+        $message->bodyHtml = '<p>hello</p>';
+        $message->messageId = sprintf('<changes-%s-%s@example.test>', $slug, uniqid('', true));
 
         // The pipeline's stated precondition: persisted and flushed, ids exist.
         $this->em->persist($message);
@@ -340,30 +340,26 @@ final class EmailChangesTest extends KernelTestCase
     }
 
     /**
-     * A save through the composer's own private seam.
+     * A save through the seam the composer uses.
      *
-     * Reflection rather than a request because the route is what is uninteresting
-     * here: persistDraft() is the single point every autosave and every send
-     * funnels through, and driving it directly keeps the test on the recording
-     * rather than on form binding and CSRF.
+     * DraftPersister::save() is the single point every autosave and every send
+     * funnels through — it was ComposeController::persistDraft() until the two
+     * copies of it were merged — and driving it directly keeps the test on the
+     * recording rather than on form binding and CSRF.
      */
     private function composeDraft(string $subject, ?Message $message = null): Message
     {
         if (null === $message) {
             $message = new Message();
-            $message
-                ->setAccount($this->account)
-                ->setCreatedAt(new \DateTimeImmutable())
-                ->setMessageId(sprintf('<compose-%s@example.test>', uniqid('', true)));
+            $message->account = $this->account;
+            $message->messageId = sprintf('<compose-%s@example.test>', uniqid('', true));
         }
 
-        $message
-            ->setSubject($subject)
-            ->setFromAddress('composer@example.test')
-            ->setBodyHtml(sprintf('<p>%s</p>', $subject));
+        $message->subject = $subject;
+        $message->fromAddress = 'composer@example.test';
+        $message->bodyHtml = sprintf('<p>%s</p>', $subject);
 
-        new \ReflectionMethod($this->compose, 'persistDraft')
-            ->invoke($this->compose, $message, $this->account);
+        $this->drafts->save($message, $this->account);
 
         return $message;
     }
@@ -406,7 +402,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(AttachmentResolver::class),
             $container->get(LabelResolver::class),
             $container->get(LabelRepository::class),
-            $this->stateManager,
+            $container->get(MailChangeRecorder::class),
         );
     }
 
@@ -425,7 +421,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MessageCategorizer::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
-            $this->stateManager,
+            $container->get(MailChangeRecorder::class),
             $this->em,
             $container->get(LoggerInterface::class),
             [],
@@ -435,42 +431,37 @@ final class EmailChangesTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('changes-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Email')
-            ->setNameLast('Changes')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'changes-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Email';
+        $this->user->nameLast = 'Changes';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            // An address, not a display name: persistDraft() copies this onto
-            // the draft's From, and MessageSendService builds a real MIME
-            // header out of it further down the same path.
-            ->setEmail('changes-fixture@example.test')
-            ->setUsername('changes-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        // An address, not a display name: saving a draft copies this onto
+        // the draft's From, and MessageSendService builds a real MIME
+        // header out of it further down the same path.
+        $this->account->email = 'changes-fixture@example.test';
+        $this->account->username = 'changes-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
-        $this->mailbox
-            ->setAccount($this->account)
-            ->setName('INBOX')
-            ->setFullPath('INBOX')
-            ->setIsSyncEnabled(true)
-            ->setIsIdleEnabled(false)
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->mailbox->account = $this->account;
+        $this->mailbox->name = 'INBOX';
+        $this->mailbox->fullPath = 'INBOX';
+        $this->mailbox->isSyncEnabled = true;
+        $this->mailbox->isIdleEnabled = false;
         $this->em->persist($this->mailbox);
 
         $this->em->flush();
@@ -479,6 +470,6 @@ final class EmailChangesTest extends KernelTestCase
         // is not populated by persisting the owning side alone.
         $this->user->addAccount($this->account);
 
-        $this->accountId = (int) $this->account->getId();
+        $this->accountId = (int) $this->account->id;
     }
 }

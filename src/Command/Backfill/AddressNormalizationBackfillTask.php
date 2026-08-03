@@ -96,28 +96,31 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
 
         // A null stays null: it means "no such header", which is not the same
         // claim as an empty string, and rewriting it would dirty every row.
-        if (null !== $message->getFromName()) {
-            $fromName = AddressHelper::name($message->getFromName());
+        if (null !== $message->fromName) {
+            $fromName = AddressHelper::name($message->fromName);
 
-            if ($fromName !== $message->getFromName()) {
-                $message->setFromName($fromName);
+            if ($fromName !== $message->fromName) {
+                $message->fromName = $fromName;
                 $changed = true;
             }
         }
 
-        if (null !== $message->getFromAddress()) {
-            $fromAddress = AddressHelper::email($message->getFromAddress());
+        if (null !== $message->fromAddress) {
+            $fromAddress = AddressHelper::email($message->fromAddress);
 
-            if ($fromAddress !== $message->getFromAddress()) {
-                $message->setFromAddress($fromAddress);
+            if ($fromAddress !== $message->fromAddress) {
+                $message->fromAddress = $fromAddress;
                 $changed = true;
             }
         }
 
+        // Each pair is a recipient list and the write that puts it back. The
+        // three lists are plain properties, so there is no setter to reference
+        // and a closure carries the assignment instead.
         $groups = [
-            [$message->getToAddresses(), $message->setToAddresses(...)],
-            [$message->getCcAddresses(), $message->setCcAddresses(...)],
-            [$message->getBccAddresses(), $message->setBccAddresses(...)],
+            [$message->toAddresses, static fn (array $addresses) => $message->toAddresses = $addresses],
+            [$message->ccAddresses, static fn (array $addresses) => $message->ccAddresses = $addresses],
+            [$message->bccAddresses, static fn (array $addresses) => $message->bccAddresses = $addresses],
         ];
 
         foreach ($groups as [$group, $setter]) {
@@ -178,14 +181,14 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
             }
 
             foreach ($this->contactRepository->findByIds($ids) as $contact) {
-                $name = AddressHelper::name($contact->getDisplayName());
+                $name = AddressHelper::name($contact->displayName);
 
-                if ($name !== ($contact->getDisplayName() ?? '')) {
-                    $contact->setDisplayName('' !== $name ? $name : null);
+                if ($name !== ($contact->displayName ?? '')) {
+                    $contact->displayName = '' !== $name ? $name : null;
                     $changed++;
                 }
 
-                $email = (string) $contact->getEmail();
+                $email = (string) $contact->email;
 
                 if (false === AddressHelper::isValidEmail($email) || $email !== AddressHelper::email($email)) {
                     $suspect[] = $email;

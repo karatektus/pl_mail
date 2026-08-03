@@ -65,7 +65,7 @@ final class DevicePairingServiceTest extends KernelTestCase
         $result = $this->pairing->redeem($code, 'Pixel 9');
 
         self::assertNotNull($result);
-        self::assertSame($this->user->getEmail(), $result['username']);
+        self::assertSame($this->user->email, $result['username']);
         self::assertStringStartsWith('plmail_', $result['secret']);
 
         $minted = $this->tokens->findForUser($this->user);
@@ -200,14 +200,11 @@ final class DevicePairingServiceTest extends KernelTestCase
     private function seedUser(): User
     {
         $user = new User();
-        $user
-            ->setEmail('pairing-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Pairing')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'pairing-'.uniqid('', true).'@example.test';
+        $user->nameFirst = 'Pairing';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
 
         $this->em->persist($user);
         $this->em->flush();

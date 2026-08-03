@@ -132,7 +132,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
     #[DataProvider('conditionProvider')]
     public function testMatchesExactly(array $ast, array $expectedIndexes): void
     {
-        $expected = array_map(fn (int $i): int => (int) $this->corpus[$i]->getId(), $expectedIndexes);
+        $expected = array_map(fn (int $i): int => (int) $this->corpus[$i]->id, $expectedIndexes);
         sort($expected);
 
         $actual = $this->messages->matchingIds($this->corpusIds(), $this->compiler->compile($ast));
@@ -149,7 +149,7 @@ final class EmailFilterCompilerTest extends KernelTestCase
      */
     public function testNullSizeMatchesNeitherBound(): void
     {
-        $sizeless = (int) $this->corpus[2]->getId();
+        $sizeless = (int) $this->corpus[2]->id;
 
         self::assertNotContains($sizeless, $this->match(['minSize' => 1]));
         self::assertNotContains($sizeless, $this->match(['maxSize' => 999999]));
@@ -172,34 +172,32 @@ final class EmailFilterCompilerTest extends KernelTestCase
      */
     private function corpusIds(): array
     {
-        return array_map(static fn (Message $m): int => (int) $m->getId(), $this->corpus);
+        return array_map(static fn (Message $m): int => (int) $m->id, $this->corpus);
     }
 
     private function seedCorpus(): void
     {
         $user = new User();
-        $user
-            ->setEmail('filter-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Filter')
-            ->setNameLast('Corpus')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'filter-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Filter';
+        $user->nameLast = 'Corpus';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Filter Corpus')
-            ->setUsername('filter-corpus@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Filter Corpus';
+        $account->username = 'filter-corpus@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->corpus = [
@@ -244,36 +242,34 @@ final class EmailFilterCompilerTest extends KernelTestCase
     private function message(Account $account, array $spec): Message
     {
         $message = new Message();
-        $message
-            ->setAccount($account)
-            ->setSubject($spec['subject'])
-            ->setFromAddress($spec['from'])
-            ->setFromName($spec['fromName'])
-            ->setToAddresses($spec['to'] ?? null)
-            ->setCcAddresses($spec['cc'] ?? null)
-            ->setBodyText($spec['body'])
-            ->setSize($spec['size'])
-            ->setHeaders($spec['headers'] ?? null)
-            ->setReceivedAt(new \DateTimeImmutable($spec['received']))
-            ->setHasAttachments(true === isset($spec['attachment']));
+        $message->account = $account;
+        $message->subject = $spec['subject'];
+        $message->fromAddress = $spec['from'];
+        $message->fromName = $spec['fromName'];
+        $message->toAddresses = $spec['to'] ?? null;
+        $message->ccAddresses = $spec['cc'] ?? null;
+        $message->bodyText = $spec['body'];
+        $message->size = $spec['size'];
+        $message->headers = $spec['headers'] ?? null;
+        $message->receivedAt = new \DateTimeImmutable($spec['received']);
+        $message->hasAttachments = true === isset($spec['attachment']);
 
         if (true === ($spec['seen'] ?? false)) {
-            $message->setSeenAt(new \DateTimeImmutable('2026-07-16 08:00:00'));
+            $message->seenAt = new \DateTimeImmutable('2026-07-16 08:00:00');
         }
 
         if (true === ($spec['starred'] ?? false)) {
-            $message->setStarredAt(new \DateTimeImmutable('2026-07-16 08:00:00'));
+            $message->starredAt = new \DateTimeImmutable('2026-07-16 08:00:00');
         }
 
         $this->em->persist($message);
 
         if (true === isset($spec['attachment'])) {
             $part = new MessagePart();
-            $part
-                ->setMessage($message)
-                ->setContentType('application/pdf')
-                ->setFilename($spec['attachment'])
-                ->setDisposition('attachment');
+            $part->message     = $message;
+            $part->contentType = 'application/pdf';
+            $part->filename    = $spec['attachment'];
+            $part->disposition = 'attachment';
             $this->em->persist($part);
             $message->addMessagePart($part);
         }

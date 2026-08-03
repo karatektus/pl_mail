@@ -6,7 +6,8 @@ namespace App\Form;
 
 use App\Domain\Enum\Mail\LabelColor;
 use App\Entity\Label\Label;
-use Doctrine\ORM\EntityRepository;
+use App\Repository\Label\LabelRepository;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -34,12 +35,11 @@ final class LabelType extends AbstractType
                 'choice_label'  => 'fullName',
                 'required'      => false,
                 'placeholder'   => 'label.form.no_parent',
-                'query_builder' => function (EntityRepository $repository) use ($user) {
-                    return $repository->createQueryBuilder('label')
-                        ->where('label.usr = :usr')
-                        ->andWhere('label.role IS NULL')
-                        ->setParameter('usr', $user)
-                        ->orderBy('label.name', 'ASC');
+                // The choices are a query, so the query lives in the repository;
+                // EntityType wants the builder rather than the results, which
+                // is what it gets back.
+                'query_builder' => static function (LabelRepository $repository) use ($user): QueryBuilder {
+                    return $repository->createParentChoiceQueryBuilder($user);
                 },
                 'choice_filter' => function (?Label $candidate) use ($editedLabel): bool {
                     if (null === $candidate || null === $editedLabel) {

@@ -75,6 +75,7 @@ final readonly class DataResetRepository
         $this->connection->executeStatement('SET session_replication_role = replica');
     }
 
+    /** The other half of disableForeignKeyChecks(); never call one without it. */
     public function enableForeignKeyChecks(): void
     {
         $this->connection->executeStatement('SET session_replication_role = DEFAULT');
