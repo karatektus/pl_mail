@@ -63,7 +63,11 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
              data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
              data-ui--split-open-value="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
-             data-calendar-open="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
+             {# Rendered false whatever the preference says: the attribute only drives
+                the below-lg rule that hides the mail, and landing on the calendar is
+                not what anyone means by opening plMail on a phone. The controller
+                sets it when the pane is actually opened on this device. #}
+             data-calendar-open="false"
              {% endif %}
         >
 

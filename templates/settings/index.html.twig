@@ -42,7 +42,7 @@
                            IMPORTANT: this grid must have exactly TWO children —
                            the nav and ONE content wrapper. A third child wraps
                            into the 180px nav column on the next grid row. #}
-                        <div class="flex-1 overflow-y-auto">
+                        <div class="flex-1 overflow-y-auto @container">
                             <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
 
                                 <nav class="flex md:flex-col gap-1 flex-wrap">
@@ -106,8 +106,24 @@
                                     </a>
                                 </nav>
 
-                                {# Single content wrapper — second (and last) grid child #}
-                                <div class="min-w-0">
+                                {# Single content wrapper — second (and last) grid child.
+
+                                   The negative margin cancels the wrapper's px-6 for this
+                                   child only, so the section cards run to the pane's edges
+                                   and their own px-4/px-5 is the single inset left. Nesting
+                                   a card inside a padded page cost 40px a side otherwise,
+                                   which on a 360px screen is spent before any content. The
+                                   nav keeps its padding: it is the other grid child and
+                                   reads as chrome rather than as a card. Restored above
+                                   42rem of pane, where the space is not scarce and a card
+                                   flush to the edge only looks unfinished.
+
+                                   Container query rather than a breakpoint, for the reason
+                                   the admin page documents: this pane is not as wide as the
+                                   window, and at md the mail sidebar appears and takes from
+                                   it, so pane width and viewport width do not move
+                                   together. #}
+                                <div class="min-w-0 -mx-6 @2xl:mx-0">
                                     {% if section == 'appearance' %}
                                         {% include 'settings/_appearance.html.twig' %}
                                     {% elseif section == 'profile' %}
@@ -116,7 +132,7 @@
                                         {% include 'settings/_security.html.twig' %}
                                     {% elseif section == 'general' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.language.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.language.subheading'|trans }}</p>
                                             </div>
@@ -128,7 +144,7 @@
                                                 } %}
                                             </div>
 
-                                            <div class="mb-4 mt-8">
+                                            <div class="mb-4 mt-8 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.timezone.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.timezone.subheading'|trans }}</p>
                                             </div>
@@ -144,7 +160,7 @@
                                         </section>
                                     {% elseif section == 'aliases' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.aliases.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.aliases.subheading'|trans }}</p>
                                             </div>
@@ -161,7 +177,7 @@
                                         </section>
                                     {% elseif section == 'filters' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.filters.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.filters.subheading'|trans }}</p>
                                             </div>
@@ -186,7 +202,7 @@
 
                                     {% elseif section == 'notifications' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.notifications.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.notifications.subheading'|trans }}</p>
                                             </div>
@@ -200,7 +216,7 @@
 
                                     {% elseif section == 'app-passwords' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.app_passwords.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.app_passwords.subheading'|trans }}</p>
                                             </div>
@@ -225,7 +241,7 @@
 
                                     {% elseif section == 'integrations' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.integrations.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.integrations.subheading'|trans }}</p>
                                             </div>
@@ -245,7 +261,7 @@
 
                                     {% elseif section == 'labels' %}
                                         <section>
-                                            <div class="mb-4">
+                                            <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.labels.heading'|trans }}</h2>
                                                 <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.labels.subheading'|trans }}</p>
                                             </div>
