@@ -370,8 +370,27 @@ final class MailController extends AbstractController
 
         // One key per label now that the sidebar renders labels directly —
         // this used to also emit "node:<path>" keys for the merged tree.
-        foreach ($this->labelRepository->findVisibleForUser($this->getUser()) as $label) {
+        $labels = $this->labelRepository->findVisibleForUser($this->getUser());
+
+        foreach ($labels as $label) {
             $payload['label:' . $label->id] = $counts->forLabel($label);
+        }
+
+        // The expanded account's folder rows count within that account and are
+        // keyed accordingly, so they need their own entries — patched with the
+        // user-wide number they would claim mail the list beside them does not
+        // show. Only the expanded account: it is the only one on screen.
+        /** @var User $user */
+        $user    = $this->getUser();
+        $account = null === $user->expandedAccountId
+            ? null
+            : $this->accountRepository->find($user->expandedAccountId);
+
+        if (null !== $account && $account->usr === $user) {
+            foreach ($labels as $label) {
+                $payload['label:' . $label->id . ':account:' . $account->id]
+                    = $counts->forLabelInAccount($label, $account);
+            }
         }
 
         return $this->json($payload);

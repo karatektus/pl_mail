@@ -77,6 +77,14 @@ Variables:
                 {% if message.fromName %}
                     <span class="text-xs text-ink-faint truncate">&lt;{{ message.fromAddress }}&gt;</span>
                 {% endif %}
+
+                {# The labels on THIS message, not on the thread. A rule that
+                   files one reply, or a label applied to a single message,
+                   was visible in the list row and nowhere in the thread it
+                   opened — so the thread showed a label the message in front
+                   of you did not have, and hid the one it did. Same chips as
+                   the list, so a label looks like itself everywhere. #}
+                {% include '_partials/_thread_labels.html.twig' with { item: message } only %}
             </div>
 
             {# The details popover must not toggle the message, so it stops

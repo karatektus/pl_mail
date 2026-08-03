@@ -326,9 +326,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * @return array<int,int> label id → unread thread-message sum
      */
-    public function countUnreadPerUserLabel(UserInterface $user): array
+    public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null): array
     {
-        $rows = $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('l.id AS labelId', 'SUM(t.unreadCount) AS unreadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
@@ -336,9 +336,17 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NULL')
             ->setParameter('user', $user)
-            ->groupBy('l.id')
-            ->getQuery()
-            ->getArrayResult();
+            ->groupBy('l.id');
+
+        // Narrowed for the folder list under one account, where a count across
+        // every account is an answer to a question nobody asked: the rows
+        // beside it list that account's mail only.
+        if (null !== $account) {
+            $qb->andWhere('t.account = :account')
+                ->setParameter('account', $account);
+        }
+
+        $rows = $qb->getQuery()->getArrayResult();
 
         $counts = [];
 

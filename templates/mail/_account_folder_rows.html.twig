@@ -32,8 +32,15 @@
         >
             <span class="truncate">{{ label.name }}</span>
             {% if not label.isSystem %}
+                {# Counted within this account, and keyed that way too: the
+                   sidebar's own label rows carry `label:<id>` and mean every
+                   account, so sharing the key would have the counts endpoint
+                   patch the account's badge with the total. #}
                 {% import '_partials/_sidebar.html.twig' as sidebar %}
-                {{ sidebar.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
+                {{ sidebar.unread_badge(
+                    sidebarCounts.forLabelInAccount(label, account),
+                    'label:' ~ label.id ~ ':account:' ~ account.id,
+                ) }}
             {% endif %}
         </a>
     {% endfor %}

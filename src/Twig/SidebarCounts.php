@@ -30,6 +30,8 @@ class SidebarCounts
     private ?array $visibleLabels = null;
     /** @var array<int, list<Label>> account id => its visible labels */
     private array $accountLabels = [];
+    /** @var array<int, array<int,int>> account id => (label id => unread) */
+    private array $accountLabelCounts = [];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -55,6 +57,30 @@ class SidebarCounts
             $this->labelRepository->findBoundToAccount($account),
             static fn (Label $label): bool => true === $label->isVisible,
         ));
+    }
+
+    /**
+     * The unread count for a label *within one account*, for the folder list
+     * under that account.
+     *
+     * forLabel() answers across every account, which is right for the sidebar's
+     * own label section — there a label means "everywhere" — and wrong under an
+     * account, where clicking the row lists that account's threads alone and
+     * the badge promised more than the list then showed.
+     */
+    public function forLabelInAccount(Label $label, Account $account): int
+    {
+        $accountId = (int) $account->id;
+
+        if (false === array_key_exists($accountId, $this->accountLabelCounts)) {
+            $user = $this->security->getUser();
+
+            $this->accountLabelCounts[$accountId] = null === $user
+                ? []
+                : $this->threadRepository->countUnreadPerUserLabel($user, $account);
+        }
+
+        return $this->accountLabelCounts[$accountId][(int) $label->id] ?? 0;
     }
 
     public function forRole(LabelRole $role): int
