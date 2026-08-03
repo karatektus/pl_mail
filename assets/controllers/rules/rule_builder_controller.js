@@ -416,8 +416,10 @@ export default class extends Controller {
 
             this.summaryTarget.textContent = data.description ?? ""
             this.countTarget.dataset.state = "ok"
-            this.countTarget.textContent = (data.capped ? this._t("count.capped") : this._t("count.exact"))
-                .replace("%count%", String(data.count))
+            this.countTarget.textContent = this._plural(
+                this._t(data.capped ? "count.capped" : "count.exact"),
+                data.count,
+            ).replace("%count%", String(data.count))
         } catch {
             // A failed probe is only a missing hint — never block the save.
             this.countTarget.dataset.state = "error"
@@ -543,5 +545,20 @@ export default class extends Controller {
 
     _t(key) {
         return this.i18nValue[key] ?? key
+    }
+
+    /**
+     * Picks the singular or plural half of a "one|many" string.
+     *
+     * The count changes as the rule is typed and the number is substituted
+     * here rather than fetched, so the translation has to arrive carrying both
+     * shapes — hence the pipe, which is Symfony's own separator. A string
+     * without one is returned untouched, so a translation that has not been
+     * split yet still reads.
+     */
+    _plural(message, count) {
+        const forms = message.split("|")
+
+        return forms.length < 2 ? message : (count === 1 ? forms[0] : forms[1])
     }
 }

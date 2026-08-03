@@ -860,7 +860,7 @@ settings:
         count: '%count% sieves'
         count_capped: 'Catches %count%+ yarns already aboard'
         count_error: Not a workable sieve yet
-        count_exact: 'Catches %count% yarns already aboard'
+        count_exact: 'Catches %count% yarn already aboard|Catches %count% yarns already aboard'
         delete: Scuttle the sieve "%name%"
         delete_confirm: 'Scuttle the sieve "%name%"? Yarns it already sorted stay put.'
         delete_title: Scuttle sieve

@@ -1004,7 +1004,10 @@ settings:
         count: '%count% filters'
         count_capped: 'Matches %count%+ existing messages'
         count_error: Not a usable filter yet
-        count_exact: 'Matches %count% existing messages'
+        # Pluralised in the browser, which is where the number changes —
+        # the builder swaps %count% in without another round trip, so the
+        # string has to carry both shapes. See rule_builder_controller.
+        count_exact: 'Matches %count% existing message|Matches %count% existing messages'
         delete: Delete filter "%name%"
         delete_confirm: 'Delete the filter "%name%"? Mail it already sorted stays where it is.'
         delete_title: Delete filter

@@ -101,6 +101,8 @@ unreachable, and search runs against your own database rather than someone else'
 | **Threaded conversations** — replies collapse into one conversation, newest expanded. | **Compose** — rich text, contact autocomplete, send from any account or alias. |
 | ![Dark mode](docs/screenshots/inbox-dark.png) | ![Settings](docs/screenshots/settings.png) |
 | **Dark mode** — follows your system preference, or pick one and stick with it. | **Settings** — add accounts, reorder them, choose how much history to sync. |
+| ![Filters](docs/screenshots/filters.png) | ![Calendar](docs/screenshots/calendar.png) |
+| **Filters** — conditions as a tree, restated in plain English, counted against real mail before you save. | **Calendar** — beside the mail on a wide screen, its own page below that. |
 
 <sub>Screenshots use demo data — none of the accounts, senders or messages shown are real.</sub>
 

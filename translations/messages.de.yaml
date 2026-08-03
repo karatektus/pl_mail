@@ -1020,7 +1020,7 @@ settings:
         count: '%count% Filter'
         count_capped: 'Trifft auf %count%+ vorhandene Nachrichten zu'
         count_error: Noch kein verwendbarer Filter
-        count_exact: 'Trifft auf %count% vorhandene Nachrichten zu'
+        count_exact: 'Trifft auf %count% vorhandene Nachricht zu|Trifft auf %count% vorhandene Nachrichten zu'
         delete: Filter "%name%" löschen
         delete_confirm: 'Den Filter "%name%" löschen? Bereits einsortierte Mail bleibt, wo sie ist.'
         delete_title: Filter löschen
