@@ -1,0 +1,40 @@
+{# An account's folder rows, without the frame around them.
+
+   Two callers: the frame response below (`_account_labels.html.twig`), for an
+   account the user just expanded, and the sidebar itself, which renders the
+   already-expanded account's rows straight into the page — a list fetched one
+   request after the sidebar is a list that blinks on every navigation.
+
+   Each entry carries `account`, which narrows the label view to this account.
+   Without it these linked to the plain label view, and since labels are
+   user-scoped and bind to several accounts at once, opening "Receipts" under
+   one account listed every account's Receipts — read as this account's, and it
+   was not. The sidebar's own label section still links without it, because
+   there the label genuinely does mean "across everything". #}
+
+{# No pl-3 on the nav: the indent is depth now, so the pill still reaches the
+   sidebar's left edge like every other row rather than starting three units
+   in. #}
+<nav class="space-y-0.5">
+    {% for label in labels %}
+        {# The same .nav-item pill as the rest of the sidebar, and a sidebar
+           link target so the open folder is highlighted at all — these rows had
+           a rounded-lg hover box and no active state whatsoever. Depth rides in
+           --label-depth, which the pill adds to, rather than an inline
+           padding-left the pill would know nothing about. #}
+        <a
+            data-ui--sidebar-target="link"
+            href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
+            data-turbo-frame="_top"
+            data-turbo-prefetch="false"
+            class="nav-item flex items-center justify-between py-1.5 text-xs transition-colors text-ink-muted"
+            style="--label-depth: {{ 12 + label.depth * 12 }}px"
+        >
+            <span class="truncate">{{ label.name }}</span>
+            {% if not label.isSystem %}
+                {% import '_partials/_sidebar.html.twig' as sidebar %}
+                {{ sidebar.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
+            {% endif %}
+        </a>
+    {% endfor %}
+</nav>

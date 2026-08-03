@@ -1,68 +1,91 @@
 import { Controller } from "@hotwired/stimulus";
 
+/**
+ * Expands an account's folder list in the sidebar.
+ *
+ * Which row is highlighted is not decided here. It used to be, in a
+ * highlightActive() that compared pathnames and ignored the `?account=` these
+ * links carry — so the same label lit up under every account at once. The
+ * sidebar controller owns that for every nav row, this one included.
+ */
 export default class extends Controller {
-    static targets = ["frame", "chevron", "link"]; // add "link" target
-    static values = { foldersUrl: String, active: Boolean };
+    static targets = ["frame", "chevron"];
+    static values = { foldersUrl: String, persistUrl: String, account: Number, active: Boolean };
 
     connect() {
         this._onOtherExpanded = this._handleOtherExpanded.bind(this);
-        this._onTurboLoad = this.highlightActive.bind(this);
-
         window.addEventListener("settings--account-expand:opened", this._onOtherExpanded);
-        document.addEventListener("turbo:load", this._onTurboLoad);
-        this.element.addEventListener('turbo:frame-load', () => this.highlightActive());
-
-        if (this.activeValue && !this.frameTarget.src) {
-            this.frameTarget.src = this.foldersUrlValue;
-        }
-
-        this.highlightActive();
     }
 
     disconnect() {
         window.removeEventListener("settings--account-expand:opened", this._onOtherExpanded);
-        document.removeEventListener("turbo:load", this._onTurboLoad);
     }
 
-    toggle(event) {
-        const frame    = this.frameTarget;
-        const chevron  = this.chevronTarget;
-        const isHidden = frame.classList.contains("hidden");
-
-        if (isHidden) {
+    toggle() {
+        if (this.frameTarget.classList.contains("hidden")) {
             window.dispatchEvent(new CustomEvent("settings--account-expand:opened", {
-                detail: { element: this.element }
+                detail: { element: this.element },
             }));
 
-            frame.classList.remove("hidden");
-            chevron.classList.add("rotate-90");
+            this._open();
+            this._remember(this.accountValue);
 
-            if (!frame.src) {
-                frame.src = this.foldersUrlValue;
-            }
-        } else {
-            frame.classList.add("hidden");
-            chevron.classList.remove("rotate-90");
+            return;
         }
+
+        this._close();
+        this._remember(null);
     }
 
     stop(event) {
         event.stopPropagation();
     }
 
-    _handleOtherExpanded(event) {
-        if (event.detail.element !== this.element) {
-            this.frameTarget.classList.add("hidden");
-            this.chevronTarget.classList.remove("rotate-90");
+    // ── Private ───────────────────────────────────────────────────────────
+
+    _open() {
+        this.frameTarget.classList.remove("hidden");
+        this.chevronTarget.classList.add("rotate-90");
+
+        if (!this.frameTarget.src) {
+            this.frameTarget.src = this.foldersUrlValue;
         }
     }
 
-    highlightActive() {
-        this.linkTargets.forEach((link) => {
-            const isActive = window.location.pathname === new URL(link.href).pathname;
-            link.classList.toggle('bg-accent-soft', isActive);
-            link.classList.toggle('text-accent', isActive);
-            link.classList.toggle('text-ink-muted', !isActive);
-        });
+    _close() {
+        this.frameTarget.classList.add("hidden");
+        this.chevronTarget.classList.remove("rotate-90");
+    }
+
+    _handleOtherExpanded(event) {
+        if (event.detail.element !== this.element) {
+            this._close();
+        }
+    }
+
+    /**
+     * Tell the server which account is open, so the next render already has
+     * the folder list in it.
+     *
+     * Fire and forget, with keepalive: the click that expands an account is
+     * often the click that navigates, and the request has to outlive the page
+     * it was made from. A preference that fails to save is not worth
+     * interrupting anyone over — the list is open either way, it just will not
+     * be next time.
+     */
+    _remember(accountId) {
+        if (false === this.hasPersistUrlValue) {
+            return;
+        }
+
+        fetch(this.persistUrlValue, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
+            },
+            body: JSON.stringify({ account: accountId }),
+            keepalive: true,
+        }).catch(() => {});
     }
 }

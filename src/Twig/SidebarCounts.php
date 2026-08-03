@@ -6,6 +6,7 @@ namespace App\Twig;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -27,12 +28,34 @@ class SidebarCounts
     private ?int $snoozedCount = null;
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
+    /** @var array<int, list<Label>> account id => its visible labels */
+    private array $accountLabels = [];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
     ) {}
+
+    /**
+     * The visible labels materialised on one account, for the folder list the
+     * sidebar renders inline when that account is the expanded one.
+     *
+     * The same read MailController::accountFolders does, which still serves
+     * the list when another account is expanded by hand. This exists so the
+     * account that was *already* expanded is in the first paint instead of
+     * being fetched after it — which is the difference between a sidebar and a
+     * sidebar that blinks on every navigation.
+     *
+     * @return list<Label>
+     */
+    public function labelsForAccount(Account $account): array
+    {
+        return $this->accountLabels[(int) $account->id] ??= array_values(array_filter(
+            $this->labelRepository->findBoundToAccount($account),
+            static fn (Label $label): bool => true === $label->isVisible,
+        ));
+    }
 
     public function forRole(LabelRole $role): int
     {

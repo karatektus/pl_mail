@@ -8,12 +8,14 @@ use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Twig\SidebarCounts;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -312,13 +314,48 @@ final class MailController extends AbstractController
     }
 
     /**
+     * Remembers which account's folder list is open, so the sidebar can render
+     * it already expanded rather than expanding it afterwards.
+     *
+     * Server-side rather than in localStorage, for the reason the calendar
+     * pane's width is: the sidebar re-renders on every visit, and a list
+     * restored by JavaScript after that render is a list the user watches
+     * blink on every click.
+     */
+    #[Route('/sidebar/account-expanded', name: 'sidebar_account_expanded', methods: ['POST'])]
+    public function sidebarAccountExpanded(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        if (false === $this->isCsrfTokenValid('ajax', (string) $request->headers->get('X-CSRF-Token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        /** @var User $user */
+        $user      = $this->getUser();
+        $accountId = $request->toArray()['account'] ?? null;
+
+        // Ownership is checked even though this is only a preference: the id
+        // comes back in the next render, where it decides whose folder list
+        // gets read.
+        $account = is_int($accountId) ? $this->accountRepository->find($accountId) : null;
+
+        $user->expandedAccountId = (null !== $account && $account->usr === $user)
+            ? (int) $account->id
+            : null;
+
+        $em->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    /**
      * Unread badge counts for the sidebar, keyed the same way the badges are
      * (see the unread_badge macro in _partials/_sidebar.html.twig).
      *
-     * The desktop sidebar is data-turbo-permanent, so a Turbo visit carries
-     * the old element over and its badges would otherwise go stale. The
-     * sidebar controller polls this after a Mercure sync and patches the
-     * badges in place, which keeps scroll position and open label trees.
+     * The sidebar controller polls this after a Mercure sync and patches the
+     * badges in place rather than re-rendering the nav, which would drop the
+     * scroll position and any collapsed tree mid-sync.
      */
     #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
     public function sidebarCounts(SidebarCounts $counts): JsonResponse

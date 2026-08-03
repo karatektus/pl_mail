@@ -60,7 +60,13 @@ keeps its accessible name either way.
     {% set children = sidebarCounts.visibleChildrenOf(label) %}
 
     {% if children|length > 0 %}
-        <details class="group/tree" open>
+        {# Keyed by full name so the controller can put the tree back the way
+           the user left it after the sidebar re-renders. #}
+        <details class="group/tree"
+                 data-ui--sidebar-target="tree"
+                 data-tree-key="{{ label.fullName }}"
+                 data-action="toggle->ui--sidebar#rememberTree"
+                 open>
             <summary class="nav-item group/label flex items-center gap-1 py-1.5 cursor-pointer list-none
                             transition-colors"
                      style="--label-depth: {{ depth * 14 }}px">
@@ -112,8 +118,15 @@ can restyle it (see .layout-flat in app.css). The drawer copy is deliberately
 excluded: it floats over a dim backdrop and must stay an opaque card whatever
 the layout.
 #}
+{#
+Deliberately NOT data-turbo-permanent. Carrying the element across visits kept
+it from moving, but it also froze what it says: after a data reset the deleted
+labels stayed in the nav, linking to 404s, and a label created or renamed
+anywhere else stayed invisible until a full reload. It re-renders per visit
+now, and the two things anyone would notice moving are restored by the
+controller instead — the scroll position and which trees are open.
+#}
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
-       {% if not (_drawerMode is defined and _drawerMode) %}data-turbo-permanent{% endif %}
        data-controller="ui--sidebar"
        data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
        class="flex flex-col w-56 h-full flex-shrink-0 overflow-hidden pane
@@ -133,7 +146,9 @@ the layout.
     </div>
 
     {# Nav #}
-    <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-sm">
+    <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-sm"
+         data-ui--sidebar-target="scroller"
+         data-action="scroll->ui--sidebar#rememberScroll">
 
         <a href="{{ path('app_mail_inbox') }}"
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"

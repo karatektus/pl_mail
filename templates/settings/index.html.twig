@@ -1,7 +1,10 @@
 {% extends '_layout/app.html.twig' %}
 
 {% block title %}{{ 'settings.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
-{% block body_controllers %}mercure{% endblock %}
+{# No override any more. This one existed to drop mail--mail-pane, and named
+   `mercure` — an identifier that stopped existing when the controllers were
+   grouped into directories, so settings pages have had no live updates since.
+   The default is core--mercure alone, which is what this page wanted. #}
 {% block body %}
     <div class="h-screen overflow-hidden app-bg"
          data-controller="ui--sidebar-drawer">

@@ -1,21 +1,30 @@
 {% set _drawerClose = _drawerClose is defined ? _drawerClose : '' %}
 
 {% for account in accounts %}
+    {% set expanded = app.user.expandedAccountId == account.id %}
+
     <div data-controller="settings--account-expand"
          data-settings--account-expand-folders-url-value="{{ path('app_mail_account_folders', { account: account.id }) }}"
-         data-settings--account-expand-active-value="false">
+         data-settings--account-expand-persist-url-value="{{ path('app_mail_sidebar_account_expanded') }}"
+         data-settings--account-expand-account-value="{{ account.id }}"
+         data-settings--account-expand-active-value="{{ expanded ? 'true' : 'false' }}">
 
         {# Two targets, not one. The name opens the account — everything in it,
            whatever it is labelled — and the chevron opens its label list. The
            whole row used to toggle, which left no way to ask for the account
            itself, and expanding was the only thing clicking an account could
            do. #}
-        <div class="flex items-center rounded-lg hover:bg-hover transition-colors">
+        {# The row is the .nav-item, so an account gets the same pill as every
+           other sidebar row — a rounded-lg box on this wrapper was the last
+           square highlight left in the sidebar. It has to be the wrapper and
+           not the anchor: on the anchor the pill stops before the chevron and
+           cuts the row in half. #}
+        <div class="nav-item flex items-center transition-colors text-ink-muted">
             <a
                 href="{{ path('app_mail_account', { account: account.id }) }}"
                 data-ui--sidebar-target="link"
                 data-action="{{ _drawerClose }}"
-                class="nav-item flex items-center gap-2 px-3 py-2 flex-1 min-w-0 text-ink-muted"
+                class="flex items-center gap-2 py-2 flex-1 min-w-0"
             >
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
                 <span class="truncate text-sm">{{ account.displayAddress }}</span>
@@ -28,15 +37,26 @@
                 data-action="click->settings--account-expand#toggle"
             >
                 <i data-settings--account-expand-target="chevron"
-                   class="fa-solid fa-chevron-right text-xs shrink-0 transition-transform duration-150"></i>
+                   class="fa-solid fa-chevron-right text-xs shrink-0 transition-transform duration-150
+                          {{ expanded ? 'rotate-90' : '' }}"></i>
             </button>
         </div>
 
+        {# The expanded account's folders are rendered here, not fetched after
+           the fact: the sidebar re-renders on every visit, and a list that
+           arrives one request later is a list that visibly blinks on each
+           navigation. Any other account still loads its frame on demand. #}
         <turbo-frame
             id="account-folders-{{ account.id }}"
             data-settings--account-expand-target="frame"
-            class="hidden"
+            class="{{ expanded ? '' : 'hidden' }}"
         >
+            {% if expanded %}
+                {% include 'mail/_account_folder_rows.html.twig' with {
+                    account: account,
+                    labels: sidebarCounts.labelsForAccount(account),
+                } only %}
+            {% endif %}
         </turbo-frame>
     </div>
 {% else %}

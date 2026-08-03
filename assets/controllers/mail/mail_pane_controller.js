@@ -19,7 +19,6 @@ export default class extends Controller {
     static values = { open: Boolean , mailBoxId: Number};
 
     connect() {
-        console.log("[mail-pane] connected");
         this._listUrl = this.openValue ? null : window.location.href;
         this._onPopState = this._handlePopState.bind(this);
         window.addEventListener("popstate", this._onPopState);

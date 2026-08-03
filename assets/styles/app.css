@@ -664,41 +664,43 @@
 
     /* No label to run into: the pill stays a centred, evenly-rounded square
        rather than bleeding off the left edge. */
-    .sidebar-rail #sidebar .nav-item.is-active,
-    .sidebar-rail #sidebar .nav-item:hover {
+    .sidebar-rail #sidebar .nav-item {
         margin-inline-start: 0;
         padding-inline-start: 0;
         border-radius: 0.5rem;
     }
 }
 
-/* Nav rows own their inline padding here rather than through px-3, because a
-   label row adds its tree depth on top and the pill below has to add to that
-   same figure. --label-depth is 0 for the system rows, which leaves them at
-   the 0.75rem they always had. */
-#sidebar .nav-item,
-#sidebar-drawer-inner .nav-item {
-    padding-inline-start: calc(0.75rem + var(--label-depth, 0px));
-    padding-inline-end: 0.75rem;
-}
+/* Nav rows, Gmail-style: the pill runs off the left edge and caps with a full
+   radius on the right. Every row carries the shape at all times and only the
+   colour arrives with hover or .is-active — which is the fix for the highlight
+   appearing to "morph into a square bar" on the way out. It was the shape
+   snapping back the instant the pointer left while the background was still
+   fading through its colour transition, so the tail of every hover was a
+   square. Geometry that never changes cannot flash.
 
-/* Active and hovered nav rows, Gmail-style: the pill runs off the left edge
-   and caps with a full radius on the right. Hover and active share the shape
-   and differ only in colour, which rides along as utilities — the shape lives
-   here because it has to cancel the nav's own padding, and a utility cannot
-   do that without leaking into every other row.
+   The row owns its inline padding here rather than through px-3 because a
+   label adds its tree depth on top, and the negative margin has to cancel the
+   nav's own px-2 without moving the icon: -0.5rem out, +0.5rem back into the
+   padding, so text sits exactly where it did.
 
    Custom labels are the same rows: the pill hangs off .nav-item, not off the
    anchor, so a nested label gets the identical shape and the sidebar
    controller tints the row rather than the text inside it. */
-#sidebar .nav-item.is-active,
-#sidebar .nav-item:hover,
-#sidebar-drawer-inner .nav-item.is-active,
-#sidebar-drawer-inner .nav-item:hover {
-    margin-inline-start: -0.5rem;   /* cancel nav's px-2 … */
-    /* … without moving the icon, depth and all */
+#sidebar .nav-item,
+#sidebar-drawer-inner .nav-item {
+    margin-inline-start: -0.5rem;
     padding-inline-start: calc(1.25rem + var(--label-depth, 0px));
+    padding-inline-end: 0.75rem;
     border-radius: 0 9999px 9999px 0;
+}
+
+/* The trail to the selected row: a label's ancestors read as "you are in
+   here", not as a second selection, so they take the accent on the text and
+   leave the filled pill to the row that is actually open. */
+#sidebar .nav-item.is-active-ancestor:not(.is-active),
+#sidebar-drawer-inner .nav-item.is-active-ancestor:not(.is-active) {
+    color: rgb(var(--rgb-accent));
 }
 
 /* Flat has no card to respect: the sidebar sits straight against the window,

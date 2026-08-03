@@ -1,5 +1,9 @@
 {% extends '_layout/app.html.twig' %}
 
+{# The list/reading pane switch belongs to these pages alone: its targets are
+   further down this file, and it throws on connect wherever they are not. #}
+{% block body_controllers %}{{ parent() }} mail--mail-pane{% endblock %}
+
 {% set selectedMessage = selectedMessage|default(null) %}
 
 {#

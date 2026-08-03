@@ -338,6 +338,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
 
     /**
+     * The account whose folder list is expanded in the sidebar, or null.
+     *
+     * Server-side for the same reason the calendar pane's width is: the
+     * sidebar re-renders on every visit, and a list restored by JavaScript
+     * afterwards is a list the user watches blink. Rendered into the first
+     * paint, it never moves.
+     */
+    public const string SETTING_SIDEBAR_ACCOUNT = 'sidebar.expanded_account';
+
+    /**
      * When this admin last had the log browser open, as an ISO 8601 string.
      *
      * In the settings bag rather than a column: it is a read marker for one
@@ -446,6 +456,18 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return array_values(array_filter($panels, 'is_string'));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SIDEBAR_ACCOUNT. */
+    public ?int $expandedAccountId {
+        get {
+            $accountId = $this->getSetting(self::SETTING_SIDEBAR_ACCOUNT);
+
+            return is_int($accountId) ? $accountId : null;
+        }
+        set (?int $accountId) {
+            $this->setSetting(self::SETTING_SIDEBAR_ACCOUNT, $accountId);
         }
     }
 

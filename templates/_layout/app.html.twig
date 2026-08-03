@@ -103,7 +103,11 @@
     {# ui--tooltip is outside the block on purpose: it replaces the native
        `title` tooltip application-wide, so a page overriding body_controllers
        must not be able to drop it and fall back to the black box. #}
-    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}{% endif %}"
+    {# mail--mail-pane is deliberately not in this default: its targets live in
+       the mailbox layout, and a controller that connects without them throws
+       on every page that has no reading pane — which is every admin, settings
+       and calendar page. The mailbox layout adds it back. #}
+    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure{% endblock %}{% endif %}"
     {% if app.user %}
         {# URL only. The cookie that authorizes this subscription is attached by
            MercureCookieSubscriber — passing `subscribe:` here would mint it too,
