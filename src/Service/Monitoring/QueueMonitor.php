@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
+use App\Repository\Monitoring\MessengerQueueRepository;
 use DateTimeInterface;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -19,14 +19,13 @@ use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
  * Read-side monitoring of the doctrine messenger transport plus management
  * of the failure transport (list / retry / delete).
  *
- * Queue stats query messenger_messages directly via DBAL — cheap, and the
- * doctrine transport's schema is stable. Failed messages go through the
- * transport's ListableReceiver so envelopes keep their stamps.
+ * Queue depth comes from MessengerQueueRepository. Failed messages go through
+ * the transport's ListableReceiver so envelopes keep their stamps.
  */
 final class QueueMonitor
 {
     public function __construct(
-        private readonly Connection          $connection,
+        private readonly MessengerQueueRepository $queues,
         #[Autowire(service: 'messenger.transport.failed')]
         private readonly ReceiverInterface   $failureTransport,
         private readonly MessageBusInterface $bus,
@@ -37,13 +36,7 @@ final class QueueMonitor
      */
     public function queueStats(): array
     {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT queue_name, COUNT(*) AS pending, MIN(available_at) AS oldest
-             FROM messenger_messages
-             WHERE delivered_at IS NULL
-             GROUP BY queue_name
-             ORDER BY queue_name',
-        );
+        $rows = $this->queues->pendingByQueue();
 
         $stats = [];
 

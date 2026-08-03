@@ -37,6 +37,9 @@ class CalendarEventRepository extends ServiceEntityRepository
      * yet — everything unbounded, plus anything ending after the horizon the
      * last sweep wrote.
      *
+     * QueryBuilder because that "plus" is an OR between a null test and a
+     * comparison, and findBy() joins its criteria with AND.
+     *
      * @return list<CalendarEvent>
      */
     public function findNeedingHorizonExtension(DateTimeImmutable $horizonEnd): array

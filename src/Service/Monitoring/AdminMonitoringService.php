@@ -6,11 +6,12 @@ namespace App\Service\Monitoring;
 
 use App\Entity\Mail\Account;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Repository\Monitoring\ProcessHeartbeatRepository;
 use App\Service\Gmail\GmailPushSettings;
 use App\Service\Push\PushSubscriptionRegistry;
 use App\Service\Setup\PublicUrlSetting;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -19,6 +20,12 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 final class AdminMonitoringService
 {
+    /**
+     * Monolog's ERROR. Anything below it is the push path narrating itself;
+     * at or above it, something did not work.
+     */
+    private const int PUSH_FAILURE_LEVEL = 400;
+
     /** Log messages the Gmail push path emits, in the order the path runs. */
     private const array PUSH_LOG_MESSAGES = [
         'GmailPushSubscriptionManager: watch failed, falling back to polling',
@@ -34,7 +41,8 @@ final class AdminMonitoringService
     public function __construct(
         private readonly ProcessHeartbeatRepository $heartbeatRepository,
         private readonly AccountRepository          $accountRepository,
-        private readonly Connection                 $connection,
+        private readonly LogEntryRepository         $logRepository,
+        private readonly PostgresStatusRepository   $databaseStatus,
         private readonly PushSubscriptionRegistry   $pushRegistry,
         // Through the same resolvers the push path itself uses — the panel
         // exists to explain that path, so reading the raw environment here
@@ -210,21 +218,7 @@ final class AdminMonitoringService
      */
     public function accountOverview(): array
     {
-        return $this->connection->fetchAllAssociative(
-            'SELECT
-                a.id,
-                a.email,
-                a.is_active,
-                (SELECT COUNT(*) FROM message_thread t WHERE t.account_id = a.id) AS threads,
-                (SELECT COUNT(*)
-                   FROM message m
-                   LEFT JOIN mailbox mb ON m.mailbox_id = mb.id
-                   LEFT JOIN message_thread mt ON m.thread_id = mt.id
-                  WHERE mb.account_id = a.id OR mt.account_id = a.id) AS messages,
-                (SELECT MAX(t.last_message_at) FROM message_thread t WHERE t.account_id = a.id) AS last_activity
-             FROM account a
-             ORDER BY a.email',
-        );
+        return $this->accountRepository->findSyncOverviewRows();
     }
 
     /**
@@ -232,18 +226,7 @@ final class AdminMonitoringService
      */
     public function tableSizes(int $limit = 12): array
     {
-        $rows = $this->connection->fetchAllAssociative(
-            "SELECT
-                c.relname AS table_name,
-                pg_size_pretty(pg_total_relation_size(c.oid)) AS pretty_size,
-                pg_total_relation_size(c.oid) AS bytes
-             FROM pg_class c
-             JOIN pg_namespace n ON n.oid = c.relnamespace
-             WHERE n.nspname = 'public' AND c.relkind = 'r'
-             ORDER BY bytes DESC
-             LIMIT :limit",
-            ['limit' => $limit],
-        );
+        $rows = $this->databaseStatus->tableSizes($limit);
 
         $sizes = [];
 
@@ -289,15 +272,7 @@ final class AdminMonitoringService
      */
     private function pushEvents(): array
     {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT message, MAX(level_name) AS level_name, COUNT(*) AS hits, MAX(created_at) AS last_at
-               FROM log_entry
-              WHERE message IN (:messages)
-              GROUP BY message
-              ORDER BY last_at DESC',
-            ['messages' => self::PUSH_LOG_MESSAGES],
-            ['messages' => \Doctrine\DBAL\ArrayParameterType::STRING],
-        );
+        $rows = $this->logRepository->countsByMessage(self::PUSH_LOG_MESSAGES);
 
         $events = [];
 
@@ -327,16 +302,9 @@ final class AdminMonitoringService
      */
     private function lastPushFailure(): ?array
     {
-        $row = $this->connection->fetchAssociative(
-            "SELECT message, context, created_at
-               FROM log_entry
-              WHERE message LIKE 'GmailPush%'
-                AND level >= 400
-              ORDER BY created_at DESC
-              LIMIT 1",
-        );
+        $row = $this->logRepository->findLatestErrorStartingWith('GmailPush', self::PUSH_FAILURE_LEVEL);
 
-        if (false === $row) {
+        if (null === $row) {
             return null;
         }
 

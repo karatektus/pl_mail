@@ -13,6 +13,7 @@ use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
@@ -67,6 +68,7 @@ final class SeedTestEmailCommand extends Command
         private readonly EntityManagerInterface   $entityManager,
         private readonly UserRepository           $userRepository,
         private readonly AccountRepository        $accountRepository,
+        private readonly MessageRepository        $messageRepository,
         private readonly MessageThreadRepository  $threadRepository,
         private readonly LabelResolver            $labelResolver,
         private readonly StateManager             $stateManager,
@@ -234,13 +236,7 @@ final class SeedTestEmailCommand extends Command
         // the reseed's own flush, moments later, insists the threads it has
         // just persisted were never persisted ("A new entity was found through
         // the relationship Message#thread"). Nothing here wants the objects.
-        $messageIds = array_column(
-            $this->entityManager
-                ->createQuery('SELECT m.id FROM ' . Message::class . ' m WHERE m.thread IN (:threads)')
-                ->setParameter('threads', $threadIds)
-                ->getScalarResult(),
-            'id',
-        );
+        $messageIds = $this->messageRepository->findIdsForThreads($threadIds);
 
         foreach ($messageIds as $messageId) {
             $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,6 +47,8 @@ final class ClearTestDraftsCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
+        private readonly MessageRepository       $messageRepository,
+        private readonly MessageThreadRepository $threadRepository,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
         #[Autowire('%kernel.environment%')]
@@ -79,18 +81,7 @@ final class ClearTestDraftsCommand extends Command
             return Command::FAILURE;
         }
 
-        /** @var list<Message> $drafts */
-        $drafts = $this->entityManager->createQueryBuilder()
-            ->select('m')
-            ->from(Message::class, 'm')
-            ->innerJoin('m.account', 'a')
-            ->innerJoin('m.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('l.role = :drafts')
-            ->setParameter('user', $user)
-            ->setParameter('drafts', LabelRole::Drafts)
-            ->getQuery()
-            ->getResult();
+        $drafts = $this->messageRepository->findDraftsForUser($user);
 
         /** @var array<int, MessageThread> $touchedThreads */
         $touchedThreads = [];
@@ -142,15 +133,7 @@ final class ClearTestDraftsCommand extends Command
         // outlives the messages and is exactly what makes the subject filters
         // ambiguous on a rerun. A thread with no messages left is dead weight
         // in a test database, so those go too.
-        $emptyThreads = $this->entityManager->createQueryBuilder()
-            ->select('t')
-            ->from(MessageThread::class, 't')
-            ->innerJoin('t.account', 'a')
-            ->where('a.usr = :user')
-            ->andWhere('t.messages IS EMPTY')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
+        $emptyThreads = $this->threadRepository->findEmptyForUser($user);
 
         foreach ($emptyThreads as $emptyThread) {
             $this->entityManager->remove($emptyThread);

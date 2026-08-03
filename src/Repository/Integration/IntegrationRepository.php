@@ -26,13 +26,7 @@ class IntegrationRepository extends ServiceEntityRepository
      */
     public function findForUserOrdered(UserInterface $user): array
     {
-        return $this->createQueryBuilder('integration')
-            ->where('integration.usr = :usr')
-            ->setParameter('usr', $user)
-            ->orderBy('integration.provider', 'ASC')
-            ->addOrderBy('integration.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(['usr' => $user], ['provider' => 'ASC', 'name' => 'ASC']);
     }
 
     /**
@@ -40,15 +34,10 @@ class IntegrationRepository extends ServiceEntityRepository
      */
     public function findActiveForUser(UserInterface $user): array
     {
-        return $this->createQueryBuilder('integration')
-            ->where('integration.usr = :usr')
-            ->andWhere('integration.isActive = :active')
-            ->setParameter('usr', $user)
-            ->setParameter('active', true)
-            ->orderBy('integration.provider', 'ASC')
-            ->addOrderBy('integration.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        return $this->findBy(
+            ['usr' => $user, 'isActive' => true],
+            ['provider' => 'ASC', 'name' => 'ASC'],
+        );
     }
 
     /**
@@ -71,33 +60,29 @@ class IntegrationRepository extends ServiceEntityRepository
         ));
     }
 
+    /** Scoped to the owner, so another user's id can never resolve. */
     public function findOneForUser(UserInterface $user, int $id): ?Integration
     {
-        return $this->createQueryBuilder('integration')
-            ->where('integration.usr = :usr')
-            ->andWhere('integration.id = :id')
-            ->setParameter('usr', $user)
-            ->setParameter('id', $id)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['usr' => $user, 'id' => $id]);
     }
 
+    /**
+     * The oldest connection of a provider. Ordered rather than arbitrary: a
+     * user may have connected the same provider twice, and "the one that has
+     * been there longest" is at least a stable answer.
+     */
     public function findOneByProviderForUser(UserInterface $user, Provider $provider): ?Integration
     {
-        return $this->createQueryBuilder('integration')
-            ->where('integration.usr = :usr')
-            ->andWhere('integration.provider = :provider')
-            ->setParameter('usr', $user)
-            ->setParameter('provider', $provider)
-            ->orderBy('integration.id', 'ASC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->findOneBy(['usr' => $user, 'provider' => $provider], ['id' => 'ASC']);
     }
 
     /**
      * How many users have connected each provider, for the admin list.
      * Providers nobody has connected are absent rather than zero.
+     *
+     * A COUNT DISTINCT grouped by provider — an aggregate, which Doctrine's API
+     * has no form of: count() answers one number about one criteria set, so
+     * this would otherwise be a query per provider on every admin page load.
      *
      * @return array<string,int> provider backing value => distinct user count
      */

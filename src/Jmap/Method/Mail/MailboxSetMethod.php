@@ -366,7 +366,7 @@ final class MailboxSetMethod implements JmapMethod
             // The label row only goes when its last binding does; that is also
             // what drops the message_label rows, so mail stays labelled as long
             // as any account still uses the label.
-            $this->detachAccountMessages($account, $label);
+            $this->labelRepository->unlabelAccountMessagesAndThreads($account, $label);
             $this->entityManager->remove($binding);
             $label->removeBinding($binding);
 
@@ -376,34 +376,6 @@ final class MailboxSetMethod implements JmapMethod
 
             $destroyed[] = $id;
         }
-    }
-
-    /**
-     * Detach a label from every message of one account, leaving the other
-     * accounts' messages labelled. Raw SQL because this is a bulk delete on a
-     * join table with no entity of its own.
-     */
-    private function detachAccountMessages(Account $account, Label $label): void
-    {
-        $connection = $this->entityManager->getConnection();
-
-        $connection->executeStatement(
-            'DELETE FROM message_label ml
-             USING message m
-             WHERE ml.message_id = m.id
-               AND ml.label_id = :labelId
-               AND m.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->id],
-        );
-
-        $connection->executeStatement(
-            'DELETE FROM thread_label tl
-             USING message_thread t
-             WHERE tl.message_thread_id = t.id
-               AND tl.label_id = :labelId
-               AND t.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->id],
-        );
     }
 
     private function requireName(mixed $name): string

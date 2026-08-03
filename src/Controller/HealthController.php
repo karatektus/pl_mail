@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\QueueMonitor;
-use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -44,7 +44,7 @@ final class HealthController extends AbstractController
     private const int QUEUE_BACKLOG_THRESHOLD = 5000;
 
     public function __construct(
-        private readonly Connection             $connection,
+        private readonly PostgresStatusRepository $database,
         private readonly QueueMonitor           $queueMonitor,
         private readonly AdminMonitoringService $monitoring,
     ) {}
@@ -52,7 +52,11 @@ final class HealthController extends AbstractController
     #[Route('/healthz', name: 'app_health', methods: ['GET'])]
     public function health(): JsonResponse
     {
-        $database = $this->databaseIsUp();
+        // The failure is swallowed inside the repository rather than reported:
+        // a probe that handed back the connection error would tell an
+        // unauthenticated caller the database host and user. The reason is in
+        // the logs.
+        $database = $this->database->isReachable();
 
         // Only the database decides the status code. Without it nothing works;
         // with it the app still serves mail that is already synced, even if
@@ -73,20 +77,6 @@ final class HealthController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    private function databaseIsUp(): bool
-    {
-        try {
-            $this->connection->executeQuery('SELECT 1');
-
-            return true;
-        } catch (\Throwable) {
-            // Swallowed deliberately: the caller gets false, and the reason is
-            // in the logs. A probe that returned the connection error would
-            // hand an unauthenticated caller the database host and user.
-            return false;
-        }
-    }
 
     /**
      * Null when the answer cannot be determined, which is not the same as

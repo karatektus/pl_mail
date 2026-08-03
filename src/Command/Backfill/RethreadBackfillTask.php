@@ -9,8 +9,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -38,10 +38,11 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
     private const int BATCH_SIZE = 500;
 
     public function __construct(
-        private AccountRepository      $accountRepository,
-        private MessageRepository      $messageRepository,
-        private MessageThreader        $threader,
-        private EntityManagerInterface $em,
+        private AccountRepository       $accountRepository,
+        private MessageRepository       $messageRepository,
+        private MessageThreadRepository $threadRepository,
+        private MessageThreader         $threader,
+        private EntityManagerInterface  $em,
     ) {}
 
     public function getName(): string
@@ -149,30 +150,15 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function snapshotThreadState(int $accountId): array
     {
-        $connection = $this->em->getConnection();
-
-        $rows = $connection->fetchAllAssociative(
-            'SELECT t.id, t.starred_at, t.snoozed_until, t.category, MIN(m.id) AS anchor
-             FROM message_thread t
-             INNER JOIN message m ON m.thread_id = t.id
-             WHERE t.account_id = :accountId
-             GROUP BY t.id',
-            ['accountId' => $accountId],
-        );
+        $rows = $this->threadRepository->findCarriedOverStateForAccount($accountId);
 
         if (count($rows) === 0) {
             return [];
         }
 
-        $labelsByThread = [];
-
-        foreach ($connection->fetchAllAssociative(
-            'SELECT message_thread_id, label_id FROM thread_label WHERE message_thread_id IN (:threadIds)',
-            ['threadIds' => array_map(static fn(array $row): int => (int) $row['id'], $rows)],
-            ['threadIds' => ArrayParameterType::INTEGER],
-        ) as $row) {
-            $labelsByThread[(int) $row['message_thread_id']][] = (int) $row['label_id'];
-        }
+        $labelsByThread = $this->threadRepository->findLabelIdsByThread(
+            array_map(static fn(array $row): int => (int) $row['id'], $rows),
+        );
 
         $snapshots = [];
 
@@ -200,17 +186,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function discardThreads(int $accountId): void
     {
-        $connection = $this->em->getConnection();
-
-        $connection->executeStatement(
-            'UPDATE message SET thread_id = NULL WHERE account_id = :accountId',
-            ['accountId' => $accountId],
-        );
-
-        $connection->executeStatement(
-            'DELETE FROM message_thread WHERE account_id = :accountId',
-            ['accountId' => $accountId],
-        );
+        $this->messageRepository->detachAllFromThreadsForAccount($accountId);
+        $this->threadRepository->deleteAllForAccount($accountId);
 
         $this->em->clear();
     }
@@ -225,12 +202,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function rebuildThreads(SymfonyStyle $io, int $accountId): int
     {
-        $total = (int) $this->messageRepository->createQueryBuilder('m')
-            ->select('COUNT(m.id)')
-            ->where('m.account = :accountId')
-            ->setParameter('accountId', $accountId)
-            ->getQuery()
-            ->getSingleScalarResult();
+        $total = $this->messageRepository->count(['account' => $accountId]);
 
         if (0 === $total) {
             return 0;
@@ -269,43 +241,24 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
             return 0;
         }
 
-        $connection = $this->em->getConnection();
-        $restored   = 0;
+        $restored = 0;
 
         foreach ($snapshots as $snapshot) {
-            $threadId = $connection->fetchOne(
-                'SELECT thread_id FROM message WHERE id = :anchor',
-                ['anchor' => $snapshot['anchor']],
-            );
+            $threadId = $this->messageRepository->findThreadIdFor($snapshot['anchor']);
 
-            if (false === $threadId || null === $threadId) {
+            if (null === $threadId) {
                 continue;
             }
 
-            // COALESCE, not assignment: several old threads can collapse into one
-            // rebuilt thread, and a value already restored by an earlier snapshot
-            // must not be blanked by a later one that happened to be empty.
-            $connection->executeStatement(
-                'UPDATE message_thread
-                 SET starred_at    = COALESCE(starred_at, :starredAt),
-                     snoozed_until = COALESCE(snoozed_until, :snoozedUntil),
-                     category      = COALESCE(category, :category)
-                 WHERE id = :threadId',
-                [
-                    'starredAt'    => $snapshot['starredAt'],
-                    'snoozedUntil' => $snapshot['snoozedUntil'],
-                    'category'     => $snapshot['category'],
-                    'threadId'     => $threadId,
-                ],
+            $this->threadRepository->restoreCarriedOverState(
+                $threadId,
+                $snapshot['starredAt'],
+                $snapshot['snoozedUntil'],
+                $snapshot['category'],
             );
 
             foreach ($snapshot['labels'] as $labelId) {
-                $connection->executeStatement(
-                    'INSERT INTO thread_label (message_thread_id, label_id)
-                     VALUES (:threadId, :labelId)
-                     ON CONFLICT DO NOTHING',
-                    ['threadId' => $threadId, 'labelId' => $labelId],
-                );
+                $this->threadRepository->addLabelIfAbsent($threadId, $labelId);
             }
 
             ++$restored;
@@ -322,21 +275,7 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function idChunks(int $accountId, bool $orderByArrival = false): iterable
     {
-        $qb = $this->messageRepository->createQueryBuilder('m')
-            ->select('m.id')
-            ->where('m.account = :accountId')
-            ->setParameter('accountId', $accountId);
-
-        if (true === $orderByArrival) {
-            $qb->orderBy('m.receivedAt', 'ASC');
-        }
-
-        $qb->addOrderBy('m.id', 'ASC');
-
-        $ids = array_map(
-            static fn(array $row): int => (int) $row['id'],
-            $qb->getQuery()->getArrayResult(),
-        );
+        $ids = $this->messageRepository->findAllIdsForAccount($accountId, $orderByArrival);
 
         foreach (array_chunk($ids, self::BATCH_SIZE) as $chunk) {
             yield $chunk;
@@ -350,16 +289,8 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
      */
     private function messagesByIds(array $ids, bool $orderByArrival = false): array
     {
-        $qb = $this->messageRepository->createQueryBuilder('m')
-            ->where('m.id IN (:ids)')
-            ->setParameter('ids', $ids);
-
-        if (true === $orderByArrival) {
-            $qb->orderBy('m.receivedAt', 'ASC');
-        }
-
-        $qb->addOrderBy('m.id', 'ASC');
-
-        return $qb->getQuery()->getResult();
+        return true === $orderByArrival
+            ? $this->messageRepository->findByIdsInArrivalOrder($ids)
+            : $this->messageRepository->findByIds($ids);
     }
 }

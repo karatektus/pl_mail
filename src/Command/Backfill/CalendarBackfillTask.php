@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Command\Backfill;
 
-use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Calendar\CalendarProvisioner;
@@ -65,14 +64,7 @@ final readonly class CalendarBackfillTask implements BackfillTaskInterface
         $processed = 0;
 
         while (true) {
-            /** @var list<User> $users */
-            $users = $this->userRepository->createQueryBuilder('usr')
-                ->where('usr.id > :afterId')
-                ->setParameter('afterId', $lastId)
-                ->orderBy('usr.id', 'ASC')
-                ->setMaxResults(self::BATCH_SIZE)
-                ->getQuery()
-                ->getResult();
+            $users = $this->userRepository->findBatchAfterId($lastId, self::BATCH_SIZE);
 
             if (0 === count($users)) {
                 break;

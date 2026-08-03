@@ -194,6 +194,17 @@ final class MigrateCommand extends Command
     }
 
     /**
+     * The one place in this project where SQL lives outside a repository, and
+     * deliberately so.
+     *
+     * `pg_try_advisory_lock` reads nothing and returns no rows — it is a lock
+     * primitive, not a query over domain data, so there is no entity it belongs
+     * to and no repository it would be at home in. More decisively, an advisory
+     * lock is scoped to the database SESSION: it has to be taken, held and
+     * released on the very connection that runs the migration. Routing it
+     * through a collaborator would put a second object between this command and
+     * the only property that makes the lock work, for no gain.
+     *
      * Cast to int in SQL: pg_try_advisory_lock returns a boolean, and what a
      * driver hands back for one is its own business — true, 't' and '1' are all
      * plausible. An integer is not.

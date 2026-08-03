@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Jmap\Protocol\Exception\MethodException;
-use Doctrine\DBAL\Connection;
+use App\Repository\Mail\MessageRepository;
 
 /**
  * Runs a compiled Email/query: filter -> sort -> optional thread collapse ->
  * window. Returns ids only, which is all RFC 8621 §4.4 asks for.
+ *
+ * What this owns is the JMAP half — which sort properties exist, what an
+ * unsupported one costs the client, and where "position" and "total" are
+ * measured. The read is MessageRepository::findIdsForQuery().
  */
 final class EmailQueryRunner
 {
@@ -27,7 +31,7 @@ final class EmailQueryRunner
     ];
 
     public function __construct(
-        private readonly Connection $connection,
+        private readonly MessageRepository $messages,
         private readonly EmailFilterCompiler $filterCompiler,
     ) {
     }
@@ -44,24 +48,11 @@ final class EmailQueryRunner
         int $position,
         ?int $limit,
     ): EmailQueryResult {
-        $parameters = ['accountId' => $accountId];
-        $types = [];
-        $where = 'm.account_id = :accountId';
-
-        if (null !== $filter) {
-            $compiled = $this->filterCompiler->compile($filter);
-            $where .= ' AND '.$compiled->sql;
-            $parameters = array_merge($parameters, $compiled->parameters);
-            $types = $compiled->parameterTypes();
-        }
-
-        $sql = sprintf(
-            'SELECT m.id, m.thread_id FROM message m WHERE %s ORDER BY %s',
-            $where,
+        $rows = $this->messages->findIdsForQuery(
+            $accountId,
+            null === $filter ? null : $this->filterCompiler->compile($filter),
             $this->orderBy($sort),
         );
-
-        $rows = $this->connection->executeQuery($sql, $parameters, $types)->fetchAllAssociative();
 
         $ids = $this->collect($rows, $collapseThreads);
         $total = count($ids);
