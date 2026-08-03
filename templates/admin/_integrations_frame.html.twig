@@ -17,7 +17,10 @@ the same screen as the field.
        work without it. Same row shape as a service, so the page reads as one
        list of app registrations rather than two unrelated things. #}
     <div id="admin-mail-providers" class="space-y-2">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+        {# Bare text, so it carries the rows' own inset rather than borrowing
+           one from the frame around it — which runs edge to edge on a narrow
+           pane. Same figure as the row padding, so the two line up. #}
+        <h3 class="px-5 text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {{ 'admin.integrations.mail.heading'|trans }}
         </h3>
 
@@ -61,7 +64,7 @@ the same screen as the field.
         {% endfor %}
     </div>
 
-    <p class="text-sm text-ink-muted pt-2">
+    <p class="px-5 pt-2 text-sm text-ink-muted">
         {{ 'admin.integrations.intro'|trans }}
     </p>
 

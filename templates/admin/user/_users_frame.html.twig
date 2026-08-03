@@ -12,7 +12,10 @@ not a way into a mailbox.
 #}
 <turbo-frame id="admin-users" class="block space-y-3">
 
-    <div class="flex items-center gap-3">
+    {# Bare markup, so it carries the rows' own inset rather than borrowing one
+       from the frame around it — which runs edge to edge on a narrow pane. Same
+       figure as the row padding, so the heading lines up with the names. #}
+    <div class="flex items-center gap-3 px-5">
         <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {{ 'admin.users.heading'|trans }}
         </h3>
@@ -112,12 +115,12 @@ not a way into a mailbox.
     </div>
 
     {% if pagination.pageCount > 1 %}
-        <div class="flex justify-center pt-1">
+        <div class="flex justify-center px-5 pt-1">
             {{ knp_pagination_render(pagination) }}
         </div>
     {% endif %}
 
-    <p class="text-xs text-ink-faint">
+    <p class="px-5 text-xs text-ink-faint">
         <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
         {{ 'admin.users.console_note'|trans }}
     </p>

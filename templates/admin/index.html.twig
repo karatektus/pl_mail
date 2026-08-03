@@ -45,8 +45,14 @@
                         </div>
 
                         {# Scrollable body: section nav + content.
-                           Two grid children only — nav and ONE content wrapper. #}
-                        <div class="flex-1 overflow-y-auto">
+                           Two grid children only — nav and ONE content wrapper.
+
+                           A container, so the bleed below is decided by how wide
+                           this pane actually is. Viewport width is the wrong
+                           question and not even monotonic in it: at 768px the
+                           mail sidebar appears and the section nav takes 180px,
+                           leaving less room here than a 390px phone has. #}
+                        <div class="flex-1 overflow-y-auto @container">
                             <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
 
                                 {# Section nav #}
@@ -87,8 +93,20 @@
 
                                 {# Single content wrapper — second (and last) grid child.
                                    Only the active section's frame is rendered, so only
-                                   one loads/polls at a time. #}
-                                <div class="min-w-0">
+                                   one loads/polls at a time.
+
+                                   The negative margin cancels the wrapper's px-6 for
+                                   this child only, so the section cards run to the
+                                   pane's edges and their own px-5 is the single inset
+                                   left. Nesting a card in a card cost 44px a side
+                                   otherwise — a quarter of a 360px screen spent
+                                   before a word of content. The nav keeps the
+                                   padding — it is the other grid child and reads
+                                   as chrome, not as a card. Restored above 42rem
+                                   of pane, where the space is not scarce and a
+                                   card flush to the panel edge only looks
+                                   unfinished. #}
+                                <div class="min-w-0 -mx-6 @2xl:mx-0">
 
                                     {% if section == 'database' %}
 

@@ -11,10 +11,15 @@
 
 <turbo-frame id="admin-db">
 
-    <div class="space-y-6">
+    {# A container, so the gauges below break on how wide this frame is rather
+       than on the viewport. `md:` was the worst possible question to ask: 768px
+       is where the mail sidebar and the section nav both appear, so the frame is
+       at its narrowest exactly where four columns were being demanded, and the
+       labels spilled out of the tiles. #}
+    <div class="@container space-y-6">
 
         {# ── Health gauges ─────────────────────────────────────────────── #}
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 @lg:grid-cols-4 gap-3">
             <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
                 <p class="text-xs text-ink-faint">{{ 'admin.db.connections'|trans }}</p>
                 <p class="mt-1 text-lg font-semibold text-ink">{{ gauges.connections }}</p>
