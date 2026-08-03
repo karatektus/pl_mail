@@ -192,6 +192,33 @@ class ContactRepository extends ServiceEntityRepository
     }
 
     /**
+     * Whether this one address is somebody the user has mailed.
+     *
+     * The set-returning projection above is what classifying a mailbox wants;
+     * this is what explaining a single message wants, and loading the whole
+     * address book to answer for one sender would be that same mistake in
+     * miniature.
+     */
+    public function isCorrespondent(UserInterface $user, string $email): bool
+    {
+        $email = mb_strtolower(trim($email));
+
+        if ('' === $email) {
+            return false;
+        }
+
+        return 0 < (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.usr = :user')
+            ->andWhere('LOWER(c.email) = :email')
+            ->andWhere('c.isCorrespondent = true')
+            ->setParameter('user', $user)
+            ->setParameter('email', $email)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * QueryBuilder because the match is on LOWER(email): addresses are stored
      * as they arrived and compared case-insensitively, and findBy() compares
      * the stored value rather than an expression over it.

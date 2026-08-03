@@ -612,6 +612,15 @@ message:
     attachments: Attachments
     back: Back
     details:
+        categorised:
+            correspondent: 'you have written to this sender'
+            default: 'nothing marked it as bulk mail'
+            forum: 'a mailing-list header: '
+            gmail: 'Gmail said so: '
+            promotion: 'a bulk-mail header: '
+            social: 'the sender domain '
+            update: 'an automated-mail signal: '
+        category: category
         bcc: bcc
         cc: cc
         date: date
@@ -1062,6 +1071,8 @@ settings:
         queued: Queued — applying to existing mail in the background.
         ran: Filter applied to existing mail.
         remove_action: Remove action
+        empty_group: 'This group is empty — it matches nothing until you add a condition.'
+        no_conditions: 'No conditions: this rule acts on every message it is scoped to.'
         remove_condition: Remove condition
         remove_group: Remove group
         reorder: Drag to reorder
@@ -1077,6 +1088,7 @@ settings:
         stop_help: Later filters are skipped for any message this one matches.
         subheading: Sort mail automatically as it arrives.
         summary:
+            every_message: 'this is any message'
             full: 'If %conditions% → %actions%'
             no_actions: 'If %conditions% → (no actions yet)'
         then: Then

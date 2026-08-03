@@ -49,11 +49,38 @@ final class MessageCategorizer
      */
     public function categorize(Message $message, array $correspondentEmails): MessageCategory
     {
+        return $this->explain($message, $correspondentEmails)['category'];
+    }
+
+    /**
+     * The same decision, with the step that made it and the thing it matched
+     * on.
+     *
+     * Recomputed on demand rather than stored: the cascade reads only
+     * persisted data — that is the whole design of this class — so explaining
+     * a message costs one pass over headers already in memory, and cannot
+     * drift from a column written by an older version of these rules.
+     *
+     * `reason` is a key, not a sentence: the message view translates it.
+     * `signal` is the header or domain that decided it, or null where the
+     * decision was the absence of any signal.
+     *
+     * @param array<string,true> $correspondentEmails normalised sender addresses
+     *                                                the user has mailed; forces Primary
+     *
+     * @return array{category: MessageCategory, reason: string, signal: string|null}
+     */
+    public function explain(Message $message, array $correspondentEmails): array
+    {
         $gmailLabelIds = $message->gmailLabelIds;
 
         // Gmail account: its own classification is authoritative.
         if (null !== $gmailLabelIds) {
-            return MessageCategory::fromGmailLabels($gmailLabelIds);
+            return [
+                'category' => MessageCategory::fromGmailLabels($gmailLabelIds),
+                'reason'   => 'gmail',
+                'signal'   => $this->gmailCategoryLabel($gmailLabelIds),
+            ];
         }
 
         $from = mb_strtolower(trim((string) $message->fromAddress));
@@ -61,116 +88,133 @@ final class MessageCategorizer
         // Correspondence override sits on top of the cascade: if the user has
         // mailed this sender, it belongs in Primary regardless of bulk headers.
         if ('' !== $from && true === isset($correspondentEmails[$from])) {
-            return MessageCategory::Primary;
+            return [
+                'category' => MessageCategory::Primary,
+                'reason'   => 'correspondent',
+                'signal'   => $from,
+            ];
         }
 
         $headers = $this->normaliseKeys($message->headers ?? []);
 
         // Order matters: discussion lists also carry List-Unsubscribe, so
         // Forums must be tested before Promotions.
-        if (true === $this->isForum($headers)) {
-            return MessageCategory::Forums;
+        $signal = $this->forumSignal($headers);
+
+        if (null !== $signal) {
+            return ['category' => MessageCategory::Forums, 'reason' => 'forum', 'signal' => $signal];
         }
 
-        if (true === $this->isPromotion($headers)) {
-            return MessageCategory::Promotions;
+        $signal = $this->promotionSignal($headers);
+
+        if (null !== $signal) {
+            return ['category' => MessageCategory::Promotions, 'reason' => 'promotion', 'signal' => $signal];
         }
 
-        if (true === $this->isSocial($from)) {
-            return MessageCategory::Social;
+        $signal = $this->socialDomain($from);
+
+        if (null !== $signal) {
+            return ['category' => MessageCategory::Social, 'reason' => 'social', 'signal' => $signal];
         }
 
-        if (true === $this->isUpdate($headers, $from)) {
-            return MessageCategory::Updates;
+        $signal = $this->updateSignal($headers, $from);
+
+        if (null !== $signal) {
+            return ['category' => MessageCategory::Updates, 'reason' => 'update', 'signal' => $signal];
         }
 
-        return MessageCategory::Primary;
+        return ['category' => MessageCategory::Primary, 'reason' => 'default', 'signal' => null];
+    }
+
+    /**
+     * Which of Gmail's own category labels was on the message. Null when it
+     * carried none, which is how Gmail says Primary.
+     *
+     * @param list<string> $labelIds
+     */
+    private function gmailCategoryLabel(array $labelIds): ?string
+    {
+        foreach ($labelIds as $labelId) {
+            if (true === str_starts_with($labelId, 'CATEGORY_')) {
+                return $labelId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * These return the signal they matched rather than true, so the decision
+     * can be explained in the message view without a second set of rules that
+     * would be free to disagree with these ones.
+     *
+     * @param array<string,string> $headers
+     */
+    private function forumSignal(array $headers): ?string
+    {
+        foreach (['list-post', 'x-mailman-version', 'x-google-group-id', 'x-discourse-post-id'] as $name) {
+            if ('' !== $this->header($headers, $name)) {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     /**
      * @param array<string,string> $headers
      */
-    private function isForum(array $headers): bool
+    private function promotionSignal(array $headers): ?string
     {
-        if ('' !== $this->header($headers, 'list-post')) {
-            return true;
-        }
-
-        if ('' !== $this->header($headers, 'x-mailman-version')) {
-            return true;
-        }
-
-        if ('' !== $this->header($headers, 'x-google-group-id')) {
-            return true;
-        }
-
-        if ('' !== $this->header($headers, 'x-discourse-post-id')) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * @param array<string,string> $headers
-     */
-    private function isPromotion(array $headers): bool
-    {
-        if ('' !== $this->header($headers, 'list-unsubscribe')) {
-            return true;
-        }
-
-        if ('' !== $this->header($headers, 'feedback-id')) {
-            return true;
-        }
-
-        if ('' !== $this->header($headers, 'x-csa-complaints')) {
-            return true;
+        foreach (['list-unsubscribe', 'feedback-id', 'x-csa-complaints'] as $name) {
+            if ('' !== $this->header($headers, $name)) {
+                return $name;
+            }
         }
 
         if ('bulk' === mb_strtolower($this->header($headers, 'precedence'))) {
-            return true;
+            return 'precedence: bulk';
         }
 
-        return false;
+        return null;
     }
 
-    private function isSocial(string $fromAddress): bool
+    private function socialDomain(string $fromAddress): ?string
     {
         $atPos = mb_strrpos($fromAddress, '@');
 
         if (false === $atPos) {
-            return false;
+            return null;
         }
 
         $domain = mb_substr($fromAddress, $atPos + 1);
 
         foreach (self::SOCIAL_DOMAINS as $social) {
             if ($domain === $social || true === str_ends_with($domain, '.' . $social)) {
-                return true;
+                return $social;
             }
         }
 
-        return false;
+        return null;
     }
 
     /**
      * @param array<string,string> $headers
      */
-    private function isUpdate(array $headers, string $fromAddress): bool
+    private function updateSignal(array $headers, string $fromAddress): ?string
     {
         $autoSubmitted = mb_strtolower($this->header($headers, 'auto-submitted'));
 
         if ('' !== $autoSubmitted && 'no' !== $autoSubmitted) {
-            return true;
+            return 'auto-submitted';
         }
 
         if ('auto_reply' === mb_strtolower($this->header($headers, 'precedence'))) {
-            return true;
+            return 'precedence: auto_reply';
         }
 
         if ('' !== $this->header($headers, 'x-auto-response-suppress')) {
-            return true;
+            return 'x-auto-response-suppress';
         }
 
         $localPart = mb_strstr($fromAddress, '@', true);
@@ -178,16 +222,14 @@ final class MessageCategorizer
         if (false !== $localPart) {
             $localPart = mb_strtolower($localPart);
 
-            if (true === str_contains($localPart, 'no-reply') || true === str_contains($localPart, 'noreply')) {
-                return true;
-            }
-
-            if (true === str_contains($localPart, 'do-not-reply') || true === str_contains($localPart, 'donotreply')) {
-                return true;
+            foreach (['no-reply', 'noreply', 'do-not-reply', 'donotreply'] as $needle) {
+                if (true === str_contains($localPart, $needle)) {
+                    return $localPart . '@';
+                }
             }
         }
 
-        return false;
+        return null;
     }
 
     /**

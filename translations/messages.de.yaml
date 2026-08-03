@@ -616,6 +616,15 @@ message:
     attachments: Anhänge
     back: Zurück
     details:
+        categorised:
+            correspondent: 'Sie haben diesem Absender geschrieben'
+            default: 'nichts wies auf Massenmail hin'
+            forum: 'ein Mailinglisten-Header: '
+            gmail: 'laut Gmail: '
+            promotion: 'ein Massenmail-Header: '
+            social: 'die Absenderdomain '
+            update: 'ein Hinweis auf automatischen Versand: '
+        category: Kategorie
         bcc: BCC
         cc: CC
         date: Datum
@@ -1078,6 +1087,8 @@ settings:
         queued: Eingereiht — wird im Hintergrund auf vorhandene Mail angewendet.
         ran: Filter auf vorhandene Mail angewendet.
         remove_action: Aktion entfernen
+        empty_group: 'Diese Gruppe ist leer — sie trifft auf nichts zu, bis eine Bedingung hinzukommt.'
+        no_conditions: 'Keine Bedingungen: Diese Regel gilt für jede Nachricht in ihrem Geltungsbereich.'
         remove_condition: Bedingung entfernen
         remove_group: Gruppe entfernen
         reorder: Zum Umsortieren ziehen
@@ -1093,6 +1104,7 @@ settings:
         stop_help: Für Nachrichten, auf die dieser Filter zutrifft, werden spätere Filter übersprungen.
         subheading: Mail automatisch beim Eintreffen sortieren.
         summary:
+            every_message: 'es sich um irgendeine Nachricht handelt'
             full: 'Wenn %conditions% → %actions%'
             no_actions: 'Wenn %conditions% → (noch keine Aktionen)'
         then: Dann

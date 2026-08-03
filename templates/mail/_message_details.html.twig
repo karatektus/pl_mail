@@ -121,6 +121,25 @@ replyTo column on the entity.
                 <dt class="text-ink-faint text-right">{{ 'message.details.signed_by'|trans }}</dt>
                 <dd class="text-ink-soft break-words">{{ signedBy }}</dd>
             {% endif %}
+
+            {#
+            Which tab this landed in, and what put it there. Recomputed from
+            the stored headers rather than read off the row, so it explains
+            the rules as they are now — see MessageCategoryExtension.
+            #}
+            {% set categorised = category_explanation(message) %}
+            {% if categorised %}
+                <dt class="text-ink-faint text-right">{{ 'message.details.category'|trans }}</dt>
+                <dd class="text-ink-soft break-words">
+                    {{ ('tabs.' ~ categorised.category)|trans }}
+                    <span class="text-ink-faint">
+                        — {{ ('message.details.categorised.' ~ categorised.reason)|trans }}
+                        {%- if categorised.signal %}
+                            <span class="font-mono">{{ categorised.signal }}</span>
+                        {%- endif -%}
+                    </span>
+                </dd>
+            {% endif %}
         </dl>
 
         {% if rawHeaders is not empty %}

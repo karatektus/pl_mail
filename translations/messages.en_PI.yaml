@@ -477,6 +477,15 @@ message:
     attachments: Cargo
     back: Back
     details:
+        categorised:
+            correspondent: 'ye have written to this one'
+            default: 'naught marked it as bilge'
+            forum: 'a crew-list header: '
+            gmail: 'Gmail swore it: '
+            promotion: 'a bulk-cargo header: '
+            social: 'the sender port '
+            update: 'a sign of an unmanned sender: '
+        category: rank
         bcc: bcc
         cc: cc
         date: date
@@ -918,6 +927,8 @@ settings:
         queued: Put to the crew — runnin' over the yarns aboard.
         ran: Sieve run over the yarns aboard.
         remove_action: Remove order
+        empty_group: 'This band be empty — it catches naught till ye add a test.'
+        no_conditions: 'No tests: this rule takes every bottle in its waters.'
         remove_condition: Remove test
         remove_group: Remove bundle
         reorder: Haul to reorder
@@ -933,6 +944,7 @@ settings:
         stop_help: Later sieves be skipped for any yarn this one catches.
         subheading: Sort yarns automatic-like as they come aboard.
         summary:
+            every_message: 'it be any bottle at all'
             full: 'If %conditions% → %actions%'
             no_actions: 'If %conditions% → (no orders yet)'
         then: Then
