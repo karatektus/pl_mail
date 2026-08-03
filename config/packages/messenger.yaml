@@ -3,21 +3,70 @@ framework:
         failure_transport: failed
 
         transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
+            # Three queues, because they answer to different people. A send is a
+            # user standing at the screen; a sync is mail that will still be
+            # there in a minute; a backfill is nobody waiting at all. On one
+            # transport with one worker they were strictly ordered by arrival,
+            # so pressing Send behind a Gmail batch meant waiting for the batch
+            # — the queue decided by accident what should be decided on purpose.
+            #
+            # Separate transports are not enough on their own: a worker already
+            # inside a long handler cannot pick up a send however it is
+            # prioritised. Each of these has its own worker process, which is
+            # what actually makes a send independent of a sync. See compose.yaml.
+
+            # Anything leaving plMail, and the only queue a user waits on.
+            export:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: export
+                # Tighter than the others on purpose. The failures here are a
+                # relay refusing a connection or a provider blinking, which
+                # clear in seconds, and somebody is watching the outcome. Five
+                # attempts still spans about a minute and a half.
+                retry_strategy:
+                    delay: 2000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 60000
+
+            # Mail coming in, and the work that immediately follows it.
+            ingest:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: ingest
+                # Everything here talks to a third party, and the failures worth
+                # retrying are the ones that take minutes to clear: a rate limit,
+                # a mailbox restart. The defaults were 1s/2s/4s — a seven-second
+                # window that exhausted every attempt before a rate limit had any
+                # chance to end, so a recoverable failure dead-lettered as
+                # reliably as an unrecoverable one. This spans about eight and a
+                # half minutes, and max_delay keeps the tail inside the worker's
+                # --time-limit=3600 so a delayed retry is never left waiting on a
+                # restart.
+                retry_strategy:
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
+
+            # Bulk and deliberate: backfills, rule runs over existing mail,
+            # admin sweeps. Slow is fine; blocking the other two is not.
+            maintenance:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: maintenance
+                retry_strategy:
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
+
+            # Kept for one release so envelopes queued before the split still
+            # have somewhere to land — the maintenance worker drains it. Nothing
+            # routes here any more. Remove once a release has passed.
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                # Everything on this transport talks to a third party — Gmail,
-                # Graph, an IMAP server, an SMTP relay — and the failures worth
-                # retrying at all are the ones that take minutes to clear. The
-                # defaults here were 1s/2s/4s: a seven-second window that
-                # exhausted every attempt before a rate limit or a mailbox
-                # restart had any chance to end, so a recoverable failure
-                # dead-lettered as reliably as an unrecoverable one. 5s/15s/45s/
-                # 135s/300s spans roughly eight and a half minutes instead.
-                #
-                # max_delay caps the growth at five minutes so the tail stays
-                # inside the worker's --time-limit=3600 and a delayed retry is
-                # never left waiting on a restart.
                 retry_strategy:
                     delay: 5000
                     multiplier: 3
@@ -39,14 +88,14 @@ framework:
             # sweep running inside the HTTP request, under the web container's
             # time and memory limits. The tradeoff of routing it here is that a
             # long sweep occupies the async consumer while it runs.
-            Symfony\Component\Console\Messenger\RunCommandMessage: async
-            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
-            Symfony\Component\Notifier\Message\ChatMessage: async
-            Symfony\Component\Notifier\Message\SmsMessage: async
-            App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: async
-            App\Infrastructure\Messaging\Message\SyncAccountMessage: async
-            App\Infrastructure\Messaging\Message\SendMessageMessage: async
-            App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: async
+            Symfony\Component\Console\Messenger\RunCommandMessage: maintenance
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: export
+            Symfony\Component\Notifier\Message\ChatMessage: export
+            Symfony\Component\Notifier\Message\SmsMessage: export
+            App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: ingest
+            App\Infrastructure\Messaging\Message\SyncAccountMessage: ingest
+            App\Infrastructure\Messaging\Message\SendMessageMessage: export
+            App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: export
             # Unrouted until now, which meant every Gmail label change — archive,
             # trash, star, mark read, attach a label — made a live Google API
             # call inside the HTTP request the user was waiting on. Its IMAP and
@@ -54,12 +103,12 @@ framework:
             # behaved differently depending on the account it landed on, and a
             # Gmail outage or rate limit surfaced as a 500 on a UI action rather
             # than a retry on the worker.
-            App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: async
-            App\Infrastructure\Messaging\Message\HarvestContactsMessage: async
-            App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: async
-            App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: async
-            App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: async
-            App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: async
-            App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: async
-            App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: async
-            App\Infrastructure\Messaging\Message\ExtractEventsMessage: async
+            App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: export
+            App\Infrastructure\Messaging\Message\HarvestContactsMessage: maintenance
+            App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
+            App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
+            App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export
+            App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: export
+            App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
+            App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
+            App\Infrastructure\Messaging\Message\ExtractEventsMessage: ingest

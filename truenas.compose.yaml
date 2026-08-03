@@ -224,15 +224,89 @@ services:
             database:
                 condition: service_healthy
 
-    messenger-worker:
+    # ── Workers, one per queue ────────────────────────────────────────────
+    # Three processes rather than three transports on one: a worker already
+    # inside a long handler cannot pick up anything else however the queues are
+    # prioritised, which is why pressing Send used to wait for a Gmail batch.
+    #
+    # Anything leaving plMail, and the only queue somebody is watching.
+    worker-export:
         image: *image
         pull_policy: always
         restart: unless-stopped
-        command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+        command: php bin/console messenger:consume export --time-limit=3600 --memory-limit=256M
         stop_grace_period: 15s
         environment:
             <<: *app-env
-            APP_CONTAINER_NAME: messenger-worker
+            APP_CONTAINER_NAME: worker-export
+        volumes:
+            # One mount for everything plMail writes. APP_STORAGE_DIR and
+            # APP_SECRETS_* point inside it, so attachments, raw messages,
+            # uploads and the generated secrets all land here — and every
+            # service sees the same files, which the encryption key depends on.
+            - type: bind
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
+        healthcheck:
+            disable: true
+        depends_on:
+            secrets-init:
+                condition: service_completed_successfully
+            database:
+                condition: service_healthy
+
+    # Runs the scheduled jobs defined in
+    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
+    # renewal, monitoring pruning and the blob sweep. Drop this service and
+    # none of them ever fire.
+
+    # Mail arriving and the work that immediately follows it.
+    worker-ingest:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        command: php bin/console messenger:consume ingest --time-limit=3600 --memory-limit=256M
+        stop_grace_period: 15s
+        environment:
+            <<: *app-env
+            APP_CONTAINER_NAME: worker-ingest
+        volumes:
+            # One mount for everything plMail writes. APP_STORAGE_DIR and
+            # APP_SECRETS_* point inside it, so attachments, raw messages,
+            # uploads and the generated secrets all land here — and every
+            # service sees the same files, which the encryption key depends on.
+            - type: bind
+              source: *path_data
+              target: /app/var/data
+              bind:
+                  create_host_path: true
+        healthcheck:
+            disable: true
+        depends_on:
+            secrets-init:
+                condition: service_completed_successfully
+            database:
+                condition: service_healthy
+
+    # Runs the scheduled jobs defined in
+    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
+    # renewal, monitoring pruning and the blob sweep. Drop this service and
+    # none of them ever fire.
+
+    # Bulk and deliberate. Also drains `async`, the pre-split queue, so
+    # envelopes written before the upgrade still have a consumer. Nothing routes
+    # there any more; drop it once a release has passed.
+    worker-maintenance:
+        image: *image
+        pull_policy: always
+        restart: unless-stopped
+        command: php bin/console messenger:consume maintenance async --time-limit=3600 --memory-limit=256M
+        stop_grace_period: 15s
+        environment:
+            <<: *app-env
+            APP_CONTAINER_NAME: worker-maintenance
         volumes:
             # One mount for everything plMail writes. APP_STORAGE_DIR and
             # APP_SECRETS_* point inside it, so attachments, raw messages,

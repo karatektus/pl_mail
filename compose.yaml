@@ -89,14 +89,68 @@ services:
       database:
         condition: service_healthy
 
-  messenger-worker:
+  # ── Workers, one per queue ────────────────────────────────────────────────
+  # Three processes rather than three transports on one, because a worker
+  # already inside a long handler cannot pick up anything else however the
+  # queues are prioritised. That was the whole problem: pressing Send behind a
+  # Gmail batch waited for the batch.
+  #
+  # Anything leaving plMail, and the only queue somebody is watching. Kept on
+  # its own process so a send is never behind a sync.
+  worker-export:
     image: *app-image
     restart: unless-stopped
-    command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+    command: php bin/console messenger:consume export --time-limit=3600 --memory-limit=256M
     stop_grace_period: 15s
     environment:
       <<: *app-env
-      APP_CONTAINER_NAME: messenger-worker
+      APP_CONTAINER_NAME: worker-export
+    volumes:
+      # See the note on the php service: this mount is not optional.
+      - app_secrets:/app/var/secrets
+    healthcheck:
+      disable: true
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+
+
+  # Mail arriving and the work that immediately follows it.
+  worker-ingest:
+    image: *app-image
+    restart: unless-stopped
+    command: php bin/console messenger:consume ingest --time-limit=3600 --memory-limit=256M
+    stop_grace_period: 15s
+    environment:
+      <<: *app-env
+      APP_CONTAINER_NAME: worker-ingest
+    volumes:
+      # See the note on the php service: this mount is not optional.
+      - app_secrets:/app/var/secrets
+    healthcheck:
+      disable: true
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+
+
+  # Bulk and deliberate: backfills, rule runs over existing mail, admin sweeps.
+  #
+  # Also drains `async`, the pre-split queue, so envelopes written before the
+  # upgrade still have a consumer. Nothing routes there any more — drop it from
+  # this command and from messenger.yaml once a release has passed.
+  worker-maintenance:
+    image: *app-image
+    restart: unless-stopped
+    command: php bin/console messenger:consume maintenance async --time-limit=3600 --memory-limit=256M
+    stop_grace_period: 15s
+    environment:
+      <<: *app-env
+      APP_CONTAINER_NAME: worker-maintenance
     volumes:
       # See the note on the php service: this mount is not optional.
       - app_secrets:/app/var/secrets

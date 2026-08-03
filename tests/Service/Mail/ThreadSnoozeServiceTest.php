@@ -298,8 +298,15 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         return $mailbox;
     }
 
+    /**
+     * The export queue by name, not whichever transport happens to exist:
+     * these are outgoing pushes and sends, and which queue they land on is
+     * the behaviour under test. Routing one of them onto ingest would put a
+     * user's archive behind a mailbox sync, which is the thing the split was
+     * made to stop.
+     */
     private function transport(): InMemoryTransport
     {
-        return self::getContainer()->get('messenger.transport.async');
+        return self::getContainer()->get('messenger.transport.export');
     }
 }

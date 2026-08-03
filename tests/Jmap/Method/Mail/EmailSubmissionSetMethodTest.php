@@ -43,7 +43,7 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
         $this->method = $container->get(EmailSubmissionSetMethod::class);
         $this->get    = $container->get(EmailSubmissionGetMethod::class);
 
-        $transport = $container->get('messenger.transport.async');
+        $transport = $container->get('messenger.transport.export');
 
         self::assertInstanceOf(InMemoryTransport::class, $transport, 'the test transport must not really send mail');
 

@@ -222,9 +222,16 @@ final class LabelChangePropagatorTest extends KernelTestCase
         return $found;
     }
 
+    /**
+     * The export queue by name, not whichever transport happens to exist:
+     * these are outgoing pushes and sends, and which queue they land on is
+     * the behaviour under test. Routing one of them onto ingest would put a
+     * user's archive behind a mailbox sync, which is the thing the split was
+     * made to stop.
+     */
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.export');
 
         // in-memory:// in .env.test, so this holds — asserted rather than cast,
         // because a transport change would otherwise surface as a confusing
