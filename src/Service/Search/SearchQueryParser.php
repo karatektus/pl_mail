@@ -38,6 +38,16 @@ final class SearchQueryParser
      * mapping lives here rather than next to the SQL so an unknown mailbox is
      * caught while the query is still text and can still become free text.
      */
+    /**
+     * The operator names this understands, for telling a half-typed operator
+     * from a word that happens to end in a colon.
+     *
+     * @var list<string>
+     */
+    private const array OPERATORS = [
+        'from', 'to', 'cc', 'subject', 'label', 'has', 'is', 'in', 'after', 'before',
+    ];
+
     private const array ROLES = [
         'inbox'    => 'inbox',
         'sent'     => 'sent',
@@ -72,12 +82,22 @@ final class SearchQueryParser
             $operator = strtolower(trim($operator));
             $value    = trim(trim($value), '"\'');
 
-            // "from:" with nothing after it, which is every query on its way
-            // to being typed. Not a filter — an empty LIKE matches every
-            // message, so the half-typed query would answer with the entire
-            // mailbox — and not free text either, since searching for the
-            // word "from" is not what was meant.
+            // "from:" with nothing after it, which is every query on its way to
+            // being typed. Not a filter — an empty LIKE matches every message,
+            // so the half-typed query would answer with the entire mailbox —
+            // and not free text either, since nobody typing "from:" is looking
+            // for the word "from".
+            //
+            // Only for operators this actually has: "Re:" is a word somebody
+            // searched for, and swallowing it left them searching for nothing
+            // at all.
             if ('' === $value) {
+                if (true === in_array($operator, self::OPERATORS, true)) {
+                    continue;
+                }
+
+                $remainder[] = $token;
+
                 continue;
             }
 

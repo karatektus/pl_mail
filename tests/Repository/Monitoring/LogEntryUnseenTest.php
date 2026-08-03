@@ -78,20 +78,28 @@ final class LogEntryUnseenTest extends KernelTestCase
         self::assertNull($unseen['level']);
     }
 
-    /** The mark round-trips through the settings bag, where it has no column. */
+    /** Nobody has looked yet, and the bag says so rather than guessing a date. */
+    public function testAFreshUserHasNoSeenMark(): void
+    {
+        self::assertNull((new User())->logsSeenAt);
+    }
+
+    /**
+     * The mark round-trips through the settings bag, where it has no column of
+     * its own — stored as a string and read back as an instant.
+     *
+     * Deliberately not asserting the initial null here too: the property is a
+     * hook over the bag, and static analysis narrows it to null for the rest of
+     * the method the moment a test says it is.
+     */
     public function testTheSeenMarkSurvivesTheSettingsBag(): void
     {
         $user = new User();
         $seen = new DateTimeImmutable('2026-08-03 12:00:00');
 
-        self::assertNull($user->logsSeenAt);
-
         $user->logsSeenAt = $seen;
 
-        self::assertSame(
-            $seen->getTimestamp(),
-            $user->logsSeenAt?->getTimestamp(),
-        );
+        self::assertSame($seen->getTimestamp(), $user->logsSeenAt?->getTimestamp());
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────
