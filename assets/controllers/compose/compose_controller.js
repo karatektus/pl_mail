@@ -655,15 +655,8 @@ export default class extends Controller {
         // In-place draft: the frame IS the row, so put the row markup back
         // rather than leaving a hole in the conversation. Rendered server
         // side so the snippet reflects what was just saved.
-        if (null !== id && frame?.id.startsWith('compose_draft_')) {
-            const row = frame.closest('[id^="thread_message_"]');
-            const html = await this._fetchRow(id);
-
-            if (null !== row && null !== html) {
-                row.outerHTML = html;
-
-                return;
-            }
+        if (null !== id && true === await this._restoreDraftRow(frame, id)) {
+            return;
         }
 
         // Reply box: a draft the autosave created has no row yet — add one,
@@ -769,7 +762,44 @@ export default class extends Controller {
         }
 
         dock.src = `/compose/edit/${id}`;
-        this.element.closest('turbo-frame').innerHTML = '';
+
+        // Put the row back rather than emptying the frame. Popping out moves
+        // where the draft is edited; it does not remove the draft from the
+        // conversation, and the row is how the conversation shows it.
+        //
+        // Emptying was invisible until the window was closed: close() restores
+        // the row only when its own frame is still compose_draft_*, and by then
+        // the editor lives in the dock. So the draft survived, its row did not,
+        // and the thread only told the truth again after a reload.
+        const frame = this.element.closest('turbo-frame');
+
+        if (false === await this._restoreDraftRow(frame, id)) {
+            frame.innerHTML = '';
+        }
+    }
+
+    /**
+     * Swap an in-place editor back for the draft's row.
+     *
+     * Server-rendered so the snippet reflects what was just saved. Answers
+     * false when this is not an in-place editor, or the row or the fetch is not
+     * there — the caller then decides what to leave behind.
+     */
+    async _restoreDraftRow(frame, id) {
+        if (false === frame?.id.startsWith('compose_draft_')) {
+            return false;
+        }
+
+        const row  = frame.closest('[id^="thread_message_"]');
+        const html = await this._fetchRow(id);
+
+        if (null === row || null === html) {
+            return false;
+        }
+
+        row.outerHTML = html;
+
+        return true;
     }
 
     // ── Save draft ────────────────────────────────────────────────────
