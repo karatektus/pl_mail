@@ -97,8 +97,15 @@ export default class extends Controller {
         if (event.key === "Escape") {
             // First Escape dismisses the list, the second clears the box: a
             // suggestion list is not worth losing a typed query over.
+            //
+            // preventDefault is what makes that true. This is an
+            // <input type="search">, and Chromium clears one natively on
+            // Escape — so without this the first press did both, and the
+            // query was gone before the user had dismissed anything.
             if (false === this.dropdownTarget.classList.contains("hidden")) {
+                event.preventDefault();
                 this._closeDropdown();
+
                 return;
             }
 

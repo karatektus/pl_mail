@@ -1,5 +1,5 @@
 import { test as base } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { TEST_USER, login, seed, seedUser } from "./config";
 
 /**
@@ -26,6 +26,9 @@ import { TEST_USER, login, seed, seedUser } from "./config";
  */
 
 const AUTH_DIR = "playwright/.auth";
+
+/** Raw V8 coverage, one file per test — aggregated by bin/js-coverage.mjs. */
+const COVERAGE_DIR = "var/js-coverage";
 
 export const test = base.extend<object, { workerAuth: string }>({
     workerAuth: [
@@ -62,6 +65,43 @@ export const test = base.extend<object, { workerAuth: string }>({
 
     storageState: async ({ workerAuth }, use) => {
         await use(workerAuth);
+    },
+
+    /**
+     * V8 coverage for the application's own JavaScript, when asked for.
+     *
+     * Off unless E2E_JS_COVERAGE is set: collecting it slows every navigation
+     * and writes a file per test, which is a poor trade for a suite usually
+     * being run to find out whether something works.
+     *
+     * Written raw and aggregated afterwards rather than reported per test,
+     * because the numbers only mean anything once every test's ranges for a
+     * given script have been unioned — a controller exercised by three specs
+     * is not three separate coverages of it.
+     */
+    page: async ({ page }, use, testInfo) => {
+        if (undefined === process.env.E2E_JS_COVERAGE) {
+            await use(page);
+
+            return;
+        }
+
+        await page.coverage.startJSCoverage();
+
+        await use(page);
+
+        // A page the test closed itself has nothing left to report, which is
+        // not a reason to fail the run.
+        let entries: unknown[] = [];
+
+        try {
+            entries = await page.coverage.stopJSCoverage();
+        } catch {
+            return;
+        }
+
+        mkdirSync(COVERAGE_DIR, { recursive: true });
+        writeFileSync(`${COVERAGE_DIR}/${testInfo.testId}.json`, JSON.stringify(entries));
     },
 });
 
