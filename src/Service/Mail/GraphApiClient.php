@@ -198,14 +198,14 @@ final class GraphApiClient
      * returned separately so the caller can requeue only what needs retrying.
      *
      * @param list<string> $ids
-     * @return array{messages: list<array<string,mixed>>, throttled: list<string>, failed: array<string,int>}
+     * @return array{messages: list<array<string,mixed>>, throttled: list<string>, failed: array<string,int>, errors: array<string,string>}
      */
     public function batchGetMessages(Account $account, array $ids): array
     {
         $ids = array_values($ids);
 
         if (count($ids) === 0) {
-            return ['messages' => [], 'throttled' => [], 'failed' => []];
+            return ['messages' => [], 'throttled' => [], 'failed' => [], 'errors' => []];
         }
 
         if (count($ids) > self::BATCH_LIMIT) {
@@ -235,6 +235,7 @@ final class GraphApiClient
         $messages  = [];
         $throttled = [];
         $failed    = [];
+        $errors    = [];
 
         foreach ($response['responses'] ?? [] as $sub) {
             $index  = (int) ($sub['id'] ?? -1);
@@ -261,12 +262,28 @@ final class GraphApiClient
             }
 
             $failed[$id] = $status;
+
+            // Graph puts the reason in the sub-response body, and a status on
+            // its own does not identify it: a 400 here can be a malformed id,
+            // a $select the mailbox will not serve, or a message type that has
+            // no MIME. Carried alongside rather than replacing the status, so
+            // the callers that only count failures stay as they are.
+            $error = $sub['body']['error'] ?? null;
+
+            if (true === is_array($error)) {
+                $errors[$id] = trim(sprintf(
+                    '%s: %s',
+                    (string) ($error['code'] ?? 'unknown'),
+                    (string) ($error['message'] ?? ''),
+                ), ': ');
+            }
         }
 
         return [
             'messages'  => $messages,
             'throttled' => $throttled,
             'failed'    => $failed,
+            'errors'    => $errors,
         ];
     }
 

@@ -35,8 +35,15 @@ final readonly class GraphLabelPolicy
 {
     public function pushesAsFolder(Label $label, Account $account): bool
     {
+        // A role is folder-backed only where the provider has that folder.
+        // Snoozed is plMail's own — nothing on Exchange corresponds to it — so
+        // treating it as one sent every snooze looking for a graphFolderId
+        // nobody had set ("folder label has no graphFolderId on this account"),
+        // and made a snoozed message that is also archived look like it was in
+        // two Exchange folders at once, which Exchange cannot represent and
+        // hasConflictingLocations duly warned about.
         if (null !== $label->role) {
-            return true;
+            return $label->role->hasProviderFolder();
         }
 
         return null !== $label->bindingFor($account)?->graphFolderId;
@@ -44,6 +51,14 @@ final readonly class GraphLabelPolicy
 
     public function pushesAsCategory(Label $label, Account $account): bool
     {
+        // A role is never a category. The provider-backed ones are folders,
+        // and Snoozed is plMail's own bookkeeping — pushing that as a master
+        // category would put a label on somebody's Outlook mailbox that they
+        // never made and cannot explain.
+        if (null !== $label->role) {
+            return false;
+        }
+
         return false === $this->pushesAsFolder($label, $account);
     }
 
@@ -102,7 +117,9 @@ final readonly class GraphLabelPolicy
         $account = $message->account;
 
         foreach ($message->labels as $label) {
-            if (true === $this->pushesAsFolder($label, $account)) {
+            // Asked positively, so the one label that is neither a folder nor
+            // a category — Snoozed — is excluded by the rule that says so.
+            if (false === $this->pushesAsCategory($label, $account)) {
                 continue;
             }
 

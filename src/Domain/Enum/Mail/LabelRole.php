@@ -34,6 +34,21 @@ enum LabelRole: string
      */
     case Snoozed = 'snoozed';
 
+    /**
+     * Whether a provider has a folder of its own behind this role.
+     *
+     * Every role but Snoozed names something the server also has, which is
+     * what makes "move the message there" a meaningful instruction. Snoozed is
+     * plMail's alone — see the note on the case — so a push treating it as a
+     * folder can only go looking for an id nobody ever set, and a message
+     * carrying it looks like it is in two places at once to anything counting
+     * locations.
+     */
+    public function hasProviderFolder(): bool
+    {
+        return self::Snoozed !== $this;
+    }
+
     public static function fromSpecialUse(MailboxSpecialUse $specialUse): self
     {
         return match ($specialUse) {

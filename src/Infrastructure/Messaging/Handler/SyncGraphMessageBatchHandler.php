@@ -77,10 +77,15 @@ final readonly class SyncGraphMessageBatchHandler
         $this->requeueThrottled($account, $result['throttled']);
 
         foreach ($result['failed'] as $failedId => $status) {
+            // Graph's own reason travels with the status. Without it a 400 is
+            // unactionable: it can be a malformed id, a $select this mailbox
+            // will not serve, or a message type with no body to return, and
+            // the log said only "400".
             $this->logger->error('SyncGraphMessageBatch: sub-request failed', [
                 'accountId' => $account->id,
                 'graphId'   => $failedId,
                 'status'    => $status,
+                'error'     => $result['errors'][$failedId] ?? null,
             ]);
         }
 

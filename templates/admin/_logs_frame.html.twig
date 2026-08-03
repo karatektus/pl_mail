@@ -1,4 +1,7 @@
-<turbo-frame id="admin-logs">
+{# Opening this frame is what marks the log seen server-side, but the ring that
+   clears lives on the user menu — outside this frame, and so never re-rendered
+   by loading it. This announces the visit; the topbar listens. #}
+<turbo-frame id="admin-logs" data-controller="admin--log-seen">
 
     {# A container, so the rows below reflow on how wide this pane actually is
        rather than on the viewport. The two are not the same thing here and not
