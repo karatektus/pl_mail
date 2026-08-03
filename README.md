@@ -44,7 +44,34 @@ unreachable, and search runs against your own database rather than someone else'
 **Finding things**
 
 - Full-text search across everything synced, ranked by relevance
-- Filters that combine with it: `from:`, `to:`, `subject:`, `in:`, `has:`, `is:`, `after:`, `before:`
+- Operators that combine with it: `from:`, `to:`, `cc:`, `subject:`, `label:`, `in:`, `has:`, `is:`,
+  `after:`, `before:` — suggested as you type, with `from:`, `to:` and `cc:` completing against your
+  own contacts
+- An operator it cannot honour becomes plain text rather than being quietly dropped, so a typo never
+  answers with the whole mailbox
+
+**Rules that file mail for you**
+
+- Conditions built as a tree: any, all or none of a group, nested as deep as the rule needs
+- Or no conditions at all, which is how "label everything arriving in this account" is written
+- Actions apply and remove labels, archive, trash, mark read, star and forward
+- Restated in plain English as you build it, with a live count of how much mail it would catch
+- Apply a new rule to mail that arrived before it existed — a background job you can watch, leave, and
+  come back to on another device
+
+**A calendar beside the mail**
+
+- Docked next to the message list on a wide screen and resizable against it, its own page below that
+- Day, week and month views over recurring events, with an indicator in the header for what is still
+  ahead today
+- Connecting external calendars (CalDAV, Google, Microsoft) is not built yet
+
+**Files where you keep them**
+
+- Attach from, and save attachments to, Google Drive, Google Photos, OneDrive, Dropbox, Nextcloud and
+  Immich
+- Each connection belongs to one user and is revocable; an administrator chooses which services are
+  offered at all
 
 **Staying current**
 
@@ -243,12 +270,16 @@ Everything lives in `.env.local`.
 ## Keeping an eye on it
 
 Signed in as an administrator, **Admin** shows what the instance is doing: which background workers
-are alive, whether push delivery is working for each account, OAuth tokens nearing expiry, queued and
-failed jobs, database size, and a searchable log.
+are alive, whether push delivery is working for each account, OAuth tokens nearing expiry, database
+size and a searchable log.
+
+The queue panel is the one to read when mail stops arriving. It names the messages a worker is
+holding right now — the handler, its payload, and how long it has been held — over a searchable list
+of everything still waiting, so a queue that is stuck looks different from a queue that is empty.
+Anything logged at warning or worse that nobody has read outlines the user menu, amber or red, on
+every page.
 
 ![The admin dashboard](docs/screenshots/admin.png)
-
-It's the first place to look when mail stops arriving.
 
 ## Good to know
 
@@ -257,6 +288,8 @@ It's the first place to look when mail stops arriving.
 - **Gmail labels sync one way by default.** Labels you make in plMail stay local unless you switch on
   mirroring for that account.
 - **Deleting an account deletes its synced mail** from plMail. Nothing is removed from the provider.
+- **A rule with no conditions is allowed, and means every message.** Scope it to one account unless
+  you mean every account — and remember "apply to existing mail" then reaches the whole mailbox.
 - **Back up two things, separately**: the PostgreSQL volume and `APP_ENCRYPTION_KEY`. The database
   holds your mail; the key unlocks the credentials inside it. Keeping them apart is the point.
 
