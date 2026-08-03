@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.0.13 — 2026-08-03
+
+No schema change, no deployment change. The encoding fix applies to mail synced
+from now on — see the note below about what is already stored.
+
 ### Fixed
 
 - **Mail composed in UTF-8 but labelled ISO-8859-1 arrived as "GrÃ¼ÃŸe".** A
