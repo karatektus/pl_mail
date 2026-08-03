@@ -48,6 +48,15 @@ export default class extends Controller {
         if (this.openValue && this._isNarrow()) {
             this.openValue = false;
         }
+
+        // The bounds are a function of the window; the width is a stored
+        // number of pixels. Resize the window and the two stop agreeing — the
+        // pane keeps a width the row can no longer afford, and the next drag
+        // starts from limits computed for a viewport that is gone, which is
+        // what made the handle stop at odd places. Re-clamp as the window
+        // changes and they stay in step.
+        this._onResize = () => this._reclamp();
+        window.addEventListener("resize", this._onResize);
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */
@@ -56,7 +65,27 @@ export default class extends Controller {
     }
 
     disconnect() {
+        window.removeEventListener("resize", this._onResize);
         this._stopListening();
+    }
+
+    /**
+     * Put the current width back through the clamp against the new bounds.
+     *
+     * Not persisted: making the window narrower is not the user asking for a
+     * narrower pane, and widening it again should give back the width they did
+     * ask for. Skipped while dragging, where _apply already runs per move.
+     */
+    _reclamp() {
+        if (true === this._dragging || false === this.openValue || true === this._isNarrow()) {
+            return;
+        }
+
+        if (false === this.hasPaneTarget) {
+            return;
+        }
+
+        this._apply(this.paneTarget.getBoundingClientRect().width);
     }
 
     /*
