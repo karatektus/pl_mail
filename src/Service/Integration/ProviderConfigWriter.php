@@ -96,11 +96,11 @@ final readonly class ProviderConfigWriter
         $this->applySecret($form, static fn (?string $secret) => $config->clientSecret = $secret, $config->clientSecret);
 
         if (true === $form->has('tenant')) {
-            $config->setTenant($form->get('tenant')->getData());
+            $config->tenant = $form->get('tenant')->getData();
         }
 
         if (true === $form->has('pubsubTopic')) {
-            $config->setPubsubTopic($form->get('pubsubTopic')->getData());
+            $config->pubsubTopic = $form->get('pubsubTopic')->getData();
         }
 
         // Write-only, like every other secret here.

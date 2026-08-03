@@ -201,7 +201,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
 
         self::assertNotNull($label);
 
-        $label->setName($rawName);
+        $label->name = $rawName;
 
         $this->em->flush();
         $this->em->clear();

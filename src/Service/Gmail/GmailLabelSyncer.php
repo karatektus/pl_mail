@@ -106,7 +106,7 @@ final readonly class GmailLabelSyncer
                 );
 
                 if (null !== $mapped) {
-                    $label->setColor($mapped->value);
+                    $label->color = $mapped->value;
                 }
             }
 
@@ -120,7 +120,7 @@ final readonly class GmailLabelSyncer
                 $visibility = (string) ($remoteLabel['labelListVisibility'] ?? 'labelShow');
 
                 if ('labelHide' === $visibility && true === $label->isVisible) {
-                    $label->setIsVisible(false);
+                    $label->isVisible = false;
                 }
             }
 

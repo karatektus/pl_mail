@@ -57,7 +57,7 @@ final class LabelController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $label->setUsr($this->getUser());
+            $label->usr = $this->getUser();
 
             $duplicate = $this->labelRepository->findOneChildByName(
                 $this->getUser(),
@@ -108,7 +108,7 @@ final class LabelController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $label->setUpdatedAt(new \DateTimeImmutable());
+            $label->updatedAt = new \DateTimeImmutable();
             $this->em->flush();
 
             $this->structurePropagator->renamed($label);
@@ -165,9 +165,8 @@ final class LabelController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $label
-            ->setIsVisible(false === $label->isVisible)
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $label->isVisible = false === $label->isVisible;
+        $label->updatedAt = new \DateTimeImmutable();
         $this->em->flush();
 
         if (true === $label->isVisible) {

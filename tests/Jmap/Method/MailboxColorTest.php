@@ -175,7 +175,7 @@ final class MailboxColorTest extends KernelTestCase
     public function testMailboxGetReportsTheColor(): void
     {
         $label   = $this->makeLabel('Farbe');
-        $label->setColor('violet');
+        $label->color = 'violet';
         $binding = $this->labelResolver->binding($label, $this->account);
         $this->em->flush();
 
@@ -256,7 +256,9 @@ final class MailboxColorTest extends KernelTestCase
 
     private function makeLabel(string $name): Label
     {
-        $label = new Label()->setUsr($this->user)->setName($name);
+        $label       = new Label();
+        $label->usr  = $this->user;
+        $label->name = $name;
 
         $this->em->persist($label);
         $this->em->flush();

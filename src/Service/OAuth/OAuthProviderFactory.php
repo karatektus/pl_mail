@@ -85,11 +85,13 @@ class OAuthProviderFactory
      */
     private function createAzure(string $redirectUri, ?MailProviderConfig $config): Azure
     {
+        $tenant = $config?->tenant;
+
         $azure = new Azure([
             'clientId'               => $this->clientId(MailProvider::Microsoft, $config),
             'clientSecret'           => $this->clientSecret(MailProvider::Microsoft, $config),
             'redirectUri'            => $redirectUri,
-            'tenant'                 => $config?->getTenant() ?? $this->microsoftTenant,
+            'tenant'                 => $tenant ?? $this->microsoftTenant,
             'defaultEndPointVersion' => Azure::ENDPOINT_VERSION_2_0,
         ]);
 

@@ -121,8 +121,8 @@ parameters:
 			path: src/Controller/Mail/ComposeController.php
 
 		-
-			message: '#^Parameter \#1 \$usr of method App\\Entity\\Label\\Label\:\:setUsr\(\) expects App\\Entity\\User\\User\|null, Symfony\\Component\\Security\\Core\\User\\UserInterface\|null given\.$#'
-			identifier: argument.type
+			message: '#^Property App\\Entity\\Label\\Label\:\:\$usr \(App\\Entity\\User\\User\|null\) does not accept Symfony\\Component\\Security\\Core\\User\\UserInterface\|null\.$#'
+			identifier: assign.propertyType
 			count: 1
 			path: src/Controller/Mail/LabelController.php
 

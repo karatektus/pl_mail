@@ -165,8 +165,9 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
             ->setIsActive(true);
         $this->em->persist($this->account);
 
-        $this->label = new Label();
-        $this->label->setUsr($this->user)->setName('Walked');
+        $this->label       = new Label();
+        $this->label->usr  = $this->user;
+        $this->label->name = 'Walked';
         $this->em->persist($this->label);
 
         // Seven matches and three that must be left alone.

@@ -137,15 +137,15 @@ final class MailboxSetMethod implements JmapMethod
                 continue;
             }
 
-            $label = new Label()
-                ->setUsr($account->getUsr())
-                ->setParent($parent)
-                ->setName($name)
-                ->setColor($color?->value)
-                ->setIsVisible(true !== ($properties['isSubscribed'] ?? true) ? false : true);
+            $label            = new Label();
+            $label->usr       = $account->getUsr();
+            $label->parent    = $parent;
+            $label->name      = $name;
+            $label->color     = $color?->value;
+            $label->isVisible = true !== ($properties['isSubscribed'] ?? true) ? false : true;
 
             if (true === is_int($properties['sortOrder'] ?? null)) {
-                $label->setSortOrder($properties['sortOrder']);
+                $label->sortOrder = $properties['sortOrder'];
             }
 
             $this->entityManager->persist($label);
@@ -240,7 +240,7 @@ final class MailboxSetMethod implements JmapMethod
                     $this->assertMutable($label);
                     $name = $this->requireName($value);
                     $this->assertNameFree($account, $label->parent, $name, $label);
-                    $label->setName($name);
+                    $label->name = $name;
                     $structural = true;
                     break;
 
@@ -249,7 +249,7 @@ final class MailboxSetMethod implements JmapMethod
                     $parent = $this->resolveParent($account, $value, $context);
                     $this->assertNoCycle($label, $parent);
                     $this->assertNameFree($account, $parent, (string) $label->name, $label);
-                    $label->setParent($parent);
+                    $label->parent = $parent;
                     $structural = true;
                     break;
 
@@ -258,7 +258,7 @@ final class MailboxSetMethod implements JmapMethod
                         throw new MethodException('invalidProperties', '"isSubscribed" must be a boolean.');
                     }
 
-                    $label->setIsVisible($value);
+                    $label->isVisible = $value;
                     break;
 
                 case 'sortOrder':
@@ -266,7 +266,7 @@ final class MailboxSetMethod implements JmapMethod
                         throw new MethodException('invalidProperties', '"sortOrder" must be an integer.');
                     }
 
-                    $label->setSortOrder($value);
+                    $label->sortOrder = $value;
                     break;
 
                 case 'color':
@@ -278,7 +278,7 @@ final class MailboxSetMethod implements JmapMethod
                     // Null clears the colour, which is why this reads the value
                     // rather than testing it for emptiness — "no colour" is a
                     // choice a user can make and has to be expressible.
-                    $label->setColor($this->requireColor($value)?->value);
+                    $label->color = $this->requireColor($value)?->value;
                     break;
 
                 default:

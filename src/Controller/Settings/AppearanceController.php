@@ -78,9 +78,8 @@ final class AppearanceController extends AbstractController
         $filename = sprintf('%s.%s', Uuid::v7()->toRfc4122(), $file->guessExtension() ?? 'jpg');
         $file->move($directory, $filename);
 
-        $user->appearance
-            ->setBackgroundFile($filename)
-            ->setBackgroundKind(BackgroundKind::Custom);
+        $user->appearance->backgroundFile = $filename;
+        $user->appearance->backgroundKind = BackgroundKind::Custom;
 
         $this->entityManager->flush();
 

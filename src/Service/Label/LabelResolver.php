@@ -171,12 +171,12 @@ final class LabelResolver
         }
 
         if (null === $label) {
-            $label = new Label()
-                ->setUsr($user)
-                ->setName($role->displayName())
-                ->setRole($role)
-                ->setSortOrder($role->sortOrder())
-                ->setIsVisible($role->isVisible());
+            $label            = new Label();
+            $label->usr       = $user;
+            $label->name      = $role->displayName();
+            $label->role      = $role;
+            $label->sortOrder = $role->sortOrder();
+            $label->isVisible = $role->isVisible();
 
             $this->em->persist($label);
             $this->em->flush();
@@ -229,10 +229,10 @@ final class LabelResolver
             $label = $this->labelRepository->findOneChildByName($user, $parent, $segment);
 
             if (null === $label) {
-                $label = new Label()
-                    ->setUsr($user)
-                    ->setParent($parent)
-                    ->setName($segment);
+                $label         = new Label();
+                $label->usr    = $user;
+                $label->parent = $parent;
+                $label->name   = $segment;
 
                 $this->em->persist($label);
                 $this->em->flush();

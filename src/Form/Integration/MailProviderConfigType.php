@@ -78,7 +78,7 @@ final class MailProviderConfigType extends AbstractType
                     'required' => false,
                     'mapped'   => false,
                     'help'     => 'admin.integrations.field.pubsub_topic_help',
-                    'data'     => $config instanceof MailProviderConfig ? $config->getPubsubTopic() : null,
+                    'data'     => $config instanceof MailProviderConfig ? $config->pubsubTopic : null,
                     'attr'     => ['placeholder' => 'projects/your-project-id/topics/gmail-push'] + PasswordManagerIgnore::ATTR,
                 ])
                 ->add('pushVerificationToken', PasswordType::class, [
@@ -115,7 +115,7 @@ final class MailProviderConfigType extends AbstractType
                 'required' => false,
                 'mapped'   => false,
                 'help'     => 'admin.integrations.field.tenant_help',
-                'data'     => $config instanceof MailProviderConfig ? $config->getTenant() : null,
+                'data'     => $config instanceof MailProviderConfig ? $config->tenant : null,
                 'attr'     => ['placeholder' => 'common'] + PasswordManagerIgnore::ATTR,
             ]);
         }

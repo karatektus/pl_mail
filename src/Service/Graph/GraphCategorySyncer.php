@@ -101,7 +101,7 @@ final readonly class GraphCategorySyncer
                     $mapped = $this->colorMapper->toLabelColor($category['color'] ?? null);
 
                     if (null !== $mapped) {
-                        $label->setColor($mapped->value);
+                        $label->color = $mapped->value;
                         $colored++;
                     }
                 }

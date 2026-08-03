@@ -78,6 +78,34 @@ class MailProviderConfig
     #[ORM\Column(type: 'json', options: ['jsonb' => true])]
     public array $settings = [];
 
+    /**
+     * Virtual, so there is no column behind it — the value lives in the
+     * settings bag, and Doctrine refuses to map a property whose hooks do not
+     * touch a backing store.
+     */
+    public ?string $pubsubTopic {
+        get {
+            $topic = $this->settings[self::PUBSUB_TOPIC_SETTING] ?? null;
+
+            return is_string($topic) && '' !== $topic ? $topic : null;
+        }
+        set {
+            $this->setSetting(self::PUBSUB_TOPIC_SETTING, $value);
+        }
+    }
+
+    /** Virtual for the same reason as $pubsubTopic. */
+    public ?string $tenant {
+        get {
+            $tenant = $this->settings[self::TENANT_SETTING] ?? null;
+
+            return is_string($tenant) && '' !== $tenant ? $tenant : null;
+        }
+        set {
+            $this->setSetting(self::TENANT_SETTING, $value);
+        }
+    }
+
     public function __construct(MailProvider $provider)
     {
         $this->provider = $provider;
@@ -94,30 +122,6 @@ class MailProviderConfig
     public function hasClientSecret(): bool
     {
         return null !== $this->clientSecret && '' !== $this->clientSecret;
-    }
-
-    public function getPubsubTopic(): ?string
-    {
-        $topic = $this->settings[self::PUBSUB_TOPIC_SETTING] ?? null;
-
-        return is_string($topic) && '' !== $topic ? $topic : null;
-    }
-
-    public function setPubsubTopic(?string $topic): void
-    {
-        $this->setSetting(self::PUBSUB_TOPIC_SETTING, $topic);
-    }
-
-    public function getTenant(): ?string
-    {
-        $tenant = $this->settings[self::TENANT_SETTING] ?? null;
-
-        return is_string($tenant) && '' !== $tenant ? $tenant : null;
-    }
-
-    public function setTenant(?string $tenant): void
-    {
-        $this->setSetting(self::TENANT_SETTING, $tenant);
     }
 
     /**

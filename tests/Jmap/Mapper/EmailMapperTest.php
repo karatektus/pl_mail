@@ -318,7 +318,9 @@ final class EmailMapperTest extends KernelTestCase
     private function label(User $user, string $name, ?LabelRole $role = null): Label
     {
         $label = new Label();
-        $label->setUsr($user)->setName($name)->setRole($role);
+        $label->usr  = $user;
+        $label->name = $name;
+        $label->role = $role;
         $this->em->persist($label);
 
         return $label;
