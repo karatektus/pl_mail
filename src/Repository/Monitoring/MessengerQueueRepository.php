@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Monitoring;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 
 /**
  * Reads over `messenger_messages`, the doctrine transport's own table.
@@ -27,24 +28,61 @@ final readonly class MessengerQueueRepository
     }
 
     /**
-     * Pending depth and oldest waiting message per queue.
+     * Depth, in-flight count and oldest timestamps per queue.
      *
      * "Pending" is `delivered_at IS NULL`, which is the transport's own
-     * definition of a message no worker has taken yet. Grouped in SQL rather
-     * than counted in PHP: the answer is two integers per queue, and hydrating
-     * a backlog to count it is what the backlog would punish.
+     * definition of a message no worker has taken yet; the complement is a
+     * message some worker is holding right now. Grouped in SQL rather than
+     * counted in PHP: the answer is a handful of integers per queue, and
+     * hydrating a backlog to count it is what the backlog would punish.
      *
-     * @return list<array{queue_name: string, pending: int|string, oldest: string|null}>
+     * Aggregate FILTER is Postgres-only, which this application already is.
+     * Written by hand because Doctrine's API has no conditional aggregate, and
+     * the alternative is four round trips for four numbers.
+     *
+     * @return list<array{queue_name: string, pending: int|string, running: int|string, oldest: string|null, oldest_created: string|null, oldest_delivered: string|null}>
      */
-    public function pendingByQueue(): array
+    public function statsByQueue(): array
     {
-        /** @var list<array{queue_name: string, pending: int|string, oldest: string|null}> */
+        /** @var list<array{queue_name: string, pending: int|string, running: int|string, oldest: string|null, oldest_created: string|null, oldest_delivered: string|null}> */
         return $this->connection->fetchAllAssociative(
-            'SELECT queue_name, COUNT(*) AS pending, MIN(available_at) AS oldest
+            'SELECT queue_name,
+                    COUNT(*) FILTER (WHERE delivered_at IS NULL)     AS pending,
+                    COUNT(*) FILTER (WHERE delivered_at IS NOT NULL) AS running,
+                    MIN(available_at) FILTER (WHERE delivered_at IS NULL) AS oldest,
+                    MIN(created_at)   FILTER (WHERE delivered_at IS NULL) AS oldest_created,
+                    MIN(delivered_at) FILTER (WHERE delivered_at IS NOT NULL) AS oldest_delivered
              FROM messenger_messages
-             WHERE delivered_at IS NULL
              GROUP BY queue_name
              ORDER BY queue_name',
+        );
+    }
+
+    /**
+     * The individual messages behind those numbers, in-flight ones first.
+     *
+     * The failure queue is left out: it has its own panel, with its own
+     * actions, and showing the same rows twice would only invite acting on
+     * them in the place that cannot.
+     *
+     * Bodies come along because the message class and its payload are only
+     * inside the serialised envelope — see QueueMonitor, which decodes them.
+     * Limited, since a backlog is exactly when this is looked at.
+     *
+     * @return list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}>
+     */
+    public function messages(int $limit = 100): array
+    {
+        /** @var list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}> */
+        return $this->connection->fetchAllAssociative(
+            'SELECT id, queue_name, body, headers, created_at, available_at, delivered_at
+             FROM messenger_messages
+             WHERE queue_name <> :failed
+             ORDER BY delivered_at IS NULL, delivered_at, available_at, id
+             LIMIT :limit',
+            ['failed' => 'failed', 'limit' => $limit],
+            // LIMIT is typed explicitly: bound as a string, Postgres refuses it.
+            ['failed' => ParameterType::STRING, 'limit' => ParameterType::INTEGER],
         );
     }
 }

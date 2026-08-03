@@ -280,12 +280,60 @@
             {% if queueStats|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
             {% else %}
+                {% set running = queueMessages|filter(m => m.state == 'running') %}
+
+                {#
+                In flight first, and above the totals. A queue that is not
+                moving looks identical to a queue that is empty from the depth
+                column alone; the question being answered here is "what is the
+                worker actually doing right now", so it goes at the top and
+                names the handler rather than counting it.
+                #}
+                <div class="px-5 py-3 border-b border-line bg-sunken">
+                    <p class="text-xs font-medium text-ink-faint">
+                        {{ 'admin.queues.in_flight'|trans }}
+                        <span class="ml-1 text-ink-soft">({{ running|length }})</span>
+                    </p>
+
+                    {% if running|length == 0 %}
+                        <p class="mt-1.5 text-sm text-ink-faint">{{ 'admin.queues.none_running'|trans }}</p>
+                    {% else %}
+                        <div class="mt-2 space-y-2">
+                            {% for row in running %}
+                                <div class="flex items-start gap-3 text-sm">
+                                    <span class="mt-1.5 inline-block w-2 h-2 rounded-full shrink-0
+                                                 {{ row.runningForSeconds > 300 ? 'bg-amber-500' : 'bg-emerald-500' }}"
+                                          aria-hidden="true"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-ink truncate">
+                                            <span class="font-mono text-xs">{{ row.class }}</span>
+                                            <span class="ml-1.5 text-xs text-ink-faint">{{ row.queue }}</span>
+                                        </p>
+                                        {% if row.summary %}
+                                            <p class="text-xs text-ink-faint font-mono truncate">{{ row.summary }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <span class="shrink-0 text-xs {{ row.runningForSeconds > 300 ? 'text-warning' : 'text-ink-faint' }}">
+                                        {{ 'admin.queues.running_for'|trans({
+                                            '%duration%': row.runningForSeconds > 90
+                                                ? (row.runningForSeconds // 60) ~ 'm'
+                                                : row.runningForSeconds ~ 's',
+                                        }) }}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
                             <th class="px-5 py-2 font-medium">{{ 'admin.queues.queue'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.pending'|trans }}</th>
+                            <th class="px-2 py-2 font-medium">{{ 'admin.queues.running'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.oldest'|trans }}</th>
+                            <th class="px-2 py-2 font-medium">{{ 'admin.queues.waiting_since'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -293,6 +341,13 @@
                             <tr class="border-t border-line text-ink-soft">
                                 <td class="px-5 py-2 font-mono text-xs">{{ row.queue }}</td>
                                 <td class="px-2 py-2">{{ row.pending }}</td>
+                                <td class="px-2 py-2">
+                                    {% if row.running > 0 %}
+                                        <span class="{{ row.runningForSeconds > 300 ? 'text-warning' : 'text-ink' }}">{{ row.running }}</span>
+                                    {% else %}
+                                        <span class="text-ink-faint">0</span>
+                                    {% endif %}
+                                </td>
                                 <td class="px-2 py-2 text-xs">
                                     {% if row.oldestAgeSeconds is not null and row.oldestAgeSeconds > 300 %}
                                         <span class="text-warning">{{ (row.oldestAgeSeconds // 60) }}m</span>
@@ -302,10 +357,71 @@
                                         —
                                     {% endif %}
                                 </td>
+                                {# Age of the oldest waiting message, which unlike
+                                   availability does not move when a retry backs off. #}
+                                <td class="px-2 py-2 text-xs">
+                                    {% if row.waitingSinceSeconds is not null %}
+                                        <span class="{{ row.waitingSinceSeconds > 900 ? 'text-warning' : '' }}">
+                                            {{ row.waitingSinceSeconds > 90
+                                                ? (row.waitingSinceSeconds // 60) ~ 'm'
+                                                : row.waitingSinceSeconds ~ 's' }}
+                                        </span>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+
+                {# The backlog itself, oldest first. Capped by the query, so the
+                   count in the heading is what is shown, not what exists. #}
+                {% set queued = queueMessages|filter(m => m.state != 'running') %}
+
+                {% if queued|length > 0 %}
+                    <div class="border-t border-line">
+                        <p class="px-5 pt-3 pb-1 text-xs font-medium text-ink-faint">
+                            {{ 'admin.queues.next_up'|trans }}
+                            <span class="ml-1 text-ink-soft">({{ queued|length }})</span>
+                        </p>
+                        <div class="divide-y divide-line">
+                            {% for row in queued %}
+                                <div class="flex items-start gap-3 px-5 py-2 text-sm">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-ink-soft truncate">
+                                            <span class="font-mono text-xs">{{ row.class }}</span>
+                                            <span class="ml-1.5 text-xs text-ink-faint">{{ row.queue }}</span>
+                                            {% if row.retries > 0 %}
+                                                <span class="ml-1.5 text-xs text-warning">
+                                                    {{ 'admin.queues.retries'|trans({ '%count%': row.retries }) }}
+                                                </span>
+                                            {% endif %}
+                                        </p>
+                                        {% if row.summary %}
+                                            <p class="text-xs text-ink-faint font-mono truncate">{{ row.summary }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <span class="shrink-0 text-xs text-ink-faint">
+                                        {% if row.state == 'scheduled' %}
+                                            {{ 'admin.queues.due_in'|trans({
+                                                '%duration%': row.availableInSeconds > 90
+                                                    ? (row.availableInSeconds // 60) ~ 'm'
+                                                    : row.availableInSeconds ~ 's',
+                                            }) }}
+                                        {% else %}
+                                            {{ 'admin.queues.queued_for'|trans({
+                                                '%duration%': row.ageSeconds > 90
+                                                    ? (row.ageSeconds // 60) ~ 'm'
+                                                    : row.ageSeconds ~ 's',
+                                            }) }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
             {% endif %}
         {{ cards.close() }}
 

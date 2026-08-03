@@ -77,6 +77,7 @@ final class AdminDashboardController extends AbstractController
             'pushDiagnostics' => $this->monitoring->gmailPushDiagnostics(),
             'tokenHealth'     => $this->monitoring->tokenHealth(),
             'queueStats'      => $this->queueMonitor->queueStats(),
+            'queueMessages'   => $this->queueMonitor->queuedMessages(),
             'failedMessages'  => $this->queueMonitor->failedMessages(),
             'accountOverview' => $this->monitoring->accountOverview(),
             'tableSizes'      => $this->monitoring->tableSizes(),

@@ -49,7 +49,7 @@ final class MessengerQueueRepositoryTest extends KernelTestCase
         $this->enqueue('sync', '-5 minutes');
         $this->enqueue('sync', '-1 minute', deliveredAt: '-30 seconds');
 
-        $stats = $this->repository->pendingByQueue();
+        $stats = $this->repository->statsByQueue();
 
         self::assertCount(1, $stats);
         self::assertSame('sync', $stats[0]['queue_name']);
@@ -62,7 +62,7 @@ final class MessengerQueueRepositoryTest extends KernelTestCase
         $this->enqueue('async', '-1 minute');
         $this->enqueue('async', '-2 minutes');
 
-        $stats = $this->repository->pendingByQueue();
+        $stats = $this->repository->statsByQueue();
 
         self::assertSame(['async', 'sync'], array_column($stats, 'queue_name'));
         self::assertSame([2, 1], array_map('intval', array_column($stats, 'pending')));
@@ -77,7 +77,7 @@ final class MessengerQueueRepositoryTest extends KernelTestCase
         $this->enqueue('sync', '-1 minute');
         $this->enqueue('sync', '-30 minutes');
 
-        $stats = $this->repository->pendingByQueue();
+        $stats = $this->repository->statsByQueue();
 
         self::assertLessThanOrEqual(
             (new \DateTimeImmutable('-29 minutes'))->getTimestamp(),
@@ -87,7 +87,7 @@ final class MessengerQueueRepositoryTest extends KernelTestCase
 
     public function testAnEmptyTransportReportsNothingRatherThanZero(): void
     {
-        self::assertSame([], $this->repository->pendingByQueue());
+        self::assertSame([], $this->repository->statsByQueue());
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────
