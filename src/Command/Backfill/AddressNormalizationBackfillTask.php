@@ -178,14 +178,14 @@ final readonly class AddressNormalizationBackfillTask implements BackfillTaskInt
             }
 
             foreach ($this->contactRepository->findByIds($ids) as $contact) {
-                $name = AddressHelper::name($contact->getDisplayName());
+                $name = AddressHelper::name($contact->displayName);
 
-                if ($name !== ($contact->getDisplayName() ?? '')) {
-                    $contact->setDisplayName('' !== $name ? $name : null);
+                if ($name !== ($contact->displayName ?? '')) {
+                    $contact->displayName = '' !== $name ? $name : null;
                     $changed++;
                 }
 
-                $email = (string) $contact->getEmail();
+                $email = (string) $contact->email;
 
                 if (false === AddressHelper::isValidEmail($email) || $email !== AddressHelper::email($email)) {
                     $suspect[] = $email;

@@ -110,9 +110,14 @@ class ApiToken
         return $this;
     }
 
-    /** Virtual: derived from revokedAt, never stored. */
-    public bool $active {
-        get => null === $this->revokedAt;
+    /**
+     * Stays a method rather than becoming a property: this reads a timestamp
+     * and answers a question about it. A predicate over non-boolean state is
+     * an interpretation, not a plain read, and only a plain read is a property.
+     */
+    public function isActive(): bool
+    {
+        return null === $this->revokedAt;
     }
 
     /**

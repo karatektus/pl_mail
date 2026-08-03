@@ -134,7 +134,7 @@ final readonly class EventExtractionRunner
      */
     private function isCalendar(MessagePart $part): bool
     {
-        $type = mb_strtolower(trim((string) $part->getContentType()));
+        $type = mb_strtolower(trim((string) $part->contentType));
 
         return in_array($type, ['text/calendar', 'application/ics'], true);
     }

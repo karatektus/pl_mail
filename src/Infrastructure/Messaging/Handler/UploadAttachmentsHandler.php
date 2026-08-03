@@ -95,14 +95,14 @@ final readonly class UploadAttachmentsHandler
 
     private function upload(Integration $integration, MessagePart $part, ?string $folder): bool
     {
-        $filename = (string) ($part->getFilename() ?: 'attachment');
+        $filename = (string) ($part->filename ?: 'attachment');
 
         try {
             $this->drivers->forIntegration($integration)->upload(
                 $integration,
                 $this->attachmentResolver->absolutePathFor($part),
                 $filename,
-                (string) ($part->getContentType() ?: 'application/octet-stream'),
+                (string) ($part->contentType ?: 'application/octet-stream'),
                 $folder,
             );
 
@@ -113,7 +113,7 @@ final readonly class UploadAttachmentsHandler
             $integration->recordFailure($e->getMessage());
 
             $this->logger->warning('UploadAttachmentsHandler: upload rejected', [
-                'partId'        => $part->getId(),
+                'partId'        => $part->id,
                 'integrationId' => $integration->id,
                 'reason'        => $e->getMessage(),
             ]);
@@ -125,7 +125,7 @@ final readonly class UploadAttachmentsHandler
             // alone — marking it broken would send the user to fix the wrong
             // thing.
             $this->logger->warning('UploadAttachmentsHandler: could not read attachment', [
-                'partId' => $part->getId(),
+                'partId' => $part->id,
                 'reason' => $e->getMessage(),
             ]);
 
@@ -141,7 +141,7 @@ final readonly class UploadAttachmentsHandler
         $parts = [];
 
         foreach ($mail->getMessageParts() as $part) {
-            if (false === (bool) $part->isInline()) {
+            if (false === (bool) $part->isInline) {
                 $parts[] = $part;
             }
         }

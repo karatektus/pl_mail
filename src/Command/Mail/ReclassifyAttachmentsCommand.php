@@ -73,14 +73,14 @@ final class ReclassifyAttachmentsCommand extends Command
 
                 foreach ($message->getMessageParts() as $part) {
                     $isInline = $this->inlineDetector->isInline(
-                        $part->getDisposition(),
-                        $part->getContentId(),
+                        $part->disposition,
+                        $part->contentId,
                         $bodyHtml,
                     );
 
-                    if ($isInline !== $part->isInline()) {
-                        $part->setIsInline($isInline);
-                        $part->setDisposition($isInline ? 'inline' : 'attachment');
+                    if ($isInline !== $part->isInline) {
+                        $part->isInline    = $isInline;
+                        $part->disposition = $isInline ? 'inline' : 'attachment';
                         ++$changedParts;
                         $touched = true;
                     }

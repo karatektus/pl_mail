@@ -98,7 +98,7 @@ class ContactAutocompleteField extends AbstractType
             // Anything that still doesn't resolve was not a valid address —
             // dropping it here beats failing the whole form on one typo.
             if (true === array_key_exists($email, $contacts)) {
-                $resolved[] = (string) $contacts[$email]->getId();
+                $resolved[] = (string) $contacts[$email]->id;
             }
         }
 
@@ -114,9 +114,9 @@ class ContactAutocompleteField extends AbstractType
             'autocomplete'         => true,
             'allow_options_create' => true,
             'searchable_fields'    => ['email', 'displayName'],
-            'choice_label'         => fn(Contact $c) => $c->getDisplayName()
-                ? sprintf('%s <%s>', $c->getDisplayName(), $c->getEmail())
-                : $c->getEmail(),
+            'choice_label'         => fn(Contact $c) => $c->displayName
+                ? sprintf('%s <%s>', $c->displayName, $c->email)
+                : $c->email,
 
             'tom_select_options' => [
                 'plugins'          => ['remove_button'],

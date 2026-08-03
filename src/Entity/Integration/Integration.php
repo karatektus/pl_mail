@@ -148,6 +148,12 @@ class Integration
         return $this->isActive && $this->provider->supports($capability);
     }
 
+    /**
+     * Stays a method rather than becoming a property: this reads an error
+     * string and answers a question about it. A predicate over non-boolean
+     * state is an interpretation, not a plain read, and only a plain read is a
+     * property.
+     */
     public function isHealthy(): bool
     {
         return null === $this->lastError;

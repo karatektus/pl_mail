@@ -329,14 +329,14 @@ final class IcsExtractionTest extends KernelTestCase
         file_put_contents($absolute, $ics);
         $this->written[] = $absolute;
 
-        $part = new MessagePart()
-            ->setMessage($message)
-            ->setContentType('text/calendar')
-            ->setFilename('invite.ics')
-            ->setDisposition('inline')
-            ->setSize(strlen($ics))
-            ->setStoragePath($relative)
-            ->setIsInline(true);
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'text/calendar';
+        $part->filename    = 'invite.ics';
+        $part->disposition = 'inline';
+        $part->size        = strlen($ics);
+        $part->storagePath = $relative;
+        $part->isInline    = true;
         $this->em->persist($part);
         $this->em->flush();
 

@@ -269,11 +269,10 @@ final class EmailFilterCompilerTest extends KernelTestCase
 
         if (true === isset($spec['attachment'])) {
             $part = new MessagePart();
-            $part
-                ->setMessage($message)
-                ->setContentType('application/pdf')
-                ->setFilename($spec['attachment'])
-                ->setDisposition('attachment');
+            $part->message     = $message;
+            $part->contentType = 'application/pdf';
+            $part->filename    = $spec['attachment'];
+            $part->disposition = 'attachment';
             $this->em->persist($part);
             $message->addMessagePart($part);
         }

@@ -350,9 +350,9 @@ final class GmailMessageBuilder
             $part  = $entry['part'];
             $bytes = $entry['bytes'];
 
-            // Decoded at the assignment rather than at setFilename(), so the
-            // name written to disk and the name written to the row are the
-            // same one. See persistAttachmentStubs() for why it needs doing.
+            // Decoded here rather than where $filename is assigned to the part,
+            // so the name written to disk and the name written to the row are
+            // the same one. See persistAttachmentStubs() for why it needs doing.
             $filename = MimeHeaderHelper::decode((string)($part['filename'] ?? ''));
 
             if ('' === $filename) {
@@ -378,16 +378,16 @@ final class GmailMessageBuilder
                 continue;
             }
 
-            $this->em->persist(
-                new MessagePart()
-                    ->setMessage($message)
-                    ->setContentType((string)($part['mimeType'] ?? 'application/octet-stream'))
-                    ->setFilename($filename)
-                    ->setDisposition('inline')
-                    ->setSize(strlen($bytes))
-                    ->setStoragePath($relativePath)
-                    ->setIsInline(true),
-            );
+            $mp = new MessagePart();
+            $mp->message     = $message;
+            $mp->contentType = (string)($part['mimeType'] ?? 'application/octet-stream');
+            $mp->filename    = $filename;
+            $mp->disposition = 'inline';
+            $mp->size        = strlen($bytes);
+            $mp->storagePath = $relativePath;
+            $mp->isInline    = true;
+
+            $this->em->persist($mp);
         }
     }
 
@@ -423,15 +423,15 @@ final class GmailMessageBuilder
                 $bodyHtml,
             );
 
-            $mp = new MessagePart()
-                ->setMessage($message)
-                ->setContentType($contentType)
-                ->setFilename($filename)
-                ->setContentId('' !== $contentId ? $contentId : null)
-                ->setDisposition($isInline ? 'inline' : 'attachment')
-                ->setSize($size)
-                ->setStoragePath('gmail://' . $attachmentId)
-                ->setIsInline($isInline);
+            $mp = new MessagePart();
+            $mp->message     = $message;
+            $mp->contentType = $contentType;
+            $mp->filename    = $filename;
+            $mp->contentId   = '' !== $contentId ? $contentId : null;
+            $mp->disposition = $isInline ? 'inline' : 'attachment';
+            $mp->size        = $size;
+            $mp->storagePath = 'gmail://' . $attachmentId;
+            $mp->isInline    = $isInline;
 
             $this->em->persist($mp);
 

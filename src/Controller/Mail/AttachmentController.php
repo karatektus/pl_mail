@@ -60,7 +60,7 @@ final class AttachmentController extends AbstractController
         $this->assertOwned($part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
-        $contentType  = $part->getContentType() ?? 'application/octet-stream';
+        $contentType  = $part->contentType ?? 'application/octet-stream';
 
         // Only images render inline; everything else (crucially any text/html)
         // is forced to download so email-supplied markup never runs on our origin.
@@ -75,7 +75,7 @@ final class AttachmentController extends AbstractController
             true === $forceDownload
                 ? ResponseHeaderBag::DISPOSITION_ATTACHMENT
                 : ResponseHeaderBag::DISPOSITION_INLINE,
-            $part->getFilename() ?? 'attachment',
+            $part->filename ?? 'attachment',
         );
 
         return $response;
@@ -87,7 +87,7 @@ final class AttachmentController extends AbstractController
      */
     private function assertOwned(MessagePart $part): void
     {
-        if ($part->getMessage()->getAccount()->getUsr() !== $this->getUser()) {
+        if ($part->message->getAccount()->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

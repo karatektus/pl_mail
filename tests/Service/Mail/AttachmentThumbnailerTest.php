@@ -117,7 +117,7 @@ final class AttachmentThumbnailerTest extends KernelTestCase
     public function testAnOversizeAttachmentIsNotPreviewable(): void
     {
         $part = $this->partFor($this->writePng('huge.png', 10, 10), 'image/png');
-        $part->setSize(64 * 1024 * 1024);
+        $part->size = 64 * 1024 * 1024;
 
         self::assertFalse($this->thumbnailer->isPreviewable($part));
     }
@@ -181,13 +181,13 @@ final class AttachmentThumbnailerTest extends KernelTestCase
 
     private function partFor(string $relativePath, string $contentType): MessagePart
     {
-        $part = new MessagePart()
-            ->setMessage($this->message)
-            ->setContentType($contentType)
-            ->setFilename(basename($relativePath))
-            ->setDisposition('attachment')
-            ->setStoragePath($relativePath)
-            ->setIsInline(false);
+        $part = new MessagePart();
+        $part->message     = $this->message;
+        $part->contentType = $contentType;
+        $part->filename    = basename($relativePath);
+        $part->disposition = 'attachment';
+        $part->storagePath = $relativePath;
+        $part->isInline    = false;
 
         $this->em->persist($part);
         $this->em->flush();

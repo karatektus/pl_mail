@@ -199,7 +199,7 @@ class ContactRepository extends ServiceEntityRepository
         $indexed = [];
 
         foreach ($contacts as $contact) {
-            $indexed[mb_strtolower((string) $contact->getEmail())] = $contact;
+            $indexed[mb_strtolower((string) $contact->email)] = $contact;
         }
 
         return $indexed;

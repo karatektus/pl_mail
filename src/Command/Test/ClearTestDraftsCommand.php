@@ -101,7 +101,7 @@ final class ClearTestDraftsCommand extends Command
             // strands managed MessagePart entities pointing at a message that
             // is already gone, and the flush fails on them.
             foreach ($draft->getMessageParts() as $part) {
-                $this->attachmentStorage->delete($part->getStoragePath());
+                $this->attachmentStorage->delete($part->storagePath);
                 $draft->removeMessagePart($part);
                 $this->entityManager->remove($part);
             }

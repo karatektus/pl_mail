@@ -374,16 +374,16 @@ class ComposeController extends AbstractController
                 (string) file_get_contents($file->getPathname()),
             );
 
-            $part = new MessagePart()
-                ->setMessage($message)
-                // Guessed from the bytes, not from the client's header — this
-                // value comes back out as a Content-Type on download.
-                ->setContentType($file->getMimeType() ?? 'application/octet-stream')
-                ->setFilename(basename((string) $file->getClientOriginalName()))
-                ->setDisposition('attachment')
-                ->setSize($file->getSize())
-                ->setStoragePath($storagePath)
-                ->setIsInline(false);
+            $part = new MessagePart();
+            $part->message = $message;
+            // Guessed from the bytes, not from the client's header — this
+            // value comes back out as a Content-Type on download.
+            $part->contentType = $file->getMimeType() ?? 'application/octet-stream';
+            $part->filename    = basename((string) $file->getClientOriginalName());
+            $part->disposition = 'attachment';
+            $part->size        = $file->getSize();
+            $part->storagePath = $storagePath;
+            $part->isInline    = false;
 
             $message->addMessagePart($part);
             $this->em->persist($part);
@@ -433,11 +433,11 @@ class ComposeController extends AbstractController
     #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
     public function removeAttachment(MessagePart $part): Response
     {
-        $message = $part->getMessage();
+        $message = $part->message;
 
         $this->assertDraft($message);
 
-        $this->attachmentStorage->delete($part->getStoragePath());
+        $this->attachmentStorage->delete($part->storagePath);
 
         $message->removeMessagePart($part);
         $this->em->remove($part);
@@ -847,8 +847,8 @@ class ComposeController extends AbstractController
             $result = [];
             foreach ($contacts as $contact) {
                 $result[] = [
-                    'name' => $contact->getDisplayName() ?? '',
-                    'address' => $contact->getEmail() ?? '',
+                    'name' => $contact->displayName ?? '',
+                    'address' => $contact->email ?? '',
                 ];
             }
 
@@ -1129,7 +1129,7 @@ class ComposeController extends AbstractController
         $hasAttachments = false;
 
         foreach ($message->getMessageParts() as $part) {
-            if (false === (bool) $part->isInline()) {
+            if (false === (bool) $part->isInline) {
                 $hasAttachments = true;
 
                 break;
@@ -1143,7 +1143,7 @@ class ComposeController extends AbstractController
     private function deleteStoredAttachments(Message $message): void
     {
         foreach ($message->getMessageParts() as $part) {
-            $this->attachmentStorage->delete($part->getStoragePath());
+            $this->attachmentStorage->delete($part->storagePath);
         }
     }
 

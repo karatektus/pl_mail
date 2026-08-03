@@ -111,14 +111,26 @@ class MailProviderConfig
         $this->provider = $provider;
     }
 
-    /** Whether this row alone is enough to run the flow. */
+    /**
+     * Whether this row alone is enough to run the flow.
+     *
+     * Stays a method rather than becoming a property: it weighs two columns
+     * together, so it is a judgement about the row and not a read of any field
+     * on it.
+     */
     public function isComplete(): bool
     {
         return null !== $this->clientId && '' !== $this->clientId
             && null !== $this->clientSecret && '' !== $this->clientSecret;
     }
 
-    /** Never renders the secret itself — only whether one is on file. */
+    /**
+     * Never renders the secret itself — only whether one is on file.
+     *
+     * Stays a method for the same reason: an existence check over a credential
+     * is not a read of it, and turning it into a property would put the two one
+     * keystroke apart.
+     */
     public function hasClientSecret(): bool
     {
         return null !== $this->clientSecret && '' !== $this->clientSecret;

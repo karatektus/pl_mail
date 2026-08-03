@@ -272,24 +272,24 @@ final class FilePickerController extends AbstractController
     {
         $this->assertUsable($integration, Capability::Upload);
 
-        if (false === $this->isCsrfTokenValid('integration-save-'.$part->getId(), (string) $request->request->get('_token'))) {
+        if (false === $this->isCsrfTokenValid('integration-save-'.$part->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
         }
 
         // Same ownership rule AttachmentController uses for downloads: the
         // part belongs to a message on one of this user's accounts.
-        if ($part->getMessage()?->getAccount()?->getUsr() !== $this->getUser()) {
+        if ($part->message?->getAccount()?->getUsr() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
-        $filename = (string) ($part->getFilename() ?: 'attachment');
+        $filename = (string) ($part->filename ?: 'attachment');
 
         try {
             $this->drivers->forIntegration($integration)->upload(
                 $integration,
                 $this->attachmentResolver->absolutePathFor($part),
                 $filename,
-                (string) ($part->getContentType() ?: 'application/octet-stream'),
+                (string) ($part->contentType ?: 'application/octet-stream'),
                 $integration->getSetting(self::UPLOAD_FOLDER_SETTING),
             );
 
@@ -337,14 +337,14 @@ final class FilePickerController extends AbstractController
             $contents,
         );
 
-        $part = new MessagePart()
-            ->setMessage($message)
-            ->setContentType($mime)
-            ->setFilename(basename($filename))
-            ->setDisposition('attachment')
-            ->setSize(strlen($contents))
-            ->setStoragePath($storagePath)
-            ->setIsInline(false);
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = $mime;
+        $part->filename    = basename($filename);
+        $part->disposition = 'attachment';
+        $part->size        = strlen($contents);
+        $part->storagePath = $storagePath;
+        $part->isInline    = false;
 
         $message->addMessagePart($part);
         $this->em->persist($part);

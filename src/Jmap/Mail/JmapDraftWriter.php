@@ -218,17 +218,17 @@ final class JmapDraftWriter
                 $content,
             );
 
-            $part = new MessagePart()
-                ->setMessage($message)
-                // The client's declared type, as the spec requires it be
-                // echoed — but the download endpoint still refuses to render
-                // anything but images inline, so a lie here buys nothing.
-                ->setContentType($this->attachmentType($attachment))
-                ->setFilename($filename)
-                ->setDisposition('attachment')
-                ->setSize(strlen($content))
-                ->setStoragePath($storagePath)
-                ->setIsInline(false);
+            $part = new MessagePart();
+            $part->message = $message;
+            // The client's declared type, as the spec requires it be echoed —
+            // but the download endpoint still refuses to render anything but
+            // images inline, so a lie here buys nothing.
+            $part->contentType = $this->attachmentType($attachment);
+            $part->filename    = $filename;
+            $part->disposition = 'attachment';
+            $part->size        = strlen($content);
+            $part->storagePath = $storagePath;
+            $part->isInline    = false;
 
             $message->addMessagePart($part);
             $this->entityManager->persist($part);

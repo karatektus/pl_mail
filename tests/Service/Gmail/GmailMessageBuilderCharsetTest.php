@@ -147,7 +147,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
 
         $message = $this->build($payload);
 
-        self::assertSame('Übersicht.pdf', $this->attachmentPart($message)?->getFilename());
+        self::assertSame('Übersicht.pdf', $this->attachmentPart($message)?->filename);
     }
 
     /** And an encoded word in a filename is decoded rather than displayed. */
@@ -162,7 +162,7 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
 
         $message = $this->build($payload);
 
-        self::assertSame('Gebühren.pdf', $this->attachmentPart($message)?->getFilename());
+        self::assertSame('Gebühren.pdf', $this->attachmentPart($message)?->filename);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

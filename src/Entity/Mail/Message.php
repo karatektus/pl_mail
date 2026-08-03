@@ -568,7 +568,7 @@ class Message extends MessageModel
     {
         if (!$this->messageParts->contains($messagePart)) {
             $this->messageParts->add($messagePart);
-            $messagePart->setMessage($this);
+            $messagePart->message = $this;
         }
 
         return $this;
@@ -577,8 +577,8 @@ class Message extends MessageModel
     public function removeMessagePart(MessagePart $messagePart): static
     {
         if ($this->messageParts->removeElement($messagePart)) {
-            if ($messagePart->getMessage() === $this) {
-                $messagePart->setMessage(null);
+            if ($messagePart->message === $this) {
+                $messagePart->message = null;
             }
         }
 

@@ -389,16 +389,16 @@ final class EmailMapper
             }
 
             $attachment = $this->bodyPart(
-                (string) $part->getId(),
-                (string) BlobId::forPart((int) $part->getId()),
-                $part->getContentType() ?? 'application/octet-stream',
-                $part->getSize() ?? 0,
+                (string) $part->id,
+                (string) BlobId::forPart((int) $part->id),
+                $part->contentType ?? 'application/octet-stream',
+                $part->size ?? 0,
                 $bodyProperties,
             );
 
-            $attachment['name'] = $part->getFilename();
+            $attachment['name'] = $part->filename;
             $attachment['cid'] = $this->contentId($part);
-            $attachment['disposition'] = true === $part->isInline() ? 'inline' : 'attachment';
+            $attachment['disposition'] = true === $part->isInline ? 'inline' : 'attachment';
 
             $attachments[] = $attachment;
         }
@@ -408,18 +408,18 @@ final class EmailMapper
 
     private function isAttachment(MessagePart $part): bool
     {
-        $filename = $part->getFilename();
+        $filename = $part->filename;
 
         if (null !== $filename && '' !== $filename) {
             return true;
         }
 
-        return 'attachment' === $part->getDisposition();
+        return 'attachment' === $part->disposition;
     }
 
     private function contentId(MessagePart $part): ?string
     {
-        $cid = $part->getContentId();
+        $cid = $part->contentId;
 
         if (null === $cid || '' === $cid) {
             return null;

@@ -72,7 +72,7 @@ final class BlobResolver
             return null;
         }
 
-        $message = $part->getMessage();
+        $message = $part->message;
 
         if (null === $message || $message->getAccount()->getId() !== $account->getId()) {
             return null;
@@ -106,8 +106,8 @@ final class BlobResolver
 
         return ResolvedBlob::fromPath(
             $path,
-            $part->getContentType() ?? 'application/octet-stream',
-            $part->getFilename() ?? 'attachment',
+            $part->contentType ?? 'application/octet-stream',
+            $part->filename ?? 'attachment',
         );
     }
 

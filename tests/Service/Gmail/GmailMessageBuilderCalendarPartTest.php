@@ -74,13 +74,13 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $part = $this->calendarPart($message);
 
         self::assertNotNull($part, 'the invite must produce a MessagePart');
-        self::assertSame('text/calendar', $part->getContentType());
-        self::assertTrue($part->isInline());
+        self::assertSame('text/calendar', $part->contentType);
+        self::assertTrue($part->isInline);
 
         // A real path, not a gmail:// stub — the bytes were already in hand, so
         // there is nothing for AttachmentResolver to go back for.
-        self::assertStringStartsNotWith('gmail://', (string) $part->getStoragePath());
-        self::assertGreaterThan(0, (int) $part->getSize());
+        self::assertStringStartsNotWith('gmail://', (string) $part->storagePath);
+        self::assertGreaterThan(0, (int) $part->size);
     }
 
     /**
@@ -107,7 +107,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $part = $this->calendarPart($message);
 
         self::assertNotNull($part);
-        self::assertSame('gmail://att-invite-1', $part->getStoragePath());
+        self::assertSame('gmail://att-invite-1', $part->storagePath);
     }
 
     /**
@@ -123,7 +123,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
 
         foreach ($parts as $part) {
             self::assertNotContains(
-                $part->getContentType(),
+                $part->contentType,
                 ['text/plain', 'text/html'],
                 'a body part was persisted as an attachment',
             );
@@ -149,7 +149,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
         $this->em->flush();
 
         foreach ($this->partsOf($message) as $part) {
-            $path = (string) $part->getStoragePath();
+            $path = (string) $part->storagePath;
 
             if ('' !== $path && false === str_starts_with($path, 'gmail://')) {
                 $this->written[] = self::getContainer()->getParameter('kernel.project_dir') . '/' . $path;
@@ -175,7 +175,7 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     private function calendarPart(Message $message): ?MessagePart
     {
         foreach ($this->partsOf($message) as $part) {
-            if ('text/calendar' === $part->getContentType()) {
+            if ('text/calendar' === $part->contentType) {
                 return $part;
             }
         }

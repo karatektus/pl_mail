@@ -69,7 +69,7 @@ final readonly class MailBodySanitizer
         $map = [];
 
         foreach ($message->getMessageParts() as $part) {
-            $cid = $part->getContentId();
+            $cid = $part->contentId;
 
             if (null === $cid || '' === $cid) {
                 continue;
@@ -77,7 +77,7 @@ final readonly class MailBodySanitizer
 
             $map[strtolower($cid)] = $this->urlGenerator->generate(
                 'app_mail_attachment',
-                ['id' => $part->getId()],
+                ['id' => $part->id],
                 UrlGeneratorInterface::ABSOLUTE_PATH,
             );
         }

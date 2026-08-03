@@ -189,22 +189,22 @@ class MessageSendService
         }
 
         foreach ($message->getMessageParts() as $part) {
-            if (true === $part->isInline()) {
-                $contentId = $part->getContentId();
+            if (true === $part->isInline) {
+                $contentId = $part->contentId;
                 if (null === $contentId) {
-                    $contentId = $part->getFilename();
+                    $contentId = $part->filename;
                 }
 
                 $email->embedFromPath(
                     $this->attachmentResolver->absolutePathFor($part),
                     $contentId,
-                    $part->getContentType(),
+                    $part->contentType,
                 );
             } else {
                 $email->attachFromPath(
                     $this->attachmentResolver->absolutePathFor($part),
-                    $part->getFilename(),
-                    $part->getContentType(),
+                    $part->filename,
+                    $part->contentType,
                 );
             }
         }

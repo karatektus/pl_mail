@@ -44,7 +44,7 @@ final readonly class AttachmentResolver
      */
     public function absolutePathFor(MessagePart $part): string
     {
-        $storagePath = (string) $part->getStoragePath();
+        $storagePath = (string) $part->storagePath;
 
         if (true === str_starts_with($storagePath, self::GMAIL_SCHEME)) {
             return $this->materialise($part, $storagePath, self::GMAIL_SCHEME);
@@ -62,13 +62,13 @@ final readonly class AttachmentResolver
     private function materialise(MessagePart $part, string $storagePath, string $scheme): string
     {
         $attachmentId = substr($storagePath, strlen($scheme));
-        $message      = $part->getMessage();
+        $message      = $part->message;
         $account      = $message->getAccount();
 
         if ('' === $attachmentId || null === $account) {
             throw new \RuntimeException(sprintf(
                 'Cannot materialise attachment for part %d: missing account or attachmentId.',
-                (int) $part->getId(),
+                (int) $part->id,
             ));
         }
 
@@ -79,7 +79,7 @@ final readonly class AttachmentResolver
         if (null === $remoteMessageId || '' === $remoteMessageId) {
             throw new \RuntimeException(sprintf(
                 'Cannot materialise attachment for part %d: message has no provider id.',
-                (int) $part->getId(),
+                (int) $part->id,
             ));
         }
 
@@ -91,15 +91,15 @@ final readonly class AttachmentResolver
             $account->getId(),
             $this->storageBucket($part),
             abs(crc32($remoteMessageId)),
-            (string) $part->getFilename(),
+            (string) $part->filename,
             $content,
         );
 
-        $part->setStoragePath($relativePath);
+        $part->storagePath = $relativePath;
         $this->em->flush();
 
         $this->logger->info('AttachmentResolver: materialised provider attachment', [
-            'partId' => $part->getId(),
+            'partId' => $part->id,
             'scheme' => $scheme,
         ]);
 
@@ -112,7 +112,7 @@ final readonly class AttachmentResolver
      */
     private function storageBucket(MessagePart $part): int
     {
-        $mailbox = $part->getMessage()->getMailbox();
+        $mailbox = $part->message->getMailbox();
 
         if (null === $mailbox) {
             return 0;

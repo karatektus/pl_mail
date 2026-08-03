@@ -431,11 +431,11 @@ class MessageSyncer
         );
 
         $part = new MessagePart();
-        $part->setMessage($message);
-        $part->setContentType($attachment->getContentType() ?? 'application/octet-stream');
-        $part->setFilename($filename);
-        $part->setSize(strlen($content));
-        $part->setStoragePath($storagePath);
+        $part->message     = $message;
+        $part->contentType = $attachment->getContentType() ?? 'application/octet-stream';
+        $part->filename    = $filename;
+        $part->size        = strlen($content);
+        $part->storagePath = $storagePath;
 
         // getId() falls back to a content hash when the part has no Content-ID,
         // so it only counts as a cid when the HTML body actually references it.
@@ -446,9 +446,9 @@ class MessageSyncer
             $message->getBodyHtml(),
         );
 
-        $part->setContentId('' !== $normalizedCid ? $normalizedCid : null);
-        $part->setDisposition($isInline ? 'inline' : 'attachment');
-        $part->setIsInline($isInline);
+        $part->contentId   = '' !== $normalizedCid ? $normalizedCid : null;
+        $part->disposition = $isInline ? 'inline' : 'attachment';
+        $part->isInline    = $isInline;
 
         $this->em->persist($part);
 

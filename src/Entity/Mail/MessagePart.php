@@ -13,131 +13,30 @@ class MessagePart
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageParts')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private ?Message $message = null;
+    public ?Message $message = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $contentType = null;
+    public ?string $contentType = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $filename = null;
+    public ?string $filename = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $contentId = null;
+    public ?string $contentId = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $disposition = null;
+    public ?string $disposition = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $size = null;
+    public ?int $size = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $storagePath = null;
+    public ?string $storagePath = null;
 
     #[ORM\Column]
-    private ?bool $isInline = false;
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getMessage(): ?Message
-    {
-        return $this->message;
-    }
-
-    public function setMessage(?Message $message): static
-    {
-        $this->message = $message;
-
-        return $this;
-    }
-
-    public function getContentType(): ?string
-    {
-        return $this->contentType;
-    }
-
-    public function setContentType(string $contentType): static
-    {
-        $this->contentType = $contentType;
-
-        return $this;
-    }
-
-    public function getFilename(): ?string
-    {
-        return $this->filename;
-    }
-
-    public function setFilename(?string $filename): static
-    {
-        $this->filename = $filename;
-
-        return $this;
-    }
-
-    public function getContentId(): ?string
-    {
-        return $this->contentId;
-    }
-
-    public function setContentId(?string $contentId): static
-    {
-        $this->contentId = $contentId;
-
-        return $this;
-    }
-
-    public function getDisposition(): ?string
-    {
-        return $this->disposition;
-    }
-
-    public function setDisposition(string $disposition): static
-    {
-        $this->disposition = $disposition;
-
-        return $this;
-    }
-
-    public function getSize(): ?int
-    {
-        return $this->size;
-    }
-
-    public function setSize(?int $size): static
-    {
-        $this->size = $size;
-
-        return $this;
-    }
-
-    public function getStoragePath(): ?string
-    {
-        return $this->storagePath;
-    }
-
-    public function setStoragePath(?string $storagePath): static
-    {
-        $this->storagePath = $storagePath;
-
-        return $this;
-    }
-
-    public function isInline(): ?bool
-    {
-        return $this->isInline;
-    }
-
-    public function setIsInline(bool $isInline): static
-    {
-        $this->isInline = $isInline;
-
-        return $this;
-    }
+    public ?bool $isInline = false;
 }

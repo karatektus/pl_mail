@@ -244,15 +244,15 @@ final class GraphMessageBuilder
                 $message->getBodyHtml(),
             );
 
-            $part = new MessagePart()
-                ->setMessage($message)
-                ->setContentType((string) ($attachment['contentType'] ?? 'application/octet-stream'))
-                ->setFilename((string) ($attachment['name'] ?? ''))
-                ->setContentId('' !== $contentId ? $contentId : null)
-                ->setDisposition($isInline ? 'inline' : 'attachment')
-                ->setSize((int) ($attachment['size'] ?? 0))
-                ->setStoragePath('msgraph://' . $attachmentId)
-                ->setIsInline($isInline);
+            $part = new MessagePart();
+            $part->message     = $message;
+            $part->contentType = (string) ($attachment['contentType'] ?? 'application/octet-stream');
+            $part->filename    = (string) ($attachment['name'] ?? '');
+            $part->contentId   = '' !== $contentId ? $contentId : null;
+            $part->disposition = $isInline ? 'inline' : 'attachment';
+            $part->size        = (int) ($attachment['size'] ?? 0);
+            $part->storagePath = 'msgraph://' . $attachmentId;
+            $part->isInline    = $isInline;
 
             $this->em->persist($part);
 

@@ -80,6 +80,10 @@ class IntegrationProviderConfig
      * and a driver exists. OAuth providers additionally need their client
      * credentials filled in, since the authorise redirect is meaningless
      * without them.
+     *
+     * Stays a method rather than becoming a property: the answer depends on
+     * what the Provider enum says about itself, so it is an interpretation
+     * across two objects rather than a read of this one.
      */
     public function isConnectable(): bool
     {
@@ -94,7 +98,12 @@ class IntegrationProviderConfig
         return true;
     }
 
-    /** Never renders the secret itself — only whether one is on file. */
+    /**
+     * Never renders the secret itself — only whether one is on file.
+     *
+     * Stays a method: an existence check over a credential is not a read of it,
+     * and turning it into a property would put the two one keystroke apart.
+     */
     public function hasClientSecret(): bool
     {
         return null !== $this->clientSecret && '' !== $this->clientSecret;

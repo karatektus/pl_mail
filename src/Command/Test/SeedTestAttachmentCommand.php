@@ -163,14 +163,14 @@ final class SeedTestAttachmentCommand extends Command
             self::CONTENTS,
         );
 
-        $part = new MessagePart()
-            ->setMessage($message)
-            ->setContentType('text/plain')
-            ->setFilename(self::FILENAME)
-            ->setDisposition('attachment')
-            ->setSize(strlen(self::CONTENTS))
-            ->setStoragePath($storagePath)
-            ->setIsInline(false);
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'text/plain';
+        $part->filename    = self::FILENAME;
+        $part->disposition = 'attachment';
+        $part->size        = strlen(self::CONTENTS);
+        $part->storagePath = $storagePath;
+        $part->isInline    = false;
 
         $message->addMessagePart($part);
         $this->entityManager->persist($part);
