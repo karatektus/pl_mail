@@ -114,7 +114,12 @@ final class PruneMonitoringDataCommandTest extends KernelTestCase
         $entry->level = 200;
         $entry->levelName = 'INFO';
         $entry->message = 'Prune fixture';
-        $entry->createdAt = new \DateTimeImmutable($age);
+        // Reflection because createdAt is private(set): only the entity and
+        // its PrePersist may write it. Placing a row before a retention window
+        // is exactly the case that needs to, and going through the property
+        // would be re-opening it for everyone.
+        new \ReflectionProperty(LogEntry::class, 'createdAt')
+            ->setValue($entry, new \DateTimeImmutable($age));
 
         $this->em->persist($entry);
         $this->em->flush();

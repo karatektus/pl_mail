@@ -106,10 +106,13 @@ final class ThreadParticipants
         // The association is ordered by date, but a thread assembled in memory
         // during a sync is not, so the newest is picked rather than assumed.
         foreach ($thread->messages as $message) {
+            // createdAt closes the chain and is never null, so $at always has
+            // a value to compare — only the first pass has nothing to compare
+            // it against.
             $at = $message->receivedAt ?? $message->sentAt ?? $message->createdAt;
 
-            if (null === $newest || null === $at) {
-                $newest ??= $message;
+            if (null === $newest) {
+                $newest = $message;
 
                 continue;
             }

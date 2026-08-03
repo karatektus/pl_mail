@@ -306,25 +306,26 @@ final class MessageThreader
             $thread->attachmentCount = $thread->attachmentCount + 1;
         }
 
+        // createdAt closes the chain: every Message sets it in its constructor
+        // and the column is NOT NULL, so there is always an instant to order by
+        // even for a draft that has neither been received nor sent.
         $occurredAt = $message->receivedAt
             ?? $message->sentAt
             ?? $message->createdAt;
 
-        if (null !== $occurredAt) {
-            $currentLastMessageAt = $thread->lastMessageAt;
+        $currentLastMessageAt = $thread->lastMessageAt;
 
-            if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
-                $thread->lastMessageAt = $occurredAt;
+        if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
+            $thread->lastMessageAt = $occurredAt;
 
-                // Most-recent-wins, the same rule the category backfill applies in
-                // SQL. Without this a thread would keep whatever category it was
-                // created with and the inbox tabs — which filter on the thread, not
-                // the message — would only ever move after a backfill run.
-                $category = $message->category;
+            // Most-recent-wins, the same rule the category backfill applies in
+            // SQL. Without this a thread would keep whatever category it was
+            // created with and the inbox tabs — which filter on the thread, not
+            // the message — would only ever move after a backfill run.
+            $category = $message->category;
 
-                if (null !== $category) {
-                    $thread->category = $category;
-                }
+            if (null !== $category) {
+                $thread->category = $category;
             }
         }
     }

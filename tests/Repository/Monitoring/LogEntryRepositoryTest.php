@@ -158,8 +158,8 @@ final class LogEntryRepositoryTest extends KernelTestCase
     private function log(string $message, int $level, string $at): void
     {
         $this->connection->executeStatement(
-            'INSERT INTO log_entry (channel, level, level_name, message, context, created_at)
-             VALUES (:channel, :level, :levelName, :message, NULL, :createdAt)',
+            'INSERT INTO log_entry (channel, level, level_name, message, context, created_at, updated_at)
+             VALUES (:channel, :level, :levelName, :message, NULL, :createdAt, :createdAt)',
             [
                 'channel'   => 'app',
                 'level'     => $level,

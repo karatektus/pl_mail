@@ -7,6 +7,7 @@ namespace App\Entity\Calendar;
 use App\Entity\User\User;
 use App\Repository\Calendar\EventSuppressionRepository;
 use DateTimeImmutable;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -25,8 +26,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: EventSuppressionRepository::class)]
 #[ORM\Table(name: 'event_suppression')]
 #[ORM\UniqueConstraint(name: 'uniq_event_suppression', columns: ['usr_id', 'dedup_key_hash'])]
+#[ORM\HasLifecycleCallbacks]
 class EventSuppression
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -40,8 +44,6 @@ class EventSuppression
     #[ORM\Column(length: 64, options: ['fixed' => true])]
     public string $dedupKeyHash = '';
 
-    #[ORM\Column]
-    public DateTimeImmutable $createdAt;
 
     public function __construct()
     {

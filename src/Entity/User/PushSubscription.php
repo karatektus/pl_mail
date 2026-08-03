@@ -7,6 +7,7 @@ namespace App\Entity\User;
 use App\Entity\Mail\Account;
 use App\Repository\User\PushSubscriptionRepository;
 use DateTimeImmutable;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -28,8 +29,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'jmap_push_subscription')]
 #[ORM\UniqueConstraint(name: 'uniq_push_device', columns: ['usr_id', 'device_client_id'])]
 #[ORM\Index(name: 'idx_push_user', columns: ['usr_id'])]
+#[ORM\HasLifecycleCallbacks]
 class PushSubscription
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -78,8 +82,6 @@ class PushSubscription
     #[ORM\Column]
     public private(set) bool $verified = false;
 
-    #[ORM\Column]
-    public private(set) DateTimeImmutable $createdAt;
 
     /** Cleared on success; used to retire endpoints that keep failing. */
     #[ORM\Column]

@@ -6,7 +6,12 @@ namespace App\Tests\Entity;
 
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Label\Label;
+use App\Entity\Calendar\EventSuppression;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\UploadedBlob;
+use App\Entity\Monitoring\LogEntry;
+use App\Entity\User\PushSubscription;
+use App\Jmap\State\ChangeLog;
 use App\Entity\Mail\Contact;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -52,8 +57,11 @@ final class TimestampableTest extends KernelTestCase
     {
         $user = $this->user();
 
-        self::assertNotNull($user->createdAt, 'PrePersist did not run — is HasLifecycleCallbacks missing?');
-        self::assertNotNull($user->updatedAt);
+        // Not assertNotNull: the properties are non-nullable, so that would
+        // pass without the callback ever running. An uninitialised typed
+        // property throws on read, and a stamped one is within seconds of now.
+        self::assertEqualsWithDelta(time(), $user->createdAt->getTimestamp(), 10, 'PrePersist did not run — is HasLifecycleCallbacks missing?');
+        self::assertEqualsWithDelta(time(), $user->updatedAt->getTimestamp(), 10);
     }
 
     public function testChangingAFieldMovesUpdatedAtButNotCreatedAt(): void
@@ -116,7 +124,12 @@ final class TimestampableTest extends KernelTestCase
     /** @return iterable<string, array{string}> */
     public static function timestampedEntities(): iterable
     {
-        yield 'Account' => [Account::class];
+        yield 'Account'          => [Account::class];
+        yield 'ChangeLog'        => [ChangeLog::class];
+        yield 'EventSuppression' => [EventSuppression::class];
+        yield 'LogEntry'         => [LogEntry::class];
+        yield 'PushSubscription' => [PushSubscription::class];
+        yield 'UploadedBlob'     => [UploadedBlob::class];
         yield 'Contact' => [Contact::class];
         yield 'Label'   => [Label::class];
         yield 'Mailbox' => [Mailbox::class];
