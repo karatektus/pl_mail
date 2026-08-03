@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.0.12 — 2026-08-03
+
+No schema change. Dev stacks need the worker fix below applied to their own
+`compose.override.yaml` before anything consumes a queue again.
+
 ### Added
 
 - **Collapsed admin panels say what is inside them.** A shut card showed a
