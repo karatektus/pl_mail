@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Setup;
 
+use App\Repository\Monitoring\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -83,8 +84,10 @@ final class MigrateCommand extends Command
     /** Between attempts. Contention lasts seconds, so polling is cheap. */
     private const int POLL_INTERVAL_MICROSECONDS = 250_000;
 
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly PostgresStatusRepository $statistics,
+    ) {
         parent::__construct();
     }
 
@@ -128,7 +131,17 @@ final class MigrateCommand extends Command
         }
 
         try {
-            return $this->runMigrations($output);
+            $result = $this->runMigrations($output);
+
+            // Under the same lock, so only the container that migrated tries it
+            // rather than all four racing a CREATE EXTENSION. Best effort by
+            // design: a server without the library preloaded, or a role without
+            // rights, is a legitimate install and must still start.
+            if (Command::SUCCESS === $result && true === $this->statistics->enableStatStatements()) {
+                $io->text('Statement statistics are enabled.');
+            }
+
+            return $result;
         } finally {
             $this->releaseLock($io);
         }

@@ -56,6 +56,9 @@ admin:
         connections: 'Connections'
         deadlocks: 'Deadlocks'
         extension_missing: 'pg_stat_statements is not enabled — slow-query aggregation is unavailable. Enable it once:'
+        extension_enable: "Enable it now"
+        extension_enable_hint: "Statistics start from the moment the extension is created, so earlier queries will not appear."
+        extension_enable_failed: "Could not enable the extension - the database role is not allowed to create it."
         heavy_total:
             heading: 'Heaviest queries (by total time)'
             hint: 'Cumulative time across all calls — where the DB spends its time overall.'

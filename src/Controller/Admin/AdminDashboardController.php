@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\User\User;
 use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\QueueMonitor;
@@ -38,6 +39,7 @@ final class AdminDashboardController extends AbstractController
         private readonly LogEntryRepository     $logEntryRepository,
         private readonly DbPerformanceService   $dbPerformance,
         private readonly WorkerRestartSignal    $restartSignal,
+        private readonly PostgresStatusRepository $statistics,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -146,6 +148,7 @@ final class AdminDashboardController extends AbstractController
         return $this->render('admin/_db_frame.html.twig', [
             'collapsedPanels'         => $this->collapsedPanels(),
             'statStatementsAvailable' => $this->dbPerformance->isStatStatementsAvailable(),
+            'statStatementsPossible'  => $this->statistics->canCollectStatements(),
             'slowestByMean'           => $this->dbPerformance->slowestByMean(),
             'heaviestByTotal'         => $this->dbPerformance->heaviestByTotal(),
             'activeQueries'           => $this->dbPerformance->activeQueries(),
@@ -165,6 +168,30 @@ final class AdminDashboardController extends AbstractController
         $this->dbPerformance->resetStatStatements();
 
         return $this->redirectToRoute('app_admin_dashboard');
+    }
+
+    /**
+     * Turn statement collection on from the panel that reports it missing.
+     *
+     * Normally unreachable: app:db:migrate enables the extension at boot, so
+     * the button this posts from only renders where that was refused — a role
+     * without rights to CREATE EXTENSION, most likely. Worth having anyway,
+     * because the alternative is a shell on somebody's database server.
+     */
+    #[Route('/db/stat-statements/enable', name: 'db_stat_statements_enable', methods: ['POST'])]
+    public function enableStatStatements(Request $request): Response
+    {
+        $token = (string) $request->request->get('_token', '');
+
+        if (false === $this->isCsrfTokenValid('admin_db_stat_statements_enable', $token)) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        if (false === $this->statistics->enableStatStatements()) {
+            $this->addFlash('error', 'admin.db.extension_enable_failed');
+        }
+
+        return $this->redirectToRoute('app_admin_dashboard', ['section' => 'database']);
     }
 
     #[Route('/failed/{id}/retry', name: 'failed_retry', methods: ['POST'])]

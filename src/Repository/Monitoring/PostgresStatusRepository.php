@@ -64,6 +64,63 @@ final readonly class PostgresStatusRepository
     }
 
     /**
+     * Whether the server is even able to collect statement statistics.
+     *
+     * pg_stat_statements is a shared library, not just an extension: it has to
+     * be named in shared_preload_libraries, which is read once at startup. So
+     * CREATE EXTENSION on a server without it produces an extension whose view
+     * raises on every read — worse than not having it, because the failure
+     * arrives later and somewhere else.
+     */
+    public function canCollectStatements(): bool
+    {
+        try {
+            $preloaded = (string) $this->connection->fetchOne('SHOW shared_preload_libraries');
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return str_contains($preloaded, 'pg_stat_statements');
+    }
+
+    /**
+     * Turn statement collection on, if the server can support it and the
+     * connected role is allowed to.
+     *
+     * Enabled at boot rather than left to somebody noticing the panel, because
+     * the numbers only describe queries run *since* the extension existed: a
+     * slow page reported on Tuesday is not explained by statistics that started
+     * on Wednesday. Creating it costs nothing on a server already loading the
+     * library.
+     *
+     * @return bool true when the extension is present afterwards, whether this
+     *              call created it or found it already there
+     */
+    public function enableStatStatements(): bool
+    {
+        if (true === $this->hasStatStatements()) {
+            return true;
+        }
+
+        if (false === $this->canCollectStatements()) {
+            return false;
+        }
+
+        try {
+            // IF NOT EXISTS rather than a check-then-create: two containers
+            // boot at once and both would pass the check.
+            $this->connection->executeStatement('CREATE EXTENSION IF NOT EXISTS pg_stat_statements');
+        } catch (\Throwable) {
+            // Needs a superuser or a role granted pg_create_extension. Refusing
+            // is a legitimate answer from a locked-down install, and it must not
+            // stop the application starting.
+            return false;
+        }
+
+        return $this->hasStatStatements();
+    }
+
+    /**
      * Statements whose *average* is slow, worst first — "which queries are
      * slow". Floored, because a statement that averages a fraction of a
      * millisecond is noise on this view however often it runs.
