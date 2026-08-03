@@ -10,6 +10,37 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.8 — 2026-08-03
+
+### Fixed
+
+- **A Gmail rate limit looked exactly like a permissions failure, and was fatal
+  either way.** Gmail signals throttling with 403 rather than 429, and the only
+  place it names the cause is a response body that was never read — so a
+  transient quota rejection killed an entire account sync and reported nothing
+  but a status. Quota rejections are now retried with a real backoff;
+  permissions failures and daily-limit breaches are never retried.
+- **Archive, star and trash could vanish silently on Gmail, Outlook and IMAP.**
+  All three outgoing pushes swallowed their failures, on the stated grounds that
+  the next sync would reconcile the difference. It does not: sync reads the
+  server's state *in*, so a change that never arrived leaves nothing to
+  reconcile from and the next pass overwrites it. The action disappeared from
+  the account while still looking applied on screen. Transient failures are now
+  retried; only a refusal that would repeat forever is dropped. An IMAP
+  authentication failure is deliberately still not retried — repeated rejected
+  logins get mailboxes locked and hosts banned.
+- **Retries gave up after seven seconds.** The async queue retried at 1s, 2s and
+  4s, which is not a backoff for anything that clears in minutes. Now 5s to 300s
+  over five attempts. A send that hits a briefly-unavailable relay may now take
+  up to ~8 minutes to go out instead of failing outright.
+- **The admin log view showed no log messages on a phone.** The message column
+  was zero pixels wide at every phone width and the overflow was clipped rather
+  than scrolled, so each entry displayed its level, time and source and nothing
+  else. Entries also gained a copy button that copies the whole entry, and works
+  over plain HTTP where the clipboard API is unavailable.
+- **The admin area spent a third of a phone screen on nested padding**, because
+  the page padded its content and every section inside it padded its own.
+
 ## v0.0.7 — 2026-08-02
 
 ### Fixed
