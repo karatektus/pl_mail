@@ -6,9 +6,23 @@ framework:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                # Everything on this transport talks to a third party — Gmail,
+                # Graph, an IMAP server, an SMTP relay — and the failures worth
+                # retrying at all are the ones that take minutes to clear. The
+                # defaults here were 1s/2s/4s: a seven-second window that
+                # exhausted every attempt before a rate limit or a mailbox
+                # restart had any chance to end, so a recoverable failure
+                # dead-lettered as reliably as an unrecoverable one. 5s/15s/45s/
+                # 135s/300s spans roughly eight and a half minutes instead.
+                #
+                # max_delay caps the growth at five minutes so the tail stays
+                # inside the worker's --time-limit=3600 and a delayed retry is
+                # never left waiting on a restart.
                 retry_strategy:
-                    max_retries: 3
-                    multiplier: 2
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 

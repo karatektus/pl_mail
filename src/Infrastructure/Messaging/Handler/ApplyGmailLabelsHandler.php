@@ -11,6 +11,8 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Domain\Enum\Mail\LabelColor;
+use App\Domain\Exception\GmailPermanentException;
+use App\Domain\Exception\GmailThrottledException;
 use App\Service\Gmail\GmailLabelColorMapper;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
@@ -20,12 +22,25 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
 
 /**
- * Best-effort outgoing Gmail label sync via messages.batchModify.
+ * Outgoing Gmail label sync via messages.batchModify.
  *
  * Numeric entries in add/remove are local Label ids; those are resolved to
  * their gmailLabelId, creating the label on Gmail first when it has never
- * been pushed (labels created locally in plMail). Failures are logged and
- * swallowed — DB is the source of truth, incremental sync reconciles drift.
+ * been pushed (labels created locally in plMail).
+ *
+ * Failures are split rather than uniformly swallowed. A quota rejection is
+ * allowed out of the handler so Messenger redelivers it after the delay the
+ * exception carries; swallowing it loses the push outright, because nothing
+ * pulls it back. Gmail's history feed reports what happened *in* the mailbox,
+ * so a change that never reached Gmail is not drift sync can reconcile — the
+ * next incremental pass sees Gmail's unchanged state and, for anything sync
+ * writes back, overwrites the local value instead.
+ *
+ * A permanent refusal — a scope the grant never included, a suspended account
+ * — is logged and swallowed, because it answers identically on every attempt
+ * and redelivering it only buries the one log line that explains it. There the
+ * DB stays the source of truth and the divergence is real but unfixable from
+ * here.
  */
 #[AsMessageHandler]
 final class ApplyGmailLabelsHandler
@@ -68,11 +83,16 @@ final class ApplyGmailLabelsHandler
             }
 
             $this->apiClient->batchModify($account, $gmailIds, $addLabelIds, $removeLabelIds);
-        } catch (Throwable $e) {
-            $this->logger->error('ApplyGmailLabelsHandler: batchModify failed', [
+        } catch (GmailPermanentException $e) {
+            // Deliberately the only failure that stops here. Anything else —
+            // a quota rejection, a 5xx, a dropped connection — leaves the
+            // handler so the transport redelivers it; caught here, the user's
+            // archive or star would be applied locally and never anywhere else.
+            $this->logger->error('ApplyGmailLabelsHandler: batchModify refused permanently', [
                 'accountId' => $account->getId(),
                 'add'       => $message->add,
                 'remove'    => $message->remove,
+                'reason'    => $e->getReason(),
                 'error'     => $e->getMessage(),
             ]);
         }
@@ -166,6 +186,14 @@ final class ApplyGmailLabelsHandler
             $this->em->flush();
 
             return $gmailLabelId;
+        } catch (GmailThrottledException $e) {
+            // Not swallowed like the rest: returning null here drops the label
+            // from the batch, so the push would go out looking successful while
+            // silently missing exactly the label the user asked for. Let the
+            // whole message be redelivered instead — the binding is flushed as
+            // soon as a label is created, so the retry skips the ones that
+            // already made it.
+            throw $e;
         } catch (Throwable $e) {
             $this->logger->error('ApplyGmailLabelsHandler: remote label creation failed', [
                 'labelId' => $label->id,

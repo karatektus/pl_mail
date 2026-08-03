@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Domain\Exception\GmailApiException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
@@ -184,11 +185,19 @@ final class GmailApiSyncer
             $result = $this->apiClient->listHistory($account, $startHistoryId, [
                 'historyTypes' => 'messageAdded',
             ]);
-        } catch (\Throwable $e) {
-            if (
-                true === str_contains($e->getMessage(), '404')
-                || true === str_contains($e->getMessage(), '410')
-            ) {
+        } catch (GmailApiException $e) {
+            // Matched on the status, not the message text. It used to be
+            // str_contains($e->getMessage(), '404'), which fires on any failure
+            // whose wording happens to contain those digits — a quota message
+            // quoting a limit, a proxy error page, a label id — and answers a
+            // transient rejection by re-listing the entire mailbox.
+            //
+            // 404 is what Gmail documents for a startHistoryId older than the
+            // ~30 days of history it keeps. 410 is not documented for
+            // history.list, but it is the status Google's other cursor-based
+            // endpoints use for an expired token and it means the same thing
+            // here; the response to either is the only one available anyway.
+            if (true === in_array($e->getStatus(), [404, 410], true)) {
                 $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync', [
                     'accountId' => $account->getId(),
                 ]);
@@ -201,6 +210,12 @@ final class GmailApiSyncer
 
             throw $e;
         }
+        // No catch for anything wider on purpose. listHistory() can still fail
+        // outside this hierarchy — a refresh token that no longer grants, a
+        // connection reset before the status is known — but neither of those is
+        // an expired cursor, and the only way to guess at one from a failure
+        // that carries no status is by reading its text, which is the bug this
+        // replaced. They propagate and the transport retries them.
 
         $refs = [];
 

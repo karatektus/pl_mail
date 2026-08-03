@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Exception\GmailApiException;
+use App\Domain\Exception\GmailPermanentException;
+use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * Thin wrapper around the Gmail REST API endpoints needed for sync.
@@ -21,6 +25,28 @@ final class GmailApiClient
 {
     private const BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
     private const BATCH = 'https://www.googleapis.com/batch/gmail/v1';
+
+    /**
+     * Gmail reports quota rejections as 403, not 429 — the status alone cannot
+     * tell these apart from a permissions failure, so the reason in the body is
+     * the only thing that can.
+     */
+    private const array TRANSIENT_REASONS = [
+        'rateLimitExceeded',
+        'userRateLimitExceeded',
+        'quotaExceeded',
+    ];
+
+    /**
+     * The 403s that answer identically forever. Anything not listed here or in
+     * TRANSIENT_REASONS stays unclassified on purpose: guessing wrong in the
+     * permanent direction hides a real outage behind a dead-lettered job.
+     */
+    private const array PERMANENT_REASONS = [
+        'insufficientPermissions',
+        'dailyLimitExceeded',
+        'accountSuspended',
+    ];
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -61,7 +87,7 @@ final class GmailApiClient
                 'query'       => $query,
             ]);
 
-            $body = $response->toArray();
+            $body = $this->decode($response, 'messages.list');
             $page = $body['nextPageToken'] ?? null;
 
             foreach ($body['messages'] ?? [] as $m) {
@@ -181,7 +207,7 @@ final class GmailApiClient
             ],
         );
 
-        return $response->toArray();
+        return $this->decode($response, 'messages.get');
     }
 
     /**
@@ -204,7 +230,7 @@ final class GmailApiClient
             ],
         );
 
-        $body = $response->toArray();
+        $body = $this->decode($response, 'messages.get(raw)');
         $raw  = (string) ($body['raw'] ?? '');
 
         if ('' === $raw) {
@@ -242,7 +268,7 @@ final class GmailApiClient
                 'query'       => $query,
             ]);
 
-            $body = $response->toArray();
+            $body = $this->decode($response, 'history.list');
             $page = $body['nextPageToken'] ?? null;
 
             if (true === isset($body['historyId'])) {
@@ -278,7 +304,7 @@ final class GmailApiClient
             ],
         ]);
 
-        return $response->toArray();
+        return $this->decode($response, 'watch');
     }
 
     /**
@@ -306,7 +332,7 @@ final class GmailApiClient
             'auth_bearer' => $token,
         ]);
 
-        return $response->toArray();
+        return $this->decode($response, 'getProfile');
     }
 
     /**
@@ -369,7 +395,7 @@ final class GmailApiClient
             ['auth_bearer' => $token],
         );
 
-        $body = $response->toArray();
+        $body = $this->decode($response, 'attachments.get');
         $data = (string) ($body['data'] ?? '');
 
         return base64_decode(strtr($data, '-_', '+/'));
@@ -506,7 +532,7 @@ final class GmailApiClient
             'auth_bearer' => $token,
         ]);
 
-        $body = $response->toArray();
+        $body = $this->decode($response, 'labels.list');
 
         return $body['labels'] ?? [];
     }
@@ -543,7 +569,7 @@ final class GmailApiClient
             'json'        => $payload,
         ]);
 
-        return $response->toArray();
+        return $this->decode($response, 'labels.create');
     }
 
     /**
@@ -561,24 +587,42 @@ final class GmailApiClient
             'json'        => ['name' => $name],
         ]);
 
-        return $response->toArray();
+        return $this->decode($response, 'labels.patch');
     }
 
     /**
      * Delete a label. Gmail removes it from every message it was on; the
      * messages themselves survive.
+     *
+     * The response is 204 with no body, so it is asserted rather than decoded.
+     * A label that is already gone counts as done: the caller's job is to make
+     * the label not exist, and failing here would only requeue a delete that
+     * can never succeed.
      */
     public function deleteLabel(Account $account, string $labelId): void
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $this->httpClient->request('DELETE', self::BASE . '/labels/' . rawurlencode($labelId), [
+        $response = $this->httpClient->request('DELETE', self::BASE . '/labels/' . rawurlencode($labelId), [
             'auth_bearer' => $token,
-        ])->getStatusCode();
+        ]);
+
+        if (true === in_array($response->getStatusCode(), [404, 410], true)) {
+            return;
+        }
+
+        $this->assertSuccess($response, 'labels.delete');
     }
 
     /**
      * Mutate labels on up to 1000 messages in one call.
+     *
+     * Gmail answers 204 with no body, so nothing here needs decoding — but the
+     * response still has to be asserted. Left unread, the request object is
+     * simply discarded and the call cannot fail: archiving a thread while Gmail
+     * was rate-limiting us dropped the push on the floor, with no exception for
+     * the handler to catch and nothing in the log to say the change never
+     * reached Google.
      *
      * @param list<string> $gmailMessageIds
      * @param list<string> $addLabelIds
@@ -602,9 +646,153 @@ final class GmailApiClient
             $payload['removeLabelIds'] = $removeLabelIds;
         }
 
-        $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
+        $response = $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
             'auth_bearer' => $token,
             'json'        => $payload,
         ]);
+
+        $this->assertSuccess($response, 'messages.batchModify');
+    }
+
+    // ── Failure handling ──────────────────────────────────────────────────────
+
+    /**
+     * Classify the response, then decode it.
+     *
+     * Every single-shot call goes through here rather than calling toArray()
+     * directly. toArray() raises Symfony's own HTTP exception, whose message is
+     * just `HTTP/2 403 returned for "…"` — the body, and with it Google's
+     * reason, is thrown away. That is how a Gmail rate limit spent production
+     * looking like a scope problem.
+     *
+     * @return array<string,mixed>
+     */
+    private function decode(ResponseInterface $response, string $operation): array
+    {
+        $this->assertSuccess($response, $operation);
+
+        // throw=false so this stays the only place that decides what a failure
+        // means. Left at true, a status assertSuccess() deliberately let past
+        // would still raise the bare HTTP exception this exists to replace.
+        return $response->toArray(false);
+    }
+
+    /**
+     * Turn a non-2xx Gmail response into an exception Messenger can act on.
+     *
+     * The split is between quota rejections, which clear on their own, and
+     * refusals that will not: retrying insufficientPermissions buries the log
+     * line that explains the failure, and retrying dailyLimitExceeded spends
+     * quota the account has already run out of.
+     *
+     * Everything else — 5xx, 404, an unrecognised reason — is left
+     * unclassified, so the transport's default strategy applies exactly as it
+     * did before. The status stays in the message text as well as on the
+     * exception because it is the only part of a failure that always survives
+     * into a log line.
+     */
+    private function assertSuccess(ResponseInterface $response, string $operation): void
+    {
+        $status = $response->getStatusCode();
+
+        if ($status >= 200 && $status < 300) {
+            return;
+        }
+
+        $failure = $this->describeFailure($response);
+        $reason  = $failure['reason'];
+
+        $message = sprintf(
+            'Gmail %s failed with %d%s: %s',
+            $operation,
+            $status,
+            '' !== $reason ? ' (' . $reason . ')' : '',
+            '' !== $failure['message'] ? $failure['message'] : '(no message in body)',
+        );
+
+        // 429 is in here for completeness only — Gmail answers 403 for quota,
+        // which is the entire reason the reason has to be read.
+        if (429 === $status || (403 === $status && true === in_array($reason, self::TRANSIENT_REASONS, true))) {
+            throw new GmailThrottledException(
+                $message,
+                $status,
+                $reason,
+                $this->retryAfterSeconds($response),
+            );
+        }
+
+        if (403 === $status && true === in_array($reason, self::PERMANENT_REASONS, true)) {
+            throw new GmailPermanentException($message, $status, $reason);
+        }
+
+        throw new GmailApiException($message, $status, $reason);
+    }
+
+    /**
+     * Pull Google's `reason` and human message out of an error body.
+     *
+     * Written to survive a body that is empty, truncated or an HTML error page
+     * from a proxy in front of the API — none of which are hypothetical, and
+     * all of which would otherwise turn a clean 403 into a JsonException that
+     * says nothing about what went wrong.
+     *
+     * @return array{reason: string, message: string}
+     */
+    private function describeFailure(ResponseInterface $response): array
+    {
+        try {
+            $raw = $response->getContent(false);
+        } catch (HttpException) {
+            // The body never arrived — a truncated or reset stream. The status
+            // is still worth reporting on its own.
+            return ['reason' => '', 'message' => ''];
+        }
+
+        $decoded = json_decode($raw, true);
+        $error   = true === is_array($decoded) ? ($decoded['error'] ?? null) : null;
+
+        if (false === is_array($error)) {
+            // Not a Google error envelope — an empty body, a truncated one, or
+            // an HTML page from a proxy in front of the API. A short excerpt
+            // beats discarding it: the proxy page at least names the proxy.
+            return ['reason' => '', 'message' => trim(substr($raw, 0, 200))];
+        }
+
+        $errors = $error['errors'] ?? null;
+        $first  = true === is_array($errors) ? ($errors[0] ?? null) : null;
+        $reason = true === is_array($first) ? ($first['reason'] ?? null) : null;
+
+        // errors[].reason is the classic form; error.status ("RESOURCE_EXHAUSTED",
+        // "PERMISSION_DENIED") is what newer Google endpoints send instead.
+        $reason ??= $error['status'] ?? null;
+        $detail   = $error['message'] ?? null;
+
+        return [
+            'reason'  => true === is_scalar($reason) ? (string) $reason : '',
+            'message' => true === is_scalar($detail) ? (string) $detail : '',
+        ];
+    }
+
+    /**
+     * Retry-After in seconds, when Gmail bothered to send one.
+     *
+     * It usually does not on a 403 quota rejection, which is why
+     * GmailThrottledException carries its own fallback. The header also has an
+     * HTTP-date form; that is ignored rather than parsed, because Google sends
+     * the delta form and a misparsed date would produce a nonsense delay.
+     */
+    private function retryAfterSeconds(ResponseInterface $response): ?int
+    {
+        try {
+            $header = $response->getHeaders(false)['retry-after'][0] ?? null;
+        } catch (HttpException) {
+            return null;
+        }
+
+        if (null === $header || false === ctype_digit(trim($header))) {
+            return null;
+        }
+
+        return (int) trim($header);
     }
 }
