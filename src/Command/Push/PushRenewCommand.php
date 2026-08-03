@@ -89,15 +89,15 @@ final class PushRenewCommand extends Command
             }
 
             if (true === $manager->renew($account)) {
-                $io->text(sprintf('→ renewed %s (#%d)', $account->getEmail(), $account->getId()));
+                $io->text(sprintf('→ renewed %s (#%d)', $account->email, $account->id));
                 $renewed++;
                 continue;
             }
 
             $io->warning(sprintf(
                 'could not renew %s (#%d) — it stays on polling',
-                $account->getEmail(),
-                $account->getId(),
+                $account->email,
+                $account->id,
             ));
             $failed++;
         }

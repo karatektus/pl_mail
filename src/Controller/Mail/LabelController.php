@@ -206,7 +206,7 @@ final class LabelController extends AbstractController
     private function recordForEveryBinding(Label $label, string $kind): void
     {
         foreach ($label->bindings as $binding) {
-            $accountId = (int) $binding->account->getId();
+            $accountId = (int) $binding->account->id;
             $bindingId = (string) $binding->id;
 
             if ('destroyed' === $kind) {

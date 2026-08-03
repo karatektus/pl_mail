@@ -145,7 +145,7 @@ final class SeedTestAttachmentCommand extends Command
         // these rows ride out on the flush that stores the part below. One
         // "created" covers the attachment as well: a client answers it by
         // fetching the Email, and by then the part is there.
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $this->stateManager->recordCreated(
             $accountId,
@@ -155,7 +155,7 @@ final class SeedTestAttachmentCommand extends Command
         $this->stateManager->recordThreadsTouched($accountId, [(int) $thread->id]);
 
         $storagePath = $this->attachmentStorage->store(
-            (int) $account->getId(),
+            (int) $account->id,
             0,
             (int) $message->id,
             self::FILENAME,
@@ -194,16 +194,15 @@ final class SeedTestAttachmentCommand extends Command
         // Normally seed-mail has already made this; creating it here only
         // matters when this command runs on its own.
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setName('E2E Mailbox')
-            ->setEmail('E2E Mailbox')
-            ->setUsername(self::SEED_ACCOUNT_USERNAME)
-            ->setImapHost('imap.e2e.test')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->name = 'E2E Mailbox';
+        $account->email = 'E2E Mailbox';
+        $account->username = self::SEED_ACCOUNT_USERNAME;
+        $account->imapHost = 'imap.e2e.test';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->authType = 'password';
+        $account->isActive = true;
 
         $this->entityManager->persist($account);
         $this->entityManager->flush();
@@ -227,7 +226,7 @@ final class SeedTestAttachmentCommand extends Command
             return;
         }
 
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = array_map(
             static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,

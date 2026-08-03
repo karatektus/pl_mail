@@ -26,7 +26,7 @@ final class AccountResolver
         }
 
         foreach ($user->accounts as $account) {
-            if ((string) $account->getId() === $accountId) {
+            if ((string) $account->id === $accountId) {
                 return $account;
             }
         }

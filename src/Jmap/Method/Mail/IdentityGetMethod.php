@@ -39,7 +39,7 @@ final class IdentityGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $requestedIds = $arguments['ids'] ?? null;
 
@@ -79,7 +79,7 @@ final class IdentityGetMethod implements JmapMethod
      */
     private function identities(Account $account): array
     {
-        $aliases = $account->getSendableAliases();
+        $aliases = $account->sendableAliases;
 
         if (0 === count($aliases)) {
             return [$this->fallbackIdentity($account)];
@@ -101,7 +101,7 @@ final class IdentityGetMethod implements JmapMethod
     {
         return [
             'id' => (string) $alias->id,
-            'name' => $alias->displayName ?? $account->getName() ?? '',
+            'name' => $alias->displayName ?? $account->name ?? '',
             'email' => $alias->address,
             'replyTo' => null,
             'bcc' => null,
@@ -121,9 +121,9 @@ final class IdentityGetMethod implements JmapMethod
     private function fallbackIdentity(Account $account): array
     {
         return [
-            'id' => (string) $account->getId(),
-            'name' => $account->getName() ?? '',
-            'email' => (string) $account->getEmail(),
+            'id' => (string) $account->id,
+            'name' => $account->name ?? '',
+            'email' => (string) $account->email,
             'replyTo' => null,
             'bcc' => null,
             'textSignature' => '',

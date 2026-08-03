@@ -28,7 +28,7 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
     {
         $this->labelSyncer->sync($account);
 
-        if (null === $account->getGmailHistoryId()) {
+        if (null === $account->gmailHistoryId) {
             $this->gmailApiSyncer->initialSync($account);
 
             return [];

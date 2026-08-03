@@ -130,7 +130,7 @@ final readonly class GmailLabelSyncer
         $this->em->flush();
 
         $this->logger->info('GmailLabelSyncer: labels synced', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'count'     => $synced,
         ]);
     }

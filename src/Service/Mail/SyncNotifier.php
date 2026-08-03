@@ -27,13 +27,13 @@ final readonly class SyncNotifier
     {
         $this->hub->publish(new Update(
             topics: [
-                sprintf('mail/user/%d', $account->getUsr()->id),
+                sprintf('mail/user/%d', $account->usr->id),
                 sprintf('mail/mailbox/%d', $mailbox->id),
             ],
             data: json_encode([
                 'type' => 'mailbox.synced',
                 'mailboxId' => $mailbox->id,
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'specialUse' => $mailbox->specialUse,
             ]),
         ));
@@ -43,11 +43,11 @@ final readonly class SyncNotifier
     {
         $this->hub->publish(new Update(
             topics: [
-                sprintf('mail/user/%d', $account->getUsr()->id),
+                sprintf('mail/user/%d', $account->usr->id),
             ],
             data: json_encode([
                 'type' => 'account.synced',
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]),
         ));
     }

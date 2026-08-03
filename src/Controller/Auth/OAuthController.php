@@ -180,41 +180,38 @@ class OAuthController extends AbstractController
         if (null === $account) {
             $duplicate = $this->accountRepository->count(['usr' => $user, 'email' => $email]) > 0;
 
-            $account = new Account()
-                ->setUsr($user)
-                ->setEmail($email)
-                ->setName($duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email)
-                ->setIsActive(true);
+            $account = new Account();
+            $account->usr = $user;
+            $account->email = $email;
+            $account->name = $duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email;
+            $account->isActive = true;
         }
 
-        $account->setUsername($email);
-        $account->setAuthType(AuthType::OAuth2->value);
-        $account->setOauthProvider($provider->value);
-        $account->setPassword(null);
-        $account->setOauthAccessToken($token->getToken());
+        $account->username = $email;
+        $account->authType = AuthType::OAuth2->value;
+        $account->oauthProvider = $provider->value;
+        $account->password = null;
+        $account->oauthAccessToken = $token->getToken();
 
         $imapHost = $provider->imapHost();
 
         if (null !== $imapHost) {
-            $account
-                ->setImapHost($imapHost)
-                ->setImapPort($provider->imapPort())
-                ->setImapEncryption($provider->imapEncryption());
+            $account->imapHost = $imapHost;
+            $account->imapPort = $provider->imapPort();
+            $account->imapEncryption = $provider->imapEncryption();
         }
 
         $refreshToken = $token->getRefreshToken();
         if (null !== $refreshToken) {
-            $account->setOauthRefreshToken($refreshToken);
+            $account->oauthRefreshToken = $refreshToken;
         }
 
         $expires = $token->getExpires();
         if (null !== $expires) {
-            $account->setOauthTokenExpiry(
-                new DateTimeImmutable()->setTimestamp($expires)
-            );
+            $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
         }
 
-        $account->setUpdatedAt(new DateTimeImmutable());
+        $account->updatedAt = new DateTimeImmutable();
 
         $this->em->persist($account);
         $this->em->flush();
@@ -237,11 +234,11 @@ class OAuthController extends AbstractController
             return;
         }
 
-        $account->setPushEnabled(true);
+        $account->pushEnabled = true;
         $this->em->flush();
 
         if (false === $manager->subscribe($account)) {
-            $account->setPushEnabled(false);
+            $account->pushEnabled = false;
             $this->em->flush();
         }
     }

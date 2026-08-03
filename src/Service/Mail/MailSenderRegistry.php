@@ -31,7 +31,7 @@ class MailSenderRegistry
 
         throw new \RuntimeException(sprintf(
             'No mail sender supports account %d.',
-            (int) $account->getId(),
+            (int) $account->id,
         ));
     }
 }

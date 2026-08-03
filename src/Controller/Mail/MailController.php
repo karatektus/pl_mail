@@ -134,7 +134,7 @@ final class MailController extends AbstractController
 
         $account = $this->accountRepository->find($id);
 
-        if (null === $account || $account->getUsr() !== $this->getUser()) {
+        if (null === $account || $account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -148,7 +148,7 @@ final class MailController extends AbstractController
     #[Route('/account/{account}', name: 'account')]
     public function accountView(Account $account, Request $request): Response
     {
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -293,7 +293,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -348,7 +348,7 @@ final class MailController extends AbstractController
         $thread = $message->thread;
         $account = $thread->account;
 
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -375,7 +375,7 @@ final class MailController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_USER');
 
         $account = $thread->account;
-        if ($account->getUsr() !== $this->getUser()) {
+        if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 

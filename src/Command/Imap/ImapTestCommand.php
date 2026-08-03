@@ -42,7 +42,7 @@ class ImapTestCommand extends Command
             return Command::FAILURE;
         }
 
-        $io->title(sprintf('Testing IMAP for: %s (%s)', $account->getName(), $account->getEmail()));
+        $io->title(sprintf('Testing IMAP for: %s (%s)', $account->name, $account->email));
 
 // 1. Connect
         $io->section('1. Connecting…');

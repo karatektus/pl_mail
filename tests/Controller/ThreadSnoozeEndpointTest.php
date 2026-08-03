@@ -176,19 +176,18 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $client->loginUser($user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($user)
-            ->setEmail('Snooze Endpoint')
-            ->setUsername('snooze-endpoint-' . uniqid('', true) . '@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $user;
+        $this->account->email = 'Snooze Endpoint';
+        $this->account->username = 'snooze-endpoint-' . uniqid('', true) . '@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
         $this->em->flush();
 

@@ -69,7 +69,7 @@ final class JmapUploadController extends AbstractController
         }
 
         $contentType = $this->contentTypeOf($request);
-        $path = $this->storage->store((int) $account->getId(), $content);
+        $path = $this->storage->store((int) $account->id, $content);
 
         $blob = new UploadedBlob($account, $path, $contentType, $size);
 
@@ -77,7 +77,7 @@ final class JmapUploadController extends AbstractController
         $this->entityManager->flush();
 
         return new JsonResponse([
-            'accountId' => (string) $account->getId(),
+            'accountId' => (string) $account->id,
             'blobId' => (string) BlobId::forUpload((int) $blob->id),
             'type' => $contentType,
             'size' => $size,

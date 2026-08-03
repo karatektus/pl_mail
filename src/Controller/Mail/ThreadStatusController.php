@@ -85,7 +85,7 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
         $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
 
         // Propagate BEFORE re-pointing mailboxes so the IMAP job captures
         // the correct source folders.
@@ -121,7 +121,7 @@ class ThreadStatusController extends AbstractController
         $messages = $this->resolveMessages($type, $id);
         $account  = $this->accountOf($messages[0]);
 
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
 
         $this->propagator->trash($messages);
@@ -294,7 +294,7 @@ class ThreadStatusController extends AbstractController
         $threadIdsByAccount = [];
 
         foreach ($messages as $message) {
-            $accountId = (int) $message->account->getId();
+            $accountId = (int) $message->account->id;
 
             $this->stateManager->recordUpdated(
                 $accountId,
@@ -349,7 +349,7 @@ class ThreadStatusController extends AbstractController
     private function assertOwnership(iterable $messages): void
     {
         foreach ($messages as $message) {
-            if ($this->accountOf($message)->getUsr() !== $this->getUser()) {
+            if ($this->accountOf($message)->usr !== $this->getUser()) {
                 throw $this->createAccessDeniedException();
             }
         }

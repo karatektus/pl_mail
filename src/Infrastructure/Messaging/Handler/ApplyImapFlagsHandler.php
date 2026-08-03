@@ -91,7 +91,7 @@ final class ApplyImapFlagsHandler
                 continue;
             }
 
-            $accountId = $sourceMailbox->account->getId();
+            $accountId = $sourceMailbox->account->id;
 
             $byAccount[$accountId][$sourceMailboxId][] = $msg;
         }
@@ -145,7 +145,7 @@ final class ApplyImapFlagsHandler
 
         if (true === $needsDestination && null === $destinationPath) {
             $this->logger->warning('ApplyImapFlagsHandler: destination not resolvable', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'action'    => $action,
             ]);
 

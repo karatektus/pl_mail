@@ -47,11 +47,11 @@ final class StateChangeBuilder
         $snapshot = [];
 
         foreach ($user->accounts as $account) {
-            $accountId = (string) $account->getId();
+            $accountId = (string) $account->id;
 
             foreach (self::TYPES as $type) {
                 $snapshot[$accountId][$type->value] = $this->stateManager->stateFor(
-                    (int) $account->getId(),
+                    (int) $account->id,
                     $type,
                 );
             }

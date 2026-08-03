@@ -89,7 +89,7 @@ final class ApplyGmailLabelsHandler
             // handler so the transport redelivers it; caught here, the user's
             // archive or star would be applied locally and never anywhere else.
             $this->logger->error('ApplyGmailLabelsHandler: batchModify refused permanently', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'add'       => $message->add,
                 'remove'    => $message->remove,
                 'reason'    => $e->getReason(),
@@ -137,10 +137,10 @@ final class ApplyGmailLabelsHandler
 
             $label = $this->labelRepository->find((int) $entry);
 
-            if (null === $label || $label->usr !== $account->getUsr()) {
+            if (null === $label || $label->usr !== $account->usr) {
                 $this->logger->warning('ApplyGmailLabelsHandler: label not found for user', [
                     'labelId'   => $entry,
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                 ]);
                 continue;
             }

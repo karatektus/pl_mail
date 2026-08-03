@@ -440,22 +440,21 @@ final class EmailChangesTest extends KernelTestCase
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            // An address, not a display name: persistDraft() copies this onto
-            // the draft's From, and MessageSendService builds a real MIME
-            // header out of it further down the same path.
-            ->setEmail('changes-fixture@example.test')
-            ->setUsername('changes-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        // An address, not a display name: persistDraft() copies this onto
+        // the draft's From, and MessageSendService builds a real MIME
+        // header out of it further down the same path.
+        $this->account->email = 'changes-fixture@example.test';
+        $this->account->username = 'changes-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();
@@ -474,6 +473,6 @@ final class EmailChangesTest extends KernelTestCase
         // is not populated by persisting the owning side alone.
         $this->user->addAccount($this->account);
 
-        $this->accountId = (int) $this->account->getId();
+        $this->accountId = (int) $this->account->id;
     }
 }

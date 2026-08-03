@@ -37,11 +37,11 @@ class GraphApiSender implements MailSenderInterface
 
     public function supports(Account $account): bool
     {
-        if (AuthType::OAuth2->value !== $account->getAuthType()) {
+        if (AuthType::OAuth2->value !== $account->authType) {
             return false;
         }
 
-        if (MailProvider::Microsoft->value !== $account->getOauthProvider()) {
+        if (MailProvider::Microsoft->value !== $account->oauthProvider) {
             return false;
         }
 
@@ -59,7 +59,7 @@ class GraphApiSender implements MailSenderInterface
 
         if (strlen($mime) > self::MAX_MIME_BYTES) {
             $this->logger->error('GraphApiSender: message exceeds the 4MB raw-MIME send limit', [
-                'account' => $account->getId(),
+                'account' => $account->id,
                 'bytes'   => strlen($mime),
             ]);
 
@@ -70,7 +70,7 @@ class GraphApiSender implements MailSenderInterface
             $this->apiClient->sendMime($account, $mime);
         } catch (\Throwable $e) {
             $this->logger->error('GraphApiSender: send failed', [
-                'account' => $account->getId(),
+                'account' => $account->id,
                 'error'   => $e->getMessage(),
             ]);
 

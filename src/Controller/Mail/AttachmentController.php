@@ -87,7 +87,7 @@ final class AttachmentController extends AbstractController
      */
     private function assertOwned(MessagePart $part): void
     {
-        if ($part->message->account->getUsr() !== $this->getUser()) {
+        if ($part->message->account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

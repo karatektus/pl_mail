@@ -57,7 +57,7 @@ final class ThreadSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Thread);
 

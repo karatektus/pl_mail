@@ -41,7 +41,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $requestedIds = $arguments['ids'] ?? null;
 

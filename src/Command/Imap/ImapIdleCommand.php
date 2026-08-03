@@ -85,7 +85,7 @@ class ImapIdleCommand extends Command
         $io->info(sprintf(
             'Starting IDLE on mailbox "%s" for account "%s"',
             $mailbox->name,
-            $mailbox->account->getEmail(),
+            $mailbox->account->email,
         ));
 
         $retries = 0;
@@ -214,7 +214,7 @@ class ImapIdleCommand extends Command
         $this->heartbeats->beat(
             ProcessHeartbeatService::TYPE_IMAP_IDLE,
             (string) $mailbox->id,
-            ['mailbox' => $mailbox->fullPath, 'account' => $account->getEmail()],
+            ['mailbox' => $mailbox->fullPath, 'account' => $account->email],
         );
     }
 }

@@ -90,15 +90,15 @@ final class AdminMonitoringService
         $now  = new \DateTimeImmutable();
 
         foreach ($this->accountRepository->findAll() as $account) {
-            $watchExpiry  = $account->getGmailWatchExpiry();
-            $resourceName = $account->getGmailWatchResourceName();
-            $historyId    = $account->getGmailHistoryId();
+            $watchExpiry  = $account->gmailWatchExpiry;
+            $resourceName = $account->gmailWatchResourceName;
+            $historyId    = $account->gmailHistoryId;
 
             if (null === $watchExpiry && null === $resourceName && null === $historyId) {
                 continue;
             }
 
-            $lastPushAt  = $account->getGmailLastPushAt();
+            $lastPushAt  = $account->gmailLastPushAt;
             $lastPushAge = null;
 
             if (null !== $lastPushAt) {
@@ -116,8 +116,8 @@ final class AdminMonitoringService
                 // A live watch on an account that is not actually armed for push
                 // explains silence on its own: GmailPushController drops
                 // notifications for accounts failing either of these.
-                'pushEnabled'   => true === $account->isPushEnabled(),
-                'accountActive' => true === $account->isActive(),
+                'pushEnabled'   => true === $account->pushEnabled,
+                'accountActive' => true === $account->isActive,
                 'health'        => $this->pushRegistry->health($account)->value,
                 'resourceName'  => $resourceName,
             ];
@@ -176,8 +176,8 @@ final class AdminMonitoringService
         $rows = [];
 
         foreach ($this->accountRepository->findAll() as $account) {
-            $lastRefreshAt = $account->getOauthLastRefreshAt();
-            $error         = $account->getOauthLastRefreshError();
+            $lastRefreshAt = $account->oauthLastRefreshAt;
+            $error         = $account->oauthLastRefreshError;
 
             if (null === $lastRefreshAt && null === $error) {
                 continue;

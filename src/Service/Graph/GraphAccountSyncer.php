@@ -45,7 +45,7 @@ final readonly class GraphAccountSyncer implements AccountSyncerInterface
 
         if (count($folderIds) === 0) {
             $this->logger->info('GraphAccountSyncer: no syncable folders', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return [];
@@ -71,7 +71,7 @@ final readonly class GraphAccountSyncer implements AccountSyncerInterface
      */
     private function ensureImmutableIdsProbed(Account $account): void
     {
-        if (null !== $account->getGraphImmutableIds()) {
+        if (null !== $account->graphImmutableIds) {
             return;
         }
 
@@ -79,20 +79,20 @@ final readonly class GraphAccountSyncer implements AccountSyncerInterface
             $supported = $this->apiClient->probeImmutableIds($account);
         } catch (\Throwable $e) {
             $this->logger->warning('GraphAccountSyncer: immutable id probe failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
             return;
         }
 
-        $account->setGraphImmutableIds($supported);
+        $account->graphImmutableIds = $supported;
         $this->em->flush();
 
         if (false === $supported) {
             $this->logger->warning('GraphAccountSyncer: mailbox does not support immutable ids', [
-                'accountId' => $account->getId(),
-                'account'   => $account->getEmail(),
+                'accountId' => $account->id,
+                'account'   => $account->email,
             ]);
         }
     }

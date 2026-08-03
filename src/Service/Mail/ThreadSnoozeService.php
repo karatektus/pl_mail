@@ -60,7 +60,7 @@ final class ThreadSnoozeService
         }
 
         $account = $messages[0]->account;
-        $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $snoozed = $this->labelResolver->systemLabel(LabelRole::Snoozed, $account);
 
         // Before the labels move, so an IMAP job still sees the source folder.
@@ -107,7 +107,7 @@ final class ThreadSnoozeService
         $inbox = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $snoozed = $this->labelRepository->findOneByRoleForUser(
             LabelRole::Snoozed,
-            $account->getUsr(),
+            $account->usr,
         );
 
         $inboxMailbox = $inbox->bindingFor($account)?->mailbox;
@@ -152,14 +152,14 @@ final class ThreadSnoozeService
 
         foreach ($messages as $message) {
             $this->stateManager->recordUpdated(
-                (int) $message->account->getId(),
+                (int) $message->account->id,
                 JmapObjectType::Email,
                 (string) $message->id,
             );
         }
 
         $this->stateManager->recordThreadsTouched(
-            (int) $messages[0]->account->getId(),
+            (int) $messages[0]->account->id,
             [(string) $thread->id],
         );
 

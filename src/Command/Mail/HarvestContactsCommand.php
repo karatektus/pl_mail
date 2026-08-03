@@ -52,11 +52,11 @@ final class HarvestContactsCommand extends Command
                 return Command::FAILURE;
             }
 
-            $io->section(sprintf('Harvesting contacts for %s', $account->getEmail()));
+            $io->section(sprintf('Harvesting contacts for %s', $account->email));
 
             $total = $this->harvestService->harvestForAccount($account);
 
-            $io->success(sprintf('Harvested %d address occurrences for %s', $total, $account->getEmail()));
+            $io->success(sprintf('Harvested %d address occurrences for %s', $total, $account->email));
         }
 
         return Command::SUCCESS;

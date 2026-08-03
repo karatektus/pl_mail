@@ -52,7 +52,7 @@ final class GraphApiSyncer
      */
     public function sync(Account $account, array $folderIds): void
     {
-        $deltaLinks = $account->getGraphDeltaLinks();
+        $deltaLinks = $account->graphDeltaLinks;
         $pending    = [];
 
         foreach ($folderIds as $folderId) {
@@ -62,7 +62,7 @@ final class GraphApiSyncer
                 $result = $this->apiClient->deltaMessages($account, $folderId, $storedLink);
             } catch (\Throwable $e) {
                 $this->logger->error('GraphApiSyncer: delta failed', [
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                     'folderId'  => $folderId,
                     'error'     => $e->getMessage(),
                 ]);
@@ -72,19 +72,19 @@ final class GraphApiSyncer
 
             if (true === $result['resyncRequired']) {
                 $this->logger->warning('GraphApiSyncer: delta token expired, re-enumerating folder', [
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                     'folderId'  => $folderId,
                 ]);
 
                 unset($deltaLinks[$folderId]);
-                $account->setGraphDeltaLinks($deltaLinks);
+                $account->graphDeltaLinks = $deltaLinks;
                 $this->em->flush();
 
                 try {
                     $result = $this->apiClient->deltaMessages($account, $folderId, null);
                 } catch (\Throwable $e) {
                     $this->logger->error('GraphApiSyncer: re-enumeration failed', [
-                        'accountId' => $account->getId(),
+                        'accountId' => $account->id,
                         'folderId'  => $folderId,
                         'error'     => $e->getMessage(),
                     ]);
@@ -102,7 +102,7 @@ final class GraphApiSyncer
             }
         }
 
-        $account->setGraphDeltaLinks($deltaLinks);
+        $account->graphDeltaLinks = $deltaLinks;
         $this->em->flush();
 
         $this->dispatchBatches($account, array_keys($pending));
@@ -123,7 +123,7 @@ final class GraphApiSyncer
     private function partition(Account $account, string $folderId, array $items): array
     {
         $known = array_flip(
-            $this->messageRepository->findSyncedGraphIdsForUser($account->getUsr())
+            $this->messageRepository->findSyncedGraphIdsForUser($account->usr)
         );
 
         $needsFetch = [];
@@ -206,7 +206,7 @@ final class GraphApiSyncer
      */
     private function recordMoved(Account $account, Message $message): void
     {
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $message->id);
 
@@ -224,7 +224,7 @@ final class GraphApiSyncer
     {
         if (count($graphIds) === 0) {
             $this->logger->info('GraphApiSyncer: nothing new to fetch', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return;
@@ -234,13 +234,13 @@ final class GraphApiSyncer
 
         foreach ($chunks as $chunk) {
             $this->bus->dispatch(new SyncGraphMessageBatchMessage(
-                (int) $account->getId(),
+                (int) $account->id,
                 array_values($chunk),
             ));
         }
 
         $this->logger->info('GraphApiSyncer: dispatched message batches', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'messages'  => count($graphIds),
             'batches'   => count($chunks),
         ]);

@@ -62,7 +62,7 @@ final readonly class MailRuleEngine
      */
     public function applyToBatch(array $messages, Account $account): void
     {
-        $user = $account->getUsr();
+        $user = $account->usr;
 
         if (null === $user || 0 === count($messages)) {
             return;

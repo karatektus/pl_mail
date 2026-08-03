@@ -24,36 +24,36 @@ class ImapConnectionFactory
 
     public function connect(Account $account, ?int $timeout = null): Client
     {
-        $encryption = match ($account->getImapEncryption()) {
+        $encryption = match ($account->imapEncryption) {
             'ssl'      => 'ssl',
             'tls'      => 'tls',
             'starttls' => 'starttls',
             default    => false,
         };
 
-        $host = $account->getImapHost();
+        $host = $account->imapHost;
 
         if (null === $host || '' === $host) {
             throw new \RuntimeException(sprintf(
                 'Account %d (%s) has no IMAP host — it is API-synced and must not be opened over IMAP.',
-                $account->getId(),
-                $account->getEmail(),
+                $account->id,
+                $account->email,
             ));
         }
         $accountConfig = [
             'host'          => $host,
-            'port'          => $account->getImapPort(),
+            'port'          => $account->imapPort,
             'encryption'    => $encryption,
             'validate_cert' => true,
-            'username'      => $account->getUsername(),
+            'username'      => $account->username,
             'protocol'      => 'imap',
         ];
 
-        if (AuthType::OAuth2->value === $account->getAuthType()) {
+        if (AuthType::OAuth2->value === $account->authType) {
             $accountConfig['password']       = $this->tokenManager->getValidAccessToken($account);
             $accountConfig['authentication'] = 'oauth';
         } else {
-            $accountConfig['password']       = $account->getPassword();
+            $accountConfig['password']       = $account->password;
             $accountConfig['authentication'] = null;
         }
 

@@ -65,7 +65,7 @@ final class LabelResolver
     private function recordCreated(LabelBinding $binding): void
     {
         $this->stateManager->recordCreated(
-            (int) $binding->account->getId(),
+            (int) $binding->account->id,
             JmapObjectType::Mailbox,
             (string) $binding->id,
         );
@@ -77,7 +77,7 @@ final class LabelResolver
      */
     public function binding(Label $label, Account $account): LabelBinding
     {
-        $cacheKey = $label->id . ':' . $account->getId();
+        $cacheKey = $label->id . ':' . $account->id;
         $cachedId = $this->bindingIdCache[$cacheKey] ?? null;
 
         if (null !== $cachedId) {
@@ -156,7 +156,7 @@ final class LabelResolver
 
     public function systemLabel(LabelRole $role, Account $account): Label
     {
-        $user   = $account->getUsr();
+        $user   = $account->usr;
         $userId = (int) $user->id;
 
         $cachedId = $this->roleIdCache[$userId][$role->value] ?? null;
@@ -207,7 +207,7 @@ final class LabelResolver
             return null;
         }
 
-        $user     = $account->getUsr();
+        $user     = $account->usr;
         $userId   = (int) $user->id;
         $fullName = implode('/', $segments);
         $cachedId = $this->pathIdCache[$userId][$fullName] ?? null;

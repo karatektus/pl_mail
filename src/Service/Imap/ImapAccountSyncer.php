@@ -44,14 +44,14 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
             $structure = $this->mailboxSyncer->syncForAccount($account);
 
             $this->logger->info('ImapAccountSyncer: mailbox structure synced', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'created'   => $structure['created'],
                 'updated'   => $structure['updated'],
                 'deleted'   => $structure['deleted'],
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('ImapAccountSyncer: mailbox structure sync failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
         }
@@ -63,7 +63,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
 
         if (count($mailboxes) === 0) {
             $this->logger->info('ImapAccountSyncer: no sync-enabled mailboxes', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
 
             return [];

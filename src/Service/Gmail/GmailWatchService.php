@@ -42,8 +42,8 @@ final class GmailWatchService
     {
 
         $this->logger->info('GmailWatchService: registering watch', [
-            'accountId' => $account->getId(),
-            'account'   => $account->getEmail(),
+            'accountId' => $account->id,
+            'account'   => $account->email,
         ]);
 
         $response = $this->apiClient->watch($account, ($this->pushSettings->topic() ?? ''));
@@ -57,18 +57,18 @@ final class GmailWatchService
         $historyId    = (string) ($response['historyId'] ?? '');
         $resourceName = (string) ($response['resourceName'] ?? '');
 
-        $account->setGmailWatchExpiry($expiry);
-        $account->setGmailWatchResourceName($resourceName);
+        $account->gmailWatchExpiry = $expiry;
+        $account->gmailWatchResourceName = $resourceName;
 
         // Seed the historyId if this is the first watch registration
-        if (null === $account->getGmailHistoryId() && '' !== $historyId) {
-            $account->setGmailHistoryId($historyId);
+        if (null === $account->gmailHistoryId && '' !== $historyId) {
+            $account->gmailHistoryId = $historyId;
         }
 
         $this->em->flush();
 
         $this->logger->info('GmailWatchService: watch registered', [
-            'accountId'    => $account->getId(),
+            'accountId'    => $account->id,
             'expiry'       => $expiry->format('Y-m-d H:i:s'),
             'resourceName' => $resourceName,
         ]);
@@ -85,13 +85,13 @@ final class GmailWatchService
         } catch (\Throwable $e) {
             // Non-fatal — the watch will expire naturally
             $this->logger->warning('GmailWatchService: stopWatch failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
         }
 
-        $account->setGmailWatchExpiry(null);
-        $account->setGmailWatchResourceName(null);
+        $account->gmailWatchExpiry = null;
+        $account->gmailWatchResourceName = null;
         $this->em->flush();
     }
 }

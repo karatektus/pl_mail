@@ -36,7 +36,7 @@ final class EmailQueryMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $filter = $arguments['filter'] ?? null;
 

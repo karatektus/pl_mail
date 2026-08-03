@@ -63,7 +63,7 @@ final class EmailSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Email);
         $ifInState = $arguments['ifInState'] ?? null;
@@ -134,7 +134,7 @@ final class EmailSetMethod implements JmapMethod
 
             $id = (string) $message->id;
 
-            $this->stateManager->recordCreated($account->getId(), JmapObjectType::Email, $id);
+            $this->stateManager->recordCreated($account->id, JmapObjectType::Email, $id);
             // Lets a later call in the same request refer to "#creationId".
             $context->recordCreatedId($creationId, $id);
 
@@ -185,7 +185,7 @@ final class EmailSetMethod implements JmapMethod
                 continue;
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);
             $this->recordThread($account, $message);
             // null = "no properties changed beyond what the client asked for".
             $updated[$id] = null;
@@ -207,7 +207,7 @@ final class EmailSetMethod implements JmapMethod
         }
 
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
-        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->getUsr());
+        $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
 
         foreach ($destroy as $id) {
@@ -234,7 +234,7 @@ final class EmailSetMethod implements JmapMethod
             }
 
             $this->threadLabelSynchronizer->sync($message->thread);
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, $id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);
             $this->recordThread($account, $message);
 
             $destroyed[] = $id;
@@ -253,7 +253,7 @@ final class EmailSetMethod implements JmapMethod
             return;
         }
 
-        $this->stateManager->recordThreadsTouched((int) $account->getId(), [(int) $thread->id]);
+        $this->stateManager->recordThreadsTouched((int) $account->id, [(int) $thread->id]);
     }
 
     private function findOne(Account $account, string $id): ?Message
@@ -262,7 +262,7 @@ final class EmailSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->getId(), [(int) $id]);
+        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

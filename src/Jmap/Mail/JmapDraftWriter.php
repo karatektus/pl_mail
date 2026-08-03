@@ -130,8 +130,8 @@ final class JmapDraftWriter
      */
     private function persistDraft(Message $message, Account $account, \DateTimeImmutable $now): void
     {
-        $message->fromAddress = $account->getEmail();
-        $message->fromName = $account->getName();
+        $message->fromAddress = $account->email;
+        $message->fromName = $account->name;
         $message->addFlag(MessageFlag::DRAFT);
         $message->hasAttachments = false;
         $message->seenAt ??= $now;
@@ -210,7 +210,7 @@ final class JmapDraftWriter
             $filename = $this->attachmentName($attachment, $index);
 
             $storagePath = $this->attachmentStorage->store(
-                (int) $account->getId(),
+                (int) $account->id,
                 (int) ($message->mailbox->id ?? 0),
                 (int) $message->id,
                 $filename,

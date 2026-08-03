@@ -71,7 +71,7 @@ final class RawMessageResolver
     private function persist(Message $message, string $content, bool $flush = true): string
     {
         $relativePath = $this->storage->store(
-            (int) $message->account->getId(),
+            (int) $message->account->id,
             (int) $message->id,
             $content,
         );

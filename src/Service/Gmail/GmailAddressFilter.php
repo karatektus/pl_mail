@@ -56,7 +56,7 @@ final class GmailAddressFilter
         Account $carrier,
         array   $siblingsByNormalisedEmail,
     ): ?Account {
-        $carrierNorm = $this->normalise((string) $carrier->getEmail());
+        $carrierNorm = $this->normalise((string) $carrier->email);
 
         $deliveredTo = $this->normalisedList($headers['delivered-to'] ?? '');
         $toCc        = array_merge(
@@ -97,7 +97,7 @@ final class GmailAddressFilter
      */
     public function isAddressedToAccount(array $headers, Account $account): bool
     {
-        $accountNorm = $this->normalise((string) $account->getEmail());
+        $accountNorm = $this->normalise((string) $account->email);
 
         $deliveredTo = $headers['delivered-to'] ?? '';
 
@@ -136,7 +136,7 @@ final class GmailAddressFilter
             return false;
         }
 
-        $accountNorm = $this->normalise((string) $account->getEmail());
+        $accountNorm = $this->normalise((string) $account->email);
 
         foreach ($this->splitAddressList($from) as $addr) {
             if ($this->normalise($addr) === $accountNorm) {

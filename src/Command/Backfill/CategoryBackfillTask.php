@@ -72,7 +72,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
     private function runForAccount(SymfonyStyle $io, Account $account, bool $force): void
     {
-        $io->section(sprintf('Account #%d (%s)', $account->getId(), $account->getEmail()));
+        $io->section(sprintf('Account #%d (%s)', $account->id, $account->email));
 
         $total = $this->countPending($account, $force);
 
@@ -82,8 +82,8 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
             return;
         }
 
-        $correspondents = $this->contactRepository->findCorrespondentEmails($account->getUsr());
-        $accountId      = (int) $account->getId();
+        $correspondents = $this->contactRepository->findCorrespondentEmails($account->usr);
+        $accountId      = (int) $account->id;
 
         $io->progressStart($total);
 
@@ -121,7 +121,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
     private function countPending(Account $account, bool $force): int
     {
-        return (int) $this->pendingQueryBuilder((int) $account->getId(), $force, 0)
+        return (int) $this->pendingQueryBuilder((int) $account->id, $force, 0)
             ->select('COUNT(m.id)')
             ->getQuery()
             ->getSingleScalarResult();

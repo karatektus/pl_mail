@@ -222,7 +222,7 @@ final readonly class RuleActionExecutor
     private function moveOutOfInbox(Message $message, ?LabelRole $destination): bool
     {
         $account = $message->account;
-        $user    = $account->getUsr();
+        $user    = $account->usr;
 
         $inbox = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $user);
 

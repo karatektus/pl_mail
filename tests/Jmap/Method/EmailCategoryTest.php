@@ -336,7 +336,7 @@ final class EmailCategoryTest extends KernelTestCase
 
     private function accountId(): string
     {
-        return (string) $this->account->getId();
+        return (string) $this->account->id;
     }
 
     /**
@@ -453,19 +453,18 @@ final class EmailCategoryTest extends KernelTestCase
         $this->em->persist($this->user);
 
         $this->account = new Account();
-        $this->account
-            ->setUsr($this->user)
-            ->setEmail('Email Category')
-            ->setUsername('category-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $this->account->usr = $this->user;
+        $this->account->email = 'Email Category';
+        $this->account->username = 'category-fixture@example.test';
+        $this->account->imapHost = 'localhost';
+        $this->account->imapPort = 993;
+        $this->account->imapEncryption = 'ssl';
+        $this->account->smtpHost = 'localhost';
+        $this->account->smtpPort = 587;
+        $this->account->smtpEncryption = 'starttls';
+        $this->account->password = 'x';
+        $this->account->authType = 'password';
+        $this->account->isActive = true;
         $this->em->persist($this->account);
 
         $this->mailbox = new Mailbox();

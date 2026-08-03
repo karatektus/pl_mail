@@ -67,7 +67,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testBackfillIsSkippedOnceTheCapIsCovered(): void
     {
-        $account = $this->account(limit: 500)->setBackfillTarget(500);
+        $account = $this->account(limit: 500);
+        $account->backfillTarget = 500;
 
         $this->syncer(['a'])->backfill($account);
 
@@ -78,7 +79,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
     {
         // The reported symptom, as a test: cap raised from 500 to 5000 after
         // the first sync, and nothing more ever arrived.
-        $account = $this->account(limit: 5000)->setBackfillTarget(500);
+        $account = $this->account(limit: 5000);
+        $account->backfillTarget = 500;
         $this->synced();
 
         $this->expectDispatch(self::once());
@@ -90,7 +92,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testLoweringTheCapDoesNotListAgain(): void
     {
-        $account = $this->account(limit: 500)->setBackfillTarget(5000);
+        $account = $this->account(limit: 500);
+        $account->backfillTarget = 5000;
 
         $this->syncer(['a'])->backfill($account);
 
@@ -99,7 +102,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testBackfillWaitsOutTheCooldownWhileBatchesDrain(): void
     {
-        $account = $this->account(limit: 5000)->setBackfillRanAt(new \DateTimeImmutable('-5 minutes'));
+        $account = $this->account(limit: 5000);
+        $account->backfillRanAt = new \DateTimeImmutable('-5 minutes');
 
         $this->syncer(['a'])->backfill($account);
 
@@ -108,7 +112,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testBackfillListsAgainOnceTheCooldownHasPassed(): void
     {
-        $account = $this->account(limit: 5000)->setBackfillRanAt(new \DateTimeImmutable('-2 hours'));
+        $account = $this->account(limit: 5000);
+        $account->backfillRanAt = new \DateTimeImmutable('-2 hours');
         $this->synced();
 
 
@@ -126,7 +131,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
         $this->syncer(['a', 'b'])->backfill($account);
 
-        self::assertSame(500, $account->getBackfillTarget());
+        self::assertSame(500, $account->backfillTarget);
         self::assertFalse($account->needsBackfill());
     }
 
@@ -138,8 +143,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
         $this->syncer(['a'])->backfill($account);
 
-        self::assertNull($account->getBackfillTarget(), 'still outstanding, so not complete');
-        self::assertSame(1, $account->getBackfillAttempts());
+        self::assertNull($account->backfillTarget, 'still outstanding, so not complete');
+        self::assertSame(1, $account->backfillAttempts);
     }
 
     public function testBackfillStopsRetryingAtTheAttemptCeiling(): void
@@ -147,14 +152,15 @@ final class GmailApiSyncerBackfillTest extends TestCase
         // Messages the handler declines to store are listed forever and stored
         // never. Without a ceiling this account re-lists its mailbox hourly for
         // as long as it exists.
-        $account = $this->account(limit: 500)->setBackfillAttempts(23);
+        $account = $this->account(limit: 500);
+        $account->backfillAttempts = 23;
         $this->synced();
 
 
         $this->syncer(['unattributable'])->backfill($account);
 
-        self::assertSame(500, $account->getBackfillTarget(), 'gives up rather than looping');
-        self::assertSame(0, $account->getBackfillAttempts());
+        self::assertSame(500, $account->backfillTarget, 'gives up rather than looping');
+        self::assertSame(0, $account->backfillAttempts);
         self::assertFalse($account->needsBackfill());
     }
 
@@ -254,8 +260,8 @@ final class GmailApiSyncerBackfillTest extends TestCase
     private function account(int $limit): Account
     {
         $account = new Account();
-        $account->setUsr(new User());
-        $account->setSyncLimit($limit);
+        $account->usr = new User();
+        $account->syncLimit = $limit;
 
         return $account;
     }

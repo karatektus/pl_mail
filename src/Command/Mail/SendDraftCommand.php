@@ -60,7 +60,7 @@ class SendDraftCommand extends Command
                     '[%d] %s — %s',
                     $draft->id,
                     $draft->subject ?: '(no subject)',
-                    $account->getEmail() ?? $account->getUsername(),
+                    $account->email ?? $account->username,
                 );
                 $choices[$draft->id] = $label;
             }
@@ -82,7 +82,7 @@ class SendDraftCommand extends Command
             'Sending message %d — "%s" via %s',
             $message->id,
             $message->subject ?: '(no subject)',
-            $account->getEmail() ?? $account->getUsername(),
+            $account->email ?? $account->username,
         ));
 
         try {

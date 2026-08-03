@@ -54,21 +54,21 @@ final readonly class GraphCategorySyncer
                 $this->logger->warning(
                     'GraphCategorySyncer: no access to master categories — '
                     . 'the account likely needs reconnecting with MailboxSettings.ReadWrite',
-                    ['accountId' => $account->getId()],
+                    ['accountId' => $account->id],
                 );
 
                 return;
             }
 
             $this->logger->error('GraphCategorySyncer: listing failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
             return;
         } catch (\Throwable $e) {
             $this->logger->error('GraphCategorySyncer: listing failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -111,7 +111,7 @@ final readonly class GraphCategorySyncer
         $this->em->flush();
 
         $this->logger->info('GraphCategorySyncer: categories synced', [
-            'accountId'  => $account->getId(),
+            'accountId'  => $account->id,
             'categories' => count($categories),
             'linked'     => $created,
             'colored'    => $colored,

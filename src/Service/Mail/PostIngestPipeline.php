@@ -77,7 +77,7 @@ final readonly class PostIngestPipeline
      */
     public function run(Account $carrier, array $ingested): PostIngestResult
     {
-        $user = $carrier->getUsr();
+        $user = $carrier->usr;
 
         $correspondents = null !== $user
             ? $this->contactRepository->findCorrespondentEmails($user)
@@ -89,7 +89,7 @@ final readonly class PostIngestPipeline
 
         foreach ($ingested as $item) {
             $message   = $item->message;
-            $accountId = (int) $item->account->getId();
+            $accountId = (int) $item->account->id;
 
             $this->sanitizer->sanitize($message);
 
@@ -140,7 +140,7 @@ final readonly class PostIngestPipeline
             $thread = $item->message->thread;
 
             if (null !== $thread) {
-                $threadIdsByAccount[(int) $item->account->getId()][] = (int) $thread->id;
+                $threadIdsByAccount[(int) $item->account->id][] = (int) $thread->id;
             }
         }
 

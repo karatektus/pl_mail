@@ -42,11 +42,11 @@ final class SessionBuilder
         $primaryId = null;
 
         foreach ($user->accounts as $account) {
-            $accountId = (string) $account->getId();
+            $accountId = (string) $account->id;
             $primaryId ??= $accountId;
 
             $accounts[$accountId] = [
-                'name' => (string) $account->getEmail(),
+                'name' => (string) $account->email,
                 'isPersonal' => true,
                 'isReadOnly' => false,
                 'accountCapabilities' => [

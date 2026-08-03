@@ -49,7 +49,7 @@ final class DevSyncController extends AbstractController
         $accounts = $this->activeAccounts();
 
         foreach ($accounts as $account) {
-            $this->bus->dispatch(new SyncAccountMessage($account->getId()));
+            $this->bus->dispatch(new SyncAccountMessage($account->id));
         }
 
         return $this->json(['dispatched' => count($accounts)]);
@@ -69,7 +69,7 @@ final class DevSyncController extends AbstractController
     public function status(): JsonResponse
     {
         $accounts   = $this->activeAccounts();
-        $accountIds = array_map(static fn ($account): int => (int) $account->getId(), $accounts);
+        $accountIds = array_map(static fn ($account): int => (int) $account->id, $accounts);
 
         if ([] === $accountIds) {
             return $this->json(['pending' => 0]);
@@ -121,7 +121,7 @@ final class DevSyncController extends AbstractController
     {
         return array_values(array_filter(
             $this->accountRepository->findForUserOrdered($this->getUser()),
-            static fn ($account): bool => true === $account->isActive(),
+            static fn (Account $account): bool => true === $account->isActive,
         ));
     }
 }

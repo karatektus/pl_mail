@@ -119,25 +119,24 @@ final class DataResetterTest extends KernelTestCase
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Reset Fixture')
-            ->setUsername('reset-' . $suffix . '@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Reset Fixture';
+        $account->username = 'reset-' . $suffix . '@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();
 
         $this->userId    = (int) $user->id;
-        $this->accountId = (int) $account->getId();
+        $this->accountId = (int) $account->id;
 
         // The rest goes in as rows rather than entities. Six entity APIs would
         // be six things this test knows about that have nothing to do with what

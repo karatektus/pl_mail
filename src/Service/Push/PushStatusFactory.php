@@ -32,7 +32,7 @@ final readonly class PushStatusFactory
 
         return new PushStatus(
             supported:  true,
-            enabled:    $account->isPushEnabled(),
+            enabled:    $account->pushEnabled,
             configured: $manager->isConfigured(),
             health:     $manager->health($account),
             expiresAt:  $manager->expiresAt($account),

@@ -25,7 +25,7 @@ class SmtpMailSender implements MailSenderInterface
 
     public function supports(Account $account): bool
     {
-        if (AuthType::OAuth2->value === $account->getAuthType()) {
+        if (AuthType::OAuth2->value === $account->authType) {
             return false;
         }
 

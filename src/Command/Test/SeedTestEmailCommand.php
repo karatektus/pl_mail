@@ -107,16 +107,15 @@ final class SeedTestEmailCommand extends Command
 
         if (null === $account) {
             $account = new Account();
-            $account
-                ->setUsr($user)
-                ->setName('E2E Mailbox')
-                ->setEmail('E2E Mailbox')
-                ->setUsername(self::SEED_ACCOUNT_USERNAME)
-                ->setImapHost('imap.e2e.test')
-                ->setImapPort(993)
-                ->setImapEncryption('ssl')
-                ->setAuthType('password')
-                ->setIsActive(true);
+            $account->usr = $user;
+            $account->name = 'E2E Mailbox';
+            $account->email = 'E2E Mailbox';
+            $account->username = self::SEED_ACCOUNT_USERNAME;
+            $account->imapHost = 'imap.e2e.test';
+            $account->imapPort = 993;
+            $account->imapEncryption = 'ssl';
+            $account->authType = 'password';
+            $account->isActive = true;
 
             $this->entityManager->persist($account);
             $this->entityManager->flush();
@@ -186,7 +185,7 @@ final class SeedTestEmailCommand extends Command
         // After the flush, like PostIngestPipeline: record() only persists and
         // needs the ids the flush above just minted, so the log rows go out on
         // the second flush.
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = [];
 
         foreach ($messages as $message) {
@@ -220,7 +219,7 @@ final class SeedTestEmailCommand extends Command
             return;
         }
 
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $threadIds = array_map(
             static fn (MessageThread $thread): int => (int) $thread->id,
             $threads,

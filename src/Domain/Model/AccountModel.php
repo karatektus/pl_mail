@@ -9,11 +9,11 @@ class AccountModel
     public function getFromHeader(): string
     {
         if ($this instanceof Account) {
-            if (null !== $this->getName()) {
-                return sprintf('%s <%s>', $this->getName(), $this->getEmail() ?? $this->getUsername());
+            if (null !== $this->name) {
+                return sprintf('%s <%s>', $this->name, $this->email ?? $this->username);
             }
 
-            return $this->getEmail();
+            return $this->email;
         }
 
         throw new \LogicException('Not an Account');

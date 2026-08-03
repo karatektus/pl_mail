@@ -278,7 +278,7 @@ final class FilePickerController extends AbstractController
 
         // Same ownership rule AttachmentController uses for downloads: the
         // part belongs to a message on one of this user's accounts.
-        if ($part->message?->account?->getUsr() !== $this->getUser()) {
+        if ($part->message?->account?->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -330,7 +330,7 @@ final class FilePickerController extends AbstractController
         // file pulled from a service and one uploaded from disk land in the
         // same place and are indistinguishable from then on.
         $storagePath = $this->attachmentStorage->store(
-            (int) $message->account?->getId(),
+            (int) $message->account->id,
             (int) ($message->mailbox->id ?? 0),
             (int) $message->id,
             $filename,
@@ -362,7 +362,7 @@ final class FilePickerController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if ($message->account?->getUsr() !== $this->getUser()) {
+        if ($message->account?->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 

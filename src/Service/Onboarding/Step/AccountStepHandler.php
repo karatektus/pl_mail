@@ -79,7 +79,7 @@ final readonly class AccountStepHandler implements OnboardingStepHandlerInterfac
             $error = $account->getSetting(AccountCreator::SETTING_CONNECTION_ERROR);
 
             if (is_string($error) && '' !== $error) {
-                return sprintf('%s — %s', $account->getEmail() ?? $account->getUsername(), $error);
+                return sprintf('%s — %s', $account->email ?? $account->username, $error);
             }
         }
 

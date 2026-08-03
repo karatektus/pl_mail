@@ -132,7 +132,7 @@ final class MessageThreader
      */
     private function providerThread(string $providerThreadKey, Account $account, Message $message): MessageThread
     {
-        $cacheKey = $account->getId() . '|' . $providerThreadKey;
+        $cacheKey = $account->id . '|' . $providerThreadKey;
         $pending  = $this->providerThreads[$cacheKey] ?? null;
 
         // A worker handles many messages, and the entity manager is cleared

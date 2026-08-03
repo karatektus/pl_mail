@@ -27,15 +27,15 @@ final readonly class HarvestContactsService
      */
     public function harvestForAccount(Account $account): int
     {
-        $user  = $account->getUsr();
+        $user  = $account->usr;
         $total = $this->upsertFromMessages(
             $user,
             $this->messageRepository->iterateForAccount($account),
-            $account->getEmail()
+            $account->email
         );
 
         $this->logger->info('HarvestContactsService: account done', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'addresses' => $total,
         ]);
 

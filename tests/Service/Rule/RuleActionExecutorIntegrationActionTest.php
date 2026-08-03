@@ -212,7 +212,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
     private function message(bool $hasAttachments): Message
     {
         $account = new Account();
-        $account->setUsr($this->user);
+        $account->usr = $this->user;
 
         $message = new Message();
         $message->account = $account;

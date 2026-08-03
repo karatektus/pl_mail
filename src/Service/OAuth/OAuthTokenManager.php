@@ -39,7 +39,7 @@ class OAuthTokenManager
             return $this->refresh($account);
         }
 
-        $token = $account->getOauthAccessToken();
+        $token = $account->oauthAccessToken;
 
         if (null === $token) {
             return $this->refresh($account);
@@ -50,7 +50,7 @@ class OAuthTokenManager
 
     private function isExpiring(Account $account): bool
     {
-        $expiry = $account->getOauthTokenExpiry();
+        $expiry = $account->oauthTokenExpiry;
 
         if (null === $expiry) {
             return true;
@@ -72,12 +72,12 @@ class OAuthTokenManager
      */
     private function refresh(Account $account): string
     {
-        $refreshToken = $account->getOauthRefreshToken();
+        $refreshToken = $account->oauthRefreshToken;
 
         if (null === $refreshToken) {
             throw new \RuntimeException(sprintf(
                 'Account %d has no refresh token; the account must be reconnected.',
-                $account->getId(),
+                $account->id,
             ));
         }
 
@@ -88,30 +88,27 @@ class OAuthTokenManager
                 'refresh_token' => $refreshToken,
             ]);
         } catch (Throwable $e) {
-            $account->setOauthLastRefreshError($e->getMessage());
+            $account->oauthLastRefreshError = $e->getMessage();
             $this->em->flush();
 
             throw $e;
         }
 
-        $account->setOauthAccessToken($newToken->getToken());
+        $account->oauthAccessToken = $newToken->getToken();
 
         $expires = $newToken->getExpires();
         if (null !== $expires) {
-            $account->setOauthTokenExpiry(
-                new DateTimeImmutable()->setTimestamp($expires),
-            );
+            $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
         }
 
         $returnedRefresh = $newToken->getRefreshToken();
         if (null !== $returnedRefresh) {
-            $account
-                ->setOauthRefreshToken($returnedRefresh)
-                ->setOauthLastRefreshAt(new DateTimeImmutable())
-                ->setOauthLastRefreshError(null);
+            $account->oauthRefreshToken = $returnedRefresh;
+            $account->oauthLastRefreshAt = new DateTimeImmutable();
+            $account->oauthLastRefreshError = null;
         }
 
-        $account->setUpdatedAt(new DateTimeImmutable());
+        $account->updatedAt = new DateTimeImmutable();
 
         $this->em->flush();
 
@@ -120,12 +117,12 @@ class OAuthTokenManager
 
     private function providerFor(Account $account): MailProvider
     {
-        $providerValue = $account->getOauthProvider();
+        $providerValue = $account->oauthProvider;
 
         if (null === $providerValue) {
             throw new \RuntimeException(sprintf(
                 'Account %d has no OAuth provider set.',
-                $account->getId(),
+                $account->id,
             ));
         }
 
@@ -134,7 +131,7 @@ class OAuthTokenManager
         if (null === $provider) {
             throw new \RuntimeException(sprintf(
                 'Account %d has unknown OAuth provider "%s".',
-                $account->getId(),
+                $account->id,
                 $providerValue,
             ));
         }

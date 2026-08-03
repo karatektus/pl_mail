@@ -78,7 +78,7 @@ final readonly class SyncGraphMessageBatchHandler
 
         foreach ($result['failed'] as $failedId => $status) {
             $this->logger->error('SyncGraphMessageBatch: sub-request failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'graphId'   => $failedId,
                 'status'    => $status,
             ]);
@@ -153,9 +153,9 @@ final readonly class SyncGraphMessageBatchHandler
         $result = $this->postIngest->run($account, $ingested);
 
         $this->harvestService->harvestMessages(
-            $account->getUsr(),
+            $account->usr,
             $result->messages,
-            $account->getEmail(),
+            $account->email,
         );
 
         $this->syncNotifier->publishAccountSynced($account);
@@ -194,7 +194,7 @@ final readonly class SyncGraphMessageBatchHandler
             return $this->apiClient->batchListAttachments($account, $withAttachments);
         } catch (\Throwable $e) {
             $this->logger->error('SyncGraphMessageBatch: attachment listing failed', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'error'     => $e->getMessage(),
             ]);
 
@@ -212,12 +212,12 @@ final readonly class SyncGraphMessageBatchHandler
         }
 
         $this->logger->info('SyncGraphMessageBatch: requeueing throttled sub-requests', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'count'     => count($throttled),
         ]);
 
         $this->bus->dispatch(
-            new SyncGraphMessageBatchMessage((int) $account->getId(), $throttled),
+            new SyncGraphMessageBatchMessage((int) $account->id, $throttled),
             [new DelayStamp(self::RETRY_DELAY_MS)],
         );
     }

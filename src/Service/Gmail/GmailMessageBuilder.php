@@ -361,7 +361,7 @@ final class GmailMessageBuilder
 
             try {
                 $relativePath = $this->attachmentStorage->store(
-                    (int) $account->getId(),
+                    (int) $account->id,
                     0,
                     abs(crc32((string) $message->gmailId)),
                     $filename,

@@ -88,7 +88,7 @@ final readonly class AttachmentResolver
             : $this->graphApiClient->getAttachmentContent($account, $remoteMessageId, $attachmentId);
 
         $relativePath = $this->attachmentStorage->store(
-            $account->getId(),
+            $account->id,
             $this->storageBucket($part),
             abs(crc32($remoteMessageId)),
             (string) $part->filename,

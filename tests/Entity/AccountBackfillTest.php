@@ -26,7 +26,8 @@ final class AccountBackfillTest extends TestCase
 
     public function testDoesNotNeedBackfillOnceTheCapIsCovered(): void
     {
-        $account = $this->account(limit: 5000)->setBackfillTarget(5000);
+        $account = $this->account(limit: 5000);
+        $account->backfillTarget = 5000;
 
         self::assertFalse($account->needsBackfill());
     }
@@ -35,14 +36,16 @@ final class AccountBackfillTest extends TestCase
     {
         // The reported symptom: 500 synced, cap raised to 5000, nothing more
         // ever arrived.
-        $account = $this->account(limit: 5000)->setBackfillTarget(500);
+        $account = $this->account(limit: 5000);
+        $account->backfillTarget = 500;
 
         self::assertTrue($account->needsBackfill());
     }
 
     public function testNeedsBackfillWhenTheCapIsLifted(): void
     {
-        $account = $this->account(limit: 0)->setBackfillTarget(5000);
+        $account = $this->account(limit: 0);
+        $account->backfillTarget = 5000;
 
         self::assertTrue($account->needsBackfill());
     }
@@ -51,14 +54,16 @@ final class AccountBackfillTest extends TestCase
     {
         // Already holds more than the new cap asks for. Lowering is not a
         // request to delete anything, so there is simply nothing to do.
-        $account = $this->account(limit: 500)->setBackfillTarget(5000);
+        $account = $this->account(limit: 500);
+        $account->backfillTarget = 5000;
 
         self::assertFalse($account->needsBackfill());
     }
 
     public function testACompletedUncappedBackfillIsNeverRepeated(): void
     {
-        $account = $this->account(limit: 0)->setBackfillTarget(0);
+        $account = $this->account(limit: 0);
+        $account->backfillTarget = 0;
 
         self::assertFalse($account->needsBackfill());
     }
@@ -66,21 +71,25 @@ final class AccountBackfillTest extends TestCase
     public function testBackfillRanAtSurvivesTheSettingsBagRoundTrip(): void
     {
         $ranAt   = new \DateTimeImmutable('2026-07-28 12:34:56');
-        $account = $this->account(limit: 0)->setBackfillRanAt($ranAt);
+        $account = $this->account(limit: 0);
+        $account->backfillRanAt = $ranAt;
 
-        self::assertSame($ranAt->getTimestamp(), $account->getBackfillRanAt()?->getTimestamp());
+        self::assertSame($ranAt->getTimestamp(), $account->backfillRanAt?->getTimestamp());
     }
 
     public function testBackfillStateIsUnsetOnAFreshAccount(): void
     {
         $account = $this->account(limit: 0);
 
-        self::assertNull($account->getBackfillTarget());
-        self::assertNull($account->getBackfillRanAt());
+        self::assertNull($account->backfillTarget);
+        self::assertNull($account->backfillRanAt);
     }
 
     private function account(int $limit): Account
     {
-        return (new Account())->setSyncLimit($limit);
+        $account            = new Account();
+        $account->syncLimit = $limit;
+
+        return $account;
     }
 }

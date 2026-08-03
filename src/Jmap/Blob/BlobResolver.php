@@ -74,7 +74,7 @@ final class BlobResolver
 
         $message = $part->message;
 
-        if (null === $message || $message->account->getId() !== $account->getId()) {
+        if (null === $message || $message->account->id !== $account->id) {
             return null;
         }
 
@@ -113,7 +113,7 @@ final class BlobResolver
 
     private function message(Account $account, int $messageId): ?ResolvedBlob
     {
-        $messages = $this->messageRepository->findByAccountAndIds((int) $account->getId(), [$messageId]);
+        $messages = $this->messageRepository->findByAccountAndIds((int) $account->id, [$messageId]);
         $message = $messages[0] ?? null;
 
         if (null === $message) {

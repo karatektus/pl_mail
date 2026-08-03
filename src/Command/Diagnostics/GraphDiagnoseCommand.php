@@ -62,12 +62,12 @@ final class GraphDiagnoseCommand extends Command
         }
 
         if (false === $account->isMicrosoft()) {
-            $io->error(sprintf('Account %d is not a Microsoft account.', $account->getId()));
+            $io->error(sprintf('Account %d is not a Microsoft account.', $account->id));
 
             return Command::FAILURE;
         }
 
-        $io->title(sprintf('Graph diagnosis — #%d %s', $account->getId(), $account->getEmail()));
+        $io->title(sprintf('Graph diagnosis — #%d %s', $account->id, $account->email));
 
         $this->reportToken($io, $account);
 
@@ -190,7 +190,7 @@ final class GraphDiagnoseCommand extends Command
 
     private function reportToken(SymfonyStyle $io, Account $account): void
     {
-        $access = (string) $account->getOauthAccessToken();
+        $access = (string) $account->oauthAccessToken;
 
         $kind = match (true) {
             str_starts_with($access, 'eyJ') => 'JWT (work/school account)',
@@ -200,8 +200,8 @@ final class GraphDiagnoseCommand extends Command
 
         $io->definitionList(
             ['Token type'  => $kind],
-            ['Expires'     => $account->getOauthTokenExpiry()?->format('Y-m-d H:i:s') ?? '(unset)'],
-            ['Immutable ids' => match ($account->getGraphImmutableIds()) {
+            ['Expires'     => $account->oauthTokenExpiry?->format('Y-m-d H:i:s') ?? '(unset)'],
+            ['Immutable ids' => match ($account->graphImmutableIds) {
                 true    => 'supported',
                 false   => 'NOT supported (dedup falls back to RFC Message-ID)',
                 default => 'not yet probed',

@@ -277,7 +277,7 @@ final class StateManager
         $parts = [];
 
         foreach ($user->accounts as $account) {
-            $parts[] = (string) $account->getId();
+            $parts[] = (string) $account->id;
         }
 
         sort($parts);

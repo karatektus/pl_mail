@@ -116,8 +116,10 @@ final class ThreadParticipantsTest extends TestCase
 
     private function thread(Message ...$messages): MessageThread
     {
-        $account = new Account()->setEmail('me@example.test');
-        $thread  = new MessageThread();
+        $account        = new Account();
+        $account->email = 'me@example.test';
+
+        $thread          = new MessageThread();
         $thread->account = $account;
 
         foreach ($messages as $message) {

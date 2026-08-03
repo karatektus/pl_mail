@@ -79,9 +79,9 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
 
     private function runForAccount(SymfonyStyle $io, Account $account): void
     {
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
-        $io->section(sprintf('Account #%d (%s)', $accountId, $account->getEmail()));
+        $io->section(sprintf('Account #%d (%s)', $accountId, $account->email));
 
         $normalised = $this->normaliseStoredIds($io, $accountId);
         $io->text(sprintf('Normalised message-ids on %d message(s).', $normalised));

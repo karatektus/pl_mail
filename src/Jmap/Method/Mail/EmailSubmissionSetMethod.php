@@ -56,7 +56,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::EmailSubmission);
 
@@ -192,7 +192,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             }
 
             $this->patchApplier->apply($account, $message, $patch);
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Email, (string) $message->id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, (string) $message->id);
 
             $updatedEmails[(string) $message->id] = null;
         }
@@ -206,7 +206,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             return null;
         }
 
-        $messages = $this->messageRepository->findByAccountAndIds($account->getId(), [(int) $id]);
+        $messages = $this->messageRepository->findByAccountAndIds($account->id, [(int) $id]);
 
         return $messages[0] ?? null;
     }

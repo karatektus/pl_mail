@@ -72,7 +72,7 @@ final readonly class EventReconciler
         }
 
         $account  = $message->account;
-        $user     = $account->getUsr();
+        $user     = $account->usr;
         $calendar = $this->calendarResolver->resolve($account);
 
         if (false === $user instanceof User || null === $calendar) {

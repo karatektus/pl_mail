@@ -190,7 +190,7 @@ class ComposeController extends AbstractController
             }
 
             $message->fromAddress = $this->resolveFromAddress($form, $account);
-            $message->fromName = $account->getName() ?? '';
+            $message->fromName = $account->name ?? '';
 
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
@@ -232,7 +232,7 @@ class ComposeController extends AbstractController
             }
 
             $message->fromAddress = $this->resolveFromAddress($form, $account);
-            $message->fromName = $account->getName() ?? '';
+            $message->fromName = $account->name ?? '';
 
             $this->applyAccount($message, $account);
             $this->persistDraft($message, $account);
@@ -367,7 +367,7 @@ class ComposeController extends AbstractController
             // account has none) / message. Drafts have no UID, so the message
             // id keeps one draft's files out of another's directory.
             $storagePath = $this->attachmentStorage->store(
-                (int) $account->getId(),
+                (int) $account->id,
                 (int) ($message->mailbox->id ?? 0),
                 (int) $message->id,
                 (string) $file->getClientOriginalName(),
@@ -473,7 +473,7 @@ class ComposeController extends AbstractController
         // and keeps the row, this one takes the id away. Recorded before the
         // flush because the ids already exist; record() only persists, so the
         // log rows go out with the removal itself.
-        $accountId = (int) $message->account->getId();
+        $accountId = (int) $message->account->id;
 
         $this->stateManager->recordDestroyed($accountId, JmapObjectType::Email, (string) $messageId);
 
@@ -624,7 +624,7 @@ class ComposeController extends AbstractController
 
         $original = $this->messageRepository->find($ctx['replyTo']);
 
-        if (null === $original || $original->account->getUsr() !== $this->getUser()) {
+        if (null === $original || $original->account->usr !== $this->getUser()) {
             return;
         }
 
@@ -750,7 +750,7 @@ class ComposeController extends AbstractController
             return $parsed[1];
         }
 
-        return $account->getDisplayAddress() ?? $account->getEmail() ?? '';
+        return $account->displayAddress ?? $account->email ?? '';
     }
 
     /**
@@ -767,8 +767,8 @@ class ComposeController extends AbstractController
 
         if (
             null === $account
-            || $account->getUsr() !== $this->getUser()
-            || false === (bool) $account->isActive()
+            || $account->usr !== $this->getUser()
+            || false === (bool) $account->isActive
         ) {
             return null;
         }
@@ -778,7 +778,7 @@ class ComposeController extends AbstractController
 
     private function senderToken(Account $account): string
     {
-        return sprintf('%d|%s', $account->getId(), $account->getDisplayAddress() ?? $account->getEmail() ?? '');
+        return sprintf('%d|%s', $account->id, $account->displayAddress ?? $account->email ?? '');
     }
 
     private function defaultAccount(): ?Account
@@ -789,7 +789,7 @@ class ComposeController extends AbstractController
             'isPrimary' => true,
         ]);
 
-        if (null !== $account && $account->getUsr() !== $this->getUser()) {
+        if (null !== $account && $account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -878,7 +878,7 @@ class ComposeController extends AbstractController
 
         $cc = [];
         if (true === $replyAll) {
-            $ownAddresses = $account->getOwnedAddresses();
+            $ownAddresses = $account->ownedAddresses;
             $candidates = array_merge(
                 $original->toAddresses ?? [],
                 $original->ccAddresses ?? [],
@@ -1011,8 +1011,8 @@ class ComposeController extends AbstractController
     {
         $now = new DateTimeImmutable();
 
-        $message->fromAddress = $account->getEmail();
-        $message->fromName = $account->getName();
+        $message->fromAddress = $account->email;
+        $message->fromName = $account->name;
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= $now;
         $message->updatedAt = $now;
@@ -1065,7 +1065,7 @@ class ComposeController extends AbstractController
         // given has to exist already, and the thread the threader created
         // moments ago only gets one here. Same shape as PostIngestPipeline —
         // ids, record, flush the log rows.
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
         $messageId = (string) $message->id;
 
         if (true === $isNew) {
@@ -1108,7 +1108,7 @@ class ComposeController extends AbstractController
      */
     private function recordAttachmentChange(Message $message): void
     {
-        $accountId = (int) $message->account->getId();
+        $accountId = (int) $message->account->id;
 
         $this->stateManager->recordUpdated(
             $accountId,
@@ -1151,7 +1151,7 @@ class ComposeController extends AbstractController
     {
         $account = $message->account;
 
-        if (null === $account || $account->getUsr() !== $this->getUser()) {
+        if (null === $account || $account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

@@ -57,7 +57,7 @@ final class GmailLabelResolver
 
     private function resolveOne(string $gmailLabelId, Account $account): ?Label
     {
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         if (true === array_key_exists($gmailLabelId, $this->idCache[$accountId] ?? [])) {
             $cachedId = $this->idCache[$accountId][$gmailLabelId];

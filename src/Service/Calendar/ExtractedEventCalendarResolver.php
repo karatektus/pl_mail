@@ -31,7 +31,7 @@ final readonly class ExtractedEventCalendarResolver
 
     public function resolve(Account $account): ?Calendar
     {
-        $user = $account->getUsr();
+        $user = $account->usr;
 
         if (false === $user instanceof User) {
             return null;

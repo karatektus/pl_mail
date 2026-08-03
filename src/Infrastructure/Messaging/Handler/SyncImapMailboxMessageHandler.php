@@ -58,6 +58,6 @@ final readonly class SyncImapMailboxMessageHandler
         $account = $mailbox->account;
 
         $this->syncNotifier->publishMailboxSynced($account, $mailbox);
-        $this->bus->dispatch(new HarvestContactsMessage((int) $account->getId()));
+        $this->bus->dispatch(new HarvestContactsMessage((int) $account->id));
     }
 }

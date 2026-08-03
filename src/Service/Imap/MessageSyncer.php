@@ -83,10 +83,10 @@ class MessageSyncer
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
         $mailboxId   = $mailbox->id;
-        $accountId   = $mailbox->account->getId();
+        $accountId   = $mailbox->account->id;
         $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
-        $limit       = $mailbox->account->getSyncLimit();
+        $limit       = $mailbox->account->syncLimit;
 
         $this->logger->info('Syncing mailbox', [
             'mailbox'     => $mailbox->fullPath,

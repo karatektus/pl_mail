@@ -598,7 +598,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         return (int) $this->getEntityManager()->getConnection()->executeStatement(
             $sql,
-            ['accountId' => $account->getId()],
+            ['accountId' => $account->id],
         );
     }
 

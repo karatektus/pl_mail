@@ -66,7 +66,7 @@ class MessageSendService
         }
 
         $sentLabel   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
-        $draftsLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Drafts, $account->getUsr());
+        $draftsLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Drafts, $account->usr);
 
         $message->addLabel($sentLabel);
 
@@ -99,7 +99,7 @@ class MessageSendService
         // when it mints a binding, and per-mailbox counts are not a change
         // this codebase logs (see EmailSetMethod, which moves messages between
         // mailboxes and records only the Email and its Thread).
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $this->stateManager->recordUpdated(
             $accountId,
@@ -139,7 +139,7 @@ class MessageSendService
 
     private function buildEmail(Message $message, Account $account): Email
     {
-        $fromName = $account->getName();
+        $fromName = $account->name;
         if (null === $fromName) {
             $fromName = '';
         }
@@ -152,7 +152,7 @@ class MessageSendService
         $fromAddress = $message->fromAddress;
 
         if (null === $fromAddress || '' === $fromAddress) {
-            $fromAddress = $account->getDisplayAddress() ?? $account->getEmail() ?? '';
+            $fromAddress = $account->displayAddress ?? $account->email ?? '';
         }
 
         $email = new Email()

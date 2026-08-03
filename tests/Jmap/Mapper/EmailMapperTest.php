@@ -211,7 +211,7 @@ final class EmailMapperTest extends KernelTestCase
      */
     private function bindingMap(Account $account): array
     {
-        return $this->bindings->bindingIdsByLabelId((int) $account->getId());
+        return $this->bindings->bindingIdsByLabelId((int) $account->id);
     }
 
     /**
@@ -293,19 +293,18 @@ final class EmailMapperTest extends KernelTestCase
     private function account(User $user, string $username): Account
     {
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Mapper Corpus')
-            ->setUsername($username)
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Mapper Corpus';
+        $account->username = $username;
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         return $account;

@@ -177,7 +177,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
         $this->sync(['INBOX.Entw&APw-rfe']);
 
         $stale = $this->em->getRepository(Label::class)->findOneBy([
-            'usr'  => $this->account->getUsr(),
+            'usr'  => $this->account->usr,
             'name' => 'Entw&APw-rfe',
         ]);
 
@@ -206,7 +206,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
         $this->em->flush();
         $this->em->clear();
 
-        $this->account = $this->em->getRepository(Account::class)->find((int) $this->account->getId());
+        $this->account = $this->em->getRepository(Account::class)->find((int) $this->account->id);
     }
 
     /**
@@ -311,19 +311,18 @@ final class MailboxLabelNamingTest extends KernelTestCase
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Mailbox Naming Fixture')
-            ->setUsername('mailbox-naming-fixture@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType('password')
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Mailbox Naming Fixture';
+        $account->username = 'mailbox-naming-fixture@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
         $this->em->persist($account);
 
         $this->em->flush();

@@ -463,7 +463,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     {
         if (!$this->accounts->contains($account)) {
             $this->accounts->add($account);
-            $account->setUsr($this);
+            $account->usr = $this;
         }
 
         return $this;
@@ -473,8 +473,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     {
         if ($this->accounts->removeElement($account)) {
             // set the owning side to null (unless already changed)
-            if ($account->getUsr() === $this) {
-                $account->setUsr(null);
+            if ($account->usr === $this) {
+                $account->usr = null;
             }
         }
 

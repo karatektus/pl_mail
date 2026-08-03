@@ -86,7 +86,7 @@ final class MessageSourceController extends AbstractController
 
     private function assertOwnership(Message $message): void
     {
-        if ($message->account->getUsr() !== $this->getUser()) {
+        if ($message->account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
     }

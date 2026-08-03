@@ -311,22 +311,21 @@ final class LabelChangePropagatorTest extends KernelTestCase
         $this->em->persist($user);
 
         $account = new Account();
-        $account
-            ->setUsr($user)
-            ->setEmail('Prop Fixture')
-            ->setUsername('prop-'.uniqid('', true).'@example.test')
-            ->setImapHost('localhost')
-            ->setImapPort(993)
-            ->setImapEncryption('ssl')
-            ->setSmtpHost('localhost')
-            ->setSmtpPort(587)
-            ->setSmtpEncryption('starttls')
-            ->setPassword('x')
-            ->setAuthType($authType->value)
-            ->setIsActive(true);
+        $account->usr = $user;
+        $account->email = 'Prop Fixture';
+        $account->username = 'prop-'.uniqid('', true).'@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = $authType->value;
+        $account->isActive = true;
 
         if (null !== $oauthProvider) {
-            $account->setOauthProvider($oauthProvider);
+            $account->oauthProvider = $oauthProvider;
         }
 
         $this->em->persist($account);

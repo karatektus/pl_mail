@@ -53,7 +53,7 @@ final class MailboxSetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = $account->getId();
+        $accountId = $account->id;
 
         $oldState = $this->stateManager->stateFor($accountId, JmapObjectType::Mailbox);
         $ifInState = $arguments['ifInState'] ?? null;
@@ -138,7 +138,7 @@ final class MailboxSetMethod implements JmapMethod
             }
 
             $label            = new Label();
-            $label->usr       = $account->getUsr();
+            $label->usr       = $account->usr;
             $label->parent    = $parent;
             $label->name      = $name;
             $label->color     = $color?->value;
@@ -220,7 +220,7 @@ final class MailboxSetMethod implements JmapMethod
                 $this->propagator->renamed($label);
             }
 
-            $this->stateManager->recordUpdated($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Mailbox, (string) $binding->id);
             $updated[$id] = null;
         }
     }
@@ -351,7 +351,7 @@ final class MailboxSetMethod implements JmapMethod
             // Dispatch before removal: the propagator reads the remote id and
             // name off the bindings, and there is nothing to read afterwards.
             $this->propagator->deleted($label);
-            $this->stateManager->recordDestroyed($account->getId(), JmapObjectType::Mailbox, (string) $binding->id);
+            $this->stateManager->recordDestroyed($account->id, JmapObjectType::Mailbox, (string) $binding->id);
 
             // A Mailbox is per-account, so destroying one un-materializes the
             // label HERE — it must not vanish from the user's other accounts.
@@ -385,7 +385,7 @@ final class MailboxSetMethod implements JmapMethod
              WHERE ml.message_id = m.id
                AND ml.label_id = :labelId
                AND m.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->getId()],
+            ['labelId' => $label->id, 'accountId' => $account->id],
         );
 
         $connection->executeStatement(
@@ -394,7 +394,7 @@ final class MailboxSetMethod implements JmapMethod
              WHERE tl.message_thread_id = t.id
                AND tl.label_id = :labelId
                AND t.account_id = :accountId',
-            ['labelId' => $label->id, 'accountId' => $account->getId()],
+            ['labelId' => $label->id, 'accountId' => $account->id],
         );
     }
 
@@ -487,7 +487,7 @@ final class MailboxSetMethod implements JmapMethod
      */
     private function assertNameFree(Account $account, ?Label $parent, string $name, ?Label $ignore = null): void
     {
-        $existing = $this->labelRepository->findOneChildByName($account->getUsr(), $parent, $name);
+        $existing = $this->labelRepository->findOneChildByName($account->usr, $parent, $name);
 
         if (null === $existing) {
             return;
@@ -527,7 +527,7 @@ final class MailboxSetMethod implements JmapMethod
             return null;
         }
 
-        $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->getId(), [(int) $id]);
+        $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->id, [(int) $id]);
 
         return $bindings[0] ?? null;
     }

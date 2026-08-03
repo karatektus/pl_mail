@@ -176,7 +176,7 @@ final class EmailPatchApplier
 
             // Mailbox ids are binding ids — resolving through the binding is
             // also what keeps a client from naming another account's mailbox.
-            $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->getId(), [(int) $mailboxId]);
+            $bindings = $this->bindingRepository->findForAccountAndIds((int) $account->id, [(int) $mailboxId]);
             $label = ($bindings[0] ?? null)?->label;
 
             if (null === $label) {
@@ -255,7 +255,7 @@ final class EmailPatchApplier
      */
     private function currentMailboxIds(Account $account, Message $message): array
     {
-        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId((int) $account->getId());
+        $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId((int) $account->id);
         $ids = [];
 
         foreach ($message->labels as $label) {

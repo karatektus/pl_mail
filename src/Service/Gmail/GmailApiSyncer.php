@@ -60,7 +60,7 @@ final class GmailApiSyncer
         $currentHistoryId = (string) ($profile['historyId'] ?? '');
 
         if ('' !== $currentHistoryId) {
-            $account->setGmailHistoryId($currentHistoryId);
+            $account->gmailHistoryId = $currentHistoryId;
             $this->em->flush();
         }
 
@@ -88,22 +88,22 @@ final class GmailApiSyncer
         // minutes ago is probably still draining. Re-listing now would find
         // the same ids missing and dispatch them a second time; an hour is
         // long enough for the queue to have made visible progress.
-        $ranAt = $account->getBackfillRanAt();
+        $ranAt = $account->backfillRanAt;
 
         if (null !== $ranAt && $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::BACKFILL_COOLDOWN))) {
             return;
         }
 
-        $limit = $account->getSyncLimit();
+        $limit = $account->syncLimit;
 
         $this->logger->info('GmailApiSyncer: planning backfill', [
-            'accountId' => $account->getId(),
-            'account'   => $account->getEmail(),
+            'accountId' => $account->id,
+            'account'   => $account->email,
             'limit'     => 0 === $limit ? 'none' : $limit,
-            'completed' => $account->getBackfillTarget() ?? 'never',
+            'completed' => $account->backfillTarget ?? 'never',
         ]);
 
-        $account->setBackfillRanAt(new \DateTimeImmutable());
+        $account->backfillRanAt = new \DateTimeImmutable();
         $this->em->flush();
 
         // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
@@ -134,10 +134,10 @@ final class GmailApiSyncer
      */
     private function settleBackfill(Account $account, int $limit, int $pending): void
     {
-        $attempts = $account->getBackfillAttempts() + 1;
+        $attempts = $account->backfillAttempts + 1;
 
         if ($pending > 0 && $attempts < self::BACKFILL_MAX_ATTEMPTS) {
-            $account->setBackfillAttempts($attempts);
+            $account->backfillAttempts = $attempts;
             $this->em->flush();
 
             return;
@@ -145,7 +145,7 @@ final class GmailApiSyncer
 
         if ($pending > 0) {
             $this->logger->warning('GmailApiSyncer: backfill giving up on outstanding messages', [
-                'accountId'   => $account->getId(),
+                'accountId'   => $account->id,
                 'outstanding' => $pending,
                 'attempts'    => $attempts,
             ]);
@@ -153,12 +153,12 @@ final class GmailApiSyncer
 
         // Record how far this reached so later runs skip the listing entirely,
         // until the cap is raised past it.
-        $account->setBackfillTarget($limit);
-        $account->setBackfillAttempts(0);
+        $account->backfillTarget = $limit;
+        $account->backfillAttempts = 0;
         $this->em->flush();
 
         $this->logger->info('GmailApiSyncer: backfill complete', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'target'    => 0 === $limit ? 'none' : $limit,
         ]);
     }
@@ -169,11 +169,11 @@ final class GmailApiSyncer
      */
     public function syncIncremental(Account $account): void
     {
-        $startHistoryId = $account->getGmailHistoryId();
+        $startHistoryId = $account->gmailHistoryId;
 
         if (null === $startHistoryId) {
             $this->logger->warning('GmailApiSyncer: no historyId stored, running initial sync', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
             ]);
             $this->initialSync($account);
 
@@ -199,9 +199,9 @@ final class GmailApiSyncer
             // here; the response to either is the only one available anyway.
             if (true === in_array($e->getStatus(), [404, 410], true)) {
                 $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync', [
-                    'accountId' => $account->getId(),
+                    'accountId' => $account->id,
                 ]);
-                $account->setGmailHistoryId(null);
+                $account->gmailHistoryId = null;
                 $this->em->flush();
                 $this->initialSync($account);
 
@@ -231,7 +231,7 @@ final class GmailApiSyncer
 
         $this->dispatchBatches($account, $this->newGmailIds($account, $refs));
 
-        $account->setGmailHistoryId((string) $result['historyId']);
+        $account->gmailHistoryId = (string) $result['historyId'];
         $this->em->flush();
     }
 
@@ -244,7 +244,7 @@ final class GmailApiSyncer
     private function newGmailIds(Account $account, array $refs): array
     {
         $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIdsForUser($account->getUsr())
+            $this->messageRepository->findSyncedGmailIdsForUser($account->usr)
         );
 
         $pending = [];
@@ -279,13 +279,13 @@ final class GmailApiSyncer
 
         foreach ($batches as $batch) {
             $this->bus->dispatch(new SyncGmailMessageBatchMessage(
-                (int) $account->getId(),
+                (int) $account->id,
                 $batch,
             ));
         }
 
         $this->logger->info('GmailApiSyncer: batches dispatched', [
-            'accountId' => $account->getId(),
+            'accountId' => $account->id,
             'messages'  => count($gmailIds),
             'batches'   => count($batches),
         ]);

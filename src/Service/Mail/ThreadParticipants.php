@@ -161,7 +161,7 @@ final class ThreadParticipants
 
         return array_values(array_filter(array_map(
             $this->normalise(...),
-            $account->getOwnedAddresses(),
+            $account->ownedAddresses,
         )));
     }
 

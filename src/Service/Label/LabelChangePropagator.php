@@ -293,7 +293,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $byAccount[(int) $account->getId()][] = (int) $message->id;
+            $byAccount[(int) $account->id][] = (int) $message->id;
         }
 
         foreach ($byAccount as $accountId => $messageIds) {
@@ -330,7 +330,7 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $accountId               = (int) $account->getId();
+            $accountId               = (int) $account->id;
             $byAccount[$accountId][] = (int) $message->id;
             $accounts[$accountId]    = $account;
         }
@@ -346,11 +346,11 @@ final readonly class LabelChangePropagator
 
     private function graphDestinationLabelId(Account $account, LabelRole $role): ?int
     {
-        $label = $this->labelRepository->findOneByRoleForUser($role, $account->getUsr());
+        $label = $this->labelRepository->findOneByRoleForUser($role, $account->usr);
 
         if (null === $label) {
             $this->logger->warning('LabelChangePropagator: no destination label for Graph move', [
-                'accountId' => $account->getId(),
+                'accountId' => $account->id,
                 'role'      => $role->value,
             ]);
 

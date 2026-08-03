@@ -50,7 +50,7 @@ final class SearchSnippetGetMethod implements JmapMethod
     public function handle(array $arguments, JmapContext $context): array
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
-        $accountId = (int) $account->getId();
+        $accountId = (int) $account->id;
 
         $emailIds = $arguments['emailIds'] ?? null;
 
