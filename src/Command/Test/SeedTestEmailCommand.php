@@ -143,6 +143,17 @@ final class SeedTestEmailCommand extends Command
             $message->fromAddress = 'sender@e2e.test';
             $message->toAddresses = [['name' => 'E2E Tester', 'address' => (string) $user->email]];
             $message->bodyText = sprintf('Seeded body for "%s".', $subject);
+            // Real mail always carries headers, and two things read them: the
+            // details popover renders them, and the categoriser decides from
+            // them. A fixture with none exercises neither.
+            $message->headers = [
+                'Message-ID'   => sprintf('<%s@e2e.test>', md5($subject)),
+                'From'         => 'E2E Sender <sender@e2e.test>',
+                'To'           => (string) $user->email,
+                'Subject'      => $subject,
+                'Date'         => $receivedAt->format(DATE_RFC2822),
+                'Content-Type' => 'text/plain; charset=utf-8',
+            ];
             $message->receivedAt = $receivedAt;
             $message->sentAt = $receivedAt;
             $message->hasAttachments = false;

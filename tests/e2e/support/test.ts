@@ -86,7 +86,12 @@ export const test = base.extend<object, { workerAuth: string }>({
             return;
         }
 
-        await page.coverage.startJSCoverage();
+        // resetOnNavigation defaults to TRUE, which wipes the collected data
+        // on every page load — so a test that navigates reports only what ran
+        // after its last navigation, and one whose final act is a navigation
+        // reports nothing at all. Every number this produced before was an
+        // undercount, and specs that end on a reload measured as zero.
+        await page.coverage.startJSCoverage({ resetOnNavigation: false });
 
         await use(page);
 
