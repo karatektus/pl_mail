@@ -10,6 +10,52 @@ The published image tags: `latest` follows the most recent release below,
 
 Nothing yet.
 
+## v0.0.14 — 2026-08-03
+
+No schema change, no deployment change.
+
+### Fixed
+
+- **The sidebar showed labels that no longer existed.** It was carried across
+  navigations rather than re-rendered, so after a data reset the deleted labels
+  stayed in the nav linking to 404s, and a label created or renamed anywhere
+  else was invisible until a full reload. It renders per visit now; scroll
+  position, open trees and the expanded account are restored rather than frozen,
+  the last of those server-side so its folder rows are in the first paint
+  instead of arriving one request later and blinking.
+- **Sidebar highlights were inconsistent.** A hover left behind a square bar as
+  it faded, accounts and their folder rows were rounded boxes rather than the
+  pill every other row has, an open folder under an account was not highlighted
+  at all, and a label's parents gave no sign that the open row was inside them.
+- **An account's folder badges counted every account.** Clicking one lists that
+  account's threads alone, so the badge beside it promised mail the list did not
+  then show.
+- **Snoozing an Outlook message went looking for a folder that does not exist.**
+  Snoozed is plMail's own role with no Exchange counterpart, but every role was
+  treated as folder-backed — so each snooze logged a missing `graphFolderId`,
+  and a message both snoozed and archived looked like it was in two Exchange
+  folders at once. Roles are folders only where the provider has one, and are
+  never published as categories.
+- **The unread-log ring cleared in the database and not on screen.** The log
+  browser is a frame and the user menu is not inside it, so reading or clearing
+  the log left the outline until the next full page render.
+- **The calendar pane kept limits from a window size that was gone**, which is
+  what made the resize handle stop at odd places after the window changed.
+- **The settings pages had no live updates.** Their layout named a Stimulus
+  controller — `mercure` — that stopped existing when the controllers were
+  grouped into directories.
+- **Admin and settings pages threw on every load.** `mail--mail-pane` was
+  attached to every authenticated page but its targets exist only in the mailbox
+  layout, so it failed to connect with "Missing target element".
+- **A failed Microsoft Graph sub-request logged only its status.** Graph's own
+  reason was sitting unread in the sub-response body, which is the difference
+  between a diagnosable 400 and a mystery.
+
+### Added
+
+- **The thread view shows each message's own labels.** A rule that files a
+  single reply was visible in the list row and nowhere in the thread it opened.
+
 ## v0.0.13 — 2026-08-03
 
 No schema change, no deployment change. The encoding fix applies to mail synced
