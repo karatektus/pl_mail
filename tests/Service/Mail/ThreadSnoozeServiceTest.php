@@ -291,8 +291,6 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
         $mailbox->fullPath = 'INBOX';
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;
-        $mailbox->createdAt = new \DateTimeImmutable();
-        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

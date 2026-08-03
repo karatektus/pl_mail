@@ -211,7 +211,6 @@ class OAuthController extends AbstractController
             $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
         }
 
-        $account->updatedAt = new DateTimeImmutable();
 
         $this->em->persist($account);
         $this->em->flush();

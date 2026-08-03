@@ -108,7 +108,6 @@ class OAuthTokenManager
             $account->oauthLastRefreshError = null;
         }
 
-        $account->updatedAt = new DateTimeImmutable();
 
         $this->em->flush();
 

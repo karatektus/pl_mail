@@ -190,8 +190,6 @@ abstract class JmapTestCase extends KernelTestCase
         $this->user->nameLast = 'Fixture';
         $this->user->roles = ['ROLE_USER'];
         $this->user->password = 'x';
-        $this->user->createdAt = new \DateTimeImmutable();
-        $this->user->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->user);
 
         $this->account = new Account();
@@ -216,8 +214,6 @@ abstract class JmapTestCase extends KernelTestCase
         $this->mailbox->fullPath = 'INBOX';
         $this->mailbox->isSyncEnabled = true;
         $this->mailbox->isIdleEnabled = false;
-        $this->mailbox->createdAt = new \DateTimeImmutable();
-        $this->mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

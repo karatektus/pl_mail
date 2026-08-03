@@ -121,7 +121,6 @@ final readonly class AccountCreator
         foreach ($orderedAccounts as $account) {
             $account->sortOrder = $index;
             $account->isPrimary = 0 === $index;
-            $account->updatedAt = new DateTimeImmutable();
 
             ++$index;
         }

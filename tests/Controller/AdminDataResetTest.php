@@ -142,8 +142,6 @@ final class AdminDataResetTest extends WebTestCase
         $user->nameLast = 'Person';
         $user->roles = ['ROLE_USER'];
         $user->password = '$2y$04$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP';
-        $user->createdAt = new \DateTimeImmutable();
-        $user->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($user);
         $this->em->flush();

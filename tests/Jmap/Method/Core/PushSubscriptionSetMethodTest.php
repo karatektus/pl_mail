@@ -386,8 +386,6 @@ final class PushSubscriptionSetMethodTest extends JmapTestCase
         $stranger->nameLast = 'Stranger';
         $stranger->roles = ['ROLE_USER'];
         $stranger->password = 'x';
-        $stranger->createdAt = new \DateTimeImmutable();
-        $stranger->updatedAt = new \DateTimeImmutable();
         $this->em->persist($stranger);
         $this->em->flush();
 

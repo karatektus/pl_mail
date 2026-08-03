@@ -52,7 +52,6 @@ final class JmapDraftWriter
 
         $message = new Message();
         $message->account = $account;
-        $message->createdAt = $now;
         $message->subject = $this->stringOrNull($create['subject'] ?? null, 'subject');
         $message->toAddresses = $this->addresses($create['to'] ?? null, 'to');
         $message->ccAddresses = $this->addresses($create['cc'] ?? null, 'cc');
@@ -106,7 +105,6 @@ final class JmapDraftWriter
             $message->bodyText = $this->plainText($message->bodyHtml);
         }
 
-        $message->updatedAt = new \DateTimeImmutable();
 
         $this->entityManager->flush();
     }
@@ -135,7 +133,6 @@ final class JmapDraftWriter
         $message->addFlag(MessageFlag::DRAFT);
         $message->hasAttachments = false;
         $message->seenAt ??= $now;
-        $message->updatedAt = $now;
 
         $this->bodySanitizer->sanitize($message);
         $message->bodyText = $this->plainText($message->bodyHtml);

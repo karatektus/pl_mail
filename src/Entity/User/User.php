@@ -11,6 +11,7 @@ use App\Repository\User\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
@@ -22,8 +23,11 @@ use Symfony\Component\Validator\Constraints\DateTime;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
+#[ORM\HasLifecycleCallbacks]
 class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
+    use TimestampableTrait;
+
     /* Core roles */
     public const string ROLE_ADMIN = 'ROLE_ADMIN';
     public const string ROLE_USER = 'ROLE_USER';
@@ -155,11 +159,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     public ?\DateTimeInterface $lastLogin = null;
 
-    #[ORM\Column]
-    public ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $deletedAt = null;

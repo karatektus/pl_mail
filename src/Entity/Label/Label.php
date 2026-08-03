@@ -12,6 +12,7 @@ use App\Repository\Label\LabelRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -38,8 +39,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: LabelRepository::class)]
 #[ORM\Table(name: 'label')]
 #[ORM\Index(name: 'idx_label_usr', columns: ['usr_id'])]
+#[ORM\HasLifecycleCallbacks]
 class Label
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -96,11 +100,7 @@ class Label
     #[ORM\Column(nullable: true)]
     public ?int $sortOrder = null;
 
-    #[ORM\Column]
-    public private(set) ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $updatedAt = null;
 
     /**
      * Gmail-style full path, e.g. "Work/Invoices".

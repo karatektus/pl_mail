@@ -6,7 +6,6 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use DateTimeImmutable;
 
 /**
  * Builds the draft that answers a message: reply, reply-all and forward.
@@ -97,15 +96,11 @@ final class ReplyDraftBuilder
 
     private function draft(Message $original, ?Account $account, string $prefix, string $mode): Message
     {
-        $now = new DateTimeImmutable();
-
         $draft                 = new Message();
         $draft->account        = $account;
         $draft->subject        = $this->prefixSubject($prefix, $original->subject);
         $draft->bodyHtml       = $this->quote($original, $mode);
         $draft->hasAttachments = false;
-        $draft->createdAt      = $now;
-        $draft->updatedAt      = $now;
 
         return $draft;
     }

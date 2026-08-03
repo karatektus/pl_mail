@@ -351,7 +351,6 @@ final class EmailChangesTest extends KernelTestCase
         if (null === $message) {
             $message = new Message();
             $message->account = $this->account;
-            $message->createdAt = new \DateTimeImmutable();
             $message->messageId = sprintf('<compose-%s@example.test>', uniqid('', true));
         }
 
@@ -463,8 +462,6 @@ final class EmailChangesTest extends KernelTestCase
         $this->mailbox->fullPath = 'INBOX';
         $this->mailbox->isSyncEnabled = true;
         $this->mailbox->isIdleEnabled = false;
-        $this->mailbox->createdAt = new \DateTimeImmutable();
-        $this->mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

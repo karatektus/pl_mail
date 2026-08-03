@@ -47,7 +47,6 @@ final class TimezoneController extends AbstractController
         }
 
         $user->timezone = '' === $timezone ? null : $timezone;
-        $user->updatedAt = new \DateTimeImmutable();
 
         $this->entityManager->flush();
 

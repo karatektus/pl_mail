@@ -79,8 +79,6 @@ final class MailFixtures
         $mailbox->fullPath = $name;
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = $idle;
-        $mailbox->createdAt = new \DateTimeImmutable();
-        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $em->persist($mailbox);
         $em->flush();

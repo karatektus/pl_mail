@@ -13,12 +13,16 @@ use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AccountRepository::class)]
 //#[Broadcast]
+#[ORM\HasLifecycleCallbacks]
 class Account extends AccountModel
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -85,11 +89,7 @@ class Account extends AccountModel
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $lastSyncedAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $gmailHistoryId = null;

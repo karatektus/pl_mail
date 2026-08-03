@@ -8,13 +8,17 @@ use App\Domain\Helper\AddressHelper;
 use App\Entity\User\User;
 use App\Repository\Mail\ContactRepository;
 use DateTimeImmutable;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\UniqueConstraint(name: 'uniq_contact_user_email', columns: ['usr_id', 'email'])]
+#[ORM\HasLifecycleCallbacks]
 class Contact
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -63,11 +67,7 @@ class Contact
     #[ORM\Column]
     public ?DateTimeImmutable $lastSeenAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $updatedAt = null;
 
     /**
      * Initials for the avatar chip, at most two characters. Virtual and

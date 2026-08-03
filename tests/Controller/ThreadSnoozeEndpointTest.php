@@ -202,8 +202,6 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $mailbox->fullPath = 'INBOX';
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;
-        $mailbox->createdAt = new \DateTimeImmutable();
-        $mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($mailbox);
 
         $thread = new MessageThread();

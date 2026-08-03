@@ -100,19 +100,14 @@ final class DefaultController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $now = new DateTimeImmutable();
-
             if (true === $isNew) {
                 $user->password = $this->passwordHasher->hashPassword(
                     $user,
                     (string) $form->get('plainPassword')->getData(),
                 );
-                $user->createdAt = $now;
             }
 
             $this->applyAdminRole($user, true === $form->get('isAdmin')->getData());
-
-            $user->updatedAt = $now;
 
             $this->entityManager->persist($user);
             $this->entityManager->flush();
@@ -160,7 +155,6 @@ final class DefaultController extends AbstractController
         // what makes the row unable to authenticate.
         $user->password = '';
         $user->deletedAt = $now;
-        $user->updatedAt = $now;
 
         $this->entityManager->flush();
 

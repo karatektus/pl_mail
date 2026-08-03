@@ -117,7 +117,6 @@ final class SeedTestAttachmentCommand extends Command
         $message->hasAttachments = true;
         $message->flags = [];
         $message->syncedAt = $now;
-        $message->updatedAt = $now;
         $message->addLabel($inboxLabel);
 
         $this->entityManager->persist($message);

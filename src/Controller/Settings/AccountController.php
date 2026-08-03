@@ -89,7 +89,6 @@ final class AccountController extends AbstractController
                 $account->password = $existingPassword;
             }
 
-            $account->updatedAt = new DateTimeImmutable();
             $this->entityManager->flush();
 
             return $this->streamAccountList($request, 'account.updated');
@@ -113,7 +112,6 @@ final class AccountController extends AbstractController
         $newActive = false === $account->isActive;
 
         $account->isActive = $newActive;
-        $account->updatedAt = new DateTimeImmutable();
         $this->entityManager->flush();
 
         if (true === $newActive) {

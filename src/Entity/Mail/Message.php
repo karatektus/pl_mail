@@ -11,6 +11,7 @@ use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 // Remote-id uniqueness per account: one row per Gmail/Graph message. The
@@ -32,8 +33,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_message_id', columns: ['message_id'])]
 #[ORM\Index(name: 'idx_message_provider_thread_key_account', columns: ['provider_thread_key', 'account_id'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class Message extends MessageModel
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -97,11 +101,7 @@ class Message extends MessageModel
     #[ORM\Column(nullable: true)]
     public ?array $bccAddresses = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $sentAt = null;

@@ -246,8 +246,6 @@ final class EmailPatchApplierTest extends KernelTestCase
         $user->nameLast = 'Fixture';
         $user->roles = ['ROLE_USER'];
         $user->password = 'x';
-        $user->createdAt = new \DateTimeImmutable();
-        $user->updatedAt = new \DateTimeImmutable();
         $this->em->persist($user);
 
         $account = new Account();
@@ -277,8 +275,6 @@ final class EmailPatchApplierTest extends KernelTestCase
         $mailbox->fullPath = 'INBOX';
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;
-        $mailbox->createdAt = new \DateTimeImmutable();
-        $mailbox->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($mailbox);
         $this->em->flush();

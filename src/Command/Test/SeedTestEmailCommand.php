@@ -146,7 +146,6 @@ final class SeedTestEmailCommand extends Command
             $message->hasAttachments = false;
             $message->flags = [];
             $message->syncedAt = $now;
-            $message->updatedAt = $now;
             $message->addLabel($inboxLabel);
 
             if (false === $unread) {

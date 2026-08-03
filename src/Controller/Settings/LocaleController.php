@@ -44,7 +44,6 @@ final class LocaleController extends AbstractController
         }
 
         $user->locale = $locale->value;
-        $user->updatedAt = new \DateTimeImmutable();
 
         $this->entityManager->flush();
 

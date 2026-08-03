@@ -299,8 +299,6 @@ final class DevicePairingEndpointTest extends WebTestCase
         $user->nameLast = 'Endpoint';
         $user->roles = ['ROLE_USER'];
         $user->password = 'x';
-        $user->createdAt = new \DateTimeImmutable();
-        $user->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($user);
         $this->em->flush();

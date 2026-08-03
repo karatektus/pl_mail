@@ -99,7 +99,6 @@ class ComposeController extends AbstractController
 
             $message = new Message();
             $message->account = $account;
-            $message->createdAt = new DateTimeImmutable();
 
         } else {
             $this->assertOwnership($message);
@@ -170,7 +169,6 @@ class ComposeController extends AbstractController
         if (null === $message) {
             $message = new Message();
             $message->account = $this->defaultAccount();
-            $message->createdAt = new DateTimeImmutable();
         } else {
             $this->assertOwnership($message);
         }
@@ -879,7 +877,6 @@ class ComposeController extends AbstractController
         $message->fromName = $account->name;
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= $now;
-        $message->updatedAt = $now;
 
         // Autosave runs on every keystroke: hardcoding false here used to wipe
         // the flag off a draft that had files attached to it.

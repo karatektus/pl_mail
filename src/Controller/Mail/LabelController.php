@@ -108,7 +108,6 @@ final class LabelController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $label->updatedAt = new \DateTimeImmutable();
             $this->em->flush();
 
             $this->structurePropagator->renamed($label);
@@ -166,7 +165,6 @@ final class LabelController extends AbstractController
         }
 
         $label->isVisible = false === $label->isVisible;
-        $label->updatedAt = new \DateTimeImmutable();
         $this->em->flush();
 
         if (true === $label->isVisible) {

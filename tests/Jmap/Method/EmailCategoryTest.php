@@ -473,8 +473,6 @@ final class EmailCategoryTest extends KernelTestCase
         $this->mailbox->fullPath = 'INBOX';
         $this->mailbox->isSyncEnabled = true;
         $this->mailbox->isIdleEnabled = false;
-        $this->mailbox->createdAt = new \DateTimeImmutable();
-        $this->mailbox->updatedAt = new \DateTimeImmutable();
         $this->em->persist($this->mailbox);
 
         $this->em->flush();

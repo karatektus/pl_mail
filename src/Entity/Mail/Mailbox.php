@@ -8,11 +8,15 @@ use App\Entity\Label\LabelBinding;
 use App\Repository\Mail\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: MailboxRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class Mailbox
 {
+    use TimestampableTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -89,11 +93,7 @@ class Mailbox
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $syncedAt = null;
 
-    #[ORM\Column]
-    public ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column]
-    public ?\DateTimeImmutable $updatedAt = null;
 
     /**
      * @var Collection<int, Message>
