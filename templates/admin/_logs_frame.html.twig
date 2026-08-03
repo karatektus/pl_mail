@@ -1,13 +1,20 @@
 <turbo-frame id="admin-logs">
 
-    <section class="rounded-pane border border-line bg-pane-soft overflow-hidden">
+    {# A container, so the rows below reflow on how wide this pane actually is
+       rather than on the viewport. The two are not the same thing here and not
+       even monotonic: at 768px the admin section nav appears and takes 180px,
+       leaving this pane narrower (266px) than it is on a 390px phone (316px). #}
+    <section class="@container rounded-pane border border-line bg-pane-soft overflow-hidden">
 
         <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
             <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.logs.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.logs.entries'|trans }}</span>
 
-            <form method="get" action="{{ path('app_admin_logs') }}" class="ml-auto flex items-center gap-2">
+            {# Its own row in a narrow pane, where the two selects plus Refresh
+               are wider than it and were being clipped by its overflow-hidden. #}
+            <form method="get" action="{{ path('app_admin_logs') }}"
+                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
                 <select name="level"
                         class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
                         onchange="this.form.requestSubmit();">
@@ -51,7 +58,12 @@
             <div class="divide-y divide-line">
                 {% for entry in entries %}
                     <details class="px-5 py-2.5 text-sm group">
-                        <summary class="flex items-center gap-3 cursor-pointer list-none">
+                        {# Wraps until the pane can seat the message as well as
+                           the metadata. Below that the four fixed-width labels
+                           are wider than the row on their own, which left the
+                           message — the only part anyone is reading — at
+                           literally zero width, and clipped the rest. #}
+                        <summary class="flex flex-wrap items-center gap-x-3 gap-y-1 @2xl:flex-nowrap cursor-pointer list-none">
                            <span class="shrink-0 w-16 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
                             {{ entry.level >= 400 ? 'badge-danger' : (entry.level >= 300 ? 'badge-warning' : 'badge-neutral') }}">
                                 {{ entry.levelName }}
@@ -59,12 +71,45 @@
                             <span class="shrink-0 text-xs text-ink-faint font-mono">{{ entry.createdAt|date('m-d H:i:s') }}</span>
                             <span class="shrink-0 text-xs text-ink-faint">{{ entry.source ?? '—' }}</span>
                             <span class="shrink-0 text-xs text-ink-muted font-mono">{{ entry.channel }}</span>
-                            <span class="min-w-0 flex-1 truncate text-ink-soft group-open:whitespace-normal group-open:break-all">{{ entry.message }}</span>
-                            <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                            {# Last only on one line: while the row wraps the
+                               chevron belongs to the metadata line, not to the
+                               message line below it. #}
+                            <i class="fa-solid fa-chevron-down text-[10px] text-ink-faint transition-transform group-open:rotate-180 ml-auto @2xl:ml-0 @2xl:order-last" aria-hidden="true"></i>
+                            <span class="w-full min-w-0 truncate text-ink-soft @2xl:w-auto @2xl:flex-1 group-open:whitespace-normal group-open:break-words">{{ entry.message }}</span>
                         </summary>
                         {% if entry.context %}
-                            <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                            {# Wrapped rather than scrolled in a narrow pane:
+                               pretty printed JSON is several times a phone's
+                               width, and a horizontal scroller nested in the
+                               page's vertical one is close to unusable by
+                               thumb. #}
+                            <pre class="mt-2 p-3 rounded-lg bg-sunken border border-line text-xs text-ink-soft overflow-x-auto whitespace-pre-wrap break-words @2xl:whitespace-pre @2xl:break-normal">{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
                         {% endif %}
+
+                        {# In the expanded region, not on the summary line: a
+                           button there would compete with the disclosure for
+                           the click. What lands on the clipboard is composed
+                           rather than lifted from one element, because an entry
+                           is only worth pasting into a bug report with its
+                           when, how bad and where from attached — hence the
+                           hidden source holding all of it. #}
+                        <div class="mt-2 flex justify-end"
+                             data-controller="ui--clipboard"
+                             data-ui--clipboard-confirm-text-value="{{ 'admin.logs.copied'|trans }}"
+                             data-ui--clipboard-failed-text-value="{{ 'admin.logs.copy_failed'|trans }}">
+                            <span class="hidden" data-ui--clipboard-target="source">{{ entry.createdAt|date('Y-m-d H:i:s') }} {{ entry.levelName }} {{ entry.channel }}{% if entry.source %} ({{ entry.source }}){% endif %}
+
+{{ entry.message }}{% if entry.context %}
+
+
+{{ entry.context|json_encode(constant('JSON_PRETTY_PRINT')) }}{% endif %}</span>
+                            <button type="button"
+                                    data-action="click->ui--clipboard#copy"
+                                    class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
+                                <i class="fa-solid fa-copy text-[11px]" aria-hidden="true"></i>
+                                <span data-ui--clipboard-target="label">{{ 'admin.logs.copy'|trans }}</span>
+                            </button>
+                        </div>
                     </details>
                 {% endfor %}
             </div>
