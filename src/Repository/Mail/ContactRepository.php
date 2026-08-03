@@ -38,7 +38,7 @@ class ContactRepository extends ServiceEntityRepository
 
         $conn  = $this->getEntityManager()->getConnection();
         $now   = new DateTimeImmutable();
-        $userId = $user->getId();
+        $userId = $user->id;
 
         foreach ($addresses as $addr) {
             $email = AddressHelper::email($addr['email'] ?? '');
@@ -235,7 +235,7 @@ class ContactRepository extends ServiceEntityRepository
             ON CONFLICT (usr_id, email) DO NOTHING
             SQL,
                 [
-                    'userId' => $user->getId(),
+                    'userId' => $user->id,
                     'email'  => $email,
                     'now'    => $now,
                 ],

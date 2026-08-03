@@ -374,12 +374,11 @@ final class IcsExtractionTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('ics-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Ics')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'ics-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Ics';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 

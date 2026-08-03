@@ -172,12 +172,11 @@ final class WakeSnoozedCommandTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('wake-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Wake')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'wake-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Wake';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

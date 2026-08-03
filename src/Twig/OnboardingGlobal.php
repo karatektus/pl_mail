@@ -64,6 +64,6 @@ final readonly class OnboardingGlobal
 
         $session = $this->requestStack->getSession();
 
-        return substr(hash('sha256', $session->getId().'|'.$user->getId()), 0, 16);
+        return substr(hash('sha256', $session->getId().'|'.$user->id), 0, 16);
     }
 }

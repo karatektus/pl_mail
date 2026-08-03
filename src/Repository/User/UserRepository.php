@@ -125,7 +125,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
                 return false;
             }
 
-            $user->setRoles([User::ROLE_ADMIN]);
+            $user->roles = [User::ROLE_ADMIN];
 
             $entityManager->persist($user);
             $entityManager->flush();
@@ -152,7 +152,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', \get_class($user)));
         }
 
-        $user->setPassword($newHashedPassword);
+        $user->password = $newHashedPassword;
 
         $this->add($user, true);
     }
@@ -207,10 +207,10 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->andWhere('user.email = :email')
             ->setParameter('email', $email);
 
-        if (null !== $user->getId()) {
+        if (null !== $user->id) {
             $qb
                 ->andWhere('user.id != :id')
-                ->setParameter('id', $user->getId());
+                ->setParameter('id', $user->id);
         }
 
         $result = $qb->getQuery()->getOneOrNullResult();

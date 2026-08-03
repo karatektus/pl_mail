@@ -302,14 +302,13 @@ final class LabelChangePropagatorTest extends KernelTestCase
     private function account(AuthType $authType, ?string $oauthProvider = null): Account
     {
         $user = new User();
-        $user
-            ->setEmail('prop-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Prop')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'prop-'.uniqid('', true).'@example.test';
+        $user->nameFirst = 'Prop';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
+        $user->createdAt = new \DateTimeImmutable();
+        $user->updatedAt = new \DateTimeImmutable();
         $this->em->persist($user);
 
         $account = new Account();

@@ -255,12 +255,11 @@ final class EmailMapperTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('mapper-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Mapper')
-            ->setNameLast('Corpus')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'mapper-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Mapper';
+        $user->nameLast = 'Corpus';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $this->account = $this->account($user, 'mapper-one@example.test');

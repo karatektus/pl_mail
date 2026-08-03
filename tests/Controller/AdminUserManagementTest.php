@@ -96,7 +96,7 @@ final class AdminUserManagementTest extends WebTestCase
         $client = $this->signInAsAdmin();
         $victim = $this->seedUser();
 
-        $client->request('GET', sprintf('/admin/users/%d/edit', $victim->getId()));
+        $client->request('GET', sprintf('/admin/users/%d/edit', $victim->id));
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('input[type="password"]');
@@ -109,10 +109,10 @@ final class AdminUserManagementTest extends WebTestCase
         $victim = $this->seedUser();
         $before = (string) $victim->getPassword();
 
-        $crawler = $client->request('GET', sprintf('/admin/users/%d/edit', $victim->getId()));
+        $crawler = $client->request('GET', sprintf('/admin/users/%d/edit', $victim->id));
 
         $form = $crawler->filter('form')->form([
-            'user_form[email]'     => (string) $victim->getEmail(),
+            'user_form[email]'     => (string) $victim->email,
             'user_form[nameFirst]' => 'Renamed',
             'user_form[nameLast]'  => 'Person',
         ]);
@@ -127,7 +127,7 @@ final class AdminUserManagementTest extends WebTestCase
             ]),
         );
 
-        $reloaded = $this->reload((int) $victim->getId());
+        $reloaded = $this->reload((int) $victim->id);
 
         self::assertSame($before, (string) $reloaded->getPassword(), 'an admin set another user\'s password');
 
@@ -135,7 +135,7 @@ final class AdminUserManagementTest extends WebTestCase
         // field — allow_extra_fields is false by default — so the name does not
         // change either. Belt and braces: the field being unmapped would be
         // enough on its own, and this is the second lock.
-        self::assertSame('Fixture', $reloaded->getNameFirst());
+        self::assertSame('Fixture', $reloaded->nameFirst);
     }
 
     /** The edit that is allowed still works. */
@@ -144,15 +144,15 @@ final class AdminUserManagementTest extends WebTestCase
         $client = $this->signInAsAdmin();
         $victim = $this->seedUser();
 
-        $crawler = $client->request('GET', sprintf('/admin/users/%d/edit', $victim->getId()));
+        $crawler = $client->request('GET', sprintf('/admin/users/%d/edit', $victim->id));
 
         $client->submit($crawler->filter('form')->form([
-            'user_form[email]'     => (string) $victim->getEmail(),
+            'user_form[email]'     => (string) $victim->email,
             'user_form[nameFirst]' => 'Renamed',
             'user_form[nameLast]'  => 'Person',
         ]));
 
-        self::assertSame('Renamed', $this->reload((int) $victim->getId())->getNameFirst());
+        self::assertSame('Renamed', $this->reload((int) $victim->id)->nameFirst);
     }
 
     /** Promotion is the one role change the panel offers. */
@@ -160,24 +160,24 @@ final class AdminUserManagementTest extends WebTestCase
     {
         $client = $this->signInAsAdmin();
         $victim = $this->seedUser();
-        $path   = sprintf('/admin/users/%d/edit', $victim->getId());
+        $path   = sprintf('/admin/users/%d/edit', $victim->id);
 
         $crawler = $client->request('GET', $path);
         $client->submit($crawler->filter('form')->form([
-            'user_form[email]'     => (string) $victim->getEmail(),
+            'user_form[email]'     => (string) $victim->email,
             'user_form[nameFirst]' => 'Fixture',
             'user_form[nameLast]'  => 'Person',
             'user_form[isAdmin]'   => '1',
         ]));
 
-        self::assertContains(User::ROLE_ADMIN, $this->reload((int) $victim->getId())->getRoles());
+        self::assertContains(User::ROLE_ADMIN, $this->reload((int) $victim->id)->getRoles());
 
         // Explicitly unticked: DomCrawler carries over the state the page was
         // rendered with, and after the promotion above the box comes back
         // checked. Omitting the key would re-submit it as still checked.
         $crawler = $client->request('GET', $path);
         $form    = $crawler->filter('form')->form([
-            'user_form[email]'     => (string) $victim->getEmail(),
+            'user_form[email]'     => (string) $victim->email,
             'user_form[nameFirst]' => 'Fixture',
             'user_form[nameLast]'  => 'Person',
         ]);
@@ -187,7 +187,7 @@ final class AdminUserManagementTest extends WebTestCase
 
         $client->submit($form);
 
-        self::assertNotContains(User::ROLE_ADMIN, $this->reload((int) $victim->getId())->getRoles());
+        self::assertNotContains(User::ROLE_ADMIN, $this->reload((int) $victim->id)->getRoles());
     }
 
     public function testAnAdministratorCannotRemoveTheirOwnAccount(): void
@@ -195,20 +195,20 @@ final class AdminUserManagementTest extends WebTestCase
         $client = $this->signInAsAdmin();
         $admin  = $this->users->findOneBy(['email' => $this->adminEmail]);
 
-        $client->request('POST', sprintf('/admin/users/%d/delete', $admin->getId()), [
-            '_token' => $this->token($client, 'admin-user-delete-' . $admin->getId()),
+        $client->request('POST', sprintf('/admin/users/%d/delete', $admin->id), [
+            '_token' => $this->token($client, 'admin-user-delete-' . $admin->id),
         ]);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertNull($this->reload((int) $admin->getId())->getDeletedAt());
+        self::assertNull($this->reload((int) $admin->id)->deletedAt);
     }
 
     public function testRemovingAUserIsASoftDeleteThatFreesTheAddress(): void
     {
         $client = $this->signInAsAdmin();
         $victim = $this->seedUser();
-        $email  = (string) $victim->getEmail();
-        $id     = (int) $victim->getId();
+        $email  = (string) $victim->email;
+        $id     = (int) $victim->id;
 
         $client->request('POST', sprintf('/admin/users/%d/delete', $id), [
             '_token' => $this->token($client, 'admin-user-delete-' . $id),
@@ -220,8 +220,8 @@ final class AdminUserManagementTest extends WebTestCase
         // check: a cascade would have taken it with the user.
         $reloaded = $this->reload($id);
 
-        self::assertNotNull($reloaded->getDeletedAt());
-        self::assertNotSame($email, $reloaded->getEmail(), 'the address was not freed for reuse');
+        self::assertNotNull($reloaded->deletedAt);
+        self::assertNotSame($email, $reloaded->email, 'the address was not freed for reuse');
         self::assertNull($this->users->findOneBy(['email' => $email]));
     }
 
@@ -231,10 +231,10 @@ final class AdminUserManagementTest extends WebTestCase
         $client = $this->signInAsAdmin();
         $victim = $this->seedUser();
 
-        $client->request('POST', sprintf('/admin/users/%d/delete', $victim->getId()), ['_token' => 'forged']);
+        $client->request('POST', sprintf('/admin/users/%d/delete', $victim->id), ['_token' => 'forged']);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertNull($this->reload((int) $victim->getId())->getDeletedAt());
+        self::assertNull($this->reload((int) $victim->id)->deletedAt);
     }
 
     /** Not an admin, not admitted. */
@@ -288,7 +288,7 @@ final class AdminUserManagementTest extends WebTestCase
         $admin->addRole(User::ROLE_ADMIN);
         $this->em->flush();
 
-        $this->adminEmail = (string) $admin->getEmail();
+        $this->adminEmail = (string) $admin->email;
 
         $client->loginUser($admin);
 
@@ -298,14 +298,13 @@ final class AdminUserManagementTest extends WebTestCase
     private function seedUser(): User
     {
         $user = new User();
-        $user
-            ->setEmail('admin-users-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Fixture')
-            ->setNameLast('Person')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('$2y$04$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'admin-users-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Fixture';
+        $user->nameLast = 'Person';
+        $user->roles = ['ROLE_USER'];
+        $user->password = '$2y$04$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP';
+        $user->createdAt = new \DateTimeImmutable();
+        $user->updatedAt = new \DateTimeImmutable();
 
         $this->em->persist($user);
         $this->em->flush();

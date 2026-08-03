@@ -65,11 +65,11 @@ final class ProfileController extends AbstractController
     #[Route('/avatar/{filename}', name: 'avatar', requirements: ['filename' => '[0-9a-f]+\.[a-z0-9]{2,5}'], methods: ['GET'])]
     public function avatar(string $filename, #[CurrentUser] User $user, AvatarStorage $avatars): Response
     {
-        if ($user->getAvatar() !== $filename) {
+        if ($user->avatar !== $filename) {
             throw $this->createNotFoundException();
         }
 
-        $path = $avatars->pathFor((string) $user->getId(), $filename);
+        $path = $avatars->pathFor((string) $user->id, $filename);
 
         if (false === is_file($path)) {
             throw $this->createNotFoundException();

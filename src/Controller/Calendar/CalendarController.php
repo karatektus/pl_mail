@@ -212,7 +212,7 @@ final class CalendarController extends AbstractController
 
         return $this->json([
             'open'  => $user->isCalendarPaneOpen(),
-            'width' => $user->getCalendarPaneWidth(),
+            'width' => $user->calendarPaneWidth,
         ]);
     }
 

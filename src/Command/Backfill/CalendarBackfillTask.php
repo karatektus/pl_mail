@@ -79,7 +79,7 @@ final readonly class CalendarBackfillTask implements BackfillTaskInterface
             }
 
             foreach ($users as $user) {
-                $lastId = (int) $user->getId();
+                $lastId = (int) $user->id;
 
                 $created += $this->provisioner->provision(
                     $user,

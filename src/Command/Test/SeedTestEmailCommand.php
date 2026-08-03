@@ -140,7 +140,7 @@ final class SeedTestEmailCommand extends Command
                 ->setSubject($subject)
                 ->setFromName('E2E Sender')
                 ->setFromAddress('sender@e2e.test')
-                ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->getEmail()]])
+                ->setToAddresses([['name' => 'E2E Tester', 'address' => (string) $user->email]])
                 ->setBodyText(sprintf('Seeded body for "%s".', $subject))
                 ->setReceivedAt($receivedAt)
                 ->setSentAt($receivedAt)

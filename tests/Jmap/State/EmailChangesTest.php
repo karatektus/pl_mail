@@ -435,12 +435,11 @@ final class EmailChangesTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('changes-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Email')
-            ->setNameLast('Changes')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'changes-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Email';
+        $this->user->nameLast = 'Changes';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();

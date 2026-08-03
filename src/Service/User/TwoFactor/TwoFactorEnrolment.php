@@ -52,7 +52,7 @@ final readonly class TwoFactorEnrolment
      */
     public function begin(User $user): string
     {
-        if (null === $user->getTotpSecret() || true === $user->isTotpAuthenticationEnabled()) {
+        if (null === $user->totpSecret || true === $user->isTotpAuthenticationEnabled()) {
             $user->startTotpEnrolment($this->totpAuthenticator->generateSecret());
 
             $this->entityManager->flush();
@@ -68,7 +68,7 @@ final readonly class TwoFactorEnrolment
 
     public function verifyCode(User $user, string $code): bool
     {
-        if (null === $user->getTotpSecret()) {
+        if (null === $user->totpSecret) {
             return false;
         }
 
@@ -144,7 +144,7 @@ final readonly class TwoFactorEnrolment
             $hashes[] = User::hashBackupCode($code);
         }
 
-        $user->setBackupCodeHashes($hashes);
+        $user->backupCodes = $hashes;
 
         return $codes;
     }

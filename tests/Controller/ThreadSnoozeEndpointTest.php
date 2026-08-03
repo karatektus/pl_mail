@@ -165,12 +165,11 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         // Its own user rather than the seeded admin, for the same reason: the
         // fixtures here change what onboarding thinks the account holds.
         $user = new User();
-        $user
-            ->setEmail('snooze-endpoint-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Snooze')
-            ->setNameLast('Endpoint')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'snooze-endpoint-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Snooze';
+        $user->nameLast = 'Endpoint';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->em->flush();
 

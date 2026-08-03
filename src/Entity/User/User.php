@@ -31,13 +31,17 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
-    private ?string $email = null;
+    public ?string $email = null;
 
+    /**
+     * The roles granted explicitly, which is not the same list the security
+     * layer sees — read through getRoles(), which adds the implied ROLE_USER.
+     */
     #[ORM\Column]
-    private array $roles = [];
+    public array $roles = [];
 
     #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
     public private(set) Appearance $appearance;
@@ -45,19 +49,26 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * The hashed password
      */
     #[ORM\Column]
-    private ?string $password = null;
+    public ?string $password = null;
 
+    /**
+     * Nullable: removing a picture is a normal thing to do, and the column has
+     * always allowed it.
+     */
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $avatar = null;
+    public ?string $avatar = null;
 
     /**
      * The shared TOTP secret, base32, encrypted at rest by the same libsodium
      * key as mailbox passwords — anyone who can read it can mint valid codes
      * forever, so it belongs in the same bracket as a credential, not a
-     * setting.
+     * setting. Only the enrolment service and the QR renderer have any business
+     * reading it, and only startTotpEnrolment()/disableTotp() may write it —
+     * hence private(set), so a secret cannot be swapped in without the
+     * confirmation state being reset alongside it.
      */
     #[ORM\Column(name: 'totp_secret', type: EncryptedStringType::NAME, nullable: true)]
-    private ?string $totpSecret = null;
+    public private(set) ?string $totpSecret = null;
 
     /**
      * When the user proved the secret works, by typing a code from their app.
@@ -68,7 +79,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * which is exactly what isTotpAuthenticationEnabled() answers.
      */
     #[ORM\Column(name: 'totp_confirmed_at', nullable: true)]
-    private ?\DateTimeImmutable $totpConfirmedAt = null;
+    public private(set) ?\DateTimeImmutable $totpConfirmedAt = null;
 
     /**
      * Unused recovery codes, as SHA-256 digests.
@@ -79,25 +90,50 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * key stretching to buy. Codes are removed from this list as they are
      * spent, so its length is the "N remaining" the settings page shows.
      *
+     * Reindexed on every write, so spending a code cannot turn the column into
+     * a JSON object: array_filter() leaves holes, and a sparse PHP array
+     * encodes as {"1":"…"} rather than a list, which comes back the wrong
+     * shape.
+     *
      * @var list<string>
      */
     #[ORM\Column(name: 'backup_codes', type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
-    private array $backupCodes = [];
+    public array $backupCodes = [] {
+        set (array $codes) => array_values($codes);
+    }
+
+    /** How many recovery codes are left to spend. */
+    public int $backupCodeCount {
+        get => count($this->backupCodes);
+    }
 
     /**
      * Preferred interface locale. Null means "follow the server default".
      */
     #[ORM\Column(length: 16, nullable: true)]
-    private ?string $locale = null;
+    public ?string $locale = null;
 
     /**
      * Preferred display timezone, as an IANA identifier. Null means "never
      * chose one" — see UserTimezoneResolver, which turns that into the
      * install's configured default. Storage stays UTC throughout; this only
      * decides what the user is shown.
+     *
+     * Anything the system does not recognise becomes null — the same clamping
+     * Appearance does with a bad hex colour, and for the same reason: a
+     * preference is not worth an exception, and null is a state the reader
+     * already handles. Storing an unknown identifier would make every later
+     * `new DateTimeZone()` throw somewhere far away from here.
+     *
+     * Doctrine hydrates through `RawValuePropertyAccessor`, which skips hooks,
+     * so this runs on application writes only and never re-checks a stored row.
      */
     #[ORM\Column(length: 64, nullable: true)]
-    private ?string $timezone = null;
+    public ?string $timezone = null {
+        set (?string $value) {
+            $this->timezone = true === TimezoneHelper::isKnown($value) ? $value : null;
+        }
+    }
 
     /**
      * Free-form per-user preferences, mirroring Account::$settings. For UI
@@ -111,54 +147,35 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     private array $settings = [];
 
     #[ORM\Column(length: 255)]
-    private ?string $nameFirst = null;
+    public ?string $nameFirst = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $nameLast = null;
+    public ?string $nameLast = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $lastLogin = null;
+    public ?\DateTimeInterface $lastLogin = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    public ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    public ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $deletedAt = null;
+    public ?\DateTimeImmutable $deletedAt = null;
 
     /**
      * @var Collection<int, Account>
      */
     #[ORM\OneToMany(targetEntity: Account::class, mappedBy: 'usr', orphanRemoval: true)]
-    private Collection $accounts;
+    public private(set) Collection $accounts;
 
     public function __construct()
     {
-        $this->setCreatedAt(new \DateTimeImmutable());
-        $this->setUpdatedAt(new \DateTimeImmutable());
-        $this->setDeletedAt(null);
+        $this->createdAt = new \DateTimeImmutable();
+        $this->updatedAt = new \DateTimeImmutable();
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
-    }
-
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(string $email): self
-    {
-        $this->email = $email;
-
-        return $this;
     }
 
     /**
@@ -183,26 +200,12 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         return array_unique($roles);
     }
 
-    public function setRoles(array $roles): self
-    {
-        $this->roles = $roles;
-
-        return $this;
-    }
-
     /**
      * @see PasswordAuthenticatedUserInterface
      */
     public function getPassword(): string
     {
         return $this->password;
-    }
-
-    public function setPassword(string $password): self
-    {
-        $this->password = $password;
-
-        return $this;
     }
 
     /**
@@ -260,15 +263,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * The pending or active secret. Only the enrolment service and the QR
-     * renderer have any business reading this.
-     */
-    public function getTotpSecret(): ?string
-    {
-        return $this->totpSecret;
-    }
-
-    /**
      * Stage a secret for enrolment. Unconfirmed until confirmTotp() — so
      * starting an enrolment and walking away cannot lock the account.
      */
@@ -287,11 +281,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         return $this;
     }
 
-    public function getTotpConfirmedAt(): ?\DateTimeImmutable
-    {
-        return $this->totpConfirmedAt;
-    }
-
     /**
      * Turn 2FA off and leave nothing behind that could turn it back on.
      *
@@ -305,29 +294,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->totpSecret = null;
         $this->totpConfirmedAt = null;
         $this->backupCodes = [];
-
-        return $this;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getBackupCodeHashes(): array
-    {
-        return $this->backupCodes;
-    }
-
-    public function countBackupCodes(): int
-    {
-        return count($this->backupCodes);
-    }
-
-    /**
-     * @param list<string> $hashes
-     */
-    public function setBackupCodeHashes(array $hashes): static
-    {
-        $this->backupCodes = array_values($hashes);
 
         return $this;
     }
@@ -357,55 +323,12 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     {
         $candidate = self::hashBackupCode($code);
 
-        $this->backupCodes = array_values(array_filter(
+        // The set hook reindexes what is left, so filtering cannot leave the
+        // column holding a JSON object.
+        $this->backupCodes = array_filter(
             $this->backupCodes,
             static fn (string $hash): bool => false === hash_equals($hash, $candidate),
-        ));
-    }
-
-    public function getAvatar(): ?string
-    {
-        return $this->avatar;
-    }
-
-    public function setAvatar(?string $avatar): self
-    {
-        // Nullable: removing a picture is a normal thing to do, and the column
-        // has always allowed it.
-        $this->avatar = $avatar;
-
-        return $this;
-    }
-
-    public function getLocale(): ?string
-    {
-        return $this->locale;
-    }
-
-    public function setLocale(?string $locale): self
-    {
-        $this->locale = $locale;
-
-        return $this;
-    }
-
-    public function getTimezone(): ?string
-    {
-        return $this->timezone;
-    }
-
-    /**
-     * Anything the system does not recognise becomes null — the same clamping
-     * Appearance does with a bad hex colour, and for the same reason: a
-     * preference is not worth an exception, and null is a state the reader
-     * already handles. Storing an unknown identifier would make every later
-     * `new DateTimeZone()` throw somewhere far away from here.
-     */
-    public function setTimezone(?string $timezone): self
-    {
-        $this->timezone = true === TimezoneHelper::isKnown($timezone) ? $timezone : null;
-
-        return $this;
+        );
     }
 
     /** Admin panels the user has collapsed, as a list of panel keys. */
@@ -429,17 +352,29 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_MAX_WIDTH = 900;
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
-    public function getCalendarPaneWidth(): int
-    {
-        $width = $this->getSetting(self::SETTING_CALENDAR_PANE_WIDTH, self::CALENDAR_PANE_DEFAULT_WIDTH);
+    /**
+     * Virtual, so there is no column behind it — the value lives in the
+     * settings bag, and Doctrine refuses to map a property whose hooks do not
+     * touch a backing store.
+     */
+    public int $calendarPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_CALENDAR_PANE_WIDTH, self::CALENDAR_PANE_DEFAULT_WIDTH);
 
-        if (false === is_int($width)) {
-            return self::CALENDAR_PANE_DEFAULT_WIDTH;
+            if (false === is_int($width)) {
+                return self::CALENDAR_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
         }
-
-        return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
     }
 
+    /**
+     * Stays a method rather than becoming a property: there is no boolean
+     * column here to read. This interprets an untyped entry in the settings
+     * bag, which may be missing or may be anything at all, and answers a
+     * question about it.
+     */
     public function isCalendarPaneOpen(): bool
     {
         return true === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN, false);
@@ -485,17 +420,21 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * @return list<string>
+     * Virtual for the same reason as $calendarPaneWidth: it is read out of the
+     * settings bag and has no column of its own.
+     *
+     * @var list<string>
      */
-    public function getCollapsedAdminPanels(): array
-    {
-        $panels = $this->getSetting(self::SETTING_ADMIN_COLLAPSED_PANELS, []);
+    public array $collapsedAdminPanels {
+        get {
+            $panels = $this->getSetting(self::SETTING_ADMIN_COLLAPSED_PANELS, []);
 
-        if (false === is_array($panels)) {
-            return [];
+            if (false === is_array($panels)) {
+                return [];
+            }
+
+            return array_values(array_filter($panels, 'is_string'));
         }
-
-        return array_values(array_filter($panels, 'is_string'));
     }
 
     /**
@@ -504,7 +443,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public function setAdminPanelCollapsed(string $panel, bool $collapsed): static
     {
-        $panels = $this->getCollapsedAdminPanels();
+        $panels = $this->collapsedAdminPanels;
 
         if (true === $collapsed) {
             if (false === in_array($panel, $panels, true)) {
@@ -518,86 +457,6 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
 
         return $this->setSetting(self::SETTING_ADMIN_COLLAPSED_PANELS, $panels);
-    }
-
-    public function getNameFirst(): ?string
-    {
-        return $this->nameFirst;
-    }
-
-    public function setNameFirst(string $nameFirst): self
-    {
-        $this->nameFirst = $nameFirst;
-
-        return $this;
-    }
-
-    public function getNameLast(): ?string
-    {
-        return $this->nameLast;
-    }
-
-    public function setNameLast(string $nameLast): self
-    {
-        $this->nameLast = $nameLast;
-
-        return $this;
-    }
-
-    public function getLastLogin(): ?\DateTimeInterface
-    {
-        return $this->lastLogin;
-    }
-
-    public function setLastLogin(?\DateTimeInterface $lastLogin): self
-    {
-        $this->lastLogin = $lastLogin;
-
-        return $this;
-    }
-
-    public function getCreatedAt(): ?\DateTimeImmutable
-    {
-        return $this->createdAt;
-    }
-
-    public function setCreatedAt(\DateTimeImmutable $createdAt): self
-    {
-        $this->createdAt = $createdAt;
-
-        return $this;
-    }
-
-    public function getUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->updatedAt;
-    }
-
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): self
-    {
-        $this->updatedAt = $updatedAt;
-
-        return $this;
-    }
-
-    public function getDeletedAt(): ?\DateTimeImmutable
-    {
-        return $this->deletedAt;
-    }
-
-    public function setDeletedAt(?\DateTimeImmutable $deletedAt): self
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Account>
-     */
-    public function getAccounts(): Collection
-    {
-        return $this->accounts;
     }
 
     public function addAccount(Account $account): static

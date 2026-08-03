@@ -178,12 +178,11 @@ final class EmailFilterCompilerTest extends KernelTestCase
     private function seedCorpus(): void
     {
         $user = new User();
-        $user
-            ->setEmail('filter-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Filter')
-            ->setNameLast('Corpus')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'filter-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Filter';
+        $user->nameLast = 'Corpus';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

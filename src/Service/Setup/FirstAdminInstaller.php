@@ -30,7 +30,7 @@ final readonly class FirstAdminInstaller
      */
     public function install(User $user, #[SensitiveParameter] string $plainPassword): bool
     {
-        $user->setPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+        $user->password = $this->passwordHasher->hashPassword($user, $plainPassword);
 
         return $this->users->createFirstAdmin($user);
     }

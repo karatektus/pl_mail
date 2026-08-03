@@ -62,7 +62,7 @@ final readonly class DevicePairingService
         $code = rtrim(strtr(base64_encode(random_bytes(self::CODE_BYTES)), '+/', '-_'), '=');
 
         $item = $this->cache->getItem(self::PREFIX.hash('sha256', $code));
-        $item->set((int) $user->getId());
+        $item->set((int) $user->id);
         $item->expiresAfter(self::TTL_SECONDS);
 
         $this->cache->save($item);
@@ -107,7 +107,7 @@ final readonly class DevicePairingService
         $this->entityManager->persist($token);
         $this->entityManager->flush();
 
-        return ['secret' => $secret, 'username' => (string) $user->getEmail()];
+        return ['secret' => $secret, 'username' => (string) $user->email];
     }
 
     /**

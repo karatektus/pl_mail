@@ -241,12 +241,11 @@ final class GmailMessageBuilderCharsetTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('gmail-charset-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Gmail')
-            ->setNameLast('Charset')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'gmail-charset-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Gmail';
+        $user->nameLast = 'Charset';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

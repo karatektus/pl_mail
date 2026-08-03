@@ -70,7 +70,7 @@ final class SettingsController extends AbstractController
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
-            'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->getLocale())
+            'activeLocale'       => AppLocale::tryFromRequest($this->getUser()->locale)
                 ?? AppLocale::tryFromRequest($this->defaultLocale)
                 ?? AppLocale::English,
             ...$this->timezoneSectionData($section),
@@ -95,7 +95,7 @@ final class SettingsController extends AbstractController
 
         return [
             'timezoneGroups'  => TimezoneHelper::grouped(),
-            'activeTimezone'  => $user->getTimezone(),
+            'activeTimezone'  => $user->timezone,
             'defaultTimezone' => $this->timezones->defaultZone()->getName(),
             // Rendered here rather than in the template so the sample is
             // unambiguously the picked zone, not whatever Twig is currently set

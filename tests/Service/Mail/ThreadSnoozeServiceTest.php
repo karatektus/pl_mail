@@ -256,12 +256,11 @@ final class ThreadSnoozeServiceTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('snooze-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Snooze')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'snooze-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Snooze';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

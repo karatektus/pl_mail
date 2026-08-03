@@ -63,7 +63,7 @@ class UserProvider implements UserProviderInterface, PasswordUpgraderInterface
             throw new UnsupportedUserException(sprintf('Invalid user class "%s".', get_class($user)));
         }
 
-        $user = $this->userRepository->find($user->getId());
+        $user = $this->userRepository->find($user->id);
         if (null === $user) {
             throw new UserNotFoundException();
         }
@@ -85,7 +85,7 @@ class UserProvider implements UserProviderInterface, PasswordUpgraderInterface
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         if ($user instanceof User) {
-            $user->setPassword($newHashedPassword);
+            $user->password = $newHashedPassword;
         }
     }
 }

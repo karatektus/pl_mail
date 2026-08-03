@@ -56,7 +56,7 @@ final class AppearanceExtension extends AbstractExtension
 
         return $this->renderer->cssVariables(
             $this->appearance(),
-            true === $user instanceof User ? $user->getId() : null,
+            true === $user instanceof User ? $user->id : null,
         );
     }
 }

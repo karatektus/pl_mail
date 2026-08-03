@@ -45,8 +45,8 @@ final readonly class ProfileStepHandler implements OnboardingStepHandlerInterfac
 
     public function isSatisfied(User $user): bool
     {
-        return '' !== trim((string) $user->getNameFirst())
-            && '' !== trim((string) $user->getNameLast());
+        return '' !== trim((string) $user->nameFirst)
+            && '' !== trim((string) $user->nameLast);
     }
 
     public function failureMessage(User $user): ?string

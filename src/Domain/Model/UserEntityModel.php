@@ -20,7 +20,7 @@ class UserEntityModel
                 $currentRoles = $this->getRoles();
                 $currentRoles[] = $role;
 
-                $this->setRoles($currentRoles);
+                $this->roles = $currentRoles;
             }
 
             return $this;
@@ -36,7 +36,7 @@ class UserEntityModel
                 $currentRoles = $this->getRoles();
                 $roleKey = array_search($role, $currentRoles);
                 unset($currentRoles[$roleKey]);
-                $this->setRoles($currentRoles);
+                $this->roles = $currentRoles;
             }
 
             return $this;
@@ -53,7 +53,7 @@ class UserEntityModel
     public function getName(): string
     {
         if (true === $this instanceof User) {
-            return sprintf('%s %s', $this->getNameFirst(), $this->getNameLast());
+            return sprintf('%s %s', $this->nameFirst, $this->nameLast);
         }
 
         throw new LogicException('Not a User');
@@ -69,7 +69,7 @@ class UserEntityModel
     public function isDeleted(): ?bool
     {
         if (true === $this instanceof User) {
-            return $this->getDeletedAt() !== null;
+            return $this->deletedAt !== null;
         }
 
         throw new LogicException('Not a User');

@@ -33,7 +33,7 @@ final class TwoFactorTest extends TestCase
         $user->startTotpEnrolment('JBSWY3DPEHPK3PXP');
 
         self::assertFalse($user->isTotpAuthenticationEnabled());
-        self::assertNull($user->getTotpConfirmedAt());
+        self::assertNull($user->totpConfirmedAt);
     }
 
     public function testConfirmingEnablesTwoFactor(): void
@@ -43,7 +43,7 @@ final class TwoFactorTest extends TestCase
         $user->confirmTotp();
 
         self::assertTrue($user->isTotpAuthenticationEnabled());
-        self::assertNotNull($user->getTotpConfirmedAt());
+        self::assertNotNull($user->totpConfirmedAt);
     }
 
     public function testRestartingEnrolmentUnconfirmsTheOldSecret(): void
@@ -55,7 +55,7 @@ final class TwoFactorTest extends TestCase
         $user->startTotpEnrolment('MFRGGZDFMZTWQ2LK');
 
         self::assertFalse($user->isTotpAuthenticationEnabled());
-        self::assertSame('MFRGGZDFMZTWQ2LK', $user->getTotpSecret());
+        self::assertSame('MFRGGZDFMZTWQ2LK', $user->totpSecret);
     }
 
     public function testTotpConfigurationIsNullWithoutASecret(): void
@@ -92,20 +92,20 @@ final class TwoFactorTest extends TestCase
         $user = new User();
         $user->startTotpEnrolment('JBSWY3DPEHPK3PXP');
         $user->confirmTotp();
-        $user->setBackupCodeHashes([User::hashBackupCode('aaaa-bbbb-cccc-dddd')]);
+        $user->backupCodes = [User::hashBackupCode('aaaa-bbbb-cccc-dddd')];
 
         $user->disableTotp();
 
         self::assertFalse($user->isTotpAuthenticationEnabled());
-        self::assertNull($user->getTotpSecret());
-        self::assertSame(0, $user->countBackupCodes());
+        self::assertNull($user->totpSecret);
+        self::assertSame(0, $user->backupCodeCount);
         self::assertFalse($user->isBackupCode('aaaa-bbbb-cccc-dddd'));
     }
 
     public function testRecognisesAStoredRecoveryCode(): void
     {
         $user = new User();
-        $user->setBackupCodeHashes([User::hashBackupCode('aaaa-bbbb-cccc-dddd')]);
+        $user->backupCodes = [User::hashBackupCode('aaaa-bbbb-cccc-dddd')];
 
         self::assertTrue($user->isBackupCode('aaaa-bbbb-cccc-dddd'));
         self::assertFalse($user->isBackupCode('0000-0000-0000-0000'));
@@ -119,7 +119,7 @@ final class TwoFactorTest extends TestCase
     public function testRecoveryCodesAreMatchedIgnoringCaseAndGrouping(string $entered): void
     {
         $user = new User();
-        $user->setBackupCodeHashes([User::hashBackupCode('aaaa-bbbb-cccc-dddd')]);
+        $user->backupCodes = [User::hashBackupCode('aaaa-bbbb-cccc-dddd')];
 
         self::assertTrue($user->isBackupCode($entered));
     }
@@ -139,16 +139,16 @@ final class TwoFactorTest extends TestCase
     public function testSpendingARecoveryCodeRemovesOnlyThatOne(): void
     {
         $user = new User();
-        $user->setBackupCodeHashes([
+        $user->backupCodes = [
             User::hashBackupCode('aaaa-bbbb-cccc-dddd'),
             User::hashBackupCode('1111-2222-3333-4444'),
-        ]);
+        ];
 
         $user->invalidateBackupCode('aaaa-bbbb-cccc-dddd');
 
         self::assertFalse($user->isBackupCode('aaaa-bbbb-cccc-dddd'));
         self::assertTrue($user->isBackupCode('1111-2222-3333-4444'));
-        self::assertSame(1, $user->countBackupCodes());
+        self::assertSame(1, $user->backupCodeCount);
     }
 
     /**
@@ -158,19 +158,19 @@ final class TwoFactorTest extends TestCase
     public function testSpendingIsAlsoInsensitiveToSpelling(): void
     {
         $user = new User();
-        $user->setBackupCodeHashes([User::hashBackupCode('aaaa-bbbb-cccc-dddd')]);
+        $user->backupCodes = [User::hashBackupCode('aaaa-bbbb-cccc-dddd')];
 
         $user->invalidateBackupCode('AAAABBBBCCCCDDDD');
 
-        self::assertSame(0, $user->countBackupCodes());
+        self::assertSame(0, $user->backupCodeCount);
     }
 
     public function testOnlyDigestsAreStored(): void
     {
         $user = new User();
-        $user->setBackupCodeHashes([User::hashBackupCode('aaaa-bbbb-cccc-dddd')]);
+        $user->backupCodes = [User::hashBackupCode('aaaa-bbbb-cccc-dddd')];
 
-        foreach ($user->getBackupCodeHashes() as $hash) {
+        foreach ($user->backupCodes as $hash) {
             self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $hash);
             self::assertStringNotContainsString('aaaa', $hash);
         }

@@ -201,7 +201,7 @@ final class AdminDashboardController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        return $user->getCollapsedAdminPanels();
+        return $user->collapsedAdminPanels;
     }
 
     private function validateCsrf(Request $request, string $id): void

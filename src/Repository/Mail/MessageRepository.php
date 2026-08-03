@@ -192,7 +192,7 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         $parameters = $filter->parameters;
-        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleUserId'] = $user->id;
         $parameters['ruleCap'] = $cap + 1;
 
         $count = (int) $this->getEntityManager()
@@ -229,7 +229,7 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         $parameters = $filter->parameters;
-        $parameters['ruleUserId'] = $user->getId();
+        $parameters['ruleUserId'] = $user->id;
         $parameters['ruleAfterId'] = $afterId;
         $parameters['ruleBatchSize'] = $batchSize;
 

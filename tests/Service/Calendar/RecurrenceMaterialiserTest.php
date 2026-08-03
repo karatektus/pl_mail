@@ -409,12 +409,11 @@ final class RecurrenceMaterialiserTest extends KernelTestCase
     private function seedCalendar(): Calendar
     {
         $user = new User();
-        $user
-            ->setEmail('recurrence-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Recurrence')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'recurrence-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Recurrence';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 

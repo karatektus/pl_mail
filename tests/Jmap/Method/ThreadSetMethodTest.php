@@ -234,12 +234,11 @@ final class ThreadSetMethodTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('threadset-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Thread')
-            ->setNameLast('Set')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'threadset-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Thread';
+        $this->user->nameLast = 'Set';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();

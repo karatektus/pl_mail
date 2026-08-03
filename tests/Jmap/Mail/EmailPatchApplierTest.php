@@ -242,14 +242,13 @@ final class EmailPatchApplierTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('patch-'.uniqid('', true).'@example.test')
-            ->setNameFirst('Patch')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x')
-            ->setCreatedAt(new \DateTimeImmutable())
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->email = 'patch-'.uniqid('', true).'@example.test';
+        $user->nameFirst = 'Patch';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
+        $user->createdAt = new \DateTimeImmutable();
+        $user->updatedAt = new \DateTimeImmutable();
         $this->em->persist($user);
 
         $account = new Account();

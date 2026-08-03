@@ -271,12 +271,11 @@ final class PostIngestPipelineTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('post-ingest-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Post')
-            ->setNameLast('Ingest')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'post-ingest-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Post';
+        $user->nameLast = 'Ingest';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

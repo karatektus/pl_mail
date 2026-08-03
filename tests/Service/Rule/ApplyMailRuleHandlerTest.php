@@ -141,12 +141,11 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('rule-run-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Rule')
-            ->setNameLast('Runner')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'rule-run-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Rule';
+        $this->user->nameLast = 'Runner';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();

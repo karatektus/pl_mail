@@ -46,7 +46,7 @@ final class StateChangeBuilder
     {
         $snapshot = [];
 
-        foreach ($user->getAccounts() as $account) {
+        foreach ($user->accounts as $account) {
             $accountId = (string) $account->getId();
 
             foreach (self::TYPES as $type) {

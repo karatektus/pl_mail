@@ -139,12 +139,11 @@ final class GraphMeetingHeaderTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('graph-meeting-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Graph')
-            ->setNameLast('Meeting')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'graph-meeting-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Graph';
+        $user->nameLast = 'Meeting';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

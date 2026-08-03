@@ -70,7 +70,7 @@ final class ProfileType extends AbstractType
 
         // Offered only when there is one to remove, so it cannot read as
         // "tick this to delete the picture I have not got".
-        if (null !== $options['data']?->getAvatar()) {
+        if (null !== $options['data']?->avatar) {
             $builder->add('removeAvatar', CheckboxType::class, [
                 'label'    => 'profile.field.avatar_remove',
                 'mapped'   => false,

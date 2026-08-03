@@ -249,12 +249,11 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('gmail-invite-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Gmail')
-            ->setNameLast('Invite')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'gmail-invite-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Gmail';
+        $user->nameLast = 'Invite';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

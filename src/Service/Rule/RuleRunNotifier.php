@@ -33,7 +33,7 @@ final readonly class RuleRunNotifier
 
         try {
             $this->hub->publish(new Update(
-                topics: [sprintf('mail/user/%d', $rule->usr->getId())],
+                topics: [sprintf('mail/user/%d', $rule->usr->id)],
                 data: json_encode([
                     'type' => 'rule.run',
                     'ruleId' => $rule->id,

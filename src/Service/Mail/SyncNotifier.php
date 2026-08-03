@@ -27,7 +27,7 @@ final readonly class SyncNotifier
     {
         $this->hub->publish(new Update(
             topics: [
-                sprintf('mail/user/%d', $account->getUsr()->getId()),
+                sprintf('mail/user/%d', $account->getUsr()->id),
                 sprintf('mail/mailbox/%d', $mailbox->id),
             ],
             data: json_encode([
@@ -43,7 +43,7 @@ final readonly class SyncNotifier
     {
         $this->hub->publish(new Update(
             topics: [
-                sprintf('mail/user/%d', $account->getUsr()->getId()),
+                sprintf('mail/user/%d', $account->getUsr()->id),
             ],
             data: json_encode([
                 'type' => 'account.synced',

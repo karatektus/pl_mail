@@ -70,7 +70,7 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
             $sql,
             [
-                'occUserId'      => $user->getId(),
+                'occUserId'      => $user->id,
                 'occCalendarIds' => $calendarIds,
                 'occFrom'        => $from->format('Y-m-d H:i:s'),
                 'occTo'          => $to->format('Y-m-d H:i:s'),

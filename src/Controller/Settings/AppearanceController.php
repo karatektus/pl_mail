@@ -63,7 +63,7 @@ final class AppearanceController extends AbstractController
             return $this->json(['ok' => false, 'error' => 'appearance.background.type'], Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
         }
 
-        $directory = $this->userDirectory((int) $user->getId());
+        $directory = $this->userDirectory((int) $user->id);
 
         if (false === is_dir($directory)) {
             mkdir($directory, 0o775, true);
@@ -99,7 +99,7 @@ final class AppearanceController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $path = $this->userDirectory((int) $user->getId()).'/'.$filename;
+        $path = $this->userDirectory((int) $user->id).'/'.$filename;
 
         if (false === is_file($path)) {
             throw $this->createNotFoundException();

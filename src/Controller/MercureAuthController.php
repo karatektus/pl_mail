@@ -42,7 +42,7 @@ final class MercureAuthController extends AbstractController
         // The same topic the layout subscribes to. A user may only ever be
         // authorized for their own: the id comes from the session, never from
         // the request, so a caller cannot ask for somebody else's stream.
-        $topics = ['mail/user/'.$user->getId()];
+        $topics = ['mail/user/'.$user->id];
 
         // 204 rather than 200: there is no representation to return, and the
         // client only cares that the Set-Cookie arrived.

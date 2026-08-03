@@ -211,8 +211,8 @@ parameters:
 			path: src/Controller/Settings/SettingsController.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getLocale\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$locale\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Controller/Settings/SettingsController.php
 
@@ -853,8 +853,8 @@ parameters:
 			path: src/Kernel.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Repository/Calendar/CalendarEventOccurrenceRepository.php
 
@@ -865,8 +865,8 @@ parameters:
 			path: src/Repository/Mail/AccountRepository.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 1
 			path: src/Repository/Mail/MessageThreadRepository.php
 
@@ -943,8 +943,8 @@ parameters:
 			path: src/Service/Onboarding/Step/SecurityStepHandler.php
 
 		-
-			message: '#^Call to an undefined method Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:getId\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Access to an undefined property Symfony\\Component\\Security\\Core\\User\\UserInterface\:\:\$id\.$#'
+			identifier: property.notFound
 			count: 2
 			path: src/Service/Rule/FilterDescriber.php
 

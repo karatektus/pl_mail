@@ -303,12 +303,11 @@ final class MailboxLabelNamingTest extends KernelTestCase
     private function seedAccount(): Account
     {
         $user = new User();
-        $user
-            ->setEmail('mailbox-naming-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Mailbox')
-            ->setNameLast('Naming')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'mailbox-naming-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Mailbox';
+        $user->nameLast = 'Naming';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

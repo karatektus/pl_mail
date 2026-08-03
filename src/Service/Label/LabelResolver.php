@@ -157,7 +157,7 @@ final class LabelResolver
     public function systemLabel(LabelRole $role, Account $account): Label
     {
         $user   = $account->getUsr();
-        $userId = (int) $user->getId();
+        $userId = (int) $user->id;
 
         $cachedId = $this->roleIdCache[$userId][$role->value] ?? null;
         $label    = null;
@@ -208,7 +208,7 @@ final class LabelResolver
         }
 
         $user     = $account->getUsr();
-        $userId   = (int) $user->getId();
+        $userId   = (int) $user->id;
         $fullName = implode('/', $segments);
         $cachedId = $this->pathIdCache[$userId][$fullName] ?? null;
 

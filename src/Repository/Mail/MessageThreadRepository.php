@@ -435,7 +435,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         // Re-order to match relevance order from SQL
         $indexed = [];
         foreach ($threads as $thread) {
-            $indexed[$thread->getId()] = $thread;
+            $indexed[$thread->id] = $thread;
         }
 
         $ordered = [];
@@ -471,7 +471,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $types  = [];
         $where  = ['a.usr_id = :userId', 'a.is_active = true'];
 
-        $params['userId'] = $user->getId();
+        $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
         // ── Free-text via tsvector ────────────────────────────────────────

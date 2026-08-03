@@ -111,12 +111,11 @@ final class DataResetterTest extends KernelTestCase
         $suffix = uniqid('', true);
 
         $user = new User();
-        $user
-            ->setEmail('reset-' . $suffix . '@example.test')
-            ->setNameFirst('Reset')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'reset-' . $suffix . '@example.test';
+        $user->nameFirst = 'Reset';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();
@@ -137,7 +136,7 @@ final class DataResetterTest extends KernelTestCase
 
         $this->em->flush();
 
-        $this->userId    = (int) $user->getId();
+        $this->userId    = (int) $user->id;
         $this->accountId = (int) $account->getId();
 
         // The rest goes in as rows rather than entities. Six entity APIs would

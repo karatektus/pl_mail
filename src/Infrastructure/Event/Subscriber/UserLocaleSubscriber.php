@@ -45,7 +45,7 @@ final class UserLocaleSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $locale = AppLocale::tryFromRequest($user->getLocale());
+        $locale = AppLocale::tryFromRequest($user->locale);
 
         if (null === $locale) {
             return;

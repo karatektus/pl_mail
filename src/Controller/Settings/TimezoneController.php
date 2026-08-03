@@ -46,9 +46,8 @@ final class TimezoneController extends AbstractController
             throw $this->createNotFoundException('Unknown timezone.');
         }
 
-        $user
-            ->setTimezone('' === $timezone ? null : $timezone)
-            ->setUpdatedAt(new \DateTimeImmutable());
+        $user->timezone = '' === $timezone ? null : $timezone;
+        $user->updatedAt = new \DateTimeImmutable();
 
         $this->entityManager->flush();
 

@@ -141,12 +141,11 @@ final class AttachmentThumbnailerTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('thumbs-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Thumb')
-            ->setNameLast('Nailer')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'thumbs-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Thumb';
+        $user->nameLast = 'Nailer';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
 
         $account = new Account();

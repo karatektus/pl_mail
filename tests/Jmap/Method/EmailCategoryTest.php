@@ -446,12 +446,11 @@ final class EmailCategoryTest extends KernelTestCase
     private function seed(): void
     {
         $this->user = new User();
-        $this->user
-            ->setEmail('category-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Email')
-            ->setNameLast('Category')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $this->user->email = 'category-' . uniqid('', true) . '@example.test';
+        $this->user->nameFirst = 'Email';
+        $this->user->nameLast = 'Category';
+        $this->user->roles = ['ROLE_USER'];
+        $this->user->password = 'x';
         $this->em->persist($this->user);
 
         $this->account = new Account();

@@ -51,7 +51,7 @@ final readonly class SecuritySectionViewData
             // reopening the panel — which is what a rejected code does — shows
             // the same QR the user already scanned.
             $qrDataUri = $this->qrCodes->dataUri($this->enrolment->begin($user));
-            $secret = $user->getTotpSecret();
+            $secret = $user->totpSecret;
         }
 
         $devices = $this->trustedDevices->findActiveForUser($user);
@@ -63,8 +63,8 @@ final readonly class SecuritySectionViewData
             // Shown beside the QR for anyone whose authenticator cannot use a
             // camera, or who is reading this page on the phone itself.
             'twoFactorSecret'     => $secret,
-            'twoFactorConfirmedAt' => $user->getTotpConfirmedAt(),
-            'backupCodesRemaining' => $user->countBackupCodes(),
+            'twoFactorConfirmedAt' => $user->totpConfirmedAt,
+            'backupCodesRemaining' => $user->backupCodeCount,
             'newBackupCodes'      => $newBackupCodes,
             'trustedDevices'      => $devices,
             'currentDeviceId'     => $this->currentDeviceId($devices, $request),

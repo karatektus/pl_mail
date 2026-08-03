@@ -832,12 +832,11 @@ final class StructuredDataExtractionTest extends KernelTestCase
     private function seed(): void
     {
         $user = new User();
-        $user
-            ->setEmail('jsonld-' . uniqid('', true) . '@example.test')
-            ->setNameFirst('Json')
-            ->setNameLast('Fixture')
-            ->setRoles(['ROLE_USER'])
-            ->setPassword('x');
+        $user->email = 'jsonld-' . uniqid('', true) . '@example.test';
+        $user->nameFirst = 'Json';
+        $user->nameLast = 'Fixture';
+        $user->roles = ['ROLE_USER'];
+        $user->password = 'x';
         $this->em->persist($user);
         $this->user = $user;
 

@@ -31,7 +31,7 @@ final readonly class CalendarNotifier
 
     public function publishCalendarChanged(User $user): void
     {
-        $id = $user->getId();
+        $id = $user->id;
 
         if (null === $id) {
             return;
