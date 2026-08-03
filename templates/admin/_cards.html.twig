@@ -11,16 +11,29 @@ Collapsed state is stored per user, server-side, so it survives a new browser.
 Panels are keyed by a stable slug, and the *collapsed* set is what is stored —
 so a panel added later defaults to open without backfilling anyone's settings.
 
+A collapsed card still answers its own question: `status` is a short summary of
+what is inside — "2 down", "14 waiting" — shown only while the card is shut, so
+a collapsed dashboard is still a dashboard rather than a list of headings. It is
+hidden when open, where the body says the same thing in full. `tone` colours it:
+'warn' or 'danger' for a summary that should be noticed from across the room.
+
 Usage:
     {% import 'admin/_cards.html.twig' as cards %}
-    {{ cards.open('fa-heart-pulse', 'Processes'|trans, 'processes', collapsedPanels) }}
+    {{ cards.open('fa-heart-pulse', 'Processes'|trans, 'processes', collapsedPanels, '2 down', 'danger') }}
         …body…
     {{ cards.close() }}
 #}
 
-{% macro open(icon, title, key, collapsedPanels) %}
+{% macro open(icon, title, key, collapsedPanels, status = null, tone = null) %}
     <details
-        class="group/card rounded-pane border border-line bg-pane-soft overflow-hidden"
+        {#
+        Grid items stretch by default, so a collapsed card sitting beside an
+        open one kept the open one's height — a 40px summary in a 400px
+        outline. align-self only while shut: two open cards side by side still
+        line up.
+        #}
+        class="group/card rounded-pane border border-line bg-pane-soft overflow-hidden
+               [&:not([open])]:self-start"
         {% if key not in collapsedPanels %}open{% endif %}
         data-controller="admin--admin-panel"
         data-admin--admin-panel-key-value="{{ key }}"
@@ -34,6 +47,12 @@ Usage:
                       transition-transform group-open/card:rotate-90" aria-hidden="true"></i>
             <i class="fa-solid {{ icon }} text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+            {% if status is not null %}
+                <span class="ml-auto min-w-0 truncate text-xs group-open/card:hidden
+                             {{ tone == 'danger' ? 'text-danger' : (tone == 'warn' ? 'text-warning' : 'text-ink-faint') }}">
+                    {{ status }}
+                </span>
+            {% endif %}
         </summary>
 {% endmacro %}
 

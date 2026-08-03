@@ -7,13 +7,20 @@
 
 {% import _self as ui %}
 {% import 'admin/_cards.html.twig' as cards %}
+{# Row markup shared with the pages the queue browser fetches. #}
+{% import 'admin/_queue_messages.html.twig' as queue %}
 
 <turbo-frame id="admin-live">
 
     <div class="space-y-6">
 
         {# ── Processes ─────────────────────────────────────────────────── #}
-        {{ cards.open('fa-heart-pulse', 'admin.processes.heading'|trans, 'processes', collapsedPanels) }}
+        {% set processesDown = heartbeats|filter(row => not row.healthy)|length %}
+        {{ cards.open('fa-heart-pulse', 'admin.processes.heading'|trans, 'processes', collapsedPanels,
+            processesDown > 0
+                ? 'admin.summary.down'|trans({ '%count%': processesDown })
+                : 'admin.summary.healthy'|trans({ '%count%': heartbeats|length }),
+            processesDown > 0 ? 'danger' : null) }}
             {#
             A restart CLEARS heartbeat rows rather than reddening them —
             WorkerHeartbeatListener drops the row on clean shutdown. Without
@@ -146,7 +153,10 @@
         <div class="grid md:grid-cols-2 gap-6">
 
             {# ── Gmail webhooks ────────────────────────────────────────── #}
-            {{ cards.open('fa-satellite-dish', 'admin.webhooks.heading'|trans, 'webhooks', collapsedPanels) }}
+            {% set webhooksArmed = webhooks|filter(row => row.watchActive)|length %}
+            {{ cards.open('fa-satellite-dish', 'admin.webhooks.heading'|trans, 'webhooks', collapsedPanels,
+                'admin.summary.armed'|trans({ '%active%': webhooksArmed, '%total%': webhooks|length }),
+                webhooksArmed < webhooks|length ? 'warn' : null) }}
                 {% if webhooks|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
                 {% else %}
@@ -250,7 +260,12 @@
             {{ cards.close() }}
 
             {# ── OAuth token health ────────────────────────────────────── #}
-            {{ cards.open('fa-key', 'admin.tokens.heading'|trans, 'tokens', collapsedPanels) }}
+            {% set tokensFailing = tokenHealth|filter(row => not row.healthy)|length %}
+            {{ cards.open('fa-key', 'admin.tokens.heading'|trans, 'tokens', collapsedPanels,
+                tokensFailing > 0
+                    ? 'admin.summary.failing'|trans({ '%count%': tokensFailing })
+                    : 'admin.summary.ok'|trans({ '%count%': tokenHealth|length }),
+                tokensFailing > 0 ? 'danger' : null) }}
                 {% if tokenHealth|length == 0 %}
                     <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
                 {% else %}
@@ -276,55 +291,40 @@
         </div>
 
         {# ── Messenger queues ──────────────────────────────────────────── #}
-        {{ cards.open('fa-list-check', 'admin.queues.heading'|trans, 'queues', collapsedPanels) }}
+        {% set queueRunningTotal = queueStats|reduce((carry, row) => carry + row.running, 0) %}
+        {{ cards.open('fa-list-check', 'admin.queues.heading'|trans, 'queues', collapsedPanels,
+            'admin.summary.queue'|trans({ '%running%': queueRunningTotal, '%waiting%': waitingTotal }),
+            waitingTotal > 0 and queueRunningTotal == 0 ? 'warn' : null) }}
             {% if queueStats|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
             {% else %}
-                {% set running = queueMessages|filter(m => m.state == 'running') %}
-
                 {#
                 In flight first, and above the totals. A queue that is not
                 moving looks identical to a queue that is empty from the depth
                 column alone; the question being answered here is "what is the
                 worker actually doing right now", so it goes at the top and
                 names the handler rather than counting it.
+
+                Never paginated: there is one of these per worker process.
                 #}
                 <div class="px-5 py-3 border-b border-line bg-sunken">
                     <p class="text-xs font-medium text-ink-faint">
                         {{ 'admin.queues.in_flight'|trans }}
-                        <span class="ml-1 text-ink-soft">({{ running|length }})</span>
+                        <span class="ml-1 text-ink-soft">({{ runningMessages|length }})</span>
                     </p>
-
-                    {% if running|length == 0 %}
-                        <p class="mt-1.5 text-sm text-ink-faint">{{ 'admin.queues.none_running'|trans }}</p>
-                    {% else %}
-                        <div class="mt-2 space-y-2">
-                            {% for row in running %}
-                                <div class="flex items-start gap-3 text-sm">
-                                    <span class="mt-1.5 inline-block w-2 h-2 rounded-full shrink-0
-                                                 {{ row.runningForSeconds > 300 ? 'bg-amber-500' : 'bg-emerald-500' }}"
-                                          aria-hidden="true"></span>
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-ink truncate">
-                                            <span class="font-mono text-xs">{{ row.class }}</span>
-                                            <span class="ml-1.5 text-xs text-ink-faint">{{ row.queue }}</span>
-                                        </p>
-                                        {% if row.summary %}
-                                            <p class="text-xs text-ink-faint font-mono truncate">{{ row.summary }}</p>
-                                        {% endif %}
-                                    </div>
-                                    <span class="shrink-0 text-xs {{ row.runningForSeconds > 300 ? 'text-warning' : 'text-ink-faint' }}">
-                                        {{ 'admin.queues.running_for'|trans({
-                                            '%duration%': row.runningForSeconds > 90
-                                                ? (row.runningForSeconds // 60) ~ 'm'
-                                                : row.runningForSeconds ~ 's',
-                                        }) }}
-                                    </span>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
                 </div>
+
+                {% if runningMessages|length == 0 %}
+                    <p class="px-5 py-3 text-sm text-ink-faint border-b border-line">
+                        {{ 'admin.queues.none_running'|trans }}
+                    </p>
+                {% else %}
+                    <div class="py-1 border-b border-line">
+                        {% for message in runningMessages %}
+                            {{ queue.row(message) }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
 
                 <table class="w-full text-sm">
                     <thead>
@@ -349,10 +349,10 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-2 py-2 text-xs">
-                                    {% if row.oldestAgeSeconds is not null and row.oldestAgeSeconds > 300 %}
-                                        <span class="text-warning">{{ (row.oldestAgeSeconds // 60) }}m</span>
-                                    {% elseif row.oldestAgeSeconds is not null %}
-                                        {{ row.oldestAgeSeconds }}s
+                                    {% if row.oldestAgeSeconds is not null %}
+                                        <span class="{{ row.oldestAgeSeconds > 300 ? 'text-warning' : '' }}">
+                                            {{ queue.duration(row.oldestAgeSeconds) }}
+                                        </span>
                                     {% else %}
                                         —
                                     {% endif %}
@@ -362,9 +362,7 @@
                                 <td class="px-2 py-2 text-xs">
                                     {% if row.waitingSinceSeconds is not null %}
                                         <span class="{{ row.waitingSinceSeconds > 900 ? 'text-warning' : '' }}">
-                                            {{ row.waitingSinceSeconds > 90
-                                                ? (row.waitingSinceSeconds // 60) ~ 'm'
-                                                : row.waitingSinceSeconds ~ 's' }}
+                                            {{ queue.duration(row.waitingSinceSeconds) }}
                                         </span>
                                     {% else %}
                                         —
@@ -375,58 +373,62 @@
                     </tbody>
                 </table>
 
-                {# The backlog itself, oldest first. Capped by the query, so the
-                   count in the heading is what is shown, not what exists. #}
-                {% set queued = queueMessages|filter(m => m.state != 'running') %}
+                {#
+                The backlog. Fixed height and its own scrollbar: a queue is
+                unbounded, and a panel that grows with it pushes every other
+                panel off the screen exactly when they are worth reading.
 
-                {% if queued|length > 0 %}
-                    <div class="border-t border-line">
-                        <p class="px-5 pt-3 pb-1 text-xs font-medium text-ink-faint">
-                            {{ 'admin.queues.next_up'|trans }}
-                            <span class="ml-1 text-ink-soft">({{ queued|length }})</span>
-                        </p>
-                        <div class="divide-y divide-line">
-                            {% for row in queued %}
-                                <div class="flex items-start gap-3 px-5 py-2 text-sm">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-ink-soft truncate">
-                                            <span class="font-mono text-xs">{{ row.class }}</span>
-                                            <span class="ml-1.5 text-xs text-ink-faint">{{ row.queue }}</span>
-                                            {% if row.retries > 0 %}
-                                                <span class="ml-1.5 text-xs text-warning">
-                                                    {{ 'admin.queues.retries'|trans({ '%count%': row.retries }) }}
-                                                </span>
-                                            {% endif %}
-                                        </p>
-                                        {% if row.summary %}
-                                            <p class="text-xs text-ink-faint font-mono truncate">{{ row.summary }}</p>
-                                        {% endif %}
-                                    </div>
-                                    <span class="shrink-0 text-xs text-ink-faint">
-                                        {% if row.state == 'scheduled' %}
-                                            {{ 'admin.queues.due_in'|trans({
-                                                '%duration%': row.availableInSeconds > 90
-                                                    ? (row.availableInSeconds // 60) ~ 'm'
-                                                    : row.availableInSeconds ~ 's',
-                                            }) }}
-                                        {% else %}
-                                            {{ 'admin.queues.queued_for'|trans({
-                                                '%duration%': row.ageSeconds > 90
-                                                    ? (row.ageSeconds // 60) ~ 'm'
-                                                    : row.ageSeconds ~ 's',
-                                            }) }}
-                                        {% endif %}
-                                    </span>
-                                </div>
+                The filter box queries the whole queue rather than the rows
+                already fetched — filtering the page would answer a question
+                nobody asked. Scrolling to the end loads the next page.
+                #}
+                <div class="border-t border-line"
+                     data-controller="admin--queue-browser"
+                     data-admin--queue-browser-url-value="{{ path('app_admin_queue_waiting') }}"
+                     data-admin--queue-browser-per-page-value="{{ queuePerPage }}"
+                     data-admin--queue-browser-total-value="{{ waitingTotal }}"
+                     {# Placeholders left in on purpose: the controller fills
+                        them per page without another round trip. #}
+                     data-admin--queue-browser-count-template-value="{{ 'admin.queues.showing'|trans }}">
+
+                    <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
+                        <i class="fa-solid fa-magnifying-glass text-[10px] text-ink-faint" aria-hidden="true"></i>
+                        <input type="search"
+                               data-admin--queue-browser-target="input"
+                               data-action="input->admin--queue-browser#filter search->admin--queue-browser#filter"
+                               placeholder="{{ 'admin.queues.filter_placeholder'|trans }}"
+                               class="flex-1 bg-transparent text-xs text-ink placeholder:text-ink-faint focus:outline-none">
+                        <span data-admin--queue-browser-target="count" class="text-xs text-ink-faint shrink-0">
+                            {{ 'admin.queues.showing'|trans({ '%shown%': waitingMessages|length, '%total%': waitingTotal }) }}
+                        </span>
+                    </div>
+
+                    <div data-admin--queue-browser-target="scroller"
+                         data-action="scroll->admin--queue-browser#onScroll"
+                         class="max-h-80 overflow-y-auto overscroll-contain">
+                        <div data-admin--queue-browser-target="list" class="py-1 divide-y divide-line/60">
+                            {% for message in waitingMessages %}
+                                {{ queue.row(message) }}
                             {% endfor %}
                         </div>
+
+                        {% if waitingMessages|length == 0 %}
+                            <p data-admin--queue-browser-target="empty"
+                               class="px-5 py-3 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
+                        {% endif %}
+
+                        <p data-admin--queue-browser-target="loading"
+                           class="hidden px-5 py-2 text-xs text-ink-faint">{{ 'admin.queues.loading'|trans }}</p>
                     </div>
-                {% endif %}
+                </div>
             {% endif %}
         {{ cards.close() }}
-
         {# ── Failed messages ───────────────────────────────────────────── #}
-        {{ cards.open('fa-triangle-exclamation', 'admin.failed.heading'|trans, 'failed', collapsedPanels) }}
+        {{ cards.open('fa-triangle-exclamation', 'admin.failed.heading'|trans, 'failed', collapsedPanels,
+            failedMessages|length > 0
+                ? 'admin.summary.failed'|trans({ '%count%': failedMessages|length })
+                : 'admin.summary.none'|trans,
+            failedMessages|length > 0 ? 'danger' : null) }}
             {% if failedMessages|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
             {% else %}
@@ -495,7 +497,8 @@
         <div class="grid md:grid-cols-2 gap-6">
 
             {# ── Accounts ──────────────────────────────────────────────── #}
-            {{ cards.open('fa-at', 'admin.accounts.heading'|trans, 'accounts', collapsedPanels) }}
+            {{ cards.open('fa-at', 'admin.accounts.heading'|trans, 'accounts', collapsedPanels,
+                'admin.summary.accounts'|trans({ '%count%': accountOverview|length })) }}
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
@@ -519,7 +522,8 @@
             {{ cards.close() }}
 
             {# ── Table sizes ───────────────────────────────────────────── #}
-            {{ cards.open('fa-database', 'admin.tables.heading'|trans, 'tables', collapsedPanels) }}
+            {{ cards.open('fa-database', 'admin.tables.heading'|trans, 'tables', collapsedPanels,
+                'admin.summary.tables'|trans({ '%count%': tableSizes|length })) }}
                 <table class="w-full text-sm">
                     <tbody>
                         {% for row in tableSizes %}

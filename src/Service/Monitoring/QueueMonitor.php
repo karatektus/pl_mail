@@ -69,8 +69,7 @@ final class QueueMonitor
     }
 
     /**
-     * Individual queued messages: what a worker is holding right now, and what
-     * is behind it.
+     * What a worker is holding right now.
      *
      * Envelopes are decoded rather than read as SQL because the message class
      * and its payload exist only inside the serialised blob. A body that no
@@ -80,11 +79,38 @@ final class QueueMonitor
      *
      * @return list<array{id: string, queue: string, class: string, summary: string, state: string, ageSeconds: int, runningForSeconds: int|null, availableInSeconds: int|null, retries: int}>
      */
-    public function queuedMessages(int $limit = 100): array
+    public function runningMessages(?string $filter = null): array
+    {
+        return $this->describe($this->queues->runningMessages(filter: $filter));
+    }
+
+    /**
+     * The backlog, one page at a time. The filter is applied by the database
+     * over every queued message, not over the page — a search box that only
+     * searched what had already been scrolled past would be worse than none.
+     *
+     * @return list<array{id: string, queue: string, class: string, summary: string, state: string, ageSeconds: int, runningForSeconds: int|null, availableInSeconds: int|null, retries: int}>
+     */
+    public function waitingMessages(int $limit = 25, int $offset = 0, ?string $filter = null): array
+    {
+        return $this->describe($this->queues->waitingMessages($limit, $offset, $filter));
+    }
+
+    public function countWaiting(?string $filter = null): int
+    {
+        return $this->queues->countWaiting($filter);
+    }
+
+    /**
+     * @param list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}> $rows
+     *
+     * @return list<array{id: string, queue: string, class: string, summary: string, state: string, ageSeconds: int, runningForSeconds: int|null, availableInSeconds: int|null, retries: int}>
+     */
+    private function describe(array $rows): array
     {
         $messages = [];
 
-        foreach ($this->queues->messages($limit) as $row) {
+        foreach ($rows as $row) {
             $envelope  = $this->decode($row);
             $delivered = $row['delivered_at'];
 

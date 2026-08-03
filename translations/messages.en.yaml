@@ -229,8 +229,11 @@ admin:
     queues:
         due_in: 'due in %duration%'
         empty: 'No pending messages.'
+        filter_placeholder: 'Filter the whole queue — handler, payload, queue name'
         heading: 'Messenger queues'
         in_flight: 'Running now'
+        loading: 'Loading…'
+        showing: '%shown% of %total%'
         next_up: 'Waiting'
         none_running: 'No worker is holding a message right now.'
         oldest: 'Oldest waiting'
@@ -242,6 +245,22 @@ admin:
         running_for: 'for %duration%'
         waiting_since: 'Waiting since'
     refresh_hint: 'Live panels refresh every 10s'
+    # Shown in a card's header while it is collapsed — short enough to read at
+    # a glance, specific enough to be worth expanding for.
+    summary:
+        accounts: '%count% accounts'
+        active: '%count% active'
+        armed: '%active%/%total% armed'
+        down: '%count% down'
+        failed: '%count% failed'
+        failing: '%count% failing'
+        healthy: '%count% healthy'
+        idle: 'idle'
+        none: 'none'
+        ok: '%count% ok'
+        queries: '%count% queries'
+        queue: '%running% running · %waiting% waiting'
+        tables: '%count% tables'
     reset:
         button: 'Reset'
         confirm_label: 'Type %name% to confirm'

@@ -59,30 +59,114 @@ final readonly class MessengerQueueRepository
     }
 
     /**
-     * The individual messages behind those numbers, in-flight ones first.
+     * The messages a worker is holding right now.
      *
-     * The failure queue is left out: it has its own panel, with its own
-     * actions, and showing the same rows twice would only invite acting on
-     * them in the place that cannot.
-     *
-     * Bodies come along because the message class and its payload are only
-     * inside the serialised envelope — see QueueMonitor, which decodes them.
-     * Limited, since a backlog is exactly when this is looked at.
+     * Never paginated: there is one per worker process, so the list is as long
+     * as the deployment has consumers and no longer.
      *
      * @return list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}>
      */
-    public function messages(int $limit = 100): array
+    public function runningMessages(int $limit = 20, ?string $filter = null): array
     {
+        return $this->fetchMessages('delivered_at IS NOT NULL', 'delivered_at, id', $limit, 0, $filter);
+    }
+
+    /**
+     * The backlog: everything no worker has taken yet, oldest first.
+     *
+     * @return list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}>
+     */
+    public function waitingMessages(int $limit = 25, int $offset = 0, ?string $filter = null): array
+    {
+        return $this->fetchMessages('delivered_at IS NULL', 'available_at, id', $limit, $offset, $filter);
+    }
+
+    /**
+     * How long the backlog is under the current filter — the number the panel
+     * counts down as pages are loaded, so "showing 25 of 4 100" is honest
+     * about what has not been fetched.
+     */
+    public function countWaiting(?string $filter = null): int
+    {
+        [$condition, $params, $types] = $this->filterClause($filter);
+
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM messenger_messages
+             WHERE queue_name <> :failed AND delivered_at IS NULL' . $condition,
+            ['failed' => 'failed'] + $params,
+            ['failed' => ParameterType::STRING] + $types,
+        );
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The failure queue is left out of every read here: it has its own panel,
+     * with its own actions, and showing the same rows twice would only invite
+     * acting on them in the place that cannot.
+     *
+     * Bodies come along because the message class and its payload are only
+     * inside the serialised envelope — see QueueMonitor, which decodes them.
+     *
+     * @param string $state    SQL condition selecting held or waiting rows
+     * @param string $ordering trailing ORDER BY, without the keyword
+     *
+     * @return list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}>
+     */
+    private function fetchMessages(
+        string $state,
+        string $ordering,
+        int $limit,
+        int $offset,
+        ?string $filter,
+    ): array {
+        [$condition, $params, $types] = $this->filterClause($filter);
+
         /** @var list<array{id: int|string, queue_name: string, body: string, headers: string, created_at: string, available_at: string, delivered_at: string|null}> */
         return $this->connection->fetchAllAssociative(
-            'SELECT id, queue_name, body, headers, created_at, available_at, delivered_at
+            "SELECT id, queue_name, body, headers, created_at, available_at, delivered_at
              FROM messenger_messages
-             WHERE queue_name <> :failed
-             ORDER BY delivered_at IS NULL, delivered_at, available_at, id
-             LIMIT :limit',
-            ['failed' => 'failed', 'limit' => $limit],
-            // LIMIT is typed explicitly: bound as a string, Postgres refuses it.
-            ['failed' => ParameterType::STRING, 'limit' => ParameterType::INTEGER],
+             WHERE queue_name <> :failed AND {$state}{$condition}
+             ORDER BY {$ordering}
+             LIMIT :limit OFFSET :offset",
+            ['failed' => 'failed', 'limit' => $limit, 'offset' => $offset] + $params,
+            // LIMIT and OFFSET are typed explicitly: bound as strings,
+            // Postgres refuses them.
+            [
+                'failed' => ParameterType::STRING,
+                'limit'  => ParameterType::INTEGER,
+                'offset' => ParameterType::INTEGER,
+            ] + $types,
         );
+    }
+
+    /**
+     * Free-text filter over the whole queue, not just the rows already on
+     * screen — which is the point of it, so it has to be SQL.
+     *
+     * `body` is the serialised envelope, and PHP serialisation writes class
+     * names and scalar payload values as plain text inside it: matching the
+     * blob is what makes `SyncAccountMessage` or an account id findable
+     * without deserialising several thousand envelopes per keystroke. It is a
+     * substring match on a serialised structure, so it can in principle match
+     * a property name or a stamp — for a search box over a queue, that is a
+     * fair trade for answering in one index-free scan of a table that is
+     * small by construction.
+     *
+     * @return array{string, array<string, string>, array<string, ParameterType>}
+     */
+    private function filterClause(?string $filter): array
+    {
+        $filter = null === $filter ? '' : trim($filter);
+
+        if ('' === $filter) {
+            return ['', [], []];
+        }
+
+        return [
+            ' AND (queue_name ILIKE :filter OR body ILIKE :filter)',
+            ['filter' => '%' . $filter . '%'],
+            ['filter' => ParameterType::STRING],
+        ];
     }
 }

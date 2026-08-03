@@ -24,6 +24,13 @@ final class AdminDashboardController extends AbstractController
     private const array SECTIONS = ['system', 'database', 'logs', 'integrations', 'users', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
+    /**
+     * One page of the queue backlog. Small on purpose: the panel scrolls
+     * inside a fixed height and fetches the next page as that scroll reaches
+     * the end, so the first paint stays cheap however long the queue is.
+     */
+    private const int QUEUE_PER_PAGE = 25;
+
     /** Monolog numeric levels offered as minimum-level filters. */
     private const array LOG_LEVELS = [
         200 => 'info',
@@ -77,10 +84,35 @@ final class AdminDashboardController extends AbstractController
             'pushDiagnostics' => $this->monitoring->gmailPushDiagnostics(),
             'tokenHealth'     => $this->monitoring->tokenHealth(),
             'queueStats'      => $this->queueMonitor->queueStats(),
-            'queueMessages'   => $this->queueMonitor->queuedMessages(),
+            'runningMessages' => $this->queueMonitor->runningMessages(),
+            'waitingMessages' => $this->queueMonitor->waitingMessages(self::QUEUE_PER_PAGE),
+            'waitingTotal'    => $this->queueMonitor->countWaiting(),
+            'queuePerPage'    => self::QUEUE_PER_PAGE,
             'failedMessages'  => $this->queueMonitor->failedMessages(),
             'accountOverview' => $this->monitoring->accountOverview(),
             'tableSizes'      => $this->monitoring->tableSizes(),
+        ]);
+    }
+
+    /**
+     * One page of the queue backlog, filtered.
+     *
+     * Its own endpoint rather than a slice of /admin/live: searching and
+     * paging a queue is a conversation with the database, and re-rendering
+     * every other live panel per keystroke would be an odd way to have it.
+     * The filter runs over the whole queue — see MessengerQueueRepository.
+     */
+    #[Route('/queues/waiting', name: 'queue_waiting')]
+    public function queueWaiting(Request $request): Response
+    {
+        $filter = trim((string) $request->query->get('q', ''));
+        $offset = max(0, $request->query->getInt('offset'));
+
+        return $this->render('admin/_queue_messages.html.twig', [
+            'messages'     => $this->queueMonitor->waitingMessages(self::QUEUE_PER_PAGE, $offset, $filter),
+            'waitingTotal' => $this->queueMonitor->countWaiting($filter),
+            'offset'       => $offset,
+            'queuePerPage' => self::QUEUE_PER_PAGE,
         ]);
     }
 

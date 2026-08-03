@@ -1,0 +1,76 @@
+{#
+One page of queued messages, plus the row markup the queue panel uses for both
+its lists — the in-flight one it renders inline, and this one, which the
+browser controller fetches per page and appends.
+
+Rendered on its own by /admin/queues/waiting: rows, then a meta element the
+controller reads to learn whether the filtered queue has more behind this page.
+#}
+
+{% import _self as queue %}
+
+{% macro duration(seconds) %}
+    {%- if seconds >= 3600 -%}
+        {{ (seconds // 3600) }}h
+    {%- elseif seconds > 90 -%}
+        {{ (seconds // 60) }}m
+    {%- else -%}
+        {{ seconds }}s
+    {%- endif -%}
+{% endmacro %}
+
+{% macro row(message) %}
+    {% import _self as queue %}
+    <div data-queue-row class="flex items-start gap-3 px-5 py-2 text-sm">
+        {# Held, waiting, or waiting on a clock: three states, three dots. An
+           in-flight message that has been in flight too long is the one worth
+           spotting, so only it changes colour. #}
+        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full
+                     {{ message.state == 'running'
+                        ? (message.runningForSeconds > 300 ? 'bg-amber-500' : 'bg-emerald-500')
+                        : (message.state == 'scheduled' ? 'bg-zinc-400' : 'bg-sky-500/70') }}"
+              aria-hidden="true"></span>
+
+        <div class="min-w-0 flex-1">
+            <p class="truncate">
+                <span class="font-mono text-xs {{ message.class == 'undecodable' ? 'text-danger' : 'text-ink' }}">
+                    {{ message.class }}
+                </span>
+                <span class="ml-1.5 text-xs text-ink-faint">{{ message.queue }}</span>
+                {% if message.retries > 0 %}
+                    <span class="ml-1.5 text-xs text-warning">
+                        {{ 'admin.queues.retries'|trans({ '%count%': message.retries }) }}
+                    </span>
+                {% endif %}
+            </p>
+            {% if message.summary %}
+                <p class="truncate font-mono text-xs text-ink-faint">{{ message.summary }}</p>
+            {% endif %}
+        </div>
+
+        <span class="shrink-0 text-xs
+                     {{ message.state == 'running' and message.runningForSeconds > 300 ? 'text-warning' : 'text-ink-faint' }}">
+            {%- if message.state == 'running' -%}
+                {{ 'admin.queues.running_for'|trans({ '%duration%': queue.duration(message.runningForSeconds) }) }}
+            {%- elseif message.state == 'scheduled' -%}
+                {{ 'admin.queues.due_in'|trans({ '%duration%': queue.duration(message.availableInSeconds) }) }}
+            {%- else -%}
+                {{ 'admin.queues.queued_for'|trans({ '%duration%': queue.duration(message.ageSeconds) }) }}
+            {%- endif -%}
+        </span>
+    </div>
+{% endmacro %}
+
+{% for message in messages|default([]) %}
+    {{ queue.row(message) }}
+{% endfor %}
+
+{% if messages is defined %}
+    {# Read and removed by the controller: how much of the filtered queue is
+       still behind what has been appended so far. #}
+    <div data-queue-meta
+         data-total="{{ waitingTotal }}"
+         data-returned="{{ messages|length }}"
+         data-next-offset="{{ offset + messages|length }}"
+         hidden></div>
+{% endif %}

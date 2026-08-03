@@ -56,6 +56,11 @@ final class PageRendersTest extends WebTestCase
         yield 'admin dashboard' => ['/admin'];
         yield 'admin logs' => ['/admin/logs'];
         yield 'admin db' => ['/admin/db'];
+        // Frames, not pages: /admin loads them lazily, so a template that only
+        // breaks once it has data breaks nowhere else in this suite.
+        yield 'admin live frame' => ['/admin/live'];
+        yield 'admin queue backlog' => ['/admin/queues/waiting'];
+        yield 'admin queue backlog, filtered' => ['/admin/queues/waiting?q=sync&offset=25'];
         yield 'admin integrations' => ['/admin/integrations'];
         // The wizard renders into the modal frame, so these are fragments
         // rather than pages — but a broken step template still shows up as a

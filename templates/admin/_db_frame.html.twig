@@ -43,7 +43,8 @@
         </div>
 
         {# ── Slowest by mean ───────────────────────────────────────────── #}
-        {{ cards.open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans, 'db-slow', collapsedPanels) }}
+        {{ cards.open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans, 'db-slow', collapsedPanels,
+            'admin.summary.queries'|trans({ '%count%': slowestByMean|length })) }}
             <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
                 <span class="text-xs text-ink-faint">{{ 'admin.db.slow_mean.hint'|trans }}</span>
                 {% if statStatementsAvailable %}
@@ -95,14 +96,18 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
 
         {# ── Heaviest by total time ────────────────────────────────────── #}
         {% if statStatementsAvailable and heaviestByTotal|length > 0 %}
-            {{ cards.open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans, 'db-heavy', collapsedPanels) }}
+            {{ cards.open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans, 'db-heavy', collapsedPanels,
+                'admin.summary.queries'|trans({ '%count%': heaviestByTotal|length })) }}
                 <p class="px-5 py-2 border-b border-line text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
                 {{ _self.statement_table(heaviestByTotal, 'totalMs') }}
             {{ cards.close() }}
         {% endif %}
 
         {# ── Live activity ─────────────────────────────────────────────── #}
-        {{ cards.open('fa-bolt', 'admin.db.active.heading'|trans, 'db-active', collapsedPanels) }}
+        {{ cards.open('fa-bolt', 'admin.db.active.heading'|trans, 'db-active', collapsedPanels,
+            activeQueries|length > 0
+                ? 'admin.summary.active'|trans({ '%count%': activeQueries|length })
+                : 'admin.summary.idle'|trans) }}
             {% if activeQueries|length == 0 %}
                 <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
             {% else %}
