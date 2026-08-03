@@ -61,7 +61,11 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
 
-  messenger-worker:
+  # One block per worker in compose.yaml. A service the base file defines but
+  # this one does not still starts — from the published image, without the
+  # source bind-mounted — so a missing block here is not a missing container
+  # but a container running yesterday's code.
+  worker-export:
     <<: *dev-build
     volumes:
       - ./:/app
@@ -70,6 +74,26 @@ services:
       # overlays /app/var with the private app_var volume to keep cache/logs
       # off the bind mount, which otherwise hides these two directories from
       # everything else.
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+
+  worker-ingest:
+    <<: *dev-build
+    volumes:
+      - ./:/app
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+
+  worker-maintenance:
+    <<: *dev-build
+    volumes:
+      - ./:/app
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
       - app_uploads:/app/var/uploads

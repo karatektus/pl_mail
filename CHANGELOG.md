@@ -8,7 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **The dev override still described the pre-split worker.** v0.0.10 replaced
+  `messenger-worker` with three services but left `compose.override.yaml.dist`
+  defining the old one, so a dev stack ran a worker consuming only the retired
+  `async` queue: sends and syncs queued up and nothing consumed them, with no
+  error anywhere. Copy the new `.dist` over your `compose.override.yaml`, or
+  add the three `worker-*` blocks to it, then
+  `docker compose up -d --remove-orphans`.
 
 ## v0.0.11 — 2026-08-03
 
