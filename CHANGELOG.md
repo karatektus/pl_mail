@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **Mail composed in UTF-8 but labelled ISO-8859-1 arrived as "GrÃ¼ÃŸe".** A
+  common sender bug, and every layer believed the label: IMAP bodies are
+  converted inside webklex, which had no reason to doubt it, and encoded-word
+  subjects went through iconv, which cannot. Bytes that are valid multi-byte
+  UTF-8 are now read as UTF-8 whatever a single-byte label claims — the label
+  is contradicted rather than merely ambiguous. Genuine latin-1, cp1252
+  punctuation and multi-byte charsets like Shift_JIS are unaffected. Applies to
+  mail synced from now on; messages already stored keep the bytes they were
+  given.
+
 ### Added
 
 - **The message details popover says why a message is in the tab it is in.**

@@ -69,6 +69,24 @@ final class CharsetHelperTest extends TestCase
         // Declared UTF-8 and not UTF-8. Repaired rather than rejected: the
         // alternative is the failed INSERT this class exists to stop.
         yield 'mislabelled utf-8' => ["Gr\xfc\xdfe", 'utf-8', 'Grüße'];
+
+        // The other direction, and the common one: composed in UTF-8, stamped
+        // ISO-8859-1. Taken at its word the message is readable but wrong —
+        // "GrÃ¼ÃŸe" — and a resync cannot repair it, because the bytes on the
+        // server were right all along. Valid multi-byte UTF-8 is not something
+        // latin-1 text contains by accident, so the bytes win over the label.
+        yield 'utf-8 under a latin-1 label'   => ['Grüße von Jörg', 'iso-8859-1', 'Grüße von Jörg'];
+        yield 'utf-8 under a cp1252 label'    => ['für', 'windows-1252', 'für'];
+        yield 'utf-8 under a us-ascii label'  => ['café', 'us-ascii', 'café'];
+
+        // The line is drawn at single-byte labels. Shift_JIS says something
+        // about sequences too, so a disagreement there is interpretation
+        // rather than contradiction and the label is still honoured.
+        yield 'shift_jis is still converted' => [
+            mb_convert_encoding('日本語', 'SJIS', 'UTF-8'),
+            'shift_jis',
+            '日本語',
+        ];
     }
 
     #[DataProvider('contentTypes')]

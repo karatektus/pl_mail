@@ -4,6 +4,7 @@ namespace App\Domain\Helper;
 
 use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
+use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Service\OAuth\OAuthTokenManager;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Config;
@@ -65,6 +66,16 @@ class ImapConnectionFactory
             'default'  => 'default',
             'accounts' => [
                 'default' => $accountConfig,
+            ],
+            // The library converts every body part from whatever charset it
+            // declares, which is wrong for the senders that declare
+            // ISO-8859-1 and send UTF-8 — see Utf8AwareMessageDecoder.
+            // Config::make merges into the vendor defaults, so the header and
+            // attachment decoders stay as they were.
+            'decoding' => [
+                'decoder' => [
+                    'message' => Utf8AwareMessageDecoder::class,
+                ],
             ],
         ]));
 

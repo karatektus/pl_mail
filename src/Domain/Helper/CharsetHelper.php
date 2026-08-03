@@ -77,18 +77,89 @@ final class CharsetHelper
     }
 
     /**
+     * Charset labels that mean "one byte, one character".
+     *
+     * Matched by prefix, which is enough: every family here names its variants
+     * with a numeric suffix. See isUtf8Despite() for what this is used for.
+     *
+     * @var list<string>
+     */
+    private const array SINGLE_BYTE_PREFIXES = [
+        'iso-8859', 'iso8859', 'iso_8859',
+        'windows-125', 'windows125', 'cp125', 'cp819',
+        'latin', 'l1',
+        'us-ascii', 'ascii', 'ansi_x3.4-1968', 'iso646-us', 'iso-ir-100',
+        'koi8', 'macintosh', 'mac-',
+    ];
+
+    /**
+     * Whether bytes are UTF-8 in spite of a declaration that says otherwise.
+     *
+     * Senders get this wrong often: a client composes in UTF-8 and stamps the
+     * part `charset=ISO-8859-1` anyway. Honouring that turns every umlaut into
+     * "Ã¼" — the message is not lost, but it is unreadable, and re-syncing
+     * cannot repair it because the bytes on the server were always fine.
+     *
+     * This is not a guess about undeclared bytes, which is why it is allowed
+     * where guessing is not. A single-byte charset assigns a character to all
+     * 256 values, so text in one carries no notion of a sequence — and a valid
+     * multi-byte UTF-8 sequence appearing by chance would have to spell one of
+     * the mojibake pairs ("Ã¼", "Ã¶", "â€™") that only exist because of this
+     * very bug. The bytes therefore contradict the label, and the label loses.
+     *
+     * Restricted to single-byte labels on purpose. A part claiming Shift_JIS
+     * or UTF-16 is making a claim about sequences too, and that argument is
+     * one of interpretation rather than contradiction.
+     */
+    public static function isUtf8Despite(string $bytes, ?string $charset): bool
+    {
+        $charset = strtolower(trim((string) $charset, " \t\n\r\0\x0B\"'"));
+
+        if ('' === $charset) {
+            return false;
+        }
+
+        $singleByte = false;
+
+        foreach (self::SINGLE_BYTE_PREFIXES as $prefix) {
+            if (true === str_starts_with($charset, $prefix)) {
+                $singleByte = true;
+                break;
+            }
+        }
+
+        if (false === $singleByte) {
+            return false;
+        }
+
+        // Pure ASCII proves nothing: it is valid UTF-8 and every single-byte
+        // charset agrees with it byte for byte, so there is no contradiction
+        // to act on and conversion is a no-op either way.
+        if (1 !== preg_match('/[\x80-\xFF]/', $bytes)) {
+            return false;
+        }
+
+        return mb_check_encoding($bytes, 'UTF-8');
+    }
+
+    /**
      * Convert a part's bytes to UTF-8 using the charset it declared.
      *
-     * The declaration is honoured rather than second-guessed — a body that
-     * says iso-8859-1 and contains UTF-8 does exist, but guessing costs more
-     * than it saves and is unfixable once wrong. What is not honoured is a
-     * label mbstring cannot use: an unknown charset name makes
-     * mb_convert_encoding() throw a ValueError, and a bogus label is no reason
-     * to lose a message, so it degrades to the same treatment as no label at
-     * all.
+     * The declaration is honoured rather than second-guessed, with one
+     * exception: bytes that are demonstrably UTF-8 under a single-byte label,
+     * where the declaration is not ambiguous but wrong — see isUtf8Despite().
+     *
+     * What is also not honoured is a label mbstring cannot use: an unknown
+     * charset name makes mb_convert_encoding() throw a ValueError, and a bogus
+     * label is no reason to lose a message, so it degrades to the same
+     * treatment as no label at all.
      */
     public static function toUtf8(string $bytes, ?string $charset): string
     {
+        if (true === self::isUtf8Despite($bytes, $charset)) {
+            return $bytes;
+        }
+
         $charset = strtolower(trim((string) $charset, " \t\n\r\0\x0B\"'"));
 
         if ('' === $charset) {

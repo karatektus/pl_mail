@@ -39,6 +39,13 @@ final class MimeHeaderHelperTest extends TestCase
         // (RFC 2047 §6.2), so decoding them as one run is what joins the word.
         yield 'split word' => ['=?UTF-8?Q?Gr=C3=BC?= =?UTF-8?Q?=C3=9Fe?=', 'Grüße'];
 
+        // Mislabelled: the word says latin-1 and carries UTF-8, which is what
+        // a client that composes in UTF-8 and stamps ISO-8859-1 on everything
+        // sends. Believing the label makes this "GrÃ¼ÃŸe"; the bytes are valid
+        // UTF-8 with multi-byte sequences, so latin-1 is not what they are.
+        yield 'mislabelled word, qp'     => ['=?ISO-8859-1?Q?Gr=C3=BC=C3=9Fe?=', 'Grüße'];
+        yield 'mislabelled word, base64' => ['=?ISO-8859-1?B?R3LDvMOfZQ==?=', 'Grüße'];
+
         // Real headers mix the two shapes; the raw half has to survive.
         yield 'mixed' => ['=?UTF-8?Q?Gr=C3=BC=C3=9Fe?= von Jörg', 'Grüße von Jörg'];
 

@@ -47,24 +47,60 @@ final class MimeHeaderHelper
         }
 
         // Adjacent encoded words are decoded as one run: RFC 2047 §6.2 makes
-        // the whitespace between them a separator rather than content, and
-        // that only holds if iconv sees them together.
+        // the whitespace between them a separator rather than content, so the
+        // pieces are joined with nothing between them.
         $decoded = preg_replace_callback(
             '/=\?[^?]+\?[BbQq]\?[^?]*\?=(?:\s+=\?[^?]+\?[BbQq]\?[^?]*\?=)*/',
-            static function (array $match): string {
-                $run = iconv_mime_decode($match[0], ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
-
-                return false === $run ? $match[0] : $run;
-            },
+            static fn (array $match): string => self::run($match[0]),
             $value,
         );
 
         // No second guard on the way out, and that is checked rather than
-        // assumed: iconv_mime_decode() will not emit invalid UTF-8. Given a
-        // charset it does not know, or bytes that do not match the charset the
-        // word claims (a mislabelled `=?UTF-8?B?` carrying latin-1, a truncated
-        // multi-byte sequence), it declines and returns the encoded word as it
-        // found it — which is ASCII, and so already safe.
+        // assumed: every path through run() ends in CharsetHelper, which
+        // cannot return invalid UTF-8, or returns the encoded word as it found
+        // it — which is ASCII, and so already safe.
         return null === $decoded ? $value : $decoded;
+    }
+
+    /**
+     * One or more adjacent encoded words, decoded and concatenated.
+     *
+     * Each word is decoded individually rather than by handing the run to
+     * iconv_mime_decode(), because only the individual payload can be checked
+     * against the charset the word claims. Senders mislabel these exactly as
+     * they mislabel bodies — `=?ISO-8859-1?Q?` around UTF-8 bytes — and iconv
+     * has no choice but to believe the label, which is what turned a subject
+     * into "GrÃ¼ÃŸe". CharsetHelper::toUtf8() does have that choice.
+     *
+     * Anything that does not decode cleanly is left as it was found. A word
+     * whose base64 is truncated, or whose charset nothing recognises, is not
+     * worth guessing at, and the encoded form is at least readable ASCII.
+     */
+    private static function run(string $run): string
+    {
+        if (1 > preg_match_all('/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/', $run, $words, PREG_SET_ORDER)) {
+            return $run;
+        }
+
+        $out = '';
+
+        foreach ($words as $word) {
+            [$whole, $charset, $encoding, $payload] = $word;
+
+            $bytes = 'b' === strtolower($encoding)
+                ? base64_decode($payload, true)
+                // RFC 2047 §4.2: underscore is a space, everywhere in the word.
+                : quoted_printable_decode(str_replace('_', ' ', $payload));
+
+            if (false === $bytes) {
+                $out .= $whole;
+
+                continue;
+            }
+
+            $out .= CharsetHelper::toUtf8($bytes, $charset);
+        }
+
+        return $out;
     }
 }
