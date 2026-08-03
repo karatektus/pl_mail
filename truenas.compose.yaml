@@ -28,6 +28,28 @@ x-config:
 # 2. OPTIONAL — every one of these works left exactly as it is.
 # ─────────────────────────────────────────────────────────────────────────────
 
+    # -- Which builds you get --
+    # The tag on the image decides how often this install changes, and it is
+    # the one optional setting worth deciding on deliberately:
+    #
+    #   :latest    the most recent tagged release. Moves only when a version is
+    #              released. The default, and what most installs want.
+    #   :main      every merge into the default branch, released or not. Follow
+    #              this to run what is being worked on without waiting for a
+    #              version to be tagged — it can break, and the changelog will
+    #              not describe it yet.
+    #   :0.0.14    one release, pinned. Nothing changes until you edit this.
+    #              No leading "v" — the git tag is v0.0.14, the image tag is not.
+    #   :0.0       the newest patch of one minor line.
+    #   :sha-1a2b3c one commit, pinned exactly.
+    #
+    # Every service pulls on start (pull_policy: always), so a redeploy from the
+    # TrueNAS app page is what picks up a newer build of whichever tag is set.
+    # Downgrading is not supported: migrations run forward on boot, so moving
+    # from :main back to :latest can leave the database ahead of the code.
+    image:                &image                ghcr.io/karatektus/pl_mail:latest
+    http_port:            &http_port            30080
+
     # -- Public address --
     # LEAVE BLANK. The setup screen asks for the public URL on first boot and
     # stores it; the Mercure hub URL is then derived from it automatically
@@ -36,10 +58,6 @@ x-config:
     # here wins over what the setup screen stored.
     app_public_url:       &app_public_url       ""
     mercure_public_url:   &mercure_public_url   ""
-
-    # -- Image & host port --
-    image:                &image                ghcr.io/karatektus/pl_mail:latest   # pin a real tag instead of :latest for deterministic updates
-    http_port:            &http_port            30080
 
     # -- Secrets --
     # LEAVE THESE BLANK. All four are generated on first start into the storage
