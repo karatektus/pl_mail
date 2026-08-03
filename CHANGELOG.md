@@ -8,7 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **The user menu is outlined when something has been logged that nobody has
+  read.** Amber for warnings, red once anything reached error, with the count
+  in its tooltip and beside the Admin entry inside the menu, which then links
+  straight to the log browser. Opening that browser is what marks them seen, so
+  anything logged while it is open comes back. Admins only — for everyone else
+  it would be an alarm about a screen they cannot open. The mark lives in the
+  user's settings bag, so there is no schema change.
 
 ## v0.0.12 — 2026-08-03
 

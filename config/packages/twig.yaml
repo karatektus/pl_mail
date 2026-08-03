@@ -9,6 +9,7 @@ twig:
         integrations: '@App\Twig\IntegrationsGlobal'
         calendar: '@App\Twig\CalendarGlobal'
         onboarding: '@App\Twig\OnboardingGlobal'
+        logAlert: '@App\Twig\LogAlertGlobal'
 
 when@test:
     twig:

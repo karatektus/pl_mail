@@ -380,6 +380,9 @@ header:
         label: Crew menu for %email%
         profile: Yer colours
         rerun_setup: Rig her up again
+        unseen_logs:
+            danger: '%count% fresh disasters in the log'
+            warn: '%count% fresh grumbles in the log'
         settings: Riggin'
         sign_out: Go ashore
         signed_in_as: Aboard as

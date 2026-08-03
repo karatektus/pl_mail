@@ -514,6 +514,9 @@ header:
         label: User menu for %email%
         profile: Profile
         rerun_setup: Run setup again
+        unseen_logs:
+            danger: '%count% new errors in the log'
+            warn: '%count% new warnings in the log'
         settings: Settings
         sign_out: Sign out
         signed_in_as: Signed in as

@@ -11,6 +11,8 @@ use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Monitoring\WorkerRestartSignal;
+use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,6 +49,7 @@ final class AdminDashboardController extends AbstractController
         private readonly DbPerformanceService   $dbPerformance,
         private readonly WorkerRestartSignal    $restartSignal,
         private readonly PostgresStatusRepository $statistics,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -135,6 +138,15 @@ final class AdminDashboardController extends AbstractController
 
         $entries = $this->logEntryRepository->search($minLevel, $channel, self::LOGS_PER_PAGE, $offset);
         $total   = $this->logEntryRepository->countSearch($minLevel, $channel);
+
+        // Opening the browser is what "seen" means, and the mark is set from
+        // the moment it was opened rather than from the newest entry on
+        // screen: anything logged while it is open is genuinely unread, and
+        // the outline should come back for it.
+        /** @var User $user */
+        $user = $this->getUser();
+        $user->logsSeenAt = new DateTimeImmutable();
+        $this->entityManager->flush();
 
         return $this->render('admin/_logs_frame.html.twig', [
             'entries'  => $entries,

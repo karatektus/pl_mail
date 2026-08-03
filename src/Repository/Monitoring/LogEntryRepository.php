@@ -8,6 +8,7 @@ use App\Entity\Monitoring\LogEntry;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use DateTimeImmutable;
 
 class LogEntryRepository extends ServiceEntityRepository
 {
@@ -58,6 +59,41 @@ class LogEntryRepository extends ServiceEntityRepository
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * What has been logged at $minLevel or worse since the admin last looked.
+     *
+     * One query for two numbers: the worst level decides whether the user menu
+     * is outlined amber or red, the count is what its tooltip says. Both are
+     * plain aggregates over the same rows, and asking twice would be two scans
+     * of the same range for one outline.
+     *
+     * `$since` is null for an admin who has never opened the log browser,
+     * which counts everything — the errors that arrived before they first
+     * looked are exactly the ones nobody has read.
+     *
+     * @return array{level: int|null, count: int}
+     */
+    public function unseenSince(?DateTimeImmutable $since, int $minLevel): array
+    {
+        $qb = $this->createQueryBuilder('l')
+            ->select('MAX(l.level) AS worst, COUNT(l.id) AS total')
+            ->where('l.level >= :minLevel')
+            ->setParameter('minLevel', $minLevel);
+
+        if (null !== $since) {
+            $qb->andWhere('l.createdAt > :since')
+                ->setParameter('since', $since);
+        }
+
+        /** @var array{worst: int|string|null, total: int|string} $row */
+        $row = $qb->getQuery()->getSingleResult();
+
+        return [
+            'level' => null === $row['worst'] ? null : (int) $row['worst'],
+            'count' => (int) $row['total'],
+        ];
     }
 
     /**

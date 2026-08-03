@@ -12,6 +12,9 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use App\Domain\Trait\TimestampableTrait;
+use DateTimeImmutable;
+use DateTimeInterface;
+use Exception;
 use Doctrine\ORM\Mapping as ORM;
 use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
@@ -335,6 +338,15 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
 
     /**
+     * When this admin last had the log browser open, as an ISO 8601 string.
+     *
+     * In the settings bag rather than a column: it is a read marker for one
+     * screen, of no interest to anything that queries users, and this is the
+     * bag that already carries per-user UI state to their other devices.
+     */
+    public const string SETTING_LOGS_SEEN_AT = 'admin.logs_seen_at';
+
+    /**
      * Whether the calendar pane is docked open beside the mail panes, and how
      * wide it is in pixels.
      *
@@ -434,6 +446,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return array_values(array_filter($panels, 'is_string'));
+        }
+    }
+
+    /**
+     * Virtual for the same reason as $collapsedAdminPanels. Null until the log
+     * browser has been opened once, which counts everything as unseen — a
+     * fresh admin should be told about the errors already waiting for them.
+     */
+    public ?DateTimeImmutable $logsSeenAt {
+        get {
+            $seenAt = $this->getSetting(self::SETTING_LOGS_SEEN_AT);
+
+            if (false === is_string($seenAt)) {
+                return null;
+            }
+
+            try {
+                return new DateTimeImmutable($seenAt);
+            } catch (Exception) {
+                // A bag written by an older version, or by hand. Unreadable
+                // is the same as never read.
+                return null;
+            }
+        }
+        set (?DateTimeImmutable $seenAt) {
+            $this->setSetting(self::SETTING_LOGS_SEEN_AT, $seenAt?->format(DateTimeInterface::ATOM));
         }
     }
 

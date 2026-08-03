@@ -174,12 +174,23 @@
         </button>
 
         {# User menu #}
+        {#
+        Outlined when something has been logged at warning or worse that this
+        admin has not looked at yet — the log browser is behind this menu, and
+        an error nobody opens the admin panel to find is an error nobody sees.
+        Amber for warnings, red once anything reached error. Admins only;
+        logAlert answers null for everyone else.
+        #}
+        {% set unseenLogs = logAlert.unseen %}
         <div class="relative ml-1" data-controller="ui--user-menu">
             <button id="user-menu-btn"
                     data-action="click->ui--user-menu#toggle"
-                    class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all"
+                    class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all
+                           {% if unseenLogs %}ring-2 ring-offset-1 {{ unseenLogs.tone == 'danger' ? 'ring-red-500' : 'ring-amber-500' }}{% endif %}"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
-                    title="{{ app.user.email }}">
+                    title="{{ unseenLogs
+                        ? ('header.user_menu.unseen_logs.' ~ unseenLogs.tone)|trans({ '%count%': unseenLogs.count })
+                        : app.user.email }}">
                 {# The initial is the fallback, not the design: an avatar is
                    optional and most users never set one. #}
                 {% if app.user.avatar %}
@@ -213,9 +224,21 @@
                     {{ 'header.user_menu.settings'|trans }}
                 </a>
                 {% if is_granted('ROLE_ADMIN') %}
-                    <a href="{{ path('app_admin_dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
+                    {# The outline on the button says something is wrong; this
+                       says where to go, and links straight to the log browser
+                       rather than the dashboard it is a tab of. #}
+                    <a href="{{ unseenLogs ? path('app_admin_dashboard', { section: 'logs' }) : path('app_admin_dashboard') }}"
+                       class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                         <i class="fa-solid fa-gauge-high w-4 text-gray-400" aria-hidden="true"></i>
                         {{ 'header.user_menu.admin'|trans }}
+                        {% if unseenLogs %}
+                            <span class="ml-auto inline-flex items-center gap-1.5 text-xs
+                                         {{ unseenLogs.tone == 'danger' ? 'text-danger' : 'text-warning' }}">
+                                <span class="w-1.5 h-1.5 rounded-full {{ unseenLogs.tone == 'danger' ? 'bg-red-500' : 'bg-amber-500' }}"
+                                      aria-hidden="true"></span>
+                                {{ unseenLogs.count }}
+                            </span>
+                        {% endif %}
                     </a>
                 {% endif %}
                 {# Setup opens by itself once and never again, so this is the

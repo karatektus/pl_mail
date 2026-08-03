@@ -518,6 +518,9 @@ header:
         label: Benutzermenü für %email%
         profile: Profil
         rerun_setup: Einrichtung erneut starten
+        unseen_logs:
+            danger: '%count% neue Fehler im Protokoll'
+            warn: '%count% neue Warnungen im Protokoll'
         settings: Einstellungen
         sign_out: Abmelden
         signed_in_as: Angemeldet als
