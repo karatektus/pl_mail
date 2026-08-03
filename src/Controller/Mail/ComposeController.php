@@ -24,6 +24,7 @@ use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MailBodySanitizer;
+use App\Service\Mail\ReplyDraftBuilder;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -75,6 +76,7 @@ class ComposeController extends AbstractController
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly IntegrationRepository   $integrationRepository,
         private readonly StateManager            $stateManager,
+        private readonly ReplyDraftBuilder       $replyDrafts,
     )
     {
     }
@@ -119,7 +121,7 @@ class ComposeController extends AbstractController
         $ctx            = $this->composeContext($request);
         $ctx['replyTo'] = $original->id;
         $account        = $original->account ?? $this->defaultAccount();
-        $draft          = $this->buildReply($original, replyAll: false, account: $account);
+        $draft          = $this->replyDrafts->reply($original, $account);
 
         $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
@@ -136,7 +138,7 @@ class ComposeController extends AbstractController
         $ctx            = $this->composeContext($request);
         $ctx['replyTo'] = $original->id;
         $account        = $original->account ?? $this->defaultAccount();
-        $draft          = $this->buildReply($original, replyAll: true, account: $account);
+        $draft          = $this->replyDrafts->reply($original, $account, replyAll: true);
 
         $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
@@ -152,7 +154,7 @@ class ComposeController extends AbstractController
 
         $ctx     = $this->composeContext($request);
         $account = $original->account ?? $this->defaultAccount();
-        $draft   = $this->buildForward($original);
+        $draft   = $this->replyDrafts->forward($original);
 
         $form = $this->composeForm($draft, $ctx);
         $form->get('account')->setData($this->senderToken($account));
@@ -867,144 +869,6 @@ class ComposeController extends AbstractController
         if (!empty($bcc)) {
             $message->bccAddresses = $bcc;
         }
-    }
-
-    private function buildReply(Message $original, bool $replyAll, Account $account): Message
-    {
-        $to = [[
-            'name' => $original->fromName ?? '',
-            'address' => $original->fromAddress ?? '',
-        ]];
-
-        $cc = [];
-        if (true === $replyAll) {
-            $ownAddresses = $account->ownedAddresses;
-            $candidates = array_merge(
-                $original->toAddresses ?? [],
-                $original->ccAddresses ?? [],
-            );
-            foreach ($candidates as $addr) {
-                if (false === in_array(strtolower($addr['address'] ?? ''), $ownAddresses, true)) {
-                    $cc[] = $addr;
-                }
-            }
-        }
-
-        $subject = $this->prefixSubject('Re', $original->subject);
-
-        $references = array_merge(
-            $original->references ?? [],
-            array_filter([$original->messageId]),
-        );
-
-        $quotedBody = $this->buildQuotedHtml($original, 'reply');
-
-        $draft = new Message();
-        $draft->account = $account;
-        $draft->subject = $subject;
-        $draft->toAddresses = $to;
-        $draft->ccAddresses = $cc;
-        $draft->bodyHtml = $quotedBody;
-        $draft->inReplyTo = array_filter([$original->messageId]);
-        $draft->references = array_values(array_unique($references));
-        $draft->hasAttachments = false;
-        $draft->createdAt = new DateTimeImmutable();
-        $draft->updatedAt = new DateTimeImmutable();
-
-        if (null !== $original->thread) {
-            $draft->thread = $original->thread;
-        }
-
-        return $draft;
-    }
-
-    private function buildForward(Message $original): Message
-    {
-        $subject = $this->prefixSubject('Fwd', $original->subject);
-        $quotedBody = $this->buildQuotedHtml($original, 'forward');
-
-        $draft = new Message();
-        $draft->account = $original->account;
-        $draft->subject = $subject;
-        $draft->toAddresses = [];
-        $draft->bodyHtml = $quotedBody;
-        $draft->hasAttachments = false;
-        $draft->createdAt = new DateTimeImmutable();
-        $draft->updatedAt = new DateTimeImmutable();
-
-        return $draft;
-    }
-
-    private function prefixSubject(string $prefix, ?string $subject): string
-    {
-        $subject = trim($subject ?? '');
-
-        if ($subject === '') {
-            return $prefix . ': ';
-        }
-
-        $pattern = '/^(re|fwd?)\s*:\s*/i';
-        if (preg_match($pattern, $subject)) {
-            if (strtolower($prefix) === 're') {
-                return $subject;
-            }
-        }
-
-        return $prefix . ': ' . $subject;
-    }
-
-    // NOTE: keep YOUR existing buildQuotedHtml() body — only the callers
-    // changed. The reply branch below is reconstructed and may differ from
-    // your version; the forward branch is verbatim.
-    private function buildQuotedHtml(Message $original, string $mode): string
-    {
-        $dateStr = $original->receivedAt ? $original->receivedAt->format('D, M j, Y \a\t g:i a') : '';
-        $fromName = htmlspecialchars($original->fromName ?? '', ENT_QUOTES, 'UTF-8');
-        $fromAddr = htmlspecialchars($original->fromAddress ?? '', ENT_QUOTES, 'UTF-8');
-        $fromLine = $fromName !== '' ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
-
-        $bodyHtml = trim($original->bodyHtml ?? '');
-        $bodyText = trim($original->bodyText ?? '');
-        $innerBody = $bodyHtml !== '' ? $bodyHtml : nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
-
-        // data-quoted marks the whole quoted block — attribution line
-        // included — so the editor can collapse it and the autosave guard can
-        // tell the user's own writing from the mail they are answering.
-        if ('reply' === $mode) {
-            return <<<HTML
-                <p><br></p>
-                <div data-quoted="1">
-                    <div style="font-size:0.85em;color:#555;margin-bottom:0.25em">
-                        On {$dateStr}, {$fromLine} wrote:
-                    </div>
-                    <blockquote style="border-left:2px solid #e0e0e0;margin:0;padding-left:0.75em;color:#555">
-                        {$innerBody}
-                    </blockquote>
-                </div>
-                HTML;
-        }
-
-        $subjectLine = htmlspecialchars($original->subject ?? '', ENT_QUOTES, 'UTF-8');
-        $toLine = implode(', ', array_map(
-            static fn(array $a) => htmlspecialchars(
-                ($a['name'] ? $a['name'] . ' <' . $a['address'] . '>' : $a['address']),
-                ENT_QUOTES,
-                'UTF-8',
-            ),
-            $original->toAddresses ?? [],
-        ));
-
-        return <<<HTML
-            <p><br></p>
-            <div data-quoted="1" style="border-top:1px solid #e0e0e0;padding-top:0.75em;margin-top:0.5em;font-size:0.85em;color:#555">
-                <p style="margin:0 0 0.25em"><strong>---------- Forwarded message ----------</strong></p>
-                <p style="margin:0 0 0.1em"><strong>From:</strong> {$fromLine}</p>
-                <p style="margin:0 0 0.1em"><strong>Date:</strong> {$dateStr}</p>
-                <p style="margin:0 0 0.1em"><strong>Subject:</strong> {$subjectLine}</p>
-                <p style="margin:0 0 0.75em"><strong>To:</strong> {$toLine}</p>
-                <div>{$innerBody}</div>
-            </div>
-            HTML;
     }
 
     private function persistDraft(Message $message, Account $account): void
