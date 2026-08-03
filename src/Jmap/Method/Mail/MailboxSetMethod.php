@@ -139,8 +139,16 @@ final class MailboxSetMethod implements JmapMethod
 
             $label            = new Label();
             $label->usr       = $account->usr;
-            $label->parent    = $parent;
             $label->name      = $name;
+
+            // Through addChild rather than by assigning parent, so the parent's
+            // children collection knows about this one immediately. Doctrine
+            // only needs the owning side to persist it, which is why writing
+            // parent alone looks sufficient and is not: destroy() refuses a
+            // parent by counting children, and JMAP lets a client create a
+            // mailbox and destroy its parent in the same request. With a stale
+            // collection that guard sees nothing and the destroy goes through.
+            $parent?->addChild($label);
             $label->color     = $color?->value;
             $label->isVisible = true !== ($properties['isSubscribed'] ?? true) ? false : true;
 
