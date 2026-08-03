@@ -174,21 +174,34 @@ class MessageRepository extends ServiceEntityRepository
      *
      * @return array{count: int, capped: bool}
      */
-    public function countMatchingForUser(User $user, CompiledFilter $filter, int $cap = 500): array
-    {
+    public function countMatchingForUser(
+        User $user,
+        CompiledFilter $filter,
+        int $cap = 500,
+        ?Account $account = null,
+    ): array {
+        // Null account is the rule's own "every account", so the absence of
+        // the clause is the scope rather than a missing one.
+        $scope = null === $account ? '' : ' AND a.id = :ruleAccountId';
+
         $sql = sprintf(
             'SELECT COUNT(*) FROM (
                  SELECT 1 FROM message m
                  JOIN account a ON a.id = m.account_id
-                 WHERE a.usr_id = :ruleUserId AND (%s)
+                 WHERE a.usr_id = :ruleUserId%s AND (%s)
                  LIMIT :ruleCap
              ) probe',
+            $scope,
             $filter->sql,
         );
 
         $parameters = $filter->parameters;
         $parameters['ruleUserId'] = $user->id;
         $parameters['ruleCap'] = $cap + 1;
+
+        if (null !== $account) {
+            $parameters['ruleAccountId'] = $account->id;
+        }
 
         $count = (int) $this->getEntityManager()
             ->getConnection()

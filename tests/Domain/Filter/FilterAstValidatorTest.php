@@ -29,6 +29,10 @@ final class FilterAstValidatorTest extends TestCase
      */
     public static function validProvider(): iterable
     {
+        // No conditions means every message, which is a rule somebody may want:
+        // act on everything arriving in one account. It used to be rejected,
+        // which made "label all of this account" impossible to express.
+        yield 'no conditions'         => [[]];
         yield 'single text condition' => [['subject' => 'invoice']];
         yield 'implicit AND'          => [['subject' => 'invoice', 'hasAttachment' => true]];
         yield 'label id'              => [['hasLabel' => 7]];
@@ -68,7 +72,6 @@ final class FilterAstValidatorTest extends TestCase
         yield 'no generic header condition' => [['header' => 'List-Id']];
 
         yield 'unknown condition'    => [['subjectt' => 'typo']];
-        yield 'empty condition'      => [[]];
         yield 'bad operator'         => [['operator' => 'XOR', 'conditions' => [['subject' => 'x']]]];
         yield 'empty group'          => [['operator' => 'AND', 'conditions' => []]];
         yield 'stray key on group'   => [['operator' => 'AND', 'conditions' => [['subject' => 'x']], 'subject' => 'y']];

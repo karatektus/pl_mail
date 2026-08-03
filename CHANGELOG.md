@@ -10,6 +10,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ### Added
 
+- **The message details popover says why a message is in the tab it is in.**
+  "Promotions — a bulk-mail header: list-unsubscribe", "Primary — you have
+  written to this sender". Recomputed from the same class that made the call
+  rather than stored, so it can never explain a decision the current rules no
+  longer make.
+- **A filter no longer needs a condition.** "Act on everything arriving in this
+  account" is a rule people want and could not write: the editor demanded at
+  least one condition and the validator rejected a rule without one. The editor
+  still opens with one condition to fill in — removing it is now how the
+  whole-account rule is written, and the panel says what it will then do. The
+  live match count is scoped to the rule's account too, which it never was.
+
 - **The user menu is outlined when something has been logged that nobody has
   read.** Amber for warnings, red once anything reached error, with the count
   in its tooltip and beside the Admin entry inside the menu, which then links

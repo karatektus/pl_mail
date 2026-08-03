@@ -38,6 +38,15 @@ final class FilterAstValidator
     public function validate(array $ast): void
     {
         $this->conditionCount = 0;
+
+        // An empty tree means "every message", which is a rule somebody may
+        // legitimately want: act on everything arriving in one account. It is
+        // allowed only here, at the top — an operator group with no conditions
+        // is a tree the client built wrong, and operator() still rejects it.
+        if (0 === count($ast)) {
+            return;
+        }
+
         $this->node($ast, 0);
     }
 

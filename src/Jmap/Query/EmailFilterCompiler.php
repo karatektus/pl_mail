@@ -40,6 +40,16 @@ final class EmailFilterCompiler
     {
         $this->parameterIndex = 0;
         $parameters = [];
+
+        // No filter at all is itself a filter: every message. A rule scoped to
+        // one account and told to label everything in it is a legitimate thing
+        // to want, and JMAP agrees — an absent filter matches all. Only the top
+        // level may be empty; an operator group with nothing in it is still a
+        // malformed tree, and stays an error below.
+        if (0 === count($filter)) {
+            return new CompiledFilter('TRUE', []);
+        }
+
         $sql = $this->node($filter, $parameters);
 
         return new CompiledFilter($sql, $parameters);

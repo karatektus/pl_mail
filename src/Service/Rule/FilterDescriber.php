@@ -86,6 +86,13 @@ final class FilterDescriber
      */
     private function node(array $node): string
     {
+        // No conditions: the rule acts on everything it is scoped to. Said in
+        // words rather than left blank, because "If → Apply label Receipts"
+        // reads as a rule with a piece missing rather than a deliberate one.
+        if (0 === count($node)) {
+            return $this->translator->trans('settings.filters.summary.every_message');
+        }
+
         if (true === array_key_exists('operator', $node)) {
             return $this->operator($node);
         }

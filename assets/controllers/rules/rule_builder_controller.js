@@ -48,6 +48,8 @@ export default class extends Controller {
         integrations: Array,
         previewUrl: String,
         csrf: String,
+        /** Open a fresh editor with one condition row to fill in. */
+        seedCondition: Boolean,
         i18n: Object,
     }
 
@@ -157,6 +159,15 @@ export default class extends Controller {
             )
             body.append(railed)
         })
+
+        // Removing the last condition is a decision, not an accident, so the
+        // empty state says what the rule now does rather than sitting blank.
+        if (node.conditions.length === 0) {
+            const empty = document.createElement("p")
+            empty.className = "px-1 py-1 text-xs text-ink-faint"
+            empty.textContent = this._t(depth === 0 ? "no_conditions" : "empty_group")
+            body.append(empty)
+        }
 
         wrap.append(body)
 
@@ -383,7 +394,15 @@ export default class extends Controller {
             const response = await fetch(this.previewUrlValue, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRF-Token": this.csrfValue },
-                body: JSON.stringify({ conditions: ast, actions: this.actions }),
+                // The account goes with it: a rule scoped to one account only
+                // ever acts on that account, and a count over all of them
+                // would be most wrong exactly where it matters most — a rule
+                // with no conditions at all.
+                body: JSON.stringify({
+                    conditions: ast,
+                    actions: this.actions,
+                    account: this.element.querySelector('[name="account"]')?.value ?? "",
+                }),
             })
 
             const data = await response.json()
@@ -416,6 +435,13 @@ export default class extends Controller {
     /** Editor shape → the stored/compiled AST shape. */
     _toAst(node) {
         if (node.operator) {
+            // An operator node with no conditions is invalid; the empty tree
+            // is how "no conditions" is stored, and the compiler reads it as
+            // every message.
+            if (node.conditions.length === 0) {
+                return {}
+            }
+
             return {
                 operator: node.operator,
                 conditions: node.conditions.map((c) => this._toAst(c)),
@@ -427,6 +453,16 @@ export default class extends Controller {
 
     /** Stored AST → editor shape, which carries field/value separately. */
     _seed(ast) {
+        // An empty tree is a rule with no conditions: it acts on everything in
+        // its scope. A brand-new editor gets one row to fill in instead, which
+        // is what the vast majority of rules want — see seedConditionValue.
+        if (!ast || Object.keys(ast).length === 0) {
+            return {
+                operator: "AND",
+                conditions: this.seedConditionValue ? [{ field: "subject", value: "" }] : [],
+            }
+        }
+
         const fromAst = (n) => {
             if (n && typeof n === "object" && n.operator) {
                 return { operator: n.operator, conditions: (n.conditions ?? []).map(fromAst) }
@@ -456,13 +492,21 @@ export default class extends Controller {
     }
 
     _removeAt(path) {
-        const parent = this._at(path.slice(0, -1))
+        const parentPath = path.slice(0, -1)
+        const parent = this._at(parentPath)
         parent.conditions.splice(path[path.length - 1], 1)
 
-        // Never leave an empty group — the validator rejects one, and an empty
-        // group on screen has no obvious meaning anyway.
-        if (parent.conditions.length === 0) {
-            parent.conditions.push({ field: "subject", value: "" })
+        if (parent.conditions.length > 0) {
+            return
+        }
+
+        // A nested group with nothing left in it is a tree the validator
+        // rejects and a box on screen that means nothing, so it goes too.
+        // The root is different: empty there is the rule that acts on
+        // everything, which is exactly what removing the last condition is
+        // for.
+        if (parentPath.length > 0) {
+            this._removeAt(parentPath)
         }
     }
 

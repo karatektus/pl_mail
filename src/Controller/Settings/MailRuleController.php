@@ -224,9 +224,13 @@ final class MailRuleController extends AbstractController
 
         try {
             $this->validator->validate($conditions);
+            // Scoped to the account the rule is being written for: it only
+            // ever acts there, and counting every account would be most wrong
+            // exactly where it matters most — a rule with no conditions.
             $result = $this->messageRepository->countMatchingForUser(
                 $this->getUser(),
                 $this->compiler->compile($conditions),
+                account: $this->resolveAccount($payload['account'] ?? null),
             );
         } catch (InvalidFilterException $e) {
             return $this->json(['ok' => false, 'error' => $e->getMessage()]);

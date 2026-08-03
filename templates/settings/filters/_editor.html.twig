@@ -23,6 +23,12 @@ Variables:
               data-rules--rule-builder-preview-url-value="{{ path('app_settings_filters_preview') }}"
               data-rules--rule-builder-csrf-value="{{ csrf_token('mail_rule_preview') }}"
               data-rules--rule-builder-conditions-value="{{ (submittedConditions ?: (rule.conditions ? rule.conditions|json_encode : '{}'))|e('html_attr') }}"
+              {# A fresh editor opens with one condition to fill in; removing it
+                 is how a rule that acts on everything is written. A saved rule
+                 with no conditions, or one bounced back by validation, is shown
+                 as it is — re-adding the row the user deleted would be the
+                 editor arguing with them. #}
+              data-rules--rule-builder-seed-condition-value="{{ (submittedConditions is empty and rule.id is null) ? '1' : '0' }}"
               data-rules--rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
               data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
               data-rules--rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
@@ -35,6 +41,8 @@ Variables:
                   add_group: 'settings.filters.add_group'|trans,
                   remove_group: 'settings.filters.remove_group'|trans,
                   remove_condition: 'settings.filters.remove_condition'|trans,
+                  no_conditions: 'settings.filters.no_conditions'|trans,
+                  empty_group: 'settings.filters.empty_group'|trans,
                   remove_action: 'settings.filters.remove_action'|trans,
                   yes: 'settings.filters.yes'|trans,
                   no: 'settings.filters.no'|trans,
