@@ -87,8 +87,36 @@ final readonly class GoogleCalendarPushManager implements CalendarPushSubscripti
         private LoggerInterface         $logger,
     ) {}
 
+    /**
+     * Google's own words for "this calendar can never be watched", remembered
+     * so the sweep stops asking.
+     *
+     * Some calendars Google serves are generated rather than stored — a
+     * country's holidays, the birthdays drawn from Contacts, week numbers — and
+     * events.watch answers 400 pushNotSupportedForRequestedResource for every
+     * one of them. That is a fact about the calendar and it will not change, so
+     * retrying hourly buys nothing and writes a warning an hour, for ever,
+     * about something nobody can act on. This codebase already rate-limits one
+     * such log (an orphaned Graph subscription); the better answer here is to
+     * ask once and believe the answer.
+     */
+    private const string REFUSED_SETTING = 'push.unsupported';
+
+    /** The reason Google returns for a resource that cannot carry a channel. */
+    private const string REFUSED_REASON = 'pushNotSupportedForRequestedResource';
+
+    /**
+     * False for a calendar Google has already refused to watch, so it is not
+     * merely skipped at registration but never offered to the sweep at all —
+     * the registry answers "no manager" and the calendar reads as polled,
+     * which is exactly what it is.
+     */
     public function supports(Calendar $calendar): bool
     {
+        if (true === $calendar->getSetting(self::REFUSED_SETTING, false)) {
+            return false;
+        }
+
         return null !== $this->googleAccountOf($calendar);
     }
 
@@ -168,6 +196,22 @@ final readonly class GoogleCalendarPushManager implements CalendarPushSubscripti
                 'params'  => ['ttl' => self::TTL_SECONDS],
             ]);
         } catch (\Throwable $e) {
+            // A calendar Google generates rather than stores — holidays,
+            // birthdays, week numbers — cannot carry a channel and never will.
+            // Recorded rather than retried, and logged once at info: it is not
+            // a fault, and an hourly warning about an unfixable fact is how the
+            // interesting lines stop being read.
+            if (true === str_contains($e->getMessage(), self::REFUSED_REASON)) {
+                $calendar->setSetting(self::REFUSED_SETTING, true);
+                $this->em->flush();
+
+                $this->logger->info('GoogleCalendarPush: this calendar cannot be watched, polling it from now on', [
+                    'calendarId' => $calendar->id,
+                ]);
+
+                return false;
+            }
+
             // Warning, not error: on a self-hosted install the overwhelmingly
             // likely cause is an unverified callback domain, which is a
             // deployment fact rather than a fault, and the calendar keeps

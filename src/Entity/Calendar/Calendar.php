@@ -246,6 +246,29 @@ class Calendar
      * way wherever it is listed, and two spellings of "it is fine now" is how
      * one of them ends up not clearing the error.
      */
+    public function getSetting(string $key, mixed $default = null): mixed
+    {
+        return $this->settings[$key] ?? $default;
+    }
+
+    /**
+     * Mirrors Account::setSetting() and Integration::setSetting(), down to the
+     * reason: reassign rather than mutate in place, because Doctrine compares a
+     * JSON column by value against what it hydrated, and writing into the same
+     * array instance leaves both sides of that comparison pointing at the same
+     * data — the change is made and never persisted.
+     *
+     * The bag has been here since the first pass and was read with `??` at each
+     * call site, which worked only because nothing had written to it yet.
+     */
+    public function setSetting(string $key, mixed $value): void
+    {
+        $settings = $this->settings;
+        $settings[$key] = $value;
+
+        $this->settings = $settings;
+    }
+
     public function recordSyncSuccess(): void
     {
         $this->lastSyncedAt  = new DateTimeImmutable();
