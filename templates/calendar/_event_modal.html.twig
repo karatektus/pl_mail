@@ -11,7 +11,27 @@ Hand-written rather than a FormType because it is six fields and a datetime
 pair whose values are read straight off the request with a CSRF check, and the
 recurrence dropdown maps to a JSCalendar rule rather than to a property. If it
 grows a real recurrence editor it should become a form.
+
+Accepts:
+  event         CalendarEvent, or null for a new one
+  calendars     the user's calendars, for the dropdown
+  title         what the title field shows — the instance's name when one was
+                renamed, the series' otherwise
+  startsAt      \ the INSTANCE's times when the chip named one, so that saving
+  endsAt        / "this event" moves the occurrence that was clicked
+  timeZone      IANA zone the two datetime fields are read in
+  recurrenceId  the clicked occurrence's original start as a UTC instant, or ''
+  returnTo      the page to go back to
 #}
+
+{% set event_title = title|default(event ? event.title : '') %}
+{% set recurrence_id = recurrenceId|default('') %}
+
+{# The choice is offered only when there is one to make: a recurring event, and
+   a chip that said which of its occurrences was clicked. Either missing and
+   this is the editor as it was — every save and every delete means the whole
+   event. #}
+{% set is_instance = event and event.isRecurring and recurrence_id is not empty %}
 
 <turbo-frame id="modal">
     {# data-turbo-frame="_top" so the response replaces the page rather than
@@ -28,6 +48,16 @@ grows a real recurrence editor it should become a form.
         <input type="hidden" name="eventId" value="{{ event ? event.id : 0 }}">
         <input type="hidden" name="timeZone" value="{{ timeZone }}">
         <input type="hidden" name="view" value="{{ app.request.query.get('view', 'week') }}">
+        <input type="hidden" name="recurrenceId" value="{{ recurrence_id }}">
+
+        {# Read only by the delete route, which this same form submits to via
+           `formaction` — see the Delete button. `date` is where the user is put
+           back down afterwards; the save route works out its own from the
+           times that were posted. #}
+        {% if event %}
+            <input type="hidden" name="_deleteToken" value="{{ csrf_token('calendar_event_delete' ~ event.id) }}">
+            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
+        {% endif %}
 
         <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
 
@@ -36,7 +66,7 @@ grows a real recurrence editor it should become a form.
                     {{ 'calendar.event.title'|trans }}
                 </label>
                 <input id="event-title" name="title" type="text" required autofocus
-                       value="{{ event ? event.title : '' }}"
+                       value="{{ event_title }}"
                        class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
                               focus:outline-none focus:ring-2 focus:ring-accent">
             </div>
@@ -125,6 +155,28 @@ grows a real recurrence editor it should become a form.
                 >{{ event ? event.jscalendar.description|default('') : '' }}</textarea>
             </div>
 
+            {# Only for a recurring event opened on one of its occurrences.
+               A one-off has exactly one instance, so the choice would be
+               between a thing and itself — and an extra radio on every event
+               is noise on almost all of them. Governs Delete as well as Save,
+               which is why it sits above both rather than beside one. #}
+            {% if is_instance %}
+                <fieldset class="rounded-lg border border-line px-3 py-2">
+                    <legend class="px-1 text-xs text-ink-muted">
+                        {{ 'calendar.event.scope.legend'|trans }}
+                    </legend>
+
+                    {% for choice in ['instance', 'series'] %}
+                        <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
+                            <input type="radio" name="scope" value="{{ choice }}"
+                                   {{ 'instance' == choice ? 'checked' : '' }}
+                                   class="border-line text-accent focus:ring-accent">
+                            {{ ('calendar.event.scope.' ~ choice)|trans }}
+                        </label>
+                    {% endfor %}
+                </fieldset>
+            {% endif %}
+
             {% if event and event.isExtracted %}
                 <p class="text-xs text-ink-faint flex items-start gap-1.5">
                     <i class="{{ event.kind.icon }} mt-0.5" aria-hidden="true"></i>
@@ -135,8 +187,23 @@ grows a real recurrence editor it should become a form.
 
         <div class="flex items-center gap-2 px-6 py-4 border-t border-line shrink-0">
             {% if event %}
+                {# Inside the edit form, not a form of its own, so the one
+                   `scope` radio group above governs the delete too — a radio
+                   belongs to exactly one form and cannot be shared between
+                   two. `formaction` is what makes that possible without
+                   nesting forms, which is invalid HTML: the browser drops the
+                   inner one silently, and Delete would submit the edit.
+
+                   formnovalidate because the delete does not care that Title
+                   is empty, and without it a cleared title blocks the delete
+                   with a validation bubble on a field the user is discarding.
+
+                   The token is `_deleteToken`: one form cannot carry two
+                   fields called `_token`, and the delete keeps its own token
+                   bound to this event's id rather than borrowing the save's. #}
                 <button type="submit"
-                        form="event-delete-form"
+                        formnovalidate
+                        formaction="{{ path('app_calendar_event_delete', { id: event.id }) }}"
                         class="text-sm text-danger hover:underline">
                     {{ 'calendar.event.delete'|trans }}
                 </button>
@@ -169,17 +236,11 @@ grows a real recurrence editor it should become a form.
         </div>
     </form>
 
-    {# Outside the edit form: nesting forms is invalid HTML and the browser
-       silently drops the inner one, which would make Delete submit the edit. #}
+    {# The dismiss form stays a form of its own: it is the only one carrying a
+       data-turbo-confirm, and it must not be reachable by pressing Enter in the
+       title field. Nested inside the edit form the browser would drop it
+       silently — hence outside, with the button pointing at it by id. #}
     {% if event %}
-        <form id="event-delete-form" method="post"
-              action="{{ path('app_calendar_event_delete', { id: event.id }) }}"
-              data-turbo-frame="_top" class="hidden">
-            <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_delete' ~ event.id) }}">
-            <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
-            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
-        </form>
-
         {% if event.isExtracted %}
             {# Confirmed, and the confirmation says what is permanent about it:
                the event goes, and so does any future attempt to re-create it

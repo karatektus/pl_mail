@@ -8,11 +8,11 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-**Two schema changes, applied automatically on boot.** `calendar_event` gains a
+**Three schema changes, applied automatically on boot.** `calendar_event` gains a
 sync state and a synced-at stamp, `calendar` gains a last-synced-at and a
-last-sync-error, and `event_proposal` is a new table. All additive; nothing is
-dropped or rewritten, and an install that never connects a calendar is
-unaffected by any of it.
+last-sync-error, `calendar` also gains four push-registration columns, and
+`event_proposal` is a new table. All additive; nothing is dropped or rewritten,
+and an install that never connects a calendar is unaffected by any of it.
 
 **Google and Microsoft accounts now ask for calendar permission at sign-in.**
 Existing connections keep working for mail either way. To let them carry
@@ -39,6 +39,23 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   somebody says yes. German and English, explicit and relative dates, durations
   where they are stated. "Not an event" is remembered, so it is not offered
   again.
+- **One occurrence of a repeating event can be changed on its own.** Saving or
+  deleting a recurring event now asks whether you mean this one or all of them,
+  and only asks when the event actually repeats. Moving a single occurrence
+  leaves its siblings where they were — and choosing "all events" from an editor
+  you opened on one occurrence applies what you *changed* rather than where that
+  occurrence happened to be, so renaming a weekly meeting from next month's
+  entry does not move the meeting to next month. A single-occurrence change
+  reaches a CalDAV server; Google and Microsoft take the series but not yet the
+  instance, so on those it stays local for now.
+- **Google and Microsoft calendars can arrive by push rather than being waited
+  for.** Where the installation has a public HTTPS address, a change made
+  elsewhere shows up in seconds instead of at the next quarter-hour sweep.
+  Google additionally refuses to open a channel unless the callback domain is
+  verified in the Cloud project that owns the OAuth client; the admin
+  diagnostics panel says so, and Microsoft needs no equivalent step. Without a
+  public address nothing breaks and nothing needs configuring — calendars stay
+  on the sweep, which remains the backstop either way.
 
 ### Fixed
 

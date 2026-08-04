@@ -383,10 +383,20 @@ final readonly class RecurrenceMaterialiser
     }
 
     /**
+     * The zone this series is expanded in, and therefore the zone its override
+     * keys are written in.
+     *
      * All-day events are floating and carry no zone, so they expand in UTC —
      * which is what floating means here: the same wall-clock day everywhere.
+     *
+     * **Public because a producer of an override must not decide this for
+     * itself.** The key is a LocalDateTime in the series' zone, and a producer
+     * that fell back to the user's zone where the expander falls back to UTC
+     * would file every patch on a floating event under a key that is never
+     * looked up — an override that silently does nothing. EventInstanceEditor
+     * asks here rather than repeating the fallback.
      */
-    private function zoneOf(CalendarEvent $event): DateTimeZone
+    public function zoneOf(CalendarEvent $event): DateTimeZone
     {
         if (null === $event->timeZone || '' === $event->timeZone) {
             return new DateTimeZone('UTC');

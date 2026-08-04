@@ -225,6 +225,40 @@ final readonly class CalendarEventWriter
     }
 
     /**
+     * How long something lasts, as the ISO 8601 duration JSCalendar says it
+     * with.
+     *
+     * Public because an override's `duration` is the same fact about one
+     * instance that the series' own `duration` is about the series, and
+     * RecurrenceMaterialiser reads both back through the same DateInterval. A
+     * second implementation beside this one would agree until the day one of
+     * them learned about weeks — see EventInstanceEditor, which is the caller.
+     *
+     * Negative input clamps to zero: an end before its start is an input to
+     * survive, and "P-1D" is not a duration any reader accepts.
+     */
+    public function isoDuration(int $seconds): string
+    {
+        $seconds = max(0, $seconds);
+
+        if (0 === $seconds) {
+            return 'PT0S';
+        }
+
+        $days    = intdiv($seconds, 86400);
+        $hours   = intdiv($seconds % 86400, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+        $rest    = $seconds % 60;
+
+        $duration = 'P' . (0 < $days ? $days . 'D' : '');
+        $time     = (0 < $hours ? $hours . 'H' : '')
+            . (0 < $minutes ? $minutes . 'M' : '')
+            . (0 < $rest ? $rest . 'S' : '');
+
+        return '' === $time ? $duration : $duration . 'T' . $time;
+    }
+
+    /**
      * An answer already recorded here is not un-answered by re-reading the mail
      * that asked the question.
      *
@@ -344,23 +378,7 @@ final readonly class CalendarEventWriter
     /** ISO 8601 duration, which is how JSCalendar says how long something is. */
     private function duration(CalendarEvent $event): string
     {
-        $seconds = max(0, $event->endsAt->getTimestamp() - $event->startsAt->getTimestamp());
-
-        if (0 === $seconds) {
-            return 'PT0S';
-        }
-
-        $days    = intdiv($seconds, 86400);
-        $hours   = intdiv($seconds % 86400, 3600);
-        $minutes = intdiv($seconds % 3600, 60);
-        $rest    = $seconds % 60;
-
-        $duration = 'P' . (0 < $days ? $days . 'D' : '');
-        $time     = (0 < $hours ? $hours . 'H' : '')
-            . (0 < $minutes ? $minutes . 'M' : '')
-            . (0 < $rest ? $rest . 'S' : '');
-
-        return '' === $time ? $duration : $duration . 'T' . $time;
+        return $this->isoDuration($event->endsAt->getTimestamp() - $event->startsAt->getTimestamp());
     }
 
     /**

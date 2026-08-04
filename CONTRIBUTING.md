@@ -307,6 +307,56 @@ healthy and `depends_on: service_healthy` waited for nothing. The worker
 services have no HTTP server and disable the healthcheck; their liveness
 reaches this endpoint through heartbeats instead.
 
+## Calendar push
+
+Google and Microsoft calendars can arrive by push rather than waiting for the
+fifteen-minute sweep. Both notifications are content-free — they say "something
+in this calendar changed" and nothing about what — so a webhook does exactly one
+thing, dispatch `SyncCalendarMessage` for the calendar it names, and every
+decision stays in the sync engine.
+
+| | Google Calendar | Microsoft Graph |
+|---|---|---|
+| Mechanism | `events.watch` channel, a plain webhook | `/subscriptions` over `me/calendars/{id}/events` |
+| Endpoint | `POST /webhook/google/calendar` | `POST /webhook/graph/calendar` |
+| Proof | channel token in `X-Goog-Channel-Token` | `clientState` in the body |
+| Lifetime | a week, whatever Google grants | just under three days |
+| Renewal | re-register, then stop the old channel | `PATCH` the expiry |
+| Teardown | `channels/stop` with (id, resourceId) | `DELETE /subscriptions/{id}` |
+
+**Push is never load-bearing.** A self-hosted install may have no publicly
+reachable HTTPS address at all, and registration failing means "stay on
+polling", not "error" — `app:calendar:sync --stale` runs every fifteen minutes
+regardless and is unchanged by any of this.
+
+### Things that bite
+
+**Google will not deliver to an unverified domain.** The callback host has to be
+verified in the Cloud project that owns the OAuth client: verify it in Search
+Console, then add it under Domain verification in the Cloud console. Until then
+every `events.watch` is refused, which is at least visible — it is a warning in
+the log at registration rather than a channel that silently never delivers.
+Microsoft has no equivalent requirement. This is also why none of the
+`GMAIL_PUBSUB_*` configuration applies here: calendar push is a plain webhook,
+not the Pub/Sub path Gmail push takes, and an install with no Pub/Sub at all can
+have calendar push.
+
+**Nothing registers a channel except `app:calendar:push`**, which the scheduler
+runs hourly. Ticking a calendar to mirror it does not, deliberately:
+registration fails for deployment reasons that have nothing to do with the
+click, and tied to the subscribe flow those calendars would never get push until
+somebody re-subscribed them. Driven from the sweep, the same install starts
+pushing within the hour of the address or the domain verification being fixed.
+
+**The first Google notification after registering is a `sync` handshake** and
+means only "the channel is open". Acting on it would put a full calendar read in
+the queue for every registration and every renewal in the install.
+
+**`APP_PUBLIC_URL` is the address both providers call back to**, and it is read
+per call rather than injected, because the workers that register channels are
+long-running and the address is usually saved from the setup screen after they
+booted.
+
 ## Console commands
 
 | Command | Description |
@@ -317,6 +367,7 @@ reaches this endpoint through heartbeats instead.
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
+| `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:label:backfill [--account=ID]` | Create labels from existing mailboxes and backfill assignments |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |

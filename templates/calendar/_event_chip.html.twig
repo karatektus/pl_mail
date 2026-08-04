@@ -15,6 +15,14 @@ Opens the editor in the body-level modal frame — never inside the calendar
 pane, which carries backdrop-filter and would clip a fixed-position dialog to
 itself. The controller has to be on the trigger: a Stimulus action only reaches
 controllers mounted on an ancestor, and the modal's lives on #modal-backdrop.
+
+**This is the only place an editor is opened on an occurrence**, and it is why
+the three views include this partial rather than each writing their own button.
+The URL carries `instance` — the occurrence's recurrence id, which is where the
+rule ORIGINALLY put it, not where an override may since have moved it — because
+without it the editor knows the event and not which of its occurrences was
+clicked, and "this event" has nothing to key a patch on. UTC, and read back by
+EventInstanceEditor::instance(), which owns both directions of that spelling.
 #}
 
 {% set event = occurrence.event %}
@@ -23,7 +31,10 @@ controllers mounted on an ancestor, and the modal's lives on #modal-backdrop.
 <button type="button"
    data-controller="ui--modal"
    data-action="click->ui--modal#open"
-   data-ui--modal-src-value="{{ path('app_calendar_event_edit', { id: event.id }) }}"
+   data-ui--modal-src-value="{{ path('app_calendar_event_edit', {
+       id: event.id,
+       instance: occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
+   }) }}"
    data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
    title="{{ event.title }}{{ showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '' }}"
    class="w-full text-left flex items-center gap-1.5

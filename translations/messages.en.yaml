@@ -247,6 +247,18 @@ admin:
         last_beat: 'Last beat'
         pid: 'PID'
         type: 'Type'
+    push:
+        calendar_domain_verification: >-
+            Google will not open a watch channel unless the callback domain is
+            verified in the Cloud project that owns the OAuth client: verify it
+            in Search Console, then add it under Domain verification in the
+            Cloud console. Microsoft needs no equivalent step.
+        calendar_routes: >-
+            Calendar push is delivered separately, to %google% and %graph%, and
+            needs no Pub/Sub topic.
+        calendar_without_public_address: >-
+            Without a public HTTPS address, connected calendars simply stay on
+            the fifteen-minute sweep.
     queues:
         due_in: 'due in %duration%'
         empty: 'No pending messages.'
@@ -455,6 +467,10 @@ calendar:
         new_on: New event on %date%
         repeat: Repeat
         save: Save
+        scope:
+            instance: This event
+            legend: Apply to
+            series: All events
         starts: Starts
         title: Title
     form:

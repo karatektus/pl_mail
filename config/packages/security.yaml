@@ -72,7 +72,15 @@ security:
         # App\Controller\HealthController on why it stays deliberately vague.
         - { path: ^/healthz$, roles: PUBLIC_ACCESS }
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
+        # Covers /webhook/graph/notify and /webhook/graph/lifecycle for mail,
+        # and /webhook/graph/calendar for a mirrored calendar's events. All
+        # three prove themselves with the clientState minted per subscription.
         - { path: ^/webhook/graph, roles: PUBLIC_ACCESS }
+        # Google Calendar watch channels. A plain webhook, not the Pub/Sub path
+        # /gmail/push is on, so it needs a rule of its own — the caller is
+        # Google itself and holds no session. Authenticity is the channel token
+        # in X-Goog-Channel-Token; see App\Controller\Webhook\GoogleCalendarPushController.
+        - { path: ^/webhook/google/calendar$, roles: PUBLIC_ACCESS }
         - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }

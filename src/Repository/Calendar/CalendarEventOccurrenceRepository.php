@@ -145,6 +145,32 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
     }
 
     /**
+     * One named instance of one series — the row a chip was rendered from.
+     *
+     * Looked up by recurrence id rather than by start, because those are not the
+     * same column once somebody has moved an instance: the recurrence id is
+     * where the rule put it and the start is where it went. Naming it by its
+     * start would find nothing the second time the same instance is edited,
+     * which is exactly the case that must keep working.
+     *
+     * A query rather than a walk over CalendarEvent::$occurrences: a daily
+     * series over the materialiser's horizon is a thousand rows, and hydrating
+     * all of them to find one is a page load nobody would connect to the click
+     * that caused it.
+     *
+     * The recurrence id must be UTC — Doctrine writes a datetime parameter in
+     * whatever zone the object carries, and the column is UTC, so an instant
+     * handed in as local time silently matches nothing.
+     */
+    public function findOneByRecurrence(CalendarEvent $event, DateTimeImmutable $recurrenceId): ?CalendarEventOccurrence
+    {
+        return $this->findOneBy([
+            'event'        => $event,
+            'recurrenceId' => $recurrenceId,
+        ]);
+    }
+
+    /**
      * Drops an event's materialised rows so the materialiser can write the new
      * set. One statement rather than loading a collection to delete it: a daily
      * event over the horizon is well over a thousand rows, and none of them

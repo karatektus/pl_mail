@@ -221,6 +221,23 @@
                         <p class="mt-2 text-xs text-ink-faint">{{ 'admin.webhooks.delivery.endpoint_hint'|trans }}</p>
                     {% endif %}
 
+                    {# Calendar push is a second delivery path with its own
+                       endpoints and its own way of failing, and neither is
+                       visible anywhere else in the app — the rows above are
+                       mail watches only.
+
+                       The two route literals stay literal — they are paths, not
+                       prose, and a translator asked to render them would only
+                       be given the chance to break them. #}
+                    <p class="mt-3 text-xs text-ink-faint">
+                        {{ 'admin.push.calendar_routes'|trans({
+                            '%google%': '/webhook/google/calendar',
+                            '%graph%': '/webhook/graph/calendar',
+                        }) }}
+                        {{ 'admin.push.calendar_domain_verification'|trans }}
+                        {{ 'admin.push.calendar_without_public_address'|trans }}
+                    </p>
+
                     {% if pushDiagnostics.lastFailure %}
                         <div class="mt-3">
                             <p class="text-xs font-medium text-danger">

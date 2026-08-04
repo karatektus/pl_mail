@@ -15,8 +15,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Every HTTP request the Google Calendar driver makes, and the one place a
- * Google failure becomes a CalendarSyncException.
+ * Every HTTP request made against Google Calendar — by the sync driver and by
+ * push registration alike — and the one place a Google failure becomes a
+ * CalendarSyncException.
  *
  * Split from GoogleCalendarSyncDriver for the same reason GmailApiClient is
  * split from GmailApiSyncer: the driver is about what a pull, a push and a
@@ -195,6 +196,69 @@ final readonly class GoogleCalendarApiClient
         }
 
         $this->assertSuccess($response, $operation);
+    }
+
+    /**
+     * Open a notification channel on a calendar's events, and answer with the
+     * channel Google actually created.
+     *
+     * Here rather than in GoogleCalendarPushManager so that this class stays
+     * what its docblock claims — every HTTP request made against Google
+     * Calendar, and one home for deciding what a failure means. The push
+     * manager cares about exactly one distinction (did it register, yes or no)
+     * and would otherwise re-derive it from a status code, which is how a
+     * missing calendar scope and a Google outage end up treated the same way.
+     *
+     * The interesting part of the answer is `resourceId` and `expiration`:
+     * neither is knowable in advance, and both are stored — see
+     * Calendar::$pushResourceId and Calendar::$pushExpiresAt.
+     *
+     * @param array<string,mixed> $channel the channel resource to create
+     *
+     * @return array<string,mixed>
+     *
+     * @throws CalendarSyncException
+     */
+    public function watchChannel(Account $account, string $calendarRemoteId, array $channel): array
+    {
+        return $this->send(
+            $account,
+            'POST',
+            sprintf('/calendars/%s/events/watch', rawurlencode($calendarRemoteId)),
+            ['json' => $channel],
+            'events.watch',
+        );
+    }
+
+    /**
+     * Close a notification channel.
+     *
+     * Not routed through send(): Google answers a successful stop with 204 and
+     * an empty body, and toArray() on that is a decoding error rather than an
+     * empty array — the same trap GraphCalendarSyncDriver documents on its own
+     * DELETEs.
+     *
+     * A channel that is already gone is a success, for the reason delete()
+     * gives: the caller's job is to make it not exist. That covers both the
+     * ordinary re-registration race and a channel that simply lapsed.
+     *
+     * @throws CalendarSyncException
+     */
+    public function stopChannel(Account $account, string $channelId, string $resourceId): void
+    {
+        $response = $this->request(
+            $account,
+            'POST',
+            '/channels/stop',
+            ['json' => ['id' => $channelId, 'resourceId' => $resourceId]],
+            'channels.stop',
+        );
+
+        if (true === in_array($this->statusOf($response, 'channels.stop'), self::ALREADY_GONE, true)) {
+            return;
+        }
+
+        $this->assertSuccess($response, 'channels.stop');
     }
 
     /**

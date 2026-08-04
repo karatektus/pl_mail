@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./support/test";
 
 /**
@@ -16,28 +16,109 @@ import { test } from "./support/test";
 
 const TITLE = `E2E event ${Date.now()}`;
 
+/**
+ * The chips this spec's event put on the calendar.
+ *
+ * Counted in the agenda view, which is where every recurring case below reads
+ * them. Neither of the obvious alternatives works: the week is seven days from
+ * Monday, so a daily series created "today" has as little as one occurrence
+ * left in it when the suite runs on a Sunday and "leaves its siblings" has no
+ * siblings; and the month grid renders only the first three events of each day,
+ * so a count taken from it is a count of what fits. Agenda is thirty days from
+ * today and draws all of them.
+ */
+function chipsOf(page: Page) {
+    return page.getByRole("button", { name: new RegExp(TITLE) });
+}
+
+/**
+ * Submit the editor and wait until the page under it is the new one.
+ *
+ * The wait matters more than it looks. Both buttons navigate the whole page
+ * (data-turbo-frame="_top"), and until that lands the dialog is still open over
+ * the PREVIOUS render — whose chips are all still where they were. A spec that
+ * reads them straight after the click reads the state it was trying to change,
+ * and every assertion about "one of them moved" passes or fails on timing.
+ */
+async function submit(page: Page, modal: Locator, button: string) {
+    await modal.getByRole("button", { name: button }).click();
+
+    await expect(page.locator("#modal-backdrop")).toBeHidden();
+}
+
+/**
+ * Open the editor on one chip and wait until it is that chip's editor.
+ *
+ * The wait is on a field's value, not on the dialog being visible. The modal
+ * keeps the PREVIOUS dialog's markup until Turbo swaps the frame, so a spec
+ * that waits for #modal-backdrop goes on to type into the last event's form.
+ */
+async function openChip(page: Page, index: number) {
+    await chipsOf(page).nth(index).click();
+
+    const modal = page.locator("#modal-backdrop");
+    await expect(modal.getByLabel("Title")).toHaveValue(new RegExp(TITLE));
+
+    return modal;
+}
+
+/** A datetime-local field's value, as that field wants it written back. */
+function localValue(when: Date) {
+    const pad = (part: number) => String(part).padStart(2, "0");
+
+    return [
+        `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`,
+        `${pad(when.getHours())}:${pad(when.getMinutes())}`,
+    ].join("T");
+}
+
+/**
+ * Push both ends of the editor's times out by a couple of hours.
+ *
+ * Relative to whatever the fields already hold rather than to a literal clock:
+ * the two fields are read in the calendar's zone and the chips are rendered in
+ * the reader's, so the only assertion that holds in every install is that the
+ * chip moved, not that it moved to 11:00.
+ */
+async function shiftTimesBy(modal: Locator, hours: number) {
+    for (const field of ["Starts", "Ends"]) {
+        const input = modal.getByLabel(field);
+        const moved = new Date(await input.inputValue());
+
+        moved.setHours(moved.getHours() + hours);
+
+        await input.fill(localValue(moved));
+    }
+}
+
 test.describe("calendar", () => {
     test.afterEach(async ({ page }) => {
         // Delete anything this spec created, so a second run starts where the
-        // first did. A recurring event puts one chip on every day of the week,
-        // and deleting the series clears all of them, so this loops on "is any
-        // still there" rather than on a count.
+        // first did. A recurring event puts one chip on every day, and its
+        // editor now defaults to "This event" — so the series scope has to be
+        // chosen explicitly here, or the cleanup removes one occurrence per
+        // attempt and gives up with the rest still on the calendar. This loops
+        // on "is any still there" rather than on a count.
         //
         // Never waits for networkidle: the app holds a Mercure EventSource
         // open for the whole session, so the network is never idle and the
         // wait only ever ends in a timeout.
         for (let attempt = 0; attempt < 3; attempt++) {
-            await page.goto("/calendar/week");
+            await page.goto("/calendar/agenda");
 
-            const chips = page.getByRole("button", { name: new RegExp(TITLE) });
-
-            if ((await chips.count()) === 0) {
+            if ((await chipsOf(page).count()) === 0) {
                 return;
             }
 
-            await chips.first().click();
-            await page.getByRole("button", { name: "Delete" }).click();
-            await expect(page.getByRole("button", { name: new RegExp(TITLE) })).toHaveCount(0);
+            const modal = await openChip(page, 0);
+            const series = modal.getByRole("radio", { name: "All events" });
+
+            if (await series.isVisible()) {
+                await series.check();
+            }
+
+            await submit(page, modal, "Delete");
+            await expect(chipsOf(page)).toHaveCount(0);
         }
     });
 
@@ -82,6 +163,129 @@ test.describe("calendar", () => {
         await expect(chips.first()).toBeVisible();
         expect(await chips.count()).toBeGreaterThan(1);
     });
+
+    /**
+     * The choice is offered only where there is one to make.
+     *
+     * A one-off event has exactly one instance, so "this event" and "all
+     * events" would name the same thing — and almost every event is a one-off,
+     * so an extra radio on all of them is noise on the common case.
+     */
+    test("offers no this-or-all choice on an event that does not repeat", async ({ page }) => {
+        await createEvent(page, { repeat: "none" });
+
+        const modal = await openChip(page, 0);
+
+        await expect(modal.getByRole("radio", { name: "This event" })).toHaveCount(0);
+        await expect(modal.getByRole("radio", { name: "All events" })).toHaveCount(0);
+    });
+
+    test("shows the choice on an event that does repeat", async ({ page }) => {
+        await createEvent(page, { repeat: "daily" });
+
+        const modal = await openChip(page, 1);
+
+        await expect(modal.getByRole("radio", { name: "This event" })).toBeChecked();
+        await expect(modal.getByRole("radio", { name: "All events" })).not.toBeChecked();
+    });
+
+    /**
+     * The case this whole feature exists for. Every chip of a daily series
+     * reads identically — same time, same title — so "exactly one of them
+     * changed" is expressible as a count of distinct labels, without depending
+     * on which clock the viewer's chips are drawn in.
+     *
+     * Before the per-instance path existed, saving here rewrote the series and
+     * every chip moved together, which is the failure this guards.
+     */
+    test("moving this event moves one occurrence and leaves its siblings", async ({ page }) => {
+        await createEvent(page, { repeat: "daily" });
+
+        const before = await chipsOf(page).allInnerTexts();
+        expect(new Set(before).size).toBe(1);
+
+        const modal = await openChip(page, 1);
+        await shiftTimesBy(modal, 2);
+        await modal.getByRole("radio", { name: "This event" }).check();
+        await submit(page, modal, "Save");
+
+        await expect(chipsOf(page)).toHaveCount(before.length);
+
+        const after = await chipsOf(page).allInnerTexts();
+        expect(new Set(after).size).toBe(2);
+        expect(after.filter((label) => label === before[0])).toHaveLength(before.length - 1);
+    });
+
+    /**
+     * The other half of the choice, and the behaviour that used to be the only
+     * one there was. Asserted on the labels rather than on a count: "all
+     * events" writes the series from the times the editor posted, and those are
+     * the times of the occurrence it was opened on — so the series starts on
+     * that day and the occurrences before it are no longer part of it.
+     */
+    test("moving all events moves the whole series", async ({ page }) => {
+        await createEvent(page, { repeat: "daily" });
+
+        const before = await chipsOf(page).allInnerTexts();
+
+        const modal = await openChip(page, 1);
+        await shiftTimesBy(modal, 2);
+        await modal.getByRole("radio", { name: "All events" }).check();
+        await submit(page, modal, "Save");
+
+        const after = await chipsOf(page).allInnerTexts();
+        expect(new Set(after).size).toBe(1);
+        expect(after[0]).not.toBe(before[0]);
+    });
+
+    /**
+     * Deleting one instance is an exclusion on the series, not a delete: the
+     * event and every other occurrence of it stay exactly as they were.
+     */
+    test("deleting this event takes one occurrence off and leaves the rest", async ({ page }) => {
+        await createEvent(page, { repeat: "daily" });
+
+        const before = await chipsOf(page).count();
+        expect(before).toBeGreaterThan(1);
+
+        const modal = await openChip(page, 1);
+        await modal.getByRole("radio", { name: "This event" }).check();
+        await submit(page, modal, "Delete");
+
+        await expect(chipsOf(page)).toHaveCount(before - 1);
+    });
+
+    test("deleting all events takes the whole series off", async ({ page }) => {
+        await createEvent(page, { repeat: "daily" });
+
+        expect(await chipsOf(page).count()).toBeGreaterThan(1);
+
+        const modal = await openChip(page, 1);
+        await modal.getByRole("radio", { name: "All events" }).check();
+        await submit(page, modal, "Delete");
+
+        await expect(chipsOf(page)).toHaveCount(0);
+    });
+
+    /**
+     * Creates this spec's event and leaves the page on the agenda, which is
+     * where the recurring cases count chips. Its own helper because five cases
+     * need the same three steps and none of them is what they are testing.
+     */
+    async function createEvent(page: Page, { repeat }: { repeat: string }) {
+        await page.goto("/calendar/agenda");
+
+        await page.getByRole("button", { name: "New event", exact: true }).first().click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal.getByLabel("Title")).toHaveValue("");
+
+        await modal.getByLabel("Title").fill(TITLE);
+        await modal.getByLabel("Repeat").selectOption(repeat);
+        await submit(page, modal, "Save");
+
+        await expect(chipsOf(page).first()).toBeVisible();
+    }
 });
 
 test.describe("calendar pane", () => {

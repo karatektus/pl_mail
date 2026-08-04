@@ -15,6 +15,7 @@ use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\CalendarRangeReader;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Calendar\EventDismisser;
+use App\Service\Calendar\EventInstanceEditor;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,11 +43,27 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * the pane. The pane and .main-pane both carry backdrop-filter, which makes
  * them containing blocks for position:fixed — a modal opened inside one is
  * clipped to it. The compose window learned this the hard way.
+ *
+ * An editor opened from a chip is opened on ONE occurrence, and says so: the
+ * chip puts that occurrence's recurrence id in the URL, the form posts it back,
+ * and `scope` decides whether a save or a delete means the instance or the
+ * series. Anything that cannot resolve an instance — a one-off event, a stale
+ * form, a hand-edited parameter — means the series, which is what this
+ * controller did before the choice existed.
  */
 #[Route('/calendar', name: 'app_calendar_')]
 #[IsGranted('IS_AUTHENTICATED')]
 final class CalendarController extends AbstractController
 {
+    /**
+     * The `scope` value that means "this one occurrence" rather than the series.
+     *
+     * Named because save and delete both read it, and spelled in exactly one
+     * other place — the radio in calendar/_event_modal.html.twig. Anything else
+     * arriving in that field, including nothing at all, means the series.
+     */
+    private const string SCOPE_INSTANCE = 'instance';
+
     public function __construct(
         private readonly CalendarRepository     $calendars,
         private readonly CalendarRangeReader    $rangeReader,
@@ -55,6 +72,7 @@ final class CalendarController extends AbstractController
         private readonly CalendarTimeResolver   $time,
         private readonly RecurrenceRuleConverter $recurrence,
         private readonly EventDismisser         $dismisser,
+        private readonly EventInstanceEditor    $instances,
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
     ) {
@@ -106,27 +124,46 @@ final class CalendarController extends AbstractController
             ?? new DateTimeImmutable('today 09:00', $zone);
 
         return $this->render('calendar/_event_modal.html.twig', [
-            'event'     => null,
-            'calendars' => $this->calendars->findForUser($user),
-            'startsAt'  => $startsAt,
-            'endsAt'    => $startsAt->modify('+1 hour'),
-            'timeZone'  => $zone->getName(),
-            'returnTo'  => $this->returnTo($request),
+            'event'        => null,
+            'calendars'    => $this->calendars->findForUser($user),
+            'title'        => '',
+            'startsAt'     => $startsAt,
+            'endsAt'       => $startsAt->modify('+1 hour'),
+            'timeZone'     => $zone->getName(),
+            'recurrenceId' => '',
+            'returnTo'     => $this->returnTo($request),
         ]);
     }
 
+    /**
+     * The editor for one event, opened on one of its occurrences when the chip
+     * that opened it named one.
+     *
+     * The times shown are the INSTANCE's, not the series' — a chip on the 5th
+     * that opens an editor reading the 3rd is an editor that moves the wrong
+     * one the moment it is saved, and an instance already moved once has to
+     * re-open where it went rather than where the rule put it.
+     */
     #[Route('/event/{id}/edit', name: 'event_edit', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function eventEdit(Request $request, CalendarEvent $event): Response
     {
         $this->assertOwned($event);
 
+        $zone     = $this->time->eventZone($event, $this->currentUser());
+        $instance = $this->instances->instance($event, $request->query->getString('instance'));
+
+        $startsAt = null === $instance ? $event->startsAt : $instance->startsAt;
+        $endsAt   = null === $instance ? $event->endsAt : $instance->endsAt;
+
         return $this->render('calendar/_event_modal.html.twig', [
-            'event'     => $event,
-            'calendars' => $this->calendars->findForUser($this->currentUser()),
-            'startsAt'  => $event->startsAt->setTimezone($this->time->eventZone($event, $this->currentUser())),
-            'endsAt'    => $event->endsAt->setTimezone($this->time->eventZone($event, $this->currentUser())),
-            'timeZone'  => $event->timeZone ?? $this->time->zoneFor($this->currentUser())->getName(),
-            'returnTo'  => $this->returnTo($request),
+            'event'        => $event,
+            'calendars'    => $this->calendars->findForUser($this->currentUser()),
+            'title'        => null === $instance ? (string) $event->title : $this->instances->titleOf($event, $instance),
+            'startsAt'     => $startsAt->setTimezone($zone),
+            'endsAt'       => $endsAt->setTimezone($zone),
+            'timeZone'     => $event->timeZone ?? $this->time->zoneFor($this->currentUser())->getName(),
+            'recurrenceId' => $this->instances->identify($instance),
+            'returnTo'     => $this->returnTo($request),
         ]);
     }
 
@@ -153,6 +190,43 @@ final class CalendarController extends AbstractController
         }
 
         $this->writer->markUserEdited($event);
+
+        // "This event" is not a smaller version of "all events": there is no row
+        // for one occurrence to write, so it becomes a patch on the series and
+        // write() must not run at all. Running it would rewrite the series from
+        // the fields the editor posted — which are the INSTANCE's times — and
+        // move every other occurrence to where this one was going.
+        $openedOn = $this->instances->instance($event, $request->request->getString('recurrenceId'));
+
+        $instance = self::SCOPE_INSTANCE === $request->request->getString('scope')
+            ? $openedOn
+            : null;
+
+        // "All events", from an editor that was opened on one of them. The
+        // fields carry the INSTANCE's times, so they are read as the change the
+        // user made to that instance rather than as the series' new times —
+        // otherwise renaming a weekly meeting from its fifth occurrence moves
+        // the whole series onto that day. See
+        // EventInstanceEditor::seriesTimesFor().
+        if (null === $instance && null !== $openedOn) {
+            [$startsAt, $endsAt] = $this->instances->seriesTimesFor($event, $openedOn, $startsAt, $endsAt);
+        }
+
+        if (null !== $instance) {
+            $this->instances->edit(
+                $event,
+                $instance,
+                $request->request->getString('title') ?: 'Untitled',
+                $startsAt,
+                $endsAt,
+            );
+
+            $this->em->flush();
+
+            $this->dispatchSync($event);
+
+            return $this->redirectAfterWrite($request, $startsAt->format('Y-m-d'));
+        }
 
         // Before write(), which is what assigns the calendar: on a new event
         // there is nothing to read the "is this synced?" question off yet, and
@@ -189,13 +263,38 @@ final class CalendarController extends AbstractController
         return $this->redirectAfterWrite($request, $startsAt->format('Y-m-d'));
     }
 
+    /**
+     * Delete the series, or take one occurrence off it.
+     *
+     * Submitted by the editor's own form through `formaction`, which is why the
+     * token it carries is `_deleteToken` rather than `_token`: one form cannot
+     * hold two fields of the same name, and the delete keeps a token of its own
+     * bound to this event's id rather than borrowing the editor's.
+     */
     #[Route('/event/{id}/delete', name: 'event_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function eventDelete(Request $request, CalendarEvent $event): Response
     {
         $this->assertOwned($event);
-        $this->assertCsrf($request, 'calendar_event_delete' . $event->id);
+        $this->assertCsrf($request, 'calendar_event_delete' . $event->id, '_deleteToken');
 
         $date = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
+
+        // One occurrence off a series is an override, not a delete: the series
+        // and every other instance of it stay exactly as they were, so nothing
+        // here removes a row or marks the event for deletion at the remote.
+        $instance = self::SCOPE_INSTANCE === $request->request->getString('scope')
+            ? $this->instances->instance($event, $request->request->getString('recurrenceId'))
+            : null;
+
+        if (null !== $instance) {
+            $this->instances->cancel($event, $instance);
+
+            $this->em->flush();
+
+            $this->dispatchSync($event);
+
+            return $this->redirectAfterWrite($request, $date);
+        }
 
         // A synced event is not removed here. The row is the only record that
         // the remote still holds a copy, so it survives — with its occurrences
@@ -418,9 +517,14 @@ final class CalendarController extends AbstractController
         }
     }
 
-    private function assertCsrf(Request $request, string $id): void
+    /**
+     * $field is not always `_token`, because the editor is one form that submits
+     * to two routes: the save's token and the delete's cannot both be called
+     * `_token` inside it. See eventDelete().
+     */
+    private function assertCsrf(Request $request, string $id, string $field = '_token'): void
     {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
+        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get($field))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
     }

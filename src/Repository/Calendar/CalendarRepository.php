@@ -102,6 +102,50 @@ class CalendarRepository extends ServiceEntityRepository
     }
 
     /**
+     * The calendar a push notification names, by the channel id it carries.
+     *
+     * A named method although it is one findOneBy, because of who calls it: two
+     * unauthenticated endpoints reachable from the internet, whose entire
+     * attribution of a notification to a user's calendar is this lookup. It is
+     * unfiltered on purpose — no user, no active flag — since the channel id is
+     * 128 bits minted here and the secret is checked immediately after. Adding
+     * a filter would only change a refusal into a silent miss.
+     *
+     * At most one row by construction: uniq_calendar_push_channel_id.
+     */
+    public function findOneByPushChannel(string $channelId): ?Calendar
+    {
+        return $this->findOneBy(['pushChannelId' => $channelId]);
+    }
+
+    /**
+     * Every mirrored calendar push could be registered for, oldest first.
+     *
+     * The same "mirrored and bound to a remote" definition findDueForSync()
+     * uses, deliberately: a calendar the sweep syncs is exactly a calendar push
+     * could deliver for, and two definitions of that would drift into a
+     * calendar that polls but never registers, or worse the reverse.
+     *
+     * Unlimited, unlike findDueForSync(). That query dispatches a job per row
+     * into a queue shared with mail; this one is walked in a console process
+     * that then does nothing at all for a calendar whose channel is live — one
+     * column read per row — so capping it would only mean an install's last
+     * calendars never getting push.
+     *
+     * @return list<Calendar>
+     */
+    public function findMirrored(): array
+    {
+        return $this->createQueryBuilder('calendar')
+            ->where('calendar.role = :remote')
+            ->andWhere('calendar.remoteId IS NOT NULL')
+            ->setParameter('remote', CalendarRole::Remote)
+            ->orderBy('calendar.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Mirrored calendars that have not been synced since $before, longest wait
      * first.
      *

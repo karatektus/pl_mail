@@ -237,6 +237,18 @@ admin:
         last_beat: 'Last heartbeat'
         pid: 'PID'
         type: 'Rank'
+    push:
+        calendar_domain_verification: >-
+            Google opens no watch channel 'til the callback domain be verified in
+            the Cloud project that owns the OAuth client: verify her in Search
+            Console, then enter her under Domain verification in the Cloud
+            console. Microsoft asks no such thing.
+        calendar_routes: >-
+            Almanac push comes ashore separately, at %google% an' %graph%, an'
+            wants no Pub/Sub topic.
+        calendar_without_public_address: >-
+            With no public HTTPS address, moored almanacs simply bide by the
+            quarter-hour sweep.
     queues:
         due_in: 'due in %duration%'
         empty: 'No bottles waitin''.'
@@ -374,6 +386,10 @@ calendar:
         new_on: A new reckonin' on %date%
         repeat: Comes round again
         save: Stow it
+        scope:
+            instance: This here reckonin'
+            legend: Apply it to
+            series: Every reckonin'
         starts: Starts
         title: What it be called
     form:

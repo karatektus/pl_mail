@@ -35,6 +35,14 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'calendar')]
 #[ORM\Index(name: 'idx_calendar_usr', columns: ['usr_id'])]
 #[ORM\Index(name: 'idx_calendar_account', columns: ['account_id'])]
+// One row per live push channel, and the index the webhooks read by. Unique
+// rather than plain, because both webhooks resolve a notification to exactly
+// one calendar by this column alone — two rows carrying the same channel id
+// would make a notification ambiguous, and the endpoint would either sync the
+// wrong calendar or sync both on somebody else's secret. Postgres allows any
+// number of NULLs in a unique index, which is what keeps this usable on the
+// column's ordinary state: a calendar with no channel.
+#[ORM\UniqueConstraint(name: 'uniq_calendar_push_channel_id', columns: ['push_channel_id'])]
 class Calendar
 {
     use TimestampableTrait;
@@ -157,6 +165,57 @@ class Calendar
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     public array $settings = [];
 
+    /**
+     * The registration that makes changes at the remote arrive instead of being
+     * waited for — a Google `events.watch` channel id, or a Graph subscription
+     * id. Null on every calendar that is polled, which is all of them until a
+     * deployment has a public HTTPS address.
+     *
+     * Four columns rather than a JSON blob in $settings, and that is the one
+     * decision here worth arguing. This is what the two unauthenticated,
+     * internet-facing webhooks look a notification up by and verify it against;
+     * it needs a unique index (see the constraint above) and a constant-time
+     * comparison against a known column, and neither is something to build on a
+     * key inside a jsonb document whose readers assume their own defaults.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $pushChannelId = null;
+
+    /**
+     * Google's `resourceId` for the channel, and the reason it is stored: a
+     * channel is stopped by POSTing the pair (id, resourceId) to channels/stop,
+     * and the resourceId is only ever seen in the answer to the watch call. Not
+     * keeping it means never being able to stop the channel — it goes on
+     * delivering to an endpoint that no longer knows it, for the whole week it
+     * was registered for.
+     *
+     * Null for Microsoft, which cancels by subscription id alone.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $pushResourceId = null;
+
+    /**
+     * The secret the provider echoes back on every notification — Google's
+     * channel `token`, Graph's `clientState` — and the only thing that makes
+     * these endpoints anything other than a free remote trigger. 256 bits of
+     * CSPRNG, minted per registration, compared with hash_equals.
+     *
+     * Not encrypted, matching Account::$graphSubscriptionClientState: it is
+     * minted here, means nothing anywhere else, and dies with the registration.
+     */
+    #[ORM\Column(length: 128, nullable: true)]
+    public ?string $pushSecret = null;
+
+    /**
+     * When the registration lapses, as the provider stated it — not as plMail
+     * asked for it. Google answers a watch with the expiration it actually
+     * granted, which need not be the ttl requested, and Graph does the same
+     * with expirationDateTime. Renewing off a local constant instead is how a
+     * channel silently stops a day before anything tries to renew it.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $pushExpiresAt = null;
+
     /** @var Collection<int, CalendarEvent> */
     #[ORM\OneToMany(targetEntity: CalendarEvent::class, mappedBy: 'calendar')]
     public private(set) Collection $events;
@@ -197,5 +256,37 @@ class Calendar
     public function recordSyncFailure(string $reason): void
     {
         $this->lastSyncError = mb_substr($reason, 0, 500);
+    }
+
+    /**
+     * Whether a notification claiming this calendar could be genuine.
+     *
+     * Stays a method: it asks two columns one question, the way isSynced()
+     * does. Both halves are needed and neither is enough — a channel id with no
+     * secret cannot be verified, so a notification carrying it must be refused
+     * rather than trusted, and that is exactly the state a half-written
+     * registration leaves behind.
+     */
+    public function hasPushChannel(): bool
+    {
+        return null !== $this->pushChannelId && null !== $this->pushSecret;
+    }
+
+    /**
+     * Forget the registration, all four columns at once.
+     *
+     * A named method rather than four assignments at each call site, for the
+     * reason mutators exist here at all: the columns are only meaningful
+     * together. A teardown that cleared the id and left the secret would leave
+     * a calendar that verifies notifications for a channel it can no longer
+     * stop, and the next registration would be the second live channel on the
+     * same calendar rather than a replacement for the first.
+     */
+    public function clearPushChannel(): void
+    {
+        $this->pushChannelId  = null;
+        $this->pushResourceId = null;
+        $this->pushSecret     = null;
+        $this->pushExpiresAt  = null;
     }
 }

@@ -247,6 +247,19 @@ admin:
         last_beat: 'Letztes Lebenszeichen'
         pid: 'PID'
         type: 'Typ'
+    push:
+        calendar_domain_verification: >-
+            Google öffnet einen Watch-Kanal nur, wenn die Callback-Domain in dem
+            Cloud-Projekt verifiziert ist, dem der OAuth-Client gehört: erst in
+            der Search Console verifizieren, dann in der Cloud Console unter
+            „Domain verification" eintragen. Bei Microsoft entfällt dieser
+            Schritt.
+        calendar_routes: >-
+            Kalender-Push wird getrennt zugestellt, an %google% und %graph%, und
+            braucht kein Pub/Sub-Topic.
+        calendar_without_public_address: >-
+            Ohne öffentlich erreichbare HTTPS-Adresse bleiben verbundene
+            Kalender einfach beim Viertelstunden-Abruf.
     queues:
         due_in: 'fällig in %duration%'
         empty: 'Keine wartenden Nachrichten.'
@@ -458,6 +471,10 @@ calendar:
         new_on: Neuer Termin am %date%
         repeat: Wiederholung
         save: Speichern
+        scope:
+            instance: Diesen Termin
+            legend: Ändern
+            series: Alle Termine
         starts: Beginn
         title: Titel
     form:
