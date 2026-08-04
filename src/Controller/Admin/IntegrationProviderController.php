@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\Integration\ServiceKind;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
 use App\Form\Integration\IntegrationProviderConfigType;
@@ -195,7 +196,7 @@ final class IntegrationProviderController extends AbstractController
     private function listData(): array
     {
         return [
-            'providers'     => Provider::cases(),
+            'providers'     => Provider::of(ServiceKind::Files),
             'configs'       => $this->configRepository->findAllIndexedByProvider(),
             'userCounts'    => $this->integrationRepository->countUsersByProvider(),
             'mailProviders' => MailProvider::cases(),

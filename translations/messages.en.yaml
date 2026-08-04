@@ -109,6 +109,19 @@ admin:
         inherit_help: 'Copies the client ID and secret across, server-side — the secret is never shown. It does not grant the extra permission the service needs; add that at the provider as the setup steps describe.'
         inherited: 'Credentials copied'
         mail:
+            calendar_heading: 'Calendar sync uses this same app'
+            calendar_google: >-
+                Nothing to set up here. Enable the Google Calendar API for this
+                project and add the .../auth/calendar scope to the consent
+                screen — users then get their calendars with the same sign-in
+                they already use for mail. Without it, mail keeps working and
+                calendars simply do not appear.
+            calendar_microsoft: >-
+                Nothing to set up here. Add the Calendars.ReadWrite delegated
+                permission to this app registration — users then get their
+                calendars with the same sign-in they already use for mail.
+                Without it, mail keeps working and calendars simply do not
+                appear.
             env_note: 'Leaving these empty falls back to GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* in the environment, so an installation already configured that way keeps working.'
             from_env: 'From environment'
             google: 'Gmail sign-in'

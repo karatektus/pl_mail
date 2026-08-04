@@ -133,7 +133,11 @@ services:
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
-        App\Domain\Interface\IntegrationDriverInterface:
+        # The broader interface, so a driver that only knows how to prove its
+        # credentials — a calendar connection, which holds no files — is still
+        # reachable by the connect and test paths. IntegrationDriverInterface
+        # extends it, so the file drivers are tagged by this same rule.
+        App\Domain\Interface\VerifiableDriverInterface:
             tags: ['app.integration_driver']
         App\Jmap\Method\JmapMethod:
             tags: ['app.jmap_method']

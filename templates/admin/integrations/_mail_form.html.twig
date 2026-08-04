@@ -40,6 +40,20 @@ prose and the copyable redirect URI, neither of which is a field.
         {% endblock %}
 
         {% block after_fields %}
+            {# Calendar sync rides this same app rather than asking for a
+               second one, so the only thing to do for it is on the provider's
+               side. Said here, next to the credentials, because this form is
+               where an administrator is when the question occurs to them. #}
+            <div class="rounded-lg border border-line bg-sunken px-3 py-2.5">
+                <p class="text-xs font-medium text-ink-soft">
+                    <i class="fa-regular fa-calendar mr-1" aria-hidden="true"></i>
+                    {{ 'admin.integrations.mail.calendar_heading'|trans }}
+                </p>
+                <p class="text-xs text-ink-faint mt-1 leading-relaxed">
+                    {{ ('admin.integrations.mail.calendar_' ~ provider.value)|trans }}
+                </p>
+            </div>
+
             <p class="text-xs text-ink-faint">
                 <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
                 {{ 'admin.integrations.mail.env_note'|trans }}

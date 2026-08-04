@@ -39,7 +39,16 @@ test.describe("sidebar rail (desktop)", () => {
         await page.goto("/mail/inbox");
 
         const sidebar = page.locator("#sidebar");
-        const inboxLabel = sidebar.getByText("Inbox", { exact: true });
+
+        // The top-level Inbox row, not "any text reading Inbox in the
+        // sidebar": an expanded account lists its own folders below, and one
+        // of those is also called Inbox. Which account is expanded is a stored
+        // preference that survives between tests, so a locator that matched
+        // both was a strict-mode violation waiting for whichever spec ran
+        // first to leave an account open.
+        const inboxLabel = sidebar
+            .locator('a[href="/mail/inbox"]')
+            .getByText("Inbox", { exact: true });
 
         await expect(sidebar).toBeVisible();
         await expect(inboxLabel).toBeVisible();

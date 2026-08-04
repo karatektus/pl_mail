@@ -51,11 +51,41 @@ enum Provider: string
         };
     }
 
+    /**
+     * Which part of the application offers this service.
+     *
+     * Exhaustive, and every list that walks Provider::cases() filters on it.
+     * Without that a calendar connection shows up in the file picker and in
+     * "Save to…", which is how it would be found: by a user trying to attach
+     * a photo from their CalDAV server.
+     */
+    public function kind(): ServiceKind
+    {
+        return match ($this) {
+            self::Nextcloud,
+            self::Immich,
+            self::GoogleDrive,
+            self::GooglePhotos,
+            self::OneDrive,
+            self::Dropbox => ServiceKind::Files,
+        };
+    }
+
+    /**
+     * Exhaustive, with no `default` arm — and that is the point rather than a
+     * style preference. It used to fall through to OAuth2, so a provider added
+     * later claimed an OAuth flow it had no endpoints for and failed at connect
+     * time instead of at compile time.
+     */
     public function authKind(): AuthKind
     {
         return match ($this) {
-            self::Nextcloud, self::Immich => AuthKind::AppPassword,
-            default                       => AuthKind::OAuth2,
+            self::Nextcloud,
+            self::Immich => AuthKind::AppPassword,
+            self::GoogleDrive,
+            self::GooglePhotos,
+            self::OneDrive,
+            self::Dropbox => AuthKind::OAuth2,
         };
     }
 
@@ -66,6 +96,11 @@ enum Provider: string
      * Immich and Google Photos are absent from ShareLink: neither exposes a
      * per-asset public URL without creating a shared album, which is a heavier
      * side effect than attaching a file should have.
+     *
+     * Exhaustive on purpose. The `default` arm this used to carry handed the
+     * full file capability set to any case that had not been thought about —
+     * so a provider that could not upload at all still appeared in "Save to…",
+     * and only said so once a user had picked it.
      *
      * @return list<Capability>
      */
@@ -90,7 +125,10 @@ enum Provider: string
                 Capability::Upload,
                 Capability::Thumbnail,
             ],
-            default => [
+            self::Nextcloud,
+            self::GoogleDrive,
+            self::OneDrive,
+            self::Dropbox => [
                 Capability::Browse,
                 Capability::Download,
                 Capability::Upload,
@@ -104,6 +142,23 @@ enum Provider: string
     public function supports(Capability $capability): bool
     {
         return in_array($capability, $this->capabilities(), true);
+    }
+
+    /**
+     * The providers one part of the application should offer.
+     *
+     * Here rather than in each controller so the file lists and the calendar
+     * lists cannot drift: adding a service means giving it a kind, and it
+     * appears in exactly one of them.
+     *
+     * @return list<self>
+     */
+    public static function of(ServiceKind $kind): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            static fn (self $provider): bool => $kind === $provider->kind(),
+        ));
     }
 
     /**

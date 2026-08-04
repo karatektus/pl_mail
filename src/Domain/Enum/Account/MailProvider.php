@@ -51,6 +51,18 @@ enum MailProvider: string
     /**
      * OAuth scopes requested at consent time.
      *
+     * Calendar is in here rather than behind a second connection, and that is a
+     * product decision as much as a technical one: an administrator should have
+     * to tick extra permission boxes in Google Cloud or Azure and nothing more
+     * — no second OAuth app, no second integration to configure in plMail, no
+     * second consent screen for the user. One grant covers the mailbox and the
+     * calendars in the same account.
+     *
+     * The cost is that the consent screen asks for more up front. Google's lets
+     * a user untick an individual scope, so a token can come back without
+     * calendar access; that is discovered when a calendar call is refused and
+     * reported there, rather than tracked speculatively at grant time.
+     *
      * @return list<string>
      */
     public function scopes(): array
@@ -58,6 +70,10 @@ enum MailProvider: string
         return match ($this) {
             MailProvider::Google => [
                 'https://mail.google.com/',
+                // Read-write, not calendar.readonly: subscribing is only half
+                // the feature — an event edited here is written back, which
+                // means creating, updating and deleting on the remote.
+                'https://www.googleapis.com/auth/calendar',
                 'openid',
                 'email',
             ],
@@ -75,7 +91,29 @@ enum MailProvider: string
                 // Read because GraphCategorySyncer and ApplyGraphChangesHandler
                 // both create category definitions.
                 'https://graph.microsoft.com/MailboxSettings.ReadWrite',
+                // Same grant as the mail scopes above — see the note on this
+                // method. Microsoft consents to the requested set as a whole,
+                // so unlike Google there is no partial grant to handle.
+                'https://graph.microsoft.com/Calendars.ReadWrite',
             ],
+        };
+    }
+
+    /**
+     * The scopes that buy calendar access, out of the set above.
+     *
+     * Named separately so the failure path can say which permission is missing
+     * — "reconnect and allow calendar access" is actionable, "403" is not — and
+     * so the admin help text can list exactly what to tick without repeating
+     * the strings a third time.
+     *
+     * @return list<string>
+     */
+    public function calendarScopes(): array
+    {
+        return match ($this) {
+            MailProvider::Google    => ['https://www.googleapis.com/auth/calendar'],
+            MailProvider::Microsoft => ['https://graph.microsoft.com/Calendars.ReadWrite'],
         };
     }
 

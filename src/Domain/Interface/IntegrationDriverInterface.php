@@ -32,18 +32,13 @@ use App\Entity\Integration\Integration;
  * A driver only has to implement the operations its Provider declares in
  * capabilities(). Anything outside that set may throw — callers are expected
  * to have checked first, and the UI never offers it.
+ *
+ * `verify()` comes from VerifiableDriverInterface rather than being declared
+ * here: it is the one operation a connection of any kind owes, and a calendar
+ * driver has to answer it without pretending to hold files.
  */
-interface IntegrationDriverInterface
+interface IntegrationDriverInterface extends VerifiableDriverInterface
 {
-    public function supports(Provider $provider): bool;
-
-    /**
-     * Probe the credentials. Returns normally on success.
-     *
-     * @throws IntegrationException if the service is unreachable or rejects us
-     */
-    public function verify(Integration $integration): void;
-
     /**
      * One page of a folder's contents. A null folder means the root, which for
      * a photo service is the album list rather than a directory.

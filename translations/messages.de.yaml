@@ -109,6 +109,18 @@ admin:
         inherit_help: 'Kopiert Client-ID und Secret serverseitig — das Secret wird nie angezeigt. Die zusätzlich benötigte Berechtigung wird damit nicht erteilt; diese ist beim Anbieter wie in der Einrichtung beschrieben hinzuzufügen.'
         inherited: 'Zugangsdaten kopiert'
         mail:
+            calendar_heading: 'Die Kalender-Synchronisation nutzt dieselbe App'
+            calendar_google: >-
+                Hier ist nichts einzurichten. Aktiviere die Google Calendar API
+                für dieses Projekt und ergänze den Scope .../auth/calendar im
+                Zustimmungsbildschirm — die Kalender kommen dann mit derselben
+                Anmeldung wie die E-Mails. Ohne das funktioniert E-Mail weiter,
+                die Kalender erscheinen einfach nicht.
+            calendar_microsoft: >-
+                Hier ist nichts einzurichten. Ergänze die delegierte Berechtigung
+                Calendars.ReadWrite in dieser App-Registrierung — die Kalender
+                kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
+                funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
             env_note: 'Bleiben diese Felder leer, greifen GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* aus der Umgebung — eine so konfigurierte Installation läuft unverändert weiter.'
             from_env: 'Aus der Umgebung'
             google: 'Gmail-Anmeldung'

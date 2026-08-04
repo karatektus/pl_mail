@@ -236,8 +236,12 @@ test.describe("label as", () => {
         await panel.getByRole("button", { name: LABEL_NAME }).click();
         await expect(mailRow(page, INBOX_SUBJECTS.trash)).toContainText(LABEL_NAME);
 
-        // The label's sidebar entry opens its conversation list.
-        await page.getByRole("link", { name: LABEL_NAME }).click();
+        // The label's sidebar entry opens its conversation list. Scoped to the
+        // label list: the same label also appears under any expanded account,
+        // scoped to that account — a different link to a different view, and
+        // whether it is on screen depends on a stored preference this spec has
+        // no business depending on.
+        await page.locator("#label-list").getByRole("link", { name: LABEL_NAME }).click();
         await expect(
             page
                 .locator('#message-list li[data-controller="mail--message-row"]')

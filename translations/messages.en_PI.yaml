@@ -109,6 +109,18 @@ admin:
         inherit_help: 'Copies th'' client ID and secret below decks — th'' secret be never shown. It grants no extra passage; add that at th'' harbourmaster as th'' riggin'' steps say.'
         inherited: 'Papers copied'
         mail:
+            calendar_heading: 'The almanacs sail under this same charter'
+            calendar_google: >-
+                Naught to rig here. Hoist the Google Calendar API for this
+                project an' add the .../auth/calendar scope to the consent
+                screen — the crew's almanacs then come aboard with the same
+                boardin' they already use for mail. Without it, mail sails on
+                an' the almanacs simply never appear.
+            calendar_microsoft: >-
+                Naught to rig here. Add the Calendars.ReadWrite delegated
+                permission to this app registration — the crew's almanacs then
+                come aboard with the same boardin' they already use for mail.
+                Without it, mail sails on an' the almanacs simply never appear.
             env_note: 'Leave these empty and GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* from th'' environment take over, so a ship already rigged that way sails on.'
             from_env: 'From th'' environment'
             google: 'Gmail boardin'''

@@ -111,7 +111,9 @@ final readonly class IntegrationConnector
     private function probe(Integration $integration): ?string
     {
         try {
-            $this->drivers->forIntegration($integration)->verify($integration);
+            // Verifiable, not the file interface: this path runs for every
+            // connection, and a calendar one holds nothing to list.
+            $this->drivers->verifiableForIntegration($integration)->verify($integration);
             $integration->recordSuccess();
 
             return null;

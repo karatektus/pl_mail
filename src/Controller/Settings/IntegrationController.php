@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\Integration\ServiceKind;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
@@ -202,7 +203,7 @@ final class IntegrationController extends AbstractController
             // what the name field on the form is for. Hiding the button after
             // the first connection would quietly contradict both.
             'available'    => $this->configRepository->findConnectable(),
-            'providers'    => Provider::cases(),
+            'providers'    => Provider::of(ServiceKind::Files),
             'configs'      => $this->configRepository->findAllIndexedByProvider(),
         ];
     }
