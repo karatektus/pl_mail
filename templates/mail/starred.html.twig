@@ -2,7 +2,7 @@
 
 {% block title %}
     {% set _unread = sidebarCounts.forStarred() %}
-    {{ _unread > 0 ? '('~_unread~')' }} {{ 'Drafts'|trans }} — {{ 'app.name'|trans }}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.starred'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
 
 {% block inbox_tabs %}

@@ -39,7 +39,11 @@ test.describe("mail UI actions", () => {
 
         await page.goto("/mail/inbox");
 
-        const replied = mailRow(page, "Re: " + INBOX_SUBJECTS.read);
+        // The same row, not a new one called "Re: …". The reply joins the
+        // conversation it answers, so the list keeps showing the thread's own
+        // subject and simply counts one message more — looking for a "Re:" row
+        // was looking for a row this app never renders.
+        const replied = mailRow(page, INBOX_SUBJECTS.read);
         await expect(replied).toContainText("E2E Sender, me");
     });
 
@@ -170,14 +174,34 @@ test.describe("mail UI actions", () => {
 
     // ── Bulk toolbar actions ─────────────────────────────────────────────────
     //
-    // These are written against the INTENDED behaviour and will FAIL until the
-    // toolbar's *Selected() handlers are wired up (they are currently
-    // console.log stubs). They assert observable outcomes, not the endpoint, so
-    // they pass regardless of how the bulk mutation is implemented (per-row
-    // streams or a frame reload). Once green, delete this notice.
+    // Written against observable outcomes rather than the endpoint, so they
+    // hold however the bulk mutation is implemented — per-row streams or a
+    // frame reload. (They carried a notice saying they would fail until the
+    // toolbar handlers stopped being console.log stubs, with an instruction to
+    // delete it once green. They are green.)
 
     const allRows = (page: Page) =>
         page.locator('#message-list li[data-controller="mail--message-row"]');
+
+    /**
+     * The four rows this spec seeded are on screen.
+     *
+     * NOT a count of the whole list, which is what these tests used to open
+     * with. `seed-mail` wipes and refills one account — mailbox@e2e.test — but
+     * the inbox is unified, and the same user also owns the demo mailbox the
+     * screenshot tour seeds (a second account, ten threads, never cleaned up).
+     * So the moment anybody ran the screenshots, every one of these tests
+     * failed on its FIRST line, by exactly ten, having tested nothing.
+     *
+     * The precondition that matters is only that the seed landed. What the
+     * bulk actions then do to the rest of the mailbox is asserted after the
+     * fact, where "none left" is true however many there were.
+     */
+    const expectSeededRows = async (page: Page) => {
+        for (const subject of Object.values(INBOX_SUBJECTS)) {
+            await expect(mailRow(page, subject)).toBeVisible();
+        }
+    };
 
     const selectAll = async (page: Page) => {
         await page
@@ -194,7 +218,7 @@ test.describe("mail UI actions", () => {
 
     test("bulk-archives every selected conversation", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await expect(allRows(page)).toHaveCount(4);
+        await expectSeededRows(page);
 
         await selectAll(page);
         await bulkAction(page, "Archive").click();
@@ -208,7 +232,7 @@ test.describe("mail UI actions", () => {
                                                                            page,
                                                                        }) => {
         await page.goto("/mail/inbox");
-        await expect(allRows(page)).toHaveCount(4);
+        await expectSeededRows(page);
 
         await selectAll(page);
         await bulkAction(page, "Delete").click();
@@ -227,7 +251,7 @@ test.describe("mail UI actions", () => {
 
     test("bulk-marks every selected conversation as read", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await expect(allRows(page)).toHaveCount(4);
+        await expectSeededRows(page);
 
         await selectAll(page);
         await bulkAction(page, "Mark as read").click();
@@ -243,7 +267,7 @@ test.describe("mail UI actions", () => {
     test("bulk-marks every selected conversation as unread", async ({ page }) => {
         // Seeded threads start unread, so make them read first, then unread.
         await page.goto("/mail/inbox");
-        await expect(allRows(page)).toHaveCount(4);
+        await expectSeededRows(page);
 
         await selectAll(page);
         await bulkAction(page, "Mark as read").click();

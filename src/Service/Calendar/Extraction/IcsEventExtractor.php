@@ -45,6 +45,16 @@ use Sabre\VObject\Reader;
 final readonly class IcsEventExtractor implements EventExtractorInterface
 {
     /**
+     * What this extractor calls itself on an EventSourceLink.
+     *
+     * A constant because the name is no longer written only here: the invite
+     * card finds its event by asking for the link this extractor left, and a
+     * string typed twice is a card that silently stops appearing the day
+     * somebody renames one of them.
+     */
+    public const string NAME = 'ics';
+
+    /**
      * A VEVENT with neither an end nor a duration is an instant, and iCalendar
      * says to treat a date-time one as zero-length. A zero-length row is
      * invisible in every view, so it gets a nominal hour instead — an invite
@@ -190,7 +200,7 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
             jscalendar:    $this->toJsCalendar($vevent, $uid, $start, $end, $zone, $isAllDay, $status),
             startsAt:      $start,
             endsAt:        $end,
-            extractor:     'ics',
+            extractor:     self::NAME,
             source:        EventSource::Ics,
             confidence:    100,
             title:         '' !== $title ? $title : null,
@@ -279,6 +289,15 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
      * Organiser and attendees, with their response where they gave one — this
      * is what an RSVP view needs and what an .ics export has to put back.
      *
+     * Roles are MERGED onto whoever already holds the address, never assigned
+     * over the top of them. One person is routinely both: an organiser who is
+     * also going appears as ORGANIZER and again as ATTENDEE, which is what
+     * Google Calendar sends and what RFC 5545 expects. Keyed by address and
+     * written in property order, the second line replaced the first — so the
+     * only participant carrying `owner` lost it, the event ended up with no
+     * organiser at all, and the invite card had nobody to answer and so offered
+     * no answer. The address is the identity here; the roles accumulate.
+     *
      * @return array<string,array<string,mixed>>
      */
     private function participantsOf(VEvent $vevent): array
@@ -293,13 +312,33 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
                     continue;
                 }
 
-                $participants[mb_strtolower($address)] = array_filter([
-                    '@type'            => 'Participant',
-                    'email'            => $address,
-                    'name'             => (string) ($entry['CN'] ?? '') ?: null,
-                    'roles'            => [$role => true],
-                    'participationStatus' => mb_strtolower((string) ($entry['PARTSTAT'] ?? '')) ?: null,
-                ], static fn (mixed $v): bool => null !== $v);
+                $key = mb_strtolower($address);
+
+                $participant = $participants[$key] ?? [
+                    '@type' => 'Participant',
+                    'email' => $address,
+                    'roles' => [],
+                ];
+
+                $participant['roles'][$role] = true;
+
+                $name = trim((string) ($entry['CN'] ?? ''));
+
+                if ('' !== $name) {
+                    $participant['name'] = $name;
+                }
+
+                // An ORGANIZER line carries no PARTSTAT, so the attendee line
+                // for the same person is where the organiser's own answer
+                // comes from. Only ever written when the line has one, so a
+                // second mention cannot blank an answer already read.
+                $status = mb_strtolower(trim((string) ($entry['PARTSTAT'] ?? '')));
+
+                if ('' !== $status) {
+                    $participant['participationStatus'] = $status;
+                }
+
+                $participants[$key] = $participant;
             }
         }
 

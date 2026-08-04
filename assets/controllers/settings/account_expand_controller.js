@@ -9,7 +9,7 @@ import { Controller } from "@hotwired/stimulus";
  * sidebar controller owns that for every nav row, this one included.
  */
 export default class extends Controller {
-    static targets = ["frame", "chevron"];
+    static targets = ["frame", "chevron", "toggle"];
     static values = { foldersUrl: String, persistUrl: String, account: Number, active: Boolean };
 
     connect() {
@@ -46,6 +46,7 @@ export default class extends Controller {
     _open() {
         this.frameTarget.classList.remove("hidden");
         this.chevronTarget.classList.add("rotate-90");
+        this._announce(true);
 
         if (!this.frameTarget.src) {
             this.frameTarget.src = this.foldersUrlValue;
@@ -55,6 +56,21 @@ export default class extends Controller {
     _close() {
         this.frameTarget.classList.add("hidden");
         this.chevronTarget.classList.remove("rotate-90");
+        this._announce(false);
+    }
+
+    /**
+     * Keep aria-expanded in step with the class the chevron turns on.
+     *
+     * The button is rendered with the state the server knows about, so this
+     * only has to cover the change made here — but it has to cover it, because
+     * a disclosure button whose aria-expanded is stuck at its initial value is
+     * worse than one that never had the attribute.
+     */
+    _announce(expanded) {
+        if (this.hasToggleTarget) {
+            this.toggleTarget.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
     }
 
     _handleOtherExpanded(event) {

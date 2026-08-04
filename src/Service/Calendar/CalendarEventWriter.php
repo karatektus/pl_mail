@@ -74,7 +74,10 @@ final readonly class CalendarEventWriter
         // the caller afterwards so the event is complete before occurrences
         // are materialised from it.
         if (null !== $jscalendarOverlay) {
+            $stored = $event->jscalendar;
+
             $event->jscalendar = array_merge($event->jscalendar, $jscalendarOverlay);
+            $event->jscalendar = $this->keepAnswersAlreadyGiven($event->jscalendar, $stored);
         }
 
         $this->em->persist($event);
@@ -96,6 +99,57 @@ final readonly class CalendarEventWriter
         if (true === $event->isExtracted()) {
             $event->isUserEdited = true;
         }
+    }
+
+    /**
+     * An answer already recorded here is not un-answered by re-reading the mail
+     * that asked the question.
+     *
+     * The invitation is the organiser's copy of the question, and it says
+     * NEEDS-ACTION about us forever — that is what it said when it was sent.
+     * Re-running extraction over stored mail is routine (a mapper improves, a
+     * bug is repaired, `app:backfill events`), and without this every RSVP the
+     * user had given reverted to unanswered while the organiser, who was told
+     * at the time, went on knowing better than the screen.
+     *
+     * Only ever keeps; never invents. An incoming entry that states an actual
+     * answer wins, because that is the organiser's updated attendee list coming
+     * back to us and it knows about replies from people other than this user.
+     *
+     * @param array<string,mixed> $merged
+     * @param array<string,mixed> $stored
+     *
+     * @return array<string,mixed>
+     */
+    private function keepAnswersAlreadyGiven(array $merged, array $stored): array
+    {
+        $incoming = $merged['participants'] ?? null;
+        $previous = $stored['participants'] ?? null;
+
+        if (false === is_array($incoming) || false === is_array($previous)) {
+            return $merged;
+        }
+
+        foreach ($incoming as $key => $participant) {
+            if (false === is_array($participant) || false === is_array($previous[$key] ?? null)) {
+                continue;
+            }
+
+            $answered = (string) ($previous[$key]['participationStatus'] ?? '');
+            $arriving = (string) ($participant['participationStatus'] ?? '');
+
+            if ('' === $answered || 'needs-action' === $answered) {
+                continue;
+            }
+
+            if ('' === $arriving || 'needs-action' === $arriving) {
+                $incoming[$key]['participationStatus'] = $answered;
+            }
+        }
+
+        $merged['participants'] = $incoming;
+
+        return $merged;
     }
 
     /**
@@ -150,6 +204,15 @@ final readonly class CalendarEventWriter
         // made, and rewriting the series is not a reason to lose them.
         if (true === isset($event->jscalendar['recurrenceOverrides'])) {
             $jscalendar['recurrenceOverrides'] = $event->jscalendar['recurrenceOverrides'];
+        }
+
+        // Participants survive for the same reason, and one more: they carry
+        // the RSVP. This object is rebuilt from the columns, the editor has no
+        // participants field, and without this line correcting the title of a
+        // meeting silently un-answers an invitation that was already accepted
+        // — locally only, since the organiser was told long ago.
+        if (true === isset($event->jscalendar['participants'])) {
+            $jscalendar['participants'] = $event->jscalendar['participants'];
         }
 
         return $jscalendar;

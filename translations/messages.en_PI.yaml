@@ -332,6 +332,103 @@ alias:
 app:
     name: Mail
 
+calendar:
+    delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
+    empty: Naught on the horizon
+    event:
+        all_day: All the day long
+        calendar: Almanac
+        cancel: Belay that
+        delete: Scuttle it
+        description: The tale of it
+        dismiss: No reckonin' at all
+        dismiss_confirm: >-
+            Cast this one overboard an' keep it there? Later parrots about the
+            same booking shall not write it back into the almanac.
+        ends: Ends
+        extracted_note: >-
+            This reckonin' was found in a parrot. Amend it and later messages
+            about the same booking shall not paint over yer hand.
+        location: Where
+        new: A new reckonin'
+        new_on: A new reckonin' on %date%
+        repeat: Comes round again
+        save: Stow it
+        starts: Starts
+        title: What it be called
+    form:
+        add: A new almanac
+        color: Colours
+        edit: Amend the almanac
+        name: What it be called
+        time_zone: Which bell
+        time_zone_help: >-
+            The bell this almanac be read by — and the one a reckonin' with no
+            bell of its own be shown in.
+    invite:
+        action:
+            accepted: Aye
+            declined: Nay
+            needs_action: No word yet
+            tentative: Belike
+        attendees: '%count% called aboard'
+        cancelled: This gatherin' has been called off.
+        organiser: Called by %name%
+        organiser_tag: called it
+        reply:
+            body: '%name% answered %status% to this summons.'
+        status:
+            accepted: Aye
+            declined: Nay
+            needs_action: No word yet
+            tentative: Belike
+        toast:
+            not_sent: >-
+                Yer answer be stowed here, but the parrot never reached the one
+                who called the gatherin'.
+            sent: Yer answer flew to the one who called it.
+    kind:
+        call: A hailin'
+        delivery: Cargo
+        dining: A table held
+        flight: A crossin'
+        lodging: A berth
+        meeting: A gatherin'
+        order: Goods ordered
+        rental: A hired rig
+        ticket: A pass
+        train: An iron road
+    more_count: '%count% more'
+    nav:
+        next: Onward
+        previous: Back
+    pane:
+        resize: Shift the almanac's width
+    repeat:
+        daily: Every day
+        monthly: Every month
+        none: Comes but once
+        weekly: Every week
+        yearly: Every year
+    title: Almanac
+    toast:
+        created: Almanac drawn up
+        default_set: New reckonin's land here now
+        deleted: Almanac scuttled
+        hidden: Almanac stowed below
+        shown: Almanac brought on deck
+        updated: Almanac amended
+    today: This day
+    upcoming:
+        imminent: Within the hour
+        later: Later this day
+        soon: In a few hours
+    view:
+        agenda: The list
+        day: Day
+        month: Month
+        week: Week
+
 compose:
     no_account:
         body: Hitch up a mailbag first, an' ye can write from it straight away.
@@ -1011,6 +1108,22 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
+    calendars:
+        account_hint: Where reckonin's found in parrots from %address% be filed.
+        count: '%count% almanacs'
+        default: The one in use
+        delete: Scuttle the almanac "%name%"
+        delete_title: Scuttle the almanac
+        edit: Amend the almanac "%name%"
+        empty: No almanacs yet.
+        heading: Almanacs
+        hide: Stow this almanac below
+        make_default: Make "%name%" the almanac new reckonin's land on
+        make_default_title: Set as the one in use
+        show: Bring this almanac on deck
+        subheading: >-
+            Name, colours an' bell, which almanacs the views show, an' where a
+            new reckonin' lands.
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"
@@ -1033,6 +1146,7 @@ settings:
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
+        calendars: Almanacs
         general: General
         profile: Yer colours
         filters: Sieves
@@ -1149,9 +1263,11 @@ sidebar:
         heading: Flags
         none: No flags yet
     nav:
+        calendar: Almanac
         archive: The hold
         drafts: Scrolls in the works
         inbox: Bottles washed ashore
+        more: More
         sent: Cast off
         snoozed: Kept below deck
         starred: Marked with an X
@@ -1198,6 +1314,7 @@ thread_row:
     no_subject: (no subject)
     select: Pick it
     star: Mark this bottle with an X
+    unread: Unread by any soul
     unstar: Rub out the X
 
 toast:

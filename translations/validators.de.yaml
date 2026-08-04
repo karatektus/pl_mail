@@ -4,5 +4,6 @@ admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der 
 # `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
 app_password.name_required: Gib dem App-Passwort einen Namen, damit du es später wiedererkennst.
+calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

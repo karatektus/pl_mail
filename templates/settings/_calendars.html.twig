@@ -1,0 +1,139 @@
+{#
+settings/_calendars.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Calendar management: create, rename, recolour, re-zone, show/hide, choose where
+new events land, delete.
+
+One flat list in sort order. Which calendar a row is — the user's own, a mail
+account's, one they made — is a badge rather than a section, because the
+actions available differ per row and grouping them would say the same thing
+twice.
+
+Three rules are rendered, not just enforced (CalendarSettingsController holds
+the server side of each):
+
+  A provisioned calendar has no delete button. CalendarRole::isDeletable()
+  decides, and the answer is no for the personal one and for an account's,
+  because deleting either only means the provisioner makes it again.
+
+  The default has no delete button and no hide button. It is where a new event
+  lands, so removing it or hiding it makes new events vanish on save.
+
+  Everything can be renamed, including an account's calendar — which is the
+  point, since those are provisioned named after a username.
+
+Variables:
+  calendars  Calendar[]  every calendar the user owns, in sort order
+#}
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
+    <p class="text-xs text-ink-faint">{{ 'settings.calendars.count'|trans({ '%count%': calendars|length }) }}</p>
+
+    <button
+        data-controller="ui--modal"
+        data-action="click->ui--modal#open"
+        data-ui--modal-title-value="{{ 'calendar.form.add'|trans }}"
+        data-ui--modal-src-value="{{ path('app_settings_calendar_new') }}"
+        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
+    >
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'calendar.form.add'|trans }}
+    </button>
+</div>
+
+{% if calendars is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+        {{ 'settings.calendars.empty'|trans }}
+    </p>
+{% else %}
+    <ul class="py-2 divide-y divide-line">
+        {% for calendar in calendars %}
+            <li class="flex items-center gap-3 px-4 py-1.5">
+
+                <span class="w-2.5 h-2.5 rounded-full shrink-0"
+                      style="background-color: {{ calendar.color }}"
+                      aria-hidden="true"></span>
+
+                <span class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                    <span class="truncate text-sm {{ calendar.isVisible ? 'text-ink' : 'text-ink-faint' }}">
+                        {{ calendar.name }}
+                    </span>
+
+                    {% if calendar.isDefault %}
+                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
+                            {{ 'settings.calendars.default'|trans }}
+                        </span>
+                    {% endif %}
+
+                    {% if calendar.account %}
+                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
+                              title="{{ 'settings.calendars.account_hint'|trans({ '%address%': calendar.account.displayAddress }) }}">
+                            {{ calendar.account.displayAddress }}
+                        </span>
+                    {% endif %}
+
+                    <span class="text-[10px] text-ink-faint">{{ calendar.timeZone }}</span>
+                </span>
+
+                <div class="flex items-center gap-0.5 shrink-0">
+                    {% if not calendar.isDefault %}
+                        <form method="post" action="{{ path('app_settings_calendar_make_default', { id: calendar.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-default' ~ calendar.id) }}">
+                            <button
+                                type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-accent hover:bg-hover transition-colors cursor-pointer"
+                                aria-label="{{ 'settings.calendars.make_default'|trans({ '%name%': calendar.name }) }}"
+                                title="{{ 'settings.calendars.make_default_title'|trans }}"
+                            >
+                                <i class="fa-regular fa-star text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <button
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'calendar.form.edit'|trans }}"
+                        data-ui--modal-src-value="{{ path('app_settings_calendar_edit', { id: calendar.id }) }}"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        aria-label="{{ 'settings.calendars.edit'|trans({ '%name%': calendar.name }) }}"
+                        title="{{ 'calendar.form.edit'|trans }}"
+                    >
+                        <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                    </button>
+
+                    {% if calendar.role.isDeletable and not calendar.isDefault %}
+                        {# The confirmation says the events go too, because they
+                           do — the join column cascades — and there is no way to
+                           empty a calendar first. #}
+                        <form method="post" action="{{ path('app_settings_calendar_delete', { id: calendar.id }) }}"
+                              data-turbo-confirm="{{ 'calendar.delete_confirm'|trans({ '%name%': calendar.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-delete' ~ calendar.id) }}">
+                            <button
+                                type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                aria-label="{{ 'settings.calendars.delete'|trans({ '%name%': calendar.name }) }}"
+                                title="{{ 'settings.calendars.delete_title'|trans }}"
+                            >
+                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if not calendar.isDefault or not calendar.isVisible %}
+                        <form method="post" action="{{ path('app_settings_calendar_toggle_visibility', { id: calendar.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-visibility' ~ calendar.id) }}">
+                            <button
+                                type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                                aria-label="{{ calendar.isVisible ? 'settings.calendars.hide'|trans : 'settings.calendars.show'|trans }}"
+                                title="{{ calendar.isVisible ? 'settings.calendars.hide'|trans : 'settings.calendars.show'|trans }}"
+                            >
+                                <i class="fa-solid {{ calendar.isVisible ? 'fa-eye text-accent' : 'fa-eye-slash' }} text-sm" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

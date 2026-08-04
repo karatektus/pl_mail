@@ -13,6 +13,17 @@ import { Controller } from "@hotwired/stimulus"
  *
  * Or fire open() directly from Turbo events / other controllers.
  */
+/**
+ * The frame's own markup — the spinner — as it is before anything is loaded
+ * into it.
+ *
+ * Module-level rather than per-controller because every trigger button in the
+ * page mounts one of these, and they all drive the single body-level frame.
+ * Re-captured on any page render that still has a pristine frame, so a locale
+ * change does not leave a spinner labelled in the old language behind.
+ */
+let pristineFrame = null
+
 export default class extends Controller {
     static values = {
         src:   String,   // URL to load into the turbo-frame
@@ -24,6 +35,12 @@ export default class extends Controller {
         this._onSubmitEnd = this._handleSubmitEnd.bind(this);
         this.element.addEventListener("turbo:submit-end", this._onSubmitEnd);
         this._onKeydown = this._handleKeydown.bind(this)
+
+        const frame = this._frame
+
+        if (frame?.querySelector("[data-ui--modal-loading]")) {
+            pristineFrame = frame.innerHTML
+        }
     }
 
     disconnect() {
@@ -81,8 +98,19 @@ export default class extends Controller {
         document.body.classList.remove("overflow-hidden")
         document.removeEventListener("keydown", this._onKeydown)
 
-        // Clear the frame so the next open always fetches fresh
-        if (frame) frame.src = ""
+        // Clear the frame so the next open always fetches fresh — and put the
+        // spinner back, because clearing only the src left the CLOSED dialog's
+        // form sitting in the frame. The next open then showed the previous
+        // dialog until its own fetch landed, and anything typed into that
+        // window was thrown away when the real form replaced it: an edit form
+        // opened straight after a create one is pre-filled and looks live, so
+        // the typing goes somewhere convincing and then silently does not
+        // save.
+        if (frame) {
+            frame.src = ""
+
+            if (pristineFrame !== null) frame.innerHTML = pristineFrame
+        }
 
         // Announced on document, not on this.element: whoever cares about a
         // dialog closing is rarely inside the dialog. The onboarding wizard

@@ -41,6 +41,23 @@ class Calendar
     /** Fallback when a user has expressed no preference. */
     public const string DEFAULT_COLOR = '#2563eb';
 
+    /**
+     * The colours a calendar may be, and the order they are offered in.
+     *
+     * Here rather than on CalendarProvisioner, which is where they started:
+     * the provisioner walks the list so a second account is not the same blue
+     * as the first, and the settings picker offers it so a user's own calendar
+     * can be any colour a provisioned one can. Two lists would drift, and the
+     * drift is invisible until somebody makes a calendar in a colour the
+     * palette no longer contains.
+     *
+     * @var list<string>
+     */
+    public const array COLORS = [
+        '#2563eb', '#7c3aed', '#db2777', '#ea580c',
+        '#16a34a', '#0891b2', '#ca8a04', '#dc2626',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

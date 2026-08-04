@@ -8,7 +8,76 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-Nothing yet.
+No schema change, no deployment change.
+
+### Added
+
+- **An invitation can be answered from the mail it arrived in.** Invites were
+  parsed, filed on a calendar and then unanswerable — the participants were read
+  out of the `.ics` and written into the event, and nothing rendered them. A
+  message carrying an invitation now shows a card above it: when it is, who
+  called it, who else is coming and how they answered. Yes / Maybe / No records
+  the answer and sends the organiser an iTIP `REPLY` — same UID, same SEQUENCE,
+  one ATTENDEE line — which is what every other calendar reads to tick a name
+  off. The card says what the answer was; the toast says whether it reached the
+  organiser, because a reply that could not be sent leaves somebody holding a
+  seat for a person who thinks they declined.
+- **Calendars can be managed.** They carried a name, a colour, a time zone, a
+  visibility flag and a default flag from the first pass, and nothing reached
+  any of them: a user with four accounts had four calendars named after their
+  usernames, all shown, with no way to say where a new event should land.
+  Settings → Calendars now does all of it. A provisioned calendar cannot be
+  deleted (it would only be created again) and the default can be neither
+  deleted nor hidden (new events would vanish on save), so neither offers the
+  button.
+
+### Fixed
+
+- **An invitation from Google Calendar had no organiser, so it could not be
+  answered.** The organiser is listed twice in a normal invite — once as
+  ORGANIZER and again as an ATTENDEE, because they are going too — and the
+  participants were keyed by address and written in that order, so the second
+  line landed on top of the first and took the `owner` role with it. The event
+  ended up with nobody marked as organiser, which is nobody to reply to, so the
+  new invite card correctly offered no answer to what was in fact a perfectly
+  ordinary invitation. Roles accumulate onto the address now instead of
+  replacing each other. Existing events carry the old shape until
+  `app:backfill events` re-reads the mail they came from.
+- **Re-reading an invitation un-answered it.** The mail that asked the question
+  says NEEDS-ACTION about you forever, so every re-run of extraction reset an
+  RSVP that had already been sent — the organiser knew, and the screen did not.
+  An answer already recorded is kept unless the incoming copy states a real one.
+- **Throwing away an event extraction got wrong put it back.** Extraction is
+  re-runnable by design, so deleting an event only lasted until the next
+  backfill walked the mailbox again and re-created it from the same message.
+  "Not an event" now records the refusal against the claim's dedup key — the
+  table for it existed and nothing had ever written a row — so the dismissal
+  survives a re-run and also catches the *next* message about the same booking.
+- **Correcting an invitation's details un-answered it.** The event's canonical
+  object is rebuilt from its columns on every edit, and the editor has no
+  participants field, so fixing a meeting's title dropped the RSVP that had been
+  stored on it. (Locally only — the organiser had been told long before.)
+- **Typing into a modal that had just been opened could be silently discarded.**
+  Closing a dialog cleared where the frame pointed but left the previous form in
+  it, so the next open showed the last dialog until its own fetch landed —
+  pre-filled, focusable and completely convincing. Anything typed in that window
+  was thrown away when the real form arrived. The frame goes back to its spinner
+  on close.
+- **The sidebar's account chevron did not say whether it was open.** It is a
+  disclosure button, and which way it will go stopped being guessable when the
+  expanded account moved into the user's settings and started surviving
+  navigation. It carries `aria-expanded` now, kept in step as it opens and
+  closes.
+- **Four mailbox pages ran an English word through the translator as a key.**
+  The Inbox, Drafts, Sent and Trash titles asked for `'Inbox'|trans` rather than
+  the key beside them in the catalogue, so they were untranslatable and reported
+  as missing on every visit — and Starred asked for "Drafts", which is what it
+  said. `thread_row.unread` was genuinely missing and read out as its own key by
+  screen readers; a `|default` behind it could never have fired, because a
+  missing translation comes back as the key and the key is not empty.
+- **The pirate locale had no calendar at all.** `en_PI` was written before the
+  calendar shipped and never caught up, so every string in it fell back to
+  English. It has the lot now, including the new settings section.
 
 ## v0.0.15 — 2026-08-03
 

@@ -140,6 +140,20 @@ grows a real recurrence editor it should become a form.
                         class="text-sm text-danger hover:underline">
                     {{ 'calendar.event.delete'|trans }}
                 </button>
+
+                {# Offered beside Delete rather than instead of it, because the
+                   two answer different questions. Delete says "not any more";
+                   this says "this was never an event", which is the only one
+                   worth remembering — without it the next backfill re-creates
+                   what was just thrown away. Extracted events only: nothing
+                   would ever re-create a hand-made one. #}
+                {% if event.isExtracted %}
+                    <button type="submit"
+                            form="event-dismiss-form"
+                            class="text-sm text-ink-muted hover:text-ink hover:underline">
+                        {{ 'calendar.event.dismiss'|trans }}
+                    </button>
+                {% endif %}
             {% endif %}
 
             <button type="button"
@@ -165,5 +179,19 @@ grows a real recurrence editor it should become a form.
             <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
             <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
         </form>
+
+        {% if event.isExtracted %}
+            {# Confirmed, and the confirmation says what is permanent about it:
+               the event goes, and so does any future attempt to re-create it
+               from the same booking. #}
+            <form id="event-dismiss-form" method="post"
+                  action="{{ path('app_calendar_event_dismiss', { id: event.id }) }}"
+                  data-turbo-frame="_top" class="hidden"
+                  data-turbo-confirm="{{ 'calendar.event.dismiss_confirm'|trans }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_dismiss' ~ event.id) }}">
+                <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
+                <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
+            </form>
+        {% endif %}
     {% endif %}
 </turbo-frame>

@@ -29,12 +29,6 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final readonly class CalendarProvisioner
 {
-    /** Distinct hues so a fresh account's calendar is not the same blue. */
-    private const array ACCOUNT_COLORS = [
-        '#2563eb', '#7c3aed', '#db2777', '#ea580c',
-        '#16a34a', '#0891b2', '#ca8a04', '#dc2626',
-    ];
-
     public function __construct(
         private CalendarRepository     $calendars,
         private EntityManagerInterface $em,
@@ -65,7 +59,7 @@ final readonly class CalendarProvisioner
         $calendar->name       = 'Personal';
         $calendar->role       = CalendarRole::Default;
         $calendar->isDefault  = true;
-        $calendar->color      = self::ACCOUNT_COLORS[0];
+        $calendar->color      = Calendar::COLORS[0];
         // The user's zone, not the process's: PHP's default is pinned to UTC
         // in this container, so seeding from it stamped every calendar ever
         // provisioned UTC regardless of who owned it — and a calendar's zone is
@@ -112,7 +106,9 @@ final readonly class CalendarProvisioner
         $calendar->account   = $account;
         $calendar->name      = (string) $account->username;
         $calendar->role      = CalendarRole::Account;
-        $calendar->color     = self::ACCOUNT_COLORS[count($siblings) % count(self::ACCOUNT_COLORS)];
+        // Walks the palette so a second account is not the same blue as the
+        // first — see Calendar::COLORS.
+        $calendar->color     = Calendar::COLORS[count($siblings) % count(Calendar::COLORS)];
         // See ensureDefault() — same reason.
         $calendar->timeZone  = $this->timezones->nameFor($user);
         $calendar->sortOrder = count($siblings);

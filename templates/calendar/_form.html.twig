@@ -1,0 +1,19 @@
+{#
+calendar/_form.html.twig — create/rename a calendar inside the modal frame.
+
+Delegates to _partials/_modal_form.html.twig, which supplies the
+<turbo-frame id="modal"> wrapper Turbo needs to render the response into. The
+label form does the same; without the frame the fetch finds nothing to swap and
+the dialog sits on its spinner.
+
+Field styling comes from the global form theme, including the colour swatches
+(_calendar_color_widget), so the widgets render bare here.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% include '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: calendar.id is null ? 'calendar.form.add'|trans : 'calendar.form.edit'|trans,
+    } only %}
+{% endblock %}

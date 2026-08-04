@@ -17,6 +17,30 @@ test.describe("account scoping", () => {
     const accountLink = (page: import("@playwright/test").Page) =>
         page.locator('#sidebar a[href^="/mail/account/"]').first();
 
+    /**
+     * Open the first account's folders, whatever state they are in.
+     *
+     * NOT a plain click on the chevron. Which account is expanded lives in the
+     * user's settings now, so it survives the navigation between tests: a test
+     * that blindly toggled was expanding only when the test before it had left
+     * the account shut, and collapsing the rest of the time. That alternation
+     * is exactly what it looked like — every other test in this file failing,
+     * on a locator that was hidden rather than missing.
+     */
+    const expandAccount = async (page: import("@playwright/test").Page) => {
+        const toggle = page
+            .locator('#sidebar button[aria-label="Toggle account folders"]')
+            .first();
+
+        await expect(toggle).toBeVisible();
+
+        if ("true" !== (await toggle.getAttribute("aria-expanded"))) {
+            await toggle.click();
+        }
+
+        await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    };
+
     test("clicking an account shows that account rather than expanding it", async ({ page }) => {
         await page.goto("/mail/inbox");
 
@@ -37,7 +61,7 @@ test.describe("account scoping", () => {
     test("the chevron still expands the account's labels", async ({ page }) => {
         await page.goto("/mail/inbox");
 
-        await page.locator('#sidebar button[aria-label="Toggle account folders"]').first().click();
+        await expandAccount(page);
 
         const labels = page.locator('#sidebar turbo-frame[id^="account-folders-"] a');
         await expect(labels.first()).toBeVisible();
@@ -45,7 +69,7 @@ test.describe("account scoping", () => {
 
     test("labels under an account are scoped to it", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await page.locator('#sidebar button[aria-label="Toggle account folders"]').first().click();
+        await expandAccount(page);
 
         const scoped = page.locator('#sidebar turbo-frame a[href*="/mail/label/"]');
         await expect(scoped.first()).toBeVisible();
@@ -62,7 +86,7 @@ test.describe("account scoping", () => {
 
     test("an account-scoped label view says so, and offers the way back out", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await page.locator('#sidebar button[aria-label="Toggle account folders"]').first().click();
+        await expandAccount(page);
 
         const scoped = page.locator('#sidebar turbo-frame a[href*="/mail/label/"]').first();
         await expect(scoped).toBeVisible();
@@ -88,7 +112,7 @@ test.describe("account scoping", () => {
      */
     test("refuses an account the user does not own", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await page.locator('#sidebar button[aria-label="Toggle account folders"]').first().click();
+        await expandAccount(page);
 
         const scoped = page.locator('#sidebar turbo-frame a[href*="/mail/label/"]').first();
         await expect(scoped).toBeVisible();

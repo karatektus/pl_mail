@@ -12,6 +12,7 @@ use App\Service\User\ProfileSectionViewData;
 use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
+use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Label\LabelRepository;
@@ -28,11 +29,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'calendars', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
+        private readonly CalendarRepository $calendarRepository,
         private readonly MailRuleRepository $mailRuleRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly ApiTokenRepository $apiTokenRepository,
@@ -62,6 +64,7 @@ final class SettingsController extends AbstractController
             'section'            => $section,
             'manageableAccounts' => $manageableAccounts,
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
+            'calendars'          => $this->calendarRepository->findForUser($this->getUser()),
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),

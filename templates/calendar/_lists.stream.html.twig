@@ -1,0 +1,31 @@
+{#
+calendar/_lists.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The response to every calendar mutation: create, rename, recolour, show/hide,
+make default, delete.
+
+One region today — the settings list. Written as a stream per region anyway,
+the way the label version is, because a stream whose target is absent is a
+no-op: when a calendar picker appears in the sidebar it becomes another
+turbo-stream block here and every existing caller starts refreshing it.
+
+Variables:
+  calendars     Calendar[]   in sort order
+  toastMessage  string       translation key
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: 'success',
+        } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-calendar-list">
+    <template>
+        <div id="settings-calendar-list">
+            {% include 'settings/_calendars.html.twig' with { calendars: calendars } only %}
+        </div>
+    </template>
+</turbo-stream>

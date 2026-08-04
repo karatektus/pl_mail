@@ -73,9 +73,14 @@ test.describe("compose recipients", () => {
         // By id, not position: the first <select> in the dock is the account
         // to send from, and Tom Select leaves the real recipient field hidden
         // beside the chips it renders.
+        // Typed as HTMLSelectElement: `evaluate` infers SVGElement | HTMLElement
+        // from a bare locator, and neither has selectedOptions — so this line
+        // was the one thing in the repo that failed `npm run typecheck`.
         const selected = await page
             .locator(`${DOCK} select[id$="toAddresses"]`)
-            .evaluate((node) => Array.from(node.selectedOptions).map((option) => option.value));
+            .evaluate((node: HTMLSelectElement) =>
+                Array.from(node.selectedOptions).map((option) => option.value),
+            );
 
         expect(selected).toContain(OTHER);
         expect(selected).not.toContain(KNOWN);

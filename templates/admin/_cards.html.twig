@@ -19,7 +19,7 @@ hidden when open, where the body says the same thing in full. `tone` colours it:
 
 Usage:
     {% import 'admin/_cards.html.twig' as cards %}
-    {{ cards.open('fa-heart-pulse', 'Processes'|trans, 'processes', collapsedPanels, '2 down', 'danger') }}
+    {{ cards.open('fa-heart-pulse', 'admin.processes.heading'|trans, 'processes', collapsedPanels, '2 down', 'danger') }}
         …body…
     {{ cards.close() }}
 #}

@@ -29,10 +29,18 @@
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
                 <span class="truncate text-sm">{{ account.displayAddress }}</span>
             </a>
+            {# aria-expanded, because this is a disclosure button and which way
+               it will go is not visible to a screen reader — nor, since the
+               open account moved into the user's settings, to anything else
+               that has to know the state before pressing it. The controller
+               keeps it in step. #}
             <button
                 type="button"
                 aria-label="{{ 'sidebar.accounts.toggle'|trans }}"
                 title="{{ 'sidebar.accounts.toggle'|trans }}"
+                aria-expanded="{{ expanded ? 'true' : 'false' }}"
+                aria-controls="account-folders-{{ account.id }}"
+                data-settings--account-expand-target="toggle"
                 class="p-2 rounded-lg text-gray-400 cursor-pointer hover:text-ink"
                 data-action="click->settings--account-expand#toggle"
             >

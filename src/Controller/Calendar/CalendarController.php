@@ -13,6 +13,7 @@ use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\CalendarRangeReader;
 use App\Service\Calendar\CalendarTimeResolver;
+use App\Service\Calendar\EventDismisser;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +52,7 @@ final class CalendarController extends AbstractController
         private readonly CalendarProvisioner    $provisioner,
         private readonly CalendarTimeResolver   $time,
         private readonly RecurrenceRuleConverter $recurrence,
+        private readonly EventDismisser         $dismisser,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -178,6 +180,35 @@ final class CalendarController extends AbstractController
         $date = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
 
         $this->em->remove($event);
+        $this->em->flush();
+
+        return $this->redirectAfterWrite($request, $date);
+    }
+
+    /**
+     * Delete, and do not accept it again.
+     *
+     * Its own action rather than a flag on delete, because the two mean
+     * different things to everything downstream: a delete is "not any more",
+     * a dismissal is "this was never an event". Only the second one is worth
+     * remembering, and only extracted events have anything to remember it by
+     * — see EventDismisser.
+     */
+    #[Route('/event/{id}/dismiss', name: 'event_dismiss', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function eventDismiss(Request $request, CalendarEvent $event): Response
+    {
+        $this->assertOwned($event);
+        $this->assertCsrf($request, 'calendar_event_dismiss' . $event->id);
+
+        // The button only renders for an extracted event, so reaching this
+        // with a hand-made one is a crafted request and answered like one.
+        if (false === $this->dismisser->canDismiss($event)) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $date = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
+
+        $this->dismisser->dismiss($event, $this->currentUser());
         $this->em->flush();
 
         return $this->redirectAfterWrite($request, $date);

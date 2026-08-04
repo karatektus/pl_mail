@@ -277,6 +277,45 @@ final class IcsExtractionTest extends KernelTestCase
         self::assertNull($this->ingest('this is not a calendar at all'));
     }
 
+    /**
+     * The organiser is usually in the attendee list as well — they are going
+     * too. Both lines name the same address, and the participant map is keyed
+     * by address, so the second used to land on top of the first and take the
+     * `owner` role away with it. The event then had no organiser at all: the
+     * invite card had nobody to reply to and offered no answer, on every real
+     * Google Calendar invitation there is.
+     */
+    public function testAnOrganiserWhoIsAlsoAnAttendeeKeepsBothRoles(): void
+    {
+        $ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\n"
+            . "UID:both-roles@example.test\r\nSUMMARY:Testevent\r\nSEQUENCE:0\r\n"
+            . "DTSTART:20260805T090000Z\r\nDTEND:20260805T100000Z\r\n"
+            . "ORGANIZER;CN=The Chair:mailto:chair@example.test\r\n"
+            . "ATTENDEE;CN=The Chair;PARTSTAT=ACCEPTED:mailto:chair@example.test\r\n"
+            . "ATTENDEE;CN=Me;PARTSTAT=NEEDS-ACTION:mailto:me@example.test\r\n"
+            . "END:VEVENT\r\nEND:VCALENDAR";
+
+        $event = $this->ingest($ics);
+
+        self::assertNotNull($event);
+
+        $chair = $event->jscalendar['participants']['chair@example.test'];
+
+        self::assertTrue($chair['roles']['owner'] ?? false, 'the organiser must still be the organiser');
+        self::assertTrue($chair['roles']['attendee'] ?? false, 'and is going, which is why they are listed twice');
+
+        // The ORGANIZER line carries no PARTSTAT, so the answer can only have
+        // come from the attendee line for the same person.
+        self::assertSame('accepted', $chair['participationStatus']);
+        self::assertSame('The Chair', $chair['name']);
+
+        self::assertSame(
+            ['attendee' => true],
+            $event->jscalendar['participants']['me@example.test']['roles'],
+            'everybody else is only ever an attendee',
+        );
+    }
+
     /** An invite that says nothing about its length is not an invite to nothing. */
     public function testAnEventWithNoEndGetsAUsableLength(): void
     {

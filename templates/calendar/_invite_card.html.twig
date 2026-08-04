@@ -1,0 +1,135 @@
+{#
+calendar/_invite_card.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The invitation a message carries, above the message it came in.
+
+Rendered from a MessageInvite (App\Domain\DTO\Calendar\MessageInvite), which
+InviteReader assembles — the event, the people on it, and which of those people
+is the account reading. Everything below is a read of that DTO; nothing here
+reaches into the JSCalendar object, because a template that does that ends up
+asking `participants.roles.owner is defined` and quietly answering wrong.
+
+The event it describes is the CURRENT one, not the one this message described.
+When an update has arrived since, the original invitation is still where a
+person goes to answer, and the answer belongs to the meeting as it now stands.
+
+Variables:
+  invite  MessageInvite
+#}
+
+{% set event  = invite.event %}
+{% set status = invite.myStatus %}
+
+<div id="invite_card_{{ invite.message.id }}"
+     class="mb-4 rounded-pane border border-line overflow-hidden">
+
+    {# The calendar's own colour on the edge, so an invitation is recognisably
+       the same object as the chip it became in the calendar. #}
+    <div class="border-l-4 px-4 py-3" style="border-color: {{ event.calendar.color }}">
+
+        <div class="flex items-start gap-3">
+            <i class="fa-regular fa-calendar-check mt-0.5 text-ink-faint" aria-hidden="true"></i>
+
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-ink {{ invite.isCancellation ? 'line-through' : '' }}">
+                    {{ event.title }}
+                </p>
+
+                <p class="text-xs text-ink-muted mt-0.5">
+                    {% if event.isAllDay %}
+                        {{ event.startsAt|date('D, j M Y') }} · {{ 'calendar.event.all_day'|trans }}
+                    {% else %}
+                        {{ event.startsAt|date('D, j M Y') }} ·
+                        {{ event.startsAt|date('g:i a') }}–{{ event.endsAt|date('g:i a') }}
+                    {% endif %}
+                </p>
+
+                {% if event.location %}
+                    <p class="text-xs text-ink-faint mt-0.5 truncate">
+                        <i class="fa-solid fa-location-dot mr-1 text-[10px]" aria-hidden="true"></i>
+                        {{ event.location }}
+                    </p>
+                {% endif %}
+
+                {% if invite.organiser %}
+                    <p class="text-xs text-ink-faint mt-0.5 truncate">
+                        {{ 'calendar.invite.organiser'|trans({ '%name%': invite.organiser.displayName }) }}
+                    </p>
+                {% endif %}
+            </div>
+
+            {# The answer as it stands. Shown whether or not it can be changed:
+               on an invitation somebody else organised this is the user's own
+               reply, and on one they organised it is the row for their own
+               attendance, which is the only status they can speak for. #}
+            {% if status.isAnswer %}
+                <span class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium bg-raised text-ink-muted">
+                    <i class="{{ status.icon }} text-[10px]" aria-hidden="true"></i>
+                    {{ status.label|trans }}
+                </span>
+            {% endif %}
+        </div>
+
+        {% if invite.isCancellation %}
+            <p class="mt-3 text-xs text-danger">
+                <i class="fa-solid fa-circle-exclamation mr-1" aria-hidden="true"></i>
+                {{ 'calendar.invite.cancelled'|trans }}
+            </p>
+        {% elseif invite.canRespond %}
+            {# One form per answer rather than one form with three submit
+               buttons: a submit button's value only travels when it is the
+               button that was pressed, which is exactly the sort of thing that
+               works until a browser autofills or a script submits the form. #}
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                {% for answer in calendar_invite_answers() %}
+                    <form method="post"
+                          action="{{ path('app_calendar_invite_respond', { id: invite.message.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('calendar_invite' ~ invite.message.id) }}">
+                        <input type="hidden" name="status" value="{{ answer.value }}">
+
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer
+                                       {{ answer == status
+                                           ? 'bg-accent text-white'
+                                           : 'border border-line text-ink-muted hover:bg-hover hover:text-ink' }}">
+                            <i class="{{ answer.icon }} text-[10px]" aria-hidden="true"></i>
+                            {{ answer.action|trans }}
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if invite.participants|length > 1 %}
+            {# A <details>, because on a wide invitation this list is longer
+               than the message it sits above — and the one thing everybody
+               wants from it (how many said yes) is in the summary. #}
+            <details class="mt-3 group/attendees">
+                <summary class="text-xs text-ink-faint cursor-pointer list-none select-none hover:text-ink-muted transition-colors">
+                    <i class="fa-solid fa-chevron-right text-[9px] mr-1 transition-transform group-open/attendees:rotate-90" aria-hidden="true"></i>
+                    {{ 'calendar.invite.attendees'|trans({ '%count%': invite.participants|length }) }}
+                </summary>
+
+                <ul class="mt-2 space-y-1">
+                    {% for participant in invite.participants %}
+                        <li class="flex items-center gap-2 text-xs min-w-0">
+                            <i class="{{ participant.status.icon }} text-[10px] text-ink-faint shrink-0"
+                               title="{{ participant.status.label|trans }}"
+                               aria-hidden="true"></i>
+
+                            <span class="truncate {{ participant.isMe ? 'text-ink font-medium' : 'text-ink-muted' }}">
+                                {{ participant.displayName }}
+                            </span>
+
+                            {% if participant.isOrganiser %}
+                                <span class="shrink-0 text-[10px] text-ink-faint">
+                                    {{ 'calendar.invite.organiser_tag'|trans }}
+                                </span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </details>
+        {% endif %}
+    </div>
+</div>

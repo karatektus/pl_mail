@@ -1,0 +1,32 @@
+{#
+calendar/_invite_response.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The answer to an RSVP: the card as it now reads, and a toast for the half the
+card cannot show.
+
+The card shows the status that was recorded, which happens whether or not the
+organiser could be reached. Whether they WERE reached is the toast — a reply
+that never left is the case worth interrupting somebody about, because an
+organiser who did not hear "no" is still holding a seat.
+
+Variables:
+  invite        MessageInvite|null  null only if the invitation vanished mid-request
+  toastMessage  string              translation key
+  toastType     string              success | error
+#}
+{% if invite is not null %}
+    <turbo-stream action="replace" target="invite_card_{{ invite.message.id }}">
+        <template>
+            {% include 'calendar/_invite_card.html.twig' with { invite: invite } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: toastType,
+        } %}
+    </template>
+</turbo-stream>

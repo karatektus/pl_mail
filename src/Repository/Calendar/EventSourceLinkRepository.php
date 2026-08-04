@@ -8,6 +8,8 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
 use DateTimeImmutable;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
+use App\Service\Calendar\Extraction\IcsEventExtractor;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -46,6 +48,95 @@ class EventSourceLinkRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
 
         return null === $result ? null : new DateTimeImmutable((string) $result);
+    }
+
+    /**
+     * The distinct claims that produced this event.
+     *
+     * A projection rather than the links themselves, and a query rather than
+     * CalendarEvent::$sourceLinks. The collection is the inverse side, so it is
+     * empty — not lazy, empty — for an event created in the same unit of work
+     * that is reading it: nothing populates the inverse side of an association
+     * whose owning rows were persisted separately. Dismissing such an event
+     * silently suppressed nothing at all.
+     *
+     * Not filtered on `applied`. A superseded claim is precisely the one a
+     * re-run would apply next.
+     *
+     * @return list<string>
+     */
+    public function findDedupKeysForEvent(CalendarEvent $event): array
+    {
+        // An event that has never been flushed cannot be bound as a parameter,
+        // and has no committed links to find either. Both facts say the same
+        // thing — see EventReconciler::supersedes(), which meets this from the
+        // other side.
+        if (null === $event->id) {
+            return [];
+        }
+
+        $keys = $this->createQueryBuilder('link')
+            ->select('DISTINCT link.dedupKey')
+            ->where('link.event = :event')
+            ->andWhere("link.dedupKey <> ''")
+            ->setParameter('event', $event)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(strval(...), $keys));
+    }
+
+    /**
+     * The invitations a whole conversation carries, in one query.
+     *
+     * Asked per thread rather than per message because the invite card is
+     * rendered from a partial that is included once per message: a lookup on
+     * the message alone would be an indexed query per row, on every thread
+     * anybody opens, to answer "no" for almost all of them. One query for the
+     * conversation is the same information for a constant cost.
+     *
+     * Not filtered on `applied`. A link goes to applied = false when a later
+     * message supersedes it, and the message it belongs to is still the
+     * message someone opens to answer the invitation — hiding the card there
+     * would mean the original invite is the one place an RSVP is impossible.
+     *
+     * @return list<EventSourceLink>
+     */
+    public function findInvitesForThread(MessageThread $thread): array
+    {
+        return $this->createQueryBuilder('link')
+            ->addSelect('message', 'event', 'calendar')
+            ->join('link.message', 'message')
+            ->join('link.event', 'event')
+            ->join('event.calendar', 'calendar')
+            ->where('message.thread = :thread')
+            ->andWhere('link.extractor = :extractor')
+            ->setParameter('thread', $thread)
+            ->setParameter('extractor', IcsEventExtractor::NAME)
+            ->orderBy('link.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The same answer for a message that belongs to no conversation — a
+     * standalone invite that threading never joined to anything.
+     *
+     * @return list<EventSourceLink>
+     */
+    public function findInvitesForMessage(Message $message): array
+    {
+        return $this->createQueryBuilder('link')
+            ->addSelect('event', 'calendar')
+            ->join('link.event', 'event')
+            ->join('event.calendar', 'calendar')
+            ->where('link.message = :message')
+            ->andWhere('link.extractor = :extractor')
+            ->setParameter('message', $message)
+            ->setParameter('extractor', IcsEventExtractor::NAME)
+            ->orderBy('link.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

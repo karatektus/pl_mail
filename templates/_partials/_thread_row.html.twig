@@ -336,7 +336,11 @@ the conversation it answers.
                 <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
-                <span class="sr-only">{{ 'thread_row.unread'|trans|default('Unread') }}</span>
+                {# No |default: a missing key comes back from |trans as the key
+                   itself, which is a non-empty string, so the fallback could
+                   never fire — it only hid that the key was missing, and a
+                   screen reader read out "thread_row.unread". #}
+                <span class="sr-only">{{ 'thread_row.unread'|trans }}</span>
             {% endif %}
         </div>
 

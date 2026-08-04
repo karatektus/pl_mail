@@ -3,5 +3,6 @@ admin.integrations.secret_missing: Enter th' client secret an' all — an ID alo
 # Symfony be translatin' validation messages in the `validators` domain.
 alias.invalid: That be no proper parrot address, matey.
 app_password.name_required: Give the ship's key a name, lest ye forget which lock it opens.
+calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
 setup.install.password_mismatch: Them two secret words don't match, matey.
 setup.install.password_too_short: Use {{ limit }} marks at least. There be no gettin' this one back.

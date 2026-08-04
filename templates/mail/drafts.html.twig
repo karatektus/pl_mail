@@ -4,7 +4,7 @@
 
 {% block title %}
     {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) %}
-    {{ _unread > 0 ? '('~_unread~')' }} {{ 'Drafts'|trans }} — {{ 'app.name'|trans }}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.drafts'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
 
 {% block inbox_tabs %}

@@ -413,6 +413,7 @@ app:
     name: Mail
 
 calendar:
+    delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
     event:
         all_day: All day
@@ -420,6 +421,10 @@ calendar:
         cancel: Cancel
         delete: Delete
         description: Description
+        dismiss: Not an event
+        dismiss_confirm: >-
+            Remove this event and stop it coming back? Later emails about the
+            same booking will not put it on the calendar again.
         ends: Ends
         extracted_note: >-
             This event was found in an email. Editing it stops later messages
@@ -431,6 +436,37 @@ calendar:
         save: Save
         starts: Starts
         title: Title
+    form:
+        add: New calendar
+        color: Colour
+        edit: Edit calendar
+        name: Name
+        time_zone: Time zone
+        time_zone_help: >-
+            The zone this calendar is read in, and the one an event that carries
+            no zone of its own is shown in.
+    invite:
+        action:
+            accepted: Yes
+            declined: 'No'
+            needs_action: No reply
+            tentative: Maybe
+        attendees: '%count% invited'
+        cancelled: This meeting has been called off.
+        organiser: Organised by %name%
+        organiser_tag: organiser
+        reply:
+            body: '%name% has responded %status% to this invitation.'
+        status:
+            accepted: Accepted
+            declined: Declined
+            needs_action: No reply
+            tentative: Maybe
+        toast:
+            not_sent: >-
+                Your answer was saved here, but the reply could not be sent to
+                the organiser.
+            sent: Your answer has been sent to the organiser.
     kind:
         call: Call
         delivery: Delivery
@@ -455,6 +491,13 @@ calendar:
         weekly: Every week
         yearly: Every year
     title: Calendar
+    toast:
+        created: Calendar created
+        default_set: New events will land here
+        deleted: Calendar deleted
+        hidden: Calendar hidden
+        shown: Calendar shown
+        updated: Calendar updated
     today: Today
     upcoming:
         imminent: Starting within the hour
@@ -1160,6 +1203,22 @@ settings:
         test_failed: 'Connection test failed'
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
+    calendars:
+        account_hint: Where events found in mail from %address% are filed.
+        count: '%count% calendars'
+        default: Default
+        delete: Delete calendar "%name%"
+        delete_title: Delete calendar
+        edit: Edit calendar "%name%"
+        empty: No calendars yet.
+        heading: Calendars
+        hide: Hide calendar
+        make_default: Make "%name%" the calendar new events land on
+        make_default_title: Make default
+        show: Show calendar
+        subheading: >-
+            Name, colour and time zone, which calendars the views show, and
+            where a new event lands.
     labels:
         count: '%count% labels'
         delete: Delete label "%name%"
@@ -1182,6 +1241,7 @@ settings:
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
+        calendars: Calendars
         general: General
         profile: Profile
         filters: Filters
@@ -1352,6 +1412,7 @@ thread_row:
     no_subject: (no subject)
     select: Select
     star: Star this message
+    unread: Unread
     unstar: Unstar this message
 
 toast:

@@ -5,5 +5,6 @@ admin.integrations.secret_missing: Enter the client secret too — a client ID o
 # which is how "setup.install.password_too_short" ended up on screen.
 alias.invalid: Enter a valid email address.
 app_password.name_required: Give the app password a name so you can recognise it later.
+calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.

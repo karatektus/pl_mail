@@ -293,6 +293,37 @@ navigable, and submitted like any other choice. The circle is its label.
     </div>
 {% endblock %}
 
+{#
+The calendar colour picker.
+
+The same control as the label one above and deliberately not shared with it,
+because the two do not store the same kind of thing: a label's colour is a name
+from an enum that a theme maps to a Tailwind class, and a calendar's is an
+#rrggbb string that the calendar grid paints with directly. So the swatch here
+is an inline style — the value IS the colour — and there is no palette table to
+keep in step with anything.
+
+Keyed on the block prefix Symfony builds from CalendarType + the field.
+#}
+{% block _calendar_color_widget %}
+    <div class="flex flex-wrap items-center gap-2">
+        {% for child in form %}
+            <label class="relative cursor-pointer" title="{{ child.vars.value }}">
+                {{ form_widget(child, { attr: { class: 'peer sr-only' } }) }}
+
+                <span class="block w-7 h-7 rounded-full border-2 border-transparent
+                             ring-1 ring-inset ring-black/10 dark:ring-white/15
+                             transition-[border-color,transform]
+                             peer-checked:border-ink peer-checked:scale-110
+                             peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+                      style="background-color: {{ child.vars.value }}"></span>
+
+                <span class="sr-only">{{ child.vars.value }}</span>
+            </label>
+        {% endfor %}
+    </div>
+{% endblock %}
+
 {% block checkbox_row %}
     <div class="flex items-center gap-2.5">
         {{ form_widget(form) }}

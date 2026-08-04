@@ -127,6 +127,14 @@ Variables:
 
     {# ── Body — full pane width ─────────────────────────────────────────── #}
     <div data-mail--thread-message-target="body" class="{{ expanded ? '' : 'hidden' }} mt-4">
+        {# An invitation, above the mail that carried it. The lookup is one
+           query per CONVERSATION, not per message — InviteReader loads the
+           whole thread's links the first time any message in it asks. #}
+        {% set invite = message_invite(message) %}
+        {% if invite is not null %}
+            {% include 'calendar/_invite_card.html.twig' with { invite: invite } only %}
+        {% endif %}
+
         {% if message.bodyHtmlSafe %}
             <div class="mail-sheet text-sm overflow-x-auto">
                 {{ message.bodyHtmlSafe|raw }}

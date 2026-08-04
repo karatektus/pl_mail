@@ -416,6 +416,7 @@ app:
     name: Mail
 
 calendar:
+    delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
     event:
         all_day: Ganztägig
@@ -423,6 +424,10 @@ calendar:
         cancel: Abbrechen
         delete: Löschen
         description: Beschreibung
+        dismiss: Kein Termin
+        dismiss_confirm: >-
+            Diesen Termin entfernen und nicht wieder anlegen? Spätere E-Mails zur
+            selben Buchung tragen ihn nicht erneut in den Kalender ein.
         ends: Ende
         extracted_note: >-
             Dieser Termin stammt aus einer E-Mail. Wenn du ihn bearbeitest,
@@ -435,6 +440,37 @@ calendar:
         save: Speichern
         starts: Beginn
         title: Titel
+    form:
+        add: Neuer Kalender
+        color: Farbe
+        edit: Kalender bearbeiten
+        name: Name
+        time_zone: Zeitzone
+        time_zone_help: >-
+            Die Zone, in der dieser Kalender gelesen wird — und in der ein
+            Termin ohne eigene Zone angezeigt wird.
+    invite:
+        action:
+            accepted: Zusagen
+            declined: Absagen
+            needs_action: Keine Antwort
+            tentative: Vielleicht
+        attendees: '%count% eingeladen'
+        cancelled: Dieser Termin wurde abgesagt.
+        organiser: Eingeladen von %name%
+        organiser_tag: Organisation
+        reply:
+            body: '%name% hat auf diese Einladung mit %status% geantwortet.'
+        status:
+            accepted: Zugesagt
+            declined: Abgesagt
+            needs_action: Keine Antwort
+            tentative: Vielleicht
+        toast:
+            not_sent: >-
+                Deine Antwort wurde hier gespeichert, konnte aber nicht an die
+                Organisation gesendet werden.
+            sent: Deine Antwort wurde gesendet.
     kind:
         call: Anruf
         delivery: Lieferung
@@ -459,6 +495,13 @@ calendar:
         weekly: Wöchentlich
         yearly: Jährlich
     title: Kalender
+    toast:
+        created: Kalender angelegt
+        default_set: Neue Termine landen jetzt hier
+        deleted: Kalender gelöscht
+        hidden: Kalender ausgeblendet
+        shown: Kalender eingeblendet
+        updated: Kalender gespeichert
     today: Heute
     upcoming:
         imminent: Beginnt innerhalb einer Stunde
@@ -1171,6 +1214,22 @@ settings:
         test_failed: 'Verbindungstest fehlgeschlagen'
         test_ok: 'Verbindung funktioniert'
         unavailable_heading: 'Hier nicht verfügbar'
+    calendars:
+        account_hint: Hier landen Termine aus E-Mails von %address%.
+        count: '%count% Kalender'
+        default: Standard
+        delete: Kalender "%name%" löschen
+        delete_title: Kalender löschen
+        edit: Kalender "%name%" bearbeiten
+        empty: Noch keine Kalender.
+        heading: Kalender
+        hide: Kalender ausblenden
+        make_default: '"%name%" zum Kalender für neue Termine machen'
+        make_default_title: Als Standard setzen
+        show: Kalender einblenden
+        subheading: >-
+            Name, Farbe und Zeitzone, welche Kalender die Ansichten zeigen und
+            wo ein neuer Termin landet.
     labels:
         count: '%count% Labels'
         delete: Label "%name%" löschen
@@ -1368,6 +1427,7 @@ thread_row:
     no_subject: (kein Betreff)
     select: Auswählen
     star: Diese Nachricht markieren
+    unread: Ungelesen
     unstar: Markierung dieser Nachricht entfernen
 
 toast:

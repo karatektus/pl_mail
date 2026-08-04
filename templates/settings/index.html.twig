@@ -82,6 +82,11 @@
                                         <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.labels'|trans }}
                                     </a>
+                                    <a href="{{ path('app_settings_index', { section: 'calendars' }) }}"
+                                       class="{{ section == 'calendars' ? navActive : navInactive }}">
+                                        <i class="fa-regular fa-calendar w-4 {{ section == 'calendars' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.calendars'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'filters' }) }}"
                                        class="{{ section == 'filters' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-filter w-4 {{ section == 'filters' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -272,6 +277,24 @@
                                             <div class="rounded-pane border border-line overflow-hidden">
                                                 <div id="settings-label-list">
                                                     {% include 'settings/_labels.html.twig' with { labels: labels } %}
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                    {% elseif section == 'calendars' %}
+                                        <section>
+                                            <div class="mb-4 px-4 @2xl:px-0">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.calendars.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.calendars.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                {# The id is the stream's target, so it wraps the
+                                                   partial here and is re-emitted inside the
+                                                   replacement — a replace that dropped it would
+                                                   work once and then never again. #}
+                                                <div id="settings-calendar-list">
+                                                    {% include 'settings/_calendars.html.twig' with { calendars: calendars } only %}
                                                 </div>
                                             </div>
                                         </section>
