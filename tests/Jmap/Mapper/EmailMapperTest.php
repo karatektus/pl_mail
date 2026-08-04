@@ -53,6 +53,9 @@ final class EmailMapperTest extends KernelTestCase
     private LabelBinding $inboxBinding;
     private LabelBinding $workBinding;
 
+    /** The same label, bound on the other account — the id that must differ. */
+    private LabelBinding $otherInboxBinding;
+
     private Message $message;
 
     protected function setUp(): void
@@ -104,7 +107,28 @@ final class EmailMapperTest extends KernelTestCase
         $there = $this->mailboxIds($this->otherAccount, $this->otherMessage());
 
         self::assertNotSame($this->sorted(array_keys($here)), $this->sorted(array_keys($there)));
-        self::assertNotSame((string) $this->inbox->id, (string) $this->inboxBinding->id);
+
+        // One label, two accounts, two different ids — and both ids come from
+        // label_binding, which is what makes this provable rather than lucky.
+        //
+        // This used to read `assertNotSame($this->inbox->id,
+        // $this->inboxBinding->id)`, comparing a row of `label` with a row of
+        // `label_binding`. Those are separate sequences: on a database that has
+        // seen a few hundred runs they have drifted apart and the assertion
+        // passes, and on a fresh one they are both 1 and it fails. It was
+        // asserting how old the database was. CI, which starts clean every
+        // time, is where that finally showed.
+        self::assertSame(
+            (string) $this->inboxBinding->id,
+            $this->idFor($here, $this->inbox),
+            'the inbox on this account is named by ITS binding',
+        );
+        self::assertSame(
+            (string) $this->otherInboxBinding->id,
+            $this->idFor($there, $this->inbox),
+            'and by the other binding over there',
+        );
+        self::assertNotSame($this->inboxBinding->id, $this->otherInboxBinding->id);
     }
 
     /**
@@ -224,6 +248,25 @@ final class EmailMapperTest extends KernelTestCase
      *
      * @return list<string>
      */
+    /**
+     * The mailbox id a mapped message carries for one label, found through the
+     * bindings rather than by guessing at the key.
+     *
+     * @param array<string,mixed> $mailboxIds
+     */
+    private function idFor(array $mailboxIds, Label $label): string
+    {
+        foreach (array_keys($mailboxIds) as $id) {
+            $binding = $this->bindings->find((int) $id);
+
+            if (null !== $binding && $binding->label?->id === $label->id) {
+                return (string) $id;
+            }
+        }
+
+        self::fail(sprintf('no mailbox id in the mapped message belongs to label %d', (int) $label->id));
+    }
+
     private function sorted(array $ids): array
     {
         $ids = array_map('strval', $ids);
@@ -268,11 +311,17 @@ final class EmailMapperTest extends KernelTestCase
         $this->personal = $this->label($user, 'Personal');
 
         // Deliberately lopsided: Inbox is bound on both accounts, Work only
-        // here, Personal only there. Nothing in the fixture lets label id and
-        // binding id line up by accident.
+        // here, Personal only there.
+        //
+        // What this fixture canNOT do is stop a label id and a binding id
+        // coinciding, and it used to claim otherwise. They come from two
+        // independent sequences, so on a database where both are young they
+        // line up exactly — three labels numbered 1..3, four bindings numbered
+        // 1..4 — and any assertion that the two differ is an assertion about
+        // how much the database has been used. See the test below.
         $this->inboxBinding = $this->binding($this->inbox, $this->account);
         $this->workBinding = $this->binding($this->work, $this->account);
-        $this->binding($this->inbox, $this->otherAccount);
+        $this->otherInboxBinding = $this->binding($this->inbox, $this->otherAccount);
         $this->binding($this->personal, $this->otherAccount);
 
         $this->message = new Message();
