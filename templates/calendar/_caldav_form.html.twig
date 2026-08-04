@@ -1,0 +1,55 @@
+{#
+calendar/_caldav_form.html.twig — connect a CalDAV server, inside the modal.
+
+Delegates to _partials/_modal_form.html.twig for the frame, body and footer, the
+way calendar/_form.html.twig does. Field order is the flow: the address, then
+what to call it, then the credential and the deliberate option of reusing a
+mail account's stored password — CalDavConnectType decides which fields exist
+and says why they are in that order.
+
+The form carries data-ui--modal-keep-open, and that is the only unusual thing
+here. The modal closes on any successful turbo:submit-end, but a successful
+connect answers with the subscribe list rather than with a stream: connecting a
+server and then closing the dialog would leave the user to find the new
+connection in the list behind it and press a second button for the thing they
+came to do.
+
+Variables:
+  form   FormView
+  error  string|null  what the server said when the credentials were tried
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: 'settings.calendars.caldav.title'|trans,
+        submit_label: 'settings.calendars.caldav.submit'|trans,
+        form_attr: { 'data-ui--modal-keep-open': '' },
+        error: error,
+    } only %}
+        {% block before_fields %}
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'settings.calendars.caldav.intro'|trans }}
+            </p>
+
+            {# The verification failure, not a validation one. The form was
+               filled in correctly and the server refused it, which is a
+               different sentence and belongs above the fields rather than
+               beside one of them. #}
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+        {% endblock %}
+
+        {% block after_fields %}
+            <p class="text-xs text-ink-faint">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'settings.integrations.save_tests'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

@@ -10,6 +10,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -121,6 +122,32 @@ class Calendar
     public ?string $syncToken = null;
 
     /**
+     * When a sync last completed without throwing. Null on a calendar that has
+     * never synced, which includes every calendar that mirrors nothing.
+     *
+     * This is what the sweep orders by, so it is also the answer to "which
+     * calendar has been waiting longest" — and it is written on a run that
+     * found nothing to do, because a poll that discovered no changes is still a
+     * poll that succeeded.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $lastSyncedAt = null;
+
+    /**
+     * Why the last sync failed, or null if it succeeded. Mirrors
+     * Integration::$lastError, for the same reason and with the same rule: it
+     * is rendered in the calendar settings list, so it is phrased for a person
+     * and never carries a credential.
+     *
+     * Cleared on the next success rather than accumulating a history. A
+     * calendar that failed once and has worked since is a calendar with nothing
+     * wrong with it, and a stale error beside a working calendar teaches people
+     * to ignore the field.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $lastSyncError = null;
+
+    /**
      * Free-form per-calendar preferences, mirroring Account::$settings — the
      * long tail that does not deserve a column. Readers assume their defaults
      * at the call site.
@@ -137,5 +164,38 @@ class Calendar
     public function __construct()
     {
         $this->events = new ArrayCollection();
+    }
+
+    /**
+     * Whether there is a remote behind this at all.
+     *
+     * Stays a method: it asks a role and a nullable column one question
+     * together, which is an interpretation of two pieces of state rather than
+     * the plain read $isVisible and $isReadOnly are. Both halves are needed —
+     * the role alone is true for a Remote calendar the subscribe flow created
+     * before it learned the id, and a remoteId alone would one day be true of
+     * something that is not a mirror.
+     */
+    public function isSynced(): bool
+    {
+        return CalendarRole::Remote === $this->role && null !== $this->remoteId;
+    }
+
+    /**
+     * Mirrors Integration::recordSuccess() deliberately, down to the name: a
+     * connection that has quietly stopped working should say so in the same
+     * way wherever it is listed, and two spellings of "it is fine now" is how
+     * one of them ends up not clearing the error.
+     */
+    public function recordSyncSuccess(): void
+    {
+        $this->lastSyncedAt  = new DateTimeImmutable();
+        $this->lastSyncError = null;
+    }
+
+    /** Truncated like Integration::recordFailure(): a provider stack trace is not a message. */
+    public function recordSyncFailure(string $reason): void
+    {
+        $this->lastSyncError = mb_substr($reason, 0, 500);
     }
 }

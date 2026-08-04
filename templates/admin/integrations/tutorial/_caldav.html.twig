@@ -1,0 +1,29 @@
+{#
+CalDAV needs no application-side registration — each user authenticates against
+their own server with their own app password — so the admin's only decisions are
+whether to offer it and whether to pin everyone to one server.
+
+The one thing worth saying that the file providers' tutorials do not: this
+panel is for CalDAV servers only. Google and Microsoft calendars arrive on the
+mail sign-in grant above, so an admin looking here for "how do I turn on Gmail
+calendars" has to be sent back to the mail provider form rather than left
+configuring a connection nobody needs.
+#}
+<p>{{ 'admin.integrations.tutorial.caldav.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.caldav.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.caldav.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.caldav.step_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.caldav.step_app_password'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.caldav.security'|trans }}
+</p>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-regular fa-calendar mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.caldav.not_for_cloud_mail'|trans }}
+</p>

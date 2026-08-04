@@ -8,9 +8,59 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-No schema change, no deployment change.
+**Two schema changes, applied automatically on boot.** `calendar_event` gains a
+sync state and a synced-at stamp, `calendar` gains a last-synced-at and a
+last-sync-error, and `event_proposal` is a new table. All additive; nothing is
+dropped or rewritten, and an install that never connects a calendar is
+unaffected by any of it.
+
+**Google and Microsoft accounts now ask for calendar permission at sign-in.**
+Existing connections keep working for mail either way. To let them carry
+calendars, enable the Google Calendar API and add the `.../auth/calendar` scope
+in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
+— there is no second app to register and nothing to configure in plMail.
 
 ### Added
+
+- **Calendars from Google, Microsoft and CalDAV, synced both ways.** Subscribe
+  from Settings → Calendars: plMail asks the account what calendars it has, you
+  tick the ones to mirror, and changes travel in both directions. Google and
+  Microsoft ride the same sign-in you already use for mail. CalDAV is a
+  connection of its own — give it an address and it finds the rest, with the
+  option to reuse a mail account's stored password rather than typing an app
+  password, off by default because most servers want a separate one anyway.
+  Each mirrored calendar says where it comes from, whether it accepts writes,
+  when it last synced and why it stopped, because a calendar that syncs on a
+  sweep nobody watches is the only kind that can break silently.
+- **A date in an ordinary email can be added to the calendar.** Not an
+  invitation, just a sentence — "Termin wie vereinbart: 04.08.2026 um 14 Uhr",
+  or "let's meet Saturday at 3pm". A card offers it, quoting the line it read so
+  the guess can be judged at a glance, and nothing reaches the calendar until
+  somebody says yes. German and English, explicit and relative dates, durations
+  where they are stated. "Not an event" is remembered, so it is not offered
+  again.
+
+### Fixed
+
+- **A recurring invitation or CalDAV event appeared exactly once.** The
+  repeating rule was read and then stored unconverted, and the part of the
+  application that draws occurrences reads the converted form — so a weekly
+  meeting that arrived by mail, or lived on a CalDAV server, drew a single
+  entry and nothing else. One conversion now serves all three sources; a rule
+  that cannot be converted faithfully is still refused outright rather than
+  half-applied, because an event on the wrong days is worse than one that does
+  not repeat.
+- **An instance moved out of its series landed in the wrong place, differently
+  on every provider** — a duplicate on the new day from Google, the old time
+  from Microsoft. Moved and cancelled instances are now carried as the
+  per-instance exceptions the format has for them, and CalDAV writes them back,
+  so editing a series' title no longer deletes every instance somebody moved.
+- **An event accepted from a suggestion could be silently rewritten by a later
+  email.** The protection was accidental: the guard only covered events that
+  came out of extraction, and what actually kept mail off these was that plMail
+  mints identifiers no sender collides with. A message carrying the same
+  identifier overwrote the lot. Events a person decided on are now off limits
+  to mail by rule, and the refused claim is still recorded.
 
 - **An invitation can be answered from the mail it arrived in.** Invites were
   parsed, filed on a calendar and then unanswerable — the participants were read

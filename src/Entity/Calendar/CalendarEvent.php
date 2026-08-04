@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Enum\Calendar\EventSource;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventRepository;
@@ -48,6 +49,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_calendar_event_calendar_starts', columns: ['calendar_id', 'starts_at'])]
 #[ORM\Index(name: 'idx_calendar_event_uid', columns: ['uid'])]
 #[ORM\Index(name: 'idx_calendar_event_kind', columns: ['kind'])]
+// The pull's identity lookup: one row per remote resource within a calendar.
+// Not unique, because remote_id is null on every locally-made event and on
+// every event on a calendar that mirrors nothing — which is most of the table,
+// and Postgres treats each null as distinct anyway, so a unique index here
+// would buy nothing the lookup does not already get.
+#[ORM\Index(name: 'idx_calendar_event_calendar_remote', columns: ['calendar_id', 'remote_id'])]
+// What the pusher sweeps before every pull. Calendar leads because the sweep is
+// always scoped to one calendar and the states are four values — leading with
+// sync_state would put the whole table's clean rows in front of the answer.
+#[ORM\Index(name: 'idx_calendar_event_calendar_sync_state', columns: ['calendar_id', 'sync_state'])]
 #[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
 class CalendarEvent
 {
@@ -175,6 +186,29 @@ class CalendarEvent
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $remoteEtag = null;
+
+    /**
+     * Whether this row owes the remote a write. See SyncState — the marking is
+     * CalendarEventWriter's, not a caller's.
+     *
+     * Clean on an event belonging to no remote calendar, which is most of them,
+     * and the default exists so extraction and the editor keep working without
+     * knowing this column is here.
+     */
+    #[ORM\Column(length: 20, enumType: SyncState::class, options: ['default' => 'clean'])]
+    public SyncState $syncState = SyncState::Clean;
+
+    /**
+     * When the remote last accepted this row, or last gave it to us. Null means
+     * the two have never agreed — a locally created event not yet pushed, or an
+     * event on a calendar that mirrors nothing.
+     *
+     * Kept beside $syncState rather than derived from $updatedAt: the trait
+     * bumps that on every write including the sync's own, so it can never
+     * answer "how stale is this against the remote?".
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $syncedAt = null;
 
     /** @var Collection<int, CalendarEventOccurrence> */
     #[ORM\OneToMany(targetEntity: CalendarEventOccurrence::class, mappedBy: 'event', orphanRemoval: true)]

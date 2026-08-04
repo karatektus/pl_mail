@@ -24,7 +24,7 @@ use Psr\Log\LoggerInterface;
  * wrong shows up as three copies of one dinner, or a meeting that quietly
  * un-cancels itself because an older mail was synced last.
  *
- * Five rules, each of which exists because the obvious alternative is worse:
+ * Six rules, each of which exists because the obvious alternative is worse:
  *
  *   Identity is the uid, unique per calendar. For an invite that is the
  *   sender's own UID, verbatim — RFC 5546 settled this and re-deciding it
@@ -44,6 +44,11 @@ use Psr\Log\LoggerInterface;
  *
  *   A user-edited event is never overwritten. A later mail may know more about
  *   the booking, but it does not know more than the person who corrected it.
+ *
+ *   Nor is an event this was never responsible for. Everything here revises
+ *   *claims*; an event somebody typed, or accepted out of a sentence, is not
+ *   one — EventSource::mayBeRewrittenByMail() is where that line is drawn, and
+ *   the claim is still filed against the event so the audit trail survives.
  *
  * Does not flush — it joins the caller's unit of work.
  */
@@ -121,6 +126,25 @@ final readonly class EventReconciler
 
     private function update(CalendarEvent $event, ExtractedEvent $claim, Message $message): ?CalendarEvent
     {
+        // Asked before isUserEdited, and not covered by it: that flag is only
+        // ever set on an event that was extracted in the first place
+        // (CalendarEventWriter::markUserEdited), so it says nothing about an
+        // event a person made or accepted. Until this line the only thing
+        // keeping a mail claim off a date the user accepted out of prose was
+        // that CalendarEventWriter mints a UID no sender can collide with —
+        // an accident of where UIDs come from, not a rule about who decides.
+        if (false === $event->source->mayBeRewrittenByMail()) {
+            $this->logger->info('EventReconciler: skipping update to an event a person decided on', [
+                'eventId' => $event->id,
+                'uid'     => $event->uid,
+                'source'  => $event->source->value,
+            ]);
+
+            $this->link($event, $claim, $message, applied: false);
+
+            return null;
+        }
+
         if (true === $event->isUserEdited) {
             $this->logger->info('EventReconciler: skipping update to a user-edited event', [
                 'eventId' => $event->id,

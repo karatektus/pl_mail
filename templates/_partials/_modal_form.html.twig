@@ -9,6 +9,11 @@ the app ended up with four slightly different modal footers.
 {% set submit_label = submit_label ?? 'form.submit'|trans %}
 {% set cancel_label = cancel_label ?? 'form.cancel'|trans %}
 {% set danger       = danger ?? false %}
+{# Merged rather than replaced, because form_start() takes `attr` whole: a
+   caller that needs one more attribute — data-ui--modal-keep-open, for a form
+   whose success is a step rather than a completion — would otherwise have to
+   redraw the frame, the form tag and the footer to add it. #}
+{% set form_attr    = form_attr ?? {} %}
 
 <turbo-frame id="modal">
     <template data-ui--modal-frame-title>{{ title ?? '' }}</template>
@@ -17,7 +22,7 @@ the app ended up with four slightly different modal footers.
         attr: {
             'data-turbo-frame': 'modal',
             class: 'flex-1 min-h-0 flex flex-col',
-        }
+        }|merge(form_attr)
     }) }}
 
     {# ── Body ── #}

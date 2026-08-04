@@ -316,6 +316,58 @@ final class IcsExtractionTest extends KernelTestCase
         );
     }
 
+    /**
+     * A weekly meeting somebody emailed is a weekly meeting.
+     *
+     * The rule used to be stashed verbatim under `plmail:rrule` because
+     * RRULE→JSCalendar had not been written, and RecurrenceMaterialiser reads
+     * recurrenceRules and nothing else — so an invitation to a standing meeting
+     * put exactly one morning on the calendar and nobody could tell it apart
+     * from a one-off.
+     */
+    public function testARecurringInviteIsDrawnEveryWeekRatherThanOnce(): void
+    {
+        $ics = str_replace(
+            'DTEND:20260804T093000Z',
+            "DTEND:20260804T093000Z\r\nRRULE:FREQ=WEEKLY;COUNT=6",
+            $this->ics('weekly@example.test', 'Standup', '20260804T090000Z', '20260804T093000Z'),
+        );
+
+        $event = $this->ingest($ics);
+
+        self::assertNotNull($event);
+        self::assertTrue($event->isRecurring);
+        self::assertCount(6, $event->occurrences);
+        self::assertSame(
+            ['@type' => 'RecurrenceRule', 'frequency' => 'weekly', 'count' => 6],
+            $event->jscalendar['recurrenceRules'][0] ?? null,
+        );
+        self::assertArrayNotHasKey('plmail:rrule', $event->jscalendar);
+    }
+
+    /**
+     * An instance the organiser cancelled is an EXDATE on the invitation, and
+     * nothing else in the mail says it — so a mapping that skips it draws a
+     * meeting that was called off weeks ago.
+     */
+    public function testAnExcludedInstanceOfAnEmailedSeriesIsNotDrawn(): void
+    {
+        $ics = str_replace(
+            'DTEND:20260804T093000Z',
+            "DTEND:20260804T093000Z\r\nRRULE:FREQ=WEEKLY;COUNT=6\r\nEXDATE:20260811T090000Z",
+            $this->ics('weekly-gap@example.test', 'Standup', '20260804T090000Z', '20260804T093000Z'),
+        );
+
+        $event = $this->ingest($ics);
+
+        self::assertNotNull($event);
+        self::assertCount(5, $event->occurrences, 'five of the six remain');
+
+        foreach ($event->occurrences as $occurrence) {
+            self::assertNotSame('2026-08-11 09:00', $occurrence->startsAt?->format('Y-m-d H:i'));
+        }
+    }
+
     /** An invite that says nothing about its length is not an invite to nothing. */
     public function testAnEventWithNoEndGetsAUsableLength(): void
     {

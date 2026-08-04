@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Enum\Integration;
 
 /**
- * A file or photo service plMail can attach from and save to.
+ * An external service plMail connects to on a user's behalf — a file store, a
+ * photo library, or a calendar server.
+ *
+ * It began as "a file or photo service plMail can attach from and save to", and
+ * the docblock said so until CalDav arrived. What decides where a provider is
+ * offered is kind(), not this sentence: a CalDAV server has nothing to attach
+ * and must never appear in "Save to…", which is what ServiceKind exists to say.
  *
  * Every case is listed in both the admin and the user UI, implemented or not.
  * isImplemented() returning false renders the provider greyed with its setup
@@ -26,6 +32,24 @@ enum Provider: string
     case OneDrive = 'oneDrive';
     case Dropbox = 'dropbox';
 
+    /**
+     * Any RFC 4791 calendar server: Nextcloud, Radicale, Baïkal, Fastmail,
+     * iCloud, a Synology box.
+     *
+     * The one case that is a protocol rather than a product, and named for the
+     * protocol on purpose. There is no "Radicale" case and there will not be
+     * one — the driver asks the server what it can do (supported-report-set,
+     * current-user-privilege-set) instead of asking an enum which server this
+     * is, so a CalDAV implementation nobody here has heard of works the day it
+     * is pointed at.
+     *
+     * The value is lower-case 'caldav' rather than the camelCase the file
+     * providers use, so slug() and transKey() answer 'caldav' — the spelling
+     * everyone writing documentation, a template name or a support ticket will
+     * reach for first.
+     */
+    case CalDav = 'caldav';
+
     public function label(): string
     {
         return match ($this) {
@@ -35,6 +59,7 @@ enum Provider: string
             self::GooglePhotos => 'Google Photos',
             self::OneDrive     => 'OneDrive',
             self::Dropbox      => 'Dropbox',
+            self::CalDav       => 'CalDAV',
         };
     }
 
@@ -48,6 +73,9 @@ enum Provider: string
             self::GooglePhotos => 'fa-solid fa-photo-film',
             self::OneDrive     => 'fa-brands fa-microsoft',
             self::Dropbox      => 'fa-brands fa-dropbox',
+            // No brand mark exists for a protocol, so it takes the same
+            // calendar glyph the calendar UI uses for a mirrored list.
+            self::CalDav       => 'fa-solid fa-calendar-days',
         };
     }
 
@@ -68,6 +96,7 @@ enum Provider: string
             self::GooglePhotos,
             self::OneDrive,
             self::Dropbox => ServiceKind::Files,
+            self::CalDav  => ServiceKind::Calendar,
         };
     }
 
@@ -81,7 +110,13 @@ enum Provider: string
     {
         return match ($this) {
             self::Nextcloud,
-            self::Immich => AuthKind::AppPassword,
+            self::Immich,
+            // Every CalDAV server worth connecting to takes an app-specific
+            // password (iCloud and Fastmail require one; Nextcloud and Baïkal
+            // offer one), and the protocol's own answer is HTTP Basic. OAuth
+            // over CalDAV exists only at Google, and Google's calendars come
+            // in through the mail grant instead.
+            self::CalDav => AuthKind::AppPassword,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,
@@ -136,6 +171,13 @@ enum Provider: string
                 Capability::Thumbnail,
                 Capability::Search,
             ],
+            // Empty because a CalDAV connection holds no files, not because
+            // nobody has filled it in. Capability is the file vocabulary
+            // throughout — Browse, Download, Upload, ShareLink, Thumbnail — and
+            // there is no honest answer to "can this be browsed in the picker"
+            // other than no. What a calendar connection can do is asked of the
+            // server itself, per collection, at sync time.
+            self::CalDav => [],
         };
     }
 
@@ -171,8 +213,11 @@ enum Provider: string
     public function isImplemented(): bool
     {
         return match ($this) {
+            // Self-hosted first, then the registered ones, which is also the
+            // order an admin meets them in.
             self::Nextcloud,
             self::Immich,
+            self::CalDav,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,

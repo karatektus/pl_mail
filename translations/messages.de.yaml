@@ -140,6 +140,14 @@ admin:
             incomplete: 'Zugangsdaten fehlen'
             unimplemented: 'Noch nicht verfügbar'
         tutorial:
+            caldav:
+                intro: 'CalDAV meldet sich mit einem App-Passwort pro Person am eigenen Server an — hier ist nichts zu registrieren.'
+                not_for_cloud_mail: 'Kalender von Gmail und Outlook kommen nicht so herein. Sie hängen an der E-Mail-Anmeldung oben und brauchen dort nur das Kalenderrecht in der App-Registrierung.'
+                security: 'Nutzerinnen und Nutzer sollten ein App-Passwort anlegen statt ihr Anmeldepasswort zu verwenden: App-Passwörter lassen sich einzeln widerrufen und funktionieren mit Zwei-Faktor-Anmeldung. iCloud und Fastmail akzeptieren nichts anderes.'
+                step_app_password: 'Jede Person legt auf ihrem Server ein App-Passwort an — Nextcloud unter Einstellungen → Sicherheit, iCloud auf appleid.apple.com, Fastmail unter Settings → Password & Security — und trägt es in den eigenen Kalendereinstellungen ein.'
+                step_base_url: 'Optional die Serveradresse festlegen, etwa https://cloud.example.com, wenn hier alle denselben Server nutzen.'
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_url: 'Einzutragen ist die CalDAV-Adresse, nicht die der Weboberfläche: Nextcloud zeigt sie unter Kalender → Einstellungen → „Primäre CalDAV-Adresse kopieren“, sie endet meist auf /remote.php/dav. Eine bloße Domain reicht auch — plMail fragt dort nach, wo die Kalender liegen.'
             dropbox:
                 intro: 'Dropbox benötigt eine App in der Dropbox-Entwicklerkonsole.'
                 refresh_note: 'Den App-Typ „scoped access“ wählen und Offline-Zugriff anfordern, sonst brechen Verbindungen nach wenigen Stunden ab.'
@@ -500,6 +508,20 @@ calendar:
         previous: Zurück
     pane:
         resize: Kalender in der Breite ändern
+    proposal:
+        action:
+            add: In den Kalender
+            dismiss: Kein Termin
+        explain: >-
+            In dieser E-Mail gefunden — im Kalender steht noch nichts.
+        toast:
+            added: Im Kalender eingetragen.
+            dismissed: >-
+                Verworfen — dieses Datum wird nicht noch einmal vorgeschlagen,
+                egal wie oft diese Nachricht gelesen wird.
+            no_calendar: >-
+                Es gibt keinen Kalender dafür, es wurde nichts gespeichert.
+        untitled: (kein Betreff)
     repeat:
         daily: Täglich
         monthly: Monatlich
@@ -511,8 +533,18 @@ calendar:
         created: Kalender angelegt
         default_set: Neue Termine landen jetzt hier
         deleted: Kalender gelöscht
+        disconnected: Server getrennt
+        disconnected_kept: >-
+            Server getrennt — %count% Termin(e), die aus E-Mails stammen und
+            nicht von einem Kalender, sind in deinen Standardkalender umgezogen.
         hidden: Kalender ausgeblendet
         shown: Kalender eingeblendet
+        subscriptions_saved: Auswahl gespeichert
+        subscriptions_saved_kept: >-
+            Auswahl gespeichert — %count% Termin(e), die aus E-Mails stammen und
+            nicht vom Kalender, sind in deinen Standardkalender umgezogen.
+        subscriptions_unchanged: Nichts geändert
+        sync_queued: Wird abgeglichen — dieser Kalender ist gleich aktuell.
         updated: Kalender gespeichert
     today: Heute
     upcoming:
@@ -1228,20 +1260,98 @@ settings:
         unavailable_heading: 'Hier nicht verfügbar'
     calendars:
         account_hint: Hier landen Termine aus E-Mails von %address%.
+        caldav:
+            connect: CalDAV-Server verbinden
+            disconnect: '"%name%" trennen'
+            disconnect_confirm: >-
+                "%name%" trennen? Jeder von dort gespiegelte Kalender wird hier
+                entfernt. Was darauf aus deinen E-Mails stammt und nicht von
+                einem Kalender, zieht vorher in deinen Standardkalender um.
+            disconnect_title: Diesen Server trennen
+            field:
+                address: Serveradresse
+                address_help: >-
+                    Die CalDAV-Adresse, die dein Server anzeigt — oder einfach
+                    die Domain: plMail fragt die Domain, wo ihre Kalender
+                    liegen, bevor es aufgibt.
+                name: Name
+                name_help: Wie diese Verbindung in deinen Einstellungen heißen soll.
+                reuse: Das Passwort eines meiner E-Mail-Konten verwenden
+                reuse_account: Das Passwort welchen Kontos
+                reuse_account_none: Konto wählen…
+                reuse_help: >-
+                    Standardmäßig aus, und das aus gutem Grund: Die meisten
+                    Server wollen ein App-Passwort, und ein Haken hier schickt
+                    ein Passwort, das du plMail für dein Postfach gegeben hast,
+                    an die Adresse oben.
+                secret: App-Passwort
+                secret_help: >-
+                    Lege eines auf deinem Server an, statt dein Anmeldepasswort
+                    zu nehmen — iCloud und Fastmail akzeptieren nichts anderes.
+                username: Benutzername
+                username_help: Der Kontoname, unter dem dich dein Server kennt.
+            intro: >-
+                Jeder CalDAV-Server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud, eine Kiste im Schrank. Kalender von Gmail und Outlook
+                kommen nicht so herein — die kommen mit dem E-Mail-Konto.
+            submit: Verbinden und Kalender suchen
+            title: CalDAV-Server verbinden
         count: '%count% Kalender'
         default: Standard
         delete: Kalender "%name%" löschen
         delete_title: Kalender löschen
         edit: Kalender "%name%" bearbeiten
         empty: Noch keine Kalender.
+        from: Von %name%
         heading: Kalender
         hide: Kalender ausblenden
+        last_synced: 'Zuletzt abgeglichen %when%'
         make_default: '"%name%" zum Kalender für neue Termine machen'
         make_default_title: Als Standard setzen
+        mirrored: Gespiegelt
+        mirrored_hint: Wird mit %name% abgeglichen.
+        never_synced: Noch nicht abgeglichen
+        read_only: Nur lesen
+        read_only_hint: Dieser Kalender nimmt von hier aus keine Änderungen an.
         show: Kalender einblenden
+        sources:
+            empty: >-
+                Noch kein Konto und keine Verbindung hier führt Kalender.
+                Gmail- und Outlook-Konten tun das; für alles andere verbinde
+                einen CalDAV-Server.
+            find: Kalender auf %name% suchen
+            heading: Woher Kalender kommen
+            why_admin: >-
+                Vielleicht hat deine Administration der App-Registrierung, mit
+                der plMail sich anmeldet, keine Kalenderberechtigungen gegeben.
+                E-Mail funktioniert auch ohne sie; Kalender nicht.
+            why_consent: >-
+                Auf Googles Zustimmungsseite lässt sich der Kalenderzugriff
+                abwählen, während E-Mail erlaubt wird. Verbinde das Konto neu
+                und lass das Kalenderhäkchen gesetzt.
+            why_empty: Es erscheinen keine Kalender?
+            why_none: Vielleicht liegen auf dem Konto schlicht keine Kalender.
         subheading: >-
             Name, Farbe und Zeitzone, welche Kalender die Ansichten zeigen und
             wo ein neuer Termin landet.
+        subscribe:
+            default_locked: >-
+                Hier landen neue Termine, deshalb bleibt dieser. Mach zuerst
+                einen anderen Kalender zum Standard.
+            empty: Auf %name% liegen keine Kalender.
+            intro: >-
+                Wähle die Kalender auf %name%, die plMail mitführen soll.
+                Termine erscheinen innerhalb einer Minute.
+            mirrored: Wird bereits gespiegelt
+            primary: Haupt
+            save: Auswahl speichern
+            title: Meine Kalender finden
+            unsubscribe_note: >-
+                Ein abgewählter Kalender wird hier gelöscht. Was darauf aus
+                deinen E-Mails stammt und nicht vom Kalender, zieht vorher in
+                deinen Standardkalender um.
+        sync_now: '"%name%" jetzt abgleichen'
+        sync_now_title: Jetzt abgleichen
     labels:
         count: '%count% Labels'
         delete: Label "%name%" löschen

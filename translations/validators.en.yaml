@@ -5,6 +5,10 @@ admin.integrations.secret_missing: Enter the client secret too — a client ID o
 # which is how "setup.install.password_too_short" ended up on screen.
 alias.invalid: Enter a valid email address.
 app_password.name_required: Give the app password a name so you can recognise it later.
+caldav.address_required: Enter the address of your CalDAV server — plMail has nothing to ask without one.
+caldav.credential_required: Enter an app password, or tick the box to use a mail account's stored one.
+caldav.reuse_account_required: Choose which mail account's password to use, or untick the box and type one.
+caldav.username_required: Enter the username your CalDAV server knows you by.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.

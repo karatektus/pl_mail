@@ -7,9 +7,13 @@ namespace App\Tests\Domain\Enum\Integration;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\Integration\ServiceKind;
+use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
+use App\Domain\Interface\VerifiableDriverInterface;
+use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;
 use App\Service\Integration\Driver\DropboxDriver;
 use App\Service\Integration\Driver\GoogleDriveDriver;
 use App\Service\Integration\Driver\GooglePhotosDriver;
@@ -25,22 +29,68 @@ use PHPUnit\Framework\TestCase;
  * them are the kind of thing a later edit could flip without any test failing
  * — a provider quietly claiming ShareLink would make the compose picker offer
  * "insert link" and then hand the user nothing back.
+ *
+ * Most of them are asked of the **file** providers rather than of every case,
+ * and that scoping is the subject of a claim in its own right: a calendar
+ * connection is on this enum and must never be in a file list. Where a check
+ * walks Provider::of(ServiceKind::Files), the reason is that the thing it
+ * checks — a capability, a picker driver, a tutorial partial — belongs to the
+ * file picker, and asking it of CalDAV would be asserting that a calendar
+ * server can be browsed for attachments.
  */
 final class ProviderTest extends TestCase
 {
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(6, Provider::cases());
+        self::assertCount(7, Provider::cases());
     }
 
     /**
-     * Every provider needs a driver class implementing the interface. Whether
-     * it actually claims its provider is asserted in that driver's own test;
-     * this is the cheap check that nobody added a case without a driver, which
-     * would only surface at run time — after the user had already authorised.
+     * A calendar connection is on this enum, and everything that offers files
+     * has to filter it out.
+     *
+     * The kind is what does that filtering, so it is what this pins. Inferring
+     * it from an empty capability list instead would be true today and quietly
+     * wrong the first time a calendar service also served files.
      */
-    public function testEveryProviderHasADriverClass(): void
+    public function testTheCalendarProviderIsNotOfferedAsAFileService(): void
+    {
+        self::assertSame(ServiceKind::Calendar, Provider::CalDav->kind());
+        self::assertNotContains(Provider::CalDav, Provider::of(ServiceKind::Files));
+        self::assertSame([], Provider::CalDav->capabilities(), 'a CalDAV server holds no files');
+
+        foreach (Capability::cases() as $capability) {
+            self::assertFalse(Provider::CalDav->supports($capability), $capability->value . ' is a file capability');
+        }
+    }
+
+    /**
+     * The calendar provider's driver implements the two calendar interfaces and
+     * emphatically not the file one.
+     *
+     * IntegrationDriverInterface is file-coupled in every method — list,
+     * download, upload, shareLink, thumbnail. A calendar driver implementing it
+     * would be five throwing stubs, and worse, it would be tagged into the file
+     * driver registry and reachable from the picker.
+     */
+    public function testTheCalendarProviderHasACalendarDriverAndNotAFileOne(): void
+    {
+        $implements = class_implements(CalDavCalendarDriver::class) ?: [];
+
+        self::assertContains(CalendarSyncDriverInterface::class, $implements);
+        self::assertContains(VerifiableDriverInterface::class, $implements, 'the connect and test paths need verify()');
+        self::assertNotContains(IntegrationDriverInterface::class, $implements, 'a calendar connection holds no files');
+    }
+
+    /**
+     * Every file provider needs a driver class implementing the interface.
+     * Whether it actually claims its provider is asserted in that driver's own
+     * test; this is the cheap check that nobody added a case without a driver,
+     * which would only surface at run time — after the user had already
+     * authorised.
+     */
+    public function testEveryFileProviderHasADriverClass(): void
     {
         // Keyed by backing value: an enum instance cannot be an array key.
         $drivers = [
@@ -53,9 +103,9 @@ final class ProviderTest extends TestCase
         ];
 
         self::assertSame(
-            array_map(static fn (Provider $p): string => $p->value, Provider::cases()),
+            array_map(static fn (Provider $p): string => $p->value, Provider::of(ServiceKind::Files)),
             array_keys($drivers),
-            'a provider has no driver mapped',
+            'a file provider has no driver mapped',
         );
 
         foreach ($drivers as $shortName) {
@@ -81,8 +131,8 @@ final class ProviderTest extends TestCase
     }
 
     /**
-     * Every provider searches except Google Photos, whose Library API offers no
-     * text search over media. Timeline stays Immich-only.
+     * Every file provider searches except Google Photos, whose Library API
+     * offers no text search over media. Timeline stays Immich-only.
      *
      * Each capability is paired with an optional interface, so a provider
      * claiming one without implementing it would draw a search box or a date bar
@@ -99,7 +149,7 @@ final class ProviderTest extends TestCase
             'dropbox'      => DropboxDriver::class,
         ];
 
-        foreach (Provider::cases() as $provider) {
+        foreach (Provider::of(ServiceKind::Files) as $provider) {
             $implements = class_implements($drivers[$provider->value]) ?: [];
 
             self::assertSame(
@@ -126,9 +176,9 @@ final class ProviderTest extends TestCase
         }
     }
 
-    public function testEveryProviderCanBrowseDownloadUploadAndPreview(): void
+    public function testEveryFileProviderCanBrowseDownloadUploadAndPreview(): void
     {
-        foreach (Provider::cases() as $provider) {
+        foreach (Provider::of(ServiceKind::Files) as $provider) {
             foreach ([Capability::Browse, Capability::Download, Capability::Upload, Capability::Thumbnail] as $capability) {
                 self::assertTrue(
                     $provider->supports($capability),
@@ -140,9 +190,14 @@ final class ProviderTest extends TestCase
 
     public function testSelfHostedProvidersUseAppPasswordsAndNeedAnAddress(): void
     {
-        foreach ([Provider::Nextcloud, Provider::Immich] as $provider) {
+        // CalDAV belongs here for the same reason and one more: it is a
+        // protocol rather than a product, so there is no canonical host to
+        // point at even in principle.
+        foreach ([Provider::Nextcloud, Provider::Immich, Provider::CalDav] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
+            self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');
+            self::assertNull($provider->oauthEndpoints());
         }
     }
 
@@ -166,11 +221,25 @@ final class ProviderTest extends TestCase
         self::assertSame('google_photos', Provider::GooglePhotos->slug());
         self::assertSame('one_drive', Provider::OneDrive->slug());
         self::assertSame('dropbox', Provider::Dropbox->slug());
+
+        // Not "cal_dav": the case value is lower-case for exactly this reason,
+        // so the slug, the translation key and anything named after the
+        // provider all read the way a person writing about CalDAV would spell
+        // it.
+        self::assertSame('caldav', Provider::CalDav->slug());
+        self::assertSame('caldav', Provider::CalDav->transKey());
     }
 
-    public function testEveryProviderHasATutorialTemplate(): void
+    /**
+     * The tutorials are the file-picker ones: what an admin has to register at
+     * Google, Dropbox or Microsoft before anybody can connect. CalDAV needs no
+     * application-side registration at all — the user brings a URL and an app
+     * password — so there is nothing to walk an admin through, and the aside
+     * that renders these includes them with `ignore missing`.
+     */
+    public function testEveryFileProviderHasATutorialTemplate(): void
     {
-        foreach (Provider::cases() as $provider) {
+        foreach (Provider::of(ServiceKind::Files) as $provider) {
             self::assertFileExists(
                 sprintf(
                     '%s/templates/admin/integrations/tutorial/_%s.html.twig',

@@ -58,6 +58,22 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // when nothing is due — which is almost always.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:wake-snoozed')),
 
+                // Polling is the mechanism for CalDAV and the backstop for the
+                // other two. Two of the three providers DO offer push and this
+                // comment used to say none did: Google Calendar has watch
+                // channels on events (a plain webhook, not the Pub/Sub path
+                // Gmail uses) and Graph has subscriptions on a calendar's
+                // events, which is the same mechanism GraphSubscriptionManager
+                // already runs for mail. Both need a publicly reachable HTTPS
+                // callback, which a self-hosted install cannot be assumed to
+                // have, so neither can replace this sweep — they only make it
+                // arrive late rather than first.
+                //
+                // Offset off the quarter hour so it does not stack on the mail
+                // sweep above; they share one worker, and a full calendar read
+                // should not hold up mail.
+                RecurringMessage::cron('7-59/15 * * * *', new RunCommandMessage('app:calendar:sync --stale')),
+
                 // Log entries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 

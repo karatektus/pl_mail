@@ -2,30 +2,47 @@
 calendar/_lists.stream.html.twig
 ─────────────────────────────────────────────────────────────────────────────
 The response to every calendar mutation: create, rename, recolour, show/hide,
-make default, delete.
+make default, delete, subscribe, unsubscribe, sync now, and connecting a CalDAV
+server.
 
 One region today — the settings list. Written as a stream per region anyway,
 the way the label version is, because a stream whose target is absent is a
 no-op: when a calendar picker appears in the sidebar it becomes another
 turbo-stream block here and every existing caller starts refreshing it.
 
+The connectable sources ride along in the same replacement rather than in a
+second stream block, because they live inside `settings-calendar-list`:
+connecting a CalDAV server has to make its row appear immediately, and a
+replacement that redrew only the calendars would leave the new server invisible
+until the page was reloaded.
+
 Variables:
-  calendars     Calendar[]   in sort order
-  toastMessage  string       translation key
+  calendars            Calendar[]     in sort order
+  calendarAccounts     Account[]      accounts calendars can be subscribed from
+  calendarConnections  Integration[]  calendar connections
+  toastMessage         string         translation key
+  toastParameters      array          placeholders for it, e.g. { '%count%': 2 }
 #}
 <turbo-stream action="append" target="toast-region">
     <template>
         {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans,
+            message: toastMessage|trans(toastParameters|default({})),
             type: 'success',
         } %}
     </template>
 </turbo-stream>
 
+{# The target id is re-emitted inside its own replacement. A replace whose
+   template drops the id works exactly once: the second stream finds nothing
+   called settings-calendar-list and silently does nothing. #}
 <turbo-stream action="replace" target="settings-calendar-list">
     <template>
         <div id="settings-calendar-list">
-            {% include 'settings/_calendars.html.twig' with { calendars: calendars } only %}
+            {% include 'settings/_calendars.html.twig' with {
+                calendars: calendars,
+                calendarAccounts: calendarAccounts|default([]),
+                calendarConnections: calendarConnections|default([]),
+            } only %}
         </div>
     </template>
 </turbo-stream>

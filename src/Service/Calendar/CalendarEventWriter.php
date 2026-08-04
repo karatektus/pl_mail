@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar;
 
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Enum\Calendar\SyncState;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
@@ -91,6 +92,56 @@ final readonly class CalendarEventWriter
     }
 
     /**
+     * File per-instance patches onto a series and redraw it.
+     *
+     * The other half of write(): a remote reports a moved or cancelled instance
+     * separately from the series it belongs to, so there is no full object to
+     * write and nothing to project onto the columns — the series' own title,
+     * times and rule are unchanged, and only its recurrenceOverrides are not.
+     * Going through the writer anyway is what keeps "the object and the
+     * occurrences cannot disagree" true: the patches decide which instances are
+     * drawn where, so they are worth nothing until the occurrences are written
+     * again from them.
+     *
+     * $replaceExisting is the difference between the two kinds of window a
+     * provider can give. A delta window names the instances that changed and
+     * says nothing about the others, so its patches merge; a full read is the
+     * whole truth about every series it mentions, so its patches replace — which
+     * is the only way an instance that was moved back stops being drawn where it
+     * used to be.
+     *
+     * Does not flush, like everything else here.
+     *
+     * @param array<string,array<string,mixed>> $patches keyed by the instance's
+     *                                                   original LocalDateTime,
+     *                                                   which is what
+     *                                                   RecurrenceMaterialiser
+     *                                                   looks them up by
+     */
+    public function overrideInstances(CalendarEvent $event, array $patches, bool $replaceExisting = false): void
+    {
+        $stored = $event->jscalendar['recurrenceOverrides'] ?? null;
+        $kept   = true === $replaceExisting || false === is_array($stored) ? [] : $stored;
+
+        $jscalendar = $event->jscalendar;
+        $overrides  = array_merge($kept, $patches);
+
+        // Removed rather than left empty: an empty map is not a fact about the
+        // series, and leaving one behind would make every event that ever had an
+        // override carry a key that reads as though it still does.
+        if ([] === $overrides) {
+            unset($jscalendar['recurrenceOverrides']);
+        } else {
+            $jscalendar['recurrenceOverrides'] = $overrides;
+        }
+
+        $event->jscalendar = $jscalendar;
+
+        $this->em->persist($event);
+        $this->materialiser->materialise($event);
+    }
+
+    /**
      * A user edit is a decision. Recording it is what stops a later message
      * about the same booking quietly reverting what the user just fixed.
      */
@@ -99,6 +150,78 @@ final readonly class CalendarEventWriter
         if (true === $event->isExtracted()) {
             $event->isUserEdited = true;
         }
+    }
+
+    /**
+     * This row has changed here and the remote has not been told.
+     *
+     * Called by whatever made the change, never by write() itself — write() is
+     * also how the sync engine applies what it just *read* from the remote, and
+     * marking there would make every pull queue a push of the remote's own
+     * data straight back at it.
+     *
+     * A no-op on a calendar that mirrors nothing, so the editor and the
+     * reconciler can call it unconditionally rather than each carrying its own
+     * copy of the "is this synced?" question.
+     */
+    public function markLocallyChanged(CalendarEvent $event): void
+    {
+        if (null === $event->calendar || false === $event->calendar->isSynced()) {
+            return;
+        }
+
+        $event->syncState = $event->syncState->afterLocalEdit();
+    }
+
+    /**
+     * A create that has never been at the remote, so the push is a POST rather
+     * than a PUT.
+     *
+     * Separate from markLocallyChanged() because afterLocalEdit() cannot tell
+     * the two apart from the state alone — a brand-new event is Clean, like an
+     * event in step with the remote — and guessing from a null remoteId would
+     * be wrong for the one case that matters: an event whose create is still
+     * pending is also remoteId-less.
+     */
+    public function markLocallyCreated(CalendarEvent $event): void
+    {
+        if (null === $event->calendar || false === $event->calendar->isSynced()) {
+            return;
+        }
+
+        $event->syncState = SyncState::PendingCreate;
+    }
+
+    /**
+     * Delete an event that a remote also holds — the row survives until the
+     * remote has been told, because the row is the only record that it is
+     * there to tell.
+     *
+     * The occurrences go now. Every calendar view reads occurrences and none
+     * reads events, so dropping them is what makes the deletion look immediate
+     * without any view having to learn that PendingDelete exists. Returns
+     * whether the caller still has to remove the entity itself: false means
+     * this row is now the pusher's problem.
+     *
+     * A hand-made event on a local calendar, or one the remote never saw, is
+     * not this method's business — it answers true and the caller removes it,
+     * which is what the delete path did before sync existed.
+     */
+    public function markLocallyDeleted(CalendarEvent $event): bool
+    {
+        if (null === $event->calendar || false === $event->calendar->isSynced()) {
+            return true;
+        }
+
+        if (null === $event->remoteId) {
+            return true;
+        }
+
+        $event->syncState = SyncState::PendingDelete;
+
+        $this->materialiser->clear($event);
+
+        return false;
     }
 
     /**

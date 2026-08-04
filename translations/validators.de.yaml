@@ -4,6 +4,10 @@ admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der 
 # `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
 app_password.name_required: Gib dem App-Passwort einen Namen, damit du es später wiedererkennst.
+caldav.address_required: Gib die Adresse deines CalDAV-Servers ein — ohne sie hat plMail niemanden zu fragen.
+caldav.credential_required: Gib ein App-Passwort ein oder setz den Haken, um das gespeicherte Passwort eines E-Mail-Kontos zu verwenden.
+caldav.reuse_account_required: Wähle, welches E-Mail-Konto sein Passwort hergeben soll — oder nimm den Haken weg und tippe eines ein.
+caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-Server kennt.
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

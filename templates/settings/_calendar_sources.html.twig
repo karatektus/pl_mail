@@ -1,0 +1,126 @@
+{#
+settings/_calendar_sources.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Where mirrored calendars come from: the mail accounts whose provider carries
+calendars on the grant they already hold, and the CalDAV servers connected for
+calendars alone.
+
+One list, because to a person they are the same thing — somewhere calendars
+come from — and the difference only shows in what connecting one costs. A mail
+account is here because it already signed in; a CalDAV server is here because
+somebody typed its address.
+
+The note at the bottom is not decoration. It is the answer to the question this
+screen exists to answer: "I connected the account and no calendars appeared."
+There are exactly three reasons, and a user cannot tell them apart without
+being told what they are — a scope they unticked on Google's consent screen, a
+permission their administrator has not added to the app registration (which is
+what templates/admin/integrations/_mail_form.html.twig tells the admin about),
+or an account that genuinely has no calendars.
+
+Variables:
+  calendarAccounts     Account[]      accounts with a calendar service behind them
+  calendarConnections  Integration[]  CalDAV and anything else of ServiceKind::Calendar
+#}
+{% set has_sources = calendarAccounts is not empty or calendarConnections is not empty %}
+
+<div class="px-4 py-3 border-b border-line bg-sunken space-y-2.5">
+    <div class="flex items-center justify-between gap-3">
+        <p class="text-xs font-medium text-ink-soft">{{ 'settings.calendars.sources.heading'|trans }}</p>
+
+        <button
+            type="button"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-title-value="{{ 'settings.calendars.caldav.title'|trans }}"
+            data-ui--modal-src-value="{{ path('app_settings_calendar_caldav_connect') }}"
+            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+        >
+            <i class="fa-solid fa-calendar-days text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.calendars.caldav.connect'|trans }}
+        </button>
+    </div>
+
+    {% if has_sources %}
+        <ul class="space-y-1.5">
+            {% for account in calendarAccounts %}
+                <li class="flex items-center gap-2.5">
+                    <i class="fa-regular fa-envelope w-4 text-center text-xs text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0 truncate text-xs text-ink">{{ account.displayAddress }}</span>
+
+                    <button
+                        type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'settings.calendars.subscribe.title'|trans }}"
+                        data-ui--modal-src-value="{{ path('app_settings_calendar_subscribe', { kind: 'account', id: account.id }) }}"
+                        class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-medium
+                               text-accent hover:bg-hover transition-colors cursor-pointer"
+                    >
+                        {{ 'settings.calendars.sources.find'|trans({ '%name%': account.displayAddress }) }}
+                    </button>
+                </li>
+            {% endfor %}
+
+            {% for connection in calendarConnections %}
+                <li class="flex items-center gap-2.5">
+                    <i class="{{ connection.provider.icon }} w-4 text-center text-xs text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0 truncate text-xs text-ink">{{ connection.name }}</span>
+
+                    {# The connection's own last failure, not a calendar's: a
+                       server that stopped answering explains an empty list far
+                       better than the empty list does. #}
+                    {% if not connection.isHealthy %}
+                        <span class="shrink-0 text-[11px] text-danger truncate max-w-[16rem]"
+                              title="{{ connection.lastError }}">{{ connection.lastError }}</span>
+                    {% endif %}
+
+                    <button
+                        type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'settings.calendars.subscribe.title'|trans }}"
+                        data-ui--modal-src-value="{{ path('app_settings_calendar_subscribe', { kind: 'integration', id: connection.id }) }}"
+                        class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-medium
+                               text-accent hover:bg-hover transition-colors cursor-pointer"
+                    >
+                        {{ 'settings.calendars.sources.find'|trans({ '%name%': connection.name }) }}
+                    </button>
+
+                    {# The confirmation names the connection and says the
+                       mirrored calendars go with it, because they do — and
+                       what only exists here moves rather than going with
+                       them, which is the same promise the untick makes. #}
+                    <form method="post"
+                          action="{{ path('app_settings_calendar_caldav_disconnect', { id: connection.id }) }}"
+                          data-turbo-confirm="{{ 'settings.calendars.caldav.disconnect_confirm'|trans({ '%name%': connection.name }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('calendar-disconnect' ~ connection.id) }}">
+                        <button
+                            type="submit"
+                            class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.calendars.caldav.disconnect'|trans({ '%name%': connection.name }) }}"
+                            title="{{ 'settings.calendars.caldav.disconnect_title'|trans }}"
+                        >
+                            <i class="fa-solid fa-link-slash text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-xs text-ink-faint italic">{{ 'settings.calendars.sources.empty'|trans }}</p>
+    {% endif %}
+
+    <details class="group/why">
+        <summary class="text-[11px] text-ink-faint cursor-pointer select-none hover:text-ink-muted transition-colors">
+            <i class="fa-solid fa-circle-question mr-1" aria-hidden="true"></i>
+            {{ 'settings.calendars.sources.why_empty'|trans }}
+        </summary>
+        <ul class="mt-1.5 ml-4 space-y-1 list-disc list-outside text-[11px] text-ink-faint leading-snug">
+            <li>{{ 'settings.calendars.sources.why_consent'|trans }}</li>
+            <li>{{ 'settings.calendars.sources.why_admin'|trans }}</li>
+            <li>{{ 'settings.calendars.sources.why_none'|trans }}</li>
+        </ul>
+    </details>
+</div>

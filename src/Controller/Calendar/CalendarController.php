@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
@@ -21,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -53,6 +55,7 @@ final class CalendarController extends AbstractController
         private readonly CalendarTimeResolver   $time,
         private readonly RecurrenceRuleConverter $recurrence,
         private readonly EventDismisser         $dismisser,
+        private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -151,6 +154,12 @@ final class CalendarController extends AbstractController
 
         $this->writer->markUserEdited($event);
 
+        // Before write(), which is what assigns the calendar: on a new event
+        // there is nothing to read the "is this synced?" question off yet, and
+        // on an existing one the answer must be taken from where the event is
+        // now rather than from where it is being moved to.
+        $isNew = null === $event->id;
+
         $this->writer->write(
             event:          $event,
             calendar:       $calendar,
@@ -166,7 +175,16 @@ final class CalendarController extends AbstractController
             recurrenceRule: $this->recurrence->fromRepeatChoice($request->request->getString('repeat')),
         );
 
+        // After write(), so the event carries the calendar the mark is decided
+        // against. Both are no-ops on a calendar that mirrors nothing, which is
+        // why there is no branch here — see CalendarEventWriter.
+        true === $isNew
+            ? $this->writer->markLocallyCreated($event)
+            : $this->writer->markLocallyChanged($event);
+
         $this->em->flush();
+
+        $this->dispatchSync($event);
 
         return $this->redirectAfterWrite($request, $startsAt->format('Y-m-d'));
     }
@@ -179,8 +197,17 @@ final class CalendarController extends AbstractController
 
         $date = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
 
-        $this->em->remove($event);
+        // A synced event is not removed here. The row is the only record that
+        // the remote still holds a copy, so it survives — with its occurrences
+        // dropped, which is what makes the deletion look immediate — until the
+        // remote has been told. See CalendarEventWriter::markLocallyDeleted().
+        if (true === $this->writer->markLocallyDeleted($event)) {
+            $this->em->remove($event);
+        }
+
         $this->em->flush();
+
+        $this->dispatchSync($event);
 
         return $this->redirectAfterWrite($request, $date);
     }
@@ -361,6 +388,27 @@ final class CalendarController extends AbstractController
         $this->assertOwned($event);
 
         return $event;
+    }
+
+    /**
+     * Asks for a sync now rather than waiting for the sweep.
+     *
+     * Fifteen minutes is the right cadence for noticing what somebody else
+     * changed and the wrong one for seeing your own edit arrive on your phone.
+     * Dispatched after the flush, so the worker reads a committed row rather
+     * than racing the transaction that made it.
+     *
+     * Silent on a calendar that mirrors nothing, which is most of them.
+     */
+    private function dispatchSync(CalendarEvent $event): void
+    {
+        $calendar = $event->calendar;
+
+        if (null === $calendar || false === $calendar->isSynced()) {
+            return;
+        }
+
+        $this->bus->dispatch(new SyncCalendarMessage((int) $calendar->id));
     }
 
     private function assertOwned(CalendarEvent $event): void

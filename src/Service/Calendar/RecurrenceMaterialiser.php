@@ -33,6 +33,14 @@ use Sabre\VObject\Recur\RRuleIterator;
  *   occurrence, so it is materialised to a horizon and rolled forward nightly.
  *   MAX_OCCURRENCES is the second belt: FREQ=SECONDLY inside the horizon is
  *   sixty million rows, and an .ics from a stranger is allowed to say that.
+ *
+ * The third is recurrenceOverrides, which is where a series stops being a rule.
+ * An instance somebody moved is a patch filed under the LocalDateTime the rule
+ * originally put it at, and both halves of it are read here: `start`, so it is
+ * drawn on the day it went to, and `duration`, because an instance that moved is
+ * routinely also a different length. `{"excluded": true}` takes it off the
+ * calendar and a cancelled status keeps the row and strikes it through — the
+ * answer to "wasn't there something today?" is more useful than a gap.
  */
 final readonly class RecurrenceMaterialiser
 {
@@ -60,6 +68,32 @@ final readonly class RecurrenceMaterialiser
     }
 
     /**
+     * Drops every occurrence row for one event, committed or merely queued.
+     *
+     * Two steps, because they cover different rows. The DELETE clears what is
+     * committed; remove() clears what this unit of work has queued but not yet
+     * flushed — raw SQL cannot see those, and clearing the collection alone
+     * does not unschedule their INSERT. Without the second, materialising twice
+     * before a flush queues two rows with the same recurrence id and the unique
+     * constraint rejects the pair.
+     *
+     * Public as well as being materialise()'s first act, because an event on
+     * its way out of a synced calendar has to vanish from every view while its
+     * row waits for the remote to be told — see
+     * CalendarEventWriter::markLocallyDeleted().
+     */
+    public function clear(CalendarEvent $event): void
+    {
+        $this->occurrences->deleteForEvent($event);
+
+        foreach ($event->occurrences as $existing) {
+            $this->em->remove($existing);
+        }
+
+        $event->occurrences->clear();
+    }
+
+    /**
      * Rewrites every occurrence row for one event.
      *
      * Also sets recurrenceUntil, which is what the nightly sweep reads to find
@@ -73,19 +107,7 @@ final readonly class RecurrenceMaterialiser
             return;
         }
 
-        // Two steps, because they cover different rows. The DELETE clears what
-        // is committed; remove() clears what this unit of work has queued but
-        // not yet flushed — raw SQL cannot see those, and clearing the
-        // collection alone does not unschedule their INSERT. Without the
-        // second, materialising twice before a flush queues two rows with the
-        // same recurrence id and the unique constraint rejects the pair.
-        $this->occurrences->deleteForEvent($event);
-
-        foreach ($event->occurrences as $existing) {
-            $this->em->remove($existing);
-        }
-
-        $event->occurrences->clear();
+        $this->clear($event);
 
         $rule = $this->firstRule($event);
 
@@ -189,7 +211,7 @@ final readonly class RecurrenceMaterialiser
                 continue;
             }
 
-            $override = $overrides[$this->overrideKey($current)] ?? null;
+            $override = $overrides[$this->converter->overrideKey($current, $zone)] ?? null;
 
             if (true === ($override['excluded'] ?? false)) {
                 continue;
@@ -216,8 +238,18 @@ final readonly class RecurrenceMaterialiser
     }
 
     /**
-     * An override may move the instance, so its start is taken from the patch
-     * when present and derived from the recurrence id otherwise.
+     * Where one instance actually is, once its patch has been read.
+     *
+     * Both halves matter and only the first used to be read. An instance
+     * somebody moved is routinely also a different length — a standup dragged
+     * into the afternoon because it became the retro — and taking the series'
+     * duration for it draws the right start with the wrong end, which is a
+     * meeting that overlaps the one after it in every view.
+     *
+     * `start` is a LocalDateTime read in the event's own zone, and `duration` an
+     * ISO 8601 duration (RFC 8984 §4.1.3). Either being unreadable falls back to
+     * the series rather than refusing the instance: half a patch honoured is
+     * still the instance on the day it was moved to.
      *
      * @param array<string,mixed>|null $override
      *
@@ -239,7 +271,33 @@ final readonly class RecurrenceMaterialiser
             }
         }
 
+        if (true === is_string($override['duration'] ?? null)) {
+            $endsAt = $this->addDuration($startsAt, $override['duration']);
+
+            if (null !== $endsAt) {
+                return [$startsAt, $endsAt];
+            }
+        }
+
         return [$startsAt, $startsAt->modify(sprintf('+%d seconds', $duration))];
+    }
+
+    /**
+     * Handed to DateInterval rather than parsed here: an ISO 8601 duration is a
+     * grammar with months and weeks in it, and a hand-rolled reader of it would
+     * be a second implementation that agrees until somebody sends "P1W".
+     *
+     * A duration that is not one falls back rather than throwing. The string
+     * comes from a remote or from stored JSON, and one bad patch must not cost
+     * the whole series its occurrences.
+     */
+    private function addDuration(DateTimeImmutable $startsAt, string $duration): ?DateTimeImmutable
+    {
+        try {
+            return $startsAt->add(new \DateInterval($duration));
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     private function addOccurrence(
@@ -313,12 +371,6 @@ final readonly class RecurrenceMaterialiser
         }
 
         return $byKey;
-    }
-
-    /** The LocalDateTime form JSCalendar keys recurrenceOverrides by. */
-    private function overrideKey(\DateTimeInterface $local): string
-    {
-        return $local->format('Y-m-d\TH:i:s');
     }
 
     private function parseLocal(string $value, DateTimeZone $zone): ?DateTimeImmutable

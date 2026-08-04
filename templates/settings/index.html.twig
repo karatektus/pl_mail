@@ -294,7 +294,11 @@
                                                    replacement — a replace that dropped it would
                                                    work once and then never again. #}
                                                 <div id="settings-calendar-list">
-                                                    {% include 'settings/_calendars.html.twig' with { calendars: calendars } only %}
+                                                    {% include 'settings/_calendars.html.twig' with {
+                                                        calendars: calendars,
+                                                        calendarAccounts: calendarAccounts|default([]),
+                                                        calendarConnections: calendarConnections|default([]),
+                                                    } only %}
                                                 </div>
                                             </div>
                                         </section>

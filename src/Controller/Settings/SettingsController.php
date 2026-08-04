@@ -17,6 +17,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Rule\MailRuleRepository;
+use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -43,6 +44,7 @@ final class SettingsController extends AbstractController
         private readonly string $vapidPublicKey,
         #[Autowire('%kernel.default_locale%')]
         private readonly string $defaultLocale,
+        private readonly CalendarSourceLister $calendarSources,
         private readonly ProfileSectionViewData $profileSection,
         private readonly SecuritySectionViewData $securitySection,
         private readonly UserTimezoneResolver $timezones,
@@ -70,6 +72,7 @@ final class SettingsController extends AbstractController
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             ...$this->profileSection->build($this->getUser(), $request),
             ...$this->securitySectionData($section, $request),
+            ...$this->calendarSectionData($section),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
@@ -78,6 +81,31 @@ final class SettingsController extends AbstractController
                 ?? AppLocale::English,
             ...$this->timezoneSectionData($section),
         ]);
+    }
+
+    /**
+     * Where calendars can be subscribed from, and only when that section is on
+     * screen — asking the driver registry about every account is cheap but not
+     * free, and nothing else on this page shows it.
+     *
+     * Built by CalendarSourceLister rather than by a rule here, so this page
+     * and CalendarSettingsController's Turbo Stream cannot disagree about which
+     * accounts carry calendars.
+     *
+     * @return array<string, mixed>
+     */
+    private function calendarSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('calendars' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'calendarAccounts'    => $this->calendarSources->accountsFor($user),
+            'calendarConnections' => $this->calendarSources->connectionsFor($user),
+        ];
     }
 
     /**

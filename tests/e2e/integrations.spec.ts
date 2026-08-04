@@ -406,16 +406,22 @@ test.describe("compose integration picker", () => {
         // disconnect and the premise silently fails to hold.
         await expect(frame.getByText("Connect a service")).toBeVisible();
 
+        // Counted down rather than waited to zero. `.first()` resolves to one
+        // element for as long as any remain, so asserting it reaches zero after
+        // a single disconnect only holds when there was exactly one connection
+        // — which stopped being true the moment another spec left a calendar
+        // connection on this worker's user.
         for (;;) {
-            const disconnect = frame.getByRole("button", { name: "Disconnect" }).first();
+            const disconnects = frame.getByRole("button", { name: "Disconnect" });
+            const remaining = await disconnects.count();
 
-            if (0 === (await disconnect.count())) {
+            if (0 === remaining) {
                 break;
             }
 
             page.once("dialog", (dialog) => dialog.accept());
-            await disconnect.click();
-            await expect(disconnect).toHaveCount(0);
+            await disconnects.first().click();
+            await expect(disconnects).toHaveCount(remaining - 1);
         }
 
         await page.goto("/mail/inbox");

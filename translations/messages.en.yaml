@@ -141,6 +141,14 @@ admin:
             incomplete: 'Needs credentials'
             unimplemented: 'Not available yet'
         tutorial:
+            caldav:
+                intro: 'CalDAV authenticates with a per-user app password against the user''s own server, so there is nothing to register here.'
+                not_for_cloud_mail: 'Gmail and Outlook calendars do not come in this way. They ride the mail sign-in above, and need only the calendar permission ticked on that app registration.'
+                security: 'Users should create an app-specific password rather than use their login password: app passwords are individually revocable and work with two-factor authentication. iCloud and Fastmail accept nothing else.'
+                step_app_password: 'Each user creates an app password on their own server — Nextcloud under Settings → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — and pastes it into their own calendar settings.'
+                step_base_url: 'Optionally pin the server address, for example https://cloud.example.com, if everyone here uses the same server.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_url: 'The address to enter is the CalDAV one, not the web interface: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", and it usually ends in /remote.php/dav. A bare domain works too — plMail asks it where its calendars live.'
             dropbox:
                 intro: 'Dropbox needs an app registered in the Dropbox developer console.'
                 refresh_note: 'Choose the scoped access app type and request offline access, or connections will stop working after a few hours.'
@@ -497,6 +505,20 @@ calendar:
         previous: Previous
     pane:
         resize: Resize the calendar
+    proposal:
+        action:
+            add: Add to calendar
+            dismiss: Not an event
+        explain: >-
+            Found in this message — nothing has been added to your calendar.
+        toast:
+            added: Added to your calendar.
+            dismissed: >-
+                Dismissed — this date will not be offered again, however often
+                this message is read.
+            no_calendar: >-
+                There is no calendar to add this to, so nothing was saved.
+        untitled: (no subject)
     repeat:
         daily: Every day
         monthly: Every month
@@ -508,8 +530,18 @@ calendar:
         created: Calendar created
         default_set: New events will land here
         deleted: Calendar deleted
+        disconnected: Server disconnected
+        disconnected_kept: >-
+            Server disconnected — %count% event(s) that came from mail rather
+            than from a calendar were moved to your default calendar.
         hidden: Calendar hidden
         shown: Calendar shown
+        subscriptions_saved: Subscriptions saved
+        subscriptions_saved_kept: >-
+            Subscriptions saved — %count% event(s) that came from mail rather
+            than from the calendar were moved to your default calendar.
+        subscriptions_unchanged: Nothing changed
+        sync_queued: Syncing now — this calendar will update in a moment.
         updated: Calendar updated
     today: Today
     upcoming:
@@ -1218,20 +1250,96 @@ settings:
         unavailable_heading: 'Not available here'
     calendars:
         account_hint: Where events found in mail from %address% are filed.
+        caldav:
+            connect: Connect a CalDAV server
+            disconnect: Disconnect "%name%"
+            disconnect_confirm: >-
+                Disconnect "%name%"? Every calendar mirrored from it is removed
+                here. Anything on them that came from your mail rather than from
+                a calendar is moved to your default calendar first.
+            disconnect_title: Disconnect this server
+            field:
+                address: Server address
+                address_help: >-
+                    The CalDAV address your server shows you, or just its domain
+                    — plMail asks the domain where its calendars live before
+                    giving up.
+                name: Name
+                name_help: What to call this connection in your settings.
+                reuse: Use the password from one of my mail accounts
+                reuse_account: Which account's password
+                reuse_account_none: Choose an account…
+                reuse_help: >-
+                    Off by default, and worth leaving off: most servers want an
+                    app-specific password, and ticking this sends a password you
+                    gave plMail for your mailbox to the address above.
+                secret: App password
+                secret_help: >-
+                    Create one on your server rather than using your login
+                    password — iCloud and Fastmail accept nothing else.
+                username: Username
+                username_help: The account name your server knows you by.
+            intro: >-
+                Any CalDAV server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud, a box in a cupboard. Gmail and Outlook calendars do not
+                come in this way — they arrive with the mail account.
+            submit: Connect and find calendars
+            title: Connect a CalDAV server
         count: '%count% calendars'
         default: Default
         delete: Delete calendar "%name%"
         delete_title: Delete calendar
         edit: Edit calendar "%name%"
         empty: No calendars yet.
+        from: From %name%
         heading: Calendars
         hide: Hide calendar
+        last_synced: 'Last synced %when%'
         make_default: Make "%name%" the calendar new events land on
         make_default_title: Make default
+        mirrored: Mirrored
+        mirrored_hint: Kept in step with %name%.
+        never_synced: Not synced yet
+        read_only: Read-only
+        read_only_hint: This calendar does not accept changes from here.
         show: Show calendar
+        sources:
+            empty: >-
+                No account or connection here carries calendars yet. Gmail and
+                Outlook accounts do; connect a CalDAV server for anything else.
+            find: Find calendars on %name%
+            heading: Where calendars come from
+            why_admin: >-
+                Your administrator may not have added calendar permissions to
+                the app registration plMail signs in with. Mail keeps working
+                without them; calendars do not.
+            why_consent: >-
+                Google's consent screen lets you untick calendar access while
+                allowing mail. Reconnect the account and leave the calendar box
+                ticked.
+            why_empty: No calendars appearing?
+            why_none: The account may simply have no calendars on it.
         subheading: >-
             Name, colour and time zone, which calendars the views show, and
             where a new event lands.
+        subscribe:
+            default_locked: >-
+                New events land here, so this one stays. Make another calendar
+                the default first.
+            empty: There are no calendars on %name%.
+            intro: >-
+                Tick the calendars on %name% to keep in step with plMail. Events
+                appear within a minute of ticking one.
+            mirrored: Already mirrored
+            primary: Main
+            save: Save subscriptions
+            title: Find my calendars
+            unsubscribe_note: >-
+                Unticking a calendar deletes the copy held here. Anything on it
+                that came from your mail rather than from the calendar is moved
+                to your default calendar first.
+        sync_now: Sync "%name%" now
+        sync_now_title: Sync now
     labels:
         count: '%count% labels'
         delete: Delete label "%name%"

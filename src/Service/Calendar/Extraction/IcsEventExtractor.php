@@ -9,6 +9,7 @@ use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Domain\Interface\EventExtractorInterface;
 use App\Entity\Mail\MessagePart;
+use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\Mail\AttachmentResolver;
 use DateTimeImmutable;
@@ -18,6 +19,7 @@ use DateTimeZone;
 use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
+use Sabre\VObject\Property\ICalendar\DateTime as ICalDateTime;
 use Sabre\VObject\Reader;
 
 /**
@@ -41,6 +43,14 @@ use Sabre\VObject\Reader;
  *   gives is meetingMessageType on the message, so the invite is read out of
  *   the raw MIME instead — one fetch, cached to disk, only for messages that
  *   flag themselves.
+ *
+ * A recurring invitation is converted, not merely kept. The RRULE used to be
+ * stashed verbatim under `plmail:rrule` because RRULE-to-JSCalendar did not
+ * exist, and RecurrenceMaterialiser reads recurrenceRules and nothing else — so
+ * somebody's weekly meeting arrived by mail and appeared on the calendar once.
+ * The stash is now only what a rule that could not be converted falls back to;
+ * see RecurrenceRuleConverter for which rules those are and why refusing one
+ * outright beats converting most of it.
  */
 final readonly class IcsEventExtractor implements EventExtractorInterface
 {
@@ -63,8 +73,9 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
     private const int DEFAULT_DURATION_MINUTES = 60;
 
     public function __construct(
-        private AttachmentResolver $attachments,
-        private LoggerInterface    $logger,
+        private AttachmentResolver      $attachments,
+        private RecurrenceRuleConverter $recurrence,
+        private LoggerInterface         $logger,
     ) {
     }
 
@@ -275,14 +286,60 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
         $rrules = $vevent->select('RRULE');
 
         if ([] !== $rrules) {
-            // Kept as the sender wrote it. plMail's own recurrence is
-            // JSCalendar, and converting RRULE into it properly is its own
-            // piece of work — until then the rule is preserved rather than
-            // half-translated into something that would expand wrongly.
-            $jscalendar['plmail:rrule'] = (string) reset($rrules);
+            $verbatim = (string) reset($rrules);
+            $rule     = $this->recurrence->fromRrule($verbatim, $zone);
+
+            if (null !== $rule) {
+                $jscalendar['recurrenceRules'] = [$rule];
+            } else {
+                // Kept as the sender wrote it, and only when it could not be
+                // converted. A rule that half-converts produces an event on the
+                // wrong days, which is worse than one that does not recur — but
+                // losing it entirely would also lose it on the way back out, and
+                // CalDavEventConverter writes this key through unchanged so a
+                // round trip cannot un-repeat somebody's standing meeting.
+                $jscalendar['plmail:rrule'] = $verbatim;
+            }
+
+            $excluded = $this->recurrence->exclusionOverrides(
+                $this->exclusionsOf($vevent),
+                new DateTimeZone($zone ?? 'UTC'),
+            );
+
+            if ([] !== $excluded) {
+                $jscalendar['recurrenceOverrides'] = $excluded;
+            }
         }
 
         return $jscalendar;
+    }
+
+    /**
+     * The instances an EXDATE takes off the series.
+     *
+     * Only read beside an RRULE, because an EXDATE without one excludes nothing.
+     * The property is multi-valued and may appear several times, each occurrence
+     * with its own TZID, which is why sabre is asked for the instants rather than
+     * the strings — an EXDATE in Europe/Berlin compared against a UTC expansion
+     * misses by an hour and takes the wrong instance off, or none.
+     *
+     * @return list<DateTimeImmutable>
+     */
+    private function exclusionsOf(VEvent $vevent): array
+    {
+        $instants = [];
+
+        foreach ($vevent->select('EXDATE') as $exdate) {
+            if (false === $exdate instanceof ICalDateTime) {
+                continue;
+            }
+
+            foreach ($exdate->getDateTimes() as $dateTime) {
+                $instants[] = DateTimeImmutable::createFromInterface($dateTime);
+            }
+        }
+
+        return $instants;
     }
 
     /**

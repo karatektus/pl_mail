@@ -1,0 +1,24 @@
+# Services that exist only while APP_ENV=test.
+#
+# Imported automatically by MicroKernelTrait (config/services_{env}.yaml) and by
+# nothing else, so none of this is compiled into a dev or prod container. That
+# is the whole reason the file exists rather than a guard inside a class in
+# src/: a stub in the application tree ships, and a stub that ships is a stub
+# somebody eventually reaches by accident.
+#
+# One entry, and it needs the paragraph. Subscribing to a remote calendar cannot
+# be exercised from a browser without a driver a fixture can script — Playwright
+# drives real HTTP, so the collaborators come from the real container, and the
+# object-level FakeCalendarSyncDriver a service test hands in by hand is
+# unreachable from there. See ScriptedCalendarSyncDriver for why pointing a spec
+# at a real (or stubbed) CalDAV server was rejected instead.
+#
+# The priority is load-bearing. Drivers arrive as a tagged iterator and the
+# first that claims a source wins; CalDavCalendarDriver claims every
+# Provider::CalDav connection, so a stub tagged at the default 0 would be asked
+# second and never answer. It claims only connections carrying its own settings
+# key, so being asked first costs the real driver nothing.
+services:
+    App\Tests\Support\Calendar\ScriptedCalendarSyncDriver:
+        tags:
+            - { name: 'app.calendar_sync_driver', priority: 100 }

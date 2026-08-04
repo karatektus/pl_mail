@@ -135,6 +135,16 @@ Variables:
             {% include 'calendar/_invite_card.html.twig' with { invite: invite } only %}
         {% endif %}
 
+        {# A date read out of the prose, offered and not added. Batched per
+           conversation the same way, and the two cards never both appear: a
+           message carrying a real invitation is refused by EventProposer
+           before it is ever read, because the invitation is the better
+           answer to the same question. #}
+        {% set proposal = message_event_proposal(message) %}
+        {% if proposal is not null %}
+            {% include 'calendar/_proposal_card.html.twig' with { proposal: proposal } only %}
+        {% endif %}
+
         {% if message.bodyHtmlSafe %}
             <div class="mail-sheet text-sm overflow-x-auto">
                 {{ message.bodyHtmlSafe|raw }}

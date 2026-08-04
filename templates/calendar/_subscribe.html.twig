@@ -1,0 +1,154 @@
+{#
+calendar/_subscribe.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Which of a connection's calendars to mirror.
+
+A hand-written form rather than a Symfony one, because there is no entity behind
+it: the submission is a set of opaque remote ids, and every property of every
+calendar is re-read from the remote on the way through
+(CalendarSubscriber). A form type mapping name, colour and read-only would be a
+form type whose fields must be ignored, which is worse than not having them.
+
+Two states, one markup block. When discovery failed there is no list and the
+reason takes its place — a Google account whose consent screen had the calendar
+scope unticked answers here, with a sentence naming the fix. That is the whole
+reason this screen catches the exception rather than letting it 500: the person
+reading it is already asking "why are there no calendars?".
+
+Wrapped in the modal frame directly rather than through _modal_form.html.twig,
+which needs a FormView it does not have. The frame is what Turbo swaps into; a
+response without it leaves the dialog on its spinner.
+
+Variables:
+  subscriptions  CalendarSubscription[]  every calendar the source offers
+  sourceKind     string                  'account' | 'integration'
+  sourceId       int                     the account's or connection's id
+  sourceLabel    string                  what to call it on screen
+  error          string|null             why there is no list
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'settings.calendars.subscribe.title'|trans }}</template>
+
+    <form method="post"
+          action="{{ path('app_settings_calendar_subscribe', { kind: sourceKind, id: sourceId }) }}"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar-subscribe' ~ sourceKind ~ sourceId) }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-5 overflow-y-auto">
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'settings.calendars.subscribe.intro'|trans({ '%name%': sourceLabel }) }}
+            </p>
+
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+
+            {% elseif subscriptions is empty %}
+                <p class="py-6 text-center text-sm text-ink-faint italic">
+                    {{ 'settings.calendars.subscribe.empty'|trans({ '%name%': sourceLabel }) }}
+                </p>
+
+            {% else %}
+                <ul class="divide-y divide-line">
+                    {% for subscription in subscriptions %}
+                        {% set remote = subscription.remote %}
+                        {% set local  = subscription.local %}
+                        {# The default calendar is where a new event lands, so
+                           unticking it would make the next thing the user
+                           creates vanish on save — the same rule that hides
+                           the delete button on it in the settings list.
+                           CalendarSubscriber refuses it server-side too; this
+                           is the half a person meets. #}
+                        {% set locked = local is not null and local.isDefault %}
+                        {% set field  = 'remote-calendar-' ~ loop.index %}
+
+                        <li class="flex items-start gap-3 py-2.5">
+                            <input type="checkbox"
+                                   id="{{ field }}"
+                                   name="remoteIds[]"
+                                   value="{{ remote.remoteId }}"
+                                   {% if subscription.isSubscribed %}checked{% endif %}
+                                   {% if locked %}disabled{% endif %}
+                                   class="mt-0.5 size-4 shrink-0 rounded border-field text-accent focus:ring-accent cursor-pointer">
+
+                            {# The disabled box submits nothing, so the ticked
+                               state has to travel some other way or saving
+                               would unsubscribe the default calendar the box
+                               was disabled to protect. #}
+                            {% if locked %}
+                                <input type="hidden" name="remoteIds[]" value="{{ remote.remoteId }}">
+                            {% endif %}
+
+                            <span class="w-2.5 h-2.5 mt-1.5 rounded-full shrink-0"
+                                  style="background-color: {{ local ? local.color : (remote.color ?: '#71717a') }}"
+                                  aria-hidden="true"></span>
+
+                            <label for="{{ field }}" class="flex-1 min-w-0 flex flex-col gap-0.5 cursor-pointer">
+                                <span class="flex items-center gap-2 flex-wrap">
+                                    <span class="truncate text-sm text-ink">{{ remote.name }}</span>
+
+                                    {% if remote.isPrimary %}
+                                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
+                                            {{ 'settings.calendars.subscribe.primary'|trans }}
+                                        </span>
+                                    {% endif %}
+
+                                    {% if remote.isReadOnly %}
+                                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
+                                              title="{{ 'settings.calendars.read_only_hint'|trans }}">
+                                            <i class="fa-solid fa-lock mr-1 text-[8px]" aria-hidden="true"></i>
+                                            {{ 'settings.calendars.read_only'|trans }}
+                                        </span>
+                                    {% endif %}
+                                </span>
+
+                                {% if locked %}
+                                    <span class="text-[11px] text-ink-faint leading-snug">
+                                        {{ 'settings.calendars.subscribe.default_locked'|trans }}
+                                    </span>
+                                {% elseif subscription.isSubscribed %}
+                                    <span class="text-[11px] text-ink-faint leading-snug">
+                                        {{ 'settings.calendars.subscribe.mirrored'|trans }}
+                                    </span>
+                                {% endif %}
+                            </label>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                {# Said before the button rather than in a confirmation after
+                   it: unticking deletes a calendar, and the one thing a person
+                   needs to know is that what only exists here is moved rather
+                   than deleted with it. #}
+                <p class="text-[11px] text-ink-faint leading-snug">
+                    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                    {{ 'settings.calendars.subscribe.unsubscribe_note'|trans }}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'form.cancel'|trans }}</button>
+
+            {% if error is null %}
+                <button type="submit"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong active:bg-blue-800
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100">{{ 'settings.calendars.subscribe.save'|trans }}</button>
+            {% endif %}
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

@@ -1,0 +1,30 @@
+{#
+calendar/_proposal_response.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The answer to a proposed date: the card goes, and a toast says what happened.
+
+Removed rather than replaced, which is where this differs from the invitation
+stream. An RSVP leaves something behind to look at — the meeting still exists
+and now carries an answer — whereas both answers here end the offer: yes made
+an event, no made a refusal, and in each case there is nothing left to decide.
+A card that stayed on screen showing a decision already taken would invite the
+same person to take it again.
+
+So the toast is the whole report, and it is the only place "an event now
+exists" is said at all.
+
+Variables:
+  messageId     int
+  toastMessage  string  translation key
+  toastType     string  success | error
+#}
+<turbo-stream action="remove" target="proposal_card_{{ messageId }}"></turbo-stream>
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: toastType,
+        } %}
+    </template>
+</turbo-stream>

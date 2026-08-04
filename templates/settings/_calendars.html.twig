@@ -22,9 +22,23 @@ the server side of each):
   Everything can be renamed, including an account's calendar — which is the
   point, since those are provisioned named after a username.
 
+A fourth rule arrived with subscribing, and it is the reason the row grew a
+second line: a mirrored calendar is the only kind that can be *silently broken*.
+It syncs on a sweep nobody watches, so where it comes from, whether it accepts
+writes, when it last worked and why it stopped are rendered on the row — every
+one of them a fact the user cannot find anywhere else. A row that mirrors
+nothing renders exactly as it did before, with no second line at all.
+
 Variables:
-  calendars  Calendar[]  every calendar the user owns, in sort order
+  calendars            Calendar[]     every calendar the user owns, in sort order
+  calendarAccounts     Account[]      accounts calendars can be subscribed from
+  calendarConnections  Integration[]  CalDAV connections calendars can be subscribed from
 #}
+{% include 'settings/_calendar_sources.html.twig' with {
+    calendarAccounts: calendarAccounts|default([]),
+    calendarConnections: calendarConnections|default([]),
+} only %}
+
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
     <p class="text-xs text-ink-faint">{{ 'settings.calendars.count'|trans({ '%count%': calendars|length }) }}</p>
 
@@ -47,34 +61,100 @@ Variables:
 {% else %}
     <ul class="py-2 divide-y divide-line">
         {% for calendar in calendars %}
+            {# `isSynced` and not `role`: a Remote calendar the subscribe flow
+               created but never bound to a remote id mirrors nothing, and
+               offering it a "sync now" button would queue a job the handler
+               refuses. Calendar::isSynced() is the one place that decides. #}
+            {% set mirrors = calendar.isSynced %}
+            {% set origin = calendar.integration ? calendar.integration.name
+                          : (calendar.account ? calendar.account.displayAddress : null) %}
+
             <li class="flex items-center gap-3 px-4 py-1.5">
 
                 <span class="w-2.5 h-2.5 rounded-full shrink-0"
                       style="background-color: {{ calendar.color }}"
                       aria-hidden="true"></span>
 
-                <span class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    <span class="truncate text-sm {{ calendar.isVisible ? 'text-ink' : 'text-ink-faint' }}">
-                        {{ calendar.name }}
+                <span class="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span class="flex items-center gap-2 flex-wrap">
+                        <span class="truncate text-sm {{ calendar.isVisible ? 'text-ink' : 'text-ink-faint' }}">
+                            {{ calendar.name }}
+                        </span>
+
+                        {% if calendar.isDefault %}
+                            <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
+                                {{ 'settings.calendars.default'|trans }}
+                            </span>
+                        {% endif %}
+
+                        {% if mirrors %}
+                            <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent"
+                                  title="{{ 'settings.calendars.mirrored_hint'|trans({ '%name%': origin }) }}">
+                                {{ 'settings.calendars.mirrored'|trans }}
+                            </span>
+                        {% endif %}
+
+                        {% if calendar.isReadOnly %}
+                            <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
+                                  title="{{ 'settings.calendars.read_only_hint'|trans }}">
+                                <i class="fa-solid fa-lock mr-1 text-[8px]" aria-hidden="true"></i>
+                                {{ 'settings.calendars.read_only'|trans }}
+                            </span>
+                        {% endif %}
+
+                        {% if calendar.account and not mirrors %}
+                            <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
+                                  title="{{ 'settings.calendars.account_hint'|trans({ '%address%': calendar.account.displayAddress }) }}">
+                                {{ calendar.account.displayAddress }}
+                            </span>
+                        {% endif %}
+
+                        <span class="text-[10px] text-ink-faint">{{ calendar.timeZone }}</span>
                     </span>
 
-                    {% if calendar.isDefault %}
-                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
-                            {{ 'settings.calendars.default'|trans }}
+                    {# Only for a calendar that mirrors something. A local list
+                       has no remote to have last spoken to, and a "never
+                       synced" line under every hand-made calendar would teach
+                       people to stop reading the one that matters. #}
+                    {% if mirrors %}
+                        <span class="flex items-center gap-1.5 min-w-0 text-[10px] text-ink-faint">
+                            <span class="truncate">{{ 'settings.calendars.from'|trans({ '%name%': origin }) }}</span>
+                            <span aria-hidden="true">·</span>
+                            {% if calendar.lastSyncedAt %}
+                                <span class="whitespace-nowrap">{{ 'settings.calendars.last_synced'|trans({ '%when%': calendar.lastSyncedAt|date('Y-m-d H:i') }) }}</span>
+                            {% else %}
+                                <span class="whitespace-nowrap">{{ 'settings.calendars.never_synced'|trans }}</span>
+                            {% endif %}
                         </span>
-                    {% endif %}
 
-                    {% if calendar.account %}
-                        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted"
-                              title="{{ 'settings.calendars.account_hint'|trans({ '%address%': calendar.account.displayAddress }) }}">
-                            {{ calendar.account.displayAddress }}
-                        </span>
+                        {# lastSyncError is written for display and never
+                           carries a credential — see Calendar::$lastSyncError.
+                           Shown in full rather than truncated to a chip,
+                           because it is the whole reason a calendar is empty. #}
+                        {% if calendar.lastSyncError %}
+                            <span role="alert" class="flex items-start gap-1.5 text-[10px] text-danger leading-snug">
+                                <i class="fa-solid fa-circle-exclamation mt-px shrink-0" aria-hidden="true"></i>
+                                <span>{{ calendar.lastSyncError }}</span>
+                            </span>
+                        {% endif %}
                     {% endif %}
-
-                    <span class="text-[10px] text-ink-faint">{{ calendar.timeZone }}</span>
                 </span>
 
                 <div class="flex items-center gap-0.5 shrink-0">
+                    {% if mirrors %}
+                        <form method="post" action="{{ path('app_settings_calendar_sync', { id: calendar.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sync' ~ calendar.id) }}">
+                            <button
+                                type="submit"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-accent hover:bg-hover transition-colors cursor-pointer"
+                                aria-label="{{ 'settings.calendars.sync_now'|trans({ '%name%': calendar.name }) }}"
+                                title="{{ 'settings.calendars.sync_now_title'|trans }}"
+                            >
+                                <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+
                     {% if not calendar.isDefault %}
                         <form method="post" action="{{ path('app_settings_calendar_make_default', { id: calendar.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-default' ~ calendar.id) }}">

@@ -112,3 +112,12 @@ framework:
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
             App\Infrastructure\Messaging\Message\ExtractEventsMessage: ingest
+            # ingest rather than export, although a calendar sync writes
+            # outward as well as reading. Nobody waits on it: a local edit is
+            # saved and on screen before the push is dispatched, so the send
+            # queue's promise — "the only queue a user waits on" — would be
+            # weakened by a job that can spend minutes doing a full calendar
+            # read. The retry strategy here is also the one this needs, since
+            # every failure worth retrying is a third-party rate limit that
+            # takes minutes to clear.
+            App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest

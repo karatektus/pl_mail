@@ -1,0 +1,89 @@
+{#
+calendar/_proposal_card.html.twig
+─────────────────────────────────────────────────────────────────────────────
+A date somebody wrote in a sentence, offered above the mail that said it.
+
+The sibling of _invite_card.html.twig and deliberately close to it: an
+invitation and a suggestion are the same shape of thing at the top of a
+message, and two cards that looked unrelated would make the second one read as
+an advertisement.
+
+Two differences, and both are the point.
+
+The edge is dashed and carries no calendar colour, because nothing has been
+added to a calendar yet — an invitation is already an event somewhere, and this
+is not. And the sentence it was read from is quoted verbatim. A guess whose
+evidence is visible can be judged in a second; a bare date with an Add button
+cannot be judged at all, so it gets clicked or ignored on a coin flip.
+
+Rendered from an EventProposal directly rather than through a DTO. There is
+nothing to assemble: the row already holds everything the card shows, which is
+the difference between this and the invite card — that one has to reconcile an
+event, a source link and the account's own addresses.
+
+Variables:
+  proposal  EventProposal
+#}
+
+<div id="proposal_card_{{ proposal.message.id }}"
+     class="mb-4 rounded-pane border border-dashed border-line overflow-hidden">
+
+    <div class="px-4 py-3">
+
+        <div class="flex items-start gap-3">
+            <i class="fa-regular fa-calendar-plus mt-0.5 text-ink-faint" aria-hidden="true"></i>
+
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-ink">
+                    {{ proposal.title ?: 'calendar.proposal.untitled'|trans }}
+                </p>
+
+                <p class="text-xs text-ink-muted mt-0.5">
+                    {% if proposal.isAllDay %}
+                        {{ proposal.startsAt|date('D, j M Y') }} · {{ 'calendar.event.all_day'|trans }}
+                    {% else %}
+                        {{ proposal.startsAt|date('D, j M Y') }} ·
+                        {{ proposal.startsAt|date('g:i a') }}–{{ proposal.endsAt|date('g:i a') }}
+                    {% endif %}
+                </p>
+
+                <p class="text-xs text-ink-faint mt-0.5">
+                    {{ 'calendar.proposal.explain'|trans }}
+                </p>
+            </div>
+        </div>
+
+        {# The evidence. A blockquote rather than a paragraph so it reads as
+           somebody else's words, which is exactly what it is. #}
+        <blockquote class="mt-3 border-l-2 border-line pl-3 text-xs text-ink-muted italic break-words">
+            {{ proposal.sourceSentence }}
+        </blockquote>
+
+        {# One form per answer, for the reason the invite card gives: a submit
+           button's value only travels when it is the button that was pressed,
+           which works until a browser autofills or a script submits the form. #}
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+            <form method="post"
+                  action="{{ path('app_calendar_proposal_accept', { id: proposal.message.id }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_proposal' ~ proposal.message.id) }}">
+
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-accent text-white">
+                    <i class="fa-solid fa-calendar-plus text-[10px]" aria-hidden="true"></i>
+                    {{ 'calendar.proposal.action.add'|trans }}
+                </button>
+            </form>
+
+            <form method="post"
+                  action="{{ path('app_calendar_proposal_dismiss', { id: proposal.message.id }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_proposal' ~ proposal.message.id) }}">
+
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer border border-line text-ink-muted hover:bg-hover hover:text-ink">
+                    <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                    {{ 'calendar.proposal.action.dismiss'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

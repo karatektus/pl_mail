@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
+import { TEST_USER, consoleCommand, seed } from "./support/config";
 
 /**
  * Managing calendars from settings.
@@ -18,7 +19,27 @@ import { test } from "./support/test";
 const NAME = `E2E calendar ${Date.now()}`;
 const RENAMED = `${NAME} renamed`;
 
+/**
+ * The premise this file asserts on, made rather than assumed.
+ *
+ * Personal and the per-account calendars are provisioned lazily, and
+ * `app:test:seed-mail` writes its account row by hand rather than through
+ * AccountCreator — so a freshly seeded worker owns no calendars at all. Both
+ * describes below name "Personal" and expect a second, hideable calendar
+ * beside it; they used to get them only because another file had opened the
+ * calendar first on the same worker, which is an ordering nobody declared and
+ * Playwright is free to change the moment a file's duration does.
+ *
+ * The backfill task is idempotent and find-or-creates, so running it per file
+ * costs one console round trip and fixes nothing that was not missing.
+ */
+function provisionCalendars(): void {
+    consoleCommand("app:backfill calendars");
+}
+
 test.describe("calendar settings", () => {
+    test.beforeAll(provisionCalendars);
+
     test.beforeEach(async ({ page }) => {
         await page.goto("/settings?section=calendars");
     });
@@ -29,6 +50,20 @@ test.describe("calendar settings", () => {
         // something behind.
         for (const name of [NAME, RENAMED]) {
             await page.goto("/settings?section=calendars");
+
+            // The default calendar has no delete button, so a test that failed
+            // between the two halves of "moves the default" would otherwise
+            // leave a calendar nothing can ever remove — and, because
+            // CalendarProvisioner only creates Personal when no default
+            // exists, a worker that never gets Personal back either.
+            const restore = page.getByRole("button", {
+                name: 'Make "Personal" the calendar new events land on',
+            });
+
+            if ((await restore.count()) > 0) {
+                await restore.click();
+                await expect(restore).toHaveCount(0);
+            }
 
             const remove = page.getByRole("button", { name: `Delete calendar "${name}"` });
 
@@ -128,5 +163,195 @@ test.describe("calendar settings", () => {
         // Put it back, so the delete in afterEach is allowed to run.
         await page.getByRole("button", { name: 'Make "Personal" the calendar new events land on' }).click();
         await expect(page.getByRole("button", { name: `Make "${NAME}" the calendar new events land on` })).toBeVisible();
+    });
+});
+
+/**
+ * Subscribing to the calendars a connection offers.
+ *
+ * The whole of this is rendered state, which is why it is here and not only in
+ * CalendarSubscriberTest: whether a calendar is read-only, where it came from,
+ * whether it has ever synced and why it stopped are facts a user meets as marks
+ * on a row, and a row that quietly stops carrying one of them is exactly what a
+ * service test cannot notice.
+ *
+ * `app:test:seed-calendar-source` makes two connections whose answers come out
+ * of the database rather than off a network — see
+ * App\Tests\Support\Calendar\ScriptedCalendarSyncDriver for why that seam
+ * exists and why pointing a spec at a real CalDAV server was rejected. One
+ * lists two calendars, the other refuses to list anything, which is the pair of
+ * cases this screen has to survive.
+ *
+ * The seed is also the cleanup: re-running it removes the connections it made
+ * last time and every calendar mirrored from them, so a run that failed halfway
+ * leaves nothing for the next one to trip on.
+ */
+const SERVER = "E2E calendar server";
+const BROKEN_SERVER = "E2E broken calendar server";
+const TEAM = "E2E Team calendar";
+const HOLIDAYS = "E2E Public holidays";
+
+test.describe("subscribing to remote calendars", () => {
+    test.beforeAll(provisionCalendars);
+
+    // Reseeding here and not also in an afterEach, deliberately: the command
+    // removes what it made last time before making it again, so one call per
+    // test is a full reset. Doing it twice doubled the number of
+    // `docker compose exec` round trips this file costs, which is the most
+    // expensive thing a spec can do and is measurable in the whole suite's
+    // wall clock.
+    test.beforeEach(async ({ page }) => {
+        seed("seed-calendar-source");
+        await page.goto("/settings?section=calendars");
+    });
+
+    // Not just between tests: a fixture connection left on this worker's user
+    // outlives the file, and the compose picker spec establishes "nothing is
+    // connected" as its own premise before asserting on it. Files run
+    // sequentially within a worker, so this is the last thing that happens
+    // before another one starts.
+    test.afterAll(() => {
+        consoleCommand(`app:test:seed-calendar-source --clear --email=${TEST_USER.email}`);
+    });
+
+    test("lists what a connection offers, and marks the read-only ones", async ({ page }) => {
+        await page.getByRole("button", { name: `Find calendars on ${SERVER}` }).click();
+
+        const modal = page.locator("#modal-backdrop");
+
+        // Waiting on this dialog's own CONTENT, not on the backdrop being
+        // visible. The frame keeps the previous dialog until Turbo swaps it,
+        // so anything asserted on "visible" alone is asserted against whatever
+        // was open last — which for this file is a calendar form.
+        const team = modal.getByRole("checkbox", { name: new RegExp(TEAM) });
+        await expect(team).toBeVisible();
+
+        await expect(modal.getByRole("checkbox", { name: new RegExp(HOLIDAYS) })).toBeVisible();
+
+        // Nothing is mirrored yet, so nothing is ticked. A list that arrived
+        // pre-ticked would subscribe the user to everything on their first Save.
+        await expect(team).not.toBeChecked();
+
+        // The badge, not the entity flag: the user cannot see isReadOnly.
+        const holidayRow = modal.locator("li", { hasText: HOLIDAYS });
+        await expect(holidayRow.getByText("Read-only")).toBeVisible();
+        await expect(modal.locator("li", { hasText: TEAM }).getByText("Main")).toBeVisible();
+    });
+
+    test("ticking a calendar mirrors it, and unticking it stops", async ({ page }) => {
+        const modal = page.locator("#modal-backdrop");
+
+        await page.getByRole("button", { name: `Find calendars on ${SERVER}` }).click();
+        await expect(modal.getByRole("checkbox", { name: new RegExp(TEAM) })).toBeVisible();
+
+        await modal.getByRole("checkbox", { name: new RegExp(TEAM) }).check();
+        await modal.getByRole("button", { name: "Save subscriptions" }).click();
+
+        const row = page.locator("li", { hasText: TEAM }).first();
+
+        await expect(page.getByText(TEAM, { exact: true })).toBeVisible();
+        await expect(row.getByText("Mirrored")).toBeVisible();
+        await expect(row.getByText(`From ${SERVER}`)).toBeVisible();
+        await expect(row.getByText("Not synced yet")).toBeVisible();
+        await expect(page.getByRole("button", { name: `Sync "${TEAM}" now` })).toBeVisible();
+
+        // Re-opening is the claim that the list knows what it already mirrors —
+        // a screen that forgot would offer to subscribe a second time and
+        // silently do nothing.
+        await page.getByRole("button", { name: `Find calendars on ${SERVER}` }).click();
+        await expect(modal.getByRole("checkbox", { name: new RegExp(TEAM) })).toBeChecked();
+
+        await modal.getByRole("checkbox", { name: new RegExp(TEAM) }).uncheck();
+        await modal.getByRole("button", { name: "Save subscriptions" }).click();
+
+        // Also the guard on the stream: `settings-calendar-list` is replaced
+        // for a second time here, which only works because the replacement
+        // re-emits the target id inside itself.
+        await expect(page.getByText(TEAM, { exact: true })).toHaveCount(0);
+    });
+
+    test("a calendar the remote will not accept writes to says so on the list", async ({ page }) => {
+        const modal = page.locator("#modal-backdrop");
+
+        await page.getByRole("button", { name: `Find calendars on ${SERVER}` }).click();
+        await expect(modal.getByRole("checkbox", { name: new RegExp(HOLIDAYS) })).toBeVisible();
+
+        await modal.getByRole("checkbox", { name: new RegExp(HOLIDAYS) }).check();
+        await modal.getByRole("button", { name: "Save subscriptions" }).click();
+
+        const row = page.locator("li", { hasText: HOLIDAYS }).first();
+
+        await expect(row.getByText("Read-only")).toBeVisible();
+    });
+
+    /**
+     * The case a Google account whose consent screen had the calendar scope
+     * unticked lands in. The message is written to be read by a person and is
+     * the only thing on screen that explains an empty calendar list, so a 500
+     * here is worse than the missing calendars.
+     */
+    test("a connection that cannot list its calendars says why instead of failing", async ({ page }) => {
+        await page.getByRole("button", { name: `Find calendars on ${BROKEN_SERVER}` }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        const message = modal.getByText(/Reconnect the account and allow calendar access/);
+
+        await expect(message).toBeVisible();
+
+        // Not an error page, and no Save button offered for a list that does
+        // not exist — pressing one would re-run the same failing discovery.
+        await expect(page).toHaveURL(/\/settings/);
+        await expect(modal.getByRole("button", { name: "Save subscriptions" })).toHaveCount(0);
+    });
+
+    /**
+     * The credential decision, which is the one part of connecting a CalDAV
+     * server that is not the server's business: reusing a stored mail password
+     * has to be something a person turns on, never a default.
+     */
+    test("the CalDAV form never offers to reuse a mail password by default", async ({ page }) => {
+        await page.getByRole("button", { name: "Connect a CalDAV server" }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        const reuse = modal.getByRole("checkbox", { name: /Use the password from one of my mail accounts/ });
+
+        await expect(reuse).toBeVisible();
+        await expect(reuse).not.toBeChecked();
+
+        // The suggestion, not a probe: plMail opens on the domain of the user's
+        // own mailbox and lets RFC 6764 bootstrapping do the rest.
+        await expect(modal.getByLabel("Server address")).not.toHaveValue("");
+    });
+
+    test("a CalDAV server that cannot be reached is reported, not saved silently", async ({ page }) => {
+        await page.getByRole("button", { name: "Connect a CalDAV server" }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        const address = modal.getByLabel("Server address");
+
+        await expect(address).not.toHaveValue("");
+
+        await address.fill("https://caldav.e2e-nowhere.invalid");
+        // By role and accessible name rather than by label, and both halves
+        // matter. getByLabel matches the label's TEXT, which for a required
+        // field ends in the theme's "*" — so { exact: true } never matches and
+        // an unanchored "Name" also claims "Username". The accessible name has
+        // the asterisk hidden, so it is exactly "Name".
+        await modal.getByRole("textbox", { name: "Name", exact: true }).fill("E2E unreachable server");
+        await modal.getByRole("textbox", { name: "Username" }).fill("e2e");
+        await modal.getByLabel("App password").fill("not-a-real-password");
+        await modal.getByRole("button", { name: "Connect and find calendars" }).click();
+
+        // The dialog stays open carrying the reason. It is marked
+        // data-ui--modal-keep-open precisely so a successful connect can hand
+        // straight over to the subscribe list; a failure has to stay put too.
+        await expect(modal.getByRole("alert")).toBeVisible();
+
+        // The connection is stored carrying its failure, the way every other
+        // connect path stores one — so it has to be disconnectable from here.
+        await page.goto("/settings?section=calendars");
+        page.once("dialog", (dialog) => dialog.accept());
+        await page.getByRole("button", { name: 'Disconnect "E2E unreachable server"' }).click();
+        await expect(page.getByText("E2E unreachable server", { exact: true })).toHaveCount(0);
     });
 });

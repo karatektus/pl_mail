@@ -140,6 +140,14 @@ admin:
             incomplete: 'Wants papers'
             unimplemented: 'Not yet charted'
         tutorial:
+            caldav:
+                intro: 'CalDAV signs on with a ship''s key per hand, against each hand''s own port — there be naught to register here.'
+                not_for_cloud_mail: 'Gmail an'' Outlook almanacs come not this way. They ride the parrot sign-in above, an'' want only the almanac right ticked on them papers.'
+                security: 'Hands should cut a ship''s key rather than hand over their boardin'' word: a ship''s key can be struck on its own an'' works with the two-lock. iCloud an'' Fastmail take naught else.'
+                step_app_password: 'Each hand cuts a ship''s key aboard their own port — Nextcloud under Settin''s → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — an'' pastes it into their own almanac settin''s.'
+                step_base_url: 'Ye may pin the port''s address, say https://cloud.example.com, if every hand here uses the same one.'
+                step_enable: 'Hoist "Offer this service to users" above.'
+                step_url: 'The address wanted be the CalDAV one, not the front door: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", an'' it mostly ends in /remote.php/dav. A bare domain serves too — plMail hails it an'' asks where the almanacs be moored.'
             dropbox:
                 intro: 'Dropbox wants an app registered in th'' Dropbox developer console.'
                 refresh_note: 'Choose th'' scoped access app type and ask for offline access, or th'' line parts after a few hours.'
@@ -416,6 +424,20 @@ calendar:
         previous: Back
     pane:
         resize: Shift the almanac's width
+    proposal:
+        action:
+            add: Write it in the almanac
+            dismiss: No reckonin' at all
+        explain: >-
+            Spied in this parrot — naught be written in the almanac yet.
+        toast:
+            added: Written into the almanac.
+            dismissed: >-
+                Cast overboard — that day shall not be put to ye again, however
+                often this parrot be read.
+            no_calendar: >-
+                There be no almanac to write this into, so naught was stowed.
+        untitled: (no subject)
     repeat:
         daily: Every day
         monthly: Every month
@@ -427,8 +449,18 @@ calendar:
         created: Almanac drawn up
         default_set: New reckonin's land here now
         deleted: Almanac scuttled
+        disconnected: Line cut to the port
+        disconnected_kept: >-
+            Line cut — %count% reckonin(s) that came off a parrot an' not off an
+            almanac were rowed over to yer own almanac.
         hidden: Almanac stowed below
         shown: Almanac brought on deck
+        subscriptions_saved: Yer choosin' be stowed
+        subscriptions_saved_kept: >-
+            Yer choosin' be stowed — %count% reckonin(s) that came off a parrot
+            an' not off the almanac were rowed over to yer own almanac.
+        subscriptions_unchanged: Naught changed
+        sync_queued: Haulin' now — this almanac comes about in a moment.
         updated: Almanac amended
     today: This day
     upcoming:
@@ -1122,20 +1154,96 @@ settings:
         unavailable_heading: 'No passage from here'
     calendars:
         account_hint: Where reckonin's found in parrots from %address% be filed.
+        caldav:
+            connect: Make fast to a CalDAV port
+            disconnect: Cut the line to "%name%"
+            disconnect_confirm: >-
+                Cut the line to "%name%"? Every almanac kept in step with it be
+                struck from this deck. Aught on 'em that came off yer parrots an'
+                not off an almanac be rowed to yer own almanac first.
+            disconnect_title: Cut the line to this port
+            field:
+                address: The port's address
+                address_help: >-
+                    The CalDAV address yer port shows ye, or just its domain —
+                    plMail hails the domain an' asks where its almanacs be moored
+                    afore it gives up.
+                name: What it be called
+                name_help: What to call this line in yer settin's.
+                reuse: Use the word from one o' me parrot accounts
+                reuse_account: Which account's word
+                reuse_account_none: Pick an account…
+                reuse_help: >-
+                    Off unless ye say so, an' best left off: most ports want a
+                    ship's key of their own, an' a tick here sends a word ye
+                    gave plMail for yer parrots off to the address above.
+                secret: Ship's key
+                secret_help: >-
+                    Cut one aboard yer own port instead o' handin' over yer
+                    boardin' word — iCloud an' Fastmail take naught else.
+                username: Yer name aboard
+                username_help: The name yer port knows ye by.
+            intro: >-
+                Any CalDAV port at all: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud, a crate in a cupboard. Gmail an' Outlook almanacs come
+                not this way — they sail in with the parrot account.
+            submit: Make fast an' find the almanacs
+            title: Make fast to a CalDAV port
         count: '%count% almanacs'
         default: The one in use
         delete: Scuttle the almanac "%name%"
         delete_title: Scuttle the almanac
         edit: Amend the almanac "%name%"
         empty: No almanacs yet.
+        from: Off %name%
         heading: Almanacs
         hide: Stow this almanac below
+        last_synced: 'Last hauled %when%'
         make_default: Make "%name%" the almanac new reckonin's land on
         make_default_title: Set as the one in use
+        mirrored: Kept in step
+        mirrored_hint: Kept in step with %name%.
+        never_synced: Not hauled yet
+        read_only: Look, don't touch
+        read_only_hint: This almanac takes no amendin' from this here deck.
         show: Bring this almanac on deck
+        sources:
+            empty: >-
+                No account nor line here carries almanacs yet. Gmail an' Outlook
+                accounts do; for aught else, make fast to a CalDAV port.
+            find: Find the almanacs on %name%
+            heading: Where almanacs come from
+            why_admin: >-
+                Yer quartermaster may not have given the papers plMail signs in
+                with any almanac rights. Parrots sail without 'em; almanacs do
+                not.
+            why_consent: >-
+                Google's askin' screen lets ye untick almanac access while
+                lettin' the parrots through. Sign the account on again an' leave
+                that box ticked.
+            why_empty: No almanacs turnin' up?
+            why_none: Belike there be no almanacs on that account at all.
         subheading: >-
             Name, colours an' bell, which almanacs the views show, an' where a
             new reckonin' lands.
+        subscribe:
+            default_locked: >-
+                New reckonin's land here, so this one stays. Make another
+                almanac the one in use first.
+            empty: There be no almanacs on %name%.
+            intro: >-
+                Tick the almanacs on %name% for plMail to keep in step with.
+                Reckonin's turn up within the minute.
+            mirrored: Already kept in step
+            primary: The main one
+            save: Stow the choosin'
+            title: Find me almanacs
+            unsubscribe_note: >-
+                Untickin' an almanac scuttles the copy held here. Aught on it
+                that came off yer parrots an' not off the almanac be rowed to
+                yer own almanac first.
+        sync_now: Haul "%name%" now
+        sync_now_title: Haul now
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"

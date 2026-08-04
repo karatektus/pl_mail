@@ -130,6 +130,10 @@ services:
         arguments:
             $drivers: !tagged_iterator app.integration_driver
 
+    App\Service\Calendar\CalendarSyncDriverRegistry:
+        arguments:
+            $drivers: !tagged_iterator app.calendar_sync_driver
+
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
@@ -139,6 +143,12 @@ services:
         # extends it, so the file drivers are tagged by this same rule.
         App\Domain\Interface\VerifiableDriverInterface:
             tags: ['app.integration_driver']
+        # A calendar sync driver is not an integration driver and must not be
+        # tagged as one: it holds no files, and the two registries answer
+        # different questions — one takes a Provider, this one takes a
+        # CalendarSource that may carry a mail Account instead.
+        App\Domain\Interface\CalendarSyncDriverInterface:
+            tags: ['app.calendar_sync_driver']
         App\Jmap\Method\JmapMethod:
             tags: ['app.jmap_method']
         # Adding a wizard step is a new handler class and a new enum case —

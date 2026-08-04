@@ -273,6 +273,55 @@ final class RecurrenceMaterialiserTest extends KernelTestCase
         self::assertSame(3600, $moved->endsAt->getTimestamp() - $moved->startsAt->getTimestamp());
     }
 
+    /**
+     * A patch says how long the instance is now, not only when it starts.
+     *
+     * Only `start` used to be read, so an instance dragged into the afternoon
+     * and stretched to an hour was drawn at the right time with the series'
+     * half-hour — an appointment that overlaps the one after it in every view,
+     * and a free/busy answer that is wrong by the difference.
+     */
+    public function testAnOverrideThatLengthensAnInstanceIsHonouredAsWellAsOneThatMovesIt(): void
+    {
+        $event = $this->event(
+            '2026-02-02 10:00',
+            '2026-02-02 10:30',
+            rule: ['frequency' => 'daily', 'count' => 3],
+            overrides: ['2026-02-03T10:00:00' => ['start' => '2026-02-03T16:00:00', 'duration' => 'PT2H']],
+        );
+
+        $this->materialise($event, now: '2026-02-01 00:00');
+
+        $moved = $this->occurrenceAt($event, '2026-02-03 16:00');
+
+        self::assertSame(7200, $moved->endsAt->getTimestamp() - $moved->startsAt->getTimestamp());
+        self::assertSame(
+            1800,
+            $this->occurrenceAt($event, '2026-02-04 10:00')->endsAt->getTimestamp()
+                - $this->occurrenceAt($event, '2026-02-04 10:00')->startsAt->getTimestamp(),
+            'and the instances nobody touched keep the series length',
+        );
+    }
+
+    /** A duration that is not one leaves the instance the length of its series. */
+    public function testAnUnreadableDurationFallsBackRatherThanCostingTheSeries(): void
+    {
+        $event = $this->event(
+            '2026-02-02 10:00',
+            '2026-02-02 10:30',
+            rule: ['frequency' => 'daily', 'count' => 2],
+            overrides: ['2026-02-03T10:00:00' => ['duration' => 'two hours']],
+        );
+
+        $this->materialise($event, now: '2026-02-01 00:00');
+
+        self::assertCount(2, $event->occurrences);
+
+        $patched = $this->occurrenceAt($event, '2026-02-03 10:00');
+
+        self::assertSame(1800, $patched->endsAt->getTimestamp() - $patched->startsAt->getTimestamp());
+    }
+
     /** Cancelling one instance keeps the row, struck through rather than gone. */
     public function testACancelledInstanceIsKeptAndFlagged(): void
     {
