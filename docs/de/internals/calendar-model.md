@@ -1,4 +1,4 @@
-<!-- translated-from: internals/calendar-model.md sha1:bf151a9ad94f1b595778248245a7ed79a2ddae60 -->
+<!-- translated-from: internals/calendar-model.md sha1:7c82dbb22e19aa9d49c9de3588e586b79b7a940a -->
 # Das Kalendermodell
 
 JSCalendar in jsonb, mit den abfragbaren Teilen in Spalten herausgezogen; die Tabelle der
@@ -195,8 +195,12 @@ stabile Art zu sagen „die, die am 3. sein sollte", nachdem sie auf den 5. gezo
 das, was eine zweite Bearbeitung derselben Instanz ihren Patch aktualisieren lässt, statt einen
 neuen danebenzustapeln.
 
-Der Materialisierer beachtet in einem Patch genau vier Dinge, und
-`App\Service\Calendar\EventInstanceEditor` schreibt genau diese vier:
+Der Materialisierer liest fünf Schlüssel aus einem Override. Vier davon sind der Patch, den
+`App\Service\Calendar\EventInstanceEditor` schreibt — die vier Dinge, die eine Termininstanz
+überhaupt zeichnen kann —, und der fünfte ist gar kein Patch-Feld: `excluded` wird von
+`RecurrenceRuleConverter::exclusionOverrides()` geschrieben, denn der eine Override-Wert, dessen
+einzige Aufgabe es ist, exakt richtig zu sein, sollte keine zweite Stelle haben, die ihn richtig
+treffen muss.
 
 | Schlüssel | Wirkung |
 |---|---|
@@ -360,8 +364,9 @@ der Nutzerin. Alles, was einen Override erzeugt, muss `RecurrenceMaterialiser::z
 statt selbst eine Zone zu bestimmen.
 
 **Alles, was ein Patch über `start`, `duration`, `title` und `status` hinaus sagt, wird
-ignoriert.** Der Materialisierer liest diese und sonst nichts, ein „reichhaltigerer" Patch sind
-also Daten, die die Speicherung überstehen und nie eine Ansicht beeinflussen.
+ignoriert** — diese vier plus `excluded`, das auf dem anderen Weg oben ankommt. Der
+Materialisierer liest sie und sonst nichts, ein „reichhaltigerer" Patch sind also Daten, die die
+Speicherung überstehen und nie eine Ansicht beeinflussen.
 
 **Den Horizont zu verlängern ist nicht umsonst, und ihn zu verkürzen kostet Erinnerungen.** Der
 Horizont der Termininstanzen ist zugleich der Horizont der Erinnerungen — eine Erinnerung gibt es

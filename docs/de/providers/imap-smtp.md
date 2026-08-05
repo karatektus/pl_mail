@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:23ff0340249508460944b7e7704fc313c8f01213 -->
+<!-- translated-from: providers/imap-smtp.md sha1:b4f879ff7cebf8fb604297a9d39a979025c8ea9f -->
 
 # IMAP und SMTP
 

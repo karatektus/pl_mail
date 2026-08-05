@@ -622,7 +622,7 @@ Two things hide the register and are worth checking for after a draft: passive v
 avoid addressing the reader at all, and "man" standing in where "du" reads better. Mixing the two
 forms is worse than either consistently, so a page converted halfway is a page not yet converted.
 
-**German glossary**, so four translators do not invent four words for one thing:
+**German glossary**, so a handbook translated by several people does not invent several words for one thing:
 
 | English | German |
 |---|---|

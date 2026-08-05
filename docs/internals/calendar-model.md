@@ -173,8 +173,11 @@ is the same fact in the occurrence row: the only stable way to say "the one that
 be on the 3rd" once it has been dragged to the 5th, and what makes a second edit of the same
 instance update its patch instead of stacking a new one beside it.
 
-The materialiser honours exactly four things in a patch, and `App\Service\Calendar\EventInstanceEditor`
-writes exactly those four:
+The materialiser reads five keys out of an override. Four of them are the patch
+`App\Service\Calendar\EventInstanceEditor` writes — the four things an occurrence row can actually
+draw — and the fifth is not a patch field at all: `excluded` is spelled by
+`RecurrenceRuleConverter::exclusionOverrides()`, because the one override value whose only job is
+to be exactly right should not have a second place that has to be right about it.
 
 | Key | Effect |
 |---|---|
@@ -323,9 +326,9 @@ LocalDateTime in the *series'* zone; a floating event's zone is UTC, not the use
 producing an override must ask `RecurrenceMaterialiser::zoneOf()` rather than resolving a
 zone itself.
 
-**Anything a patch says beyond `start`, `duration`, `title` and `status` is ignored.** The
-materialiser reads those and nothing else, so a "richer" patch is data that survives storage
-and never affects a view.
+**Anything a patch says beyond `start`, `duration`, `title` and `status` is ignored** — those
+four plus `excluded`, which arrives by the other route above. The materialiser reads them and
+nothing else, so a "richer" patch is data that survives storage and never affects a view.
 
 **Extending the horizon is not free and shortening it loses alerts.** The occurrence horizon
 is also the alert horizon — an alert exists only where an occurrence row does — and

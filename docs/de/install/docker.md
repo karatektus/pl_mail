@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:1136c2c336cb10040b2c5e588a7cebc63fb2d930 -->
+<!-- translated-from: install/docker.md sha1:5382118760ac4e687b2aebee31c9d4910c6e6f65 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -148,50 +148,36 @@ sollte.
 
 ## Speicher, und was die Standarddatei nicht dauerhaft ablegt
 
-Die Compose-Datei deklariert sechs benannte Volumes:
+Die Compose-Datei deklariert zehn benannte Volumes:
 
 | Volume | Enthält |
 |---|---|
-| `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** Anwendungsdienst eingehängt und nur lesend in `database` und `mercure` |
-| `database_data` | Den PostgreSQL-Cluster |
+| `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** App-Dienst eingehängt, in `database` und `mercure` nur lesend |
+| `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten und zwischengelagerte JMAP-Uploads. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
+| `database_data` | Der PostgreSQL-Cluster |
 | `caddy_data`, `caddy_config` | Caddys TLS-Material und Zustand |
 | `mercure_data`, `mercure_config` | Zustand des Hubs |
+| `ntfy_data` | Zustand der Benachrichtigungs-Topics |
 
-Diese Liste hat eine Lücke, die du kennen solltest, bevor du echte Mail hineinlegst:
-**`var/attachments`, `var/raw` und `var/uploads` liegen in der Standard-`compose.yaml` auf keinem
-Volume.** Das Dockerfile enthält bewusst kein `VOLUME /app/var/` — ein anonymes Volume dort gab
-jedem Container seine eigene Kopie, sodass Anhänge, die ein Sync-Worker schrieb, für den
-Web-Container unsichtbar waren, der sie ausliefern soll —, und die dauerhaften Pfade sind
-stattdessen pro Dienst zu deklarieren, wie es `compose.override.yaml.dist` und
-`truenas.compose.yaml` beide tun. Füge sie dem Dienst `php` und allen vier Workern hinzu, wenn
-Anhang-Downloads überleben sollen, dass ein Container neu erzeugt wird:
+Die drei Blob-Volumes fehlten bis vor Kurzem, und der Fehler war auf lehrreiche Weise lautlos. Das
+Dockerfile hat bewusst kein `VOLUME /app/var/` — ein anonymes Volume dort gab jedem Container seine
+eigene Kopie —, die dauerhaften Pfade werden also pro Dienst deklariert. Die beiden
+Deployment-Dateien, die tatsächlich jemand bearbeitet hat, `compose.override.yaml.dist` und
+`truenas.compose.yaml`, deklarierten sie. Die Standarddatei `compose.yaml`, also genau die Datei,
+zu der die README greifen lässt, nicht. Anhänge, die ein Sync-Worker schrieb, waren damit für den
+Web-Container unsichtbar, der den Download ausliefern sollte, und beide Kopien starben beim
+nächsten `docker compose up`, das einen Container neu anlegte. Nichts warf einen Fehler: Mail kam
+an, die Liste zeichnete sich, und der Download lieferte 404.
 
-```yaml
-services:
-  php: &blobs
-    volumes:
-      - app_attachments:/app/var/attachments
-      - app_raw:/app/var/raw
-      - app_uploads:/app/var/uploads
-  worker-ingest: *blobs
-  worker-export: *blobs
-  worker-maintenance: *blobs
-  imap-supervisor: *blobs
+**Wenn du eine Standard-`compose.yaml` von vor dieser Korrektur betreibst, lies den
+Deployment-Hinweis in
+[CHANGELOG.md](https://github.com/karatektus/pl_mail/blob/main/CHANGELOG.md), bevor du ziehst.**
+Ein leeres Volume über ein Verzeichnis zu hängen verdeckt, was darin liegt — gelöscht wird nichts,
+aber die Dateien sind nicht mehr sichtbar, bis sie herüberkopiert sind.
 
-volumes:
-  app_attachments:
-  app_raw:
-  app_uploads:
-```
-
-`truenas.compose.yaml` geht den anderen Weg: Es setzt `APP_STORAGE_DIR=var/data` und bindet ein
-einziges Host-Verzeichnis auf `/app/var/data`, sodass Anhänge, Rohnachrichten, Uploads und die
-Geheimnisse alle unter einem Pfad landen — eine Sache zum Snapshotten, eine Sache zum Sichern.
-
-**Der typische Fehlerfall verläuft lautlos.** Nichts meldet einen Fehler: Mail wird abgeglichen, die
-Liste wird gerendert, und der Download eines Anhangs endet mit 404, weil die Datei in einem
-Container liegt, den der Webserver nicht sieht — oder in einem Container lag, der inzwischen ersetzt
-wurde.
+`truenas.compose.yaml` geht einen anderen Weg: Es setzt `APP_STORAGE_DIR=var/data` und bindet ein
+einziges Host-Verzeichnis an `/app/var/data`, sodass Anhänge, Rohnachrichten, Uploads und die
+Geheimnisse alle unter einem Pfad landen — eine Sache zum Snapshotten und eine zum Sichern.
 
 ## Alltagsbetrieb
 

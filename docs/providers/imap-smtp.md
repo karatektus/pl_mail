@@ -18,7 +18,7 @@ connection to come up, and about the handful of settings providers genuinely dis
    carry a short note about something that provider requires. The list is matched against the domain
    of the address you type, so for most mailboxes the settings arrive before you have touched the
    dropdown at all.
-2. **Account label** is what the account is called in plMail's own interface. **Email address** is
+2. **Email address** is what the account is called in plMail's own interface. **Username** is
    what the server knows you as, and is also what the provider detection reads. On most servers
    these are the same string; on some they are not, which is what the two fields are for.
 3. **Password** is the mailbox password, or — at most large providers — an application-specific

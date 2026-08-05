@@ -133,48 +133,34 @@ running.
 
 ## Storage, and what the stock file does not persist
 
-The compose file declares six named volumes:
+The compose file declares ten named volumes:
 
 | Volume | Holds |
 |---|---|
 | `app_secrets` | `generated.env`, `postgres_password`, the JWT keypair. Mounted by **every** app service, and read-only into `database` and `mercure` |
+| `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, and staged JMAP uploads. Mounted by every app service, because the workers write them and the web container serves them |
 | `database_data` | The PostgreSQL cluster |
 | `caddy_data`, `caddy_config` | Caddy's TLS material and state |
 | `mercure_data`, `mercure_config` | Hub state |
+| `ntfy_data` | Notification topic state |
 
-That list has a gap worth knowing about before you put real mail in it: **`var/attachments`,
-`var/raw` and `var/uploads` are not on any volume in the stock `compose.yaml`.** The Dockerfile
-deliberately has no `VOLUME /app/var/` — an anonymous volume there gave every container its own
-copy, so attachments written by a sync worker were invisible to the web container that serves them
-— and the durable paths are instead expected to be declared per service, which
-`compose.override.yaml.dist` and `truenas.compose.yaml` both do. Add them to the `php` service and
-to all four workers if you want attachment downloads to survive a container being recreated:
+The three blob volumes were missing until recently, and the failure was silent in an instructive
+way. The Dockerfile deliberately has no `VOLUME /app/var/` — an anonymous volume there gave every
+container its own copy — and the durable paths are instead declared per service. The two
+deployment files that people actually edited, `compose.override.yaml.dist` and
+`truenas.compose.yaml`, both declared them. The stock `compose.yaml`, which is the file the README
+tells an operator to run, did not. So attachments written by a sync worker were invisible to the
+web container serving the download, and both copies died with the next `docker compose up` that
+recreated a container. Nothing errored: mail synced, the list rendered, and the download 404'd.
 
-```yaml
-services:
-  php: &blobs
-    volumes:
-      - app_attachments:/app/var/attachments
-      - app_raw:/app/var/raw
-      - app_uploads:/app/var/uploads
-  worker-ingest: *blobs
-  worker-export: *blobs
-  worker-maintenance: *blobs
-  imap-supervisor: *blobs
+**If you ran a stock `compose.yaml` from before that fix, read the deployment note in
+[CHANGELOG.md](https://github.com/karatektus/pl_mail/blob/main/CHANGELOG.md) before pulling.**
+Mounting an empty volume over a directory hides what is inside it — nothing is deleted, but the
+files stop being visible until they are copied across.
 
-volumes:
-  app_attachments:
-  app_raw:
-  app_uploads:
-```
-
-`truenas.compose.yaml` takes the other approach: it sets `APP_STORAGE_DIR=var/data` and binds one
+`truenas.compose.yaml` takes a different approach: it sets `APP_STORAGE_DIR=var/data` and binds one
 host directory at `/app/var/data`, so attachments, raw messages, uploads and the secrets all land
 under a single path — one thing to snapshot and one thing to back up.
-
-**The failure mode is silent.** Nothing errors: mail syncs, the list renders, and an attachment
-download 404s because the file is in a container the web server cannot see — or was in a container
-that has since been replaced.
 
 ## Everyday operation
 

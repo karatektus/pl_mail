@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d3361366991bf0c0c036c986fb164e5040f73b00 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e8b507a009a17b4a74b8b3d040491e1aa38aaf35 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -38,8 +38,7 @@ ein für Mobilgeräte falsch gesetztes Limit:
 
 Konkret: **halt inne und frag nach, bevor du**
 
-- Serverlogik clientseitig neu implementierst, weil die API sie nicht herausgibt (Zurückstellen
-  ist das lebende Beispiel — siehe [§4](#checkliste-zur-funktionsgleichheit));
+- Serverlogik clientseitig neu implementierst, weil die API sie nicht herausgibt;
 - die HTML-/Turbo-Stream-Routen scrapest oder fernsteuerst, weil JMAP etwas nicht hat;
 - aggressiv pollst, um eine fehlende Methode zur Änderungsverfolgung auszugleichen;
 - lokalen Zustand erfindest (eigene Keywords, Schatten-Flags, nur lokale Label), der nicht
@@ -48,7 +47,7 @@ Konkret: **halt inne und frag nach, bevor du**
   ordentlich täte.
 
 Was dieses Dokument als **nicht implementiert** kennzeichnet — `Email/queryChanges`,
-Anchor-Paging, JMAP Contacts, JWT-Ausgabe, Zurückstellen über JMAP, eine kontoübergreifende
+Anchor-Paging, JMAP Contacts, JWT-Ausgabe, eine kontoübergreifende
 vereinigte Abfrage — sind allesamt *Kandidaten für den Bau*, keine dauerhaften Einschränkungen.
 Bring den Bedarf beim Maintainer zur Sprache und entscheidet gemeinsam, ob er in den Server oder
 in den Client gehört.
@@ -609,6 +608,10 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
 | `Thread/get` / `Thread/changes` | |
+| `Thread/set` | plMail-Erweiterung. Eine Eigenschaft, `snoozedUntil` — siehe §4. |
+| `SearchSnippet/get` | |
+| `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
+| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
 
@@ -961,13 +964,15 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
   *Oberfläche* für verschachtelte Label steht noch auf der Server-Roadmap, flach mit Pfaden ist
   also in Ordnung.
 - Archivieren = Posteingangs-Label entfernen. Papierkorb = `destroy`. Beides rückgängig zu machen.
-- Zurückstellen — eine Konversation später zurückholen. Das ist eine Eigenschaft **auf
-  Konversationsebene** (`MessageThread.snoozedUntil`), die es in der Datenbank und in der
-  Web-Oberfläche gibt, die aber **heute nicht über JMAP offengelegt ist**. Das ist der
-  kanonische Fall für „frag nach, bau nichts drumherum": Die Daten und die Semantik gibt es
-  serverseitig bereits, die Lösung ist also eine kleine Herstellererweiterung und keine
-  clientseitige Neuimplementierung. Ein lokal geführtes Zurückstellen widerspräche stillschweigend
-  der Web-Oberfläche und ginge bei einer Neuinstallation kaputt.
+- Zurückstellen — eine Konversation später zurückholen. Eine Eigenschaft **auf
+  Konversationsebene** (`MessageThread.snoozedUntil`), offengelegt als `Thread/set`, einer
+  plMail-Erweiterung, die genau diese eine Eigenschaft annimmt und sonst nichts. Sie läuft über
+  denselben `ThreadSnoozeService` wie die Web-Oberfläche, ein aus einem Client gesetztes
+  Zurückstellen bedeutet also dasselbe wie eines im Browser — genau darum geht es, und genau
+  deshalb ist ein lokal geführtes Zurückstellen weiterhin die falsche Idee: Es widerspräche der
+  Web-Oberfläche und ginge bei einer Neuinstallation kaputt. Dieser Abschnitt sagte früher, das
+  Zurückstellen sei gar nicht offengelegt, und führte sich selbst als kanonischen Fall für
+  „frag nach, bau nichts drumherum" an; jemand hat nachgefragt.
 - Gelesen/ungelesen markieren, mit Stern versehen.
 
 **Einstellungen**

@@ -32,15 +32,14 @@ concept that lives in the database but not in the API, a limit that's wrong for 
 
 Concretely, **stop and ask before** you:
 
-- reimplement server logic client-side because the API doesn't expose it (snooze is the live example
-  — see [§4](#feature-parity-checklist));
+- reimplement server logic client-side because the API doesn't expose it;
 - scrape or drive the HTML / Turbo Stream routes because JMAP lacks something;
 - poll aggressively to compensate for a missing change-tracking method;
 - invent local state (custom keywords, shadow flags, local-only labels) that can't round-trip;
 - denormalise or cache something in a way that would break if the server later did it properly.
 
 Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging, JMAP
-Contacts, JWT issuance, snooze over JMAP, a cross-account unified query — are all *candidates for
+Contacts, JWT issuance, a cross-account unified query — are all *candidates for
 being built*, not permanent constraints. Raise the need with the maintainer and decide together
 whether it belongs in the server or the client.
 
@@ -552,6 +551,10 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
 | `Thread/get` / `Thread/changes` | |
+| `Thread/set` | plMail extension. One property, `snoozedUntil` — see §4. |
+| `SearchSnippet/get` | |
+| `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
+| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
 
@@ -874,11 +877,13 @@ Ordered roughly by how much users will miss them.
 - Labels: apply, remove, create, delete. Nested labels exist in the data model; nested label *UI* is
   still on the server roadmap, so flat-with-paths is acceptable.
 - Archive = remove Inbox label. Trash = `destroy`. Both undoable.
-- Snooze — bring a conversation back later. This is a **thread-level** property
-  (`MessageThread.snoozedUntil`) that exists in the database and in the web UI, but is **not exposed
-  over JMAP today**. This is the canonical "ask, don't work around" case: the data and the semantics
-  already exist server-side, so the fix is a small vendor extension, not a client-side reimplementation.
-  A locally-tracked snooze would silently disagree with the web UI and break on reinstall.
+- Snooze — bring a conversation back later. A **thread-level** property (`MessageThread.snoozedUntil`),
+  exposed as `Thread/set`, which is a plMail extension accepting that one property and nothing else.
+  It goes through the same `ThreadSnoozeService` the web UI does, so a snooze set from a client and
+  one set in the browser mean the same thing — which is the point, and why a locally-tracked snooze
+  is still the wrong idea: it would disagree with the web UI and break on reinstall. This section
+  used to say snooze was not exposed at all, and cited itself as the canonical "ask, don't work
+  around" case; somebody asked.
 - Mark read/unread, star.
 
 **Settings**
