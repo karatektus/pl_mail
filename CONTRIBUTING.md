@@ -95,11 +95,18 @@ npm run test:e2e:docker
 
 | Command | Description |
 |---|---|
-| `npm run test:e2e:docker:ui` | Playwright's watch UI |
+| `npm run test:e2e:docker:ui` | Playwright's watch UI — pick a test, step it, inspect the DOM at each step |
+| `npm run test:e2e:docker:headed` | The same run with a visible browser window |
+| `npm run test:e2e:docker:trace` | Headless, but recording a trace and a video of every test — `npm run test:e2e:report` to open them |
 | `npm run test:env:up` | Start the test stack (migrates, builds assets, seeds the E2E user) |
 | `npm run test:env:down` | Stop it, keeping the database volume |
 | `npm run test:env:reset` | Stop it and delete its volumes — next run rebuilds from scratch |
 | `npm run test:env:logs` | Tail the test app's logs |
+
+The `:docker:` variants matter: `test:e2e:ui` and `test:e2e:headed` do **not** set `E2E_DOCKER`, so
+Playwright starts its own `symfony serve` instead of using the stack that is already running — which
+needs the Symfony CLI installed and gives you a second app on a different port. Watching a run on
+WSL needs WSLg (Windows 11) or an X server; without one, use `:trace` and read the recording after.
 
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
 reseed their own fixtures, so tests are independent and re-runnable.

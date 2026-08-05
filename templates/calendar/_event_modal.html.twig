@@ -15,6 +15,8 @@ grows a real recurrence editor it should become a form.
 Accepts:
   event         CalendarEvent, or null for a new one
   calendars     the user's calendars, for the dropdown
+  members       CalendarEvent[] — every copy of this meeting, itself included;
+                one entry for an ordinary event, several for a merged chip
   title         what the title field shows — the instance's name when one was
                 renamed, the series' otherwise
   startsAt      \ the INSTANCE's times when the chip named one, so that saving
@@ -22,10 +24,38 @@ Accepts:
   timeZone      IANA zone the two datetime fields are read in
   recurrenceId  the clicked occurrence's original start as a UTC instant, or ''
   returnTo      the page to go back to
+
+**The calendar dropdown and the copy checkboxes are alternatives, never both.**
+That is the one design decision in this template worth arguing, so here is the
+reasoning. Both controls answer "which calendar(s) is this on?", and they
+answer it with different cardinalities: the dropdown asks for exactly one and
+means "move it there", the checkboxes ask for a subset of the calendars the
+meeting already lives on and mean "write these copies". Shown together they
+contradict each other — a user who picks a calendar in the dropdown and leaves
+three boxes ticked has asked for one thing to be in three places, and every way
+of honouring that is worse than the last. Moving all the copies onto one
+calendar would collapse N remote objects, each with its own remoteId, etag and
+sync state, into one row and break sync in both directions. Moving only the
+primary would give the same control a third, silent meaning depending on how
+many copies happened to exist. So for a merged chip the dropdown is replaced:
+the checkbox list is the honest rendering of "which calendars is this on", and
+moving a duplicated meeting elsewhere is expressible by unticking a copy here
+and making it there. An unmerged event — which is nearly all of them — gets the
+dropdown exactly as before, and no checkboxes at all.
+
+Every writable copy is ticked by default, because editing "the meeting" means
+the meeting. A read-only copy is listed, disabled and unticked, with the lock
+badge the calendar settings list already uses — it is shown rather than hidden
+so the list stays a true statement of where the meeting is. Unticking a copy
+leaves it alone, which makes it disagree with the ones that were written, and a
+disagreeing copy is drawn as its own chip on the next render. That is the
+intended outcome and not an accident; the help text says so.
 #}
 
 {% set event_title = title|default(event ? event.title : '') %}
 {% set recurrence_id = recurrenceId|default('') %}
+{% set copies = members|default([]) %}
+{% set is_clustered = copies|length > 1 %}
 
 {# The choice is offered only when there is one to make: a recurring event, and
    a chip that said which of its occurrences was clicked. Either missing and
@@ -101,19 +131,60 @@ Accepts:
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label for="event-calendar" class="block text-xs text-ink-muted mb-1">
-                        {{ 'calendar.event.calendar'|trans }}
-                    </label>
-                    <select id="event-calendar" name="calendarId"
-                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
-                                   focus:outline-none focus:ring-2 focus:ring-accent">
-                        {% for calendar in calendars %}
-                            <option value="{{ calendar.id }}"
-                                    {{ event and event.calendar.id == calendar.id ? 'selected' : (calendar.isDefault and not event ? 'selected' : '') }}>
-                                {{ calendar.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                    {% if is_clustered %}
+                        {# Replaces the dropdown rather than sitting beside it —
+                           see the header comment for why the two cannot both be
+                           on screen. The hidden field keeps `calendarId` in the
+                           post: without it the save route reads 0, finds no
+                           calendar and falls back to the default one, which
+                           would move every copy of the meeting onto it. #}
+                        <input type="hidden" name="calendarId" value="{{ event.calendar.id }}">
+
+                        <span class="block text-xs text-ink-muted mb-1">
+                            {{ 'calendar.event.copies.legend'|trans }}
+                        </span>
+
+                        <div class="rounded-lg border border-line bg-sunken px-3 py-2 space-y-1">
+                            {% for copy in copies %}
+                                <label class="flex items-center gap-2 text-sm
+                                              {{ copy.calendar.isReadOnly ? 'text-ink-faint' : 'text-ink' }}">
+                                    <input type="checkbox" name="copies[]" value="{{ copy.id }}"
+                                           {{ copy.calendar.isReadOnly ? 'disabled' : 'checked' }}
+                                           class="rounded border-line text-accent focus:ring-accent">
+
+                                    <span class="w-2 h-2 rounded-full shrink-0"
+                                          style="background-color: {{ copy.calendar.color }}"
+                                          aria-hidden="true"></span>
+
+                                    <span class="min-w-0 truncate">{{ copy.calendar.name }}</span>
+
+                                    {% if copy.calendar.isReadOnly %}
+                                        <i class="fa-solid fa-lock text-[9px] shrink-0"
+                                           title="{{ 'calendar.event.copies.read_only'|trans }}"
+                                           aria-label="{{ 'calendar.event.copies.read_only'|trans }}"></i>
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <p class="mt-1 text-[11px] text-ink-faint">
+                            {{ 'calendar.event.copies.help'|trans }}
+                        </p>
+                    {% else %}
+                        <label for="event-calendar" class="block text-xs text-ink-muted mb-1">
+                            {{ 'calendar.event.calendar'|trans }}
+                        </label>
+                        <select id="event-calendar" name="calendarId"
+                                class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                                       focus:outline-none focus:ring-2 focus:ring-accent">
+                            {% for calendar in calendars %}
+                                <option value="{{ calendar.id }}"
+                                        {{ event and event.calendar.id == calendar.id ? 'selected' : (calendar.isDefault and not event ? 'selected' : '') }}>
+                                    {{ calendar.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
                 </div>
 
                 <div>

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\DTO\Calendar\OccurrenceCluster;
 use App\Domain\Enum\Calendar\CalendarView;
-use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use App\Repository\Calendar\CalendarRepository;
@@ -24,12 +24,27 @@ use DateTimeZone;
  * are UTC, so a user well east or west of UTC has occurrences that belong to a
  * day the raw window does not quite cover. Padding is cheaper and more obvious
  * than two queries with different boundaries.
+ *
+ * What a day holds is a list of CLUSTERS, not of occurrences. One meeting can
+ * legitimately be two rows — extracted from its invitation onto one calendar,
+ * mirrored from the provider onto another, both carrying the organiser's UID —
+ * and drawing it twice is a lie about the day. The merge is a read-time
+ * grouping and nothing else: no column, no second identity, nothing the sync
+ * engine can trip over. A lone occurrence is a cluster of one, so the views
+ * keep one code path rather than branching. EventClusterer owns what "the same
+ * meeting" means; this class owns only which day it lands on.
+ *
+ * Merged BEFORE the day walk rather than after it, because a cluster spanning
+ * midnight has to be placed once as a cluster — grouping the members
+ * separately and merging per day would draw the same meeting twice on the days
+ * only one member's row happened to touch.
  */
 final readonly class CalendarRangeReader
 {
     public function __construct(
         private CalendarRepository                $calendars,
         private CalendarEventOccurrenceRepository $occurrences,
+        private EventClusterer                    $clusterer,
     ) {
     }
 
@@ -37,8 +52,8 @@ final readonly class CalendarRangeReader
      * @return array{
      *     from: DateTimeImmutable,
      *     to: DateTimeImmutable,
-     *     days: array<string, list<CalendarEventOccurrence>>,
-     *     occurrences: list<CalendarEventOccurrence>,
+     *     days: array<string, list<OccurrenceCluster>>,
+     *     clusters: list<OccurrenceCluster>,
      * }
      */
     public function read(User $user, CalendarView $view, DateTimeImmutable $anchor): array
@@ -53,18 +68,18 @@ final readonly class CalendarRangeReader
             $calendarIds[] = (int) $calendar->id;
         }
 
-        $occurrences = $this->occurrences->findInRange(
+        $clusters = $this->clusterer->cluster($this->occurrences->findInRange(
             $user,
             $calendarIds,
             $from->modify('-1 day')->setTimezone(new DateTimeZone('UTC')),
             $to->modify('+1 day')->setTimezone(new DateTimeZone('UTC')),
-        );
+        ));
 
         return [
-            'from'        => $from,
-            'to'          => $to,
-            'days'        => $this->groupByLocalDay($occurrences, $zone, $from, $to),
-            'occurrences' => $occurrences,
+            'from'     => $from,
+            'to'       => $to,
+            'days'     => $this->groupByLocalDay($clusters, $zone, $from, $to),
+            'clusters' => $clusters,
         ];
     }
 
@@ -73,12 +88,16 @@ final readonly class CalendarRangeReader
      * empty — a month grid needs its blank cells, and building them in Twig
      * means repeating the date walk in every view.
      *
-     * @param list<CalendarEventOccurrence> $occurrences
+     * A cluster is placed by its primary's span, which is the whole cluster's:
+     * members that disagree about when they are have already been split apart,
+     * so there is no second answer to choose between here.
      *
-     * @return array<string, list<CalendarEventOccurrence>>
+     * @param list<OccurrenceCluster> $clusters
+     *
+     * @return array<string, list<OccurrenceCluster>>
      */
     private function groupByLocalDay(
-        array             $occurrences,
+        array             $clusters,
         DateTimeZone      $zone,
         DateTimeImmutable $from,
         DateTimeImmutable $to,
@@ -89,9 +108,9 @@ final readonly class CalendarRangeReader
             $days[$day->format('Y-m-d')] = [];
         }
 
-        foreach ($occurrences as $occurrence) {
-            $start = $occurrence->startsAt->setTimezone($zone);
-            $end   = $occurrence->endsAt->setTimezone($zone);
+        foreach ($clusters as $cluster) {
+            $start = $cluster->primary->startsAt->setTimezone($zone);
+            $end   = $cluster->primary->endsAt->setTimezone($zone);
 
             // A multi-day event belongs to every day it touches, not only the
             // one it started on — otherwise it vanishes from the week whose
@@ -100,7 +119,7 @@ final readonly class CalendarRangeReader
                 $key = $day->format('Y-m-d');
 
                 if (true === array_key_exists($key, $days)) {
-                    $days[$key][] = $occurrence;
+                    $days[$key][] = $cluster;
                 }
             }
         }

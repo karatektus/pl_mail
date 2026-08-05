@@ -43,7 +43,7 @@ already has events is no harder to add to than an empty one.
             </div>
 
             <div class="flex-1 min-h-0 overflow-y-auto p-1 space-y-0.5">
-                {% for occurrence in dayEvents %}
+                {% for cluster in dayEvents %}
                     {% include 'calendar/_event_chip.html.twig' %}
                 {% endfor %}
 

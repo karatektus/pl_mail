@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./support/test";
+import { seed } from "./support/config";
 
 /**
  * The calendar in both of its shapes.
@@ -286,6 +287,135 @@ test.describe("calendar", () => {
 
         await expect(chipsOf(page).first()).toBeVisible();
     }
+});
+
+/**
+ * One meeting that legitimately exists twice.
+ *
+ * An invitation is extracted from mail onto the account's calendar with the
+ * organiser's UID while the provider auto-adds the same meeting to a calendar
+ * plMail mirrors — two correct rows, one UID, and the user seeing it twice.
+ * Neither row may go, so the duplication is answered on the screen.
+ *
+ * Seeded by a console command rather than through the UI, and that is forced:
+ * a UID is minted server-side and the editor has no field for it, so nothing a
+ * user can click produces two rows that share one. See
+ * App\Command\Test\SeedDuplicateEventCommand.
+ *
+ * Counted in the agenda view, for the reason chipsOf() gives above: the week is
+ * seven days from Monday and the month grid draws only the first three events
+ * of a day, so agenda is the only view whose chip count is a count of what
+ * exists rather than of what fits.
+ */
+test.describe("a meeting on two calendars", () => {
+    const TITLE = "E2E duplicated meeting";
+    const SECOND = "E2E Duplicate B";
+
+    function meetingChips(page: Page) {
+        return page.getByRole("button", { name: new RegExp(TITLE) });
+    }
+
+    /**
+     * Open the merged chip and wait until it is that chip's editor.
+     *
+     * On a field's VALUE rather than on the dialog being visible: the modal
+     * keeps the previous dialog's markup until Turbo swaps the frame, so a spec
+     * that waits for #modal-backdrop goes on to act on the last event's form.
+     */
+    async function openMeeting(page: Page) {
+        await meetingChips(page).first().click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal.getByLabel("Title")).toHaveValue(new RegExp(TITLE));
+
+        return modal;
+    }
+
+    test.afterEach(() => {
+        // Its own calendars, so clearing them cannot disturb anything else the
+        // suite seeded — and a spec that failed halfway leaves no stale chip
+        // for the next run to count.
+        seed("seed-duplicate-event --clear");
+    });
+
+    test("draws one chip, not two", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        await page.goto("/calendar/agenda");
+
+        await expect(meetingChips(page)).toHaveCount(1);
+    });
+
+    test("lists every calendar it is on, and disables the one that takes no changes", async ({ page }) => {
+        seed("seed-duplicate-event --read-only");
+
+        await page.goto("/calendar/agenda");
+
+        const modal = await openMeeting(page);
+        const locked = modal.getByRole("checkbox", { name: new RegExp(SECOND) });
+
+        await expect(modal.getByRole("checkbox", { name: /E2E Duplicate A/ })).toBeChecked();
+        await expect(locked).toBeDisabled();
+        await expect(locked).not.toBeChecked();
+
+        // The dropdown is replaced, never shown beside a control that
+        // contradicts it — see the header comment on _event_modal.html.twig.
+        await expect(modal.getByLabel("Calendar", { exact: true })).toHaveCount(0);
+    });
+
+    /**
+     * The promise the help text makes. Unticking a copy leaves it saying the
+     * old thing, which by the merge rule makes the two disagree — and a
+     * disagreement is drawn rather than hidden, so the next render has two
+     * chips where it had one.
+     */
+    test("unticking a copy leaves it alone, and the calendar then draws two chips", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        await page.goto("/calendar/agenda");
+        await expect(meetingChips(page)).toHaveCount(1);
+
+        const modal = await openMeeting(page);
+
+        await modal.getByRole("checkbox", { name: new RegExp(SECOND) }).uncheck();
+        await modal.getByLabel("Title").fill(`${TITLE} (moved room)`);
+        await submit(page, modal, "Save");
+
+        await page.goto("/calendar/agenda");
+
+        await expect(meetingChips(page)).toHaveCount(2);
+        await expect(page.getByRole("button", { name: `${TITLE} (moved room)` })).toHaveCount(1);
+    });
+
+    /** With every copy ticked it stays one meeting, renamed on both calendars. */
+    test("an edit with every copy ticked keeps it one chip", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        await page.goto("/calendar/agenda");
+
+        const modal = await openMeeting(page);
+
+        await modal.getByLabel("Title").fill(`${TITLE} (moved room)`);
+        await submit(page, modal, "Save");
+
+        await page.goto("/calendar/agenda");
+
+        await expect(meetingChips(page)).toHaveCount(1);
+        await expect(page.getByRole("button", { name: `${TITLE} (moved room)` })).toHaveCount(1);
+    });
+
+    test("a delete with every copy ticked takes it off both calendars", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        await page.goto("/calendar/agenda");
+
+        const modal = await openMeeting(page);
+        await submit(page, modal, "Delete");
+
+        await page.goto("/calendar/agenda");
+
+        await expect(meetingChips(page)).toHaveCount(0);
+    });
 });
 
 test.describe("calendar pane", () => {

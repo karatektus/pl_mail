@@ -41,7 +41,7 @@ empty day still needs to occupy its place.
                 </div>
 
                 <div class="min-w-0 flex-1 space-y-0.5 self-center">
-                    {% for occurrence in dayEvents %}
+                    {% for cluster in dayEvents %}
                         {% include 'calendar/_event_chip.html.twig' %}
                     {% endfor %}
                 </div>

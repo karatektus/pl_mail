@@ -66,7 +66,7 @@ empty space under the grid.
                 {# Three, then a count. A month cell that grows to fit everything
                    makes every other row taller for one busy day. #}
                 <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden">
-                    {% for occurrence in dayEvents|slice(0, 3) %}
+                    {% for cluster in dayEvents|slice(0, 3) %}
                         {% include 'calendar/_event_chip.html.twig' %}
                     {% endfor %}
                 </div>

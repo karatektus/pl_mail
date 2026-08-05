@@ -34,6 +34,38 @@ class CalendarEventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every row this user holds under one UID, in sidebar order.
+     *
+     * The plural of findOneByUid(), and the query the duplicate-meeting merge
+     * rests on: a UID is unique within a calendar and deliberately not across
+     * them, because one meeting reaching plMail by two honest routes — extracted
+     * from its invitation, and mirrored from the provider — is two correct rows
+     * carrying the organiser's one UID.
+     *
+     * Fetch-joins the calendar because every caller reads it immediately: the
+     * editor to name and colour each copy, the resolver to ask whether it is
+     * visible and whether it accepts writes. Ordered by the calendar's sidebar
+     * position so the copies are listed in the order the user arranged them,
+     * with the event id breaking ties rather than the database's whim.
+     *
+     * @return list<CalendarEvent>
+     */
+    public function findByUidForUser(UserInterface $user, string $uid): array
+    {
+        return $this->createQueryBuilder('event')
+            ->addSelect('calendar')
+            ->join('event.calendar', 'calendar')
+            ->where('event.usr = :usr')
+            ->andWhere('event.uid = :uid')
+            ->setParameter('usr', $user)
+            ->setParameter('uid', $uid)
+            ->orderBy('calendar.sortOrder', 'ASC')
+            ->addOrderBy('event.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * The row a pulled change belongs to, matched on the remote's own id.
      *
      * Scoped to the calendar rather than looked up on remoteId alone: provider

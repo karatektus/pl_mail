@@ -1,11 +1,29 @@
 {#
-One occurrence, as it appears in any view.
+One cluster, as it appears in any view.
 
 A single line: the calendar's colour, the time, then the title taking whatever
 is left. Time first because in a dense grid that is the column you scan — the
 title is what you read once you have found the row. `g:i a` matches how the
 mail list writes times; the grid drops the meridiem to save the width and keeps
 it in the tooltip.
+
+Accepts:
+  cluster   OccurrenceCluster — the occurrences that draw this one chip
+  showTime  whether to print the start time (default true; never for all-day)
+
+**A cluster of one is the ordinary case and renders exactly as it always did.**
+The views hand over clusters rather than occurrences so there is one code path
+for them, not because most chips are merged — almost none are. Everything below
+normalises onto `occurrence` and `event`, which is what the markup reads.
+
+A cluster of several is one meeting that legitimately exists twice: extracted
+from its invitation onto the account's calendar, and mirrored from the provider
+onto a connected one, both carrying the organiser's UID. Its dot is a
+conic-gradient of the member calendars' colours in equal slices — the same
+1.5×1.5 dot, so the row's rhythm does not change — and the tooltip names the
+calendars, because a two-tone dot says "more than one" and nothing else. The
+slice arithmetic is done here rather than on the DTO: it is a CSS value, and
+the DTO carries the colours a chip may draw with, not the way it draws them.
 
 `text-left` is not decoration. This is a <button>, and a button centres its text
 by default, which is what had every chip in the month grid sitting oddly
@@ -23,10 +41,36 @@ rule ORIGINALLY put it, not where an override may since have moved it — becaus
 without it the editor knows the event and not which of its occurrences was
 clicked, and "this event" has nothing to key a patch on. UTC, and read back by
 EventInstanceEditor::instance(), which owns both directions of that spelling.
+
+The URL names the PRIMARY member's event, and only that one. The editor
+re-derives the rest of the cluster from that event's uid, so no cluster
+identity is threaded through a URL that would outlive the render that made it.
 #}
 
+{% set occurrence = cluster.primary %}
 {% set event = occurrence.event %}
 {% set showTime = showTime|default(true) and not event.isAllDay %}
+
+{% set chip_title = event.title ~ (showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '') %}
+
+{% if cluster.isMerged %}
+    {% set chip_title = chip_title ~ ' · ' ~ 'calendar.chip.on_calendars'|trans({
+        '%calendars%': cluster.calendarNames|join(', '),
+    }) %}
+
+    {% set slices = [] %}
+    {% for color in cluster.colors %}
+        {% set slices = slices|merge([
+            color
+                ~ ' ' ~ (loop.index0 * 100 / cluster.colors|length)|round(3) ~ '%'
+                ~ ' ' ~ (loop.index * 100 / cluster.colors|length)|round(3) ~ '%',
+        ]) %}
+    {% endfor %}
+
+    {% set dot_style = 'background: conic-gradient(' ~ slices|join(', ') ~ ')' %}
+{% else %}
+    {% set dot_style = 'background-color: ' ~ event.calendar.color %}
+{% endif %}
 
 <button type="button"
    data-controller="ui--modal"
@@ -36,7 +80,7 @@ EventInstanceEditor::instance(), which owns both directions of that spelling.
        instance: occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
    }) }}"
    data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
-   title="{{ event.title }}{{ showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '' }}"
+   title="{{ chip_title }}"
    class="w-full text-left flex items-center gap-1.5
           px-1.5 py-0.5 rounded-md
           hover:bg-hover transition-colors min-w-0
@@ -44,7 +88,7 @@ EventInstanceEditor::instance(), which owns both directions of that spelling.
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
 >
     <span class="w-1.5 h-1.5 rounded-full shrink-0"
-          style="background-color: {{ event.calendar.color }}"
+          style="{{ dot_style }}"
           aria-hidden="true"></span>
 
     {% if showTime %}

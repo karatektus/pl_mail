@@ -57,6 +57,17 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   public address nothing breaks and nothing needs configuring — calendars stay
   on the sweep, which remains the backstop either way.
 
+- **One meeting that reached plMail twice is drawn once.** An invitation you
+  were sent and the same meeting on a connected calendar are two entries for one
+  appointment; the views now draw them as a single entry with a dot showing each
+  calendar's colour. Editing it asks which copies to change — all of them by
+  default, because that is what editing "the meeting" means — and a copy on a
+  read-only calendar is listed but cannot be ticked. Untick one and it stops
+  matching the others, so it separates back into its own entry, which is the
+  point rather than a side effect. Copies that disagree are never merged: if one
+  says two o'clock and the other says three, you see both, because a tidier
+  screen is not worth hiding that from you.
+
 ### Fixed
 
 - **A recurring invitation or CalDAV event appeared exactly once.** The

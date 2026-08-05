@@ -449,12 +449,25 @@ app:
     name: Mail
 
 calendar:
+    chip:
+        on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
+    error:
+        invalid_times: 'Diese Zeiten gehen nicht — das Ende muss nach dem Beginn liegen.'
+        no_copies: 'Nichts ausgewählt, also nichts geändert. Wähle mindestens einen Kalender.'
     event:
         all_day: Ganztägig
         calendar: Kalender
         cancel: Abbrechen
+        copies:
+            help: >-
+                Dieser Termin steht in mehreren Kalendern. Nimm den Haken bei
+                einer Kopie weg, um sie unverändert zu lassen — sie
+                unterscheidet sich dann von den anderen und erscheint als
+                eigener Eintrag.
+            legend: Kalender
+            read_only: Dieser Kalender nimmt keine Änderungen an
         delete: Löschen
         description: Beschreibung
         dismiss: Kein Termin

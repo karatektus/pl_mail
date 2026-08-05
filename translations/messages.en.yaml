@@ -446,12 +446,24 @@ app:
     name: Mail
 
 calendar:
+    chip:
+        on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
+    error:
+        invalid_times: 'Those times do not work — the end has to come after the start.'
+        no_copies: 'Nothing was chosen, so nothing was changed. Tick at least one calendar.'
     event:
         all_day: All day
         calendar: Calendar
         cancel: Cancel
+        copies:
+            help: >-
+                This meeting is on more than one calendar. Untick a copy to
+                leave it as it is — it will then differ from the others and
+                show up as its own entry.
+            legend: Calendars
+            read_only: This calendar does not accept changes
         delete: Delete
         description: Description
         dismiss: Not an event
