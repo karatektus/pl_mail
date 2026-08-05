@@ -112,6 +112,33 @@ return static function (
 
     // Said in the language the reader asked for, because a reader who does not
     // read English is exactly the person this notice is for.
+    // The shell's own words. Small enough to keep here rather than invent a
+    // catalogue for, and they have to be translated for the same reason the
+    // pages do: a German page framed in English chrome says the translation was
+    // an afterthought, which is the impression a handbook can least afford.
+    $chrome = [
+        'en' => [
+            'search'    => 'Search the handbook',
+            'handbook'  => 'Handbook',
+            'theme'     => 'Theme',
+            'language'  => 'Language',
+            'edit'      => 'Edit this page',
+            'generated' => 'it is generated from %s in the repository.',
+            'skip'      => 'Skip to content',
+        ],
+        'de' => [
+            'search'    => 'Handbuch durchsuchen',
+            'handbook'  => 'Handbuch',
+            'theme'     => 'Darstellung',
+            'language'  => 'Sprache',
+            'edit'      => 'Diese Seite bearbeiten',
+            'generated' => 'sie wird aus %s im Repository erzeugt.',
+            'skip'      => 'Zum Inhalt springen',
+        ],
+    ];
+
+    $t = $chrome[$locale] ?? $chrome['en'];
+
     $untranslated = [
         'de' => 'Diese Seite ist noch nicht übersetzt und wird auf Englisch angezeigt.',
     ];
@@ -119,6 +146,8 @@ return static function (
     $notice = true === $fallback && true === isset($untranslated[$locale])
         ? sprintf('<p class="fallback-notice">%s</p>', $escape($untranslated[$locale]))
         : '';
+
+    $generated = sprintf($t['generated'], '<code>' . $escape($source) . '</code>');
 
     $bodyClass = true === $landing ? 'is-landing' : 'is-doc';
 
@@ -149,27 +178,27 @@ return static function (
         </head>
         <body class="{$bodyClass}">
 
-        <a class="skip" href="#content">Skip to content</a>
+        <a class="skip" href="#content">{$escape($t['skip'])}</a>
 
         <div class="topbar">
             <a class="brand" href="{$root}index.html">plMail</a>
             <div class="topbar-links">
-                <a href="{$root}docs/">Handbook</a>
+                <a href="{$root}docs/">{$escape($t['handbook'])}</a>
                 <a href="https://github.com/karatektus/pl_mail">GitHub</a>
             </div>
             <div class="search" role="search">
-                <input id="search" type="search" placeholder="Search the handbook" autocomplete="off"
-                       aria-label="Search the handbook" data-root="{$root}" data-locale="{$locale}">
+                <input id="search" type="search" placeholder="{$escape($t['search'])}" autocomplete="off"
+                       aria-label="{$escape($t['search'])}" data-root="{$root}" data-locale="{$locale}">
                 <ul id="results" hidden></ul>
             </div>
             <div class="pickers">
                 <label class="picker">
-                    <span class="picker-label">Theme</span>
-                    <select id="theme" aria-label="Theme">{$themeOptions}</select>
+                    <span class="picker-label">{$escape($t['theme'])}</span>
+                    <select id="theme" aria-label="{$escape($t['theme'])}">{$themeOptions}</select>
                 </label>
                 <label class="picker">
-                    <span class="picker-label">Language</span>
-                    <select id="language" aria-label="Language">{$languageOptions}</select>
+                    <span class="picker-label">{$escape($t['language'])}</span>
+                    <select id="language" aria-label="{$escape($t['language'])}">{$languageOptions}</select>
                 </label>
             </div>
         </div>
@@ -182,8 +211,8 @@ return static function (
         {$notice}
         {$content}
                 <footer class="page-footer">
-                    <a href="https://github.com/karatektus/pl_mail/blob/main/{$escape($source)}">Edit this page</a>
-                    — it is generated from <code>{$escape($source)}</code> in the repository.
+                    <a href="https://github.com/karatektus/pl_mail/blob/main/{$escape($source)}">{$escape($t['edit'])}</a>
+                    — {$generated}
                 </footer>
             </main>
         </div>

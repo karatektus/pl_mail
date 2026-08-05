@@ -637,11 +637,11 @@ calendar:
         reverted: Bleibt, wo er war.
     ics:
         error:
-            no_calendar: Wählen Sie einen Kalender für die Termine.
+            no_calendar: Wähle einen Kalender für die Termine.
             no_file: >-
-                Wählen Sie eine .ics-Datei. Falls Sie eine gewählt haben, ist
+                Wähle eine .ics-Datei. Falls du eine gewählt hast, ist
                 sie womöglich größer, als plMail einliest.
-            no_url: Geben Sie die Adresse ein, unter der der Kalender
+            no_url: Gib die Adresse ein, unter der der Kalender
                 veröffentlicht ist.
         export:
             calendar: '"%name%" als Kalenderdatei herunterladen'
@@ -652,16 +652,16 @@ calendar:
             dedup_note: >-
                 Ein Termin, der schon in diesem Kalender steht, wird
                 aktualisiert statt doppelt angelegt; einer, der bereits in einem
-                anderen Ihrer Kalender steht — aus einer Einladung oder aus
+                anderen deiner Kalender steht — aus einer Einladung oder aus
                 einem gespiegelten Kalender — bleibt, wo er ist.
             file: Kalenderdatei
             file_help: Eine .ics-Datei, bis zu %size% MB.
             intro: >-
                 Liest eine .ics-Datei — einen Export aus einem anderen Kalender
-                oder eine zugesandte Einladung — in einen Ihrer Kalender ein.
+                oder eine zugesandte Einladung — in einen deiner Kalender ein.
             no_calendars: >-
-                Keiner Ihrer Kalender nimmt neue Termine an. Ein gespiegelter
-                Kalender ist eine schreibgeschützte Kopie; legen Sie zuerst
+                Keiner deiner Kalender nimmt neue Termine an. Ein gespiegelter
+                Kalender ist eine schreibgeschützte Kopie; leg zuerst
                 einen eigenen an.
             submit: Importieren
             title: Kalenderdatei importieren
@@ -673,10 +673,10 @@ calendar:
                 Adresse unter anderem Namen.
             connect: Adresse abonnieren
             intro: >-
-                Folgen Sie einem veröffentlichten Kalender: Feiertage, ein
-                Spielplan oder die geheime Adresse Ihres eigenen Google- oder
+                Folge einem veröffentlichten Kalender: Feiertage, ein
+                Spielplan oder die geheime Adresse deines eigenen Google- oder
                 Outlook-Kalenders. plMail liest ihn im Hintergrund neu ein und
-                zeigt ihn neben Ihren eigenen Kalendern.
+                zeigt ihn neben deinen eigenen Kalendern.
             name: Name
             name_help: >-
                 Wie er hier heißen soll. Leer gelassen, benennt sich der
@@ -685,16 +685,16 @@ calendar:
                 Ein abonnierter Kalender ist schreibgeschützt — er ist die Kopie
                 einer veröffentlichten Datei, Änderungen hier erreichten sie
                 also nie. Wer diese Adresse hat, kann den Kalender lesen;
-                behandeln Sie eine geheime Adresse wie ein Passwort.
+                behandle eine geheime Adresse wie ein Passwort.
             submit: Abonnieren
             title: Kalenderadresse abonnieren
         toast:
             import_empty: >-
-                Diese Datei enthält keine Termine, die plMail lesen kann. Prüfen
-                Sie, ob es wirklich ein Kalenderexport ist.
+                Diese Datei enthält keine Termine, die plMail lesen kann. Prüf
+                nach, ob es wirklich ein Kalenderexport ist.
             import_nothing_new: >-
                 Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon
-                in Ihren Kalendern.
+                in deinen Kalendern.
             imported: '%added% hinzugefügt, %updated% aktualisiert, %skipped% übersprungen.'
             subscribed: >-
                 Abonniert — der Kalender füllt sich binnen einer Minute.
@@ -827,7 +827,7 @@ calendar:
     soon:
         empty: Nichts in Sicht
         empty_hint: >-
-            Flüge, Lieferungen, Reservierungen und Tickets aus Ihren E-Mails
+            Flüge, Lieferungen, Reservierungen und Tickets aus deinen E-Mails
             erscheinen hier für die nächsten zwei Wochen.
         from: 'Aus %subject%'
         open: Was demnächst ansteht
@@ -1505,7 +1505,7 @@ settings:
         when: Wenn
         yes: Ja
     integrations:
-        ask_admin: 'Ihre Administration hat diesen Dienst nicht freigeschaltet.'
+        ask_admin: 'Deine Administration hat diesen Dienst nicht freigeschaltet.'
         auth:
             appPassword: 'App-Passwort'
             oauth2: 'Anmeldung'

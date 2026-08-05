@@ -142,7 +142,14 @@ $titleOf = static function (string $body, string $relative): string {
  */
 $rewrite = static function (string $body, string $sourceDir, string $docsDir, string $projectDir): string {
     return preg_replace_callback(
-        '/\]\(([^)\s]+)(#[^)\s]*)?\)/',
+        // The target excludes '#', or the greedy first group swallows the
+        // fragment and the optional second group never matches anything. That
+        // is not a cosmetic slip: the target then reads
+        // "calendar-alerts.md#fallstricke", realpath() cannot resolve it, and
+        // the link is left alone — so every cross-page link carrying an anchor
+        // kept its .md extension and 404'd on the built site while the same
+        // link without an anchor worked.
+        '/\]\(([^)\s#]+)(#[^)\s]*)?\)/',
         static function (array $match) use ($sourceDir, $docsDir, $projectDir): string {
             $target   = $match[1];
             $fragment = $match[2] ?? '';

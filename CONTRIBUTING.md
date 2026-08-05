@@ -612,6 +612,16 @@ they appear in the interface — those are quoted so a reader can find them on s
 is only translated where plMail itself is. The `## Things that bite` heading has a fixed translation
 per language, listed in the test, because the test looks for it.
 
+**Register: the German handbook duzt.** "du", "dich", "dir", "dein" — never "Sie" or "Ihr", and
+lowercase "du" rather than the capitalised form. Imperatives take the informal ending: *Öffne die
+Einstellungen*, not *Öffnen Sie die Einstellungen*. plMail is something a person runs for themselves
+on their own machine, and a handbook that sounds like enterprise procurement documentation is
+describing a different product.
+
+Two things hide the register and are worth checking for after a draft: passive voice reached for to
+avoid addressing the reader at all, and "man" standing in where "du" reads better. Mixing the two
+forms is worse than either consistently, so a page converted halfway is a page not yet converted.
+
 **German glossary**, so four translators do not invent four words for one thing:
 
 | English | German |

@@ -262,12 +262,21 @@ final class DocumentationCoverageTest extends KernelTestCase
                 // is itself already translated — which makes a partial
                 // translation impossible, and a partial translation is the only
                 // kind anybody ever starts.
-                $locale = $this->localeOf($this->relativePath($file->getPathname()));
-                $from   = null === $locale
-                    ? $file->getPath()
-                    : str_replace('/docs/' . $locale . '/', '/docs/', $file->getPath());
+                // Derived from the RELATIVE path, not by string-replacing the
+                // absolute one. The obvious version replaced '/docs/de/' inside
+                // the directory — which never fires for a page sitting directly
+                // in docs/de/, because its directory is '…/docs/de' with no
+                // trailing slash. Every page one level down passed and the
+                // language's own index failed, which is a shape worth naming:
+                // the bug was invisible in exactly the files most people write
+                // first.
+                $here    = $this->relativePath($file->getPathname());
+                $locale  = $this->localeOf($here);
+                $english = null === $locale
+                    ? $here
+                    : 'docs/' . $this->englishCounterpart($here, $locale);
 
-                $resolved = realpath($from . '/' . $path);
+                $resolved = realpath(self::projectDir() . '/' . \dirname($english) . '/' . $path);
 
                 if (false === $resolved) {
                     $broken[] = sprintf(
@@ -353,11 +362,22 @@ final class DocumentationCoverageTest extends KernelTestCase
             // The index is a table of contents, and CLIENT_DEVELOPMENT.md
             // predates the convention and is a protocol reference rather than a
             // guide.
-            if (\in_array($relative, ['docs/README.md', 'docs/CLIENT_DEVELOPMENT.md'], true)) {
+            //
+            // Matched against the ENGLISH counterpart, so the exemption follows
+            // a page into its translations. Keyed to the literal path it did
+            // not: docs/de/CLIENT_DEVELOPMENT.md was required to carry a
+            // section its own source is excused from, and the translator
+            // dutifully invented one — which is the failure mode worth naming,
+            // because a test that demands nonsense usually gets it.
+            $locale  = $this->localeOf($relative);
+            $english = null === $locale
+                ? $relative
+                : 'docs/' . $this->englishCounterpart($relative, $locale);
+
+            if (\in_array($english, ['docs/README.md', 'docs/CLIENT_DEVELOPMENT.md'], true)) {
                 continue;
             }
 
-            $locale  = $this->localeOf($relative);
             $heading = null === $locale ? 'Things that bite' : self::TRANSLATIONS[$locale];
 
             $body = file_get_contents($file->getPathname());
