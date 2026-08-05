@@ -6,12 +6,14 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.0.17 — 2026-08-05
 
-**Five new tables, applied automatically on boot.** `calendar_share_link`,
-`calendar_share_link_calendar`, `booking_page`, `booking_page_calendar` and
-`calendar_booking`. All additive; nothing existing is altered or rewritten, and
-an install that shares nothing is unaffected.
+**Two schema changes, applied automatically on boot.** `calendar_event` gains a
+`remote_instances` map and `calendar_event_occurrence` a start-only index;
+`calendar_alert_delivery`, `calendar_share_link`, `calendar_share_link_calendar`,
+`booking_page`, `booking_page_calendar` and `calendar_booking` are new tables.
+All additive; nothing existing is altered or rewritten, and an install that
+neither shares a calendar nor sets a reminder is unaffected by any of it.
 
 **One deployment change, and read it before pulling.** `compose.yaml` now mounts
 three named volumes it should always have mounted — `app_attachments`,
@@ -73,6 +75,55 @@ has these mounts and is unaffected.
   permission is added later.
 
 ### Added
+
+- **The week is a time grid you can drag events around on.** Hour rows, blocks
+  sized by their real times, meetings that overlap sharing the width, and
+  all-day events in a strip of their own rather than squashed against midnight.
+  Drag one somewhere else to move it, drag its edge to make it longer. Dragging
+  one occurrence of a repeating event asks the same question the editor does —
+  this one, or all of them — and read-only calendars refuse the drop and say
+  why. The docked pane keeps its column list: a 380px pane has no business
+  drawing a grid.
+
+- **Calendars go in and out as `.ics`.** Download one event or a whole calendar,
+  upload a file into a calendar you pick, or subscribe to a published calendar
+  by URL — `https://` or `webcal://` — and have it refreshed on the same
+  schedule everything else is. A subscribed feed is read-only. Importing the
+  same file twice updates rather than duplicates, and an event that arrived by
+  invitation is recognised as the same meeting rather than added again.
+
+- **Reminders.** Six one-click offsets — at the time, five, ten or thirty
+  minutes, an hour, a day — plus any number of minutes you like, and as many
+  reminders on one event as you want. They arrive as a browser notification or
+  as mail. A reminder set on a repeating event fires for each occurrence, and a
+  reminder never fires twice however many times a sweep is interrupted or
+  replayed. Reminders travel to and from Google, Microsoft and CalDAV, and are
+  written into an exported `.ics`.
+
+  **A fresh install can deliver neither.** Browser notifications need the
+  browser to have been given permission, and mail needs an account that can
+  send. Until one of those exists, a reminder is stored and nothing arrives.
+
+- **What is happening soon, beside the mail it came out of.** A control in the
+  top bar, which appears only when there is something to show and wears the icon
+  of whatever is next — a plane, a parcel — opens a list of the next fortnight's
+  bookings, each naming the message it was read out of.
+
+- **Calendars over JMAP**, under `urn:plmail:params:jmap:calendars`:
+  `Calendar/get`, `CalendarEvent/get`, `CalendarEvent/query` and
+  `CalendarEvent/set`. An edit made by a JMAP client reaches Google and
+  Microsoft exactly as one made in the browser does. Client authors: an event id
+  is the series rather than a dated occurrence, and a query must name a date
+  window — see the handbook.
+
+- **A handbook.** [The wiki](https://github.com/karatektus/pl_mail/wiki) now has
+  34 pages: every feature and how to use it, installing on Docker, Linux, WSL2,
+  macOS and NAS boxes, a complete environment-variable reference, step-by-step
+  registration of the Google and Microsoft applications with the exact
+  permissions to tick, and seven pages on how the internals work. It is
+  generated from `docs/` in the repository, so it cannot drift from the code —
+  and a build now fails when a command, a variable, a link or a page goes
+  undocumented.
 
 - **You can send somebody a link to your calendar without giving them an
   account.** Settings → Sharing makes one. Tick-boxes on the link decide what it
