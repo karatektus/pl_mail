@@ -170,7 +170,12 @@ $rewrite = static function (string $body, string $sourceDir, string $docsDir, st
             }
 
             if (true === str_ends_with($resolved, '.md')) {
-                return sprintf('](%s%s)', substr($target, 0, -3) . '.html', $fragment);
+                // The same rename as above, applied to whatever pointed at it.
+                $html = $resolved === $docsDir . '/README.md'
+                    ? preg_replace('/README\.md$/', 'index.html', $target)
+                    : substr($target, 0, -3) . '.html';
+
+                return sprintf('](%s%s)', $html, $fragment);
             }
 
             return $match[0];
@@ -360,7 +365,11 @@ foreach ($walk($docsDir) as $relative) {
     }
 
     $body = (string) file_get_contents($source);
-    $slug = substr($relative, 0, -3) . '.html';
+
+    // The handbook's index becomes index.html, not README.html, so that
+    // /docs/ is a page rather than a 404 — which is what every link to "the
+    // handbook" points at, and what somebody trims a URL back to.
+    $slug = 'README.md' === $relative ? 'index.html' : substr($relative, 0, -3) . '.html';
 
     $html = $markdown->convert(
         $rewrite($body, \dirname($source), $docsDir, $projectDir),
