@@ -47,6 +47,7 @@ if (null !== themePicker) {
 const languagePicker = document.getElementById("language");
 
 if (null !== languagePicker) {
+    const root = languagePicker.dataset.root ?? "";
     const path = window.location.pathname;
     const known = [...languagePicker.options].map((option) => option.value);
     const current = known.find((code) => path.includes(`/docs/${code}/`)) ?? "en";
@@ -55,6 +56,18 @@ if (null !== languagePicker) {
 
     languagePicker.addEventListener("change", () => {
         const wanted = languagePicker.value;
+
+        // The landing page is README.md and has no translation, so there is no
+        // German counterpart of it to go to — and its URL carries no /docs/
+        // segment to rewrite, which meant switching language on the front page
+        // silently did nothing at all. The handbook's index in that language is
+        // the nearest honest destination, and it is where somebody changing the
+        // language on a landing page was going anyway.
+        if (false === path.includes("/docs/")) {
+            window.location.href = "en" === wanted ? `${root}docs/` : `${root}docs/${wanted}/`;
+
+            return;
+        }
 
         // English is the tree's root; every other language is a directory
         // inside it, which is why this is two rules rather than one.

@@ -198,7 +198,7 @@ return static function (
                 </label>
                 <label class="picker">
                     <span class="picker-label">{$escape($t['language'])}</span>
-                    <select id="language" aria-label="{$escape($t['language'])}">{$languageOptions}</select>
+                    <select id="language" data-root="{$root}" aria-label="{$escape($t['language'])}">{$languageOptions}</select>
                 </label>
             </div>
         </div>

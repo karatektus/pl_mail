@@ -35,6 +35,16 @@ declare(strict_types=1);
  * script says so plainly rather than failing with a git error nobody can act on.
  */
 
+/**
+ * The translation directories under docs/.
+ *
+ * Spelled here as well as in bin/build-site.php rather than shared: the two
+ * scripts have no common file, and a third one existing to hold one constant
+ * would be more machinery than the constant. Adding a language means adding it
+ * in both places.
+ */
+const LOCALES = ['de'];
+
 $projectDir = \dirname(__DIR__);
 $docsDir    = $projectDir . '/docs';
 
@@ -123,7 +133,27 @@ foreach ($pages as $relative) {
         continue;
     }
 
-    $sourceDir = \dirname($docsDir . '/' . $relative);
+    // Resolved against the ENGLISH tree for a translated page, which is what
+    // build-site.php and DocumentationCoverageTest both already do — this script
+    // was the odd one out and it is why the wiki build broke the moment German
+    // landed. A translation mirrors the English paths, so its links mean what
+    // the English page's links mean: `../screenshots/inbox.png` from
+    // docs/de/features/ is docs/screenshots/, not docs/de/screenshots/, and
+    // `../../CONTRIBUTING.md` from docs/de/install/ is one level further out
+    // than the German file's own depth suggests.
+    $locale    = null;
+    $canonical = $relative;
+
+    foreach (LOCALES as $code) {
+        if (true === str_starts_with($relative, $code . '/')) {
+            $locale    = $code;
+            $canonical = substr($relative, \strlen($code . '/'));
+
+            break;
+        }
+    }
+
+    $sourceDir = \dirname($docsDir . '/' . $canonical);
 
     // Rewrite every relative link into a flat wiki page name. Anything that
     // resolves outside docs/ — ../README.md, ../CONTRIBUTING.md — becomes an
@@ -131,7 +161,7 @@ foreach ($pages as $relative) {
     // code repository's tree with a relative path.
     $body = preg_replace_callback(
         '/\]\(([^)#]+)(#[^)]*)?\)/',
-        static function (array $match) use ($sourceDir, $docsDir, $pageNameFor, $relative, &$dangling): string {
+        static function (array $match) use ($sourceDir, $docsDir, $pageNameFor, $relative, $locale, &$dangling): string {
             $target   = $match[1];
             $fragment = $match[2] ?? '';
 
@@ -162,7 +192,16 @@ foreach ($pages as $relative) {
                 return sprintf('](https://github.com/karatektus/pl_mail/blob/main/%s%s)', $inRepo, $fragment);
             }
 
-            return sprintf('](%s%s)', $pageNameFor(substr($resolved, \strlen($docsDir) + 1)), $fragment);
+            $page = substr($resolved, \strlen($docsDir) + 1);
+
+            // Having resolved through the English tree, land on the reader's
+            // own language when that page exists — otherwise every link in the
+            // German handbook would walk them back into English.
+            if (null !== $locale && true === is_file($docsDir . '/' . $locale . '/' . $page)) {
+                $page = $locale . '/' . $page;
+            }
+
+            return sprintf('](%s%s)', $pageNameFor($page), $fragment);
         },
         $body,
     ) ?? $body;
