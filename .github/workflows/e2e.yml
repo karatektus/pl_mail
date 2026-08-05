@@ -64,20 +64,16 @@ jobs:
             # 25M/60M, and the compose suite attaches a 3MB file — but CI never
             # builds that image, so without this the test cannot pass.
             #
-            # Two destinations, because two SAPIs are in play. `symfony serve`
-            # switches to PHP-FPM the moment it finds public/index.php, so the
-            # requests under test are served by FPM — and the CLI scan dir that
-            # `php -r PHP_CONFIG_FILE_SCAN_DIR` reports is NOT the one FPM
-            # reads. Symfony CLI's documented per-project override is a php.ini
-            # at the project root, and that is the copy the browser suite
-            # depends on. The scan-dir copy is for the console steps below,
-            # which run through the CLI — that SAPI deliberately ignores a
-            # php.ini in the working directory, so it needs its own.
+            # One destination, because there is now one SAPI: the console steps
+            # below and the server Playwright starts are both CLI. That SAPI
+            # ignores a php.ini in the working directory, so the scan dir is the
+            # only place it will be read from. This used to write a second copy
+            # to the project root as well, for the PHP-FPM process `symfony
+            # serve` forked off — see playwright.config.ts for why that server
+            # is gone.
             - name: Apply the app's PHP configuration
-              # sudo for the scan dir only; it is root-owned on the runner.
-              run: |
-                  cp frankenphp/conf.d/10-app.ini php.ini
-                  sudo cp frankenphp/conf.d/10-app.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/"
+              # sudo because the scan dir is root-owned on the runner.
+              run: sudo cp frankenphp/conf.d/10-app.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/"
 
             - name: Get Composer cache directory
               id: composer-cache
@@ -93,8 +89,13 @@ jobs:
             - name: Install PHP dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            - name: Install Symfony CLI
-              run: curl -sS https://get.symfony.com/cli/installer | bash && sudo mv ~/.symfony*/bin/symfony /usr/local/bin/symfony
+            # No Symfony CLI step. It was installed for one thing — `symfony
+            # serve` — and that binary is the reason 103 browser tests failed:
+            # it sees the Postgres service container, decides it knows better,
+            # and overwrites the DATABASE_URL set above with credentials the app
+            # cannot use. Everything else here is plain `php bin/console`, which
+            # is why the console steps and PHPUnit always passed in the same job
+            # the browser suite was drowning in.
 
             - name: Setup Node
               uses: actions/setup-node@v4
@@ -180,10 +181,16 @@ jobs:
             - name: Run Playwright tests
               run: npx playwright test
 
+            # The web server's own log goes up with the report. It is kept out
+            # of the console because it is ~400 lines per page load, but it is
+            # the only place a PHP fatal that never reached the kernel is
+            # recorded — a trace cannot show what was never a response.
             - name: Upload Playwright report
               if: ${{ !cancelled() }}
               uses: actions/upload-artifact@v4
               with:
                   name: playwright-report
-                  path: playwright-report/
+                  path: |
+                      playwright-report/
+                      var/log/e2e-server.log
                   retention-days: 14

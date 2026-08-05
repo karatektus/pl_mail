@@ -169,7 +169,22 @@ test("the user menu opens it again once it has been finished", async ({ page }) 
 
     await expect(backdrop(page)).toBeHidden();
 
-    await page.locator("#user-menu-btn").click();
+    // Retried, because the first click can be lost. The menu is opened by a
+    // Stimulus controller, and Playwright's actionability checks say nothing
+    // about whether a controller has connected — the button is visible and
+    // enabled in the server's HTML, long before the module graph that animates
+    // it has been fetched. A click that lands in that gap does nothing at all,
+    // and no amount of waiting afterwards opens a menu, so the retry has to
+    // wrap the click rather than follow it.
+    //
+    // It only ever showed up on a slow server: this page pulls 56 assets, and
+    // FrankenPHP serves them fast enough that the gap has usually closed by the
+    // time the test gets here. PHP's built-in server does not.
+    await expect(async () => {
+        await page.locator("#user-menu-btn").click();
+        await expect(page.locator("#user-menu")).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+
     await page.locator("#user-menu-rerun-setup").click();
 
     await expect(wizard(page)).toBeVisible();

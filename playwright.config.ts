@@ -6,7 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
  * Two ways to run:
  *
  *   npm run test:e2e:docker  — against the compose.test.yaml stack (local default)
- *   npm run test:e2e         — against a Symfony local server this config starts (CI)
+ *   npm run test:e2e         — against a PHP built-in server this config starts (CI)
  *
  * Every worker owns a dedicated user and signs in once for itself, through a
  * worker-scoped fixture in tests/e2e/support/test.ts. That is why specs import
@@ -104,19 +104,57 @@ export default defineConfig({
     },
   ],
 
-  // Only when we are expected to boot the app ourselves. `symfony serve` does
-  // not exist in the container image, and pointing E2E_BASE_URL elsewhere while
-  // leaving this set would still race a second server onto the same fixtures.
+  // Only when we are expected to boot the app ourselves: pointing E2E_BASE_URL
+  // at a stack somebody else started, and leaving this set anyway, would race a
+  // second server onto the same fixtures.
   webServer: EXTERNAL_APP
     ? undefined
     : {
-        command: "symfony serve --port=8000 --no-tls --allow-http",
+        // PHP's own server, NOT `symfony serve`, and this is not a preference.
+        //
+        // The Symfony CLI detects running Docker containers and injects its own
+        // environment into the app it serves — including DATABASE_URL, which it
+        // OVERRIDES even when one is already set. Prove it with:
+        //
+        //   DATABASE_URL=postgresql://app:app@127.0.0.1:5432/app \
+        //     symfony php -r 'echo getenv("DATABASE_URL");'
+        //
+        // On CI the Postgres service is a Docker container, so the workflow set
+        // DATABASE_URL, `symfony serve` replaced it with credentials derived
+        // from that container, and the app could not authenticate anybody. The
+        // per-worker login fixture failed, and 103 tests failed behind it — a
+        // cascade whose only real cause was one environment variable. PHPUnit
+        // passed in the same job, because it never goes through the CLI.
+        //
+        // SYMFONY_SKIP_DOCKER_COMPOSE, SYMFONY_SKIP_DOCKER_SERVICES and
+        // SYMFONY_DOCKER_ENV were all tried and none of them stop it; there is
+        // no --no-docker flag. The built-in server has no detection to disable
+        // and inherits the environment exactly as given, which is the property
+        // that matters here.
+        //
+        // The router is tests/e2e/support/router.php and NOT public/index.php,
+        // which would answer every asset request with a kernel boot and a 404 —
+        // that file explains the rest.
+        //
+        // PHP_CLI_SERVER_WORKERS because that server is single-threaded
+        // otherwise, and a browser opening a page requests dozens of assets at
+        // once.
+        // Redirected, not silenced. This server logs a request line plus an
+        // Accepted and a Closing to stderr for every one of the ~60 requests a
+        // page makes, and Playwright pipes stderr straight into the console:
+        // one non-calendar slice of the suite produced 67,709 of those lines,
+        // which is how a genuine failure gets buried on CI. The file is kept
+        // and uploaded alongside the report, so a PHP fatal that never reached
+        // the kernel — and so never reached a trace — is still readable.
+        command:
+          "php -S 127.0.0.1:8000 -t public tests/e2e/support/router.php 2>var/log/e2e-server.log",
         url: `${BASE_URL}/login`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
         env: {
           APP_ENV: "test",
           APP_DEBUG: "1",
+          PHP_CLI_SERVER_WORKERS: "4",
         },
       },
 });
