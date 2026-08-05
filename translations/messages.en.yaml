@@ -432,6 +432,8 @@ admin:
         two_factor_on: Two-factor authentication is on
         two_factor_short: 2FA
 
+    version:
+        hint: The build this installation is running — the release, and the commit it was built from.
 alias:
     added: 'Address added.'
     deleted: 'Address removed.'

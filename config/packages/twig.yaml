@@ -10,6 +10,10 @@ twig:
         calendar: '@App\Twig\CalendarGlobal'
         onboarding: '@App\Twig\OnboardingGlobal'
         logAlert: '@App\Twig\LogAlertGlobal'
+        # Read by the admin header only, but a global rather than a controller
+        # variable because that header renders from a layout every admin
+        # section extends — there is no one controller to thread it through.
+        app_version: '@App\Service\System\AppVersion'
 
 when@test:
     twig:

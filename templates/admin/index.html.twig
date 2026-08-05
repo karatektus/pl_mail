@@ -39,6 +39,24 @@
                         <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
                             <i class="fa-solid fa-gauge-high text-zinc-400" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-ink">{{ 'admin.title'|trans }}</h1>
+
+                            {# In the header rather than in a panel, so it is on
+                               screen whichever admin section is open — the
+                               question it answers ("is this the build I think
+                               it is?") is asked while looking at something
+                               else. Absent entirely on a checkout that was
+                               never built from a tag, because a chip reading
+                               "development" beside every page is furniture. #}
+                            {% if app_version.isKnown %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-ink-muted"
+                                      title="{{ 'admin.version.hint'|trans }}">
+                                    {{ app_version.label }}
+                                    {% if app_version.commit %}
+                                        <span class="text-ink-faint">{{ app_version.commit }}</span>
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+
                             {% if section not in ['logs', 'integrations', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}

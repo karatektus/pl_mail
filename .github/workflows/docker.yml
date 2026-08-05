@@ -67,6 +67,14 @@ jobs:
                   target: frankenphp_prod
                   platforms: ${{ matrix.platform }}
                   labels: ${{ steps.meta.outputs.labels }}
+                  # Stamped into the image because it cannot be discovered from
+                  # inside one: .git is not copied in. The admin panel reads
+                  # these back, which is how "which build is this?" gets an
+                  # answer when a moving tag and an automatic migration have
+                  # both had a go at the deployment.
+                  build-args: |
+                      APP_VERSION=${{ steps.meta.outputs.version }}
+                      APP_COMMIT=${{ github.sha }}
                   provenance: false
                   outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
                   # Scoped per architecture: a shared scope would have the two

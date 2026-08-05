@@ -351,6 +351,8 @@ admin:
         two_factor_on: Second factor is set
         two_factor_short: 2FA
 
+    version:
+        hint: The build this ship be sailin' — the release, an' the commit she were built from.
 alias:
     added: 'Address added, arr!'
     deleted: 'Address struck from the roster.'

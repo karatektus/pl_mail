@@ -435,6 +435,8 @@ admin:
         two_factor_on: Zwei-Faktor-Authentifizierung ist aktiv
         two_factor_short: 2FA
 
+    version:
+        hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
 alias:
     added: 'Adresse hinzugefügt.'
     deleted: 'Adresse entfernt.'
