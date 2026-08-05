@@ -1250,7 +1250,7 @@ settings:
                     Push konnte nicht aktiviert werden — Google hat die
                     Watch-Registrierung abgelehnt. Prüfe, ob GMAIL_PUBSUB_TOPIC
                     ein vorhandenes Pub/Sub-Thema benennt und ob dieses Thema
-                    gmail-api@system.gserviceaccount.com die Rolle
+                    gmail-api-push@system.gserviceaccount.com die Rolle
                     „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
                     Zeitplan synchronisiert.
                 microsoft: >-

@@ -1132,7 +1132,7 @@ settings:
                     The cannon couldn't be readied — Google turned away the
                     watch. See that GMAIL_PUBSUB_TOPIC names a Pub/Sub topic
                     that truly exists, and that the topic grants
-                    gmail-api@system.gserviceaccount.com the Pub/Sub Publisher
+                    gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. Mail still comes aboard on the watch bell.
                 microsoft: >-
                     The cannon couldn't be readied — Microsoft must reach this

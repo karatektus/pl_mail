@@ -1223,7 +1223,7 @@ settings:
                     Push couldn't be enabled — Google rejected the watch
                     registration. Check that GMAIL_PUBSUB_TOPIC names an
                     existing Pub/Sub topic and that the topic grants
-                    gmail-api@system.gserviceaccount.com the Pub/Sub Publisher
+                    gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. The account is still syncing on a schedule.
                 microsoft: >-
                     Push couldn't be enabled — Microsoft needs to reach this
