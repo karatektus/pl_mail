@@ -1,0 +1,49 @@
+{#
+sharing/_layout.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The chrome for the two pages a person with no account here ever sees: a shared
+calendar, and a booking page.
+
+A layout of its own rather than _layout/app.html.twig, and the reason is one
+line in that file: it renders `csrf_token('ajax')` into a meta tag, which
+starts a session. Extending it would mean a Set-Cookie on every fetch of a
+public URL — one session per visitor, and one per poll of the .ics — which is
+the cost SharedCalendarController's docblock says it will not pay. Nothing
+below touches app.user, app.session or csrf_token, and nothing may be added
+that does.
+
+It is also deliberately anonymous. No sidebar, no account switcher, no
+"plMail" branding beyond the small mark in the corner: the recipient was sent a
+calendar, not introduced to somebody's mail client, and the page should not
+tell them which install it came from or who else uses it.
+
+Blocks:
+  title  the browser tab
+  body   the page
+
+Variables: none. Everything comes from the extending template.
+#}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block title %}{{ 'calendar.share.page_title'|trans }}{% endblock %}</title>
+    {% include '_partials/_favicon.html.twig' %}
+
+    {# Not indexed, and not followed. A shared calendar is unlisted rather than
+       secret only because the token is unguessable — a crawler that found one
+       in a referrer header and published it would make the token pointless. #}
+    <meta name="robots" content="noindex, nofollow">
+    {# Same reason, from the other direction: a link clicked out of this page
+       must not carry the token in the Referer header to wherever it goes. #}
+    <meta name="referrer" content="no-referrer">
+
+    {{ importmap('app') }}
+</head>
+<body class="min-h-screen app-bg text-ink antialiased">
+    <main class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+        {% block body %}{% endblock %}
+    </main>
+</body>
+</html>

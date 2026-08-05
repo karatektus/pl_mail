@@ -1,0 +1,167 @@
+{#
+settings/sharing/_link_form.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Creating or editing a shared calendar link.
+
+**The checkboxes are the feature.** Busy/free is the floor and has no box —
+there is nothing to tick, because every link says when its owner is busy. Each
+box adds one concrete field on top, and the note above them says so, because a
+form of four ticks with no statement of what an empty set means is a form
+people fill in defensively.
+
+**The link's URL is not on this form, ever.** Not when creating — it does not
+exist until the POST — and not when editing, because nothing stored can
+reconstruct it. See PublicLinkToken. The regenerate button on the row is the
+only way to see an address again, and it deliberately breaks the old one.
+
+A hand-written form rather than a FormType, following
+calendar/_ics_subscribe.html.twig: the details are a checkbox set that becomes
+an enum list, the window is a mode that decides which of the other fields
+matter, and the calendar ids must be re-resolved against the user by
+ShareLinkWriter rather than bound. A FormType mapping fields it must then
+ignore is worse than none.
+
+Wrapped in the modal frame directly rather than through
+_partials/_modal_form.html.twig, which needs a FormView this has not got.
+
+Variables:
+  link       CalendarShareLink|null  null when creating
+  calendars  Calendar[]              every calendar the user owns
+  details    ShareDetail[]           every tickable detail, in declaration order
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>
+        {{ (link ? 'calendar.share.form.edit' : 'calendar.share.form.add')|trans }}
+    </template>
+
+    <form method="post"
+          action="{{ link ? path('app_settings_sharing_link_edit', { id: link.id }) : path('app_settings_sharing_link_new') }}"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-5 overflow-y-auto">
+            <div class="space-y-1.5">
+                <label for="share-name" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.share.form.name'|trans }}
+                </label>
+                <input type="text"
+                       id="share-name"
+                       name="name"
+                       value="{{ link ? link.name : '' }}"
+                       maxlength="120"
+                       autocomplete="off"
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.share.form.name_help'|trans }}</p>
+            </div>
+
+            <fieldset class="space-y-2">
+                <legend class="text-xs font-medium text-ink-soft">{{ 'calendar.share.form.reveals'|trans }}</legend>
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.share.form.reveals_help'|trans }}</p>
+
+                {% for detail in details %}
+                    <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                        <input type="checkbox"
+                               name="details[]"
+                               value="{{ detail.value }}"
+                               {{ link and link.reveals(detail) ? 'checked' : '' }}
+                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                        {{ detail.transKey|trans }}
+                    </label>
+                {% endfor %}
+            </fieldset>
+
+            <fieldset class="space-y-2">
+                <legend class="text-xs font-medium text-ink-soft">{{ 'calendar.share.form.calendars'|trans }}</legend>
+
+                {% for calendar in calendars %}
+                    <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                        <input type="checkbox"
+                               name="calendars[]"
+                               value="{{ calendar.id }}"
+                               {{ link is null or link.calendars.contains(calendar) ? 'checked' : '' }}
+                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                        <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
+                        {{ calendar.name }}
+                    </label>
+                {% endfor %}
+            </fieldset>
+
+            <fieldset class="space-y-2">
+                <legend class="text-xs font-medium text-ink-soft">{{ 'calendar.share.form.window'|trans }}</legend>
+
+                <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                    <input type="radio"
+                           name="windowMode"
+                           value="rolling"
+                           {{ link is null or link.windowMode.value == 'rolling' ? 'checked' : '' }}
+                           class="h-4 w-4 border-field text-accent focus:ring-accent">
+                    {{ 'calendar.share.window.rolling'|trans }}
+                </label>
+
+                <div class="pl-6">
+                    <label for="share-rolling-days" class="sr-only">{{ 'calendar.share.form.rolling_days'|trans }}</label>
+                    <input type="number"
+                           id="share-rolling-days"
+                           name="rollingDays"
+                           min="1"
+                           max="366"
+                           value="{{ link ? link.rollingDays : 14 }}"
+                           class="w-24 h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <span class="ml-1 text-xs text-ink-faint">{{ 'calendar.share.form.days'|trans }}</span>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                    <input type="radio"
+                           name="windowMode"
+                           value="fixed"
+                           {{ link and link.windowMode.value == 'fixed' ? 'checked' : '' }}
+                           class="h-4 w-4 border-field text-accent focus:ring-accent">
+                    {{ 'calendar.share.window.fixed'|trans }}
+                </label>
+
+                <div class="pl-6 flex items-center gap-2">
+                    <label for="share-starts-on" class="sr-only">{{ 'calendar.share.form.starts_on'|trans }}</label>
+                    <input type="date"
+                           id="share-starts-on"
+                           name="startsOn"
+                           value="{{ link and link.startsOn ? link.startsOn|date('Y-m-d') : '' }}"
+                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+
+                    <span class="text-xs text-ink-faint">–</span>
+
+                    <label for="share-ends-on" class="sr-only">{{ 'calendar.share.form.ends_on'|trans }}</label>
+                    <input type="date"
+                           id="share-ends-on"
+                           name="endsOn"
+                           value="{{ link and link.endsOn ? link.endsOn|date('Y-m-d') : '' }}"
+                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+            </fieldset>
+
+            <p class="text-[11px] text-ink-faint leading-snug">
+                <i class="fa-solid fa-lock mr-1" aria-hidden="true"></i>
+                {{ 'calendar.share.form.token_note'|trans }}
+            </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
+
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                           bg-accent hover:bg-accent-strong transition-colors">{{ 'form.submit'|trans }}</button>
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

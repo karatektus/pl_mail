@@ -87,6 +87,15 @@
                                         <i class="fa-regular fa-calendar w-4 {{ section == 'calendars' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'settings.nav.calendars'|trans }}
                                     </a>
+                                    {# Next to Calendars rather than to Security, deliberately:
+                                       a shared link and a booking page are calendar features
+                                       first, and somebody looking for "who can see my
+                                       calendar" starts at the calendar. #}
+                                    <a href="{{ path('app_settings_index', { section: 'sharing' }) }}"
+                                       class="{{ section == 'sharing' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-share-nodes w-4 {{ section == 'sharing' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'settings.nav.sharing'|trans }}
+                                    </a>
                                     <a href="{{ path('app_settings_index', { section: 'filters' }) }}"
                                        class="{{ section == 'filters' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-filter w-4 {{ section == 'filters' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
@@ -277,6 +286,31 @@
                                             <div class="rounded-pane border border-line overflow-hidden">
                                                 <div id="settings-label-list">
                                                     {% include 'settings/_labels.html.twig' with { labels: labels } %}
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                    {% elseif section == 'sharing' %}
+                                        <section>
+                                            <div class="mb-4 px-4 @2xl:px-0">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.sharing.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.sharing.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                {# The stream's target, re-emitted inside its own
+                                                   replacement for the reason the calendar list
+                                                   below states. Both halves of the section live
+                                                   inside it, so creating a booking page redraws
+                                                   the links too and neither can go stale behind
+                                                   the other. #}
+                                                <div id="settings-sharing-list">
+                                                    {% include 'settings/sharing/_lists.html.twig' with {
+                                                        shareLinks: shareLinks|default([]),
+                                                        bookingPages: bookingPages|default([]),
+                                                        mintedLinkUrl: null,
+                                                        mintedBookingUrl: null,
+                                                    } only %}
                                                 </div>
                                             </div>
                                         </section>

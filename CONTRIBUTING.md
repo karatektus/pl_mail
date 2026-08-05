@@ -128,7 +128,10 @@ to 138s.
 
 **Every worker owns its own user.** `tests/e2e/support/config.ts` derives `e2e-w{N}@plmail.test` from
 Playwright's `TEST_PARALLEL_INDEX`, and the `app:test:*` commands take a matching `--email`
-(`App\Command\Test\TargetsTestUser`). This is what makes `workers > 1` safe: `seed-mail` deletes every
+(`App\Command\Test\TargetsTestUser`). Passing it is not optional in a spec that asserts on the
+*absence* of something: `calendar-sharing.spec.ts` seeds through `app:test:seed-share-event
+--email=…`, and without the option the event lands on a different user, the shared page comes back
+empty, and every "must not contain" assertion passes for entirely the wrong reason. This is what makes `workers > 1` safe: `seed-mail` deletes every
 thread on the account it seeds, which is fine per-user and catastrophic shared. Signing in is a
 worker-scoped fixture in `tests/e2e/support/test.ts`, which is why specs import `test` from there and
 not from `@playwright/test`.
@@ -428,6 +431,113 @@ Both decisions are argued in the mappers' own docblocks.
 an error: the alert is claimed, a warning is logged, and nothing is retried.
 Leaving the claim off would mean the same impossible delivery attempted sixty
 times an hour for the length of the lookback window.
+
+## Sharing a calendar, and letting people book it
+
+Two features that share one mechanism and one settings section: a **shared link**
+shows part of a calendar to somebody with no account, and a **booking page**
+lets them take an hour of it. Both are gated by a token in the URL and nothing
+else, and both live under Settings → Sharing.
+
+Read `App\Service\Calendar\Sharing\PublicLinkToken` before touching either.
+
+### The token is a credential and is not stored
+
+`calendar_share_link.token_digest` and `booking_page.token_digest` hold a
+SHA-256, never the token. The same reasoning `DevicePairingService` gives for
+hashing its pairing codes, and it gets stronger here rather than weaker: a
+pairing code is dead in two minutes, and a share link is alive until it is
+revoked — so a database dump would otherwise be a set of working URLs into
+somebody's diary for as long as they left the links up.
+
+**The cost is that the address is shown exactly once, when it is created.** There
+is no screen that can show it again, because nothing stored can reconstruct it.
+The recovery is "regenerate", which mints a new token and makes the old URL 404 —
+which is the right thing to do with a URL that went missing anyway. This is the
+first thing somebody will try to "fix"; the second is adding a copy button to
+the row, which cannot work.
+
+### What a shared link reveals
+
+Busy/free is the floor and has no checkbox. `ShareDetail` is the set of things a
+link adds on top — title, location, description, participants — stored as a
+jsonb list and edited freely afterwards, because narrowing a link must not
+require re-sending it.
+
+**The redaction is a DTO, not a set of `if`s in a template.** `ShareLinkReader`
+returns `SharedOccurrence`, whose fields are already null where the link revealed
+nothing, and the public templates never receive a `CalendarEvent` at all. That
+is what makes "a busy/free link cannot leak a title" a property of the code
+rather than a thing to remember: there is no tooltip, data attribute, JSON
+payload or `.ics` that could carry one, because the object being rendered has
+not got one. `SharedCalendarLeakTest` asserts it over the whole response body.
+
+**`EventPrivacy` is the ceiling and the checkboxes are the floor.** A meeting
+marked `Private` is a plain busy block whatever the link says; one marked
+`Secret` does not appear at all, because its existence is the detail. The link is
+a decision about an audience and the privacy is a decision about one meeting, so
+the narrower wins — otherwise the wider is a way to undo it in bulk.
+
+### How double-booking is stopped
+
+By `uniq_calendar_booking_page_start` and by nothing else. Two people pressing
+Book on the same half hour at the same instant both read the slot free, because
+both read before either wrote; narrowing that window makes the bug rarer, which
+is the worst property a bug of this kind can have. The database is the only
+participant that sees both requests.
+
+`BookingService` is written around the refusal rather than around a check: the
+event and the booking go in **one flush**, so the constraint's rejection takes
+the event with it, and the loser gets `BookingSlotTakenException`. By then
+Doctrine has closed the EntityManager, which is why the controller answers with a
+**redirect** — a fresh request rebuilds the slot list from what is true now.
+
+### Things that bite
+
+**A slot is a wall clock, not an instant.** `BookingSlotGenerator` builds each
+slot from local midnight plus an offset in the owner's zone. The obvious version
+— take the previous slot and add the slot length — is wrong twice a year: in
+spring two adjacent local times collapse onto one instant and the page offers the
+same appointment twice, and in autumn an hour repeats and the day silently gains
+or loses slots. Both are covered by `BookingSlotGeneratorTest`, which uses
+Europe/Berlin because its transitions are at 02:00 and a 09:00–17:00 fixture
+would never touch them.
+
+**A cancelled or moved event frees its slot with nothing to invalidate.**
+`BookingAvailabilityReader` asks the occurrence table on every request, so
+calling a meeting off brings its hour back on the next page load and dragging one
+to Thursday moves the hole with it. There is no cache here on purpose.
+
+**The destination calendar is always checked for busy-ness**, ticked or not —
+`BookingPage::calendarsToCheck()` enforces it. A page whose destination was not
+in its own busy set would double-book itself on the second request.
+
+**The public POST is rate limited and the GET is not.** The POST creates rows and
+sends mail, which is the definition of a spam vector, and the token does not help
+because the abuser holds the same URL. The GET is deliberately unbounded: a limit
+there would let one stranger take a published page off the internet by refreshing
+it. See the essay in `config/packages/rate_limiter.yaml`.
+
+**The public pages have their own layout and it must stay that way.**
+`templates/sharing/_layout.html.twig` does not extend the app layout, because
+that one renders `csrf_token('ajax')` into a meta tag — which starts a session,
+on every fetch of a public URL, forever. There is consequently no CSRF token on
+the booking form; `App\Controller\Sharing\BookingController` argues why that is
+the right trade.
+
+**A form POST must redirect.** Turbo is on those pages — the layout loads the
+application bundle for its stylesheet — and Turbo refuses to render a 200
+answered to a form post, leaving the browser sitting on the form it just
+submitted. The successful booking redirects to `/book/{token}/booked`. A browser
+spec found this; `BookingEndpointTest` is what keeps it found.
+
+**A booked event is `EventSource::Booking`**, not `Manual` and not an
+`ExtractionKind`. It is the only kind of event a person outside the install can
+cause to appear, which is a question somebody will ask the first time a page is
+abused, and a query can only answer it if it was written down at the time. The
+booker's own details live on `CalendarBooking` rather than on the event — and
+deliberately not as `participants`, because pushing an attendee list to a
+provider is how the provider decides to mail a stranger a meeting request.
 
 ## Console commands
 

@@ -455,6 +455,86 @@ calendar:
         mail:
             subject: 'Erinnerung: %title%'
         untitled: Termin ohne Titel
+    booking:
+        action:
+            delete: 'Buchungsseite "%name%" löschen'
+            disable: 'Buchungsseite "%name%" abschalten'
+            edit: 'Buchungsseite "%name%" bearbeiten'
+            enable: 'Buchungsseite "%name%" einschalten'
+            regenerate: 'Buchungsseite "%name%" eine neue Adresse geben'
+        badge: Über deine Buchungsseite gebucht
+        booked:
+            body: 'Dein Termin "%name%" steht im Kalender.'
+            mail: Eine Bestätigung mit Kalenderdatei ist zu dir unterwegs.
+            title: Termin gebucht
+        confirm: Buchung bestätigen
+        count: '{0}Keine Buchungsseiten|{1}1 Buchungsseite|]1,Inf[ %count% Buchungsseiten'
+        delete_confirm: '"%name%" löschen? Die bereits gebuchten Termine gehen mit.'
+        disabled: Aus
+        duration: '{1} 1 Minute|]1,Inf[ %count% Minuten'
+        empty_list: Noch keine Buchungsseiten.
+        error:
+            no_calendar: >-
+                Wähle einen Kalender, der Änderungen annimmt, damit Buchungen
+                dort landen können.
+            taken: Diese Zeit wurde gerade vergeben. Bitte wähle eine andere.
+            too_many: >-
+                Das sind viele Buchungen von einem Ort. Bitte warte etwas, bevor
+                du es erneut versuchst.
+        form:
+            add: Neue Buchungsseite
+            buffer_help: Ruhezeit, die vor und nach bestehenden Terminen frei bleibt.
+            buffer_minutes: Puffer (Minuten)
+            busy: Diese Kalender auf Überschneidungen prüfen
+            busy_help: >-
+                Eine Zeit wird nur angeboten, wenn nichts in diesen Kalendern sie
+                überschneidet. Der Kalender, in dem Buchungen landen, wird immer
+                geprüft — auch ohne Häkchen.
+            calendar: Buchungen landen in
+            calendar_help: >-
+                Wohin der Termin geschrieben wird. Synchronisiert dieser Kalender
+                irgendwohin, geht die Buchung mit.
+            day_end: Bis
+            day_start: Von
+            description: Worum es geht
+            edit: Buchungsseite bearbeiten
+            horizon_days: Buchbar bis (Tage im Voraus)
+            name: Wie der Termin heißt
+            name_help: >-
+                Wird auf der Seite gezeigt und als Titel in deinem Kalender
+                verwendet.
+            notice_minutes: Kürzeste Vorlaufzeit (Minuten)
+            slot_minutes: Termindauer (Minuten)
+            time_zone: Deine Zeiten gelten in
+            time_zone_help: >-
+                Die Zeiten oben sind Uhrzeiten in dieser Zone — 09:00 bleibt neun
+                Uhr morgens, auch wenn die Uhren umgestellt werden.
+            weekdays: Tage, an denen du buchbar bist
+        lands_on: 'landet in %calendar%'
+        no_slots: Zurzeit sind keine Zeiten frei. Versuche es später noch einmal.
+        note: Noch etwas? (optional)
+        pick_a_time: Zeit wählen
+        toast:
+            created: >-
+                Buchungsseite erstellt. Kopiere die Adresse jetzt — sie wird nicht
+                noch einmal gezeigt.
+            deleted: Buchungsseite gelöscht.
+            disabled: Buchungsseite abgeschaltet.
+            enabled: Buchungsseite eingeschaltet.
+            regenerated: Neue Adresse. Die alte funktioniert nicht mehr.
+            updated: Buchungsseite aktualisiert.
+        weekday:
+            1: Mo
+            2: Di
+            3: Mi
+            4: Do
+            5: Fr
+            6: Sa
+            7: So
+        your_email: Deine E-Mail-Adresse
+        your_email_help: Bestätigung und Kalenderdatei gehen hierhin.
+        your_name: Dein Name
+        zone: 'Zeiten in %zone%'
     chip:
         on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
@@ -677,6 +757,73 @@ calendar:
         none: Wiederholt sich nicht
         weekly: Wöchentlich
         yearly: Jährlich
+    share:
+        action:
+            delete: 'Link "%name%" löschen'
+            edit: 'Link "%name%" bearbeiten'
+            regenerate: 'Link "%name%" eine neue Adresse geben'
+            revoke: 'Link "%name%" widerrufen'
+        all_day: Ganztägig
+        busy: Belegt
+        busy_free_only: Dieser Link zeigt nur, wann der Kalender belegt ist — sonst nichts.
+        count: '{0}Keine geteilten Links|{1}1 geteilter Link|]1,Inf[ %count% geteilte Links'
+        covers: '{0}keine Kalender|{1}1 Kalender|]1,Inf[ %count% Kalender'
+        day_free: An diesem Tag nichts.
+        delete_confirm: '"%name%" löschen? Wer die Adresse noch hat, verliert sie.'
+        detail:
+            description: Beschreibung
+            location: Ort
+            participants: Wer dabei ist
+            title: Titel
+        empty: In diesem Zeitraum nichts.
+        empty_list: Noch keine geteilten Links.
+        footer: Geteilter Kalender
+        form:
+            add: Neuer geteilter Link
+            calendars: Welche Kalender
+            days: Tage im Voraus
+            edit: Geteilten Link bearbeiten
+            ends_on: Letzter Tag
+            name: Wie du ihn nennst
+            name_help: >-
+                Nur du siehst das. So findest du den Link wieder, um ihn zu ändern
+                oder zu widerrufen.
+            reveals: Was dieser Link preisgibt
+            reveals_help: >-
+                Ohne Häkchen zeigt der Link nur, wann der Kalender belegt ist.
+                Jedes Häkchen fügt eine Angabe hinzu. Ein als privat markierter
+                Termin bleibt ein reiner Belegt-Block, egal was hier angehakt ist.
+            rolling_days: Tage im Voraus
+            starts_on: Erster Tag
+            token_note: >-
+                Die Adresse wird einmal gezeigt, beim Anlegen. Sie wird nicht
+                gespeichert und kann nicht erneut gezeigt werden — geht sie
+                verloren, gib dem Link eine neue.
+            window: Wie weit er reicht
+        heading: Geteilter Kalender
+        minted:
+            heading: Die Adresse für diesen Link
+            once: >-
+                Kopiere sie jetzt. Sie wird nirgends gespeichert, also ist dies
+                die einzige Gelegenheit.
+        page_title: Geteilter Kalender
+        reveals: 'Zeigt %details%'
+        reveals_busy_free: Nur belegt/frei
+        revoked: Widerrufen
+        subscribe: Zu deinem Kalender hinzufügen
+        toast:
+            created: >-
+                Link erstellt. Kopiere die Adresse jetzt — sie wird nicht noch
+                einmal gezeigt.
+            deleted: Link gelöscht.
+            regenerated: Neue Adresse. Die alte funktioniert nicht mehr.
+            revoked: Link widerrufen.
+            updated: Link aktualisiert.
+        window:
+            fixed: Zwischen zwei Daten
+            rolling: Ein rollendes Fenster ab heute
+        window_label: '%from% – %to%'
+        zone: 'Zeiten in %zone%'
     soon:
         empty: Nichts in Sicht
         empty_hint: >-
@@ -1528,6 +1675,7 @@ settings:
         heading: Sprache
         subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
     nav:
+        sharing: Teilen
         accounts: E-Mail-Konten
         aliases: Aliase
         app_passwords: App-Passwörter
@@ -1635,6 +1783,11 @@ settings:
             on: Zwei-Faktor-Authentifizierung ist an
             on_since: 'Aktiviert am %date%'
         subheading: Wie du beim Anmelden nachweist, dass du es bist.
+    sharing:
+        heading: Teilen
+        subheading: >-
+            Links, die jemandem ohne Konto einen Teil deines Kalenders zeigen,
+            und Seiten, auf denen er eine Stunde davon buchen kann.
     timezone:
         heading: Zeitzone
         subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.

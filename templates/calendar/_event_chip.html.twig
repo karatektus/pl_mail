@@ -119,6 +119,22 @@ identity is threaded through a URL that would outlive the render that made it.
         {%- if event.kind is not null -%}
             <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>
         {%- endif -%}
+        {#- The badge a booked event carries, and the only source that has one.
+            EventSource::icon() answers null for every other case, so this
+            renders nothing on an ordinary chip and cannot be forgotten for a
+            future source — the match there has no default.
+
+            Accented rather than faint, unlike the extraction icon above it: an
+            hour a stranger put in the calendar has to be distinguishable at a
+            glance from one the owner typed, which is the requirement, and
+            another grey mark beside a grey mark is not. Both can appear
+            together in principle and never do in practice — a booked event
+            carries no ExtractionKind, by the argument in EventSource::Booking. -#}
+        {%- if event.source.icon is not null -%}
+            <i class="{{ event.source.icon }} mr-1 text-[10px] text-accent"
+               title="{{ event.source.badgeTransKey|trans }}"
+               aria-label="{{ event.source.badgeTransKey|trans }}"></i>
+        {%- endif -%}
         {{ event.title }}
     </span>
 </button>

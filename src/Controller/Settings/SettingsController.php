@@ -12,7 +12,9 @@ use App\Service\User\ProfileSectionViewData;
 use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
+use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Label\LabelRepository;
@@ -30,12 +32,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'calendars', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'integrations', 'appearance', 'aliases', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly LabelRepository   $labelRepository,
         private readonly CalendarRepository $calendarRepository,
+        private readonly CalendarShareLinkRepository $shareLinkRepository,
+        private readonly BookingPageRepository $bookingPageRepository,
         private readonly MailRuleRepository $mailRuleRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly ApiTokenRepository $apiTokenRepository,
@@ -73,6 +77,7 @@ final class SettingsController extends AbstractController
             ...$this->profileSection->build($this->getUser(), $request),
             ...$this->securitySectionData($section, $request),
             ...$this->calendarSectionData($section),
+            ...$this->sharingSectionData($section),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
@@ -105,6 +110,30 @@ final class SettingsController extends AbstractController
         return [
             'calendarAccounts'    => $this->calendarSources->accountsFor($user),
             'calendarConnections' => $this->calendarSources->connectionsFor($user),
+        ];
+    }
+
+    /**
+     * The two public-URL lists, and only when that section is on screen.
+     *
+     * Both are fetch-joined reads over rows almost every install has none of,
+     * so the cost is small — but it is the same rule the two methods around
+     * this one follow, and one exception is how a settings page ends up making
+     * eleven queries to render one tab.
+     *
+     * @return array<string, mixed>
+     */
+    private function sharingSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('sharing' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'shareLinks'   => $this->shareLinkRepository->findForUser($user),
+            'bookingPages' => $this->bookingPageRepository->findForUser($user),
         ];
     }
 

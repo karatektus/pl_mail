@@ -1,0 +1,194 @@
+{#
+sharing/booking_page.html.twig
+─────────────────────────────────────────────────────────────────────────────
+A published booking page: what the appointment is, when it is free, and the
+form that takes one.
+
+**What is on screen is what is free right now.** `days` was built by
+BookingAvailabilityReader against the owner's real diary at the instant this
+request arrived — an event they created a minute ago has already removed its
+slot, and one they cancelled has already brought it back. Nothing is cached and
+nothing is client-side, because a stale slot list is a page that offers
+appointments it cannot honour.
+
+**Nothing here says why a slot is missing.** The page renders BookableSlot,
+which carries an instant and a length and nothing else, so a gap in the morning
+is indistinguishable from an hour outside the working day. That is the same
+rule the shared calendar keeps, for the same reason: whoever holds this URL is
+not entitled to read the owner's diary out of the shape of the holes in it.
+
+**Two zone controls, and only one of them is real.** The `tz` in the URL and
+the hidden `timeZone` field change how the hours are PRINTED. Which slots exist
+is decided in the owner's zone, server-side, and no query parameter can move
+one — see BookingController::displayZone().
+
+No CSRF token, deliberately: this page starts no session, and rendering one
+would. BookingController's docblock has the argument in full.
+
+Variables:
+  page      BookingPage                      the appointment being offered
+  token     string                           this page's own URL segment
+  days      array<string, BookableSlot[]>    free slots, keyed Y-m-d in `zone`
+  zone      string                           the IANA zone the hours are printed in
+  errorKey  string|null                      a translation key for a refusal
+  error     string|null                      a refusal already written for a person
+  wasTaken  bool                             the last attempt lost the race
+  name      string                           echoed back after a refusal
+  email     string                           echoed back after a refusal
+  note      string                           echoed back after a refusal
+#}
+{% extends 'sharing/_layout.html.twig' %}
+
+{% block title %}{{ page.name }}{% endblock %}
+
+{% block body %}
+    {# The browser's own zone, put in the URL once so the server can print the
+       hours on the reader's clock. A reload rather than client-side rewriting:
+       the slot instants are the server's, and re-rendering them in JavaScript
+       is a second implementation of the same formatting to disagree with. The
+       guard is what stops it looping — with `tz` already set, this does
+       nothing. #}
+    <script>
+        (function () {
+            const url = new URL(window.location.href);
+
+            if (url.searchParams.has("tz")) {
+                return;
+            }
+
+            const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            if (zone) {
+                url.searchParams.set("tz", zone);
+                window.location.replace(url.toString());
+            }
+        })();
+    </script>
+
+    <header class="mb-6">
+        <h1 class="text-lg font-semibold text-ink">{{ page.name }}</h1>
+
+        <p class="mt-1 text-sm text-ink-muted">
+            {{ 'calendar.booking.duration'|trans({ '%count%': page.slotMinutes }) }}
+        </p>
+
+        {% if page.description is not empty %}
+            <p class="mt-3 whitespace-pre-line text-sm text-ink-muted">{{ page.description }}</p>
+        {% endif %}
+
+        <p class="mt-2 text-xs text-ink-faint">{{ 'calendar.booking.zone'|trans({ '%zone%': zone }) }}</p>
+    </header>
+
+    {% if wasTaken %}
+        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+            <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+            <p class="leading-snug">{{ 'calendar.booking.error.taken'|trans }}</p>
+        </div>
+    {% endif %}
+
+    {% if errorKey is not null or error is not null %}
+        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+            <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+            <p class="leading-snug">{{ errorKey is not null ? errorKey|trans : error }}</p>
+        </div>
+    {% endif %}
+
+    {% if days is empty %}
+        <p class="rounded-pane border border-line px-4 py-10 text-center text-sm text-ink-faint italic">
+            {{ 'calendar.booking.no_slots'|trans }}
+        </p>
+    {% else %}
+        <form method="post" action="{{ path('app_booking_book', { token: token }) }}" class="space-y-6">
+            <input type="hidden" name="timeZone" value="{{ zone }}">
+
+            <fieldset class="rounded-pane border border-line overflow-hidden">
+                <legend class="sr-only">{{ 'calendar.booking.pick_a_time'|trans }}</legend>
+
+                {% for day, slots in days %}
+                    <div>
+                        <h2 class="px-4 py-2 text-xs font-semibold text-ink-soft bg-sunken border-b border-line">
+                            {{ day|date('l, j F Y') }}
+                        </h2>
+
+                        <div class="flex flex-wrap gap-2 px-4 py-3">
+                            {% for slot in slots %}
+                                {# A radio rather than a button per slot: the whole page is one
+                                   form, so choosing a time and filling the fields below is one
+                                   submit. A button per slot would post before the name and
+                                   address existed, which is how a two-step booking flow with a
+                                   second page to lose people on gets invented. #}
+                                {% set slotId = 'slot-' ~ loop.parent.loop.index ~ '-' ~ loop.index %}
+
+                                <label for="{{ slotId }}"
+                                       class="cursor-pointer rounded-lg border border-field bg-field px-3 py-1.5 text-sm
+                                              tabular-nums text-ink-soft transition-colors hover:bg-hover
+                                              has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white">
+                                    <input type="radio"
+                                           id="{{ slotId }}"
+                                           name="slot"
+                                           value="{{ slot.key }}"
+                                           required
+                                           class="sr-only">
+                                    {{ slot.startsAt|date('H:i', zone) }}
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </fieldset>
+
+            <div class="rounded-pane border border-line px-4 py-4 space-y-4">
+                <div class="space-y-1.5">
+                    <label for="booking-name" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.your_name'|trans }}
+                    </label>
+                    <input type="text"
+                           id="booking-name"
+                           name="name"
+                           value="{{ name }}"
+                           required
+                           maxlength="120"
+                           autocomplete="name"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-email" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.your_email'|trans }}
+                    </label>
+                    <input type="email"
+                           id="booking-email"
+                           name="email"
+                           value="{{ email }}"
+                           required
+                           maxlength="255"
+                           autocomplete="email"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <p class="text-[11px] text-ink-faint leading-snug">
+                        {{ 'calendar.booking.your_email_help'|trans }}
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-note" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.note'|trans }}
+                    </label>
+                    <textarea id="booking-note"
+                              name="note"
+                              rows="3"
+                              maxlength="2000"
+                              class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ note }}</textarea>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong transition-colors">
+                    {{ 'calendar.booking.confirm'|trans }}
+                </button>
+            </div>
+        </form>
+    {% endif %}
+{% endblock %}

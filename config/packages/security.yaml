@@ -91,6 +91,24 @@ security:
         # App\Service\User\DevicePairingService. Note this is /device/pair,
         # not /settings/pair: issuing a code still requires a session.
         - { path: ^/device/pair$, roles: PUBLIC_ACCESS }
+        # A shared calendar link. The recipient has no account here by
+        # definition — a link they had to sign in to read would be a link
+        # nobody could use — so the token in the path is the whole gate: 32
+        # bytes of CSPRNG, stored only as a SHA-256 so a database dump is not a
+        # set of working URLs, revocable from Settings → Sharing. What each link
+        # may reveal is decided per link and enforced in
+        # App\Service\Calendar\Sharing\ShareLinkReader, which returns redacted
+        # DTOs rather than events — a template here cannot leak a title because
+        # it never receives one. Read only: both routes are GETs.
+        - { path: ^/share/, roles: PUBLIC_ACCESS }
+        # A public booking page, and the one unauthenticated POST on this
+        # install that both creates rows and sends mail. Same token, same
+        # reasoning; what proves the caller is holding the published URL. The
+        # POST is additionally bounded by the `booking_attempt` rate limiter,
+        # because a token is what the abuser is holding too — see
+        # App\Controller\Sharing\BookingController, which also says why there is
+        # no CSRF token on a page that deliberately starts no session.
+        - { path: ^/book/, roles: PUBLIC_ACCESS }
         # The code form sits between the two factors: the password is in, the
         # second factor is not, and ROLE_USER has not been granted yet. It must
         # be reachable in exactly that state and in no other, which is what

@@ -1,0 +1,234 @@
+{#
+settings/sharing/_lists.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Both kinds of public calendar URL, in one section: shared links, and booking
+pages.
+
+Together rather than in two sections because they answer one question — "what
+can somebody without an account see of my calendar?" — and the answer has to be
+readable in one place. A person auditing that after sending a link to the wrong
+address should not have to remember there is a second screen.
+
+**Every row says what it reveals.** That is the only reason the list is worth
+rendering: a token cannot be shown again, so the row cannot be "the link", and
+what it is instead is the statement of what that link is currently permitted to
+say. Busy/free is spelled out rather than left as an empty space, because an
+absent list of details reads as "not loaded".
+
+**A minted URL appears once, at the top, and is gone on the next render.** It
+is passed in rather than read off a row, because nothing on the row can produce
+it — see PublicLinkToken. The box says so, so nobody goes looking for a copy
+button that cannot exist.
+
+Variables:
+  shareLinks        CalendarShareLink[]
+  bookingPages      BookingPage[]
+  mintedLinkUrl     string|null  a share link URL, shown once
+  mintedBookingUrl  string|null  a booking page URL, shown once
+#}
+{# Two variables, one box: a create or a regenerate on either half sets exactly
+   one of them and the other stays null, so there is nothing to choose between.
+   Written as two `default()` sets rather than one `??` chain because `??` runs
+   a `defined` test, which Twig refuses on an expression rather than a plain
+   variable — `mintedLinkUrl|default(null) ?? …` fails to compile. #}
+{% set mintedLinkUrl = mintedLinkUrl|default(null) %}
+{% set mintedBookingUrl = mintedBookingUrl|default(null) %}
+{% set mintedUrl = mintedLinkUrl is not null ? mintedLinkUrl : mintedBookingUrl %}
+
+{% if mintedUrl is not null %}
+    {# `select()` on click, so the whole URL can be copied without a clipboard
+       permission and without a Stimulus controller for one field. Read-only
+       rather than disabled: a disabled input cannot be selected at all, which
+       is the one thing this is for. #}
+    <div class="mx-4 mt-4 rounded-lg border border-accent/40 bg-accent/5 px-3.5 py-3">
+        <p class="text-xs font-medium text-ink">{{ 'calendar.share.minted.heading'|trans }}</p>
+
+        <input type="text"
+               readonly
+               value="{{ mintedUrl }}"
+               onclick="this.select()"
+               aria-label="{{ 'calendar.share.minted.heading'|trans }}"
+               class="mt-2 w-full h-9 px-3 rounded-lg text-xs font-mono bg-field border border-field text-ink
+                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+
+        <p class="mt-2 text-[11px] text-ink-faint leading-snug">
+            {{ 'calendar.share.minted.once'|trans }}
+        </p>
+    </div>
+{% endif %}
+
+{# ── Shared links ──────────────────────────────────────────────────────── #}
+
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
+    <p class="text-xs text-ink-faint">{{ 'calendar.share.count'|trans({ '%count%': shareLinks|length }) }}</p>
+
+    <button
+        data-controller="ui--modal"
+        data-action="click->ui--modal#open"
+        data-ui--modal-title-value="{{ 'calendar.share.form.add'|trans }}"
+        data-ui--modal-src-value="{{ path('app_settings_sharing_link_new') }}"
+        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
+    >
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'calendar.share.form.add'|trans }}
+    </button>
+</div>
+
+{% if shareLinks is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">{{ 'calendar.share.empty_list'|trans }}</p>
+{% else %}
+    <ul class="py-2 divide-y divide-line">
+        {% for link in shareLinks %}
+            <li class="px-4 py-2.5">
+                <div class="flex items-center gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm text-ink">
+                            {{ link.name }}
+                            {% if not link.isLive %}
+                                <span class="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-sunken text-ink-faint">
+                                    {{ 'calendar.share.revoked'|trans }}
+                                </span>
+                            {% endif %}
+                        </p>
+
+                        <p class="mt-0.5 truncate text-xs text-ink-faint">
+                            {% if link.revealed is empty %}
+                                {{ 'calendar.share.reveals_busy_free'|trans }}
+                            {% else %}
+                                {% set names = [] %}
+                                {% for detail in link.revealed %}
+                                    {% set names = names|merge([detail.transKey|trans]) %}
+                                {% endfor %}
+                                {{ 'calendar.share.reveals'|trans({ '%details%': names|join(', ') }) }}
+                            {% endif %}
+                            ·
+                            {{ 'calendar.share.covers'|trans({ '%count%': link.calendars|length }) }}
+                        </p>
+                    </div>
+
+                    <div class="flex shrink-0 items-center gap-1">
+                        <button
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'calendar.share.form.edit'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_settings_sharing_link_edit', { id: link.id }) }}"
+                            aria-label="{{ 'calendar.share.action.edit'|trans({ '%name%': link.name }) }}"
+                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+                        ><i class="fa-solid fa-pen text-[11px]" aria-hidden="true"></i></button>
+
+                        <form method="post" action="{{ path('app_settings_sharing_link_regenerate', { id: link.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                            <button type="submit"
+                                    aria-label="{{ 'calendar.share.action.regenerate'|trans({ '%name%': link.name }) }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+                            ><i class="fa-solid fa-rotate text-[11px]" aria-hidden="true"></i></button>
+                        </form>
+
+                        {% if link.isLive %}
+                            <form method="post" action="{{ path('app_settings_sharing_link_revoke', { id: link.id }) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                                <button type="submit"
+                                        aria-label="{{ 'calendar.share.action.revoke'|trans({ '%name%': link.name }) }}"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-danger transition-colors cursor-pointer"
+                                ><i class="fa-solid fa-ban text-[11px]" aria-hidden="true"></i></button>
+                            </form>
+                        {% endif %}
+
+                        <form method="post"
+                              action="{{ path('app_settings_sharing_link_delete', { id: link.id }) }}"
+                              data-turbo-confirm="{{ 'calendar.share.delete_confirm'|trans({ '%name%': link.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                            <button type="submit"
+                                    aria-label="{{ 'calendar.share.action.delete'|trans({ '%name%': link.name }) }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-danger transition-colors cursor-pointer"
+                            ><i class="fa-solid fa-trash text-[11px]" aria-hidden="true"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{# ── Booking pages ─────────────────────────────────────────────────────── #}
+
+<div class="flex items-center justify-between gap-3 px-4 py-3 border-y border-line bg-sunken">
+    <p class="text-xs text-ink-faint">{{ 'calendar.booking.count'|trans({ '%count%': bookingPages|length }) }}</p>
+
+    <button
+        data-controller="ui--modal"
+        data-action="click->ui--modal#open"
+        data-ui--modal-title-value="{{ 'calendar.booking.form.add'|trans }}"
+        data-ui--modal-src-value="{{ path('app_settings_sharing_booking_new') }}"
+        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
+    >
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'calendar.booking.form.add'|trans }}
+    </button>
+</div>
+
+{% if bookingPages is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">{{ 'calendar.booking.empty_list'|trans }}</p>
+{% else %}
+    <ul class="py-2 divide-y divide-line">
+        {% for bookingPage in bookingPages %}
+            <li class="px-4 py-2.5">
+                <div class="flex items-center gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm text-ink">
+                            {{ bookingPage.name }}
+                            {% if not bookingPage.isEnabled %}
+                                <span class="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-sunken text-ink-faint">
+                                    {{ 'calendar.booking.disabled'|trans }}
+                                </span>
+                            {% endif %}
+                        </p>
+
+                        <p class="mt-0.5 truncate text-xs text-ink-faint">
+                            {{ 'calendar.booking.duration'|trans({ '%count%': bookingPage.slotMinutes }) }}
+                            ·
+                            {{ 'calendar.booking.lands_on'|trans({ '%calendar%': bookingPage.calendar.name }) }}
+                        </p>
+                    </div>
+
+                    <div class="flex shrink-0 items-center gap-1">
+                        <button
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'calendar.booking.form.edit'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_settings_sharing_booking_edit', { id: bookingPage.id }) }}"
+                            aria-label="{{ 'calendar.booking.action.edit'|trans({ '%name%': bookingPage.name }) }}"
+                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+                        ><i class="fa-solid fa-pen text-[11px]" aria-hidden="true"></i></button>
+
+                        <form method="post" action="{{ path('app_settings_sharing_booking_regenerate', { id: bookingPage.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                            <button type="submit"
+                                    aria-label="{{ 'calendar.booking.action.regenerate'|trans({ '%name%': bookingPage.name }) }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+                            ><i class="fa-solid fa-rotate text-[11px]" aria-hidden="true"></i></button>
+                        </form>
+
+                        <form method="post" action="{{ path('app_settings_sharing_booking_toggle', { id: bookingPage.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                            <button type="submit"
+                                    aria-label="{{ (bookingPage.isEnabled ? 'calendar.booking.action.disable' : 'calendar.booking.action.enable')|trans({ '%name%': bookingPage.name }) }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+                            ><i class="fa-solid {{ bookingPage.isEnabled ? 'fa-toggle-on' : 'fa-toggle-off' }} text-[11px]" aria-hidden="true"></i></button>
+                        </form>
+
+                        <form method="post"
+                              action="{{ path('app_settings_sharing_booking_delete', { id: bookingPage.id }) }}"
+                              data-turbo-confirm="{{ 'calendar.booking.delete_confirm'|trans({ '%name%': bookingPage.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+                            <button type="submit"
+                                    aria-label="{{ 'calendar.booking.action.delete'|trans({ '%name%': bookingPage.name }) }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-faint hover:bg-hover hover:text-danger transition-colors cursor-pointer"
+                            ><i class="fa-solid fa-trash text-[11px]" aria-hidden="true"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

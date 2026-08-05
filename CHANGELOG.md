@@ -8,9 +8,45 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-No schema change, no deployment change.
+**Five new tables, applied automatically on boot.** `calendar_share_link`,
+`calendar_share_link_calendar`, `booking_page`, `booking_page_calendar` and
+`calendar_booking`. All additive; nothing existing is altered or rewritten, and
+an install that shares nothing is unaffected. No deployment change.
 
 ### Added
+
+- **You can send somebody a link to your calendar without giving them an
+  account.** Settings → Sharing makes one. Tick-boxes on the link decide what it
+  says: with none of them ticked it shows only when you are busy, and each box
+  adds one thing on top — the title, the location, the description, who is
+  coming. You choose which calendars it covers and whether it shows a rolling
+  window from today or two fixed dates, you can change all of that afterwards
+  without the address breaking, and you can revoke it. An event you marked
+  private stays a plain busy block whatever the link says, and one you marked
+  secret does not appear at all. There is an `.ics` beside the page for people
+  who would rather subscribe than look.
+
+  **The address is shown once, when you create it.** It is a password to your
+  diary, so plMail stores only a hash of it — the same treatment device pairing
+  codes get. That means it cannot be shown to you a second time: copy it when it
+  appears, and if you lose it, press regenerate, which gives the link a new
+  address and kills the old one.
+
+- **People can book an hour of your day.** A booking page publishes the weekdays
+  and hours you are available, how long an appointment is, how much room to leave
+  around one, how far ahead somebody may reach and which calendar the booking
+  lands on. The times it offers are free against your real calendar — every
+  calendar you nominate, including mirrored ones — so cancelling a meeting brings
+  its hour back and moving one takes the gap with it. Whoever books gives a name,
+  an address and optionally a note, and gets a confirmation with a calendar file
+  attached.
+
+  **Two people cannot take the same slot.** That is enforced by the database
+  rather than by a check, so it holds when both of them press the button at the
+  same instant; the second one is told the time has just gone and shown what is
+  still free. A booked appointment appears in your calendar marked as one, and
+  lands on the calendar you nominated — so if that calendar syncs to Google,
+  Microsoft or a CalDAV server, the booking is on your phone as well.
 
 - **An event can be put on another calendar, including one you sync.** The
   editor's calendar list is now every calendar you have, ticked wherever the

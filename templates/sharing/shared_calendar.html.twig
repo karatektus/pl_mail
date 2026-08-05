@@ -1,0 +1,133 @@
+{#
+sharing/shared_calendar.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Somebody's calendar, as much of it as their link reveals.
+
+**This template cannot leak, and the reason is what it is given.** `view.days`
+holds SharedOccurrence objects, not events: on a busy/free link their `title`,
+`location` and `description` are already null and `participants` is already
+empty, decided once in ShareLinkReader against the link's checkboxes AND the
+event's own privacy. So there is no `if` here that could be forgotten, no
+tooltip that could carry a subject, and no data attribute that could carry one
+into JavaScript. Adding a field to this page means adding it to the DTO first,
+which is where the decision about revealing it has to be made.
+
+The counterpart rule: nothing below may reach for `app.user`, a session, or a
+CSRF token. See sharing/_layout.html.twig for why.
+
+A list of days, not a grid. A grid needs a viewport, a scroll position and a
+zone control to be readable, and this page is opened once by somebody who was
+asked to look at it — usually on a phone. Every day in the window is rendered,
+including the empty ones, so "free on the 4th" is a thing the page says rather
+than a gap the reader has to notice.
+
+Variables:
+  view     SharedCalendarView  window, zone, and days keyed Y-m-d
+  icsPath  string              where the same window is downloadable
+#}
+{% extends 'sharing/_layout.html.twig' %}
+
+{% block body %}
+    <header class="mb-6">
+        <h1 class="text-lg font-semibold text-ink">{{ 'calendar.share.heading'|trans }}</h1>
+
+        <p class="mt-1 text-sm text-ink-muted">
+            {{ 'calendar.share.window'|trans({
+                '%from%': view.from|date('j M Y'),
+                '%to%': view.to|date_modify('-1 day')|date('j M Y'),
+            }) }}
+        </p>
+
+        {# Named on every page, not only when it differs from the reader's. The
+           reader has no account here, so there is no stored preference to
+           compare against, and a list of hours with no zone beside it is the
+           single most reliable way to make somebody miss a meeting. #}
+        <p class="mt-0.5 text-xs text-ink-faint">
+            {{ 'calendar.share.zone'|trans({ '%zone%': view.zone }) }}
+        </p>
+
+        {% if view.isBusyFreeOnly %}
+            <p class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1.5 text-xs text-ink-muted">
+                <i class="fa-solid fa-eye-slash text-[10px]" aria-hidden="true"></i>
+                {{ 'calendar.share.busy_free_only'|trans }}
+            </p>
+        {% endif %}
+    </header>
+
+    {% if view.isEmpty %}
+        <p class="rounded-pane border border-line px-4 py-10 text-center text-sm text-ink-faint italic">
+            {{ 'calendar.share.empty'|trans }}
+        </p>
+    {% else %}
+        <ol class="space-y-4">
+            {% for day, entries in view.days %}
+                <li class="rounded-pane border border-line overflow-hidden">
+                    <h2 class="px-4 py-2 text-xs font-semibold text-ink-soft bg-sunken border-b border-line">
+                        {{ day|date('l, j F Y') }}
+                    </h2>
+
+                    {% if entries is empty %}
+                        <p class="px-4 py-3 text-sm text-ink-faint italic">
+                            {{ 'calendar.share.day_free'|trans }}
+                        </p>
+                    {% else %}
+                        <ul class="divide-y divide-line">
+                            {% for entry in entries %}
+                                <li class="flex items-baseline gap-3 px-4 py-2.5">
+                                    <span class="shrink-0 tabular-nums text-xs font-medium text-ink-soft">
+                                        {% if entry.isAllDay %}
+                                            {{ 'calendar.share.all_day'|trans }}
+                                        {% else %}
+                                            {{ entry.startsAt|date('H:i', view.zone) }}–{{ entry.endsAt|date('H:i', view.zone) }}
+                                        {% endif %}
+                                    </span>
+
+                                    <span class="min-w-0 flex-1">
+                                        {# The busy bar and the labelled row are one branch, on
+                                           isDetailed() rather than on the link's settings: a
+                                           private event inside an otherwise detailed link
+                                           arrives here with every field null, and asking the
+                                           link would draw it an empty label. #}
+                                        {% if entry.isDetailed %}
+                                            <span class="block truncate text-sm text-ink">
+                                                {{ entry.title ?? 'calendar.share.busy'|trans }}
+                                            </span>
+
+                                            {% if entry.location is not null %}
+                                                <span class="block truncate text-xs text-ink-muted">
+                                                    <i class="fa-solid fa-location-dot text-[10px] mr-1" aria-hidden="true"></i>{{ entry.location }}
+                                                </span>
+                                            {% endif %}
+
+                                            {% if entry.participants is not empty %}
+                                                <span class="block truncate text-xs text-ink-muted">
+                                                    <i class="fa-solid fa-users text-[10px] mr-1" aria-hidden="true"></i>{{ entry.participants|join(', ') }}
+                                                </span>
+                                            {% endif %}
+
+                                            {% if entry.description is not null %}
+                                                <span class="mt-1 block whitespace-pre-line text-xs text-ink-muted">{{ entry.description }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="block text-sm text-ink-muted">{{ 'calendar.share.busy'|trans }}</span>
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+
+    <footer class="mt-8 flex items-center justify-between gap-3 text-xs text-ink-faint">
+        <a href="{{ icsPath }}"
+           class="inline-flex items-center gap-1.5 rounded-lg border border-field bg-field px-2.5 py-1.5 font-medium text-ink-soft hover:bg-hover transition-colors">
+            <i class="fa-regular fa-calendar-plus text-[10px]" aria-hidden="true"></i>
+            {{ 'calendar.share.subscribe'|trans }}
+        </a>
+
+        <span>{{ 'calendar.share.footer'|trans }}</span>
+    </footer>
+{% endblock %}

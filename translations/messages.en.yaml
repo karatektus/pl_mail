@@ -452,6 +452,82 @@ calendar:
         mail:
             subject: 'Reminder: %title%'
         untitled: Untitled event
+    booking:
+        action:
+            delete: 'Delete the booking page "%name%"'
+            disable: 'Switch off the booking page "%name%"'
+            edit: 'Edit the booking page "%name%"'
+            enable: 'Switch on the booking page "%name%"'
+            regenerate: 'Give the booking page "%name%" a new address'
+        badge: Booked through your booking page
+        booked:
+            body: 'Your %name% is in the diary.'
+            mail: A confirmation with a calendar file is on its way to you.
+            title: That is booked
+        confirm: Confirm the booking
+        count: '{0}No booking pages|{1}1 booking page|]1,Inf[ %count% booking pages'
+        delete_confirm: 'Delete "%name%"? The appointments already booked through it go with it.'
+        disabled: 'Off'
+        duration: '{1} 1 minute|]1,Inf[ %count% minutes'
+        empty_list: No booking pages yet.
+        error:
+            no_calendar: Choose a calendar that accepts changes for bookings to land on.
+            taken: That time has just been taken. Please choose another.
+            too_many: >-
+                That is a lot of bookings from one place. Please wait a while
+                before trying again.
+        form:
+            add: New booking page
+            buffer_help: Quiet time left either side of anything already in the diary.
+            buffer_minutes: Buffer (minutes)
+            busy: Check these calendars for clashes
+            busy_help: >-
+                A time is only offered when nothing on these calendars overlaps
+                it. The calendar bookings land on is always checked, whether or
+                not it is ticked here.
+            calendar: Bookings land on
+            calendar_help: >-
+                Where the appointment is written. If that calendar syncs
+                somewhere, the booking goes with it.
+            day_end: Until
+            day_start: From
+            description: What this is about
+            edit: Edit booking page
+            horizon_days: Bookable up to (days ahead)
+            name: What the appointment is called
+            name_help: >-
+                Shown to whoever opens the link, and used as the title in your
+                calendar.
+            notice_minutes: Shortest notice (minutes)
+            slot_minutes: Appointment length (minutes)
+            time_zone: Your hours are in
+            time_zone_help: >-
+                The hours above are wall clock in this zone, so 09:00 stays nine
+                in the morning when the clocks change.
+            weekdays: Days you are bookable
+        lands_on: 'lands on %calendar%'
+        no_slots: There are no free times at the moment. Try again later.
+        note: Anything else? (optional)
+        pick_a_time: Pick a time
+        toast:
+            created: Booking page created. Copy its address now — it is not shown again.
+            deleted: Booking page deleted.
+            disabled: Booking page switched off.
+            enabled: Booking page switched on.
+            regenerated: New address. The old one no longer works.
+            updated: Booking page updated.
+        weekday:
+            1: Mon
+            2: Tue
+            3: Wed
+            4: Thu
+            5: Fri
+            6: Sat
+            7: Sun
+        your_email: Your email
+        your_email_help: The confirmation and the calendar file go here.
+        your_name: Your name
+        zone: 'Times shown in %zone%'
     chip:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
@@ -662,6 +738,71 @@ calendar:
         none: Does not repeat
         weekly: Every week
         yearly: Every year
+    share:
+        action:
+            delete: 'Delete the link "%name%"'
+            edit: 'Edit the link "%name%"'
+            regenerate: 'Give the link "%name%" a new address'
+            revoke: 'Revoke the link "%name%"'
+        all_day: All day
+        busy: Busy
+        busy_free_only: This link shows when the calendar is busy, and nothing else.
+        count: '{0}No shared links|{1}1 shared link|]1,Inf[ %count% shared links'
+        covers: '{0}no calendars|{1}1 calendar|]1,Inf[ %count% calendars'
+        day_free: Nothing on this day.
+        delete_confirm: 'Delete "%name%"? Anyone still holding its address loses it.'
+        detail:
+            description: Description
+            location: Location
+            participants: Who is coming
+            title: Titles
+        empty: Nothing in this window.
+        empty_list: No shared links yet.
+        footer: Shared calendar
+        form:
+            add: New shared link
+            calendars: Which calendars
+            days: days ahead
+            edit: Edit shared link
+            ends_on: Last day
+            name: What you call it
+            name_help: >-
+                Only you see this. It is how you find the link again to change or
+                revoke it.
+            reveals: What this link reveals
+            reveals_help: >-
+                With none of these ticked, the link shows only when the calendar
+                is busy. Each box adds one thing on top. An event marked private
+                stays a plain busy block whatever is ticked here.
+            rolling_days: Days ahead
+            starts_on: First day
+            token_note: >-
+                The address is shown once, when it is created. It is not stored,
+                so it cannot be shown again — if you lose it, give the link a new
+                one.
+            window: How far it reaches
+        heading: Shared calendar
+        minted:
+            heading: The address for this link
+            once: >-
+                Copy it now. It is not stored anywhere, so this is the only time
+                it can be shown.
+        page_title: Shared calendar
+        reveals: 'Reveals %details%'
+        reveals_busy_free: Busy/free only
+        revoked: Revoked
+        subscribe: Add to your calendar
+        toast:
+            created: Link created. Copy its address now — it is not shown again.
+            deleted: Link deleted.
+            regenerated: New address. The old one no longer works.
+            revoked: Link revoked.
+            updated: Link updated.
+        window:
+            fixed: Between two dates
+            rolling: A rolling window from today
+        window_label: '%from% – %to%'
+        zone: 'Times shown in %zone%'
     soon:
         empty: Nothing coming up
         empty_hint: >-
@@ -1504,6 +1645,7 @@ settings:
         heading: Language
         subheading: The language plMail's interface is shown in. Your mail is left as it was written.
     nav:
+        sharing: Sharing
         accounts: Mail accounts
         aliases: Aliases
         app_passwords: App passwords
@@ -1607,6 +1749,11 @@ settings:
             on: Two-factor authentication is on
             on_since: 'Enabled %date%'
         subheading: How you prove it is you when signing in.
+    sharing:
+        heading: Sharing
+        subheading: >-
+            Links that show part of your calendar to someone without an account,
+            and pages that let them book an hour of it.
     timezone:
         heading: Time zone
         subheading: The clock times and dates are shown in. Nothing is rewritten — the same instant is simply read on your own clock.

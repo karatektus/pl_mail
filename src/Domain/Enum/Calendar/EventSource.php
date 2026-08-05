@@ -62,6 +62,38 @@ enum EventSource: string
     case RemoteSync = 'remoteSync';
 
     /**
+     * A stranger booked it on a public booking page.
+     *
+     * The one case where the event exists because somebody who is not the
+     * owner, and who has no account here, asked for it. That is the fact worth
+     * recording and it is not recoverable from anything else on the row: the
+     * booking lands on a calendar the owner nominated, at a time the owner's
+     * own availability rules allowed, with a title the owner's page supplied —
+     * so every column reads exactly like an event the owner typed.
+     *
+     * Not Manual for that reason, and the distinction is not cosmetic. A booked
+     * hour is the only kind of event on the calendar that a person outside this
+     * install can cause to appear, so "which of these did I not put here?" is a
+     * question somebody will ask the first time a booking page is abused, and
+     * a query can only answer it if the answer was written down at the time.
+     *
+     * Not an ExtractionKind either, although Meeting is sitting right there.
+     * A kind means "plMail read this out of your mail" — isExtracted() is
+     * literally `null !== $kind` — so borrowing one would put a booking behind
+     * every "found in your email" affordance, offer to dismiss it as a
+     * misreading, and file it into Happening Soon beside parcel deliveries.
+     * The event is not a claim about a message; it is a commitment somebody
+     * made.
+     *
+     * The booker's own details — their name, their address, the note they left
+     * — are NOT here and are not on the event. They live on CalendarBooking,
+     * because they are facts about the booking rather than about the meeting,
+     * and because the row that carries them is also the row whose unique
+     * constraint stops the slot being taken twice.
+     */
+    case Booking = 'booking';
+
+    /**
      * Whether this source may write to the calendar unsupervised.
      *
      * An untrusted event is Tentative, capped in confidence, never pushed
@@ -83,8 +115,63 @@ enum EventSource: string
             self::Ics,
             self::StructuredData,
             self::SenderParser,
-            self::RemoteSync => true,
+            self::RemoteSync,
+            // A booking is trusted for the one thing this answers: it may be
+            // pushed outward. The owner published the page, wrote the hours and
+            // named the calendar, so the meeting on it is the owner's own
+            // arrangement — and a booking that stayed Tentative and never
+            // reached the connected calendar would be a booking the owner's
+            // phone never shows, which is the whole point of the feature.
+            self::Booking    => true,
             self::Llm        => false,
+        };
+    }
+
+    /**
+     * The badge a chip draws beside this event, or null for the sources that
+     * get none.
+     *
+     * Modelled on ExtractionKind::icon() — the case carries its own icon rather
+     * than a template carrying a match table — and null for almost everything
+     * on purpose. A badge on every event is a badge on nothing: Manual is the
+     * ordinary case, and an extracted event already has ExtractionKind::icon()
+     * to draw, so a second mark here would double it.
+     *
+     * Exhaustive with no default, which is the point of putting it here. The
+     * requirement a booked event has to keep is that it is *clearly visible as
+     * one*, and a `?? null` fallthrough would let the next source added inherit
+     * "no badge" without anybody deciding that it should.
+     */
+    public function icon(): ?string
+    {
+        return match ($this) {
+            self::Manual,
+            self::AcceptedProposal,
+            self::Ics,
+            self::StructuredData,
+            self::SenderParser,
+            self::Llm,
+            self::RemoteSync => null,
+            self::Booking    => 'fa-solid fa-calendar-check',
+        };
+    }
+
+    /**
+     * Translation key for the badge's label and tooltip. Null wherever icon()
+     * is null, and the two are answered by one match so they cannot disagree
+     * about which sources are marked.
+     */
+    public function badgeTransKey(): ?string
+    {
+        return match ($this) {
+            self::Manual,
+            self::AcceptedProposal,
+            self::Ics,
+            self::StructuredData,
+            self::SenderParser,
+            self::Llm,
+            self::RemoteSync => null,
+            self::Booking    => 'calendar.booking.badge',
         };
     }
 
@@ -112,7 +199,15 @@ enum EventSource: string
     {
         return match ($this) {
             self::Manual,
-            self::AcceptedProposal => false,
+            self::AcceptedProposal,
+            // For the same reason AcceptedProposal answers false, arrived at
+            // from the other end. A booking is not a claim about a meeting that
+            // some later message might know more about — it IS the meeting, and
+            // the only party who could send mail carrying its UID is the booker,
+            // who has no standing to move an hour in somebody else's diary. A
+            // reconciler that could rewrite it would turn the booking page into
+            // a way to edit the owner's calendar by email afterwards.
+            self::Booking          => false,
             self::Ics,
             self::StructuredData,
             self::SenderParser,

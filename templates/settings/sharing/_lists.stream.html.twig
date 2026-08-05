@@ -1,0 +1,43 @@
+{#
+settings/sharing/_lists.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The response to every mutation in Settings → Sharing: creating, editing,
+revoking, regenerating and deleting a share link, and the same five for a
+booking page.
+
+One region, redrawn whole, for both halves. That is why CalendarSharingController
+is one controller rather than two — a stream that replaced only the links would
+leave a newly created booking page invisible until the page was reloaded, which
+is exactly the bug calendar/_lists.stream.html.twig exists to prevent.
+
+Variables:
+  shareLinks        CalendarShareLink[]
+  bookingPages      BookingPage[]
+  toastMessage      string       translation key
+  mintedLinkUrl     string|null  shown once, then never again
+  mintedBookingUrl  string|null  shown once, then never again
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: toastMessage|trans,
+            type: 'success',
+        } %}
+    </template>
+</turbo-stream>
+
+{# The target id is re-emitted inside its own replacement: a replace whose
+   template drops the id works exactly once, and the second stream silently
+   does nothing. #}
+<turbo-stream action="replace" target="settings-sharing-list">
+    <template>
+        <div id="settings-sharing-list">
+            {% include 'settings/sharing/_lists.html.twig' with {
+                shareLinks: shareLinks,
+                bookingPages: bookingPages,
+                mintedLinkUrl: mintedLinkUrl|default(null),
+                mintedBookingUrl: mintedBookingUrl|default(null),
+            } only %}
+        </div>
+    </template>
+</turbo-stream>

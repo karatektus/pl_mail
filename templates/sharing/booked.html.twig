@@ -1,0 +1,37 @@
+{#
+sharing/booked.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The page after a booking went through.
+
+A page of its own rather than a banner on the form, and the reason is the
+unique constraint: leaving a filled-in form on screen invites a second submit,
+which the database would refuse correctly and inexplicably ("that time has just
+been taken" — by yourself, a second ago). Replacing the form removes the
+temptation entirely.
+
+It deliberately does NOT repeat the time. The confirmation mail carries it, in
+the booker's own zone and with an .ics attached, and a page saying "10:30" in
+whichever clock the browser happened to be reading is one more chance for the
+two to disagree. What this page promises is exactly what has happened: the
+appointment is made and a message is on its way.
+
+Variables:
+  page  BookingPage  what was booked, for the heading
+#}
+{% extends 'sharing/_layout.html.twig' %}
+
+{% block title %}{{ 'calendar.booking.booked.title'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="rounded-pane border border-line px-6 py-10 text-center">
+        <i class="fa-solid fa-circle-check text-2xl text-accent" aria-hidden="true"></i>
+
+        <h1 class="mt-4 text-lg font-semibold text-ink">{{ 'calendar.booking.booked.title'|trans }}</h1>
+
+        <p class="mt-2 text-sm text-ink-muted">
+            {{ 'calendar.booking.booked.body'|trans({ '%name%': page.name }) }}
+        </p>
+
+        <p class="mt-4 text-xs text-ink-faint">{{ 'calendar.booking.booked.mail'|trans }}</p>
+    </div>
+{% endblock %}

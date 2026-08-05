@@ -19,3 +19,32 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '15 minutes'
+
+        # The public booking POST. It is the only endpoint on this install that
+        # an unauthenticated stranger can use to create database rows AND cause
+        # an email to be sent, which is the definition of a spam vector: one
+        # script against one published booking page would fill a week of the
+        # owner's calendar and send a confirmation to a forged address for each.
+        #
+        # Keyed per IP, in App\Controller\Sharing\BookingController, and that is
+        # the opposite of the two_factor_code choice above for the opposite
+        # reason. There is no account being attacked here, so there is no
+        # per-account key to use — the thing being defended is one owner's
+        # diary against whoever is filling it, and the caller's address is the
+        # only handle on "whoever". The cost is the one an IP key always has: an
+        # office behind one NAT address shares the allowance. Six bookings in an
+        # hour is far above what a real group of colleagues does and far below
+        # what a script does in a second.
+        #
+        # A fixed window rather than sliding: the counter is per address on a
+        # public endpoint, and the sliding policy keeps a timestamp per hit
+        # where this keeps an integer. That matters when the thing being
+        # rate-limited is also the thing that can be fired at the cache.
+        #
+        # NOT applied to the GET. Reading a booking page is what it is for, and
+        # a limit there would let one stranger take somebody's published page
+        # off the internet by refreshing it.
+        booking_attempt:
+            policy: 'fixed_window'
+            limit: 6
+            interval: '1 hour'

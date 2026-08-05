@@ -371,6 +371,81 @@ calendar:
         mail:
             subject: 'A nudge: %title%'
         untitled: A reckonin' with no name
+    booking:
+        action:
+            delete: 'Scuttle the boarding notice "%name%"'
+            disable: 'Strike the boarding notice "%name%"'
+            edit: 'Change the boarding notice "%name%"'
+            enable: 'Hoist the boarding notice "%name%"'
+            regenerate: 'Give the boarding notice "%name%" a fresh berth'
+        badge: Booked through yer boarding notice
+        booked:
+            body: 'Yer %name% be written in the log.'
+            mail: A confirmation wi a chart be sailing to ye.
+            title: Booked, matey
+        confirm: Seal the booking
+        count: '{0}No boarding notices|{1}1 boarding notice|]1,Inf[ %count% boarding notices'
+        delete_confirm: 'Scuttle "%name%"? Every appointment already booked goes down wi it.'
+        disabled: Struck
+        duration: '{1} 1 minute|]1,Inf[ %count% minutes'
+        empty_list: No boarding notices yet, matey.
+        error:
+            no_calendar: Pick a log that takes changes, so bookings have somewhere to land.
+            taken: That hour be claimed already. Pick another.
+            too_many: >-
+                That be a great many bookings from one berth. Bide a while afore
+                ye try again.
+        form:
+            add: New boarding notice
+            buffer_help: Quiet water left either side o what be already in the log.
+            buffer_minutes: Quiet water (minutes)
+            busy: Check these logs for collisions
+            busy_help: >-
+                An hour be offered only when naught in these logs crosses it. The
+                log bookings land in be always checked, ticked or no.
+            calendar: Bookings land in
+            calendar_help: >-
+                Where the appointment be written. If that log sails elsewhere, the
+                booking sails wi it.
+            day_end: Until
+            day_start: From
+            description: What this be about
+            edit: Change boarding notice
+            horizon_days: Bookable up to (days ahead)
+            name: What the appointment be called
+            name_help: >-
+                Shown to whoever opens the berth, and used as the title in yer
+                log.
+            notice_minutes: Shortest warning (minutes)
+            slot_minutes: Appointment length (minutes)
+            time_zone: Yer hours be in
+            time_zone_help: >-
+                The hours above be bell-time in this zone, so 09:00 stays nine in
+                the morning when the clocks turn.
+            weekdays: Days ye be boardable
+        lands_on: 'lands in %calendar%'
+        no_slots: No free hours at present. Come back later, matey.
+        note: Aught else? (optional)
+        pick_a_time: Pick an hour
+        toast:
+            created: Boarding notice raised. Copy the berth now — it be not shown again.
+            deleted: Boarding notice scuttled.
+            disabled: Boarding notice struck.
+            enabled: Boarding notice hoisted.
+            regenerated: Fresh berth. The old one be sunk.
+            updated: Boarding notice changed.
+        weekday:
+            1: Mon
+            2: Tue
+            3: Wed
+            4: Thu
+            5: Fri
+            6: Sat
+            7: Sun
+        your_email: Yer letter address
+        your_email_help: The confirmation and the chart go here.
+        your_name: Yer name
+        zone: 'Hours shown in %zone%'
     chip:
         on_calendars: 'Upon %calendars%'
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
@@ -582,6 +657,70 @@ calendar:
         none: Comes but once
         weekly: Every week
         yearly: Every year
+    share:
+        action:
+            delete: 'Scuttle the berth "%name%"'
+            edit: 'Change the berth "%name%"'
+            regenerate: 'Give the berth "%name%" a fresh address'
+            revoke: 'Revoke the berth "%name%"'
+        all_day: All the day long
+        busy: Occupied
+        busy_free_only: This berth shows when the log be occupied, an naught else.
+        count: '{0}No shared berths|{1}1 shared berth|]1,Inf[ %count% shared berths'
+        covers: '{0}no logs|{1}1 log|]1,Inf[ %count% logs'
+        day_free: Naught this day.
+        delete_confirm: 'Scuttle "%name%"? Whoever still holds the address loses it.'
+        detail:
+            description: The account of it
+            location: Where
+            participants: Who be coming
+            title: Titles
+        empty: Naught in this stretch.
+        empty_list: No shared berths yet, matey.
+        footer: Shared log
+        form:
+            add: New shared berth
+            calendars: Which logs
+            days: days ahead
+            edit: Change shared berth
+            ends_on: Last day
+            name: What ye call it
+            name_help: >-
+                Only ye see this. It be how ye find the berth again to change or
+                revoke it.
+            reveals: What this berth gives away
+            reveals_help: >-
+                Wi none o these ticked, the berth shows only when the log be
+                occupied. Each box adds one thing atop. A matter marked private
+                stays a plain occupied block whatever be ticked here.
+            rolling_days: Days ahead
+            starts_on: First day
+            token_note: >-
+                The address be shown once, when it be made. It be not stored, so
+                it cannot be shown again — lose it, an give the berth a fresh one.
+            window: How far it reaches
+        heading: Shared log
+        minted:
+            heading: The address for this berth
+            once: >-
+                Copy it now. It be stored nowhere, so this be the only time it can
+                be shown.
+        page_title: Shared log
+        reveals: 'Gives away %details%'
+        reveals_busy_free: Occupied/free only
+        revoked: Revoked
+        subscribe: Add to yer own log
+        toast:
+            created: Berth made. Copy the address now — it be not shown again.
+            deleted: Berth scuttled.
+            regenerated: Fresh address. The old one be sunk.
+            revoked: Berth revoked.
+            updated: Berth changed.
+        window:
+            fixed: Between two dates
+            rolling: A rolling stretch from today
+        window_label: '%from% – %to%'
+        zone: 'Hours shown in %zone%'
     soon:
         empty: Naught on the horizon
         empty_hint: >-
@@ -1409,6 +1548,7 @@ settings:
         heading: Tongue
         subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
     nav:
+        sharing: Sharing
         accounts: Th' crew
         aliases: Aliases
         app_passwords: Spare keys
@@ -1509,6 +1649,11 @@ settings:
             on: The second lock be set
             on_since: 'Set %date%'
         subheading: How ye prove ye be ye when comin' aboard.
+    sharing:
+        heading: Sharing
+        subheading: >-
+            Berths that show part o yer log to someone wi no account, an notices
+            that let em board an hour o it.
     timezone:
         heading: Ship's bells
         subheading: The clock yer times be told by. Naught be rewrit — the same moment, read off yer own glass.

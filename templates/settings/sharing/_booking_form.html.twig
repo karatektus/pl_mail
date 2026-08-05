@@ -1,0 +1,287 @@
+{#
+settings/sharing/_booking_form.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Creating or editing a booking page: the hours somebody may take, and where a
+booking lands.
+
+**Two calendar controls, and they are not the same question.** The picker says
+where a booking is WRITTEN; the tick boxes say what "free" is checked AGAINST.
+The help text under each says so, because the natural reading of a second
+calendar list is "and also write there", and a person who ticks their work
+calendar expecting that would end up double-booked instead. The destination is
+always consulted for busy-ness whether or not it is ticked —
+BookingPage::calendarsToCheck() enforces that rather than trusting the form.
+
+**The picker offers only calendars that accept writes.** A read-only mirror is
+absent rather than disabled, for the reason IcsController's import picker gives:
+a disabled option promises it might become selectable one day, and this one
+never will.
+
+**Hours are minutes from local midnight**, posted from `<input type="time">`
+values converted by the small script below. The alternative — posting HH:MM and
+parsing it server-side — puts a second time format in the request for the
+server to get wrong, when the thing the server actually wants is an integer.
+
+Times are wall clock in the page's own zone and stay so across a DST boundary:
+09:00 means nine in the morning in March and in November. BookingSlotGenerator
+is where that is made true.
+
+Variables:
+  page            BookingPage|null  null when creating
+  calendars       Calendar[]        writable calendars, for the destination
+  busySet         Calendar[]        every calendar, for the busy checks
+  defaultZone     string            the user's own zone, for a new page
+  timezoneGroups  array             grouped IANA identifiers
+  errorKey        string|null       a refusal to render above the fields
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>
+        {{ (page ? 'calendar.booking.form.edit' : 'calendar.booking.form.add')|trans }}
+    </template>
+
+    <form method="post"
+          action="{{ page ? path('app_settings_sharing_booking_edit', { id: page.id }) : path('app_settings_sharing_booking_new') }}"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
+
+        {# The two hidden fields the script fills. Named `startMinute` and
+           `endMinute` because that is what the entity stores; the visible
+           <input type="time"> pair carries no name and never reaches the
+           server. #}
+        <input type="hidden" name="startMinute" id="booking-start-minute" value="{{ page ? page.startMinute : 540 }}">
+        <input type="hidden" name="endMinute" id="booking-end-minute" value="{{ page ? page.endMinute : 1020 }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-5 overflow-y-auto">
+            {% if errorKey is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ errorKey|trans }}</p>
+                </div>
+            {% endif %}
+
+            <div class="space-y-1.5">
+                <label for="booking-name-field" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.booking.form.name'|trans }}
+                </label>
+                <input type="text"
+                       id="booking-name-field"
+                       name="name"
+                       value="{{ page ? page.name : '' }}"
+                       maxlength="120"
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.name_help'|trans }}</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="booking-description" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.booking.form.description'|trans }}
+                </label>
+                <textarea id="booking-description"
+                          name="description"
+                          rows="2"
+                          class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ page ? page.description : '' }}</textarea>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="booking-calendar" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.booking.form.calendar'|trans }}
+                </label>
+                <select id="booking-calendar"
+                        name="calendarId"
+                        class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    {% for calendar in calendars %}
+                        <option value="{{ calendar.id }}"
+                                {{ page and page.calendar.id == calendar.id ? 'selected' : '' }}>
+                            {{ calendar.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.calendar_help'|trans }}</p>
+            </div>
+
+            <fieldset class="space-y-2">
+                <legend class="text-xs font-medium text-ink-soft">{{ 'calendar.booking.form.busy'|trans }}</legend>
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.busy_help'|trans }}</p>
+
+                {% for calendar in busySet %}
+                    <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                        <input type="checkbox"
+                               name="busyCalendars[]"
+                               value="{{ calendar.id }}"
+                               {{ page is null or page.busyCalendars.contains(calendar) ? 'checked' : '' }}
+                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                        <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
+                        {{ calendar.name }}
+                    </label>
+                {% endfor %}
+            </fieldset>
+
+            <fieldset class="space-y-2">
+                <legend class="text-xs font-medium text-ink-soft">{{ 'calendar.booking.form.weekdays'|trans }}</legend>
+
+                <div class="flex flex-wrap gap-2">
+                    {% for weekday in 1..7 %}
+                        <label class="cursor-pointer rounded-lg border border-field bg-field px-2.5 py-1.5 text-xs text-ink-soft
+                                      has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white">
+                            <input type="checkbox"
+                                   name="weekdays[]"
+                                   value="{{ weekday }}"
+                                   {{ (page and page.isOpenOn(weekday)) or (page is null and weekday <= 5) ? 'checked' : '' }}
+                                   class="sr-only">
+                            {{ ('calendar.booking.weekday.' ~ weekday)|trans }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                    <label for="booking-day-start" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.day_start'|trans }}
+                    </label>
+                    <input type="time"
+                           id="booking-day-start"
+                           step="300"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-day-end" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.day_end'|trans }}
+                    </label>
+                    <input type="time"
+                           id="booking-day-end"
+                           step="300"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                    <label for="booking-slot" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.slot_minutes'|trans }}
+                    </label>
+                    <input type="number" id="booking-slot" name="slotMinutes" min="5" max="1440"
+                           value="{{ page ? page.slotMinutes : 30 }}"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-buffer" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.buffer_minutes'|trans }}
+                    </label>
+                    <input type="number" id="booking-buffer" name="bufferMinutes" min="0" max="240"
+                           value="{{ page ? page.bufferMinutes : 0 }}"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.buffer_help'|trans }}</p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-notice" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.notice_minutes'|trans }}
+                    </label>
+                    <input type="number" id="booking-notice" name="noticeMinutes" min="0" max="43200"
+                           value="{{ page ? page.noticeMinutes : 120 }}"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="booking-horizon" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.booking.form.horizon_days'|trans }}
+                    </label>
+                    <input type="number" id="booking-horizon" name="horizonDays" min="1" max="366"
+                           value="{{ page ? page.horizonDays : 30 }}"
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="booking-zone" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.booking.form.time_zone'|trans }}
+                </label>
+                <select id="booking-zone"
+                        name="timeZone"
+                        class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    {% for group, zones in timezoneGroups %}
+                        <optgroup label="{{ group }}">
+                            {% for zone in zones %}
+                                <option value="{{ zone }}"
+                                        {{ (page ? page.timeZone : defaultZone) == zone ? 'selected' : '' }}>{{ zone }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    {% endfor %}
+                </select>
+                <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.time_zone_help'|trans }}</p>
+            </div>
+
+            <p class="text-[11px] text-ink-faint leading-snug">
+                <i class="fa-solid fa-lock mr-1" aria-hidden="true"></i>
+                {{ 'calendar.share.form.token_note'|trans }}
+            </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
+
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                           bg-accent hover:bg-accent-strong transition-colors">{{ 'form.submit'|trans }}</button>
+        </div>
+    </form>
+
+    {# Minutes-from-midnight in the hidden fields, HH:MM on screen. Inline
+       rather than a Stimulus controller because it is bound to two ids in one
+       template and has no state — a controller would be a file, a registration
+       and a values contract for six lines that run twice.
+
+       Both directions are set up on load, so an edit opens showing the hours
+       that are stored rather than an empty pair of pickers. #}
+    <script>
+        (function () {
+            const start = document.getElementById("booking-day-start");
+            const end = document.getElementById("booking-day-end");
+            const startMinute = document.getElementById("booking-start-minute");
+            const endMinute = document.getElementById("booking-end-minute");
+
+            if (!start || !end || !startMinute || !endMinute) {
+                return;
+            }
+
+            const toClock = (minutes) => {
+                const value = Math.max(0, Math.min(1440, parseInt(minutes, 10) || 0));
+
+                return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
+            };
+
+            const toMinutes = (clock) => {
+                const [hours, minutes] = String(clock || "").split(":");
+
+                return (parseInt(hours, 10) || 0) * 60 + (parseInt(minutes, 10) || 0);
+            };
+
+            start.value = toClock(startMinute.value);
+            end.value = toClock(endMinute.value);
+
+            start.addEventListener("input", () => { startMinute.value = String(toMinutes(start.value)); });
+            end.addEventListener("input", () => { endMinute.value = String(toMinutes(end.value)); });
+        })();
+    </script>
+</turbo-frame>
+{% endblock %}
