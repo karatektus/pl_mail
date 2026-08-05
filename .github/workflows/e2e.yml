@@ -34,7 +34,7 @@ jobs:
                     --health-retries 5
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Setup PHP extension cache
               id: php-extension-cache
@@ -45,7 +45,7 @@ jobs:
                   key: php-extensions-v1
 
             - name: Cache PHP extensions
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ${{ steps.php-extension-cache.outputs.dir }}
                   key: ${{ steps.php-extension-cache.outputs.key }}
@@ -80,7 +80,7 @@ jobs:
               run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
 
             - name: Cache Composer dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ${{ steps.composer-cache.outputs.dir }}
                   key: composer-${{ hashFiles('**/composer.lock') }}
@@ -98,7 +98,7 @@ jobs:
             # the browser suite was drowning in.
 
             - name: Setup Node
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v7
               with:
                   # From .nvmrc rather than pinned here. The two drifted —
                   # .nvmrc said 22, this said 20, and the machine the suite was
@@ -116,7 +116,7 @@ jobs:
 
             - name: Cache Playwright browsers
               id: playwright-cache
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/ms-playwright
                   key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
@@ -134,7 +134,7 @@ jobs:
             # the importmap and the sources themselves.
             - name: Cache frontend build
               id: frontend-cache
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: |
                       public/assets
@@ -187,7 +187,7 @@ jobs:
             # recorded — a trace cannot show what was never a response.
             - name: Upload Playwright report
               if: ${{ !cancelled() }}
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report
                   path: |
