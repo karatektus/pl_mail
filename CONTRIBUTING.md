@@ -113,7 +113,20 @@ WSL needs WSLg (Windows 11) or an X server; without one, use `:trace` and read t
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
 reseed their own fixtures, so tests are independent and re-runnable.
 
-CI runs the same suites without Docker — see [.github/workflows/e2e.yml](.github/workflows/e2e.yml).
+CI runs the same suites without Docker — see
+[.github/workflows/e2e.yml](.github/workflows/e2e.yml) — but **only on a release tag, on a pull
+request, or when you start it by hand.** It is the expensive workflow in this repository, and
+running it on every commit to `main` spent most of the account's capacity proving the same thing
+over and over.
+
+The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
+regression pushed there is found when a version is tagged, which may be several commits later, and
+the tag is then what fails. So run the suites locally before pushing anything you are unsure of —
+`npm run test:unit:docker && npm run test:e2e:docker` — which is faster than waiting for a runner
+anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
+
+A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
+the image being published. Tag from a tree you have already run the suites against.
 
 ### How the browser suite stays fast
 

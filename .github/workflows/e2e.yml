@@ -1,8 +1,29 @@
 name: E2E
 
+# Releases, and anything proposed for one. NOT every push.
+#
+# This job is the expensive one in the repository — a Postgres service, PHP with
+# eight extensions, a Chromium download, an asset build, PHPStan, PHPUnit and
+# ~200 browser tests — and running it on every commit to a branch nobody is
+# releasing from spends most of the account's capacity proving the same thing
+# repeatedly.
+#
+# The trade, stated so it is a decision rather than a surprise: `main` is no
+# longer verified commit by commit. A regression pushed to main is found when a
+# release is tagged, which may be several commits later, and the tag is then the
+# thing that fails. Run it by hand with `workflow_dispatch` before pushing
+# anything you are unsure of — or locally, which is faster than either:
+#
+#   npm run test:unit:docker && npm run test:e2e:docker
 on:
     push:
+        tags: ['v*']
+    # Kept, and cheap: a pull request is somebody proposing a change, which is
+    # exactly when a second opinion from the suite is worth having, and there
+    # are few of them.
     pull_request:
+        branches: [main]
+    workflow_dispatch:
 
 jobs:
     playwright:
