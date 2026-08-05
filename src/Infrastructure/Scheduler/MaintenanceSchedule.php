@@ -101,6 +101,15 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // starts_at and asks for a jsonb key most events do not have.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:calendar:alerts')),
 
+                // The sweep two docblocks already claimed was running. An
+                // event's occurrences are drawn when it is saved and the window
+                // never moved afterwards, so a weekly standup created today ran
+                // out of dates in two years and took its reminders with it —
+                // silently, because the event still exists and still says it
+                // repeats. Nightly is ample for a window measured in years, and
+                // re-drawing is idempotent, so a missed night costs nothing.
+                RecurringMessage::cron('50 3 * * *', new RunCommandMessage('app:calendar:materialise')),
+
                 // Log entries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 

@@ -14,8 +14,9 @@ use App\Jmap\Protocol\Exception\MethodException;
  * over the user's own accounts, so a foreign or unknown id can never resolve.
  *
  * The second (and last) place coupled to the account entity shape, alongside
- * SessionBuilder: it uses User::getMailAccounts() and Account::getId(), both
- * already proven by the working /jmap/session response.
+ * SessionBuilder: it reads User::$accounts and Account::$id, both already proven
+ * by the working /jmap/session response. Properties, not accessors — this named
+ * getMailAccounts() and getId() long after both getters were removed.
  */
 final class AccountResolver
 {

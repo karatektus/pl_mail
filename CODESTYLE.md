@@ -1296,3 +1296,6 @@ Paste this into `CLAUDE.md`, `AGENTS.md`, or a PR template.
     reasoning and disclose what fell out.
 42. Changelog entries lead with the user's symptom in bold, then the cause, then the fix. Every
     release states its schema and deployment impact.
+43. A change to what a user does, an operator sets, or a provider needs, updates the handbook in the
+    same commit. The inventory — commands, environment variables, links, pages — is asserted by a
+    test, so the review is spent on whether the prose is still true.

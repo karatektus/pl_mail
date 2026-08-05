@@ -17,11 +17,14 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * a single login enumerates all of the user's mail; a unified inbox is a
  * client-side concern (one Email/query per account, merged in the client).
  *
- * NOTE — the ONLY place coupled to the mail-account entity shape. It uses:
+ * NOTE — the ONLY place coupled to the mail-account entity shape. It reads:
  *   User::$accounts: iterable<Account>
- *   Account::getId(): ?int
- *   Account::getEmail(): ?string
- * Adjust these three calls if the accessors move and nothing else changes.
+ *   Account::$id: ?int
+ *   Account::$email: ?string
+ * Adjust these three if the shape moves and nothing else changes. They are
+ * properties, not accessors — this said getId() and getEmail() long after the
+ * getters were gone, which is the one way a note like this can be worse than
+ * absent: it is here to be trusted without checking.
  */
 final class SessionBuilder
 {

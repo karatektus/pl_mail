@@ -20,8 +20,11 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * Prerequisites in Google Cloud:
  *   1. A Pub/Sub topic:  projects/{project}/topics/gmail-push
- *   2. The topic must grant gmail-api@system.gserviceaccount.com the
- *      "Pub/Sub Publisher" role.
+ *   2. The topic must grant gmail-api-push@system.gserviceaccount.com the
+ *      "Pub/Sub Publisher" role. Note the `-push`: this said
+ *      gmail-api@system.gserviceaccount.com, which is not an account Google
+ *      publishes from, so a topic granted exactly what this file asked for
+ *      never delivered a single notification. README.md had it right.
  *   3. A push subscription pointing at https://your-domain.com/gmail/push
  */
 final class GmailWatchService

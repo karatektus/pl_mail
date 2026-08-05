@@ -1,0 +1,89 @@
+name: Wiki
+
+# The wiki is a mirror of docs/, never a source. Authoring happens in the code
+# repository so that a change and the paragraph describing it land in one commit
+# and one review; this job exists only to make the published copy match.
+#
+# Consequently an edit made in the browser survives until the next push to main
+# and no longer. Every generated page carries a footer saying so, because a
+# contributor who does not know it will lose work.
+on:
+    push:
+        branches: [main]
+        paths:
+            - "docs/**"
+            - "bin/mirror-wiki.php"
+            - ".github/workflows/wiki.yml"
+    # So the mirror can be re-run after the wiki has been initialised, without
+    # having to touch a page to trigger it.
+    workflow_dispatch:
+
+# Only what pushing to the wiki repository needs. The wiki lives under the same
+# contents scope as the code, which is why no personal access token is involved.
+permissions:
+    contents: write
+
+# A second push landing mid-run would race this one to the same repository, and
+# the loser force-fails rather than merging — the mirror is a wholesale
+# overwrite, so there is nothing to merge.
+concurrency:
+    group: wiki
+    cancel-in-progress: false
+
+jobs:
+    mirror:
+        name: Publish docs/ to the wiki
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  coverage: none
+
+            # Before touching the wiki at all: a dangling link is a bug in the
+            # documentation, and publishing it is worse than not publishing.
+            # DocumentationCoverageTest asserts the same thing in the main
+            # suite; this is the gate for the rendered output specifically,
+            # where relative paths have been rewritten and can break differently.
+            - name: Check the render
+              run: php bin/mirror-wiki.php --check
+
+            - name: Clone the wiki
+              id: clone
+              run: |
+                  if git clone "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" wiki; then
+                      echo "cloned=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "cloned=false" >> "$GITHUB_OUTPUT"
+                      echo "::warning::The wiki repository does not exist yet. Open the repository's Wiki tab and save any page once — GitHub creates the repository on first use and offers no API for it — then re-run this workflow."
+                  fi
+
+            # Deleted first, so a page removed from docs/ is removed from the
+            # wiki too. Without this a renamed page leaves its old self behind
+            # for ever, still indexed and still wrong.
+            - name: Render
+              if: steps.clone.outputs.cloned == 'true'
+              run: |
+                  find wiki -maxdepth 1 -name '*.md' -delete
+                  php bin/mirror-wiki.php wiki
+
+            - name: Push
+              if: steps.clone.outputs.cloned == 'true'
+              working-directory: wiki
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add -A
+                  # No commit means docs/ changed in a way that renders
+                  # identically — a code-block tweak inside a fenced example,
+                  # say. Not a failure.
+                  if git diff --cached --quiet; then
+                      echo "The wiki already matches docs/."
+                      exit 0
+                  fi
+                  git commit -m "Mirror docs/ from ${GITHUB_SHA::7}"
+                  git push

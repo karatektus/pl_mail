@@ -999,7 +999,7 @@ onboarding:
                 step3: 'Set th'' redirect kind to Web an'' paste th'' bearing below into it.'
                 step4: 'Once registered, copy th'' Application (client) ID into th'' field to port.'
                 step5: 'Under Certificates an'' secrets, cut a new client secret an'' copy its Value — not its ID — at once; it be shown but once.'
-                step6: 'Under API permissions, add th'' delegated Microsoft Graph rights Mail.ReadWrite, Mail.Send an'' offline_access.'
+                step6: 'Under API permissions, add th'' delegated Microsoft Graph rights: Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, Calendars.ReadWrite, User.Read an'' offline_access. Leave out MailboxSettings.ReadWrite or Calendars.ReadWrite an'' crew still board — they just get no categories an'' no calendar, an'' a token already issued be never upgraded later.'
         profile:
             body: This be what them on the other end read in the From line.
             heading: Where this flies

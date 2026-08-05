@@ -1113,7 +1113,7 @@ onboarding:
                 step3: 'Als Redirect-URI-Typ "Web" wählen und die Adresse unten eintragen.'
                 step4: 'Nach der Registrierung die Anwendungs-ID (Client) in das Feld links kopieren.'
                 step5: 'Unter Zertifikate und Geheimnisse ein neues Client-Secret anlegen und dessen Wert — nicht die ID — sofort kopieren; er wird nur einmal angezeigt.'
-                step6: 'Unter API-Berechtigungen die delegierten Microsoft-Graph-Berechtigungen Mail.ReadWrite, Mail.Send und offline_access hinzufügen.'
+                step6: 'Unter API-Berechtigungen diese delegierten Microsoft-Graph-Berechtigungen hinzufügen: Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, Calendars.ReadWrite, User.Read und offline_access. Ohne MailboxSettings.ReadWrite oder Calendars.ReadWrite funktioniert die Anmeldung weiterhin — es fehlen dann nur Kategorien und Kalender, und ein bereits ausgestelltes Token wird nicht nachträglich erweitert.'
         profile:
             body: Das sehen Empfänger in der Absenderzeile. Jederzeit änderbar.
             heading: Wo das erscheint

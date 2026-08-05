@@ -240,12 +240,7 @@ class Calendar
         return CalendarRole::Remote === $this->role && null !== $this->remoteId;
     }
 
-    /**
-     * Mirrors Integration::recordSuccess() deliberately, down to the name: a
-     * connection that has quietly stopped working should say so in the same
-     * way wherever it is listed, and two spellings of "it is fine now" is how
-     * one of them ends up not clearing the error.
-     */
+    /** One key out of the settings bag, or the caller's default. */
     public function getSetting(string $key, mixed $default = null): mixed
     {
         return $this->settings[$key] ?? $default;
@@ -269,6 +264,12 @@ class Calendar
         $this->settings = $settings;
     }
 
+    /**
+     * Mirrors Integration::recordSuccess() deliberately, down to the name: a
+     * connection that has quietly stopped working should say so in the same
+     * way wherever it is listed, and two spellings of "it is fine now" is how
+     * one of them ends up not clearing the error.
+     */
     public function recordSyncSuccess(): void
     {
         $this->lastSyncedAt  = new DateTimeImmutable();

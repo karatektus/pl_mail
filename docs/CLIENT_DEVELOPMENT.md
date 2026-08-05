@@ -39,16 +39,18 @@ Concretely, **stop and ask before** you:
 - invent local state (custom keywords, shadow flags, local-only labels) that can't round-trip;
 - denormalise or cache something in a way that would break if the server later did it properly.
 
-Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging,
-`SearchSnippet/*`, JMAP Contacts, JMAP Calendars, JWT issuance, snooze over JMAP, a cross-account
-unified query — are all *candidates for being built*, not permanent constraints. Raise the need with
-the maintainer and decide together whether it belongs in the server or the client.
+Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging, JMAP
+Contacts, JWT issuance, snooze over JMAP, a cross-account unified query — are all *candidates for
+being built*, not permanent constraints. Raise the need with the maintainer and decide together
+whether it belongs in the server or the client.
 
-**The calendar is the current example of exactly this.** plMail now has one — calendars, events,
-and their materialised occurrences, stored as JSCalendar (RFC 8984) — and it is reachable only from
-the web UI. There is **no JMAP calendar API yet**: `Capability::SUPPORTED` still advertises
-core/mail/submission only, and `JmapObjectType` has no `Calendar` case, so a `using` containing a
-calendar URN is rejected outright.
+**The calendar was the example of exactly this, and it is now the example of it working.** This
+section used to say there was no JMAP calendar API and that a `using` containing a calendar URN was
+rejected outright. There is one: `Calendar/get`, `CalendarEvent/get`, `CalendarEvent/query` and
+`CalendarEvent/set`, under `urn:plmail:params:jmap:calendars`, advertised in `Capability::SUPPORTED`
+and served from exactly one account. See [JMAP](internals/jmap.md) for the id spaces and the two
+things that surprise people — a `CalendarEvent` id is the *series* rather than a dated occurrence,
+and `CalendarEvent/query` requires a date window.
 
 If you are building something that wants events, **say so** — the storage is already JSCalendar
 precisely so the API can be JSCalendar, and the shape of the methods (`Calendar/get`,
@@ -563,8 +565,11 @@ your client wants one, **ask for it rather than engineering around it** (see [§
   `limit`. Negative positions (anchoring from the end) are rejected **by `Email/query`**;
   `Mailbox/query` does accept them and anchors from the end.
 - **`Email/query` always returns `total`; `Mailbox/query` only with `calculateTotal: true`.**
-- **`SearchSnippet/*`, `VacationResponse/*`, `Blob/copy`** are absent.
-- **No JMAP Contacts or Calendars.** Mail only.
+- **`VacationResponse/*` and `Blob/copy`** are absent. `SearchSnippet/get` is not — it was listed
+  here as missing while `SearchSnippetGetMethod` was in the tree.
+- **No JMAP Contacts.** Calendars are served, under `urn:plmail:params:jmap:calendars`; there is no
+  `Calendar/set` and no `/changes` on either type, because calendars cannot calculate changes — see
+  [JMAP](internals/jmap.md).
 
 ### Object mapping — the four things that surprise people
 

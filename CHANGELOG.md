@@ -11,7 +11,66 @@ The published image tags: `latest` follows the most recent release below,
 **Five new tables, applied automatically on boot.** `calendar_share_link`,
 `calendar_share_link_calendar`, `booking_page`, `booking_page_calendar` and
 `calendar_booking`. All additive; nothing existing is altered or rewritten, and
-an install that shares nothing is unaffected. No deployment change.
+an install that shares nothing is unaffected.
+
+**One deployment change, and read it before pulling.** `compose.yaml` now mounts
+three named volumes it should always have mounted — `app_attachments`,
+`app_raw` and `app_uploads`. If you have been running the stock `compose.yaml`,
+your attachments and raw sources are currently inside the containers rather than
+beside them, and **mounting an empty volume over that directory hides what is
+there now**. Nothing is deleted, but the files stop being visible.
+
+Before `docker compose up -d`, copy what the running containers hold:
+
+```bash
+docker compose cp php:/app/var/attachments ./attachments-backup
+docker compose cp php:/app/var/raw ./raw-backup
+```
+
+then bring the stack up and copy them back into the new volumes:
+
+```bash
+docker compose cp ./attachments-backup/. php:/app/var/attachments
+docker compose cp ./raw-backup/. php:/app/var/raw
+```
+
+An install that already used `compose.override.yaml` or `truenas.compose.yaml`
+has these mounts and is unaffected.
+
+### Fixed
+
+- **Attachments downloaded fine and then 404'd, and everything vanished on a
+  restart.** The stock `compose.yaml` — the file the README tells you to run —
+  mounted no volume for `var/attachments`, `var/raw` or `var/uploads`. The
+  workers write those during sync and the web container serves them back, so
+  each kept its own copy in its own layer: the file was written by a process
+  that was not the one answering the request, and both copies died with the next
+  container recreate. `compose.override.yaml.dist` and `truenas.compose.yaml`
+  both mount them, which is why this survived — the one path an operator
+  actually follows was the one that did not. The same omission in the `.dist`
+  cost real data once before; see the deployment note above for moving what is
+  currently stranded.
+
+- **A repeating event quietly ran out of dates, and its reminders with it.**
+  Occurrences are drawn when an event is saved, two years ahead, and nothing
+  moved that window afterwards — so a weekly standup created today reached six
+  months in eighteen months' time and eventually stopped being drawn at all.
+  Reminders read those rows, so they stopped too. Silently: the event still
+  existed and still said it repeated weekly. `app:calendar:materialise` now rolls
+  the horizon forward nightly. The query it runs had existed since the
+  materialiser did, documented as exactly this sweep, and nothing had ever called
+  it.
+
+- **One mailbox with an unusable address could stop everybody's reminders.** The
+  reminder mailer built its message outside its own error handling, and an
+  account whose username is not an email address threw before anything was sent
+  — ending the whole minute's sweep for every user on the install, once a
+  minute.
+
+- **The Microsoft setup wizard asked for three permissions out of the nine
+  plMail requests.** Following it produced an account with no categories and no
+  calendar, and Microsoft does not upgrade a token already issued when the
+  permission is added later.
 
 ### Added
 

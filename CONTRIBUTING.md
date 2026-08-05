@@ -351,12 +351,15 @@ Microsoft has no equivalent requirement. This is also why none of the
 not the Pub/Sub path Gmail push takes, and an install with no Pub/Sub at all can
 have calendar push.
 
-**Nothing registers a channel except `app:calendar:push`**, which the scheduler
-runs hourly. Ticking a calendar to mirror it does not, deliberately:
-registration fails for deployment reasons that have nothing to do with the
-click, and tied to the subscribe flow those calendars would never get push until
-somebody re-subscribed them. Driven from the sweep, the same install starts
-pushing within the hour of the address or the domain verification being fixed.
+**Two things register a channel, and both are needed.** Ticking a calendar to
+mirror it dispatches a `RegisterCalendarPushMessage`, so a calendar connected at
+ten past does not wait fifty minutes for its first channel. `app:calendar:push`,
+which the scheduler runs hourly, is the retry rather than the only way in:
+registration fails for deployment reasons that have nothing to do with the click
+— no public HTTPS address yet, a Cloud project whose domain verification is
+pending — and a subscribe that failed for one of those must not leave the
+calendar polling for ever. Driven from the sweep as well, the same install
+starts pushing within the hour of the address or the verification being fixed.
 
 **The first Google notification after registering is a `sync` handshake** and
 means only "the channel is open". Acting on it would put a full calendar read in
@@ -539,6 +542,51 @@ booker's own details live on `CalendarBooking` rather than on the event — and
 deliberately not as `participants`, because pushing an attendee list to a
 provider is how the provider decides to mail a stranger a meeting request.
 
+## Documentation
+
+Four files and a directory, each with one audience, and the split is load-bearing —
+`README.md` never explains internals and this file never explains what the product is.
+
+| Where | Audience | Contains |
+|---|---|---|
+| `README.md` | Someone deciding whether to run it | What it is, what it can do, how to install it |
+| `CONTRIBUTING.md` | Someone changing it | Setup, tests, architecture notes, the command reference, the roadmap |
+| `CHANGELOG.md` | Someone upgrading | What changed per release, and what it costs them |
+| `CODESTYLE.md` | Someone writing in it | The conventions, and why each exists |
+| `docs/` | Someone using or operating it | The handbook: every feature, installing on each platform, registering the Google and Microsoft applications, and how the parts work underneath |
+
+`docs/` is mirrored to the [GitHub wiki](https://github.com/karatektus/pl_mail/wiki) by
+`.github/workflows/wiki.yml` on every push to `main`. **The wiki is a mirror and never a
+source.** An edit made in the browser survives until the next push and is then
+overwritten; every generated page carries a footer saying so. Authoring lives in the
+repository so that a change and the paragraph describing it are in one commit and one
+review — documentation that is not versioned with the code drifts from it, and the drift
+is invisible until somebody follows an instruction that stopped being true.
+
+### Keeping it true is part of the change, not a follow-up
+
+A change that alters what a user does, what an operator sets, or what a provider must be
+configured with, updates `docs/` **in the same commit**. This is not an aspiration;
+`tests/Documentation/DocumentationCoverageTest.php` fails the build on the part of it a
+machine can check:
+
+- every `app:` command that is not an `app:test:` fixture appears in the table below;
+- every variable assigned in `.env` appears in `docs/install/configuration.md`, which is
+  the one page an operator is entitled to treat as complete;
+- every relative link in `docs/` resolves;
+- every page is linked from `docs/README.md`, and every page the index promises exists;
+- every page carries a `## Things that bite` section.
+
+What it cannot check is whether a paragraph is still *true*. That remains a matter of
+doing the work, and the checks above exist so the reviewer's attention is spent on it
+rather than on spotting a missing row.
+
+Render the wiki locally without pushing anything:
+
+```bash
+php bin/mirror-wiki.php --check
+```
+
 ## Console commands
 
 | Command | Description |
@@ -551,7 +599,8 @@ provider is how the provider decides to mail a stranger a meeting request.
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
-| `app:label:backfill [--account=ID]` | Create labels from existing mailboxes and backfill assignments |
+| `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
+| `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
@@ -568,6 +617,8 @@ provider is how the provider decides to mail a stranger a meeting request.
 | `app:reset` | Truncate synced data — useful during development |
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
+| `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |
+| `app:device:pair <email>` | Issue a short-lived pairing code so a device can enrol itself — the way in when a client cannot complete a browser sign-in. See "Two-factor authentication" |
 
 These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`
 for the cadences (polling sync every 15 min, push renewal and monitoring pruning

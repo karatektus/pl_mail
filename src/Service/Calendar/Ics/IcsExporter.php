@@ -62,10 +62,12 @@ use Sabre\VObject\Reader;
  * and a user who downloaded their own calendar would find they had emailed
  * themselves four hundred meeting requests.
  *
- * **No VALARM.** plMail does not store alarms on an event yet, so exporting one
- * would mean inventing it. When it does, this needs nothing: the alarm will be
- * in the JSCalendar object and the converter is where it turns into a
- * component.
+ * **VALARM travels**, and this class does nothing to make it. Alarms are stored
+ * as JSCalendar alerts on the event and CalDavEventConverter writes them as
+ * components, so a downloaded file carries the reminders the event carries — as
+ * predicted here when alerts did not exist yet and this paragraph said the
+ * opposite. Worth knowing before exporting a calendar into a client that will
+ * then also remind you.
  */
 final readonly class IcsExporter
 {

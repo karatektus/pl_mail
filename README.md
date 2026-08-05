@@ -62,9 +62,16 @@ unreachable, and search runs against your own database rather than someone else'
 **A calendar beside the mail**
 
 - Docked next to the message list on a wide screen and resizable against it, its own page below that
-- Day, week and month views over recurring events, with an indicator in the header for what is still
-  ahead today
-- Connecting external calendars (CalDAV, Google, Microsoft) is not built yet
+- Day, week, month and agenda views over recurring events, with an indicator in the header for what
+  is still ahead today; the week is a time grid you can drag an event around on
+- Two-way sync with Google, Microsoft and CalDAV calendars — changes made here go back out, and the
+  calendar permission is asked for on the same sign-in as the mail
+- Subscribe to a published calendar by URL, import an `.ics` file, export an event or a whole calendar
+- Invitations arriving as mail are answered in place, and dates written in ordinary prose are offered
+  as events rather than filed silently
+- Reminders, delivered as a browser notification or as mail
+- Share a calendar by link — busy/free, or with as much detail as you tick — and let people book a
+  time on it
 
 **Files where you keep them**
 
@@ -90,7 +97,7 @@ unreachable, and search runs against your own database rather than someone else'
 
 - Light and dark themes, following your system or set explicitly
 - Custom colours and background, exportable and importable as a file
-- English and German interface
+- English and German interface, and Pirate English for when the day calls for it
 - Connect other mail apps over JMAP, using per-app passwords you can revoke individually
 
 ## A look around

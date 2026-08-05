@@ -20,6 +20,27 @@ x-app-env: &app-env
   MERCURE_URL: ${MERCURE_URL:-http://mercure/.well-known/mercure}
   MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
 
+# The state that must outlive a container and be shared between them.
+#
+# Every app service mounts all four. app_secrets because the secrets minted on
+# first run live there and a service that cannot see them generates its own and
+# stops being able to read what the others wrote; the other three because the
+# WORKERS write attachments, raw sources and staged uploads while the web
+# container is what serves them back. Unmounted, each container keeps its own
+# copy in its own layer: downloads 404 because the file is in a process that is
+# not answering the request, and everything written vanishes on the next
+# `docker compose up` that recreates a container.
+#
+# This has happened before. compose.override.yaml.dist was missing exactly these
+# three mounts once and it cost real data — CONTRIBUTING.md records it — and
+# they were then added to the override and to truenas.compose.yaml but never to
+# the file the README actually tells an operator to run.
+x-app-storage: &app-storage
+  - app_secrets:/app/var/secrets
+  - app_attachments:/app/var/attachments
+  - app_raw:/app/var/raw
+  - app_uploads:/app/var/uploads
+
 services:
   # Mints APP_SECRET, APP_ENCRYPTION_KEY, POSTGRES_PASSWORD and
   # MERCURE_JWT_SECRET into app_secrets, then exits. Runs before everything
@@ -50,10 +71,13 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
-      # Every app service mounts this. The secrets generated on first run live
-      # here, and a service that cannot see them generates its own and stops
-      # being able to read what the others wrote.
+      # The x-app-storage list, spelled out: this service adds Caddy's own two,
+      # and YAML merges mappings but not sequences, so there is no way to say
+      # "that anchor, plus these". Keep the four in step with it.
       - app_secrets:/app/var/secrets
+      - app_attachments:/app/var/attachments
+      - app_raw:/app/var/raw
+      - app_uploads:/app/var/uploads
     ports:
       - target: 80
         published: ${HTTP_PORT:-80}
@@ -78,9 +102,7 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: imap-supervisor
-    volumes:
-      # See the note on the php service: this mount is not optional.
-      - app_secrets:/app/var/secrets
+    volumes: *app-storage
     healthcheck:
       disable: true
     depends_on:
@@ -105,9 +127,7 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: worker-export
-    volumes:
-      # See the note on the php service: this mount is not optional.
-      - app_secrets:/app/var/secrets
+    volumes: *app-storage
     healthcheck:
       disable: true
     depends_on:
@@ -126,9 +146,7 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: worker-ingest
-    volumes:
-      # See the note on the php service: this mount is not optional.
-      - app_secrets:/app/var/secrets
+    volumes: *app-storage
     healthcheck:
       disable: true
     depends_on:
@@ -151,9 +169,7 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: worker-maintenance
-    volumes:
-      # See the note on the php service: this mount is not optional.
-      - app_secrets:/app/var/secrets
+    volumes: *app-storage
     healthcheck:
       disable: true
     depends_on:
@@ -172,9 +188,7 @@ services:
     environment:
       <<: *app-env
       APP_CONTAINER_NAME: scheduler
-    volumes:
-      # See the note on the php service: this mount is not optional.
-      - app_secrets:/app/var/secrets
+    volumes: *app-storage
     healthcheck:
       disable: true
     depends_on:
@@ -325,6 +339,9 @@ services:
 
 volumes:
   app_secrets:
+  app_attachments:
+  app_raw:
+  app_uploads:
   caddy_data:
   caddy_config:
   database_data:

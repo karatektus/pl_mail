@@ -1090,7 +1090,7 @@ onboarding:
                 step3: 'Set the redirect URI to Web, and paste the address below into it.'
                 step4: 'After registering, copy the Application (client) ID into the field on the left.'
                 step5: 'Under Certificates & secrets, create a new client secret and copy its Value — not its ID — straight away; it is only shown once.'
-                step6: 'Under API permissions, add the delegated Microsoft Graph permissions Mail.ReadWrite, Mail.Send and offline_access.'
+                step6: 'Under API permissions, add these delegated Microsoft Graph permissions: Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, Calendars.ReadWrite, User.Read and offline_access. Leaving out MailboxSettings.ReadWrite or Calendars.ReadWrite still signs people in — they simply get no categories and no calendar, and a token already issued is not upgraded when you add the permission later.'
         profile:
             body: This is what recipients see in the From line. You can change it any time.
             heading: Where this shows up

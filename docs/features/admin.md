@@ -1,0 +1,256 @@
+# Administration
+
+Signed in as an administrator, **Admin** in the user menu opens a panel that says what the instance
+is doing. It is six sections: **System**, **Database**, **Logs**, **Integrations**, **Users** and
+**Reset**.
+
+![The admin dashboard](../screenshots/admin.png)
+
+Nothing here reads anyone's mail. Being an administrator grants the panel, the user list and the
+provider configuration, and nothing else — no route in this area touches an account or a message.
+
+## The version chip
+
+The panel header carries the build: the release it was built from, and the short commit beside it.
+It sits in the header rather than in a panel because the question it answers — *is this the build I
+think it is?* — is asked while looking at something else.
+
+It is baked in at build time rather than read at runtime; a container has no `.git` to ask. A
+checkout that was never built from a tag falls back to `git describe`, and where nothing knows the
+answer the chip is absent entirely rather than reading "development" beside every page.
+
+Two images can both call themselves `main`, which is why the commit is shown next to the label and
+not instead of it.
+
+## System
+
+Live panels, refreshed every ten seconds. Each can be collapsed, and a collapsed card shows a
+one-line summary in its header — *3 healthy*, *2 running · 41 waiting* — short enough to read at a
+glance and specific enough to be worth expanding for. Which cards you collapsed is remembered
+server-side, so the page never flashes every panel open before folding them.
+
+| Card | What it shows |
+|---|---|
+| **Processes** | Every long-running process that has reported a heartbeat, with type, instance, PID and last beat |
+| **Maintenance** | The verbs — restarts, one-off tasks, pruning |
+| **Gmail webhooks** | Per Gmail account: watch state, expiry, history id, last push, and the delivery path |
+| **OAuth token health** | Refreshes recorded, and tokens nearing expiry |
+| **Messenger queues** | What a worker is holding right now, over the backlog |
+| **Failed messages** | The failure transport, with retry and delete |
+| **Accounts** | Per account: threads, messages, last activity |
+| **Table sizes** | The biggest tables in the database |
+
+### The queue panel
+
+The one to read when mail stops arriving. **Running now** names the messages a worker is holding at
+this instant — the handler, its payload, and how long it has been held — over a searchable list of
+everything still waiting. A queue that is stuck therefore looks different from a queue that is
+empty, which is the distinction that matters.
+
+The backlog pages twenty-five at a time and fetches more as you scroll, and the filter runs over the
+whole queue rather than the page on screen. It has its own endpoint, so searching does not re-render
+every other panel per keystroke.
+
+### Maintenance
+
+**Restart workers** asks every long-running process to exit; Compose's restart policy brings them
+back, and in-flight work finishes first. The reason it exists: a worker caches Doctrine metadata for
+its whole lifetime, so after a migration it can keep querying columns that no longer exist until
+something restarts it.
+
+**Restart now** is the other half — the container serving the page you are on. The worker restart
+cannot reach it, because its mechanism is a timestamp a worker loop rechecks and the web process has
+no such loop. The usual reason to want it is a rotated secret, which an already-booted kernel has no
+opportunity to re-read. It costs about two seconds of downtime and the page comes back on its own.
+
+**Run a maintenance task now** offers four buttons: **Sync mail**, **Renew push subscriptions**,
+**Prune monitoring data** and **Prune blobs**. Each is queued for a worker rather than run in the
+request. These four and no others, because they are the ones the scheduler already runs unattended,
+which is what proves them safe to expose as buttons.
+
+**Prune stale heartbeats** clears rows left by processes that died without shutting down cleanly —
+the ones that would otherwise sit red in the Processes card forever.
+
+The failed-message card adds **Retry all** and **Purge all**, both confirmed.
+
+None of these answers with a message. Each redirects back and the panel's own refresh shows the
+result: the queue depth rises, failed rows disappear, heartbeats come back. The exception is the
+worker restart, which has no visible effect, so the panel renders a banner saying how long ago it
+was asked for — a restart clears heartbeat rows rather than reddening them, and rows vanishing is
+expected rather than an outage.
+
+## Database
+
+Connection counts, cache hit ratio, deadlocks and rollback ratio, plus the slowest statements by
+mean time (anything averaging 5 ms or more) and the heaviest by total time, and what is running
+right now.
+
+The aggregation needs PostgreSQL's `pg_stat_statements`, which `app:db:migrate` enables at boot. If
+the database role was not allowed to create the extension, the panel says so and offers **Enable it
+now**. Statistics start from the moment the extension is created, so queries from before it will
+never appear. **Reset stats** clears the collected numbers.
+
+## Logs
+
+A filterable browser over what plMail has written to the database: a minimum level — info, notice,
+**warning** (the default), error or critical — and a channel, a hundred entries per page, with a
+copy button per entry.
+
+How much reaches the database at all is `APP_DB_LOG_LEVEL`, which defaults to `warning`. Lowering it
+to `info` is what makes successful Gmail push deliveries visible, for instance; they are logged at
+info and otherwise not stored.
+
+**Clear** deletes the entries matching the filter currently on screen — what disappears is what you
+were looking at.
+
+Anything at warning or worse that no administrator has read outlines the user menu on **every** page,
+amber for warnings and red for errors, with a count. Opening the log browser is what marks them
+seen, and the mark is set from the moment it was opened rather than from the newest entry on screen,
+so anything logged while you were reading is still genuinely unread.
+
+The outline is shown to administrators only. For anyone else it would be an alarm about something
+they are not allowed to look at.
+
+Unlike the System panels this section does not auto-refresh — reading a stack trace should not get
+yanked away mid-scroll.
+
+## Integrations
+
+Two things live here: which file services this installation offers, and the OAuth applications users
+sign into their mail with.
+
+**Mail sign-in** holds the Google and Microsoft client id and secret, the Microsoft tenant, and for
+Gmail the Pub/Sub topic and push verification token. Leaving any of them empty falls back to the
+matching environment variable — `GOOGLE_OAUTH_*`, `MICROSOFT_OAUTH_*`, `GMAIL_PUBSUB_*` — so an
+installation already configured that way keeps working untouched.
+
+Calendar access needs nothing extra here. It rides the same sign-in: enable the Google Calendar API
+and add the calendar scope to the consent screen, or add the `Calendars.ReadWrite` delegated
+permission to the Entra registration. Without it, mail keeps working and calendars simply do not
+appear.
+
+**Services** lists every file provider, whether or not plMail can talk to it yet. Each has:
+
+- **Offer this service to users** — off means nobody can connect to it and it stays out of the
+  compose and save-to menus.
+- Client ID and client secret, for the OAuth ones, with the exact **Redirect URI** to paste into the
+  provider's console.
+- **Server address**, for the self-hosted ones. Leave it empty and each user enters their own; set
+  it and every user is pinned to that server.
+
+**Reuse Gmail credentials** and its Microsoft equivalent copy a client id and secret across
+server-side, without ever showing the secret. One Google Cloud project also covers Drive and Photos;
+one Entra registration also covers OneDrive. Copying the credential does **not** grant the extra
+permission those services need — that is still a change at the provider.
+
+Secrets are write-only throughout: the form shows whether one is on file, never what it is, and
+submitting with the field blank keeps the stored one. That is what lets an administrator change a
+base URL without re-pasting a secret they no longer have. Clearing one is an explicit checkbox,
+which only appears when there is something to clear.
+
+Providers plMail cannot talk to yet are listed anyway, greyed, with their setup notes readable. The
+credentials can be registered now and are used as soon as support ships.
+
+Per-provider setup steps are on [Google](../providers/google.md),
+[Microsoft](../providers/microsoft.md) and, for the calendar side,
+[CalDAV](../providers/caldav.md).
+
+## Users
+
+A searchable, paged list of everyone who can sign in, with when they last signed in and whether they
+have two-factor authentication on.
+
+**Add user** takes an email address, a name, an initial password of at least twelve characters, and
+an **Administrator** checkbox. The length floor is higher than you might set for yourself on
+purpose: the person choosing this password is not the person who will use it, so length is the only
+control available.
+
+Three things an administrator deliberately cannot do, all for one reason — an admin session must not
+become a second way into every mailbox on the install:
+
+- **Change an existing user's password.** The field exists on create and not on edit. Someone who
+  has not signed in yet has no mail, so setting their initial password discloses nothing; changing
+  it afterwards would.
+- **Remove anyone's second factor.** That is `app:user:2fa-disable` on the console, and only there.
+- **Read anyone's mail.** Nothing in this area touches an account or a message.
+
+**Remove user** is a soft delete. The address and the display name are freed — the address is unique,
+so leaving it would stop the same person ever being re-added — and the row stops being able to
+authenticate, but the accounts, messages, labels and app passwords hanging off it stay where they
+are. A cascade from a misclick in an admin panel is not a recoverable mistake.
+
+Two removals are refused outright: your own account, and the last remaining administrator. The
+second is the one that looks fine at the time — an admin removes a colleague, and nobody notices
+until the next time somebody needs the panel. Demoting yourself, or the last administrator, is
+refused for the same reason.
+
+## Reset
+
+`app:reset`, as buttons. Six stages, each deleting everything the one above it does and more:
+
+| Stage | Deletes |
+|---|---|
+| **Synced mail** | Messages, threads, parts and anything queued. Accounts, folders and labels stay; sync cursors are cleared |
+| **Mail and mailbox structure** | The above, plus folders and labels. The next sync rebuilds both |
+| **Mail, structure and contacts** | The above, plus harvested contacts. Address autocomplete starts empty |
+| **Mail, structure, contacts and accounts** | The above, plus the accounts and their aliases. Every mailbox password and OAuth connection has to be set up again. Your own sign-in is untouched |
+| **Full reset** | Every user, you included, every stored password, and the files on disk |
+| **Full reset and new secrets** | The above, and the generated secrets |
+
+The top four are confirmed with a dialog: the worst case is a resync, which costs hours and no
+information. The bottom two require the **instance name** — the host plMail answers on — to be typed
+into the form, and that is checked on the server, not in JavaScript. A click on its own is not
+enough for an operation nothing brings back.
+
+A full reset does not redirect anywhere. It cannot: the user who performed it no longer exists, so
+there is no page left behind the firewall, and the response itself is the only chance to say what
+happened and what still needs doing.
+
+Monitoring data is kept by every stage. Clear the logs from **Logs**, and stale heartbeats from
+**Maintenance**.
+
+## Where to read further
+
+- [Files and integrations](integrations.md) — what a user sees once you enable a service.
+- [Accounts and aliases](accounts.md) — the sign-in you are configuring, from the other end.
+- [Troubleshooting](../install/troubleshooting.md) — the failures that have actually happened.
+- [Configuration reference](../install/configuration.md) — `APP_DB_LOG_LEVEL`, the OAuth variables,
+  the Pub/Sub ones.
+- [Architecture](../internals/architecture.md) — what the workers, scheduler and supervisor are.
+
+## Things that bite
+
+**Rotating the secrets without restarting the whole stack breaks half of it.** Every other service
+keeps the old `APP_ENCRYPTION_KEY` in process memory until it restarts, so anything saved in the
+meantime becomes unreadable to the services that did not. The panel says so; the restart is not
+optional.
+
+**`POSTGRES_PASSWORD` is never rotated, deliberately.** Postgres was initialised with it and keeps
+its own copy, so regenerating it would leave plMail unable to log in to the database it just reset.
+Changing that one means wiping the database volume, which the panel cannot do.
+
+**The maintenance buttons queue work, they do not do it.** Nothing happens if no worker is
+consuming — the scheduler and worker containers have to be running. Without them, none of the
+scheduled sweeps fire either.
+
+**A worker holding stale Doctrine metadata survives a migration and fails oddly.** Long-running
+processes cache mappings for their whole lifetime, so a column added by a migration is invisible to
+them until **Restart workers**. This is the thing to try first when a queue starts failing straight
+after an upgrade.
+
+**Clearing logs deletes what the filter matches, not just the page.** The count in the confirmation
+is the real number.
+
+**Successful Gmail pushes are invisible at the default log level.** They are logged at info and not
+stored, so "no events" in the webhook panel does not mean "nothing was delivered" until
+`APP_DB_LOG_LEVEL=info` is set.
+
+**Enabling `pg_stat_statements` from the panel starts collection from that moment.** Queries from
+before it will never appear, so an empty panel immediately afterwards is expected.
+
+**Copying credentials with "Reuse …" does not grant the extra permission.** It copies a client id
+and secret and nothing else; the scope or delegated permission still has to be added at the
+provider, or connecting fails at consent time.
+
+**You cannot remove the last administrator, or yourself.** Both are refused rather than warned
+about, which occasionally reads as a broken button.
