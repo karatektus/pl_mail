@@ -78,16 +78,18 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // rather than daily like app:push:renew, and not because
                 // anything expires that fast — a Google channel lasts a week
                 // and a Graph calendar subscription just under three days.
-                // This is also the only thing that OPENS a channel: nothing in
-                // the subscribe flow registers one, deliberately, because
-                // registration fails for deployment reasons (no public HTTPS
-                // address yet, a Cloud project whose domain verification is
-                // pending) that have nothing to do with the click that
-                // connected the calendar. Hourly means such an install starts
-                // pushing within the hour of being fixed; daily means
-                // tomorrow. It costs nothing when there is nothing to do — an
-                // install with no public address stops before its first HTTP
-                // request, and a live channel is a column read.
+                // Subscribing to a calendar now tries to open a channel there
+                // and then, so this is the retry rather than the only way in.
+                // The two are not redundant: registration fails for deployment
+                // reasons (no public HTTPS address yet, a Cloud project whose
+                // domain verification is pending) that have nothing to do with
+                // the click that connected the calendar, and a subscribe that
+                // failed for one of those must not leave the calendar polling
+                // forever. Hourly means such an install starts pushing within
+                // the hour of being fixed; daily means tomorrow. It costs
+                // nothing when there is nothing to do — an install with no
+                // public address stops before its first HTTP request, and a
+                // live channel is a column read.
                 RecurringMessage::cron('20 * * * *', new RunCommandMessage('app:calendar:push')),
 
                 // Log entries and dead heartbeats.

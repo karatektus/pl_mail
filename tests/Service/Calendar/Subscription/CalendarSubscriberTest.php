@@ -13,6 +13,8 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
+use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
@@ -22,6 +24,7 @@ use DateTimeZone;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * Unsubscribing is not a delete, and subscribing is not a form submission.
@@ -41,6 +44,15 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * — CalendarSyncDriverInterface promises a driver is never asked to push to a
  * read-only calendar — so a value a browser could set is a value a browser
  * could use to make plMail write to a calendar the account may not write to.
+ *
+ * A third claim joined them with push, and it is asserted about a queue rather
+ * than about a calendar. Subscribing asks for a push channel immediately, so the
+ * feature's first hour does not look exactly like it not working — but the ask
+ * is a dispatch and never a call. An unrouted Messenger message is handled in
+ * the process that dispatched it, so "it landed on the maintenance transport" is
+ * precisely the statement "no provider was contacted inside the subscribe", and
+ * that is what makes a pending Google domain verification incapable of surfacing
+ * as an error on a checkbox.
  *
  * Against a real container and a real database. Every collaborator here is
  * final, so none can be doubled, and the seam the engine was built with is the
@@ -169,6 +181,102 @@ final class CalendarSubscriberTest extends KernelTestCase
 
         self::assertNotNull($calendar);
         self::assertContains($calendar->color, Calendar::COLORS, 'an unparseable colour falls back to the palette');
+    }
+
+    // ── What a fresh subscription starts ──────────────────────────────────
+
+    /**
+     * Before this, `app:calendar:push` was the only thing that opened a
+     * channel, so a calendar ticked at 09:21 polled until 10:20. The feature
+     * worked and its first hour was indistinguishable from it not working —
+     * which is the hour somebody is watching to find out whether it does.
+     */
+    public function testANewlyMirroredCalendarIsAskedToPushWithoutWaitingForTheHourlySweep(): void
+    {
+        $this->offer([['remoteId' => 'work', 'name' => 'Work']]);
+
+        $this->subscriber->apply($this->source(), ['work']);
+
+        $calendar = $this->mirrored('work');
+        self::assertNotNull($calendar);
+
+        $registrations = $this->sent('maintenance', RegisterCalendarPushMessage::class);
+
+        self::assertCount(1, $registrations, 'nothing else opens a channel inside the hour');
+        self::assertSame($calendar->id, $registrations[0]->calendarId);
+    }
+
+    /**
+     * The dispatch is the whole mechanism, and the transport it lands on is the
+     * proof. Registered inline, a subscribe would hold the HTTP response open on
+     * a call to Google and would fail — visibly, on a checkbox — for a Cloud
+     * project whose domain verification is still pending, which is a fact about
+     * the deployment and not about the click.
+     */
+    public function testTheRegistrationIsQueuedRatherThanAttemptedInsideTheSubscribe(): void
+    {
+        $this->offer([['remoteId' => 'work', 'name' => 'Work']]);
+
+        $this->subscriber->apply($this->source(), ['work']);
+
+        self::assertCount(1, $this->sent('maintenance', RegisterCalendarPushMessage::class));
+
+        // And deliberately not beside the first sync. That one is a full
+        // calendar read; a registration queued behind it would open the channel
+        // minutes late on exactly the large calendars where push earns its keep.
+        self::assertSame([], $this->sent('ingest', RegisterCalendarPushMessage::class));
+    }
+
+    public function testTheFirstSyncIsStillQueuedBesideTheRegistration(): void
+    {
+        $this->offer([['remoteId' => 'work', 'name' => 'Work']]);
+
+        $this->subscriber->apply($this->source(), ['work']);
+
+        self::assertCount(
+            1,
+            $this->sent('ingest', SyncCalendarMessage::class),
+            'push is an addition to the sweep, never a replacement for it',
+        );
+    }
+
+    /**
+     * An install with no publicly reachable HTTPS address can never register
+     * anything, and the subscribe must not be able to notice. Guards the natural
+     * wrong fix — asking isConfigured() before dispatching — which would tie a
+     * calendar's mirroring to a deployment fact and, worse, mean the install
+     * that later gains an address never registers the calendars it already has.
+     */
+    public function testSubscribingDoesNotDependOnTheDeploymentBeingReachable(): void
+    {
+        $_SERVER['APP_PUBLIC_URL'] = 'http://localhost:8000';
+
+        try {
+            $this->offer([['remoteId' => 'work', 'name' => 'Work']]);
+
+            $change = $this->subscriber->apply($this->source(), ['work']);
+
+            self::assertSame(1, $change->subscribed, 'an unreachable install must still be able to mirror a calendar');
+            self::assertNotNull($this->mirrored('work'));
+            self::assertCount(1, $this->sent('maintenance', RegisterCalendarPushMessage::class));
+        } finally {
+            unset($_SERVER['APP_PUBLIC_URL']);
+        }
+    }
+
+    /**
+     * Per new calendar, not per visit to the screen. A message on every save
+     * would re-register a live channel each time somebody opened the list, and
+     * on Google a re-registration stops the old channel and opens a new one.
+     */
+    public function testSavingTheSameListAgainAsksForNothing(): void
+    {
+        $this->offer([['remoteId' => 'work', 'name' => 'Work']]);
+        $this->subscriber->apply($this->source(), ['work']);
+
+        $this->subscriber->apply($this->source(), ['work']);
+
+        self::assertCount(1, $this->sent('maintenance', RegisterCalendarPushMessage::class));
     }
 
     // ── Unsubscribing ─────────────────────────────────────────────────────
@@ -330,6 +438,39 @@ final class CalendarSubscriberTest extends KernelTestCase
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * What landed on one named transport, of one type.
+     *
+     * By transport name rather than "whatever was dispatched", because which
+     * queue a message goes to is behaviour here and not plumbing. in-memory://
+     * in the test environment, and asserted rather than cast — against a real
+     * transport every count above would be vacuously zero.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $type
+     *
+     * @return list<T>
+     */
+    private function sent(string $transport, string $type): array
+    {
+        $queue = self::getContainer()->get('messenger.transport.' . $transport);
+
+        self::assertInstanceOf(InMemoryTransport::class, $queue);
+
+        $messages = [];
+
+        foreach ($queue->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+
+            if ($message instanceof $type) {
+                $messages[] = $message;
+            }
+        }
+
+        return $messages;
+    }
 
     private function source(): CalendarSource
     {

@@ -121,3 +121,21 @@ framework:
             # every failure worth retrying is a third-party rate limit that
             # takes minutes to clear.
             App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest
+            # maintenance rather than ingest, although it is dispatched beside
+            # the SyncCalendarMessage above and for the same calendar. Two
+            # reasons, and the first is the point of the message existing at
+            # all: on ingest it would queue behind that first full calendar
+            # read, so the channel would open minutes after the subscribe on
+            # exactly the large calendars where push matters most, and the
+            # feature is here to remove a wait rather than shorten one. The
+            # second is that this is the same work `app:calendar:push` does
+            # hourly, and that already runs on maintenance as a RunCommand-
+            # Message — one queue for registrations means the two cannot
+            # contend for a worker with each other or with incoming mail.
+            #
+            # Routing it at all is load-bearing, not tidiness. Unrouted, a
+            # Messenger message is handled in the process that dispatched it,
+            # which would put a call to Google or Microsoft inside the HTTP
+            # request that ticked the calendar — the one thing this whole path
+            # exists to avoid. CalendarSubscriberTest asserts it lands here.
+            App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage: maintenance

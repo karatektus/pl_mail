@@ -13,6 +13,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\RegisterCalendarPushMessage;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
@@ -39,6 +40,23 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * POST mint a calendar claiming to be writable when the remote refuses writes,
  * which the engine trusts absolutely — CalendarSyncDriverInterface promises a
  * driver is never asked to push to a read-only calendar.
+ *
+ * ── What a fresh subscription queues, and why it only queues ──────────────
+ *
+ * Two messages per new calendar and no work of either kind inline: a first sync,
+ * so the calendar is not empty for fifteen minutes, and a push registration, so
+ * it is not polled for an hour before changes start arriving on their own.
+ *
+ * **Neither can fail this method, and that is the reason both are messages.** A
+ * first sync is a full calendar read; a registration is a call to Google or
+ * Microsoft that fails for reasons belonging to the deployment rather than to
+ * the click — no public HTTPS address yet, a Cloud project whose domain
+ * verification is still pending. Doing either here would make "mirror this
+ * calendar" wait on a provider and, worse, report a pending domain verification
+ * as an error on a checkbox. Both are best-effort and both have a sweep behind
+ * them (`app:calendar:sync --stale` every fifteen minutes, `app:calendar:push`
+ * every hour), so the state this method leaves behind is complete whether or not
+ * either message ever succeeds.
  *
  * ── What unsubscribing does to the events already pulled ──────────────────
  *
@@ -130,6 +148,7 @@ final readonly class CalendarSubscriber
         foreach ($fresh as $calendar) {
             if (null !== $calendar->id) {
                 $this->bus->dispatch(new SyncCalendarMessage($calendar->id));
+                $this->bus->dispatch(new RegisterCalendarPushMessage($calendar->id));
             }
         }
 
