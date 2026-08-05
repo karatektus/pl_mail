@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.0.16 — 2026-08-05
 
 **Three schema changes, applied automatically on boot.** `calendar_event` gains a
 sync state and a synced-at stamp, `calendar` gains a last-synced-at and a
@@ -32,6 +32,7 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   Each mirrored calendar says where it comes from, whether it accepts writes,
   when it last synced and why it stopped, because a calendar that syncs on a
   sweep nobody watches is the only kind that can break silently.
+
 - **A date in an ordinary email can be added to the calendar.** Not an
   invitation, just a sentence — "Termin wie vereinbart: 04.08.2026 um 14 Uhr",
   or "let's meet Saturday at 3pm". A card offers it, quoting the line it read so
@@ -39,6 +40,7 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   somebody says yes. German and English, explicit and relative dates, durations
   where they are stated. "Not an event" is remembered, so it is not offered
   again.
+
 - **One occurrence of a repeating event can be changed on its own.** Saving or
   deleting a recurring event now asks whether you mean this one or all of them,
   and only asks when the event actually repeats. Moving a single occurrence
@@ -48,6 +50,7 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   entry does not move the meeting to next month. A single-occurrence change
   reaches a CalDAV server; Google and Microsoft take the series but not yet the
   instance, so on those it stays local for now.
+
 - **Google and Microsoft calendars can arrive by push rather than being waited
   for.** Where the installation has a public HTTPS address, a change made
   elsewhere shows up in seconds instead of at the next quarter-hour sweep.
@@ -68,27 +71,11 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   says two o'clock and the other says three, you see both, because a tidier
   screen is not worth hiding that from you.
 
-### Fixed
-
-- **A recurring invitation or CalDAV event appeared exactly once.** The
-  repeating rule was read and then stored unconverted, and the part of the
-  application that draws occurrences reads the converted form — so a weekly
-  meeting that arrived by mail, or lived on a CalDAV server, drew a single
-  entry and nothing else. One conversion now serves all three sources; a rule
-  that cannot be converted faithfully is still refused outright rather than
-  half-applied, because an event on the wrong days is worse than one that does
-  not repeat.
-- **An instance moved out of its series landed in the wrong place, differently
-  on every provider** — a duplicate on the new day from Google, the old time
-  from Microsoft. Moved and cancelled instances are now carried as the
-  per-instance exceptions the format has for them, and CalDAV writes them back,
-  so editing a series' title no longer deletes every instance somebody moved.
-- **An event accepted from a suggestion could be silently rewritten by a later
-  email.** The protection was accidental: the guard only covered events that
-  came out of extraction, and what actually kept mail off these was that plMail
-  mints identifiers no sender collides with. A message carrying the same
-  identifier overwrote the lot. Events a person decided on are now off limits
-  to mail by rule, and the refused claim is still recorded.
+- **The admin header says which build is running.** The release and the commit
+  it was built from, on every admin page — the first thing worth knowing when a
+  deployment behaves unlike the branch you are reading, and not otherwise
+  discoverable now that migrations run on boot and `latest` moves. A checkout
+  that was never built from a tag shows nothing rather than a placeholder.
 
 - **An invitation can be answered from the mail it arrived in.** Invites were
   parsed, filed on a calendar and then unanswerable — the participants were read
@@ -100,6 +87,7 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   off. The card says what the answer was; the toast says whether it reached the
   organiser, because a reply that could not be sent leaves somebody holding a
   seat for a person who thinks they declined.
+
 - **Calendars can be managed.** They carried a name, a colour, a time zone, a
   visibility flag and a default flag from the first pass, and nothing reached
   any of them: a user with four accounts had four calendars named after their
@@ -111,6 +99,28 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
 
 ### Fixed
 
+- **A recurring invitation or CalDAV event appeared exactly once.** The
+  repeating rule was read and then stored unconverted, and the part of the
+  application that draws occurrences reads the converted form — so a weekly
+  meeting that arrived by mail, or lived on a CalDAV server, drew a single
+  entry and nothing else. One conversion now serves all three sources; a rule
+  that cannot be converted faithfully is still refused outright rather than
+  half-applied, because an event on the wrong days is worse than one that does
+  not repeat.
+
+- **An instance moved out of its series landed in the wrong place, differently
+  on every provider** — a duplicate on the new day from Google, the old time
+  from Microsoft. Moved and cancelled instances are now carried as the
+  per-instance exceptions the format has for them, and CalDAV writes them back,
+  so editing a series' title no longer deletes every instance somebody moved.
+
+- **An event accepted from a suggestion could be silently rewritten by a later
+  email.** The protection was accidental: the guard only covered events that
+  came out of extraction, and what actually kept mail off these was that plMail
+  mints identifiers no sender collides with. A message carrying the same
+  identifier overwrote the lot. Events a person decided on are now off limits
+  to mail by rule, and the refused claim is still recorded.
+
 - **An invitation from Google Calendar had no organiser, so it could not be
   answered.** The organiser is listed twice in a normal invite — once as
   ORGANIZER and again as an ATTENDEE, because they are going too — and the
@@ -121,31 +131,37 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   ordinary invitation. Roles accumulate onto the address now instead of
   replacing each other. Existing events carry the old shape until
   `app:backfill events` re-reads the mail they came from.
+
 - **Re-reading an invitation un-answered it.** The mail that asked the question
   says NEEDS-ACTION about you forever, so every re-run of extraction reset an
   RSVP that had already been sent — the organiser knew, and the screen did not.
   An answer already recorded is kept unless the incoming copy states a real one.
+
 - **Throwing away an event extraction got wrong put it back.** Extraction is
   re-runnable by design, so deleting an event only lasted until the next
   backfill walked the mailbox again and re-created it from the same message.
   "Not an event" now records the refusal against the claim's dedup key — the
   table for it existed and nothing had ever written a row — so the dismissal
   survives a re-run and also catches the *next* message about the same booking.
+
 - **Correcting an invitation's details un-answered it.** The event's canonical
   object is rebuilt from its columns on every edit, and the editor has no
   participants field, so fixing a meeting's title dropped the RSVP that had been
   stored on it. (Locally only — the organiser had been told long before.)
+
 - **Typing into a modal that had just been opened could be silently discarded.**
   Closing a dialog cleared where the frame pointed but left the previous form in
   it, so the next open showed the last dialog until its own fetch landed —
   pre-filled, focusable and completely convincing. Anything typed in that window
   was thrown away when the real form arrived. The frame goes back to its spinner
   on close.
+
 - **The sidebar's account chevron did not say whether it was open.** It is a
   disclosure button, and which way it will go stopped being guessable when the
   expanded account moved into the user's settings and started surviving
   navigation. It carries `aria-expanded` now, kept in step as it opens and
   closes.
+
 - **Four mailbox pages ran an English word through the translator as a key.**
   The Inbox, Drafts, Sent and Trash titles asked for `'Inbox'|trans` rather than
   the key beside them in the catalogue, so they were untranslatable and reported
@@ -153,6 +169,7 @@ in Google Cloud, or add the `Calendars.ReadWrite` delegated permission in Azure
   said. `thread_row.unread` was genuinely missing and read out as its own key by
   screen readers; a `|default` behind it could never have fired, because a
   missing translation comes back as the key and the key is not empty.
+
 - **The pirate locale had no calendar at all.** `en_PI` was written before the
   calendar shipped and never caught up, so every string in it fell back to
   English. It has the lot now, including the new settings section.
