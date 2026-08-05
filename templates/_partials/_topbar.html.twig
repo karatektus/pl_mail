@@ -106,6 +106,39 @@
         </div>
     </div>
 
+    {# ── Happening soon ────────────────────────────────────────────────
+       The flights, deliveries, reservations and tickets plMail read out of
+       mail, opened as a panel in the shared modal frame.
+
+       Only rendered when there is something to open. A control that is always
+       there and usually opens "nothing coming up" trains people not to press
+       it; one that appears when a parcel is due is a piece of news. It is also
+       what keeps the cost honest — see CalendarGlobal::getSoonest(), which asks
+       for one row rather than the panel's worth.
+
+       It wears the NEXT thing's kind icon rather than a dot. A dot beside the
+       calendar button already says "there is a reason to look"; a plane says
+       that and says what, in the same nine pixels, and two dots in one corner
+       of a topbar say neither. See HappeningSoonController for why this is
+       here rather than a page or a mailbox panel. #}
+    {% set soonest = calendar.soonest %}
+    {% if soonest %}
+        <button
+            type="button"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
+            data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
+            class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+                   transition-colors flex-shrink-0
+                   text-ink-muted hover:bg-hover"
+            aria-label="{{ 'calendar.soon.open'|trans }}"
+            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|date('D, j M') }}"
+        >
+            <i class="{{ soonest.kind.icon }} text-base" aria-hidden="true"></i>
+        </button>
+    {% endif %}
+
     {# ── Calendar ──────────────────────────────────────────────────────
        Icon only, and here rather than in the sidebar: the sidebar is a
        list of places mail lives, and a control that slides a panel in and

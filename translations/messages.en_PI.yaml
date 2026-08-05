@@ -474,6 +474,15 @@ calendar:
         none: Comes but once
         weekly: Every week
         yearly: Every year
+    soon:
+        empty: Naught on the horizon
+        empty_hint: >-
+            Passages, cargo, tables held and tickets spied in yer letters be
+            posted here for the next fortnight.
+        from: 'Out o'' %subject%'
+        open: 'What be comin'' soon'
+        title: 'Comin'' soon'
+        untitled: (no subject)
     title: Almanac
     toast:
         created: Almanac drawn up

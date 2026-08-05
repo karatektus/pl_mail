@@ -555,6 +555,15 @@ calendar:
         none: Does not repeat
         weekly: Every week
         yearly: Every year
+    soon:
+        empty: Nothing coming up
+        empty_hint: >-
+            Flights, deliveries, reservations and tickets found in your mail
+            appear here for the next two weeks.
+        from: 'From %subject%'
+        open: What is happening soon
+        title: Happening soon
+        untitled: (no subject)
     title: Calendar
     toast:
         created: Calendar created

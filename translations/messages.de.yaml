@@ -560,6 +560,15 @@ calendar:
         none: Wiederholt sich nicht
         weekly: Wöchentlich
         yearly: Jährlich
+    soon:
+        empty: Nichts in Sicht
+        empty_hint: >-
+            Flüge, Lieferungen, Reservierungen und Tickets aus Ihren E-Mails
+            erscheinen hier für die nächsten zwei Wochen.
+        from: 'Aus %subject%'
+        open: Was demnächst ansteht
+        title: Demnächst
+        untitled: (kein Betreff)
     title: Kalender
     toast:
         created: Kalender angelegt

@@ -140,6 +140,66 @@ class EventSourceLinkRepository extends ServiceEntityRepository
     }
 
     /**
+     * The message each of these events currently reflects, keyed by event id —
+     * the "why is this on my calendar?" answer, for a whole page of rows.
+     *
+     * The mirror of findAppliedForMessage() and deliberately the other way
+     * round: that one starts from a message somebody has open, this one starts
+     * from a list of events nobody has opened anything for. "Happening Soon"
+     * draws a dozen rows at once, so asking per row — through this repository or
+     * through CalendarEvent::$sourceLinks, which is lazy and would be no
+     * cheaper — is a dozen indexed queries to render one panel.
+     *
+     * The NEWEST applied claim wins, not the first. A booking is described by
+     * several messages, and the one that answers "why is this on my calendar?"
+     * is the one the event currently reflects: the reschedule, not the original
+     * confirmation it replaced. Ordered by the MESSAGE's date rather than the
+     * link's own createdAt for the reason latestAppliedAt() gives — mail is not
+     * processed in the order it was sent, and a backfill processes all of it at
+     * once — and the ascending sort with a last-write-wins fold is what makes
+     * "newest" mean the same thing here as it does there.
+     *
+     * COALESCE as a HIDDEN select rather than straight in the ORDER BY: DQL
+     * will not sort on an expression that is not in the select list, and HIDDEN
+     * keeps the result a list of entities rather than a list of arrays.
+     *
+     * @param list<CalendarEvent> $events
+     *
+     * @return array<int, Message>
+     */
+    public function findLatestAppliedMessageByEvent(array $events): array
+    {
+        if (0 === count($events)) {
+            return [];
+        }
+
+        $links = $this->createQueryBuilder('link')
+            ->addSelect('message', 'COALESCE(message.receivedAt, message.sentAt) AS HIDDEN appliedAt')
+            ->join('link.message', 'message')
+            ->where('link.event IN (:events)')
+            ->andWhere('link.applied = true')
+            ->setParameter('events', $events)
+            ->orderBy('appliedAt', 'ASC')
+            ->addOrderBy('link.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $byEvent = [];
+
+        foreach ($links as $link) {
+            $eventId = $link->event?->id;
+
+            if (null === $eventId || null === $link->message) {
+                continue;
+            }
+
+            $byEvent[$eventId] = $link->message;
+        }
+
+        return $byEvent;
+    }
+
+    /**
      * What this message put on the calendar — the "Added to …" chip in the
      * thread view, and the answer to "why is this on my calendar?".
      *
