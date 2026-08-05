@@ -460,6 +460,10 @@ calendar:
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
     error:
+        instance_create: >-
+            Ein einzelner Termin lässt sich nicht allein in einen Kalender
+            legen. Wähle „Alle Termine“, um diesen Termin in einen weiteren
+            Kalender zu legen.
         invalid_times: 'Diese Zeiten gehen nicht — das Ende muss nach dem Beginn liegen.'
         no_copies: 'Nichts ausgewählt, also nichts geändert. Wähle mindestens einen Kalender.'
         read_only: >-
@@ -494,14 +498,13 @@ calendar:
                 gilt also nicht für sie.
             unreadable: Erinnerung anderswo gesetzt
         all_day: Ganztägig
-        calendar: Kalender
         cancel: Abbrechen
         copies:
             help: >-
-                Dieser Termin steht in mehreren Kalendern. Nimm den Haken bei
-                einer Kopie weg, um sie unverändert zu lassen — sie
-                unterscheidet sich dann von den anderen und erscheint als
-                eigener Eintrag.
+                Angehakte Kalender bekommen diesen Termin. Hake einen an, in dem
+                er noch nicht steht, um eine Kopie dort anzulegen; nimm den Haken
+                weg, um diese Kopie unverändert zu lassen — sie unterscheidet
+                sich dann von den anderen und erscheint als eigener Eintrag.
             legend: Kalender
             read_only: Dieser Kalender nimmt keine Änderungen an
         delete: Löschen
@@ -522,6 +525,10 @@ calendar:
         save: Speichern
         scope:
             instance: Diesen Termin
+            instance_note: >-
+                „Diesen Termin“ ändert nur den geöffneten Einzeltermin und kann
+                ihn deshalb nicht in einen Kalender legen, in dem er noch nicht
+                steht.
             legend: Ändern
             series: Alle Termine
         starts: Beginn

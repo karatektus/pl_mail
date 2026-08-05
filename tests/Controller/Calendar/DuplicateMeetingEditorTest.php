@@ -11,6 +11,7 @@ use App\Domain\Enum\Calendar\SyncState;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarRangeReader;
@@ -20,30 +21,36 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
- * Editing a meeting that exists twice: one editor, a checkbox per copy, and N
- * ordinary writes.
+ * Editing a meeting across the calendars it is on, and the ones it is not: one
+ * editor, a checkbox per calendar, and N ordinary writes.
  *
- * One editor is the whole claim. The two rows are two remote objects with their
- * own remoteId, etag and sync state — merging them in the model would break
- * sync — so what the user is given is one dialog that knows about both, and the
- * write fans out. Everything that can go wrong here is invisible until somebody
- * notices a meeting is in two places or in none:
+ * One editor is the whole claim. Two copies of a meeting are two remote objects
+ * with their own remoteId, etag and sync state — merging them in the model would
+ * break sync — so what the user is given is one dialog that knows about all of
+ * them, and the write fans out. The list is every calendar the user owns rather
+ * than only the ones already holding a copy, so the same fan-out is how a
+ * meeting gets put on a calendar it has never been on. Everything that can go
+ * wrong here is invisible until somebody notices a meeting is in two places or
+ * in none:
  *
  *   An edit that reaches only the copy whose chip was clicked leaves the other
  *   saying the old thing, and the calendar quietly shows two meetings again
  *   with no explanation of which is right.
  *
- *   An edit that honours the calendar dropdown for a clustered event moves
- *   every copy onto one calendar, collapsing rows the sync engine still owes
- *   writes for.
+ *   An edit that honours a posted destination moves every copy onto one
+ *   calendar, collapsing rows the sync engine still owes writes for.
  *
  *   A write to a read-only mirror is a write nothing will ever accept, and
  *   queuing a push for it is a sync that fails forever.
  *
- *   And a copy written without being marked leaves a synced calendar holding
- *   the old times with nothing to tell it otherwise.
+ *   A copy written without being marked leaves a synced calendar holding the
+ *   old times with nothing to tell it otherwise.
+ *
+ *   And a copy created with a UID of its own is a second meeting: same title,
+ *   same hour, two chips for ever, with no later edit able to merge them.
  *
  * Written as requests rather than against the controller directly, because half
  * of what is checked is not in the method body: the CSRF token, the checkboxes
@@ -73,52 +80,56 @@ final class DuplicateMeetingEditorTest extends WebTestCase
     }
 
     /**
-     * The list is the honest statement of where the meeting is, so a copy that
-     * cannot be written is shown rather than hidden — disabled and unticked,
-     * with the lock the calendar settings list already uses.
+     * The list is the honest statement of where the meeting can be, so a
+     * calendar that cannot be written is shown rather than hidden — disabled and
+     * unticked, with the lock the calendar settings list already uses.
      */
-    public function testTheEditorListsEveryCopyAndDisablesTheOneNothingMayWrite(): void
+    public function testTheEditorListsEveryCalendarAndDisablesTheOneNothingMayWrite(): void
     {
         $client = $this->signIn();
 
         $this->mirror->isReadOnly = true;
         $this->em->flush();
 
-        [$account, $mirror] = $this->twoCopies();
+        [$account] = $this->twoCopies();
 
         $crawler = $client->request('GET', '/calendar/event/' . $account->id . '/edit');
 
         self::assertResponseIsSuccessful();
 
-        self::assertCount(2, $crawler->filter('input[name="copies[]"]'), 'every copy of the meeting is offered');
+        self::assertCount(2, $crawler->filter('input[name="calendars[]"]'), 'every calendar is offered');
 
         self::assertCount(
             1,
-            $crawler->filter(sprintf('input[name="copies[]"][value="%d"][checked]', $account->id)),
-            'editing the meeting means the meeting, so a writable copy starts ticked',
+            $crawler->filter(sprintf('input[name="calendars[]"][value="%d"][checked]', $this->account->id)),
+            'editing the meeting means the meeting, so a calendar it is on starts ticked',
         );
 
         self::assertCount(
             1,
-            $crawler->filter(sprintf('input[name="copies[]"][value="%d"][disabled]', $mirror->id)),
+            $crawler->filter(sprintf('input[name="calendars[]"][value="%d"][disabled]', $this->mirror->id)),
             'a mirror that accepts no writes back is offered as unwritable, not offered as writable',
         );
 
         self::assertCount(
             0,
-            $crawler->filter(sprintf('input[name="copies[]"][value="%d"][checked]', $mirror->id)),
-            'a copy nothing may write must not be ticked',
+            $crawler->filter(sprintf('input[name="calendars[]"][value="%d"][checked]', $this->mirror->id)),
+            'a calendar nothing may write must not be ticked',
         );
 
         self::assertCount(
             0,
             $crawler->filter('select[name="calendarId"]'),
-            'the dropdown is replaced, not shown beside a control that contradicts it',
+            'the dropdown is gone, not shown beside a control that contradicts it',
         );
     }
 
-    /** An ordinary event keeps the editor it always had, dropdown and all. */
-    public function testAnEventThatExistsOnceKeepsItsCalendarDropdownAndGetsNoCheckboxes(): void
+    /**
+     * The feature, from the editor's side: an event on one calendar is offered
+     * every other one, unticked, because "also put this on my work calendar" is
+     * the thing the old list could not say.
+     */
+    public function testAnEventThatExistsOnceIsStillOfferedEveryOtherCalendar(): void
     {
         $client = $this->signIn();
         $lone   = $this->copy('lone@plmail', $this->account);
@@ -126,8 +137,20 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         $crawler = $client->request('GET', '/calendar/event/' . $lone->id . '/edit');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('select[name="calendarId"]'));
-        self::assertCount(0, $crawler->filter('input[name="copies[]"]'));
+        self::assertCount(0, $crawler->filter('select[name="calendarId"]'));
+        self::assertCount(2, $crawler->filter('input[name="calendars[]"]'));
+
+        self::assertCount(
+            1,
+            $crawler->filter(sprintf('input[name="calendars[]"][value="%d"][checked]', $this->account->id)),
+            'the calendar it is on is ticked',
+        );
+
+        self::assertCount(
+            0,
+            $crawler->filter(sprintf('input[name="calendars[]"][value="%d"][checked]', $this->mirror->id)),
+            'a calendar it is not on is offered, and offered unticked',
+        );
     }
 
     public function testAnEditWithEveryCopyTickedReachesEveryCopy(): void
@@ -135,7 +158,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         $client             = $this->signIn();
         [$account, $mirror] = $this->twoCopies();
 
-        $this->save($client, $account, [$account->id, $mirror->id], ['title' => 'Sync — new agenda']);
+        $this->save($client, $account, $this->bothCalendars(), ['title' => 'Sync — new agenda']);
 
         self::assertResponseRedirects();
 
@@ -159,7 +182,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
 
         self::assertCount(1, $this->chipsOnTheDay(), 'one meeting, one chip, before anything is edited');
 
-        $this->save($client, $account, [$account->id], ['title' => 'Sync — new agenda']);
+        $this->save($client, $account, [$this->account->id], ['title' => 'Sync — new agenda']);
 
         self::assertSame('Sync — new agenda', $this->reload($account)->title);
         self::assertSame('Sync', $this->reload($mirror)->title, 'an unticked copy is not written');
@@ -172,18 +195,21 @@ final class DuplicateMeetingEditorTest extends WebTestCase
     }
 
     /**
-     * The dropdown is replaced for a clustered event precisely so this cannot
-     * happen: honouring a destination would put both rows on one calendar, and
-     * two rows on one calendar is what uniq_calendar_event_calendar_uid refuses.
+     * The dropdown is gone precisely so this cannot happen: honouring a
+     * destination would put both rows on one calendar, and two rows on one
+     * calendar is what uniq_calendar_event_calendar_uid refuses.
+     *
+     * The crafted `calendarId` is the point of the test rather than a leftover.
+     * The field is not rendered by anything any more, so the only way it reaches
+     * the save is a hand-written post — and the save must go on writing each
+     * copy where it already is rather than reading a destination out of it.
      */
     public function testEachCopyIsWrittenBackToItsOwnCalendar(): void
     {
         $client             = $this->signIn();
         [$account, $mirror] = $this->twoCopies();
 
-        // Exactly what a crafted request looks like: a destination posted for a
-        // form that never rendered a dropdown.
-        $this->save($client, $account, [$account->id, $mirror->id], ['calendarId' => (string) $this->account->id]);
+        $this->save($client, $account, $this->bothCalendars(), ['calendarId' => (string) $this->account->id]);
 
         // The redirect is half the assertion. Honouring the destination puts
         // two rows carrying one UID on one calendar, which is exactly what
@@ -209,7 +235,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
 
         self::assertSame(SyncState::Clean, $mirror->syncState);
 
-        $this->save($client, $account, [$account->id, $mirror->id], ['title' => 'Sync — new agenda']);
+        $this->save($client, $account, $this->bothCalendars(), ['title' => 'Sync — new agenda']);
 
         self::assertSame(
             SyncState::PendingUpdate,
@@ -235,7 +261,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
 
         [$account, $mirror] = $this->twoCopies();
 
-        $this->save($client, $account, [$account->id, $mirror->id], ['title' => 'Sync — new agenda']);
+        $this->save($client, $account, $this->bothCalendars(), ['title' => 'Sync — new agenda']);
 
         self::assertSame('Sync', $this->reload($mirror)->title, 'a disabled checkbox is not a guarantee to a server');
         self::assertSame(
@@ -250,7 +276,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         $client             = $this->signIn();
         [$account, $mirror] = $this->twoCopies();
 
-        $this->delete($client, $account, [$mirror->id]);
+        $this->delete($client, $account, [$this->mirror->id]);
 
         self::assertResponseRedirects();
 
@@ -263,7 +289,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         $client             = $this->signIn();
         [$account, $mirror] = $this->twoCopies();
 
-        $this->delete($client, $account, [$account->id, $mirror->id]);
+        $this->delete($client, $account, $this->bothCalendars());
 
         self::assertNull($this->events->find($account->id));
         self::assertNull($this->events->find($mirror->id));
@@ -284,6 +310,163 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSame('Sync', $this->reload($account)->title);
         self::assertSame('Sync', $this->reload($mirror)->title);
+    }
+
+    // ── Putting the meeting somewhere it has never been ────────────────────
+
+    /**
+     * The feature: a calendar the meeting is not on can be ticked, and what
+     * lands there is the same meeting rather than a second one.
+     *
+     * The UID is the whole assertion. A copy that minted its own would be a
+     * different meeting to EventClusterer — same title, same hour, two chips,
+     * for ever, with no edit able to merge them again — so "one chip" is the
+     * only check that distinguishes a copy from a duplicate.
+     */
+    public function testTickingACalendarTheMeetingIsNotOnPutsACopyThereUnderTheSameUid(): void
+    {
+        $client = $this->signIn();
+        $lone   = $this->copy(self::SHARED_UID, $this->account);
+
+        self::assertCount(1, $this->chipsOnTheDay());
+
+        $this->save($client, $lone, $this->bothCalendars(), ['title' => 'Sync']);
+
+        self::assertResponseRedirects();
+
+        $mirrored = $this->events->findOneBy(['calendar' => $this->mirror, 'uid' => self::SHARED_UID]);
+
+        self::assertNotNull($mirrored, 'ticking a calendar it was not on puts the meeting there');
+        self::assertSame('Sync', $mirrored->title);
+
+        self::assertCount(
+            1,
+            $this->chipsOnTheDay(),
+            'a copy carries the meeting\'s UID, so the two are still one chip and not two',
+        );
+    }
+
+    /**
+     * A copy that reaches the database and never reaches the provider is a row
+     * the next pull deletes or duplicates.
+     *
+     * PendingCreate rather than PendingUpdate, because the two are a POST and a
+     * PUT at the remote and the remote has never heard of this row — and a sync
+     * asked for now rather than at the next sweep, which is fifteen minutes of
+     * an edit not being on the user's phone.
+     */
+    public function testACopyCreatedOnASyncedCalendarIsQueuedAsACreateAndSyncedAtOnce(): void
+    {
+        $client = $this->signIn();
+
+        $this->mirror->role     = CalendarRole::Remote;
+        $this->mirror->remoteId = 'remote-' . uniqid('', true);
+        $this->em->flush();
+
+        $lone = $this->copy(self::SHARED_UID, $this->account);
+
+        $this->save($client, $lone, $this->bothCalendars(), ['title' => 'Sync']);
+
+        $mirrored = $this->events->findOneBy(['calendar' => $this->mirror, 'uid' => self::SHARED_UID]);
+
+        self::assertNotNull($mirrored);
+        self::assertSame(
+            SyncState::PendingCreate,
+            $mirrored->syncState,
+            'a row the remote has never seen owes it a create, not an update',
+        );
+
+        self::assertContains(
+            $this->mirror->id,
+            array_map(
+                static fn (SyncCalendarMessage $message): int => $message->calendarId,
+                $this->dispatchedSyncs(),
+            ),
+            'the calendar that gained the copy is asked to sync now',
+        );
+    }
+
+    /**
+     * A read-only destination is offered so the list stays true, and refused so
+     * the list stays honest — a disabled checkbox is a statement to a browser,
+     * never a guarantee to a server.
+     */
+    public function testTickingAReadOnlyCalendarCreatesNothingOnIt(): void
+    {
+        $client = $this->signIn();
+
+        $this->mirror->isReadOnly = true;
+        $this->em->flush();
+
+        $lone = $this->copy(self::SHARED_UID, $this->account);
+
+        $this->save($client, $lone, $this->bothCalendars(), ['title' => 'Sync']);
+
+        self::assertNull(
+            $this->events->findOneBy(['calendar' => $this->mirror, 'uid' => self::SHARED_UID]),
+            'a mirror that accepts no writes back must not be written to, however the request is crafted',
+        );
+    }
+
+    /**
+     * "This event" is about one occurrence of a series, and a calendar the
+     * series is not on has no series for it to be an occurrence of.
+     *
+     * Refused whole rather than honoured for the copies that exist and skipped
+     * for the rest. The alternative the code has to avoid is worse than either:
+     * writing the new copy from the posted fields would create a weekly series
+     * starting on the day the user happened to click, which looks right in the
+     * editor and is wrong on every other week.
+     */
+    public function testAPerInstanceSaveRefusesToCreateACopyRatherThanRebasingASeriesOntoTheOccurrence(): void
+    {
+        $client = $this->signIn();
+        $weekly = ['@type' => 'RecurrenceRule', 'frequency' => 'weekly', 'count' => 8];
+        $series = $this->copy(self::SHARED_UID, $this->account, $weekly);
+
+        $moved = $this->start()->modify('+1 week')->setTime(14, 0);
+
+        $this->save($client, $series, $this->bothCalendars(), [
+            'scope'        => 'instance',
+            'recurrenceId' => $this->start()->modify('+1 week')->format('Y-m-d\TH:i:s\Z'),
+            'startsAt'     => $moved->format('Y-m-d\TH:i'),
+            'endsAt'       => $moved->modify('+1 hour')->format('Y-m-d\TH:i'),
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+
+        self::assertNull(
+            $this->events->findOneBy(['calendar' => $this->mirror, 'uid' => self::SHARED_UID]),
+            'nothing is created',
+        );
+
+        self::assertSame(
+            [],
+            array_keys($this->reload($series)->jscalendar['recurrenceOverrides'] ?? []),
+            'and the half of the save that could have been honoured is not honoured either',
+        );
+    }
+
+    /**
+     * A tick means "write here" to the save and can only mean "remove what is
+     * here" to the delete, so a ticked calendar with nothing on it is nothing
+     * to do — not a row created in order to be destroyed, and not a refusal
+     * over a box the editor itself ticked.
+     */
+    public function testADeleteIgnoresATickedCalendarWithNoCopyOnIt(): void
+    {
+        $client = $this->signIn();
+        $lone   = $this->copy(self::SHARED_UID, $this->account);
+
+        $this->delete($client, $lone, $this->bothCalendars());
+
+        self::assertResponseRedirects();
+
+        self::assertNull($this->events->find($lone->id), 'the copy that exists goes');
+        self::assertNull(
+            $this->events->findOneBy(['calendar' => $this->mirror, 'uid' => self::SHARED_UID]),
+            'and the calendar it was never on gains nothing',
+        );
     }
 
     // ── The hard case: a cluster whose members repeat ──────────────────────
@@ -307,7 +490,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
 
         $moved = $this->start()->modify('+1 week')->setTime(14, 0);
 
-        $this->save($client, $account, [$account->id, $mirror->id], [
+        $this->save($client, $account, $this->bothCalendars(), [
             'scope'        => 'instance',
             'recurrenceId' => $this->start()->modify('+1 week')->format('Y-m-d\TH:i:s\Z'),
             'startsAt'     => $moved->format('Y-m-d\TH:i'),
@@ -348,7 +531,7 @@ final class DuplicateMeetingEditorTest extends WebTestCase
 
         $moved = $this->start()->modify('+1 week')->modify('+1 hour');
 
-        $this->save($client, $account, [$account->id, $mirror->id], [
+        $this->save($client, $account, $this->bothCalendars(), [
             'scope'        => 'series',
             'recurrenceId' => $this->start()->modify('+1 week')->format('Y-m-d\TH:i:s\Z'),
             'startsAt'     => $moved->format('Y-m-d\TH:i'),
@@ -367,32 +550,35 @@ final class DuplicateMeetingEditorTest extends WebTestCase
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
-     * @param list<int|null>        $copies
+     * The editor posts CALENDAR ids, not event ids: its one control is a
+     * checkbox per calendar the user owns, ticked where the meeting already is.
+     *
+     * @param list<int|null>        $calendars
      * @param array<string, string> $overrides
      */
-    private function save(KernelBrowser $client, CalendarEvent $event, array $copies, array $overrides = []): void
+    private function save(KernelBrowser $client, CalendarEvent $event, array $calendars, array $overrides = []): void
     {
         $start = $this->start();
 
         $client->request('POST', '/calendar/event/save', array_merge([
-            '_token'   => $this->token($client, $event, '_token'),
-            'eventId'  => (string) $event->id,
-            'title'    => 'Sync',
-            'timeZone' => 'UTC',
-            'startsAt' => $start->format('Y-m-d\TH:i'),
-            'endsAt'   => $start->modify('+1 hour')->format('Y-m-d\TH:i'),
-            'view'     => CalendarView::Day->value,
-            'copies'   => array_map(strval(...), $copies),
+            '_token'    => $this->token($client, $event, '_token'),
+            'eventId'   => (string) $event->id,
+            'title'     => 'Sync',
+            'timeZone'  => 'UTC',
+            'startsAt'  => $start->format('Y-m-d\TH:i'),
+            'endsAt'    => $start->modify('+1 hour')->format('Y-m-d\TH:i'),
+            'view'      => CalendarView::Day->value,
+            'calendars' => array_map(strval(...), $calendars),
         ], $overrides));
     }
 
-    /** @param list<int|null> $copies */
-    private function delete(KernelBrowser $client, CalendarEvent $event, array $copies): void
+    /** @param list<int|null> $calendars */
+    private function delete(KernelBrowser $client, CalendarEvent $event, array $calendars): void
     {
         $client->request('POST', '/calendar/event/' . $event->id . '/delete', [
             '_deleteToken' => $this->token($client, $event, '_deleteToken'),
             'date'         => $this->start()->format('Y-m-d'),
-            'copies'       => array_map(strval(...), $copies),
+            'calendars'    => array_map(strval(...), $calendars),
         ]);
     }
 
@@ -431,6 +617,34 @@ final class DuplicateMeetingEditorTest extends WebTestCase
         ));
     }
 
+    /**
+     * The syncs the request asked for.
+     *
+     * Asserted to be the in-memory transport rather than cast to it: a real
+     * transport here would make every assertion about what was dispatched
+     * vacuously true.
+     *
+     * @return list<SyncCalendarMessage>
+     */
+    private function dispatchedSyncs(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.ingest');
+
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        $syncs = [];
+
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+
+            if (true === $message instanceof SyncCalendarMessage) {
+                $syncs[] = $message;
+            }
+        }
+
+        return $syncs;
+    }
+
     private function reload(CalendarEvent $event): CalendarEvent
     {
         $reloaded = $this->events->find($event->id);
@@ -448,6 +662,17 @@ final class DuplicateMeetingEditorTest extends WebTestCase
     private function start(): DateTimeImmutable
     {
         return new DateTimeImmutable('tomorrow 09:00', new DateTimeZone('UTC'));
+    }
+
+    /**
+     * The two calendars this fixture has, which is what "every box ticked"
+     * posts now that the control is a checkbox per calendar.
+     *
+     * @return list<int|null>
+     */
+    private function bothCalendars(): array
+    {
+        return [$this->account->id, $this->mirror->id];
     }
 
     /** @return array{CalendarEvent, CalendarEvent} */

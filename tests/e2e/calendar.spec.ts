@@ -346,7 +346,7 @@ test.describe("a meeting on two calendars", () => {
         await expect(meetingChips(page)).toHaveCount(1);
     });
 
-    test("lists every calendar it is on, and disables the one that takes no changes", async ({ page }) => {
+    test("ticks every calendar it is on, and disables the one that takes no changes", async ({ page }) => {
         seed("seed-duplicate-event --read-only");
 
         await page.goto("/calendar/agenda");
@@ -358,8 +358,9 @@ test.describe("a meeting on two calendars", () => {
         await expect(locked).toBeDisabled();
         await expect(locked).not.toBeChecked();
 
-        // The dropdown is replaced, never shown beside a control that
-        // contradicts it — see the header comment on _event_modal.html.twig.
+        // There is one calendar control and it is this list — the dropdown is
+        // gone, never shown beside a control that contradicts it. See the
+        // header comment on _event_modal.html.twig.
         await expect(modal.getByLabel("Calendar", { exact: true })).toHaveCount(0);
     });
 
@@ -402,6 +403,61 @@ test.describe("a meeting on two calendars", () => {
 
         await expect(meetingChips(page)).toHaveCount(1);
         await expect(page.getByRole("button", { name: `${TITLE} (moved room)` })).toHaveCount(1);
+    });
+
+    /**
+     * The other direction, and the reason the list is every calendar rather
+     * than only the ones a copy is already on: ticking an empty calendar puts
+     * the meeting there.
+     *
+     * The chip count is the assertion that distinguishes a copy from a
+     * duplicate. The new row carries the meeting's UID, so EventClusterer
+     * merges the two and the agenda still draws one — a row minted with a UID
+     * of its own would look identical in the editor and draw a second chip at
+     * the same hour of the same day, for ever.
+     *
+     * Reopening is how the row is confirmed to exist without reading the
+     * database: a box is ticked when, and only when, the meeting is on that
+     * calendar.
+     */
+    test("puts the meeting on a calendar it was not on, and it stays one chip", async ({ page }) => {
+        seed("seed-duplicate-event --single");
+
+        await page.goto("/calendar/agenda");
+        await expect(meetingChips(page)).toHaveCount(1);
+
+        const modal = await openMeeting(page);
+        const second = modal.getByRole("checkbox", { name: new RegExp(SECOND) });
+
+        await expect(second).not.toBeChecked();
+        await second.check();
+        await submit(page, modal, "Save");
+
+        await page.goto("/calendar/agenda");
+
+        await expect(meetingChips(page)).toHaveCount(1);
+
+        const reopened = await openMeeting(page);
+
+        await expect(reopened.getByRole("checkbox", { name: new RegExp(SECOND) })).toBeChecked();
+        await expect(reopened.getByRole("checkbox", { name: /E2E Duplicate A/ })).toBeChecked();
+    });
+
+    /**
+     * A destination that accepts no writes back is offered rather than hidden,
+     * so the list stays a true statement of where the meeting could be — and
+     * disabled, because it cannot be one of those places.
+     */
+    test("offers a calendar that takes no changes as a destination, and disables it", async ({ page }) => {
+        seed("seed-duplicate-event --single --read-only");
+
+        await page.goto("/calendar/agenda");
+
+        const modal = await openMeeting(page);
+        const locked = modal.getByRole("checkbox", { name: new RegExp(SECOND) });
+
+        await expect(locked).toBeDisabled();
+        await expect(locked).not.toBeChecked();
     });
 
     test("a delete with every copy ticked takes it off both calendars", async ({ page }) => {

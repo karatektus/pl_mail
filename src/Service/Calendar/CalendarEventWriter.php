@@ -414,8 +414,16 @@ final readonly class CalendarEventWriter
      * install's hostname on purpose: a UID must not change when someone puts
      * the app behind a different name, because it is the identity every other
      * calendar matches this event on.
+     *
+     * Public for exactly one caller, EventCopyResolver, and for a reason worth
+     * stating: putting one new meeting on three calendars is three rows that
+     * MUST share a UID, and write() mints only for a row that has none — so
+     * left to it, the three would get three UIDs and draw three chips. The
+     * resolver mints once and stamps them, and it calls this rather than
+     * spelling out a second way of making a UID, because two spellings would
+     * agree until one of them learned about the domain part.
      */
-    private function newUid(): string
+    public function newUid(): string
     {
         return bin2hex(random_bytes(16)) . '@plmail';
     }

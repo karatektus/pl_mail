@@ -6,6 +6,32 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+No schema change, no deployment change.
+
+### Added
+
+- **An event can be put on another calendar, including one you sync.** The
+  editor's calendar list is now every calendar you have, ticked wherever the
+  meeting already is. Tick one it is not on and a copy is made there — on a
+  mirrored calendar that means it is pushed to Google, Microsoft or your CalDAV
+  server straight away, which is how a booking read out of an email gets onto
+  the calendar on your phone. The copy is the same meeting rather than a second
+  one, so the views still draw a single entry, and a later update from the
+  organiser still reaches every copy of it.
+
+### Changed
+
+- **The event editor's calendar dropdown is gone.** The checkbox list does
+  everything it did and one thing it could not, and two controls answering
+  "which calendars is this on?" can disagree — a calendar picked in one and
+  three boxes ticked in the other is a meeting asked to be in three places at
+  once. Unticking a calendar still leaves that copy exactly as it was rather
+  than removing it; Delete is what removes, and it reads the same ticks. Moving
+  an event to a different calendar is therefore two steps now: tick the new one
+  and save, then re-open, tick only the old one and delete.
+
 ## v0.0.16 — 2026-08-05
 
 **Three schema changes, applied automatically on boot.** `calendar_event` gains a

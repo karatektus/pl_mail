@@ -36,7 +36,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * The second calendar can be made read-only, because "a mirror of somewhere
  * that does not accept writes back" is a state with its own rule in the editor
  * — listed, disabled, never written — and nothing else in the fixtures produces
- * one on a calendar holding a duplicated meeting.
+ * one on a calendar holding a duplicated meeting. It can also be left empty
+ * (--single), which is the fixture for the other direction: the editor offers
+ * every calendar, so a spec needs one the meeting is NOT on to tick.
  *
  * Idempotent, and destructive within its own scope: it removes the two
  * calendars it made last time and everything on them, so a spec that failed
@@ -92,6 +94,13 @@ final class SeedDuplicateEventCommand extends Command
         );
 
         $this->addOption(
+            'single',
+            null,
+            InputOption::VALUE_NONE,
+            'Put the meeting on the first calendar only, leaving the second empty',
+        );
+
+        $this->addOption(
             'clear',
             null,
             InputOption::VALUE_NONE,
@@ -135,7 +144,13 @@ final class SeedDuplicateEventCommand extends Command
 
         $startsAt = new DateTimeImmutable('tomorrow 09:00', new DateTimeZone('UTC'));
 
-        foreach ([$first, $second] as $calendar) {
+        // --single is the fixture for the other half of the editor: a meeting on
+        // one calendar with a second one standing empty beside it, so a spec can
+        // tick that empty one and check what lands there. Both calendars are
+        // still made, because the empty destination is the point.
+        $calendars = true === $input->getOption('single') ? [$first] : [$first, $second];
+
+        foreach ($calendars as $calendar) {
             $event      = new CalendarEvent();
             $event->uid = self::UID;
 
@@ -153,10 +168,11 @@ final class SeedDuplicateEventCommand extends Command
         $this->entityManager->flush();
 
         $io->success(sprintf(
-            'Seeded "%s" on "%s" and "%s"%s for %s.',
+            'Seeded "%s" on %s%s for %s.',
             self::TITLE,
-            self::FIRST_CALENDAR,
-            self::SECOND_CALENDAR,
+            1 === count($calendars)
+                ? sprintf('"%s", with "%s" left empty', self::FIRST_CALENDAR, self::SECOND_CALENDAR)
+                : sprintf('"%s" and "%s"', self::FIRST_CALENDAR, self::SECOND_CALENDAR),
             true === $second->isReadOnly ? ' (read-only)' : '',
             $userEmail,
         ));

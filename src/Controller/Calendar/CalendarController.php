@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Domain\DTO\Calendar\EventCopy;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
@@ -17,6 +18,7 @@ use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\CalendarRangeReader;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Calendar\EventClusterer;
+use App\Service\Calendar\EventCopyResolver;
 use App\Service\Calendar\EventDismisser;
 use App\Service\Calendar\EventInstanceEditor;
 use App\Service\Calendar\EventMover;
@@ -55,16 +57,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * form, a hand-edited parameter — means the series, which is what this
  * controller did before the choice existed.
  *
- * It is also opened on ONE EVENT and may act on several. A meeting that reached
- * plMail twice — extracted from its invitation onto the account's calendar, and
- * mirrored from the provider onto a connected one — is two rows sharing the
- * organiser's UID, drawn as one chip. The editor re-derives the whole set from
- * that UID (EventClusterer::copiesOf) rather than trusting a cluster identity
- * threaded through a URL, offers a checkbox per copy, and a save or a delete is
- * then N ordinary writes through CalendarEventWriter — each marked for push by
- * the same means a lone event is, because there is no second push path and
- * inventing one is how the two would drift. The loops below are delegation:
- * what "the same meeting" means lives in EventClusterer, and what a write means
+ * It is also opened on ONE EVENT and may act on several — including on rows
+ * that do not exist yet. The editor's calendar control is a checkbox per
+ * calendar the user owns, ticked where the meeting already is: a meeting that
+ * reached plMail twice, extracted from its invitation onto the account's
+ * calendar and mirrored from the provider onto a connected one, opens with two
+ * ticks, and ticking a third calendar puts a copy there under the same UID. A
+ * save or a delete is then N ordinary writes through CalendarEventWriter — each
+ * marked for push by the same means a lone event is, because there is no second
+ * push path and inventing one is how the two would drift. The loops below are
+ * delegation: what "the same meeting" means lives in EventClusterer, which
+ * calendars it could be on lives in EventCopyResolver, and what a write means
  * lives in the writer.
  */
 #[Route('/calendar', name: 'app_calendar_')]
@@ -91,6 +94,7 @@ final class CalendarController extends AbstractController
         private readonly EventInstanceEditor    $instances,
         private readonly EventMover             $mover,
         private readonly EventClusterer         $clusterer,
+        private readonly EventCopyResolver      $copies,
         private readonly AlertReader            $alerts,
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
@@ -148,12 +152,14 @@ final class CalendarController extends AbstractController
         $startsAt = $this->time->parseDateTime($request->query->getString('start'), $zone)
             ?? new DateTimeImmutable('today 09:00', $zone);
 
+        $this->ensureCalendars($user);
+
         return $this->render('calendar/_event_modal.html.twig', [
             'event'        => null,
-            'calendars'    => $this->calendars->findForUser($user),
-            // Nothing exists to have copies of yet, so the editor renders its
-            // calendar dropdown rather than a list of one checkbox.
-            'members'      => [],
+            // Nothing exists to be a copy of yet, so nothing is ticked except
+            // where a new event would land — and ticking a second calendar
+            // creates it on both at once, under one UID.
+            'copies'       => $this->copies->optionsFor(null, $user),
             'title'        => '',
             'startsAt'     => $startsAt,
             'endsAt'       => $startsAt->modify('+1 hour'),
@@ -173,10 +179,10 @@ final class CalendarController extends AbstractController
      * re-open where it went rather than where the rule put it.
      *
      * The whole cluster is resolved from this event's UID, so the editor can
-     * offer a checkbox per copy. Any member's values would do for the fields —
-     * a cluster of several exists only while its members agree about all of
-     * them — so the opened event's are shown, which is also what makes a
-     * merged chip open the same editor a lone one does.
+     * tick the calendars the meeting is already on. Any member's values would
+     * do for the fields — a cluster of several exists only while its members
+     * agree about all of them — so the opened event's are shown, which is also
+     * what makes a merged chip open the same editor a lone one does.
      */
     #[Route('/event/{id}/edit', name: 'event_edit', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function eventEdit(Request $request, CalendarEvent $event): Response
@@ -191,8 +197,7 @@ final class CalendarController extends AbstractController
 
         return $this->render('calendar/_event_modal.html.twig', [
             'event'        => $event,
-            'calendars'    => $this->calendars->findForUser($this->currentUser()),
-            'members'      => $this->clusterer->copiesOf($event, $this->currentUser()),
+            'copies'       => $this->copies->optionsFor($event, $this->currentUser()),
             'title'        => null === $instance ? (string) $event->title : $this->instances->titleOf($event, $instance),
             'startsAt'     => $startsAt->setTimezone($zone),
             'endsAt'       => $endsAt->setTimezone($zone),
@@ -207,11 +212,9 @@ final class CalendarController extends AbstractController
     {
         $this->assertCsrf($request, 'calendar_event');
 
-        $user     = $this->currentUser();
-        $eventId  = $request->request->getInt('eventId');
-        $event    = 0 === $eventId ? new CalendarEvent() : $this->ownedEvent($eventId);
-        $calendar = $this->calendars->findOneForUser($user, $request->request->getInt('calendarId'))
-            ?? $this->provisioner->defaultFor($user);
+        $user    = $this->currentUser();
+        $eventId = $request->request->getInt('eventId');
+        $event   = 0 === $eventId ? null : $this->ownedEvent($eventId);
 
         $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
         $zone     = $this->time->safeZone($zoneName);
@@ -224,14 +227,32 @@ final class CalendarController extends AbstractController
             return $this->json(['error' => 'calendar.error.invalid_times'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $copies  = $this->clusterer->copiesOf($event, $user);
-        $targets = $this->targets($request, $event, $copies);
+        $this->ensureCalendars($user);
 
-        // Every copy unticked is an edit with nowhere to go. Refused rather
+        $targets = $this->copies->chosen(
+            $this->copies->optionsFor($event, $user),
+            $request->request->all('calendars'),
+        );
+
+        // Every calendar unticked is an edit with nowhere to go. Refused rather
         // than performed silently, because a save that redraws the calendar
         // unchanged reads as a save that did not work.
         if ([] === $targets) {
             return $this->json(['error' => 'calendar.error.no_copies'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $isInstanceScope = self::SCOPE_INSTANCE === $request->request->getString('scope');
+
+        // "This event" cannot also mean "and put the series on a calendar it
+        // has never been on". There is no row for one occurrence to write, so a
+        // create under this scope would have to invent the series it belongs to
+        // out of the INSTANCE's times — which is how a weekly meeting ends up
+        // on the new calendar starting on the day the user happened to click.
+        // Refused whole rather than honoured for the copies that already exist
+        // and silently skipped for the rest, because a tick that did nothing is
+        // the kind of nothing people only notice weeks later.
+        if (true === $isInstanceScope && true === $this->createsAnything($targets)) {
+            return $this->json(['error' => 'calendar.error.instance_create'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // Resolved once, against the event the editor was opened on, and then
@@ -248,7 +269,7 @@ final class CalendarController extends AbstractController
         // bug, where unticking a reminder silently leaves it on every copy the
         // user was not looking at.
         $alerts = $this->alerts->chosen(
-            0 === $eventId ? null : $event,
+            $event,
             array_values(array_filter(
                 $request->request->all('alerts'),
                 is_string(...),
@@ -271,9 +292,11 @@ final class CalendarController extends AbstractController
         $landOn = $startsAt;
 
         // N calendars is N ordinary writes, each marked for push by the same
-        // means a lone event is. A read-only copy never reaches this loop:
-        // targets() drops it whatever the request claimed.
-        foreach ($targets as $index => $copy) {
+        // means a lone event is. A read-only calendar never reaches this loop:
+        // EventCopyResolver::chosen() drops it whatever the request claimed.
+        foreach ($targets as $index => $target) {
+            $copy = $target->event;
+
             $this->writer->markUserEdited($copy);
 
             // "This event" is not a smaller version of "all events": there is no
@@ -292,9 +315,7 @@ final class CalendarController extends AbstractController
             // outcome: it disagrees afterwards and is drawn as its own chip.
             $openedOn = $this->instances->instance($copy, $request->request->getString('recurrenceId'));
 
-            $instance = self::SCOPE_INSTANCE === $request->request->getString('scope')
-                ? $openedOn
-                : null;
+            $instance = true === $isInstanceScope ? $openedOn : null;
 
             $copyStart = $startsAt;
             $copyEnd   = $endsAt;
@@ -325,21 +346,20 @@ final class CalendarController extends AbstractController
                 continue;
             }
 
-            // Before write(), which is what assigns the calendar: on a new event
-            // there is nothing to read the "is this synced?" question off yet,
-            // and on an existing one the answer must be taken from where the
-            // event is now rather than from where it is being moved to.
-            $isNew = null === $copy->id;
+            // Before write(), which is what persists the row: this is the
+            // difference between a POST and a PUT at the provider, and after
+            // the write every copy looks equally established.
+            $isNew = $target->isNew();
 
             $this->writer->write(
                 event:          $copy,
-                // The copy's OWN calendar once there is more than one of them.
-                // The editor replaces its calendar dropdown with the checkbox
-                // list for a merged chip, so there is no destination to honour
-                // — and honouring one would move every copy of the meeting onto
-                // a single calendar, collapsing rows that each hold their own
-                // remoteId, etag and sync state.
-                calendar:       1 < count($copies) ? ($copy->calendar ?? $calendar) : $calendar,
+                // Each copy's OWN calendar, always — the one it is on, or the
+                // one the ticked box named for a copy that did not exist a
+                // moment ago. There is no posted destination to honour and no
+                // field left that could carry one: honouring one would move
+                // every copy of the meeting onto a single calendar, collapsing
+                // rows that each hold their own remoteId, etag and sync state.
+                calendar:       $target->calendar,
                 user:           $user,
                 title:          $request->request->getString('title') ?: 'Untitled',
                 startsAt:       $copyStart,
@@ -370,7 +390,14 @@ final class CalendarController extends AbstractController
 
         $this->em->flush();
 
-        $this->dispatchSync($targets);
+        // After the flush, so a row created a moment ago is one the worker can
+        // read — and mapped rather than passed whole, because the sync question
+        // is asked of the event's calendar and a copy that was created now has
+        // one exactly like every other.
+        $this->dispatchSync(array_map(
+            static fn (EventCopy $target): CalendarEvent => $target->event,
+            $targets,
+        ));
 
         return $this->redirectAfterWrite($request, $landOn->format('Y-m-d'));
     }
@@ -468,9 +495,13 @@ final class CalendarController extends AbstractController
      * hold two fields of the same name, and the delete keeps a token of its own
      * bound to this event's id rather than borrowing the editor's.
      *
-     * It follows the same rule as the save: it removes the copies that are
-     * ticked, and leaves the rest — including every read-only one — exactly
-     * where they are.
+     * It reads the same ticks the save reads, and means by them the only thing
+     * a delete can mean: the copies on the ticked calendars go, and the rest —
+     * including every read-only one — stay exactly where they are. A ticked
+     * calendar the meeting is not on yet has nothing to delete and is dropped by
+     * EventCopyResolver::existing(); creating a row in order to remove it would
+     * be absurd, and refusing the delete because a default tick happened to name
+     * an empty calendar would be worse.
      */
     #[Route('/event/{id}/delete', name: 'event_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function eventDelete(Request $request, CalendarEvent $event): Response
@@ -479,8 +510,10 @@ final class CalendarController extends AbstractController
         $this->assertCsrf($request, 'calendar_event_delete' . $event->id, '_deleteToken');
 
         $date    = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
-        $copies  = $this->clusterer->copiesOf($event, $this->currentUser());
-        $targets = $this->targets($request, $event, $copies);
+        $targets = $this->copies->existing($this->copies->chosen(
+            $this->copies->optionsFor($event, $this->currentUser()),
+            $request->request->all('calendars'),
+        ));
 
         if ([] === $targets) {
             return $this->json(['error' => 'calendar.error.no_copies'], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -684,12 +717,8 @@ final class CalendarController extends AbstractController
         $user = $this->currentUser();
 
         // A user who has never had a calendar gets one here rather than an
-        // empty page: provisioning covers new accounts and the backfill covers
-        // old ones, but neither covers a user who has no account at all.
-        if (0 === count($this->calendars->findForUser($user))) {
-            $this->provisioner->defaultFor($user);
-            $this->em->flush();
-        }
+        // empty page.
+        $this->ensureCalendars($user);
 
         $view   = CalendarView::tryFrom($request->query->getString('view')) ?? $default;
         $anchor = $date ?? new DateTimeImmutable('today', $this->time->zoneFor($user));
@@ -717,28 +746,44 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * Which copies of this meeting a save or a delete is for.
+     * Whether any ticked calendar would gain a copy rather than have one
+     * updated.
      *
-     * An ordinary event is a cluster of one and posts no checkboxes at all, so
-     * it answers itself — the editor showed a calendar dropdown and the old
-     * behaviour is what it means. Only a merged chip renders `copies[]`, and
-     * only then does the answer come from what the user ticked.
+     * Asked before the write loop rather than inside it, because the answer
+     * decides whether the whole save happens: half a save, with the existing
+     * copies patched and the new calendar quietly skipped, is the outcome worth
+     * more than any of the fields.
      *
-     * Deliberately not "everything when nothing was ticked". That fallback
-     * reads as helpful and is the one that writes every copy of a meeting after
-     * a user has explicitly cleared the list.
-     *
-     * @param non-empty-list<CalendarEvent> $copies
-     *
-     * @return list<CalendarEvent>
+     * @param list<EventCopy> $targets
      */
-    private function targets(Request $request, CalendarEvent $event, array $copies): array
+    private function createsAnything(array $targets): bool
     {
-        if (1 === count($copies)) {
-            return [$event];
+        foreach ($targets as $target) {
+            if (true === $target->isNew()) {
+                return true;
+            }
         }
 
-        return $this->clusterer->chosen($copies, $request->request->all('copies'));
+        return false;
+    }
+
+    /**
+     * A user with no calendar at all gets one.
+     *
+     * The ticks are the only thing that says where an event goes now that the
+     * dropdown is gone, so an empty list would make Save answer "nothing was
+     * chosen" to a user who had nothing to choose. This is what eventSave()'s
+     * old fallback from a missing `calendarId` to CalendarProvisioner did, kept
+     * because the case it covers is real: provisioning covers new accounts and
+     * the backfill covers old ones, and neither covers a user with no account
+     * at all who opens the editor before ever opening the calendar.
+     */
+    private function ensureCalendars(User $user): void
+    {
+        if (0 === count($this->calendars->findForUser($user))) {
+            $this->provisioner->defaultFor($user);
+            $this->em->flush();
+        }
     }
 
     /**

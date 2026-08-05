@@ -160,14 +160,23 @@ final readonly class EventClusterer
     }
 
     /**
-     * The copies an edit is allowed to reach: the ones the user ticked, minus
-     * the ones nothing may write.
+     * The copies a gesture is allowed to reach: the ones named, minus the ones
+     * nothing may write.
      *
-     * The read-only filter is here and not only in the template. The checkbox is
-     * rendered disabled and unticked, so an ordinary submit never names one —
-     * but a disabled checkbox is a statement to a browser, not a guarantee to a
-     * server, and a mirror of somewhere that does not accept writes back must
-     * refuse a crafted request as flatly as it refuses a click.
+     * The read-only filter is here and not only in the client. The grid refuses
+     * to start a drag on a read-only calendar and says so — but a client is a
+     * statement to a browser, not a guarantee to a server, and a mirror of
+     * somewhere that does not accept writes back must refuse a crafted request
+     * as flatly as it refuses a click.
+     *
+     * **This is the drag's filter; the editor has its own.** They take different
+     * things and answer different questions, and merging them would have to
+     * pretend otherwise. A drag names EVENT ids, because it acts on the rows the
+     * chip it grabbed was merged from and can no more create a copy than it can
+     * rename one. The editor names CALENDAR ids, because its list is every
+     * calendar the user owns and ticking an empty one means "put it here too" —
+     * see EventCopyResolver::chosen(), which is where that lives and which keeps
+     * this same read-only refusal for the same reason.
      *
      * @param list<CalendarEvent> $copies
      * @param array<mixed>        $chosenIds as posted, so entirely untrusted

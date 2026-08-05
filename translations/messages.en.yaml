@@ -457,6 +457,9 @@ calendar:
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
     error:
+        instance_create: >-
+            One occurrence cannot be added to a calendar on its own. Choose "All
+            events" to put this meeting on another calendar.
         invalid_times: 'Those times do not work — the end has to come after the start.'
         no_copies: 'Nothing was chosen, so nothing was changed. Tick at least one calendar.'
         read_only: 'This event is only on calendars that do not accept changes, so it was left where it was.'
@@ -489,13 +492,12 @@ calendar:
                 not apply to them.
             unreadable: Reminder set somewhere else
         all_day: All day
-        calendar: Calendar
         cancel: Cancel
         copies:
             help: >-
-                This meeting is on more than one calendar. Untick a copy to
-                leave it as it is — it will then differ from the others and
-                show up as its own entry.
+                Ticked calendars get this event. Tick one it is not on yet to put
+                a copy there; untick one to leave that copy as it is — it will
+                then differ from the others and show up as its own entry.
             legend: Calendars
             read_only: This calendar does not accept changes
         delete: Delete
@@ -515,6 +517,9 @@ calendar:
         save: Save
         scope:
             instance: This event
+            instance_note: >-
+                "This event" changes only the occurrence you opened, so it cannot
+                add the meeting to a calendar it is not on yet.
             legend: Apply to
             series: All events
         starts: Starts

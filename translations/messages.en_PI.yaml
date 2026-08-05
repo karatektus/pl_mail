@@ -376,6 +376,9 @@ calendar:
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
     empty: Naught on the horizon
     error:
+        instance_create: >-
+            One lone reckonin' cannot be shipped to an almanac on its own. Pick
+            "Every reckonin'" to lay this meetin' in another almanac.
         invalid_times: 'Them bells be wrong — the end must come after the start.'
         no_copies: 'Naught was picked, so naught was changed. Mark at least one almanac.'
         read_only: >-
@@ -410,13 +413,12 @@ calendar:
                 no say over them.
             unreadable: A nudge set in some other port
         all_day: All the day long
-        calendar: Almanac
         cancel: Belay that
         copies:
             help: >-
-                This reckonin' sits in more than one almanac. Unmark a copy to
-                leave it be — it shall then differ from the rest an' sail as
-                its own entry.
+                Marked almanacs get this reckonin'. Mark one it be not in yet to
+                lay a copy there; unmark one to leave that copy be — it shall
+                then differ from the rest an' sail as its own entry.
             legend: Almanacs
             read_only: This almanac takes no changes
         delete: Scuttle it
@@ -436,6 +438,9 @@ calendar:
         save: Stow it
         scope:
             instance: This here reckonin'
+            instance_note: >-
+                "This here reckonin'" changes only the one ye opened, so it
+                cannot lay the meetin' in an almanac it be not in yet.
             legend: Apply it to
             series: Every reckonin'
         starts: Starts

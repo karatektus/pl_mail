@@ -229,7 +229,11 @@ final class EventAlertEditorTest extends WebTestCase
         $client->request('POST', '/calendar/event/save', [
             '_token'             => $this->token($client),
             'eventId'            => $event->id,
-            'calendarId'         => $this->calendar->id,
+            // Calendar ids, which is what the editor's one calendar control
+            // posts. A save that names none is refused, so this is not
+            // boilerplate — it is the statement "write the copy on this
+            // calendar" that every save has to make.
+            'calendars'          => [(string) $this->calendar->id],
             'title'              => 'Standup',
             'timeZone'           => 'UTC',
             'startsAt'           => $this->start()->format('Y-m-d\TH:i:s'),
