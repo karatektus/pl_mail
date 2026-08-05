@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Jmap\Session;
 
 use App\Entity\User\User;
+use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\State\StateManager;
+use App\Service\Calendar\RecurrenceMaterialiser;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -25,6 +27,7 @@ final class SessionBuilder
 {
     public function __construct(
         private readonly StateManager $stateManager,
+        private readonly CalendarAccountResolver $calendarAccountResolver,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly string $vapidPublicKey,
     ) {
@@ -40,19 +43,32 @@ final class SessionBuilder
 
         $accounts = [];
         $primaryId = null;
+        // Calendars are the user's, not an account's, so exactly one account
+        // publishes them — see CalendarAccountResolver, which is also what
+        // every calendar method checks an accountId against. Two rules for
+        // which account that is would advertise calendars where they cannot be
+        // fetched.
+        $calendarAccount = $this->calendarAccountResolver->accountFor($user);
+        $calendarAccountId = null === $calendarAccount ? null : (string) $calendarAccount->id;
 
         foreach ($user->accounts as $account) {
             $accountId = (string) $account->id;
             $primaryId ??= $accountId;
 
+            $accountCapabilities = [
+                Capability::MAIL => $this->mailAccountCapabilities(),
+                Capability::SUBMISSION => $this->submissionCapabilities(),
+            ];
+
+            if ($accountId === $calendarAccountId) {
+                $accountCapabilities[Capability::CALENDARS] = $this->calendarAccountCapabilities();
+            }
+
             $accounts[$accountId] = [
                 'name' => (string) $account->email,
                 'isPersonal' => true,
                 'isReadOnly' => false,
-                'accountCapabilities' => [
-                    Capability::MAIL => $this->mailAccountCapabilities(),
-                    Capability::SUBMISSION => $this->submissionCapabilities(),
-                ],
+                'accountCapabilities' => $accountCapabilities,
             ];
         }
 
@@ -60,6 +76,10 @@ final class SessionBuilder
 
         if (null !== $primaryId) {
             $primaryAccounts[Capability::MAIL] = $primaryId;
+        }
+
+        if (null !== $calendarAccountId) {
+            $primaryAccounts[Capability::CALENDARS] = $calendarAccountId;
         }
 
         // Empty JMAP maps must serialise as {} rather than [].
@@ -81,6 +101,7 @@ final class SessionBuilder
                 Capability::MAIL => new \stdClass(),
                 Capability::SUBMISSION => new \stdClass(),
                 Capability::PUSH => $this->pushCapabilities(),
+                Capability::CALENDARS => new \stdClass(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -126,6 +147,40 @@ final class SessionBuilder
             'maxSizeAttachmentsPerEmail' => 50_000_000,
             'emailQuerySortOptions' => ['receivedAt', 'from', 'to', 'subject', 'size'],
             'mayCreateTopLevelMailbox' => true,
+        ];
+    }
+
+    /**
+     * What a client may assume about this account's calendars.
+     *
+     * maxEventsInGet is lower than the Session's global maxObjectsInGet on
+     * purpose and is stated here for that reason: CalendarEvent/get resolves
+     * one id at a time, because the ownership-scoped lookup it uses is the only
+     * one CalendarEventRepository offers, and a client obeying 500 would
+     * otherwise meet a requestTooLarge it was told not to expect.
+     *
+     * mayCreateCalendar is false because Calendar/set is not implemented: the
+     * two provisioned roles are created by CalendarProvisioner and a subscribed
+     * one by the subscribe flow, neither of which a JMAP create could stand in
+     * for.
+     *
+     * @return array<string,mixed>
+     */
+    private function calendarAccountCapabilities(): array
+    {
+        return [
+            'maxEventsInGet' => 100,
+            'maxEventsInSet' => 500,
+            'mayCreateCalendar' => false,
+            // The window CalendarEvent/query can be trusted over. Occurrences
+            // are materialised to RecurrenceMaterialiser's horizon and no
+            // further, so a query outside it answers from a partial index —
+            // stated rather than left for a client to discover as a recurring
+            // meeting that stops.
+            'materialisedHorizon' => [
+                'past' => RecurrenceMaterialiser::HORIZON_PAST,
+                'future' => RecurrenceMaterialiser::HORIZON_FUTURE,
+            ],
         ];
     }
 

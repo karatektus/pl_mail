@@ -135,6 +135,43 @@ abstract class JmapTestCase extends KernelTestCase
         return $message;
     }
 
+    /**
+     * A second mail account on the same user.
+     *
+     * The seed above is deliberately one account, because that is the smallest
+     * world a method runs against — but "which account" is a real question for
+     * anything user-scoped, and a test asking it needs a second one that is
+     * genuinely the user's rather than a stranger's.
+     */
+    protected function secondAccount(): Account
+    {
+        $suffix = uniqid('', true);
+
+        $account = new Account();
+        $account->usr = $this->user;
+        $account->name = 'Jmap Fixture (second)';
+        $account->email = 'jmap-second-'.$suffix.'@example.test';
+        $account->username = 'jmap-second-'.$suffix.'@example.test';
+        $account->imapHost = 'localhost';
+        $account->imapPort = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost = 'localhost';
+        $account->smtpPort = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password = 'x';
+        $account->authType = 'password';
+        $account->isActive = true;
+
+        $this->em->persist($account);
+        $this->em->flush();
+
+        // AccountResolver scopes on the inverse side, which persisting the
+        // owning side alone does not populate.
+        $this->user->addAccount($account);
+
+        return $account;
+    }
+
     protected function customLabel(string $name, ?Label $parent = null): Label
     {
         $label = new Label();

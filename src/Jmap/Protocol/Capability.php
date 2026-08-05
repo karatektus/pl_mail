@@ -21,6 +21,25 @@ final class Capability
     public const string PUSH = 'urn:plmail:params:jmap:push';
 
     /**
+     * Vendor extension: Calendar and CalendarEvent.
+     *
+     * Deliberately NOT "urn:ietf:params:jmap:calendars". JMAP for Calendars is
+     * an unratified draft whose object shape is still moving — properties have
+     * been renamed and re-scoped between revisions — so advertising its URN
+     * would promise a contract no client could rely on, and a client that
+     * believed it would break on the revision after the one this was written
+     * against. A vendor URN says what is true: this is plMail's calendar
+     * surface, and only something written for plMail should use it.
+     *
+     * The same call PUSH above already made, for the same reason: RFC 8620
+     * defines nowhere to put a VAPID key, so the key went behind a URN nobody
+     * can mistake for a standard. Switching to the IETF URN when the draft is
+     * ratified is then an addition rather than a breaking change — both can be
+     * advertised while clients move across.
+     */
+    public const string CALENDARS = 'urn:plmail:params:jmap:calendars';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -30,5 +49,6 @@ final class Capability
         self::CORE,
         self::MAIL,
         self::SUBMISSION,
+        self::CALENDARS,
     ];
 }

@@ -3,9 +3,10 @@
 A conformant JMAP subset (RFC 8620 core, RFC 8621 mail): the request envelope,
 the state/change engine every `/changes` method builds on, the Mailbox / Email /
 Thread / Identity / EmailSubmission object methods, blob upload and download,
-and push over both EventSource and Web Push.
+and push over both EventSource and Web Push. Plus calendars, under a vendor URN
+rather than the unratified draft's.
 
-**20 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**24 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -17,6 +18,8 @@ Mail (Basic).
 | `Identity/` | `get`, `set` |
 | `EmailSubmission/` | `get`, `set`, `changes` |
 | `SearchSnippet/` | `get` |
+| `Calendar/` | `get` |
+| `CalendarEvent/` | `get`, `query`, `set` |
 
 ---
 
@@ -61,6 +64,17 @@ rather than leaking.
 - `Mail/EmailPatchApplier` — keyword/mailbox patch semantics, shared by
   `Email/set update` and `EmailSubmission/set onSuccessUpdateEmail`.
 - `Mail/JmapDraftWriter` — `Email/set create`, mirroring the web composer.
+
+**Calendar glue**
+- `Account/CalendarAccountResolver` — which JMAP account serves calendars, and
+  the refusal for every other one.
+- `Mapper/CalendarMapper`, `Mapper/CalendarEventMapper` — the two objects. The
+  second one carries the id-space argument.
+- `Query/CalendarEventQueryRunner` — the window, the calendars, and the
+  occurrence → event id translation.
+- `Calendar/JmapEventWriter` — reads a JSCalendar object off the wire and hands
+  it to `CalendarEventWriter`; nothing here assigns a column.
+- `Calendar/CalendarState` — why the calendar state string is a constant.
 
 **State — the sync engine**
 - `State/ChangeLog` (entity) — append-only; the autoincrement PK *is* the state
@@ -154,6 +168,38 @@ Get these wrong and things fail quietly rather than loudly.
   did not is the failure this whole layer is careful about. `app:backfill
   category` is what fills those in, and re-running it after a change to
   `MessageCategorizer` needs no resync — it reads only persisted data.
+- **A JMAP CalendarEvent id is a `calendar_event` id — the series.** The query
+  that finds events is a `tsrange &&` overlap over `calendar_event_occurrence`,
+  so the ids the database hands back are *occurrence* ids and
+  `CalendarEventQueryRunner` translates them. Both are autoincrement ints from
+  different tables, so an untranslated one is a valid-looking id for an
+  unrelated event — the same failure mode as Email.mailboxIds above, which is
+  why `CalendarEventQueryMethodTest` asserts round trips rather than shapes. The
+  series is the unit because that is what a JSCalendar Event *is* (rule plus
+  overrides, expanded client-side), and because occurrence rows are rewritten
+  wholesale on every write, so an id naming one would go stale when somebody
+  corrected a title.
+- **Calendars are served from ONE account, and it is the session's primary.**
+  A Calendar is user-scoped, with no per-account binding of the sort that makes
+  a Mailbox id an account-local thing. Publishing the list under every connected
+  account would put one calendar under three accountIds with the same id, which
+  a client — keying objects by (accountId, id) — draws three times. Every other
+  account answers `accountNotSupportedByMethod`.
+- **The calendar state string is fixed, and that is deliberate.** Mail's token
+  works because `MailChangeRecorder` makes the change log complete. An event
+  changes from four places — the sync engine, extraction, the web editor and
+  `CalendarEvent/set` — and only the last is in this directory, so a log written
+  here would sit still while a pull replaced the whole day. `canCalculateChanges`
+  is false, there is no `/changes`, and the value is non-numeric so that a client
+  still holding it gets `cannotCalculateChanges` if calendars ever do join the
+  log. See `Calendar/CalendarState`.
+- **`CalendarEvent/set` marks a synced event for push, and the writer does not.**
+  `CalendarEventWriter::write()` is also how a pull applies what it just read
+  from a remote, so marking there would push the remote's own data back at it —
+  hence `markLocallyCreated` / `markLocallyChanged` belong to whatever made the
+  change. A JMAP client is a person making a change, exactly as the web editor
+  is; without the mark an edit made on a phone never leaves the machine and the
+  next pull silently reverts it.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
@@ -290,6 +336,25 @@ worker message, so a sync importing 50 messages sends **one** notification.
   **stemmed**: a search for `running` marks `run`, and a term whose stem
   differs from the literal text still highlights. Re-implementing either in PHP
   would let a snippet highlight something the search did not match on.
+- **Calendars are advertised as `urn:plmail:params:jmap:calendars`, not
+  `urn:ietf:params:jmap:calendars`.** JMAP for Calendars is an unratified draft
+  whose object shape is still moving; claiming its URN would promise a contract
+  no client could rely on. Same call `urn:plmail:params:jmap:push` already made.
+- `CalendarEvent/query` **requires** `after` and `before`. Occurrences are
+  materialised only to `RecurrenceMaterialiser`'s horizon, so an unbounded query
+  would answer from a partial index and look complete. `inCalendar` is the only
+  other condition; a FilterOperator and a `sort` are refused rather than ignored.
+- `CalendarEvent/get` caps at 100 ids, not the session's 500, and says so in the
+  calendars accountCapabilities. Ids are resolved one at a time through
+  `CalendarEventRepository::findOneForUser()`, which is the only lookup there
+  that scopes on the owner; a `findByIdsForUser()` would make this one query.
+- `Calendar/set` is not implemented. The two provisioned roles come from
+  `CalendarProvisioner` and a mirrored one from the subscribe flow, neither of
+  which a JMAP create could stand in for.
+- `CalendarEvent/set` accepts a fixed JSCalendar vocabulary and refuses the rest
+  by name — `participants` (an RSVP goes through `InviteResponder`, which sends
+  an iTIP reply), `privacy`, `alerts`, `links`. It also refuses PatchObject
+  paths (`locations/1/name`): the writer takes whole values.
 - Not implemented: `Email/copy|import|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---
