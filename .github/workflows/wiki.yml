@@ -38,6 +38,12 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            # No Composer step anywhere in this job, deliberately:
+            # bin/mirror-wiki.php requires no autoloader and no package. It
+            # reads Markdown, rewrites links with preg_replace_callback and
+            # writes files — which is why it is the one piece of doc tooling
+            # that stayed dependency-free, and why this workflow finishes in
+            # seconds.
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:

@@ -32,6 +32,7 @@ return static function (
     array  $languages = [],
     string $locale = 'en',
     bool   $fallback = false,
+    string $prefix = 'docs/',
 ): string {
     $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
@@ -44,9 +45,13 @@ return static function (
             $sidebar .= sprintf('<p class="sidebar-heading">%s</p><ul>', $escape($section['title']));
 
             foreach ($section['pages'] as $page) {
+                // $prefix, not a literal 'docs/'. Built against the English
+                // path, every link in the German sidebar pointed at the English
+                // page — so choosing German lasted exactly one click, and the
+                // language picker looked broken when the navigation was.
                 $sidebar .= sprintf(
                     '<li><a href="%s%s"%s>%s</a></li>',
-                    $escape($root . 'docs/'),
+                    $escape($root . $prefix),
                     $escape($page['href']),
                     $page['href'] === $here ? ' aria-current="page"' : '',
                     $escape($page['title']),
@@ -183,7 +188,7 @@ return static function (
         <div class="topbar">
             <a class="brand" href="{$root}index.html">plMail</a>
             <div class="topbar-links">
-                <a href="{$root}docs/">{$escape($t['handbook'])}</a>
+                <a href="{$root}{$prefix}">{$escape($t['handbook'])}</a>
                 <a href="https://github.com/karatektus/pl_mail">GitHub</a>
             </div>
             <div class="search" role="search">

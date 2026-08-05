@@ -54,29 +54,55 @@ if (null !== languagePicker) {
 
     languagePicker.value = current;
 
-    languagePicker.addEventListener("change", () => {
-        const wanted = languagePicker.value;
-
+    /** Where a given page lives in another language. */
+    const inLanguage = (wanted) => {
         // The landing page is README.md and has no translation, so there is no
-        // German counterpart of it to go to — and its URL carries no /docs/
-        // segment to rewrite, which meant switching language on the front page
-        // silently did nothing at all. The handbook's index in that language is
-        // the nearest honest destination, and it is where somebody changing the
-        // language on a landing page was going anyway.
+        // counterpart of it to go to — and its URL carries no /docs/ segment to
+        // rewrite, which is why switching language there once did nothing at
+        // all. The handbook's index is the nearest honest destination.
         if (false === path.includes("/docs/")) {
-            window.location.href = "en" === wanted ? `${root}docs/` : `${root}docs/${wanted}/`;
-
-            return;
+            return "en" === wanted ? `${root}docs/` : `${root}docs/${wanted}/`;
         }
 
         // English is the tree's root; every other language is a directory
         // inside it, which is why this is two rules rather than one.
         const stripped = "en" === current ? path : path.replace(`/docs/${current}/`, "/docs/");
 
-        window.location.href = "en" === wanted
-            ? stripped
-            : stripped.replace("/docs/", `/docs/${wanted}/`);
+        return "en" === wanted ? stripped : stripped.replace("/docs/", `/docs/${wanted}/`);
+    };
+
+    languagePicker.addEventListener("change", () => {
+        // Remembered, because the language has to survive more than the click.
+        // The sidebar keeps a reader inside their language on its own — those
+        // links are built per page — but arriving from the landing page, from a
+        // bookmark or from somebody else's link lands on English every time,
+        // and being bounced back to English on every fresh visit is the whole
+        // complaint the picker was meant to answer.
+        localStorage.setItem("plmail-language", languagePicker.value);
+        window.location.href = inLanguage(languagePicker.value);
     });
+
+    // Landed on a page that is not in the remembered language: go to the one
+    // that is. This cannot loop — the redirect lands where `current` equals the
+    // remembered language, so the condition is false on arrival — and it cannot
+    // strand anybody in German, because choosing English is what sets the
+    // memory to English.
+    //
+    // `replace` rather than `href`, so Back leaves the site instead of bouncing
+    // between the two languages.
+    const remembered = localStorage.getItem("plmail-language");
+
+    // Not on the landing page. It has no translation and is the front door, so
+    // following the memory there threw somebody who once chose German straight
+    // into the handbook whenever they opened the site — which is a redirect
+    // away from the page they asked for, not a language preference.
+    if (null !== remembered
+        && remembered !== current
+        && true === known.includes(remembered)
+        && true === path.includes("/docs/")
+    ) {
+        window.location.replace(inLanguage(remembered));
+    }
 }
 
 // ── Wide tables ──────────────────────────────────────────────────────────────

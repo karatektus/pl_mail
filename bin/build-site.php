@@ -461,6 +461,7 @@ foreach ($languages as $language) {
                 languages: $languages,
                 locale:  $code,
                 fallback: $isFallback,
+                prefix:  $prefix,
             ),
         );
 
