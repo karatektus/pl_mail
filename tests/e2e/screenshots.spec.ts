@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { seed } from "./support/config";
+import { TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/config";
 
 /**
  * Captures the README screenshots against the demo mailbox.
@@ -19,6 +19,32 @@ const OUT = "docs/screenshots";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
+/**
+ * Screenshot, having first proved the page is the page.
+ *
+ * `admin.png` was a red Symfony exception page — "Access Denied. The user
+ * doesn't have ROLE_ADMIN." — committed to the repository and shown in the
+ * README, because this suite pressed the shutter at whatever `/admin` returned
+ * and the shared fixture user is not an administrator. Nothing failed: a
+ * screenshot of a 403 is a perfectly good screenshot.
+ *
+ * Every other capture here happens to assert something visible first, which is
+ * why only the admin one rotted. This makes it a rule rather than a habit, and
+ * it is deliberately a check on the ERROR page rather than on each page's own
+ * content: a per-page assertion is one more thing to forget, and the failure
+ * worth catching is always the same shape.
+ */
+async function capture(page: import("@playwright/test").Page, name: string): Promise<void> {
+    await expect(
+        page.locator('[class^="exception"], [class*=" exception"], .trace'),
+        `${name}.png would have been a Symfony error page`,
+    ).toHaveCount(0);
+
+    await expect(page).not.toHaveTitle(/exception|forbidden|error/i);
+
+    await page.screenshot({ path: `${OUT}/${name}.png` });
+}
+
 test.describe("README screenshots", () => {
     test.skip(
         undefined === process.env.E2E_SCREENSHOTS,
@@ -35,7 +61,7 @@ test.describe("README screenshots", () => {
         await page.goto("/mail/inbox");
         await expect(page.locator("#message-list li").first()).toBeVisible();
         await page.waitForTimeout(600);
-        await page.screenshot({ path: `${OUT}/inbox.png` });
+        await capture(page, "inbox");
     });
 
     test("thread", async ({ page }) => {
@@ -47,7 +73,7 @@ test.describe("README screenshots", () => {
             .click();
         await expect(page.getByText("alcove is 182cm").first()).toBeVisible();
         await page.waitForTimeout(600);
-        await page.screenshot({ path: `${OUT}/thread.png` });
+        await capture(page, "thread");
     });
 
     test("compose", async ({ page }) => {
@@ -73,7 +99,7 @@ test.describe("README screenshots", () => {
                 "No rush on the photos, whenever you get a chance is fine.",
             );
         await page.waitForTimeout(400);
-        await page.screenshot({ path: `${OUT}/compose.png` });
+        await capture(page, "compose");
     });
 
     test("inbox dark", async ({ page }) => {
@@ -81,19 +107,13 @@ test.describe("README screenshots", () => {
         await page.goto("/mail/inbox");
         await expect(page.locator("#message-list li").first()).toBeVisible();
         await page.waitForTimeout(600);
-        await page.screenshot({ path: `${OUT}/inbox-dark.png` });
+        await capture(page, "inbox-dark");
     });
 
     test("settings", async ({ page }) => {
         await page.goto("/settings");
         await page.waitForTimeout(900);
-        await page.screenshot({ path: `${OUT}/settings.png` });
-    });
-
-    test("admin", async ({ page }) => {
-        await page.goto("/admin");
-        await page.waitForTimeout(1200);
-        await page.screenshot({ path: `${OUT}/admin.png` });
+        await capture(page, "settings");
     });
 
     /**
@@ -144,7 +164,7 @@ test.describe("README screenshots", () => {
         await page.mouse.move(900, 600);
         await page.mouse.wheel(0, 160);
         await page.waitForTimeout(400);
-        await page.screenshot({ path: `${OUT}/filters.png` });
+        await capture(page, "filters");
     });
 
     /**
@@ -193,6 +213,51 @@ test.describe("README screenshots", () => {
         }
 
         await page.waitForTimeout(600);
-        await page.screenshot({ path: `${OUT}/calendar.png` });
+        await capture(page, "calendar");
+    });
+});
+
+/**
+ * The admin overview, which needs an administrator.
+ *
+ * Its own describe and its own session, for the reason admin-panels.spec.ts
+ * gives: /admin needs ROLE_ADMIN, and granting that to the shared fixture user
+ * mid-run deauthenticates every other spec — Symfony treats a token whose roles
+ * have changed as stale. Signing in as somebody else is the cheap half of that
+ * argument; the expensive half is that this file used to not bother, and shipped
+ * a picture of an access-denied page in the README.
+ */
+test.describe("README screenshots — admin", () => {
+    test.skip(
+        undefined === process.env.E2E_SCREENSHOTS,
+        'Demo mailbox required — run "npm run test:e2e:screenshots".',
+    );
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_ADMIN.email, password: TEST_ADMIN.password, admin: true });
+
+        // The demo mailbox again, for this user. The picture is of the admin
+        // screen, but the sidebar beside it is in shot — and a sidebar reading
+        // "No accounts yet" next to "No labels yet" says the app is empty,
+        // which is not what the page is meant to be showing.
+        consoleCommand(`app:test:seed-demo --email=${TEST_ADMIN.email}`);
+    });
+
+    test("admin", async ({ page }) => {
+        await login(page, TEST_ADMIN.email, TEST_ADMIN.password);
+
+        await page.goto("/admin");
+
+        // The page, not merely a 200: capture() catches an error page, and this
+        // catches an admin screen that rendered empty. The heading plus a panel
+        // from the section that is actually open — /admin lands on System, so
+        // asserting on the Users frame waits for a panel this page never draws.
+        await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
+        await expect(page.getByText("Restart long-running processes")).toBeVisible();
+        await page.waitForTimeout(1200);
+
+        await capture(page, "admin");
     });
 });
