@@ -178,9 +178,37 @@ away and is a single full-width column. Worth revisiting; not worth guessing at.
                             {% set event = occurrence.event %}
                             {% set readOnly = event.calendar.isReadOnly %}
 
+                            {# min-height is the floor a short meeting needs to
+                               be readable. A quarter of an hour is 1/96th of
+                               the column — about twelve pixels at the height
+                               this grid usually gets — and the chip inside
+                               wants twenty-four for one line of "9:00 Standup",
+                               so a fifteen-minute event drew a sliver with its
+                               own label spilling out of it. 1.75rem is the
+                               all-day lane's floor above, deliberately: one
+                               number for "the smallest a chip may be drawn".
+
+                               The floored block is then taller than its
+                               duration and can reach over the one after it.
+                               That is the right trade and not a compromise: the
+                               block's TOP is where the meeting starts and stays
+                               honest, only the padded bottom is a fiction, and
+                               the alternative — reflowing so short events push
+                               their neighbours down — would move a 10:00
+                               meeting off the 10:00 line, which is the one
+                               thing a time grid exists to get right. The
+                               overlap is drawn under the later block, because
+                               they are emitted in start order and the fiction
+                               is what gets covered.
+
+                               Presentational only. The drag reads
+                               data-starts-at and data-ends-at, never the
+                               rendered box, so a floored block resizes from its
+                               real duration. #}
                             <div class="absolute p-px"
                                  style="top: {{ (placed.top * 100)|round(4) }}%;
                                         height: {{ (placed.height * 100)|round(4) }}%;
+                                        min-height: 1.75rem;
                                         left: {{ (placed.lane * 100 / placed.lanes)|round(4) }}%;
                                         width: {{ (100 / placed.lanes)|round(4) }}%;"
                                  data-calendar--time-grid-target="block"

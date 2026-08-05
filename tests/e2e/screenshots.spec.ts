@@ -6,14 +6,21 @@ import { TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/con
  *
  * Not part of the regression suite — it asserts nothing about behaviour, it
  * just drives the UI to the states worth showing and writes PNGs into
- * docs/screenshots/. It also cannot run on the E2E fixtures: it looks for the
- * demo mailbox by subject and sender, and no seed command in this repo
- * produces that data, so on the test stack it can only fail and overwrite the
- * committed PNGs with pictures of an empty inbox.
- *
- * Hence the opt-in. Point the suite at an app holding the demo mailbox and:
+ * docs/screenshots/. Hence the opt-in:
  *
  *   npm run test:e2e:screenshots
+ *
+ * **It will run against the E2E stack, and it poisons it.** This used to say
+ * the suite could not run there at all, which is not true — app:test:seed-demo
+ * makes exactly the mailbox it wants — and the truth is worse, because it works
+ * and then leaves an account called you@example.com on the shared fixture user.
+ * account-scope.spec.ts asserts on the FIRST account in the sidebar, so it
+ * fails afterwards with "expected E2E Mailbox, received you@example.com", which
+ * looks like a regression in account scoping and is not.
+ *
+ * Point it at an app of its own, or clear the demo account afterwards:
+ *
+ *   php bin/console dbal:run-sql "DELETE FROM account WHERE email = 'you@example.com'"
  */
 const OUT = "docs/screenshots";
 

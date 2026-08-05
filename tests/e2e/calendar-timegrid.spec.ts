@@ -31,6 +31,9 @@ import { seed } from "./support/config";
 
 const TIMED = "E2E grid timed";
 const ALL_DAY = "E2E grid all day";
+// Not from the seeder: this one is made through the dialog, so it is cleared by
+// the editor rather than by `seed-grid-events --clear`.
+const SHORT = "E2E grid quarter hour";
 const DAILY = "E2E grid daily";
 
 /** The positioned blocks holding one title. */
@@ -140,6 +143,59 @@ test.describe("calendar time-grid", () => {
 
         await expect(page.getByRole("button", { name: new RegExp(ALL_DAY) })).toBeVisible();
         await expect(blocks(page, ALL_DAY)).toHaveCount(0);
+    });
+
+    /**
+     * A quarter of an hour is 1/96th of the column — about twelve pixels at the
+     * height this grid gets — and the chip inside needs twenty-four for one line
+     * of "9:00 Standup". Without a floor the block was a sliver with its own
+     * label hanging out of it, which is how it reached the README screenshot.
+     *
+     * Created through the dialog rather than seeded, for the reason the
+     * screenshot suite gives: an event is a JSCalendar object whose occurrences
+     * are materialised on write, and putting rows in around the writer is how a
+     * test comes to assert a state the app cannot produce.
+     */
+    test("a fifteen-minute meeting is still tall enough to read", async ({ page }) => {
+        const day = new Date().toISOString().slice(0, 10);
+
+        await page.goto("/calendar/day");
+
+        await page.getByRole("button", { name: "New event", exact: true }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+
+        await modal.locator("#event-title").fill(SHORT);
+        await modal.locator("#event-starts").fill(`${day}T09:00`);
+        await modal.locator("#event-ends").fill(`${day}T09:15`);
+        await modal.getByRole("button", { name: "Save" }).click();
+
+        const block = blocks(page, SHORT).first();
+        await expect(block).toBeVisible();
+
+        const box = await block.boundingBox();
+
+        // 28px is the 1.75rem floor the template sets, which is also the all-day
+        // lane's — one number for "the smallest a chip may be drawn".
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(28);
+
+        // And the label is inside it rather than spilling: the title's own box
+        // has to fit within the block it belongs to.
+        const label = await block.getByText(SHORT).boundingBox();
+
+        expect(label).not.toBeNull();
+        expect((label?.y ?? 0) + (label?.height ?? 0)).toBeLessThanOrEqual(
+            (box?.y ?? 0) + (box?.height ?? 0) + 1,
+        );
+
+        // Taken away again. `seed-grid-events --clear` removes the three titles
+        // the seeder owns and this is not one of them, so without this the
+        // fixture user collects a meeting per run for ever.
+        await block.click();
+        await expect(modal).toBeVisible();
+        await modal.getByRole("button", { name: "Delete" }).click();
+        await expect(blocks(page, SHORT)).toHaveCount(0);
     });
 
     test("dragging a block down the column moves the event later", async ({ page }) => {
