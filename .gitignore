@@ -59,3 +59,10 @@ truenas.compose.yaml.local
 /playwright/.auth/
 ###< playwright ###
 todo.md
+
+###> plmail site ###
+# Built by bin/build-site.php and published by .github/workflows/pages.yml.
+# Never committed: it is generated from README.md and docs/, so a copy in git
+# is a second answer to the same question.
+/build/
+###< plmail site ###

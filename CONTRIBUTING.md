@@ -104,8 +104,10 @@ npm run test:e2e:docker
 | `npm run test:env:logs` | Tail the test app's logs |
 
 The `:docker:` variants matter: `test:e2e:ui` and `test:e2e:headed` do **not** set `E2E_DOCKER`, so
-Playwright starts its own `symfony serve` instead of using the stack that is already running — which
-needs the Symfony CLI installed and gives you a second app on a different port. Watching a run on
+Playwright starts a server of its own instead of using the stack that is already running, and gives
+you a second app on a different port. That server is PHP's own — `playwright.config.ts` explains at
+length why it is not `symfony serve`, which used to be the answer here and silently overwrote
+`DATABASE_URL` whenever Docker was running. Watching a run on
 WSL needs WSLg (Windows 11) or an X server; without one, use `:trace` and read the recording after.
 
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
@@ -555,13 +557,33 @@ Four files and a directory, each with one audience, and the split is load-bearin
 | `CODESTYLE.md` | Someone writing in it | The conventions, and why each exists |
 | `docs/` | Someone using or operating it | The handbook: every feature, installing on each platform, registering the Google and Microsoft applications, and how the parts work underneath |
 
-`docs/` is mirrored to the [GitHub wiki](https://github.com/karatektus/pl_mail/wiki) by
-`.github/workflows/wiki.yml` on every push to `main`. **The wiki is a mirror and never a
-source.** An edit made in the browser survives until the next push and is then
-overwritten; every generated page carries a footer saying so. Authoring lives in the
-repository so that a change and the paragraph describing it are in one commit and one
-review — documentation that is not versioned with the code drifts from it, and the drift
-is invisible until somebody follows an instruction that stopped being true.
+`docs/` is published twice, and both are generated on every push to `main`:
+
+| Where | Built by | What it is for |
+|---|---|---|
+| [The site](https://karatektus.github.io/pl_mail/) | `bin/build-site.php`, `.github/workflows/pages.yml` | A landing page and the handbook, for somebody who has never seen plMail. The landing page **is** `README.md`; the handbook **is** `docs/` |
+| [The wiki](https://github.com/karatektus/pl_mail/wiki) | `bin/mirror-wiki.php`, `.github/workflows/wiki.yml` | The same handbook, where somebody already inside GitHub looks for it |
+
+**Both are outputs and neither is a source.** An edit made in the wiki's browser editor
+survives until the next push and is then overwritten — every generated page says so in
+its footer — and the site has no editor at all. Authoring lives in the repository so that
+a change and the paragraph describing it are in one commit and one review; documentation
+that is not versioned with the code drifts from it, and the drift is invisible until
+somebody follows an instruction that stopped being true.
+
+Build the site locally, exactly as CI does:
+
+```bash
+composer site && php -S 127.0.0.1:8080 -t build/site
+```
+
+Its two dropdowns are generated rather than configured. The themes come from
+`App\Domain\Enum\Theme\Theme::swatch()`, the same source the app's own appearance
+picker reads, so adding a theme to plMail adds it to the site. The language picker lists
+a locale as available when `docs/<locale>/` exists and as "not translated yet" when it
+does not — **so translating the handbook is creating that directory and nothing else.**
+Nothing needs registering, and the enforcement test treats a translated page like any
+other.
 
 ### Keeping it true is part of the change, not a follow-up
 

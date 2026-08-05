@@ -1,0 +1,82 @@
+name: Site
+
+# plmail's landing page and handbook, built from README.md and docs/ by
+# bin/build-site.php and published to GitHub Pages.
+#
+# The third thing generated from the same source, after the wiki mirror and the
+# handbook itself, and none of them can drift: there is nowhere to type into any
+# of them. A page is wrong here only if it is wrong in the repository, where the
+# review that caught it would have been.
+on:
+    push:
+        branches: [main]
+        paths:
+            - "docs/**"
+            - "README.md"
+            - "bin/build-site.php"
+            - "bin/site/**"
+            - ".github/workflows/pages.yml"
+    # So the site can be rebuilt after enabling Pages, or after a theme change
+    # that touched nothing above.
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    # deploy-pages mints an OIDC token to prove to Pages which workflow is
+    # publishing; without it the deploy step fails with a permissions error that
+    # does not mention OIDC.
+    id-token: write
+
+# One deploy at a time, and a queued run is not cancelled: cancelling a deploy
+# midway is how a site ends up half old and half new.
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  coverage: none
+                  tools: composer:v2
+
+            # The parser is a require-dev dependency, so --no-dev would omit the
+            # one package this job exists to use.
+            - name: Install PHP dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Build the site
+              run: php bin/build-site.php build/site
+
+            # enablement: true turns Pages on for the repository the first time
+            # this runs, so there is no setting to remember to flip by hand.
+            - name: Configure Pages
+              uses: actions/configure-pages@v5
+              with:
+                  enablement: true
+
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: build/site
+
+    deploy:
+        name: Deploy
+        needs: build
+        runs-on: ubuntu-latest
+
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v4

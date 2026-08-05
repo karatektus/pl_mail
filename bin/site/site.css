@@ -1,0 +1,282 @@
+/* ═══ plmail.dev ═════════════════════════════════════════════════════════════
+   The site's stylesheet, deliberately hand-written and deliberately small.
+
+   The default palette below is the app's own light theme, copied:
+   assets/styles/app.css is a Tailwind entrypoint full of @variant and @layer
+   directives a browser cannot read on its own, so importing it is not an
+   option, and extracting nine colours through a build step would be more
+   machinery than nine colours are worth.
+
+   **The seven named themes are NOT copied.** They are appended to this file at
+   build time from App\Domain\Enum\Theme\Theme::swatch(), which is the same
+   source the app's own appearance picker reads — see bin/build-site.php. So
+   adding a theme to plMail adds it to the site, and the two cannot end up
+   offering different lists.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --rgb-surface:      255 255 255;
+    --rgb-sunken:       243 244 246;
+    --rgb-line:           0   0   0;
+    --rgb-ink:           39  39  42;
+    --rgb-ink-soft:      55  65  81;
+    --rgb-ink-muted:    113 113 122;
+    --rgb-ink-faint:    161 161 170;
+    --rgb-accent:        37  99 235;
+    --rgb-accent-ink:   255 255 255;
+
+    --line-alpha: 0.12;
+
+    --sidebar: 17rem;
+    --measure: 46rem;
+}
+
+:root[data-theme="dark"] {
+    --rgb-surface:       17  24  39;
+    --rgb-sunken:        31  41  55;
+    --rgb-line:         255 255 255;
+    --rgb-ink:          243 244 246;
+    --rgb-ink-soft:     209 213 219;
+    --rgb-ink-muted:    156 163 175;
+    --rgb-ink-faint:    107 114 128;
+    --rgb-accent:       147 197 253;
+    --rgb-accent-ink:    17  24  39;
+
+    --line-alpha: 0.18;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: rgb(var(--rgb-surface));
+    color: rgb(var(--rgb-ink));
+    font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: rgb(var(--rgb-accent)); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+code, pre, kbd {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+}
+
+/* Visible only when tabbed to — the first stop for a keyboard visitor, and the
+   one piece of chrome that must never be merely decorative. */
+.skip {
+    position: absolute;
+    left: -9999px;
+}
+.skip:focus {
+    left: 1rem; top: 1rem; z-index: 100;
+    padding: 0.5rem 0.75rem; border-radius: 0.5rem;
+    background: rgb(var(--rgb-accent)); color: rgb(var(--rgb-accent-ink));
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+
+.topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.65rem 1.25rem;
+    background: rgb(var(--rgb-surface) / 0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+}
+
+.brand { font-weight: 650; color: rgb(var(--rgb-ink)); text-decoration: none; letter-spacing: -0.01em; }
+
+.topbar-links { display: flex; gap: 1rem; font-size: 0.9rem; }
+.topbar-links a { color: rgb(var(--rgb-ink-muted)); text-decoration: none; }
+.topbar-links a:hover { color: rgb(var(--rgb-ink)); }
+
+.search { position: relative; margin-left: auto; }
+
+.search input {
+    width: 15rem; max-width: 40vw;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    border-radius: 0.5rem;
+    background: rgb(var(--rgb-sunken));
+    color: inherit; font: inherit; font-size: 0.9rem;
+}
+.search input:focus { outline: 2px solid rgb(var(--rgb-accent) / 0.5); outline-offset: 1px; }
+
+#results {
+    position: absolute; right: 0; top: calc(100% + 0.4rem);
+    width: 26rem; max-width: 80vw; max-height: 60vh; overflow-y: auto;
+    margin: 0; padding: 0.3rem; list-style: none;
+    background: rgb(var(--rgb-surface));
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    border-radius: 0.6rem;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
+}
+#results li a { display: block; padding: 0.45rem 0.6rem; border-radius: 0.4rem; text-decoration: none; }
+#results li a:hover, #results li a:focus { background: rgb(var(--rgb-accent) / 0.12); }
+#results strong { display: block; color: rgb(var(--rgb-ink)); font-size: 0.9rem; }
+#results span { color: rgb(var(--rgb-ink-muted)); font-size: 0.8rem; }
+
+/* ── Hero, landing only ──────────────────────────────────────────────────── */
+
+.hero {
+    padding: 5rem 1.25rem 3.5rem;
+    background:
+        radial-gradient(60rem 22rem at 50% -8rem, rgb(var(--rgb-accent) / 0.14), transparent 70%),
+        rgb(var(--rgb-sunken) / 0.5);
+    border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    text-align: center;
+}
+.hero-inner { max-width: 46rem; margin: 0 auto; }
+.hero-eyebrow {
+    margin: 0 0 0.75rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-size: 0.75rem; font-weight: 600; color: rgb(var(--rgb-accent));
+}
+.hero-title { margin: 0; font-size: clamp(2.75rem, 8vw, 4.5rem); letter-spacing: -0.03em; line-height: 1.05; }
+.hero-lead { margin: 1rem auto 2rem; max-width: 34rem; font-size: 1.15rem; color: rgb(var(--rgb-ink-soft)); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin: 0; }
+
+.button {
+    display: inline-block; padding: 0.6rem 1.1rem;
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    border-radius: 0.6rem; text-decoration: none;
+    color: rgb(var(--rgb-ink)); background: rgb(var(--rgb-surface));
+    font-size: 0.95rem; font-weight: 550;
+}
+.button:hover { border-color: rgb(var(--rgb-accent) / 0.5); }
+.button-primary { background: rgb(var(--rgb-accent)); border-color: transparent; color: rgb(var(--rgb-accent-ink)); }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+
+.layout { display: flex; gap: 2.5rem; align-items: flex-start; max-width: 78rem; margin: 0 auto; padding: 0 1.25rem; }
+
+.sidebar {
+    position: sticky; top: 3.6rem;
+    flex: 0 0 var(--sidebar); width: var(--sidebar);
+    max-height: calc(100vh - 3.6rem); overflow-y: auto;
+    padding: 2rem 0 3rem;
+    font-size: 0.9rem;
+}
+.sidebar-heading {
+    margin: 1.5rem 0 0.4rem; font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: rgb(var(--rgb-ink-faint));
+}
+.sidebar ul { margin: 0; padding: 0; list-style: none; }
+.sidebar li a {
+    display: block; padding: 0.25rem 0.6rem; margin-left: -0.6rem;
+    border-radius: 0.4rem; color: rgb(var(--rgb-ink-soft)); text-decoration: none;
+}
+.sidebar li a:hover { background: rgb(var(--rgb-line) / 0.06); color: rgb(var(--rgb-ink)); }
+.sidebar li a[aria-current="page"] { background: rgb(var(--rgb-accent) / 0.12); color: rgb(var(--rgb-accent)); font-weight: 600; }
+
+main { min-width: 0; flex: 1; padding: 2rem 0 5rem; }
+.is-landing main { max-width: 52rem; margin: 0 auto; }
+
+/* ── Prose ───────────────────────────────────────────────────────────────── */
+
+.prose { max-width: var(--measure); }
+.is-landing .prose { max-width: none; }
+
+.prose h1 { font-size: 2rem; letter-spacing: -0.02em; margin: 2rem 0 1rem; line-height: 1.2; }
+.prose h2 {
+    font-size: 1.4rem; letter-spacing: -0.01em; margin: 2.75rem 0 0.85rem;
+    padding-bottom: 0.35rem; border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+}
+.prose h3 { font-size: 1.1rem; margin: 2rem 0 0.6rem; }
+.prose p, .prose li { color: rgb(var(--rgb-ink-soft)); }
+.prose li { margin: 0.3rem 0; }
+.prose strong { color: rgb(var(--rgb-ink)); font-weight: 650; }
+
+.prose code {
+    padding: 0.12em 0.36em; border-radius: 0.3rem;
+    background: rgb(var(--rgb-line) / 0.07);
+}
+.prose pre {
+    padding: 0.9rem 1.1rem; border-radius: 0.6rem; overflow-x: auto;
+    background: rgb(var(--rgb-sunken));
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+}
+.prose pre code { padding: 0; background: none; }
+
+.prose blockquote {
+    margin: 1.25rem 0; padding: 0.1rem 1rem;
+    border-left: 3px solid rgb(var(--rgb-accent) / 0.4);
+    color: rgb(var(--rgb-ink-muted));
+}
+
+/* Tables are how half the handbook is written, and several are wider than the
+   measure. Scrolled inside their own box rather than allowed to widen the page,
+   which on a phone would scroll the whole document sideways. */
+.table-wrap { overflow-x: auto; margin: 1.25rem 0; }
+.prose table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+.prose th, .prose td {
+    padding: 0.5rem 0.7rem; text-align: left; vertical-align: top;
+    border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+}
+.prose th { color: rgb(var(--rgb-ink)); font-weight: 650; white-space: nowrap; }
+
+.prose img {
+    max-width: 100%; height: auto; border-radius: 0.6rem;
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+}
+
+.prose hr { border: 0; border-top: 1px solid rgb(var(--rgb-line) / var(--line-alpha)); margin: 2.5rem 0; }
+
+.anchor { margin-left: 0.4rem; color: rgb(var(--rgb-ink-faint)); text-decoration: none; opacity: 0; }
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+.page-footer {
+    margin-top: 4rem; padding-top: 1.25rem;
+    border-top: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    font-size: 0.85rem; color: rgb(var(--rgb-ink-faint));
+}
+
+/* ── Narrow ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+    .layout { flex-direction: column; gap: 0; }
+    .sidebar {
+        position: static; width: 100%; flex-basis: auto;
+        max-height: none; padding: 1.25rem 0;
+        border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    }
+    .topbar-links { display: none; }
+    .hero { padding: 3.5rem 1.25rem 2.5rem; }
+}
+
+/* ── The two pickers ─────────────────────────────────────────────────────────
+   Native <select>s rather than a custom menu. They carry seven and three
+   options, they must work before site.js has loaded, and a hand-built dropdown
+   would be the one thing on this site with keyboard behaviour to get wrong. */
+
+.pickers { display: flex; gap: 0.4rem; }
+
+.picker { display: flex; align-items: center; }
+.picker-label { position: absolute; left: -9999px; }
+
+.picker select {
+    appearance: none;
+    padding: 0.32rem 1.5rem 0.32rem 0.6rem;
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    border-radius: 0.5rem;
+    background-color: transparent;
+    /* The chevron, as a data URI so the site stays one CSS file and no
+       request. currentColor cannot be used inside a data URI, hence the
+       fixed grey — it reads acceptably on every one of the seven palettes. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem center;
+    background-size: 0.85rem;
+    color: rgb(var(--rgb-ink-soft));
+    font: inherit; font-size: 0.85rem;
+    cursor: pointer;
+}
+.picker select:focus-visible { outline: 2px solid rgb(var(--rgb-accent) / 0.5); outline-offset: 1px; }
+.picker select option { background: rgb(var(--rgb-surface)); color: rgb(var(--rgb-ink)); }
+.picker select option:disabled { color: rgb(var(--rgb-ink-faint)); }
+
+@media (max-width: 45rem) {
+    /* The theme picker survives; the language one goes, because it has one
+       usable option until a handbook is translated and the bar is full. */
+    #language { display: none; }
+}

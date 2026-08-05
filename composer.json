@@ -102,6 +102,7 @@
         "symfony/polyfill-php84": "*"
     },
     "scripts": {
+        "site": "php bin/build-site.php",
         "auto-scripts": {
             "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd",
@@ -122,6 +123,7 @@
     },
     "scripts-descriptions": {
         "test": "Run the PHPUnit suite (unit tests). Browser end-to-end tests live in tests/e2e and run via `npm run test:e2e`.",
+        "site": "Build the landing page and handbook into build/site — the same command GitHub Pages runs. Open build/site/index.html or serve it with `php -S 127.0.0.1:8080 -t build/site`.",
         "stan": "Run PHPStan at level 5 against src/ and tests/, ignoring what phpstan-baseline.neon already records."
     },
     "conflict": {
@@ -134,6 +136,7 @@
         }
     },
     "require-dev": {
+        "league/commonmark": "^2.9",
         "phpstan/phpstan": "^2.2",
         "phpstan/phpstan-doctrine": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
