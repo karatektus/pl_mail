@@ -136,6 +136,37 @@ final class AlertDelivererTest extends KernelTestCase
         self::assertSame(1, $this->rowCount(), 'claimed, so the impossible delivery is not attempted again');
     }
 
+    /**
+     * A channel that throws costs one alert, not the whole sweep.
+     *
+     * AlertChannelInterface says deliver() answers false rather than throwing,
+     * and EmailAlertChannel broke that promise: it built its Email OUTSIDE its
+     * own try, and Account::$displayAddress falls back to $username, which for
+     * an IMAP account is frequently not an address at all. `new Address()` threw
+     * RfcComplianceException before anything was sent, nothing between there and
+     * app:calendar:alerts caught it, and one such account ended the minute's
+     * sweep for every user on the install — losing the alerts already claimed in
+     * that batch, once a minute, indefinitely.
+     *
+     * Both ends were fixed and both are asserted here: the channel's own guard
+     * is the fix, this is the guarantee that a future channel cannot re-open the
+     * hole. True rather than false, because the claim is written before delivery
+     * — the alert is spent whatever happened, and answering false would only
+     * make the caller count it as still owed.
+     */
+    public function testAChannelThatThrowsDoesNotEndTheSweep(): void
+    {
+        $throwing  = new RecordingAlertChannel(throws: true);
+        $deliverer = $this->deliverer($throwing);
+
+        self::assertTrue(
+            $deliverer->deliver($this->dueAlert()),
+            'the sweep carries on to everybody else',
+        );
+
+        self::assertCount(1, $throwing->delivered, 'and it was attempted exactly once');
+    }
+
     /** Two occurrences of one series are two alerts, and both are delivered. */
     public function testTwoOccurrencesOfTheSameAlertAreBothDelivered(): void
     {

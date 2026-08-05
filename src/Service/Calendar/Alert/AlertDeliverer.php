@@ -87,7 +87,33 @@ final readonly class AlertDeliverer
             return true;
         }
 
-        if (false === $channel->deliver($due)) {
+        // Belt to the braces each channel already wears. AlertChannelInterface
+        // says deliver() answers false rather than throwing, and both channels
+        // honour it — but the sweep runs every minute over every user, and a
+        // channel that throws anyway ends the whole batch rather than one
+        // alert. EmailAlertChannel did exactly that until its message
+        // construction moved inside its own try: an account whose username is
+        // not an address threw RfcComplianceException from `new Address()`, and
+        // one such account silently stopped reminders for everybody.
+        //
+        // Returning true, not false: the claim is already written, so the alert
+        // is spent whatever happened here, and answering false would only make
+        // the caller count it as undelivered.
+        try {
+            $delivered = $channel->deliver($due);
+        } catch (\Throwable $e) {
+            $this->logger->error('CalendarAlert: the channel threw instead of refusing', [
+                'userId'  => $due->userId,
+                'eventId' => $due->eventId,
+                'action'  => $due->alert->action->value,
+                'channel' => $channel::class,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return true;
+        }
+
+        if (false === $delivered) {
             $this->logger->warning('CalendarAlert: nowhere to deliver it', [
                 'userId'  => $due->userId,
                 'eventId' => $due->eventId,

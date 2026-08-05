@@ -68,13 +68,23 @@ final readonly class EmailAlertChannel implements AlertChannelInterface
             return false;
         }
 
-        $email = new Email()
-            ->from(new Address($address, (string) $account->name))
-            ->to(new Address($address, (string) $account->name))
-            ->subject($this->wording->subject($due))
-            ->text(sprintf("%s\n%s\n", $this->wording->title($due), $this->wording->body($due)));
-
         try {
+            // Building the message is INSIDE the try, and that is the whole
+            // point of where this brace sits. Account::$displayAddress falls
+            // back to $username when there is no primary alias and no email,
+            // and an IMAP username is frequently not an address at all — so
+            // `new Address()` throws RfcComplianceException here, before
+            // anything is sent. Outside the try that exception left this method
+            // entirely, and nothing between here and app:calendar:alerts
+            // catches it: one account with a bare username would end the whole
+            // minute's sweep for every user on the install, losing the alerts
+            // already claimed in that batch, once a minute, for ever.
+            $email = new Email()
+                ->from(new Address($address, (string) $account->name))
+                ->to(new Address($address, (string) $account->name))
+                ->subject($this->wording->subject($due))
+                ->text(sprintf("%s\n%s\n", $this->wording->title($due), $this->wording->body($due)));
+
             return $this->senders->resolve($account)->send($email, $account);
         } catch (\Throwable $e) {
             // Caught rather than propagated: one account whose SMTP is refusing
