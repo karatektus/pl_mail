@@ -117,6 +117,59 @@ final class CalendarEventWriterTest extends KernelTestCase
         );
     }
 
+    /**
+     * A caller with no opinion about alerts must not silently remove them.
+     *
+     * Every writer except the editor is such a caller: extraction, both sync
+     * pulls, and the per-instance edit all call write() to say something about
+     * the times or the title. If "no alerts stated" meant "no alerts", a
+     * re-extraction of the mail an event came from — which `app:backfill events`
+     * does routinely — would strip the reminder the user had set on it, and
+     * nothing would report that anything had happened.
+     */
+    public function testAWriteThatSaysNothingAboutAlertsKeepsTheOnesThatAreSet(): void
+    {
+        $event = $this->invitedEvent();
+
+        $this->rename($event, 'Quarterly review (moved)');
+
+        self::assertArrayHasKey('alerts', $event->jscalendar);
+        self::assertSame(
+            ['@type' => 'OffsetTrigger', 'offset' => '-PT10M'],
+            $event->jscalendar['alerts']['display/-PT10M']['trigger'],
+        );
+    }
+
+    /**
+     * And a caller that states an empty list means it.
+     *
+     * That is the editor with every box unticked, and it is the only way an
+     * alert can be removed — see EventAlertEditorTest. Stored as an absent key
+     * rather than an empty map, for the reason recurrenceOverrides is: an empty
+     * map is not a fact about an event, and one left behind makes every event
+     * that ever had an alert read as though it still does.
+     */
+    public function testStatingNoAlertsAtAllClearsThem(): void
+    {
+        $event = $this->invitedEvent();
+        $utc   = new DateTimeZone('UTC');
+
+        $this->writer->write(
+            event:    $event,
+            calendar: $this->calendar,
+            user:     $this->user,
+            title:    'Quarterly review',
+            startsAt: new DateTimeImmutable('2026-06-02 09:00', $utc),
+            endsAt:   new DateTimeImmutable('2026-06-02 10:00', $utc),
+            timeZone: 'UTC',
+            alerts:   [],
+        );
+
+        $this->em->flush();
+
+        self::assertArrayNotHasKey('alerts', $event->jscalendar);
+    }
+
     /** What the editor does show is still written from the columns. */
     public function testAnEditStillRewritesTheDerivedFields(): void
     {
@@ -207,6 +260,13 @@ final class CalendarEventWriterTest extends KernelTestCase
             ],
             'recurrenceOverrides' => [
                 '2026-06-09T09:00:00' => ['excluded' => true],
+            ],
+            'alerts' => [
+                'display/-PT10M' => [
+                    '@type'   => 'Alert',
+                    'trigger' => ['@type' => 'OffsetTrigger', 'offset' => '-PT10M'],
+                    'action'  => 'display',
+                ],
             ],
         ];
 

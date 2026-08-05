@@ -7,13 +7,19 @@
  * an authenticated app is a good way to leak one account's mail into another
  * session.
  *
- * Two kinds of payload arrive, both JMAP objects (RFC 8620 §7):
+ * Three kinds of payload arrive. The first two are JMAP objects (RFC 8620 §7):
  *   PushVerification — the handshake. The code is posted back so the
  *                      subscription becomes deliverable. This is why the SW
  *                      must exist before subscribing, not after.
  *   StateChange      — something moved. It carries no mail content by design,
  *                      so the notification is generic and the app fetches the
  *                      detail when opened.
+ *   CalendarAlert    — plMail's own, sent by PushAlertChannel. Unlike the two
+ *                      above it carries its own text, because a reminder that
+ *                      makes you open the app to find out what it is about is
+ *                      not a reminder. The payload is encrypted end to end
+ *                      under the subscription's key (RFC 8291), so the push
+ *                      service sees ciphertext.
  */
 
 const VERIFY_URL = "/settings/push/verify";
@@ -47,6 +53,11 @@ self.addEventListener("push", (event) => {
 
     if (payload["@type"] === "StateChange") {
         event.waitUntil(notifyStateChange(payload));
+        return;
+    }
+
+    if (payload["@type"] === "CalendarAlert") {
+        event.waitUntil(notifyCalendarAlert(payload));
     }
 });
 
@@ -101,6 +112,31 @@ async function notifyStateChange(payload) {
         tag: "plmail-new-mail",
         renotify: true,
         data: { url: "/mail/inbox" },
+    });
+}
+
+/**
+ * A calendar alert, always shown.
+ *
+ * Deliberately NOT suppressed when a window is focused, which is the one thing
+ * that differs from notifyStateChange above. That check exists because a mail
+ * notification duplicates something the open page is about to render by itself
+ * over Mercure; nothing renders an alert, and "the meeting starts in ten
+ * minutes" is precisely the message somebody staring at a different tab needs.
+ *
+ * The tag is the alert's identity — event, alert key and occurrence — so a push
+ * the browser replayed after waking up replaces the notification rather than
+ * stacking a second copy of it beside the first. renotify is off for the same
+ * reason: a replay must not buzz again.
+ */
+async function notifyCalendarAlert(payload) {
+    await self.registration.showNotification(payload.title || "plMail", {
+        body: payload.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: `plmail-alert-${payload.tag || ""}`,
+        renotify: false,
+        data: { url: payload.url || "/calendar" },
     });
 }
 

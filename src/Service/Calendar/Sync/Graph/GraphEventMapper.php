@@ -6,9 +6,11 @@ namespace App\Service\Calendar\Sync\Graph;
 
 use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteEvent;
+use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\CalendarEvent;
+use App\Service\Calendar\Alert\AlertReader;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -50,12 +52,27 @@ use DateTimeZone;
  *   and drops it. So virtualLocations do not write out, and an event that gained
  *   a Teams link at the remote keeps it there.
  *
- * Deliberately not carried at all: `importance`, `reminderMinutesBeforeStart`,
- * `hasAttachments`, `webLink`, `bodyPreview`, `seriesMasterId`. The first two
- * have JSCalendar counterparts (priority, alerts) but no local column or UI to
- * read them, and a field that round-trips through storage without ever being
- * shown is a field nobody notices has broken; the rest are Graph's own
- * bookkeeping.
+ *   **A Graph event has exactly one reminder, and JSCalendar has a map.**
+ *   `isReminderOn` plus `reminderMinutesBeforeStart` is the whole of Graph's
+ *   model: one popup, N minutes before the start, no email option and no way to
+ *   express a second one. It maps in as a single display alert and out as
+ *   whichever local alert fires LAST — the one nearest the start, because that
+ *   is the one that means "now" and it is the one an Outlook user would expect
+ *   to see. The others stay here and fire here; nothing is lost locally, and an
+ *   event with a day's warning and a ten-minute warning gets the ten-minute one
+ *   in Outlook.
+ *
+ *   Unlike Google's `reminders`, this one CAN be cleared: `isReminderOn: false`
+ *   is unambiguous where "no overrides" is not, so removing every alert here
+ *   removes the reminder there. An email alert has no counterpart at all and
+ *   does not turn the reminder on — Graph would show a popup for something the
+ *   user asked to be mailed.
+ *
+ * Deliberately not carried at all: `importance`, `hasAttachments`, `webLink`,
+ * `bodyPreview`, `seriesMasterId`. The first has a JSCalendar counterpart
+ * (priority) but no local column or UI to read it, and a field that round-trips
+ * through storage without ever being shown is a field nobody notices has broken;
+ * the rest are Graph's own bookkeeping.
  *
  * ── Times ─────────────────────────────────────────────────────────────────
  *
@@ -109,6 +126,7 @@ final readonly class GraphEventMapper
     public function __construct(
         private GraphTimeZoneMapper   $zones,
         private GraphRecurrenceMapper $recurrence,
+        private AlertReader           $alerts,
     ) {
     }
 
@@ -167,6 +185,7 @@ final readonly class GraphEventMapper
         $jscalendar += $this->freeBusyOf($event);
         $jscalendar += $this->keywordsOf($event);
         $jscalendar += $this->stampsOf($event);
+        $jscalendar += $this->alertsOf($event);
 
         $participants = $this->participantsOf($event);
 
@@ -229,7 +248,7 @@ final readonly class GraphEventMapper
             // has to remove the series there rather than leaving the local row
             // and the remote one describing different meetings.
             'recurrence'  => $this->recurrenceOut($jscalendar, $startsAt, $zone),
-        ];
+        ] + $this->reminderOut($event);
     }
 
     /**
@@ -315,6 +334,91 @@ final readonly class GraphEventMapper
     }
 
     // ── Reading Graph ────────────────────────────────────────────────────────
+
+    /**
+     * Graph's single reminder as a JSCalendar alerts map, or nothing.
+     *
+     * Merged into the object with `+=` like the other partial readers here, so
+     * an event with the reminder off contributes no `alerts` key at all rather
+     * than an empty map — see CalendarEventWriter for why an empty map is worse
+     * than an absent one.
+     *
+     * A negative `reminderMinutesBeforeStart` is refused. Graph does not produce
+     * one, but the value arrives as decoded JSON from a tenant that may have
+     * been written to by anything, and a positive offset would silently become
+     * an alert AFTER the meeting started.
+     *
+     * @param array<string,mixed> $event
+     *
+     * @return array<string,mixed>
+     */
+    private function alertsOf(array $event): array
+    {
+        if (true !== ($event['isReminderOn'] ?? false)) {
+            return [];
+        }
+
+        $minutes = $event['reminderMinutesBeforeStart'] ?? null;
+
+        if (false === is_int($minutes) || 0 > $minutes) {
+            return [];
+        }
+
+        $alert = $this->alerts->offsetAlert(
+            $this->alerts->isoOffset(-$minutes * 60),
+            AlertAction::Display,
+        );
+
+        return null === $alert ? [] : ['alerts' => [$alert->key => $alert->toJsCalendar()]];
+    }
+
+    /**
+     * The one local alert Graph can hold, or the reminder switched off.
+     *
+     * The LAST display alert before the start wins — the one nearest it. Graph
+     * has room for exactly one, and choosing the earliest instead would give an
+     * Outlook user a day's notice and then nothing at the moment the meeting
+     * begins, which is the notification people actually rely on.
+     *
+     * Both keys are always written, which is the difference from Google. `false`
+     * here is an unambiguous "no reminder", so an alert removed in plMail is
+     * removed in Outlook too; there is no "use the calendar's default" state for
+     * it to be confused with.
+     *
+     * @return array{isReminderOn: bool, reminderMinutesBeforeStart?: int}
+     */
+    private function reminderOut(CalendarEvent $event): array
+    {
+        $nearest = null;
+
+        foreach ($this->alerts->alertsOf($event) as $alert) {
+            $seconds = $alert->offsetSeconds;
+
+            // Display only, before the start only, measured from the start only
+            // — everything else has no counterpart, and approximating one would
+            // move somebody's reminder without telling them.
+            if (
+                AlertAction::Display !== $alert->action
+                || null === $seconds || 0 < $seconds || true === $alert->relativeToEnd
+            ) {
+                continue;
+            }
+
+            $nearest = null === $nearest ? $seconds : max($nearest, $seconds);
+        }
+
+        if (null === $nearest) {
+            return ['isReminderOn' => false];
+        }
+
+        return [
+            'isReminderOn'               => true,
+            // Rounded rather than truncated, the same choice GoogleEventMapper
+            // makes: early is a reminder, late is a notification about a meeting
+            // you are already in.
+            'reminderMinutesBeforeStart' => (int) round(abs($nearest) / 60),
+        ];
+    }
 
     /**
      * The zone the event is displayed in.

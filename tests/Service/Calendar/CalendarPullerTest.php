@@ -12,6 +12,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventRepository;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarPuller;
 use App\Service\Calendar\RecurrenceRuleConverter;
@@ -24,6 +25,7 @@ use App\Service\Calendar\Sync\Graph\GraphTimeZoneMapper;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -462,7 +464,7 @@ final class CalendarPullerTest extends KernelTestCase
 
     private function calDav(string $ics): ?RemoteEvent
     {
-        return new CalDavEventConverter(new RecurrenceRuleConverter())
+        return new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()))
             ->toRemoteEvent($ics, 'https://dav.example.com/c/weekly.ics', '"etag-1"');
     }
 
@@ -471,7 +473,7 @@ final class CalendarPullerTest extends KernelTestCase
      */
     private function google(array $item): RemoteEvent
     {
-        $remote = new GoogleEventMapper(new GoogleRecurrenceMapper(new RecurrenceRuleConverter()))
+        $remote = new GoogleEventMapper(new GoogleRecurrenceMapper(new RecurrenceRuleConverter()), new AlertReader(new NullLogger()))
             ->toRemoteEvent($item, 'Europe/Berlin');
 
         self::assertNotNull($remote, 'the fixture must be a resource the mapper accepts');
@@ -488,7 +490,7 @@ final class CalendarPullerTest extends KernelTestCase
      */
     private function graph(array $item, ?string $seriesRemoteId = null, ?string $originalStart = null): RemoteEvent
     {
-        $mapper = new GraphEventMapper(new GraphTimeZoneMapper(), new GraphRecurrenceMapper());
+        $mapper = new GraphEventMapper(new GraphTimeZoneMapper(), new GraphRecurrenceMapper(), new AlertReader(new NullLogger()));
         $remote = $mapper->toRemoteEvent($item);
 
         self::assertNotNull($remote);

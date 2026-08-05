@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Calendar\CalendarRangeReader;
@@ -17,6 +19,7 @@ use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Calendar\EventClusterer;
 use App\Service\Calendar\EventDismisser;
 use App\Service\Calendar\EventInstanceEditor;
+use App\Service\Calendar\EventMover;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -86,7 +89,9 @@ final class CalendarController extends AbstractController
         private readonly RecurrenceRuleConverter $recurrence,
         private readonly EventDismisser         $dismisser,
         private readonly EventInstanceEditor    $instances,
+        private readonly EventMover             $mover,
         private readonly EventClusterer         $clusterer,
+        private readonly AlertReader            $alerts,
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
     ) {
@@ -106,21 +111,27 @@ final class CalendarController extends AbstractController
     #[Route('/pane', name: 'pane', methods: ['GET'])]
     public function pane(Request $request): Response
     {
-        return $this->render('calendar/_pane_frame.html.twig', $this->viewData($request, CalendarView::Agenda));
+        return $this->render(
+            'calendar/_pane_frame.html.twig',
+            $this->viewData($request, CalendarView::Agenda, isPane: true),
+        );
     }
 
     /** One view at one date. The grid frame re-renders into itself. */
     #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|week|month|agenda'], methods: ['GET'])]
     public function view(Request $request, string $view, ?string $date = null): Response
     {
+        $isPane = $request->query->getBoolean('pane');
+
         $data = $this->viewData(
             $request,
             CalendarView::from($view),
             null === $date ? null : $this->time->parseDate($date, $this->time->zoneFor($this->currentUser())),
+            $isPane,
         );
 
         return $this->render(
-            true === $request->query->getBoolean('pane')
+            true === $isPane
                 ? 'calendar/_pane_frame.html.twig'
                 : 'calendar/index.html.twig',
             $data,
@@ -223,6 +234,35 @@ final class CalendarController extends AbstractController
             return $this->json(['error' => 'calendar.error.no_copies'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // Resolved once, against the event the editor was opened on, and then
+        // written to every copy — like the title and the times above, and for
+        // the same reason: the form is a statement about the meeting, not about
+        // one row of it. AlertReader::chosen() drops any key that was not in the
+        // list it rendered, so a crafted post can untick a reminder but cannot
+        // invent one.
+        //
+        // The cost, for a merged chip: a copy carrying an alarm that the clicked
+        // copy does not — one imported from a CalDAV server at an absolute
+        // instant — loses it, because the ticked list is the whole statement.
+        // Resolving per copy instead would keep it and introduce the opposite
+        // bug, where unticking a reminder silently leaves it on every copy the
+        // user was not looking at.
+        $alerts = $this->alerts->chosen(
+            0 === $eventId ? null : $event,
+            array_values(array_filter(
+                $request->request->all('alerts'),
+                is_string(...),
+            )),
+            // Read as a string and cast, not getInt(): the field is empty on
+            // almost every save, and getInt() throws on a value it cannot
+            // convert rather than answering zero — which turned every save
+            // that did not set a custom reminder into a 500. A non-numeric
+            // string casts to 0, which AlertReader::customAlert() already
+            // refuses along with negatives and anything past its ceiling.
+            (int) $request->request->getString('alertCustomMinutes') ?: null,
+            AlertAction::fromJsCalendar($request->request->getString('alertCustomAction') ?: null),
+        );
+
         // Where the user is put down afterwards. Read off the first copy
         // written rather than off the posted field, because "all events" from
         // an editor opened on one occurrence rebases the series — and any copy
@@ -310,6 +350,13 @@ final class CalendarController extends AbstractController
                 description:    $request->request->getString('description') ?: null,
                 status:         EventStatus::Confirmed,
                 recurrenceRule: $this->recurrence->fromRepeatChoice($request->request->getString('repeat')),
+                // Stated on every save, never omitted. Passing null here means
+                // "keep whatever is stored", which is right for a caller with
+                // no opinion about alerts — the sync engine — and wrong for
+                // this one: unticking every box would then be indistinguishable
+                // from not asking, and a reminder could be set but never
+                // cleared.
+                alerts:         $alerts,
             );
 
             // After write(), so the event carries the calendar the mark is
@@ -326,6 +373,91 @@ final class CalendarController extends AbstractController
         $this->dispatchSync($targets);
 
         return $this->redirectAfterWrite($request, $landOn->format('Y-m-d'));
+    }
+
+    /**
+     * A block put somewhere else on the time-grid — dragged, resized by its
+     * edge, or nudged there with the keyboard.
+     *
+     * Its own route rather than a save with most of the fields missing. A drag
+     * says two things and nothing else, so a route that accepts only those two
+     * cannot silently blank a description or clear an all-day flag that the
+     * grid had no field for; what stays the same is carried across by EventMover
+     * rather than round-tripped through a form. The editor is still the way to
+     * change anything else, and is still reachable from every block.
+     *
+     * The this-or-all question is answered exactly as the editor answers it,
+     * with the same `scope` values and through the same two services — see
+     * EventMover. The client asks it in a dialog before it submits, because a
+     * drag that silently rebased a whole series would be the same defect the
+     * editor already guards against, arrived at by an easier route.
+     *
+     * Every writable copy of a merged meeting moves, which is what the editor
+     * does by default: it renders one checkbox per copy and ticks all of them.
+     * A drag has no checkboxes to render, so the default is what it means. The
+     * read-only ones are dropped by EventClusterer::chosen(), which is the same
+     * refusal a crafted save gets — a disabled checkbox is a statement to a
+     * browser, never a guarantee to a server.
+     */
+    #[Route('/event/move', name: 'event_move', methods: ['POST'])]
+    public function eventMove(Request $request): Response
+    {
+        $this->assertCsrf($request, 'calendar_event_move');
+
+        $user  = $this->currentUser();
+        $event = $this->ownedEvent($request->request->getInt('eventId'));
+
+        // The grid's own zone, not the event's. The block was dropped against
+        // hour rows drawn on the clock CalendarRangeReader publishes, so the
+        // wall time the client posts is a time on that clock — reading it in
+        // the event's zone would move a meeting by the offset between them
+        // without anything looking wrong.
+        $zone = $this->time->safeZone($request->request->getString('timeZone')
+            ?: $this->time->zoneFor($user)->getName());
+
+        $startsAt = $this->time->parseDateTime($request->request->getString('startsAt'), $zone);
+        $endsAt   = $this->time->parseDateTime($request->request->getString('endsAt'), $zone);
+
+        if (null === $startsAt || null === $endsAt || $endsAt < $startsAt) {
+            return $this->json(['error' => 'calendar.error.invalid_times'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $copies  = $this->clusterer->copiesOf($event, $user);
+        $targets = $this->clusterer->chosen($copies, $this->everyCopy($copies));
+
+        // Only reachable when every copy is on a read-only calendar, which the
+        // grid refuses to start a drag on and says so. Refused rather than
+        // performed as a no-op, because a redraw that put the block back where
+        // it was would read as a UI that dropped the gesture.
+        if ([] === $targets) {
+            return $this->json(['error' => 'calendar.error.read_only'], Response::HTTP_FORBIDDEN);
+        }
+
+        $seriesScope = self::SCOPE_INSTANCE !== $request->request->getString('scope');
+
+        foreach ($targets as $copy) {
+            // Per copy, for the reason the save resolves it per copy: each is
+            // its own series with its own occurrence rows, so the same drag is
+            // the same patch filed once against each, keyed by that copy's own
+            // occurrence at the same recurrence id.
+            $this->mover->move(
+                $copy,
+                $this->instances->instance($copy, $request->request->getString('recurrenceId')),
+                $seriesScope,
+                $startsAt,
+                $endsAt,
+            );
+        }
+
+        $this->em->flush();
+
+        $this->dispatchSync($targets);
+
+        // The day the block was dropped on, not the series' new start. The user
+        // is looking at that day, and this is only the fallback anyway — the
+        // grid posts a returnTo that puts them back on the exact view they
+        // dragged in.
+        return $this->redirectAfterWrite($request, $startsAt->format('Y-m-d'));
     }
 
     /**
@@ -527,10 +659,28 @@ final class CalendarController extends AbstractController
     }
 
     /**
+     * $isPane is what decides whether day and week draw a time-grid or the
+     * column list, and it is passed from the actions rather than guessed in
+     * CSS. The pane is ~380px of a shared row: hour rows, a time gutter and
+     * seven positioned columns do not fit in it, and a media query would be
+     * asking the window a question only the layout can answer — the pane is
+     * narrow on a 2560px monitor too. The route already knows which of the two
+     * it is rendering, so that is where the answer comes from.
+     *
+     * Deliberately not called `compact`, which _toolbar and _view_month already
+     * read for something else: `compact` also switches the month view's "N
+     * more" link to the pane's query string, and reusing the name would have
+     * given the full page's month grid a link the pane needs and the page does
+     * not.
+     *
      * @return array<string,mixed>
      */
-    private function viewData(Request $request, CalendarView $default, ?DateTimeImmutable $date = null): array
-    {
+    private function viewData(
+        Request            $request,
+        CalendarView       $default,
+        ?DateTimeImmutable $date = null,
+        bool               $isPane = false,
+    ): array {
         $user = $this->currentUser();
 
         // A user who has never had a calendar gets one here rather than an
@@ -547,6 +697,7 @@ final class CalendarController extends AbstractController
         return [
             'view'      => $view,
             'anchor'    => $anchor,
+            'isPane'    => $isPane,
             'calendars' => $this->calendars->findForUser($user),
             'range'     => $this->rangeReader->read($user, $view, $anchor),
         ];
@@ -588,6 +739,30 @@ final class CalendarController extends AbstractController
         }
 
         return $this->clusterer->chosen($copies, $request->request->all('copies'));
+    }
+
+    /**
+     * Every copy's id, so a drag can go through the same chosen() filter a
+     * ticked-everything save goes through.
+     *
+     * Spelled out rather than short-circuited past chosen(): the read-only rule
+     * lives in that method and a second path around it is how a mirror that
+     * takes no writes would eventually be written to by one entry point and not
+     * the other.
+     *
+     * @param non-empty-list<CalendarEvent> $copies
+     *
+     * @return list<int>
+     */
+    private function everyCopy(array $copies): array
+    {
+        $ids = [];
+
+        foreach ($copies as $copy) {
+            $ids[] = (int) $copy->id;
+        }
+
+        return $ids;
     }
 
     /**

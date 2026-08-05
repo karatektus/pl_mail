@@ -10,6 +10,17 @@ it in the tooltip.
 Accepts:
   cluster   OccurrenceCluster — the occurrences that draw this one chip
   showTime  whether to print the start time (default true; never for all-day)
+  tall      the chip fills a block that has a height of its own (default false)
+
+`tall` is the time-grid's chip and is deliberately a set of classes rather than
+a second markup block: the same dot, the same time, the same title, aligned to
+the top of a box instead of centred in a line, with the title allowed to wrap
+into the height the block already has instead of being truncated to one line.
+Everything a chip IS stays one thing. It exists because the grid's blocks are
+several lines tall and a chip centred in one of them reads as floating; it does
+NOT exist to make a second kind of chip, which is why it changes no content and
+adds no behaviour. The grid wraps this button in the positioned element that
+carries the drag — the chip itself still only ever opens the editor.
 
 **A cluster of one is the ordinary case and renders exactly as it always did.**
 The views hand over clusters rather than occurrences so there is one code path
@@ -50,6 +61,7 @@ identity is threaded through a URL that would outlive the render that made it.
 {% set occurrence = cluster.primary %}
 {% set event = occurrence.event %}
 {% set showTime = showTime|default(true) and not event.isAllDay %}
+{% set tall = tall|default(false) %}
 
 {% set chip_title = event.title ~ (showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '') %}
 
@@ -81,10 +93,11 @@ identity is threaded through a URL that would outlive the render that made it.
    }) }}"
    data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
    title="{{ chip_title }}"
-   class="w-full text-left flex items-center gap-1.5
+   class="w-full text-left flex gap-1.5
           px-1.5 py-0.5 rounded-md
           hover:bg-hover transition-colors min-w-0
           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+          {{ tall ? 'h-full items-start overflow-hidden' : 'items-center' }}
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
 >
     <span class="w-1.5 h-1.5 rounded-full shrink-0"
@@ -92,12 +105,16 @@ identity is threaded through a URL that would outlive the render that made it.
           aria-hidden="true"></span>
 
     {% if showTime %}
-        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint">
+        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint {{ tall ? 'leading-5' : '' }}">
             {{ occurrence.startsAt|date('g:i') }}
         </span>
     {% endif %}
 
-    <span class="min-w-0 flex-1 truncate text-xs text-ink
+    {# Truncated to one line in a list, wrapped into the height it has in a
+       grid block. `truncate` is `overflow:hidden` plus `white-space:nowrap`, so
+       leaving it on a tall block would waste every line but the first. #}
+    <span class="min-w-0 flex-1 text-xs text-ink
+                 {{ tall ? 'whitespace-normal break-words line-clamp-3 leading-4' : 'truncate' }}
                  {{ occurrence.cancelled ? 'line-through' : '' }}">
         {%- if event.kind is not null -%}
             <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>

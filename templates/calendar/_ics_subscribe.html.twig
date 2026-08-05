@@ -1,0 +1,116 @@
+{#
+calendar/_ics_subscribe.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Subscribe to a calendar published at an address.
+
+A hand-written form rather than a Symfony one, for the reason
+calendar/_subscribe.html.twig gives and one more of its own: the Integration
+behind this is created by IcsFeedConnector, not bound by the form, because the
+name has to be made unique against the connections the user already has before
+an entity can carry it. A form type mapping a field it must then overwrite is
+worse than no form type.
+
+Two fields and one warning. The warning is the point of the intro paragraph:
+for a published calendar the address IS the credential — Google and Outlook
+both call theirs a secret address — so pasting one into a shared screen is the
+same act as pasting a password, and nothing on screen would otherwise say so.
+
+There is no "which calendars?" step. A feed is one calendar, so the connect
+answers with the settings list rather than with a tick-box list of one; see
+CalendarSubscriber::subscribeAll().
+
+Wrapped in the modal frame directly rather than through
+_partials/_modal_form.html.twig, which needs a FormView it does not have. The
+frame is what Turbo swaps into; a response without it leaves the dialog on its
+spinner.
+
+Variables:
+  error  string|null  why the address was refused, already written for a person
+  url    string       what was submitted, so a refused address comes back
+                      editable rather than making the user paste it again
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'calendar.ics.subscribe.title'|trans }}</template>
+
+    <form method="post"
+          action="{{ path('app_calendar_ics_subscribe') }}"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar-ics-subscribe') }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-4 overflow-y-auto">
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'calendar.ics.subscribe.intro'|trans }}
+            </p>
+
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+
+            <div class="space-y-1.5">
+                <label for="ics-url" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.ics.subscribe.address'|trans }}
+                </label>
+                {# type="url" is deliberately NOT used: the browser's own
+                   validation rejects webcal:// outright, and webcal:// is what
+                   every "Subscribe" button copies to the clipboard.
+                   IcsUrlNormaliser rewrites it server-side. #}
+                <input type="text"
+                       id="ics-url"
+                       name="url"
+                       value="{{ url }}"
+                       required
+                       autocomplete="off"
+                       spellcheck="false"
+                       placeholder="https://example.com/holidays.ics"
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <p class="text-[11px] text-ink-faint leading-snug">
+                    {{ 'calendar.ics.subscribe.address_help'|trans }}
+                </p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="ics-name" class="block text-xs font-medium text-ink-soft">
+                    {{ 'calendar.ics.subscribe.name'|trans }}
+                </label>
+                <input type="text"
+                       id="ics-name"
+                       name="name"
+                       autocomplete="off"
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <p class="text-[11px] text-ink-faint leading-snug">
+                    {{ 'calendar.ics.subscribe.name_help'|trans }}
+                </p>
+            </div>
+
+            <p class="text-[11px] text-ink-faint leading-snug">
+                <i class="fa-solid fa-lock mr-1" aria-hidden="true"></i>
+                {{ 'calendar.ics.subscribe.read_only_note'|trans }}
+            </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'form.cancel'|trans }}</button>
+
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                           bg-accent hover:bg-accent-strong active:bg-blue-800
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'calendar.ics.subscribe.submit'|trans }}</button>
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

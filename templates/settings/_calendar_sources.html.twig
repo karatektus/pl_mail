@@ -25,21 +25,40 @@ Variables:
 {% set has_sources = calendarAccounts is not empty or calendarConnections is not empty %}
 
 <div class="px-4 py-3 border-b border-line bg-sunken space-y-2.5">
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
         <p class="text-xs font-medium text-ink-soft">{{ 'settings.calendars.sources.heading'|trans }}</p>
 
-        <button
-            type="button"
-            data-controller="ui--modal"
-            data-action="click->ui--modal#open"
-            data-ui--modal-title-value="{{ 'settings.calendars.caldav.title'|trans }}"
-            data-ui--modal-src-value="{{ path('app_settings_calendar_caldav_connect') }}"
-            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
-                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
-        >
-            <i class="fa-solid fa-calendar-days text-[10px]" aria-hidden="true"></i>
-            {{ 'settings.calendars.caldav.connect'|trans }}
-        </button>
+        <div class="flex items-center gap-2">
+            {# Beside the CalDAV button rather than under it, and first,
+               because it is the cheaper of the two: subscribing to a published
+               address asks for one field and no credential, where connecting a
+               server asks for three. Both open the same modal frame. #}
+            <button
+                type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-title-value="{{ 'calendar.ics.subscribe.title'|trans }}"
+                data-ui--modal-src-value="{{ path('app_calendar_ics_subscribe') }}"
+                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+            >
+                <i class="fa-solid fa-rss text-[10px]" aria-hidden="true"></i>
+                {{ 'calendar.ics.subscribe.connect'|trans }}
+            </button>
+
+            <button
+                type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-title-value="{{ 'settings.calendars.caldav.title'|trans }}"
+                data-ui--modal-src-value="{{ path('app_settings_calendar_caldav_connect') }}"
+                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+            >
+                <i class="fa-solid fa-calendar-days text-[10px]" aria-hidden="true"></i>
+                {{ 'settings.calendars.caldav.connect'|trans }}
+            </button>
+        </div>
     </div>
 
     {% if has_sources %}

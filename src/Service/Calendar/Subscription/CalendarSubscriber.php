@@ -41,6 +41,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * which the engine trusts absolutely — CalendarSyncDriverInterface promises a
  * driver is never asked to push to a read-only calendar.
  *
+ * There is a second way in, subscribeAll(), for the source that offers exactly
+ * one calendar and can never offer a second — an ICS address, where the feed is
+ * the calendar. It shares everything below this line, and the reason it exists
+ * rather than being spelled as `apply($source, [the one id])` is written on the
+ * method: apply() discovers, so composing that id list would mean reading the
+ * whole feed twice to learn something already in hand.
+ *
  * ── What a fresh subscription queues, and why it only queues ──────────────
  *
  * Two messages per new calendar and no work of either kind inline: a first sync,
@@ -142,17 +149,59 @@ final readonly class CalendarSubscriber
 
         $this->em->flush();
 
-        // After the flush, so every calendar has an id — a message carries ids
-        // only — and after the whole set rather than per row, so a subscription
-        // that fails to persist queues nothing.
-        foreach ($fresh as $calendar) {
-            if (null !== $calendar->id) {
-                $this->bus->dispatch(new SyncCalendarMessage($calendar->id));
-                $this->bus->dispatch(new RegisterCalendarPushMessage($calendar->id));
-            }
-        }
+        $this->queue($fresh);
 
         return new SubscriptionChange($subscribed, $unsubscribed, $kept);
+    }
+
+    /**
+     * Mirror everything the source offers, without asking which.
+     *
+     * For a source that offers exactly one calendar and could never offer a
+     * second — a subscribed ICS address, where the feed *is* the calendar.
+     * Putting a tick-box list of one in front of somebody who has just typed
+     * that address is a screen that asks no question, and the two clicks it
+     * costs are two chances to close the dialog before the calendar exists.
+     *
+     * Deliberately not apply($source, [every id it just discovered]), which is
+     * the same instruction and would be the obvious way to write it: apply()
+     * discovers, so building the id list would mean discovering twice. That is
+     * a second network read of the whole feed for an answer already in hand —
+     * the same double-work unsubscribeAll() avoids at the other end, for a
+     * different reason.
+     *
+     * **It only ever adds.** Nothing is unsubscribed here whatever the source
+     * stops offering, because "subscribe to this" is not an instruction about
+     * the calendars a user already has. apply() remains the only path that can
+     * take one away, and it is reached from the screen where the user can see
+     * what they are unticking.
+     *
+     * @throws CalendarSyncException when the source cannot be listed — nothing
+     *                               is written in that case
+     */
+    public function subscribeAll(CalendarSource $source): SubscriptionChange
+    {
+        $user = $source->user();
+
+        if (false === $user instanceof User) {
+            return new SubscriptionChange();
+        }
+
+        $fresh = [];
+
+        foreach ($this->discoverer->discover($source) as $subscription) {
+            if (true === $subscription->isSubscribed()) {
+                continue;
+            }
+
+            $fresh[] = $this->subscribe($source, $user, $subscription->remote);
+        }
+
+        $this->em->flush();
+
+        $this->queue($fresh);
+
+        return new SubscriptionChange(count($fresh));
     }
 
     /**
@@ -187,6 +236,33 @@ final readonly class CalendarSubscriber
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The two messages every fresh subscription owes, dispatched together.
+     *
+     * After the caller's flush, so every calendar has an id — a message carries
+     * ids only — and after the whole set rather than per row, so a subscription
+     * that fails to persist queues nothing.
+     *
+     * Both are best-effort and neither can fail the subscribe; see the class
+     * docblock for why that is the reason both are messages. A source with no
+     * push mechanism at all — an ICS address is a file, there is nothing to
+     * register with — is not a special case here: CalendarPushRegistry answers
+     * null for a calendar no manager claims and the handler skips quietly,
+     * which is what keeps this loop free of a "does this provider have push?"
+     * question that would then exist in two places.
+     *
+     * @param list<Calendar> $calendars
+     */
+    private function queue(array $calendars): void
+    {
+        foreach ($calendars as $calendar) {
+            if (null !== $calendar->id) {
+                $this->bus->dispatch(new SyncCalendarMessage($calendar->id));
+                $this->bus->dispatch(new RegisterCalendarPushMessage($calendar->id));
+            }
+        }
+    }
 
     private function subscribe(CalendarSource $source, User $user, RemoteCalendar $remote): Calendar
     {

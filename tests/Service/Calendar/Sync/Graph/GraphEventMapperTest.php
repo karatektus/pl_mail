@@ -6,12 +6,14 @@ namespace App\Tests\Service\Calendar\Sync\Graph;
 
 use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Entity\Calendar\CalendarEvent;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\Sync\Graph\GraphEventMapper;
 use App\Service\Calendar\Sync\Graph\GraphRecurrenceMapper;
 use App\Service\Calendar\Sync\Graph\GraphTimeZoneMapper;
 use DateTimeImmutable;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 /**
  * A Graph `event` is not a JSCalendar Event, and the difference is where the
@@ -264,7 +266,7 @@ final class GraphEventMapperTest extends TestCase
 
     private function mapper(): GraphEventMapper
     {
-        return new GraphEventMapper(new GraphTimeZoneMapper(), new GraphRecurrenceMapper());
+        return new GraphEventMapper(new GraphTimeZoneMapper(), new GraphRecurrenceMapper(), new AlertReader(new NullLogger()));
     }
 
     /**

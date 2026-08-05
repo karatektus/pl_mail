@@ -50,6 +50,22 @@ enum Provider: string
      */
     case CalDav = 'caldav';
 
+    /**
+     * A published iCalendar file at an address — a holiday feed, a sports
+     * fixture list, the "secret address in iCal format" Google and Outlook
+     * offer for a calendar they will not let plMail write to.
+     *
+     * The second case that is a format rather than a product, and the only one
+     * that is read-only by nature: the far end is a static file, so there is no
+     * protocol to ask for permission with and nothing to push to. That is not a
+     * limitation of the driver, it is what an ICS URL is, and
+     * IcsUrlCalendarDriver hard-codes isReadOnly rather than probing for it.
+     *
+     * `webcal://` is the same thing under the scheme Apple registered for it;
+     * IcsUrlNormaliser turns one into https before anything else sees it.
+     */
+    case Ics = 'ics';
+
     public function label(): string
     {
         return match ($this) {
@@ -60,6 +76,7 @@ enum Provider: string
             self::OneDrive     => 'OneDrive',
             self::Dropbox      => 'Dropbox',
             self::CalDav       => 'CalDAV',
+            self::Ics          => 'Calendar feed',
         };
     }
 
@@ -76,6 +93,11 @@ enum Provider: string
             // No brand mark exists for a protocol, so it takes the same
             // calendar glyph the calendar UI uses for a mirrored list.
             self::CalDav       => 'fa-solid fa-calendar-days',
+            // Deliberately not the same glyph as CalDAV, although both are
+            // calendars: the two sit in one list on the settings screen and a
+            // shared mark would make "which of these can I edit?" unanswerable
+            // at a glance. A feed is a subscription, so it takes the feed mark.
+            self::Ics          => 'fa-solid fa-rss',
         };
     }
 
@@ -96,7 +118,8 @@ enum Provider: string
             self::GooglePhotos,
             self::OneDrive,
             self::Dropbox => ServiceKind::Files,
-            self::CalDav  => ServiceKind::Calendar,
+            self::CalDav,
+            self::Ics     => ServiceKind::Calendar,
         };
     }
 
@@ -117,6 +140,20 @@ enum Provider: string
             // over CalDAV exists only at Google, and Google's calendars come
             // in through the mail grant instead.
             self::CalDav => AuthKind::AppPassword,
+            // AppPassword although a feed asks for no password, and the reason
+            // is what this enum actually decides: needsBaseUrl() is derived
+            // from it, and the feed URL is the one thing a user must supply and
+            // the one thing IntegrationUrlValidator must be given the chance to
+            // refuse. A third AuthKind case saying "no credential" would be
+            // honester by a word and would cost every form, every admin
+            // template and every `settings.integrations.auth.*` key a branch
+            // for a distinction only this line makes.
+            //
+            // For a published calendar the address IS the credential — Google
+            // and Outlook both call theirs a secret address — which is why the
+            // connect form warns that anyone holding it can read the calendar,
+            // and why nothing renders it back once it is stored.
+            self::Ics    => AuthKind::AppPassword,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,
@@ -177,7 +214,8 @@ enum Provider: string
             // there is no honest answer to "can this be browsed in the picker"
             // other than no. What a calendar connection can do is asked of the
             // server itself, per collection, at sync time.
-            self::CalDav => [],
+            self::CalDav,
+            self::Ics    => [],
         };
     }
 
@@ -218,6 +256,7 @@ enum Provider: string
             self::Nextcloud,
             self::Immich,
             self::CalDav,
+            self::Ics,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,

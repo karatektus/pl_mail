@@ -145,6 +145,74 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
     }
 
     /**
+     * Occurrences whose event carries alerts and whose start is near enough to
+     * now that one of those alerts might be due.
+     *
+     * A candidate list, not an answer: which alert is actually due depends on
+     * each alert's own offset, and that lives in jsonb where SQL cannot do
+     * arithmetic on it. So the window here is the widest one any honoured offset
+     * could reach — see DueAlertReader, which owns both bounds and does the
+     * deciding — and the sweep discards most of what this returns.
+     *
+     * Raw DBAL for the id lookup, for one reason the ORM cannot cover: jsonb key
+     * existence has no DQL operator and no registered function. Written as
+     * `jsonb_exists()` rather than the `?` operator that means the same thing —
+     * DBAL reads a bare `?` as a positional placeholder and refuses the query.
+     * The same two-step CalendarEventRepository and findInRange() above use:
+     * ids in SQL, entities through the ORM, so callers get the event and the
+     * owner fetch-joined rather than two queries per notification.
+     *
+     * Cancelled occurrences and cancelled events are excluded in SQL rather than
+     * in PHP. A meeting that was called off must not send a reminder, and the
+     * two are separate states — one instance struck through, or the whole series
+     * — so both are asked about.
+     *
+     * @return list<CalendarEventOccurrence>
+     */
+    public function findAlertCandidates(DateTimeImmutable $from, DateTimeImmutable $to, int $limit): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT o.id
+                FROM calendar_event_occurrence o
+                JOIN calendar_event e ON e.id = o.event_id
+                WHERE o.cancelled = false
+                  AND o.starts_at >= :alertFrom
+                  AND o.starts_at <= :alertTo
+                  AND e.status <> 'cancelled'
+                  AND jsonb_exists(e.jscalendar, 'alerts')
+                ORDER BY o.starts_at ASC
+                LIMIT :alertLimit
+                SQL,
+            [
+                'alertFrom'  => $from->format('Y-m-d H:i:s'),
+                'alertTo'    => $to->format('Y-m-d H:i:s'),
+                'alertLimit' => $limit,
+            ],
+            [
+                'alertFrom'  => ParameterType::STRING,
+                'alertTo'    => ParameterType::STRING,
+                'alertLimit' => ParameterType::INTEGER,
+            ],
+        );
+
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('occurrence')
+            ->addSelect('event', 'owner')
+            ->join('occurrence.event', 'event')
+            ->join('occurrence.usr', 'owner')
+            ->where('occurrence.id IN (:ids)')
+            ->setParameter('ids', array_map('intval', $ids))
+            ->orderBy('occurrence.startsAt', 'ASC')
+            ->addOrderBy('occurrence.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * One named instance of one series — the row a chip was rendered from.
      *
      * Looked up by recurrence id rather than by start, because those are not the

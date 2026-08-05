@@ -448,6 +448,10 @@ app:
     name: Mail
 
 calendar:
+    alert:
+        mail:
+            subject: 'Reminder: %title%'
+        untitled: Untitled event
     chip:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
@@ -455,7 +459,35 @@ calendar:
     error:
         invalid_times: 'Those times do not work — the end has to come after the start.'
         no_copies: 'Nothing was chosen, so nothing was changed. Tick at least one calendar.'
+        read_only: 'This event is only on calendars that do not accept changes, so it was left where it was.'
     event:
+        alert:
+            action:
+                display: Notification
+                email: Email
+            amount:
+                days: '{1} 1 day|]1,Inf[ %count% days'
+                hours: '{1} 1 hour|]1,Inf[ %count% hours'
+                minutes: '{1} 1 minute|]1,Inf[ %count% minutes'
+            at_absolute: 'At %when%'
+            at_time: At the time of the event
+            custom: Something else, in minutes
+            custom_action: How the extra reminder arrives
+            day_1: 1 day before
+            hour_1: 1 hour before
+            legend: Reminders
+            minutes_10: 10 minutes before
+            minutes_30: 30 minutes before
+            minutes_5: 5 minutes before
+            relation:
+                after_end: '%amount% after the end'
+                after_start: '%amount% after the start'
+                before_end: '%amount% before the end'
+                before_start: '%amount% before the start'
+            series_note: >-
+                Reminders belong to the whole event, so the choice below does
+                not apply to them.
+            unreadable: Reminder set somewhere else
         all_day: All day
         calendar: Calendar
         cancel: Cancel
@@ -496,6 +528,76 @@ calendar:
         time_zone_help: >-
             The zone this calendar is read in, and the one an event that carries
             no zone of its own is shown in.
+    grid:
+        all_day: All day
+        continues_after: Carries on into the next day
+        continues_before: Started the day before
+        keyboard_hint: >-
+            Hold Alt and use the arrow keys to move this event; add Shift to
+            change how long it lasts. Enter saves it, Escape puts it back.
+        pending: >-
+            Moved to %start% – %end%. Press Enter to save, or Escape to put it
+            back.
+        read_only: This calendar does not accept changes, so this event cannot be moved.
+        reverted: Left where it was.
+    ics:
+        error:
+            no_calendar: Choose a calendar to put the events on.
+            no_file: >-
+                Choose an .ics file. If you did choose one, it may be larger
+                than plMail will read.
+            no_url: Enter the address the calendar is published at.
+        export:
+            calendar: Download "%name%" as a calendar file
+            calendar_title: Download as .ics
+            event: Download .ics
+        import:
+            calendar: Add them to
+            dedup_note: >-
+                An event already on this calendar is updated rather than added
+                twice, and one already on another of your calendars — from an
+                invitation, or from a calendar you mirror — is left where it is.
+            file: Calendar file
+            file_help: An .ics file, up to %size% MB.
+            intro: >-
+                Reads an .ics file — an export from another calendar, or an
+                invitation somebody sent you — onto one of your calendars.
+            no_calendars: >-
+                None of your calendars accepts new events. A mirrored calendar
+                is a read-only copy; make one of your own first.
+            submit: Import
+            title: Import a calendar file
+        subscribe:
+            address: Calendar address
+            address_help: >-
+                The address a calendar is published at, ending in .ics. A
+                webcal:// link works too — it is the same address under another
+                name.
+            connect: Subscribe to an address
+            intro: >-
+                Follow a calendar somebody publishes: public holidays, a fixture
+                list, or the secret address your own Google or Outlook calendar
+                offers. plMail re-reads it in the background and shows it beside
+                your own calendars.
+            name: Name
+            name_help: What to call it here. Left empty, the calendar names itself.
+            read_only_note: >-
+                A subscribed calendar is read-only — it is a copy of a published
+                file, so changes made here could never reach it. Anyone who has
+                this address can read the calendar, so treat a secret one like a
+                password.
+            submit: Subscribe
+            title: Subscribe to a calendar address
+        toast:
+            import_empty: >-
+                That file holds no events plMail can read. Check that it is a
+                calendar export rather than something else.
+            import_nothing_new: >-
+                Nothing to add — every event in that file is already on your
+                calendars.
+            imported: '%added% added, %updated% updated, %skipped% skipped.'
+            subscribed: >-
+                Subscribed — the calendar will fill in within a minute.
     invite:
         action:
             accepted: Yes

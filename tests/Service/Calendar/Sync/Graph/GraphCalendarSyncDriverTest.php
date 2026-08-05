@@ -14,6 +14,7 @@ use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\Sync\Graph\GraphCalendarSyncDriver;
 use App\Service\Calendar\Sync\Graph\GraphEventMapper;
 use App\Service\Calendar\Sync\Graph\GraphRecurrenceMapper;
@@ -21,8 +22,8 @@ use App\Service\Calendar\Sync\Graph\GraphTimeZoneMapper;
 use App\Service\OAuth\OAuthTokenManager;
 use DateTimeImmutable;
 use DateTimeZone;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Exception\RecoverableExceptionInterface;
@@ -757,7 +758,7 @@ final class GraphCalendarSyncDriverTest extends TestCase
         return new GraphCalendarSyncDriver(
             $http,
             $tokens,
-            new GraphEventMapper($zones, new GraphRecurrenceMapper()),
+            new GraphEventMapper($zones, new GraphRecurrenceMapper(), new AlertReader(new NullLogger())),
             $zones,
             new NullLogger(),
         );

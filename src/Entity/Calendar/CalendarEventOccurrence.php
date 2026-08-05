@@ -48,6 +48,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'calendar_event_occurrence')]
 #[ORM\Index(name: 'idx_ceo_usr_starts', columns: ['usr_id', 'starts_at'])]
 #[ORM\Index(name: 'idx_ceo_calendar_starts', columns: ['calendar_id', 'starts_at'])]
+// The alert sweep, and the only read of this table that is not scoped to an
+// owner: it asks "what starts near now, anywhere on this install?" once a
+// minute. Both indexes above lead with a user or a calendar and cannot answer
+// that, so without a start-only index the sweep is a sequential scan of every
+// occurrence ever materialised — every minute, on a table that holds a thousand
+// rows per unbounded recurring event.
+#[ORM\Index(name: 'idx_ceo_starts', columns: ['starts_at'])]
 // Built `USING gist` by the migration — see the note above.
 #[ORM\Index(name: 'idx_ceo_span', columns: ['calendar_id', 'span'])]
 #[ORM\UniqueConstraint(name: 'uniq_ceo_event_recurrence', columns: ['event_id', 'recurrence_id'])]

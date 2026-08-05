@@ -6,9 +6,11 @@ namespace App\Service\Calendar\Sync\Google;
 
 use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteEvent;
+use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Calendar\CalendarEvent;
+use App\Service\Calendar\Alert\AlertReader;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
@@ -79,11 +81,26 @@ use DateTimeZone;
  *   carrying `owner`, so the invite card had nobody to answer for and offered
  *   no answer at all.
  *
+ *   **`reminders` are alerts, and `useDefault` is not.** An event's own
+ *   `reminders.overrides` map onto JSCalendar alerts in both directions —
+ *   `popup` is a display alert, `email` is an email one, and `minutes` is a
+ *   negative offset from the start. `useDefault: true` deliberately maps to
+ *   nothing: it is a statement about the CALENDAR's reminder settings, not
+ *   about this event, and materialising it into event-level alerts would mean
+ *   plMail firing its own reminder beside the one Google already fires — the
+ *   "notified twice" this mapper's note used to warn about.
+ *
+ *   The consequence is stated rather than hidden: **removing the last alert
+ *   here does not remove the reminders at Google.** `reminders` is written only
+ *   when the local event has at least one alert, so an event whose reminders
+ *   are the calendar's defaults keeps them when somebody edits its title, which
+ *   is the failure worth avoiding. Sending `useDefault: false` with an empty
+ *   overrides list would clear them instead — and it would do so on every event
+ *   that had never had a plMail alert, which is all of them.
+ *
  * What Google says that JSCalendar has no home for, and is therefore dropped:
- * `colorId` (plMail colours calendars, not events), `reminders`
- * (JSCalendar alerts exist, but plMail has no alert feature to honour them
- * with, and writing them back is how a user gets notified twice),
- * `conferenceData`, `attachments`, `guestsCanModify` and friends, and
+ * `colorId` (plMail colours calendars, not events), `conferenceData`,
+ * `attachments`, `guestsCanModify` and friends, and
  * `organizer.self`/`attendees[].self` — which is real information, but plMail
  * answers "is this me?" by comparing addresses to the account's own and does
  * not need Google's opinion recorded. Because updates are sent as PATCH, none
@@ -129,8 +146,23 @@ final readonly class GoogleEventMapper
         'confidential' => 'private',
     ];
 
+    /**
+     * Google's reminder `method` as a JSCalendar action.
+     *
+     * `sms` is absent on purpose rather than mapped to anything. Google retired
+     * it for consumer calendars years ago, plMail cannot send one, and a case
+     * that reads in and never fires is a reminder the user believes is set.
+     *
+     * @var array<string,string>
+     */
+    private const array REMINDER_METHODS = [
+        'popup' => 'display',
+        'email' => 'email',
+    ];
+
     public function __construct(
         private GoogleRecurrenceMapper $recurrence,
+        private AlertReader            $alerts,
     ) {
     }
 
@@ -249,6 +281,18 @@ final readonly class GoogleEventMapper
 
         if ([] !== $attendees) {
             $payload['attendees'] = $attendees;
+        }
+
+        $reminders = $this->googleReminders($event);
+
+        // Sent only when there is something to say. See the class docblock: an
+        // event with no plMail alerts is indistinguishable from one relying on
+        // the calendar's default reminders, and asserting "no reminders" for
+        // both would strip the defaults off every event this install ever
+        // touched. PATCH leaves out what it does not mention, so silence here
+        // means "unchanged" rather than "none".
+        if ([] !== $reminders) {
+            $payload['reminders'] = ['useDefault' => false, 'overrides' => $reminders];
         }
 
         return $payload;
@@ -371,6 +415,12 @@ final readonly class GoogleEventMapper
             $jscalendar['participants'] = $participants;
         }
 
+        $alerts = $this->alertsOf($item);
+
+        if ([] !== $alerts) {
+            $jscalendar['alerts'] = $alerts;
+        }
+
         $recurrence = $item['recurrence'] ?? null;
 
         if (true === is_array($recurrence)) {
@@ -467,6 +517,109 @@ final readonly class GoogleEventMapper
         }
 
         return $participants;
+    }
+
+    /**
+     * An event's own reminders as JSCalendar alerts.
+     *
+     * `useDefault: true` answers nothing, and that is the important half — see
+     * the class docblock. Google puts the calendar's default reminders in
+     * `overrides` on a read even when `useDefault` is true, so a mapper that
+     * ignored the flag would turn every event on a calendar with a default
+     * reminder into an event carrying that reminder, and plMail would notify
+     * beside Google for all of them.
+     *
+     * `minutes` is minutes BEFORE the start, always non-negative — Google has no
+     * way to express a reminder after an event begins — so the offset is
+     * negative here by construction.
+     *
+     * @param array<string,mixed> $item
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    private function alertsOf(array $item): array
+    {
+        $reminders = $item['reminders'] ?? null;
+
+        if (false === is_array($reminders) || true === ($reminders['useDefault'] ?? false)) {
+            return [];
+        }
+
+        $overrides = $reminders['overrides'] ?? null;
+
+        if (false === is_array($overrides)) {
+            return [];
+        }
+
+        $alerts = [];
+
+        foreach ($overrides as $override) {
+            if (false === is_array($override)) {
+                continue;
+            }
+
+            $minutes = $override['minutes'] ?? null;
+            $method  = self::REMINDER_METHODS[(string) $this->stringOrNull($override['method'] ?? null)] ?? null;
+
+            if (false === is_int($minutes) || 0 > $minutes || null === $method) {
+                continue;
+            }
+
+            $alert = $this->alerts->offsetAlert(
+                $this->alerts->isoOffset(-$minutes * 60),
+                AlertAction::from($method),
+            );
+
+            if (null !== $alert) {
+                $alerts[$alert->key] = $alert->toJsCalendar();
+            }
+        }
+
+        return $alerts;
+    }
+
+    /**
+     * The stored alerts as `reminders.overrides`.
+     *
+     * Only the ones Google can express, which is "N minutes before the start".
+     * An alert relative to the end, one set to go off after the event begins,
+     * and an absolute trigger have no counterpart in this API at all — Google's
+     * reminder is a single non-negative integer — so they stay here and are not
+     * asserted there. Dropping them from the payload keeps them working locally;
+     * flattening them into something Google would accept would move somebody's
+     * reminder without telling them.
+     *
+     * @return list<array{method: string, minutes: int}>
+     */
+    private function googleReminders(CalendarEvent $event): array
+    {
+        $methods   = array_flip(self::REMINDER_METHODS);
+        $reminders = [];
+
+        foreach ($this->alerts->alertsOf($event) as $alert) {
+            $seconds = $alert->offsetSeconds;
+
+            if (null === $seconds || 0 < $seconds || true === $alert->relativeToEnd) {
+                continue;
+            }
+
+            $method = $methods[$alert->action->value] ?? null;
+
+            if (null === $method) {
+                continue;
+            }
+
+            // Whole minutes, because that is the only unit Google has. Rounded
+            // rather than truncated: a "90 seconds before" alarm imported from
+            // an .ics becomes two minutes there, not one — early is a reminder,
+            // late is a notification about a meeting you are already in.
+            $reminders[] = [
+                'method'  => $method,
+                'minutes' => (int) round(abs($seconds) / 60),
+            ];
+        }
+
+        return $reminders;
     }
 
     /**

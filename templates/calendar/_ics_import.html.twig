@@ -1,0 +1,116 @@
+{#
+calendar/_ics_import.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Put an .ics file onto one of the user's calendars.
+
+A hand-written form, like calendar/_subscribe.html.twig, because there is no
+entity behind it at all: an upload and the id of a calendar to put it on.
+
+`enctype` is the one attribute here that cannot be forgotten — without it the
+browser posts the file's *name* and the server sees an empty upload, which
+presents as "nothing was imported" on a file that is plainly there.
+
+The picker lists only calendars that accept writes. A read-only mirror is
+absent rather than disabled: a disabled option promises it might become
+selectable, and this one never will while the calendar is subscribed.
+IcsImporter refuses one anyway, because this list is what a person meets and
+that refusal is what a crafted POST meets.
+
+Variables:
+  calendars  Calendar[]  the ones an import may be put on, in sort order
+  error      string|null why the last attempt did not work
+  maxBytes   int         the upload ceiling, so the hint states a real number
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'calendar.ics.import.title'|trans }}</template>
+
+    <form method="post"
+          action="{{ path('app_calendar_ics_import') }}"
+          enctype="multipart/form-data"
+          data-turbo-frame="modal"
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('calendar-ics-import') }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-4 overflow-y-auto">
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'calendar.ics.import.intro'|trans }}
+            </p>
+
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+
+            {% if calendars is empty %}
+                <p class="py-6 text-center text-sm text-ink-faint italic">
+                    {{ 'calendar.ics.import.no_calendars'|trans }}
+                </p>
+            {% else %}
+                <div class="space-y-1.5">
+                    <label for="ics-file" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.ics.import.file'|trans }}
+                    </label>
+                    <input type="file"
+                           id="ics-file"
+                           name="file"
+                           accept=".ics,text/calendar"
+                           required
+                           class="w-full text-sm text-ink file:mr-3 file:h-8 file:px-3 file:rounded-lg
+                                  file:border file:border-field file:bg-field file:text-xs file:font-medium
+                                  file:text-ink-soft hover:file:bg-hover file:cursor-pointer">
+                    <p class="text-[11px] text-ink-faint leading-snug">
+                        {{ 'calendar.ics.import.file_help'|trans({ '%size%': (maxBytes / 1048576)|round }) }}
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="ics-calendar" class="block text-xs font-medium text-ink-soft">
+                        {{ 'calendar.ics.import.calendar'|trans }}
+                    </label>
+                    <select id="ics-calendar"
+                            name="calendarId"
+                            class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {% for calendar in calendars %}
+                            <option value="{{ calendar.id }}" {% if calendar.isDefault %}selected{% endif %}>
+                                {{ calendar.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Said before the button rather than in a confirmation after
+                   it: an import is not a merge of everything in the file, and
+                   the two rules that decide what it skips are not guessable
+                   from the word "import". #}
+                <p class="text-[11px] text-ink-faint leading-snug">
+                    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                    {{ 'calendar.ics.import.dedup_note'|trans }}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'form.cancel'|trans }}</button>
+
+            {% if calendars is not empty %}
+                <button type="submit"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                               bg-accent hover:bg-accent-strong active:bg-blue-800
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                               transition-colors duration-100">{{ 'calendar.ics.import.submit'|trans }}</button>
+            {% endif %}
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

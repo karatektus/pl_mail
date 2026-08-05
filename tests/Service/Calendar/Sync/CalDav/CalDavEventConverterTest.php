@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 /**
  * The .ics on a CalDAV resource, and the JSCalendar the engine stores.
@@ -381,7 +383,7 @@ final class CalDavEventConverterTest extends TestCase
 
     private function converter(): CalDavEventConverter
     {
-        return new CalDavEventConverter(new RecurrenceRuleConverter());
+        return new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()));
     }
 
     /**

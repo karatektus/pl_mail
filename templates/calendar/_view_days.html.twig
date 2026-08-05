@@ -1,10 +1,15 @@
 {#
-Day and week: one column per day.
+Day and week in the docked pane: one column per day, as a list of chips.
 
-Deliberately not a time-grid with absolutely positioned blocks. That is the
-right shape for a wide screen and the wrong one for a 380px pane, and one
-readable layout that works in both is worth more than two that each work in one
-place. The time-grid belongs with drag-to-move, which is its own piece of work.
+This used to be day and week EVERYWHERE, with a note saying a time-grid was the
+right shape for a wide screen and the wrong one for a 380px pane, and that one
+readable layout beat two that each worked in one place. The time-grid now
+exists — _view_timegrid.html.twig, with drag-to-move, which is what that note
+said it belonged with — and the half of the reasoning that was about the pane is
+the half that stood up. Seven columns of positioned blocks behind a time gutter
+need roughly a screen's width; the pane has ~380px of a row it shares with the
+mail, so it keeps this. _grid.html.twig picks between the two on `isPane`, which
+the controller passes in, and says there why it is not a media query.
 
 The columns fill the height rather than collapsing to their content — a week
 that stops a fifth of the way down the pane reads as a rendering fault, not as

@@ -364,6 +364,71 @@ per call rather than injected, because the workers that register channels are
 long-running and the address is usually saved from the setup screen after they
 booted.
 
+## Calendar alerts
+
+An alert is stored where RFC 8984 puts it — in the event's own JSCalendar object
+under `alerts`, as a map of `{ trigger, action }` — and nowhere else. There is no
+column for it and nothing queries one, which is the point: an alert round-trips
+to Google, Microsoft Graph and CalDAV because it is kept in the vocabulary all
+three convert to, rather than in a plMail-only field the mappers would have to
+learn about one at a time.
+
+`app:calendar:alerts` is what fires them, every minute. It reads
+`calendar_event_occurrence` — the same rows every calendar view reads — so a
+recurring event produces one alert per occurrence for free, and an instance
+somebody moved or cancelled is already moved or cancelled in that table. Nothing
+in the alert path re-reads `recurrenceOverrides`, deliberately: a second reading
+of it would be a second opinion about where a meeting is.
+
+| | Where it lives |
+|---|---|
+| The alerts on an event | `jscalendar.alerts`, keyed by trigger and action |
+| Reading and building them | `App\Service\Calendar\Alert\AlertReader` |
+| What is due right now | `App\Service\Calendar\Alert\DueAlertReader` |
+| Sending it, exactly once | `App\Service\Calendar\Alert\AlertDeliverer` |
+| A notification | `PushAlertChannel`, over the existing JMAP Web Push stack |
+| A reminder mail | `EmailAlertChannel`, through `MailSenderRegistry` |
+| The record that it fired | `calendar_alert_delivery` |
+
+### Things that bite
+
+**An alert fires exactly once because the database says so, not because the code
+remembers.** `AlertDeliverer` writes the delivery row *before* it sends
+anything, in one `INSERT … ON CONFLICT DO NOTHING`, and whether that insert
+happened is the same question as whether this process is the one that sends.
+Both obvious alternatives lose: send-then-record leaves a window in which a
+killed container re-sends on the next sweep, and read-then-insert lets two
+overlapping sweeps both decide to send. The consequence is that a delivery which
+*fails* is lost rather than retried — chosen deliberately, because "your meeting
+starts in ten minutes" is not true fifteen minutes later.
+
+**Turning this on must not deliver a year of history**, and the thing that stops
+it is not the table — that is empty on a fresh install either way. It is
+`DueAlertReader::LOOKBACK`: a trigger more than an hour old is not due and never
+will be. That is also the bound on how much downtime the sweep can catch up
+from. Anything that shortens the prune cutoff in `CalendarAlertsCommand` below
+that hour re-introduces double firing.
+
+**The occurrence horizon is the alert horizon.** `RecurrenceMaterialiser` only
+writes occurrences within a bounded window around now, so an alert on next
+decade's birthday exists and does not fire until the nightly sweep rolls the
+horizon far enough forward. `MAX_LEAD` in `DueAlertReader` is the matching bound
+at the other end: an alert set more than thirty-one days ahead of an event never
+fires, because the alternative is a candidate query with no upper bound scanning
+the whole table every minute.
+
+**Removing every alert does not clear the reminders at Google.** Google cannot
+distinguish "this event has no reminders" from "this event uses the calendar's
+defaults" in a way plMail can round-trip, so `reminders` is written only when
+there is at least one local alert. Graph has no such ambiguity — `isReminderOn:
+false` is written on every push, so clearing an alert here clears it in Outlook.
+Both decisions are argued in the mappers' own docblocks.
+
+**A user with no subscribed device and no mail account is a normal state**, not
+an error: the alert is claimed, a warning is logged, and nothing is retried.
+Leaving the claim off would mean the same impossible delivery attempted sixty
+times an hour for the length of the lookback window.
+
 ## Console commands
 
 | Command | Description |
@@ -375,6 +440,7 @@ booted.
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
+| `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:label:backfill [--account=ID]` | Create labels from existing mailboxes and backfill assignments |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
@@ -408,6 +474,7 @@ each.
 - [x] Microsoft OAuth2 / Graph send support
 - [x] Nested label UI — `Label::$parent`, `LabelRepository::findVisibleTreeForUser()`, and the recursive tree in `_partials/_sidebar.html.twig`
 - [x] Snooze — `ThreadSnoozeService`, `app:mail:wake-snoozed`, and the `Thread/set` JMAP extension
+- [x] Calendar alerts — RFC 8984 `alerts` on the event, `app:calendar:alerts` every minute, delivered over the existing Web Push stack or as mail; see "Calendar alerts"
 - [ ] Gmail-native `threadId` threading (the id is carried on `Message`, but threading is still RFC Message-ID based)
 - [ ] Incoming IMAP flag sync over the IDLE stream — flags currently travel outward only, so marking a message read in another client does not reflect back
 - [ ] Avatar fetching (partially done: `Service/User/AvatarFromIntegration.php`; still needs OAuth avatar scopes)

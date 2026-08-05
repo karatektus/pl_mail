@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Sync\CalDav;
 
 use App\Domain\DTO\Calendar\RemoteEvent;
+use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use DateTimeZone;
+use Sabre\VObject\Component\VAlarm;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
 use Sabre\VObject\DateTimeParser;
@@ -68,9 +71,28 @@ use Sabre\VObject\Reader;
  * the title of a series here would PUT a resource with the master alone and
  * delete every moved instance of it at the server.
  *
- * VALARM, ATTACH and X- properties are not carried either way. They round-trip
- * through neither the columns nor the JSCalendar object today, and writing back
- * an event with its alarms stripped would be worse than not writing it.
+ * ── VALARM ────────────────────────────────────────────────────────────────
+ *
+ * Carried in both directions, and it did not used to be. The note here used to
+ * say alarms round-tripped through nothing and were therefore left alone; that
+ * was true while plMail had no alert feature, and it stopped being true — a
+ * VALARM is a JSCalendar Alert (RFC 8984 §4.5.2) with a different spelling, and
+ * dropping it now would mean a reminder set in Thunderbird vanishing the first
+ * time somebody renamed the meeting here.
+ *
+ * Only the master's alarms. An override's own VALARMs are not read and not
+ * written, matching the rest of this feature: an alert belongs to the event, and
+ * nothing downstream reads a per-instance one.
+ *
+ * An EMAIL alarm is written without the ATTENDEE line RFC 5545 asks for.
+ * Deliberate: the address an alarm should mail is the user's own, this converter
+ * is given an event and not a person, and inventing one from the participant
+ * list would put an organiser's address on a reminder that fires in somebody
+ * else's client.
+ *
+ * ATTACH and X- properties are still not carried either way. They round-trip
+ * through neither the columns nor the JSCalendar object, and writing back an
+ * event with them stripped would be worse than not writing it.
  */
 final readonly class CalDavEventConverter
 {
@@ -86,6 +108,7 @@ final readonly class CalDavEventConverter
 
     public function __construct(
         private RecurrenceRuleConverter $recurrence,
+        private AlertReader             $alerts,
     ) {
     }
 
@@ -185,6 +208,7 @@ final readonly class CalDavEventConverter
         }
 
         $this->addParticipants($vevent, $event);
+        $this->addAlarms($calendar, $vevent, $event);
         $this->addOverrides($calendar, $vevent, $event);
 
         return $calendar->serialize();
@@ -304,6 +328,12 @@ final readonly class CalDavEventConverter
 
         if ([] !== $participants) {
             $jscalendar['participants'] = $participants;
+        }
+
+        $alerts = $this->alertsIn($vevent);
+
+        if ([] !== $alerts) {
+            $jscalendar['alerts'] = $alerts;
         }
 
         $rrules = $vevent->select('RRULE');
@@ -802,6 +832,130 @@ final readonly class CalDavEventConverter
 
                 $vevent->add('ATTENDEE', 'mailto:' . $email, $parameters);
             }
+        }
+    }
+
+    /**
+     * The stored alerts, back out as VALARMs on the master.
+     *
+     * DESCRIPTION is written on every alarm, not only the DISPLAY ones. RFC 5545
+     * requires it for DISPLAY and for EMAIL, and a DISPLAY alarm without one is
+     * shown as an empty box by the clients that do not fall back to the event's
+     * summary — which is most of them.
+     *
+     * `RELATED=END` is written only when the alert says so: START is the default
+     * and spelling it out on every alarm makes an unchanged event look changed to
+     * a server comparing two versions of the resource.
+     *
+     * An alert this build cannot express as a trigger is skipped rather than
+     * written wrong. That costs the alarm; writing `TRIGGER:` with an empty value
+     * costs the whole resource, because a server that validates rejects the PUT
+     * and the event stops syncing.
+     */
+    private function addAlarms(VCalendar $calendar, VEvent $vevent, CalendarEvent $event): void
+    {
+        foreach ($this->alerts->alertsOf($event) as $alert) {
+            $alarm = new VAlarm($calendar, 'VALARM', [
+                'ACTION'      => $alert->action->icalAction(),
+                'DESCRIPTION' => (string) $event->title,
+            ]);
+
+            if (null !== $alert->absoluteAt) {
+                $alarm->add('TRIGGER', $alert->absoluteAt->format('Ymd\THis\Z'), ['VALUE' => 'DATE-TIME']);
+            } elseif (null !== $alert->offset) {
+                $alarm->add(
+                    'TRIGGER',
+                    $alert->offset,
+                    true === $alert->relativeToEnd ? ['RELATED' => 'END'] : [],
+                );
+            } else {
+                continue;
+            }
+
+            // SUMMARY is what an EMAIL alarm's subject is (RFC 5545 §3.6.6) and
+            // is meaningless on the others, so it is added to that one only.
+            if (AlertAction::Email === $alert->action) {
+                $alarm->add('SUMMARY', (string) $event->title);
+            }
+
+            $vevent->add($alarm);
+        }
+    }
+
+    /**
+     * VALARMs as JSCalendar alerts.
+     *
+     * Only the trigger and the action survive: DESCRIPTION, SUMMARY, ATTENDEE,
+     * DURATION and REPEAT have no JSCalendar counterpart, and a repeating alarm
+     * ("every five minutes until acknowledged") is deliberately read as one
+     * alert at its first trigger rather than as several. Storing the repeat with
+     * nothing able to honour it would be a promise this application does not
+     * keep; one reminder that arrives is better than four that are recorded and
+     * never sent.
+     *
+     * An alarm whose trigger is neither a duration nor an instant is skipped.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    private function alertsIn(VEvent $vevent): array
+    {
+        $alerts = [];
+
+        foreach ($vevent->VALARM ?? [] as $alarm) {
+            if (false === $alarm instanceof VAlarm) {
+                continue;
+            }
+
+            $trigger = $alarm->TRIGGER ?? null;
+
+            if (null === $trigger) {
+                continue;
+            }
+
+            $action = AlertAction::fromJsCalendar(trim((string) ($alarm->ACTION ?? '')));
+            $value  = trim((string) $trigger);
+
+            // RFC 5545 §3.8.6.3: a TRIGGER is a DURATION unless VALUE says
+            // otherwise, and RELATED names which end the duration is measured
+            // from. Both are read off the property rather than guessed from the
+            // string's shape — "20260805T100000Z" and "-PT15M" are told apart by
+            // the parameter, not by looking at them.
+            if ('DATE-TIME' === mb_strtoupper(trim((string) ($trigger['VALUE'] ?? '')))) {
+                $absolute = $this->absoluteTrigger($value);
+
+                if (null === $absolute) {
+                    continue;
+                }
+
+                $alerts[sprintf('%s/abs:%s', $action->value, $absolute->format('Y-m-d\TH:i:s\Z'))] = [
+                    '@type'   => 'Alert',
+                    'trigger' => ['@type' => 'AbsoluteTrigger', 'when' => $absolute->format('Y-m-d\TH:i:s\Z')],
+                    'action'  => $action->value,
+                ];
+
+                continue;
+            }
+
+            $alert = $this->alerts->offsetAlert(
+                $value,
+                $action,
+                'END' === mb_strtoupper(trim((string) ($trigger['RELATED'] ?? ''))),
+            );
+
+            if (null !== $alert) {
+                $alerts[$alert->key] = $alert->toJsCalendar();
+            }
+        }
+
+        return $alerts;
+    }
+
+    private function absoluteTrigger(string $value): ?DateTimeImmutable
+    {
+        try {
+            return new DateTimeImmutable($value)->setTimezone(new DateTimeZone('UTC'));
+        } catch (\Exception) {
+            return null;
         }
     }
 

@@ -451,6 +451,10 @@ app:
     name: Mail
 
 calendar:
+    alert:
+        mail:
+            subject: 'Erinnerung: %title%'
+        untitled: Termin ohne Titel
     chip:
         on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
@@ -458,7 +462,37 @@ calendar:
     error:
         invalid_times: 'Diese Zeiten gehen nicht — das Ende muss nach dem Beginn liegen.'
         no_copies: 'Nichts ausgewählt, also nichts geändert. Wähle mindestens einen Kalender.'
+        read_only: >-
+            Dieser Termin steht nur in Kalendern, die keine Änderungen annehmen —
+            er bleibt, wo er war.
     event:
+        alert:
+            action:
+                display: Benachrichtigung
+                email: E-Mail
+            amount:
+                days: '{1} 1 Tag|]1,Inf[ %count% Tagen'
+                hours: '{1} 1 Stunde|]1,Inf[ %count% Stunden'
+                minutes: '{1} 1 Minute|]1,Inf[ %count% Minuten'
+            at_absolute: 'Am %when%'
+            at_time: Zum Beginn des Termins
+            custom: Etwas anderes, in Minuten
+            custom_action: Wie die zusätzliche Erinnerung ankommt
+            day_1: 1 Tag vorher
+            hour_1: 1 Stunde vorher
+            legend: Erinnerungen
+            minutes_10: 10 Minuten vorher
+            minutes_30: 30 Minuten vorher
+            minutes_5: 5 Minuten vorher
+            relation:
+                after_end: '%amount% nach dem Ende'
+                after_start: '%amount% nach dem Beginn'
+                before_end: '%amount% vor dem Ende'
+                before_start: '%amount% vor dem Beginn'
+            series_note: >-
+                Erinnerungen gehören zum ganzen Termin, die Auswahl darunter
+                gilt also nicht für sie.
+            unreadable: Erinnerung anderswo gesetzt
         all_day: Ganztägig
         calendar: Kalender
         cancel: Abbrechen
@@ -501,6 +535,82 @@ calendar:
         time_zone_help: >-
             Die Zone, in der dieser Kalender gelesen wird — und in der ein
             Termin ohne eigene Zone angezeigt wird.
+    grid:
+        all_day: Ganztägig
+        continues_after: Geht in den nächsten Tag hinein
+        continues_before: Hat am Vortag begonnen
+        keyboard_hint: >-
+            Mit Alt und den Pfeiltasten verschiebst du diesen Termin, mit Alt und
+            Umschalt änderst du seine Dauer. Enter speichert, Escape nimmt es
+            zurück.
+        pending: >-
+            Verschoben auf %start% – %end%. Enter speichert, Escape nimmt es
+            zurück.
+        read_only: Dieser Kalender nimmt keine Änderungen an — der Termin lässt sich nicht verschieben.
+        reverted: Bleibt, wo er war.
+    ics:
+        error:
+            no_calendar: Wählen Sie einen Kalender für die Termine.
+            no_file: >-
+                Wählen Sie eine .ics-Datei. Falls Sie eine gewählt haben, ist
+                sie womöglich größer, als plMail einliest.
+            no_url: Geben Sie die Adresse ein, unter der der Kalender
+                veröffentlicht ist.
+        export:
+            calendar: '"%name%" als Kalenderdatei herunterladen'
+            calendar_title: Als .ics herunterladen
+            event: .ics herunterladen
+        import:
+            calendar: Hinzufügen zu
+            dedup_note: >-
+                Ein Termin, der schon in diesem Kalender steht, wird
+                aktualisiert statt doppelt angelegt; einer, der bereits in einem
+                anderen Ihrer Kalender steht — aus einer Einladung oder aus
+                einem gespiegelten Kalender — bleibt, wo er ist.
+            file: Kalenderdatei
+            file_help: Eine .ics-Datei, bis zu %size% MB.
+            intro: >-
+                Liest eine .ics-Datei — einen Export aus einem anderen Kalender
+                oder eine zugesandte Einladung — in einen Ihrer Kalender ein.
+            no_calendars: >-
+                Keiner Ihrer Kalender nimmt neue Termine an. Ein gespiegelter
+                Kalender ist eine schreibgeschützte Kopie; legen Sie zuerst
+                einen eigenen an.
+            submit: Importieren
+            title: Kalenderdatei importieren
+        subscribe:
+            address: Kalenderadresse
+            address_help: >-
+                Die Adresse, unter der ein Kalender veröffentlicht ist, endend
+                auf .ics. Ein webcal://-Link geht ebenso — das ist dieselbe
+                Adresse unter anderem Namen.
+            connect: Adresse abonnieren
+            intro: >-
+                Folgen Sie einem veröffentlichten Kalender: Feiertage, ein
+                Spielplan oder die geheime Adresse Ihres eigenen Google- oder
+                Outlook-Kalenders. plMail liest ihn im Hintergrund neu ein und
+                zeigt ihn neben Ihren eigenen Kalendern.
+            name: Name
+            name_help: >-
+                Wie er hier heißen soll. Leer gelassen, benennt sich der
+                Kalender selbst.
+            read_only_note: >-
+                Ein abonnierter Kalender ist schreibgeschützt — er ist die Kopie
+                einer veröffentlichten Datei, Änderungen hier erreichten sie
+                also nie. Wer diese Adresse hat, kann den Kalender lesen;
+                behandeln Sie eine geheime Adresse wie ein Passwort.
+            submit: Abonnieren
+            title: Kalenderadresse abonnieren
+        toast:
+            import_empty: >-
+                Diese Datei enthält keine Termine, die plMail lesen kann. Prüfen
+                Sie, ob es wirklich ein Kalenderexport ist.
+            import_nothing_new: >-
+                Nichts hinzuzufügen — jeder Termin aus dieser Datei steht schon
+                in Ihren Kalendern.
+            imported: '%added% hinzugefügt, %updated% aktualisiert, %skipped% übersprungen.'
+            subscribed: >-
+                Abonniert — der Kalender füllt sich binnen einer Minute.
     invite:
         action:
             accepted: Zusagen

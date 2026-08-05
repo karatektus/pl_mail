@@ -367,6 +367,10 @@ app:
     name: Mail
 
 calendar:
+    alert:
+        mail:
+            subject: 'A nudge: %title%'
+        untitled: A reckonin' with no name
     chip:
         on_calendars: 'Upon %calendars%'
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
@@ -374,7 +378,37 @@ calendar:
     error:
         invalid_times: 'Them bells be wrong — the end must come after the start.'
         no_copies: 'Naught was picked, so naught was changed. Mark at least one almanac.'
+        read_only: >-
+            This reckonin' sits only in almanacs that take no changes, so it be
+            left where it lay.
     event:
+        alert:
+            action:
+                display: A shout on deck
+                email: A parrot
+            amount:
+                days: '{1} 1 day|]1,Inf[ %count% days'
+                hours: '{1} 1 bell|]1,Inf[ %count% bells'
+                minutes: '{1} 1 minute|]1,Inf[ %count% minutes'
+            at_absolute: 'Upon %when%'
+            at_time: The very moment it starts
+            custom: Somethin'' else, in minutes
+            custom_action: How the extra nudge shall reach ye
+            day_1: 1 day afore
+            hour_1: 1 bell afore
+            legend: Nudges
+            minutes_10: 10 minutes afore
+            minutes_30: 30 minutes afore
+            minutes_5: 5 minutes afore
+            relation:
+                after_end: '%amount% after the end'
+                after_start: '%amount% after the start'
+                before_end: '%amount% afore the end'
+                before_start: '%amount% afore the start'
+            series_note: >-
+                Nudges belong to the whole reckonin'', so the choice below has
+                no say over them.
+            unreadable: A nudge set in some other port
         all_day: All the day long
         calendar: Almanac
         cancel: Belay that
@@ -415,6 +449,75 @@ calendar:
         time_zone_help: >-
             The bell this almanac be read by — and the one a reckonin' with no
             bell of its own be shown in.
+    grid:
+        all_day: All the day long
+        continues_after: Sails on into the next day
+        continues_before: Set off the day afore
+        keyboard_hint: >-
+            Hold Alt an' steer with the arrow keys to shift this reckonin'; add
+            Shift to change how long it runs. Enter stows it, Escape puts it
+            back.
+        pending: >-
+            Shifted to %start% – %end%. Press Enter to stow it, or Escape to put
+            it back.
+        read_only: This almanac takes no changes, so this reckonin' cannot be shifted.
+        reverted: Left where it lay.
+    ics:
+        error:
+            no_calendar: Pick an almanac to stow the dates in.
+            no_file: >-
+                Pick an .ics scroll. If ye did pick one, it may be fatter than
+                plMail will swallow.
+            no_url: Write the bearin' where the almanac be posted.
+        export:
+            calendar: Haul "%name%" ashore as an almanac scroll
+            calendar_title: Haul down as .ics
+            event: Haul down .ics
+        import:
+            calendar: Stow 'em in
+            dedup_note: >-
+                A date already in this almanac be mended rather than written
+                twice, and one already in another o' yer almanacs — from a
+                summons, or from an almanac ye mirror — be left where it lies.
+            file: Almanac scroll
+            file_help: An .ics scroll, up to %size% MB.
+            intro: >-
+                Reads an .ics scroll — a copy from another almanac, or a summons
+                somebody sent ye — into one o' yer almanacs.
+            no_calendars: >-
+                None o' yer almanacs takes new dates. A mirrored almanac be a
+                look-but-don't-touch copy; make one o' yer own first.
+            submit: Bring aboard
+            title: Bring an almanac scroll aboard
+        subscribe:
+            address: Almanac bearin'
+            address_help: >-
+                The bearin' an almanac be posted at, endin' in .ics. A webcal://
+                link sails too — 'tis the same bearin' under another flag.
+            connect: Follow a bearin'
+            intro: >-
+                Follow an almanac somebody posts: feast days, a fixture list, or
+                the secret bearin' yer own Google or Outlook almanac offers.
+                plMail reads it again in the bilges and shows it beside yer own.
+            name: Name
+            name_help: What to call it here. Left empty, the almanac names itself.
+            read_only_note: >-
+                A followed almanac be look-but-don't-touch — 'tis a copy o' a
+                posted scroll, so changes made here could never reach it. Anyone
+                holdin' this bearin' can read the almanac, so treat a secret one
+                like a secret word.
+            submit: Follow it
+            title: Follow an almanac bearin'
+        toast:
+            import_empty: >-
+                That scroll holds no dates plMail can read. Check 'tis an
+                almanac copy and not somethin' else.
+            import_nothing_new: >-
+                Naught to add — every date in that scroll be already in yer
+                almanacs.
+            imported: '%added% added, %updated% mended, %skipped% passed over.'
+            subscribed: >-
+                Followed — the almanac fills in within the minute.
     invite:
         action:
             accepted: Aye

@@ -196,6 +196,40 @@ class CalendarEventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every event on one calendar, handed over one at a time.
+     *
+     * For the .ics export, which is the only reader here that has no bound on
+     * how much it is about to touch: a person exporting a decade of a busy
+     * calendar is asking for every row there is. findBy() would hydrate all of
+     * them before the first byte reached the browser, so the response would
+     * hold the whole calendar as entities *and* as text at once, on a request
+     * whose size a user chooses.
+     *
+     * toIterable() hydrates one row per iteration instead, which pairs with
+     * IcsExporter::document() yielding one event's worth of file at a time —
+     * neither is much use without the other, and the peak stays at one meeting
+     * however long the calendar is.
+     *
+     * Ordered by start rather than by id, because an exported file is read by
+     * people as often as by programs and a calendar in chronological order is
+     * the one they expect. The id breaks ties so the order is total, and a
+     * re-export of an unchanged calendar therefore produces the same bytes —
+     * which is what makes "diff two exports" a thing somebody can do.
+     *
+     * @return iterable<CalendarEvent>
+     */
+    public function iterateForCalendar(Calendar $calendar): iterable
+    {
+        return $this->createQueryBuilder('event')
+            ->where('event.calendar = :calendar')
+            ->setParameter('calendar', $calendar)
+            ->orderBy('event.startsAt', 'ASC')
+            ->addOrderBy('event.id', 'ASC')
+            ->getQuery()
+            ->toIterable();
+    }
+
+    /**
      * Recurring events whose materialised occurrences may not reach far enough
      * yet — everything unbounded, plus anything ending after the horizon the
      * last sweep wrote.

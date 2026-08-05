@@ -9,6 +9,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\Sync\Graph\GraphCalendarSyncDriver;
 use App\Service\Calendar\Sync\Graph\GraphEventMapper;
 use App\Service\Calendar\Sync\Graph\GraphRecurrenceMapper;
@@ -18,6 +19,7 @@ use App\Tests\Service\Calendar\RecordingLogger;
 use DateTimeImmutable;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -270,7 +272,7 @@ final class GraphCalendarInstancePushTest extends TestCase
         return new GraphCalendarSyncDriver(
             $http,
             $tokens,
-            new GraphEventMapper($zones, new GraphRecurrenceMapper()),
+            new GraphEventMapper($zones, new GraphRecurrenceMapper(), new AlertReader(new NullLogger())),
             $zones,
             $logger ?? new RecordingLogger(),
         );

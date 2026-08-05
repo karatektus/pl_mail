@@ -1,19 +1,54 @@
 {#
-_grid.html.twig — the calendar itself, view-agnostic.
+_grid.html.twig — the calendar itself, and the one place that picks a view's
+layout.
 
-Rendered identically by the docked pane and the full page. The only thing that
-differs between them is which view they open on, so there is exactly one set of
-these partials rather than a pane version and a page version drifting apart.
+Rendered by the docked pane and by the full page. Month and agenda are the same
+markup in both. Day and week are not, and that is the only difference between
+the two shapes of this app:
+
+  the page  a time-grid — hours down the side, every event drawn where it
+            actually is and as long as it actually is, and draggable.
+  the pane  the column list, unchanged. Seven columns of positioned blocks
+            behind a time gutter need roughly a screen's width to be legible;
+            the pane is ~380px of a row it shares with the mail, so a grid there
+            would be seven slivers and an unreadable axis.
+
+**The choice is made on `isPane`, which the controller passes in, and never on
+a media query.** The pane is narrow on a 2560px monitor as well as on a laptop,
+so the window's width does not answer the question — and CSS that rendered both
+and hid one would ship a drag-and-drop controller to a pane that cannot use it,
+and double the markup of every calendar render to throw half of it away.
+CalendarView::isTimeGrid() answers the other half: which views have a time axis
+worth drawing at all.
+
+This replaces an earlier note on _view_days.html.twig promising that a time-grid
+"belongs with drag-to-move, which is its own piece of work". That work is done;
+what survives of the promise is the pane's column list, which the reasoning was
+always really about.
+
+The scroll container differs between the two branches on purpose. The column
+list scrolls as one block, so the wrapper owns the overflow. The time-grid keeps
+its day headers and its all-day band pinned while only the hours scroll, so it
+owns its own scrolling and this wrapper must not add a second scrollbar around
+it.
 #}
 
 {% set days = range.days %}
+{% set isPane = isPane|default(false) %}
+{% set isTimeGrid = view.isTimeGrid and not isPane %}
 
-<div class="flex-1 min-h-0 overflow-y-auto" data-controller="calendar--grid">
-    {% if view.value == 'month' %}
-        {% include 'calendar/_view_month.html.twig' %}
-    {% elseif view.value == 'agenda' %}
-        {% include 'calendar/_view_agenda.html.twig' %}
-    {% else %}
-        {% include 'calendar/_view_days.html.twig' %}
-    {% endif %}
-</div>
+{% if isTimeGrid %}
+    <div class="flex-1 min-h-0 flex flex-col" data-controller="calendar--grid">
+        {% include 'calendar/_view_timegrid.html.twig' %}
+    </div>
+{% else %}
+    <div class="flex-1 min-h-0 overflow-y-auto" data-controller="calendar--grid">
+        {% if view.value == 'month' %}
+            {% include 'calendar/_view_month.html.twig' %}
+        {% elseif view.value == 'agenda' %}
+            {% include 'calendar/_view_agenda.html.twig' %}
+        {% else %}
+            {% include 'calendar/_view_days.html.twig' %}
+        {% endif %}
+    </div>
+{% endif %}

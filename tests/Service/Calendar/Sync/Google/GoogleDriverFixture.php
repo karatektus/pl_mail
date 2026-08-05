@@ -12,6 +12,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Calendar\Sync\Google\GoogleCalendarApiClient;
 use App\Service\Calendar\Sync\Google\GoogleCalendarSyncDriver;
@@ -21,6 +22,7 @@ use App\Service\OAuth\OAuthTokenManager;
 use App\Tests\Service\Calendar\RecordingLogger;
 use DateTimeImmutable;
 use DateTimeZone;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -76,7 +78,7 @@ final class GoogleDriverFixture
 
         $this->driver = new GoogleCalendarSyncDriver(
             new GoogleCalendarApiClient($this->http, self::tokens()),
-            new GoogleEventMapper($recurrence),
+            new GoogleEventMapper($recurrence, new AlertReader(new NullLogger())),
             $this->logger,
         );
     }

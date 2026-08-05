@@ -13,6 +13,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;
 use App\Service\Calendar\Sync\CalDav\CalDavClient;
@@ -69,7 +70,7 @@ final class CalDavFixture
             $client,
             $this->discovery,
             $parser,
-            new CalDavEventConverter(new RecurrenceRuleConverter()),
+            new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger())),
             new NullLogger(),
         );
     }

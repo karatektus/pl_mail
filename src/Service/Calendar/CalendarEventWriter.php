@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\DTO\Calendar\EventAlert;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
+use App\Service\Calendar\Alert\AlertReader;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +31,7 @@ final readonly class CalendarEventWriter
 {
     public function __construct(
         private RecurrenceMaterialiser $materialiser,
+        private AlertReader            $alerts,
         private EntityManagerInterface $em,
     ) {
     }
@@ -36,6 +39,8 @@ final readonly class CalendarEventWriter
     /**
      * @param array<string,mixed>|null $recurrenceRule    a JSCalendar RecurrenceRule, or null for a one-off
      * @param array<string,mixed>|null $jscalendarOverlay a canonical object an extractor already built
+     * @param list<EventAlert>|null    $alerts            the alerts this write means; null keeps whatever is
+     *                                                    stored, and an empty list clears them
      */
     public function write(
         CalendarEvent     $event,
@@ -51,6 +56,7 @@ final readonly class CalendarEventWriter
         EventStatus       $status = EventStatus::Confirmed,
         ?array            $recurrenceRule = null,
         ?array            $jscalendarOverlay = null,
+        ?array            $alerts = null,
     ): CalendarEvent {
         $event->calendar = $calendar;
         $event->usr      = $user;
@@ -66,7 +72,7 @@ final readonly class CalendarEventWriter
             $event->uid = $this->newUid();
         }
 
-        $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule);
+        $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule, $alerts);
 
         // An extractor has already built the canonical object, and it carries
         // things no parameter list should have to thread through —
@@ -311,6 +317,7 @@ final readonly class CalendarEventWriter
 
     /**
      * @param array<string,mixed>|null $recurrenceRule
+     * @param list<EventAlert>|null    $alerts
      *
      * @return array<string,mixed>
      */
@@ -318,6 +325,7 @@ final readonly class CalendarEventWriter
         CalendarEvent $event,
         ?string       $description,
         ?array        $recurrenceRule,
+        ?array        $alerts = null,
     ): array {
         $zone = $event->timeZone ?? 'UTC';
 
@@ -370,6 +378,26 @@ final readonly class CalendarEventWriter
         // — locally only, since the organiser was told long ago.
         if (true === isset($event->jscalendar['participants'])) {
             $jscalendar['participants'] = $event->jscalendar['participants'];
+        }
+
+        // Alerts have a field in the editor, so unlike participants they are
+        // not simply carried across: a caller that states them is telling this
+        // event what its alerts ARE, and an empty list is the user unticking
+        // every box. Null is the other case and it is the common one — every
+        // extractor, every sync pull and every per-instance edit calls write()
+        // without an opinion about alerts, and none of them may silently strip
+        // the reminder somebody set on a meeting they then corrected the title
+        // of.
+        $stored = null === $alerts
+            ? ($event->jscalendar['alerts'] ?? null)
+            : $this->alerts->toJsCalendar($alerts);
+
+        // An empty map is not a fact about an event, and one left behind makes
+        // every event that ever had an alert read as though it still does —
+        // which for a sync means a PUT that keeps re-asserting nothing. Same
+        // treatment recurrenceOverrides gets in overrideInstances().
+        if (true === is_array($stored) && [] !== $stored) {
+            $jscalendar['alerts'] = $stored;
         }
 
         return $jscalendar;

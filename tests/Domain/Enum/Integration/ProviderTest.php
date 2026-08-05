@@ -14,6 +14,7 @@ use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
 use App\Domain\Interface\VerifiableDriverInterface;
 use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;
+use App\Service\Calendar\Sync\IcsUrl\IcsUrlCalendarDriver;
 use App\Service\Integration\Driver\DropboxDriver;
 use App\Service\Integration\Driver\GoogleDriveDriver;
 use App\Service\Integration\Driver\GooglePhotosDriver;
@@ -43,7 +44,7 @@ final class ProviderTest extends TestCase
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(7, Provider::cases());
+        self::assertCount(8, Provider::cases());
     }
 
     /**
@@ -54,14 +55,21 @@ final class ProviderTest extends TestCase
      * it from an empty capability list instead would be true today and quietly
      * wrong the first time a calendar service also served files.
      */
-    public function testTheCalendarProviderIsNotOfferedAsAFileService(): void
+    public function testTheCalendarProvidersAreNotOfferedAsFileServices(): void
     {
-        self::assertSame(ServiceKind::Calendar, Provider::CalDav->kind());
-        self::assertNotContains(Provider::CalDav, Provider::of(ServiceKind::Files));
-        self::assertSame([], Provider::CalDav->capabilities(), 'a CalDAV server holds no files');
+        // Both of them, and by kind rather than by case: an ICS address is the
+        // second calendar provider and the first that is a *format* rather than
+        // a protocol, so "there is exactly one calendar provider" was never the
+        // rule and pinning it as one would fail the next time somebody adds a
+        // third.
+        foreach ([Provider::CalDav, Provider::Ics] as $provider) {
+            self::assertSame(ServiceKind::Calendar, $provider->kind());
+            self::assertNotContains($provider, Provider::of(ServiceKind::Files));
+            self::assertSame([], $provider->capabilities(), $provider->value . ' holds no files');
 
-        foreach (Capability::cases() as $capability) {
-            self::assertFalse(Provider::CalDav->supports($capability), $capability->value . ' is a file capability');
+            foreach (Capability::cases() as $capability) {
+                self::assertFalse($provider->supports($capability), $capability->value . ' is a file capability');
+            }
         }
     }
 
@@ -74,13 +82,15 @@ final class ProviderTest extends TestCase
      * would be five throwing stubs, and worse, it would be tagged into the file
      * driver registry and reachable from the picker.
      */
-    public function testTheCalendarProviderHasACalendarDriverAndNotAFileOne(): void
+    public function testTheCalendarProvidersHaveCalendarDriversAndNotFileOnes(): void
     {
-        $implements = class_implements(CalDavCalendarDriver::class) ?: [];
+        foreach ([CalDavCalendarDriver::class, IcsUrlCalendarDriver::class] as $driver) {
+            $implements = class_implements($driver) ?: [];
 
-        self::assertContains(CalendarSyncDriverInterface::class, $implements);
-        self::assertContains(VerifiableDriverInterface::class, $implements, 'the connect and test paths need verify()');
-        self::assertNotContains(IntegrationDriverInterface::class, $implements, 'a calendar connection holds no files');
+            self::assertContains(CalendarSyncDriverInterface::class, $implements, $driver);
+            self::assertContains(VerifiableDriverInterface::class, $implements, 'the connect and test paths need verify()');
+            self::assertNotContains(IntegrationDriverInterface::class, $implements, 'a calendar connection holds no files');
+        }
     }
 
     /**
@@ -192,8 +202,12 @@ final class ProviderTest extends TestCase
     {
         // CalDAV belongs here for the same reason and one more: it is a
         // protocol rather than a product, so there is no canonical host to
-        // point at even in principle.
-        foreach ([Provider::Nextcloud, Provider::Immich, Provider::CalDav] as $provider) {
+        // point at even in principle. An ICS subscription belongs here because
+        // the address is the whole connection — it asks for no password at all,
+        // and AuthKind is what makes needsBaseUrl() true so the address is
+        // validated. See Provider::authKind(), which says why that is not a
+        // third AuthKind case.
+        foreach ([Provider::Nextcloud, Provider::Immich, Provider::CalDav, Provider::Ics] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
             self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');

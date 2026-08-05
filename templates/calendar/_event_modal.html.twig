@@ -43,6 +43,14 @@ moving a duplicated meeting elsewhere is expressible by unticking a copy here
 and making it there. An unmerged event — which is nearly all of them — gets the
 dropdown exactly as before, and no checkboxes at all.
 
+**The reminder checkboxes post keys, not offsets.** Each value is the key the
+alert lives under in `jscalendar.alerts`, resolved on save against the same list
+this template rendered (AlertReader::choicesFor). That is what lets a plain list
+of checkboxes carry an alarm the form has no control for — one imported from a
+CalDAV server at an absolute instant, or one measured from the end of the event
+— rather than dropping it the first time somebody corrects a title. It also
+means a hand-edited post can untick a reminder but cannot invent one.
+
 Every writable copy is ticked by default, because editing "the meeting" means
 the meeting. A read-only copy is listed, disabled and unticked, with the lock
 badge the calendar settings list already uses — it is shown rather than hidden
@@ -226,6 +234,82 @@ intended outcome and not an accident; the help text says so.
                 >{{ event ? event.jscalendar.description|default('') : '' }}</textarea>
             </div>
 
+            {# Alerts.
+
+               A checkbox per alert, and the value posted is the alert's KEY
+               rather than its offset — see AlertReader. That is what lets this
+               plain list carry things the form has no field for: an alarm that
+               arrived from a CalDAV server with an absolute trigger, or one
+               relative to the end of the event, is listed with a server-rendered
+               label and survives a save untouched. Unticking it is how you
+               remove it. It also means a crafted post cannot invent an alert,
+               only tick one off the list this template rendered.
+
+               The six common offsets are always present and always first, so the
+               one-click choices sit in a fixed place however the event was made.
+
+               No JavaScript, deliberately. The obvious alternative — a repeater
+               that adds rows client-side — would have to build the same labels
+               in a second language with a second set of plural rules, and the
+               editor already loses nothing by making "anything else" one number
+               rather than an arbitrary editor. #}
+            <fieldset class="rounded-lg border border-line px-3 py-2">
+                <legend class="px-1 text-xs text-ink-muted">
+                    {{ 'calendar.event.alert.legend'|trans }}
+                </legend>
+
+                <div class="grid grid-cols-2 gap-x-3">
+                    {% for choice in calendar_alert_choices(event) %}
+                        <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
+                            <input type="checkbox" name="alerts[]" value="{{ choice.key }}"
+                                   {{ choice.checked ? 'checked' : '' }}
+                                   class="rounded border-line text-accent focus:ring-accent">
+                            {{ choice.label }}
+                        </label>
+                    {% endfor %}
+                </div>
+
+                {# The general case. Minutes only: it is the unit every other
+                   client asks for, and an hour or a day is already one click
+                   above. A value here becomes an alert of its own on save and
+                   comes back as a ticked box next time the editor opens, which
+                   is why the field is not pre-filled from anything. #}
+                <div class="mt-2 flex items-center gap-2">
+                    <label for="event-alert-custom" class="text-xs text-ink-muted">
+                        {{ 'calendar.event.alert.custom'|trans }}
+                    </label>
+                    <input id="event-alert-custom" name="alertCustomMinutes" type="number"
+                           {# Read off the constant the save path clamps against,
+                              so the browser's bound and the server's cannot
+                              drift into disagreeing about what is accepted. #}
+                           min="1" max="{{ constant('App\\Service\\Calendar\\Alert\\AlertReader::MAX_CUSTOM_MINUTES') }}"
+                           step="1" inputmode="numeric"
+                           class="w-20 rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
+                                  focus:outline-none focus:ring-2 focus:ring-accent">
+                    <select name="alertCustomAction" aria-label="{{ 'calendar.event.alert.custom_action'|trans }}"
+                            class="rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
+                                   focus:outline-none focus:ring-2 focus:ring-accent">
+                        {% for action in ['display', 'email'] %}
+                            <option value="{{ action }}">
+                                {{ ('calendar.event.alert.action.' ~ action)|trans }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Said out loud rather than left to be discovered. An alert
+                   belongs to the event, not to one of its occurrences — RFC
+                   8984 puts `alerts` on the Event — so the scope radio below
+                   does not govern this fieldset, and a save scoped to "This
+                   event" writes the times and the title and leaves the alerts
+                   exactly as they were. #}
+                {% if is_instance %}
+                    <p class="mt-1 text-[11px] text-ink-faint">
+                        {{ 'calendar.event.alert.series_note'|trans }}
+                    </p>
+                {% endif %}
+            </fieldset>
+
             {# Only for a recurring event opened on one of its occurrences.
                A one-off has exactly one instance, so the choice would be
                between a thing and itself — and an extra radio on every event
@@ -292,6 +376,27 @@ intended outcome and not an accident; the help text says so.
                         {{ 'calendar.event.dismiss'|trans }}
                     </button>
                 {% endif %}
+
+                {# A link and not a button, because downloading changes nothing
+                   and a GET is what that is. Outside the form's control
+                   entirely: an <a> inside a <form> submits nothing, so this
+                   cannot be confused for a save however it is styled.
+
+                   data-turbo="false" is load-bearing rather than decoration —
+                   Turbo would intercept the navigation and try to swap an .ics
+                   into the page, which leaves the modal blank and downloads
+                   nothing.
+
+                   The whole series comes out, not the occurrence this editor
+                   was opened on; see IcsExporter::one() for why exporting one
+                   occurrence would produce a file that re-imports as a one-off
+                   and quietly loses the repeat. #}
+                <a href="{{ path('app_calendar_ics_event', { id: event.id }) }}"
+                   download
+                   data-turbo="false"
+                   class="text-sm text-ink-muted hover:text-ink hover:underline">
+                    {{ 'calendar.ics.export.event'|trans }}
+                </a>
             {% endif %}
 
             <button type="button"

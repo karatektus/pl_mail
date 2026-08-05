@@ -42,16 +42,34 @@ Variables:
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
     <p class="text-xs text-ink-faint">{{ 'settings.calendars.count'|trans({ '%count%': calendars|length }) }}</p>
 
-    <button
-        data-controller="ui--modal"
-        data-action="click->ui--modal#open"
-        data-ui--modal-title-value="{{ 'calendar.form.add'|trans }}"
-        data-ui--modal-src-value="{{ path('app_settings_calendar_new') }}"
-        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
-    >
-        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
-        {{ 'calendar.form.add'|trans }}
-    </button>
+    <div class="flex items-center gap-2">
+        {# Import is here rather than on a row because it is not about one
+           calendar: the file decides nothing about where it lands, the picker
+           in the modal does. The per-calendar counterpart is the export button
+           on each row below. #}
+        <button
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-title-value="{{ 'calendar.ics.import.title'|trans }}"
+            data-ui--modal-src-value="{{ path('app_calendar_ics_import') }}"
+            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+        >
+            <i class="fa-solid fa-file-import text-[10px]" aria-hidden="true"></i>
+            {{ 'calendar.ics.import.title'|trans }}
+        </button>
+
+        <button
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-title-value="{{ 'calendar.form.add'|trans }}"
+            data-ui--modal-src-value="{{ path('app_settings_calendar_new') }}"
+            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer"
+        >
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+            {{ 'calendar.form.add'|trans }}
+        </button>
+    </div>
 </div>
 
 {% if calendars is empty %}
@@ -141,6 +159,22 @@ Variables:
                 </span>
 
                 <div class="flex items-center gap-0.5 shrink-0">
+                    {# A plain link, not a form: downloading a calendar changes
+                       nothing, so it is a GET, and `download` is what stops
+                       Turbo intercepting the navigation and trying to render an
+                       .ics into the page. Offered on every calendar including a
+                       read-only mirror — reading one out is exactly what a
+                       mirror is for. #}
+                    <a href="{{ path('app_calendar_ics_calendar', { id: calendar.id }) }}"
+                       download
+                       data-turbo="false"
+                       class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors"
+                       aria-label="{{ 'calendar.ics.export.calendar'|trans({ '%name%': calendar.name }) }}"
+                       title="{{ 'calendar.ics.export.calendar_title'|trans }}"
+                    >
+                        <i class="fa-solid fa-file-export text-xs" aria-hidden="true"></i>
+                    </a>
+
                     {% if mirrors %}
                         <form method="post" action="{{ path('app_settings_calendar_sync', { id: calendar.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-sync' ~ calendar.id) }}">

@@ -92,6 +92,15 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // live channel is a column read.
                 RecurringMessage::cron('20 * * * *', new RunCommandMessage('app:calendar:push')),
 
+                // An alert is only an alert if something fires it. Every
+                // minute, for the same reason app:mail:wake-snoozed is: a
+                // minute is the unit people set a reminder in, and the interval
+                // is the bound on how late one can be — at five minutes a "five
+                // minutes before" alert could arrive after the meeting started.
+                // Cheap when nothing is due: the candidate query is bounded on
+                // starts_at and asks for a jsonb key most events do not have.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:calendar:alerts')),
+
                 // Log entries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 
