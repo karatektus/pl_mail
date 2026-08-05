@@ -31,6 +31,27 @@
     --measure: 46rem;
 }
 
+/* "System" is the ABSENCE of data-theme, so this is what makes that setting
+   mean anything at all — without it, System was light on every machine, which
+   is a switcher option that silently does nothing. :not([data-theme]) is
+   load-bearing: an explicit choice must out-rank the operating system's, and a
+   bare :root here would out-rank Solar on a dark-mode laptop. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --rgb-surface:       17  24  39;
+        --rgb-sunken:        31  41  55;
+        --rgb-line:         255 255 255;
+        --rgb-ink:          243 244 246;
+        --rgb-ink-soft:     209 213 219;
+        --rgb-ink-muted:    156 163 175;
+        --rgb-ink-faint:    107 114 128;
+        --rgb-accent:       147 197 253;
+        --rgb-accent-ink:    17  24  39;
+
+        --line-alpha: 0.18;
+    }
+}
+
 :root[data-theme="dark"] {
     --rgb-surface:       17  24  39;
     --rgb-sunken:        31  41  55;
@@ -279,4 +300,16 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     /* The theme picker survives; the language one goes, because it has one
        usable option until a handbook is translated and the bar is full. */
     #language { display: none; }
+}
+
+/* Shown on a page a translation has not reached yet. Deliberately quiet: it is
+   an apology, not a warning, and the page below it is perfectly usable. */
+.fallback-notice {
+    margin: 0 0 1.5rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    border-radius: 0.5rem;
+    background: rgb(var(--rgb-sunken));
+    color: rgb(var(--rgb-ink-muted));
+    font-size: 0.875rem;
 }

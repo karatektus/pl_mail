@@ -30,6 +30,8 @@ return static function (
     string $heroLead = '',
     array  $themes = [],
     array  $languages = [],
+    string $locale = 'en',
+    bool   $fallback = false,
 ): string {
     $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
@@ -108,11 +110,21 @@ return static function (
         );
     }
 
+    // Said in the language the reader asked for, because a reader who does not
+    // read English is exactly the person this notice is for.
+    $untranslated = [
+        'de' => 'Diese Seite ist noch nicht übersetzt und wird auf Englisch angezeigt.',
+    ];
+
+    $notice = true === $fallback && true === isset($untranslated[$locale])
+        ? sprintf('<p class="fallback-notice">%s</p>', $escape($untranslated[$locale]))
+        : '';
+
     $bodyClass = true === $landing ? 'is-landing' : 'is-doc';
 
     return <<<HTML
         <!doctype html>
-        <html lang="en">
+        <html lang="{$locale}">
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -124,9 +136,13 @@ return static function (
         // Inline for the same reason: a separate file is a round trip, and the
         // round trip IS the flash.
         (function () {
-            var saved = localStorage.getItem("plmail-theme");
-            if (saved && saved !== "system") {
-                document.documentElement.dataset.theme = saved;
+            // Solar unless the reader has said otherwise. A default of "system"
+            // would be the safer-looking choice and would make the site look
+            // like every other docs site; Solar is one of plMail's own seven and
+            // is what the site is for.
+            var chosen = localStorage.getItem("plmail-theme") || "solar";
+            if (chosen !== "system") {
+                document.documentElement.dataset.theme = chosen;
             }
         })();
         </script>
@@ -143,7 +159,7 @@ return static function (
             </div>
             <div class="search" role="search">
                 <input id="search" type="search" placeholder="Search the handbook" autocomplete="off"
-                       aria-label="Search the handbook" data-root="{$root}">
+                       aria-label="Search the handbook" data-root="{$root}" data-locale="{$locale}">
                 <ul id="results" hidden></ul>
             </div>
             <div class="pickers">
@@ -163,6 +179,7 @@ return static function (
         <div class="layout">
             {$sidebar}
             <main id="content" class="prose">
+        {$notice}
         {$content}
                 <footer class="page-footer">
                     <a href="https://github.com/karatektus/pl_mail/blob/main/{$escape($source)}">Edit this page</a>

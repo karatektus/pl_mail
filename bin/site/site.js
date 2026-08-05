@@ -25,7 +25,10 @@ function applyTheme(value) {
 }
 
 if (null !== themePicker) {
-    themePicker.value = localStorage.getItem("plmail-theme") ?? "system";
+    // Solar, matching the inline script in the shell that has already applied it
+    // before paint. The two defaults have to agree: if they disagree the picker
+    // shows one theme and the page wears another.
+    themePicker.value = localStorage.getItem("plmail-theme") ?? "solar";
     applyTheme(themePicker.value);
 
     themePicker.addEventListener("change", () => {
@@ -99,7 +102,9 @@ async function load() {
         return;
     }
 
-    const response = await fetch(`${input.dataset.root}assets/search.json`);
+    const response = await fetch(
+        `${input.dataset.root}assets/search-${input.dataset.locale ?? "en"}.json`,
+    );
 
     index = await response.json();
 }

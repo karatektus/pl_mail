@@ -585,6 +585,58 @@ does not — **so translating the handbook is creating that directory and nothin
 Nothing needs registering, and the enforcement test treats a translated page like any
 other.
 
+### Translating the handbook
+
+A translation is `docs/<locale>/` with the same paths as the English tree — `docs/de/features/mail.md`
+translates `docs/features/mail.md`. Any subset works: the site renders a language from the **English**
+page list and falls back to the English page for anything not yet translated, saying so in a banner.
+So the first page translated is useful immediately, and deleting a bad translation is always a safe fix.
+
+Every translated file opens with a marker naming what it was made from:
+
+```markdown
+<!-- translated-from: features/mail.md sha1:0401c696430a39313d3fa6363bc227e1c41c2d8e -->
+```
+
+`DocumentationCoverageTest` re-hashes the English file and fails when the two disagree. That is the
+one check here that is about truth rather than inventory, and it gets at it sideways: nobody can test
+whether a German paragraph still describes the code, but a translation made from a page that has
+since changed is a claim about the past, and that is checkable. A stale translation is worse than a
+missing one — a missing page falls back and admits it, a stale page is fluent and wrong.
+
+Update a translation with `sha1sum docs/features/mail.md` after re-reading it.
+
+**What is never translated:** code blocks, commands, file paths, route paths, environment variable
+names, class and method names, HTTP headers, RFC names, and the labels of buttons and settings as
+they appear in the interface — those are quoted so a reader can find them on screen, and the screen
+is only translated where plMail itself is. The `## Things that bite` heading has a fixed translation
+per language, listed in the test, because the test looks for it.
+
+**German glossary**, so four translators do not invent four words for one thing:
+
+| English | German |
+|---|---|
+| mailbox / account | Postfach / Konto |
+| thread, conversation | Konversation |
+| label | Label |
+| snooze | zurückstellen |
+| draft | Entwurf |
+| attachment | Anhang |
+| filter, rule | Filter, Regel |
+| calendar event | Termin |
+| occurrence | Termininstanz |
+| recurring event, series | Serientermin, Serie |
+| invitation | Einladung |
+| reminder, alert | Erinnerung |
+| connected calendar | verbundener Kalender |
+| share link | Freigabelink |
+| booking page | Buchungsseite |
+| busy / free | Belegt / Frei |
+| push | Push |
+| sweep | Durchlauf |
+| handbook | Handbuch |
+| Things that bite | Fallstricke |
+
 ### Keeping it true is part of the change, not a follow-up
 
 A change that alters what a user does, what an operator sets, or what a provider must be

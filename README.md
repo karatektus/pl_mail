@@ -8,6 +8,12 @@ side by side in one inbox, and keep every message in a database you control.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green)
 
+**[Read the handbook →](https://karatektus.github.io/pl_mail/docs/)** — installing it on Docker,
+Linux, WSL2, macOS or a NAS; every feature and how to use it; registering the Google and Microsoft
+applications with the exact permissions to tick; and how the internals work. Also on the
+[GitHub wiki](https://github.com/karatektus/pl_mail/wiki), and in
+[`docs/`](docs/) right here — all three are generated from the same files.
+
 ![The plMail inbox](docs/screenshots/inbox.png)
 
 ## What it is

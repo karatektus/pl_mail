@@ -50,6 +50,25 @@ final class DocumentationCoverageTest extends KernelTestCase
     /** Every command plMail adds is namespaced, so this is what "ours" means. */
     private const string OWN_COMMAND_PREFIX = 'app:';
 
+    /**
+     * The handbook's translations, and the heading each one spells the traps
+     * section with.
+     *
+     * The heading has to be pinned per language rather than left free, because
+     * testEveryPageCollectsItsTraps looks for it — and a translator who invents
+     * their own wording removes the check without anyone noticing. It is also
+     * the one string a translated page cannot translate freely, which is worth
+     * saying in the file the translator reads.
+     *
+     * @var array<string, string>
+     */
+    private const array TRANSLATIONS = [
+        'de' => 'Fallstricke',
+    ];
+
+    /** What a translated page records about the English it was made from. */
+    private const string SOURCE_MARKER = '/^<!--\s*translated-from:\s*(\S+)\s+sha1:([0-9a-f]{40})\s*-->/m';
+
     private static function projectDir(): string
     {
         return \dirname(__DIR__, 2);
@@ -234,7 +253,21 @@ final class DocumentationCoverageTest extends KernelTestCase
                     continue;
                 }
 
-                $resolved = realpath($file->getPath() . '/' . $path);
+                // A translated page's links are resolved against the ENGLISH
+                // tree, which is also how bin/build-site.php rewrites them: a
+                // link in docs/de/features/mail.md means the same target its
+                // English counterpart means, and the site places the result
+                // inside the German tree afterwards. Resolving them here
+                // instead would demand that every page a translation links to
+                // is itself already translated — which makes a partial
+                // translation impossible, and a partial translation is the only
+                // kind anybody ever starts.
+                $locale = $this->localeOf($this->relativePath($file->getPathname()));
+                $from   = null === $locale
+                    ? $file->getPath()
+                    : str_replace('/docs/' . $locale . '/', '/docs/', $file->getPath());
+
+                $resolved = realpath($from . '/' . $path);
 
                 if (false === $resolved) {
                     $broken[] = sprintf(
@@ -272,6 +305,15 @@ final class DocumentationCoverageTest extends KernelTestCase
 
             // The index itself, and the client reference it links by name.
             if ('docs/README.md' === $relative) {
+                continue;
+            }
+
+            // A translated page is not listed in the English index and does not
+            // need to be: its position is its path, which mirrors the English
+            // page it translates. The index it DOES belong in is its own
+            // language's, and testEveryTranslationTranslatesARealPage is what
+            // holds it to a real English counterpart.
+            if (null !== $this->localeOf($relative)) {
                 continue;
             }
 
@@ -315,10 +357,13 @@ final class DocumentationCoverageTest extends KernelTestCase
                 continue;
             }
 
+            $locale  = $this->localeOf($relative);
+            $heading = null === $locale ? 'Things that bite' : self::TRANSLATIONS[$locale];
+
             $body = file_get_contents($file->getPathname());
 
-            if (false === $body || false === str_contains($body, '## Things that bite')) {
-                $missing[] = $relative;
+            if (false === $body || false === str_contains($body, '## ' . $heading)) {
+                $missing[] = sprintf('%s (looking for "## %s")', $relative, $heading);
             }
         }
 
@@ -329,6 +374,115 @@ final class DocumentationCoverageTest extends KernelTestCase
                 "These pages have no `## Things that bite` section.\n"
                 . "If a page genuinely has no traps, say that in one line under the heading:\n  %s",
                 implode("\n  ", $missing),
+            ),
+        );
+    }
+
+    /**
+     * A translation says which English page it was made from, and that page
+     * still says what it said then.
+     *
+     * This is the only check here that is about TRUTH rather than inventory,
+     * and it gets at it sideways. Nobody can test whether a German paragraph
+     * still describes the code — but a translation is made from an English page
+     * at a moment in time, and if that page has changed since, the translation
+     * is a claim about the past. That is checkable, and it is very nearly the
+     * same thing.
+     *
+     * It matters more than it sounds. A stale translation is worse than a
+     * missing one: a missing page falls back to English and says so, while a
+     * stale page is fluent, confident and wrong, and its reader has no way to
+     * tell. The fallback in bin/build-site.php exists so that DELETING a stale
+     * translation is a reasonable fix.
+     *
+     * **A content hash, not a git blob hash and not a commit date.** Dates mark
+     * every translation stale after a whitespace sweep, and git is not usable
+     * from here at all — the test container mounts this repository in a way git
+     * refuses for dubious ownership, which is a real failure this suite has
+     * already had. sha1_file() answers the same question everywhere.
+     */
+    public function testNoTranslationDescribesAPageThatHasSinceChanged(): void
+    {
+        $stale = [];
+
+        foreach ($this->documentationFiles() as $file) {
+            $relative = $this->relativePath($file->getPathname());
+            $locale   = $this->localeOf($relative);
+
+            if (null === $locale) {
+                continue;
+            }
+
+            $body = (string) file_get_contents($file->getPathname());
+
+            if (1 !== preg_match(self::SOURCE_MARKER, $body, $marker)) {
+                $stale[] = sprintf(
+                    '%s has no marker — add `<!-- translated-from: %s sha1:%s -->` as its first line',
+                    $relative,
+                    $this->englishCounterpart($relative, $locale),
+                    sha1_file(self::projectDir() . '/docs/' . $this->englishCounterpart($relative, $locale)) ?: '…',
+                );
+
+                continue;
+            }
+
+            $english = self::projectDir() . '/docs/' . $marker[1];
+
+            if (false === is_file($english)) {
+                $stale[] = sprintf('%s names %s, which does not exist', $relative, $marker[1]);
+
+                continue;
+            }
+
+            if (sha1_file($english) !== $marker[2]) {
+                $stale[] = sprintf(
+                    '%s was translated from an older %s — re-read it, then update the hash to %s',
+                    $relative,
+                    $marker[1],
+                    sha1_file($english),
+                );
+            }
+        }
+
+        self::assertSame(
+            [],
+            $stale,
+            sprintf(
+                "These translations no longer match the English they were made from.\n"
+                . "Bring them up to date, or delete them — an untranslated page falls back to\n"
+                . "English and says so, which is better than a fluent page that is wrong:\n  %s",
+                implode("\n  ", $stale),
+            ),
+        );
+    }
+
+    /** And a translation translates a page that exists. */
+    public function testEveryTranslationTranslatesARealPage(): void
+    {
+        $orphans = [];
+
+        foreach ($this->documentationFiles() as $file) {
+            $relative = $this->relativePath($file->getPathname());
+            $locale   = $this->localeOf($relative);
+
+            if (null === $locale) {
+                continue;
+            }
+
+            $counterpart = $this->englishCounterpart($relative, $locale);
+
+            if (false === is_file(self::projectDir() . '/docs/' . $counterpart)) {
+                $orphans[] = sprintf('%s translates %s, which does not exist', $relative, $counterpart);
+            }
+        }
+
+        self::assertSame(
+            [],
+            $orphans,
+            sprintf(
+                "A translation whose English page is gone is unreachable — the site renders a\n"
+                . "language from the ENGLISH page list, so nothing will ever link to it:\n  %s",
+                implode("\n  ", $orphans),
             ),
         );
     }
@@ -380,6 +534,24 @@ final class DocumentationCoverageTest extends KernelTestCase
         return str_starts_with($target, 'http://')
             || str_starts_with($target, 'https://')
             || str_starts_with($target, 'mailto:');
+    }
+
+    /** The language a page is written in, or null when it is the English one. */
+    private function localeOf(string $relative): ?string
+    {
+        foreach (array_keys(self::TRANSLATIONS) as $locale) {
+            if (true === str_starts_with($relative, 'docs/' . $locale . '/')) {
+                return $locale;
+            }
+        }
+
+        return null;
+    }
+
+    /** docs/de/features/mail.md → features/mail.md */
+    private function englishCounterpart(string $relative, string $locale): string
+    {
+        return substr($relative, \strlen('docs/' . $locale . '/'));
     }
 
     private function relativePath(string $absolute): string

@@ -325,21 +325,34 @@ foreach (Theme::cases() as $theme) {
 // ---------------------------------------------------------------- languages
 
 /**
- * The handbook's languages: a docs/<locale>/ directory is a translation, and
- * its absence is the whole of the configuration.
+ * The handbook's languages, and deliberately NOT App\Domain\Enum\AppLocale.
  *
- * Locales plMail's interface speaks but the handbook does not are listed and
- * disabled rather than hidden. A switcher that silently omits German says the
- * site has no opinion about German; one that says "not translated yet" says
- * where the gap is, and is the honest state of the thing.
+ * The interface speaks English, German and Pirate; the handbook speaks English
+ * and German. They are different questions — a joke locale is a fine thing to
+ * offer somebody reading their own mailbox and a poor one to offer somebody
+ * trying to register an Azure application — so tying the two lists together
+ * would force each to answer the other's.
+ *
+ * Adding a language is adding a line here and a directory. Nothing else knows
+ * about the list.
+ *
+ * A docs/<locale>/ directory is a translation and its absence is the whole of
+ * the configuration. A locale with no directory is listed and DISABLED rather
+ * than hidden: a switcher that silently omits French says the site has no
+ * opinion about French, where this says where the gap is.
  */
-$languages = [['value' => 'en', 'label' => 'English', 'available' => true]];
+const LANGUAGES = [
+    'en' => 'English',
+    'de' => 'Deutsch',
+];
 
-foreach (['de' => 'Deutsch', 'en_PI' => 'Pirate'] as $code => $label) {
+$languages = [];
+
+foreach (LANGUAGES as $code => $label) {
     $languages[] = [
         'value'     => $code,
         'label'     => $label,
-        'available' => is_dir($docsDir . '/' . $code),
+        'available' => 'en' === $code || is_dir($docsDir . '/' . $code),
     ];
 }
 
@@ -349,76 +362,137 @@ $shell = require __DIR__ . '/site/shell.php';
 
 // ---------------------------------------------------------------- render
 
-$search = [];
-$pages  = 0;
+/**
+ * The English pages, which are every .md in docs/ that is not inside a
+ * translation directory. Their paths are the canonical ones: a translation is
+ * the same path under docs/<locale>/, and anything a translation has not
+ * reached falls back to the English file.
+ *
+ * @return list<string>
+ */
+$englishPages = array_values(array_filter(
+    $walk($docsDir),
+    static function (string $relative): bool {
+        foreach (array_keys(LANGUAGES) as $code) {
+            if ('en' !== $code && true === str_starts_with($relative, $code . '/')) {
+                return false;
+            }
+        }
 
-foreach ($walk($docsDir) as $relative) {
-    $source = $docsDir . '/' . $relative;
-    $target = $out . '/docs/' . $relative;
+        return true;
+    },
+));
 
-    $mkdir(\dirname($target));
+$pages = 0;
 
-    if (false === str_ends_with($relative, '.md')) {
-        copy($source, $target);
+foreach ($languages as $language) {
+    $code = $language['value'];
 
+    if (false === $language['available']) {
         continue;
     }
 
-    $body = (string) file_get_contents($source);
+    // English lives at docs/, every translation one directory further in. Its
+    // own nav comes from its own index when it has one.
+    $prefix = 'en' === $code ? 'docs/' : 'docs/' . $code . '/';
+    $navFor = 'en' !== $code && is_file($docsDir . '/' . $code . '/README.md')
+        ? $navigation($docsDir . '/' . $code)
+        : $nav;
 
-    // The handbook's index becomes index.html, not README.html, so that
-    // /docs/ is a page rather than a 404 — which is what every link to "the
-    // handbook" points at, and what somebody trims a URL back to.
-    $slug = 'README.md' === $relative ? 'index.html' : substr($relative, 0, -3) . '.html';
+    $search = [];
 
-    $html = $markdown->convert(
-        $rewrite($body, \dirname($source), $docsDir, $projectDir),
-    )->getContent();
+    foreach ($englishPages as $relative) {
+        $english    = $docsDir . '/' . $relative;
+        $translated = $docsDir . '/' . $code . '/' . $relative;
 
-    $depth = substr_count($slug, '/') + 1;
-    $root  = str_repeat('../', $depth);
+        // The fallback, and the reason a partial translation is worth having at
+        // all. Without it a language is all-or-nothing, which means it is
+        // never begun; with it, the first page translated is the first page
+        // somebody reads in their own language and the rest still resolve.
+        $isFallback = 'en' !== $code && false === is_file($translated);
+        $source     = 'en' === $code || true === $isFallback ? $english : $translated;
 
+        $target = $out . '/' . $prefix . $relative;
+
+        $mkdir(\dirname($target));
+
+        if (false === str_ends_with($relative, '.md')) {
+            copy($english, $target);
+
+            continue;
+        }
+
+        $body = (string) file_get_contents($source);
+
+        // The handbook's index becomes index.html, not README.html, so that
+        // /docs/ is a page rather than a 404 — which is what every link to "the
+        // handbook" points at, and what somebody trims a URL back to.
+        $slug = 'README.md' === $relative ? 'index.html' : substr($relative, 0, -3) . '.html';
+
+        // The marker that records what a translation was made from is for the
+        // staleness test, not for a reader.
+        $body = preg_replace('/^<!--\s*translated-from:.*?-->\s*/s', '', $body) ?? $body;
+
+        $html = $markdown->convert(
+            $rewrite($body, \dirname($english), $docsDir, $projectDir),
+        )->getContent();
+
+        $depth = substr_count($slug, '/') + ('en' === $code ? 1 : 2);
+        $root  = str_repeat('../', $depth);
+
+        file_put_contents(
+            $out . '/' . $prefix . $slug,
+            $shell(
+                title:   $titleOf($body, $relative),
+                content: $html,
+                root:    $root,
+                here:    $slug,
+                nav:     $navFor,
+                landing: false,
+                source:  'docs/' . ('en' === $code ? '' : $code . '/') . $relative,
+                themes:  $themeList,
+                languages: $languages,
+                locale:  $code,
+                fallback: $isFallback,
+            ),
+        );
+
+        $search[] = [
+            'title' => $titleOf($body, $relative),
+            'href'  => $prefix . $slug,
+            // Stripped to words: the index is fetched by every visitor who opens
+            // the search box, and shipping the markup would triple it for nothing.
+            // The anchors go before the tags do. HeadingPermalink puts an <a>#</a>
+            // inside every heading, and strip_tags alone leaves the # welded to the
+            // next word — every heading in the index read "CalDAV# CalDAV is the".
+            // Entities are decoded for the same reason: &quot; is not a word, and
+            // an excerpt is read by a person.
+            'text'  => mb_substr(
+                trim(preg_replace(
+                    '/\s+/',
+                    ' ',
+                    html_entity_decode(
+                        strip_tags(preg_replace('/<a\b[^>]*class="anchor"[^>]*>.*?<\/a>/s', ' ', $html) ?? $html),
+                        ENT_QUOTES | ENT_HTML5,
+                        'UTF-8',
+                    ),
+                ) ?? ''),
+                0,
+                4000,
+            ),
+        ];
+
+        ++$pages;
+    }
+
+    // One index per language rather than one holding all of them: a reader
+    // searching the German handbook wants German results, and four languages in
+    // one file is four times the download for three sets of them.
+    $mkdir($out . '/assets');
     file_put_contents(
-        $out . '/docs/' . $slug,
-        $shell(
-            title:   $titleOf($body, $relative),
-            content: $html,
-            root:    $root,
-            here:    $slug,
-            nav:     $nav,
-            landing: false,
-            source:  'docs/' . $relative,
-            themes:  $themeList,
-            languages: $languages,
-        ),
+        $out . '/assets/search-' . $code . '.json',
+        json_encode($search, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
     );
-
-    $search[] = [
-        'title' => $titleOf($body, $relative),
-        'href'  => 'docs/' . $slug,
-        // Stripped to words: the index is fetched by every visitor who opens
-        // the search box, and shipping the markup would triple it for nothing.
-        // The anchors go before the tags do. HeadingPermalink puts an <a>#</a>
-        // inside every heading, and strip_tags alone leaves the # welded to the
-        // next word — every heading in the index read "CalDAV# CalDAV is the".
-        // Entities are decoded for the same reason: &quot; is not a word, and
-        // an excerpt is read by a person.
-        'text'  => mb_substr(
-            trim(preg_replace(
-                '/\s+/',
-                ' ',
-                html_entity_decode(
-                    strip_tags(preg_replace('/<a\b[^>]*class="anchor"[^>]*>.*?<\/a>/s', ' ', $html) ?? $html),
-                    ENT_QUOTES | ENT_HTML5,
-                    'UTF-8',
-                ),
-            ) ?? ''),
-            0,
-            4000,
-        ),
-    ];
-
-    ++$pages;
 }
 
 // The landing page, from README.md.
@@ -461,7 +535,6 @@ file_put_contents(
     . $themeCss,
 );
 copy(__DIR__ . '/site/site.js', $out . '/assets/site.js');
-file_put_contents($out . '/assets/search.json', json_encode($search, JSON_UNESCAPED_SLASHES));
 
 // So Pages serves the tree as-is rather than running it through Jekyll, which
 // would silently drop any directory beginning with an underscore.
