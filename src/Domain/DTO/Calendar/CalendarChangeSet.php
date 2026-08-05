@@ -28,32 +28,47 @@ namespace App\Domain\DTO\Calendar;
  *
  * When it is true, $events is ignored and $nextSyncToken is meaningless. A
  * driver may return both anyway; the engine will not look at them.
+ *
+ * $instances is the one thing here that is not news. It says which occurrence
+ * each of the provider's instance resources is, for the providers that give an
+ * instance an id of its own, and it exists because Microsoft reports a cancelled
+ * occurrence as an id with nothing attached — see RemoteInstance, which carries
+ * the reasoning. Kept out of $events deliberately: an unchanged occurrence is
+ * not a change, and a driver that listed fifty-two of them as events a year
+ * would make the engine decide which of its own changes said nothing.
  */
 final readonly class CalendarChangeSet
 {
     /**
-     * @param list<RemoteEvent> $events             creates, updates and
-     *                                              tombstones, in the order the
-     *                                              remote reported them —
-     *                                              applied in order, so a
-     *                                              driver that sorts them
-     *                                              changes the outcome
-     * @param string|null       $nextSyncToken      opaque; stored verbatim in
-     *                                              Calendar::$syncToken and
-     *                                              handed back untouched. Null
-     *                                              means the provider issued
-     *                                              none for this window, and the
-     *                                              engine keeps whatever it had
-     *                                              rather than downgrading a
-     *                                              working token to a full read
-     *                                              on the next run.
-     * @param bool              $requiresFullResync the token is dead; see the
-     *                                              class docblock
+     * @param list<RemoteEvent>    $events             creates, updates and
+     *                                                 tombstones, in the order the
+     *                                                 remote reported them —
+     *                                                 applied in order, so a
+     *                                                 driver that sorts them
+     *                                                 changes the outcome
+     * @param string|null          $nextSyncToken      opaque; stored verbatim in
+     *                                                 Calendar::$syncToken and
+     *                                                 handed back untouched. Null
+     *                                                 means the provider issued
+     *                                                 none for this window, and the
+     *                                                 engine keeps whatever it had
+     *                                                 rather than downgrading a
+     *                                                 working token to a full read
+     *                                                 on the next run.
+     * @param bool                 $requiresFullResync the token is dead; see the
+     *                                                 class docblock
+     * @param list<RemoteInstance> $instances          the instance resources this
+     *                                                 window mentioned, changed or
+     *                                                 not. Empty for a provider
+     *                                                 whose instances live inside
+     *                                                 the series' own resource,
+     *                                                 which have no id to record.
      */
     public function __construct(
         public array   $events,
         public ?string $nextSyncToken = null,
         public bool    $requiresFullResync = false,
+        public array   $instances = [],
     ) {
     }
 

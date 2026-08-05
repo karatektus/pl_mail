@@ -59,10 +59,31 @@ use Doctrine\ORM\Mapping as ORM;
 // always scoped to one calendar and the states are four values — leading with
 // sync_state would put the whole table's clean rows in front of the answer.
 #[ORM\Index(name: 'idx_calendar_event_calendar_sync_state', columns: ['calendar_id', 'sync_state'])]
+// Which series a provider's instance id belongs to, asked once per tombstone
+// the ordinary lookups could not place. Built `USING gin` by the migration and
+// declared here as a plain index, the same trick CalendarEventOccurrence plays
+// with its tsrange: the comparator matches an index on its name and columns and
+// never looks at the method, so this keeps the mapping and the database
+// agreeing while the migration decides how it is really built. Declared at all
+// because without it every schema diff asks to drop it, and dropping it turns
+// the lookup into a sequential scan of every event on the install.
+#[ORM\Index(name: 'idx_calendar_event_remote_instances', columns: ['remote_instances'])]
 #[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
 class CalendarEvent
 {
     use TimestampableTrait;
+
+    /**
+     * How a $remoteInstances value spells an instant: UTC, ISO 8601, with the Z
+     * on it.
+     *
+     * A contract between the puller that writes the map and the drivers that
+     * read it, so it is named once rather than repeated at both ends. The Z is
+     * not decoration — a value written without one is read back in whatever zone
+     * the reader happens to hold, which for a Berlin calendar is an instance two
+     * hours from the one that was recorded.
+     */
+    public const string INSTANCE_START_FORMAT = 'Y-m-d\TH:i:s\Z';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -186,6 +207,48 @@ class CalendarEvent
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $remoteEtag = null;
+
+    /**
+     * Which occurrence of this series each of the remote's own instance
+     * resources is: the provider's opaque instance id, against the ORIGINAL
+     * start of the occurrence it stands for, as a UTC instant.
+     *
+     * Empty for everything that is not a mirrored series, which is most of the
+     * table, and empty for CalDAV however recurring the event is — a provider
+     * whose instances live inside the master's own .ics has no instance id to
+     * record.
+     *
+     * **It exists because Microsoft's tombstone carries an id and nothing
+     * else.** A cancelled occurrence arrives from a calendarView delta as
+     * `@removed` with the instance's id — not its series, not the start it had —
+     * so without a record of what that id meant it matches no row, does nothing,
+     * and the occurrence the user deleted in Outlook is drawn forever. This is
+     * that record, and it is also what lets a push address an instance directly
+     * instead of listing a window to find it.
+     *
+     * **Keyed by the id, not by the start,** although the push reads it in the
+     * other direction. The one question that cannot be answered in PHP is "whose
+     * instance is this id?" — it is asked against the whole table, from a
+     * tombstone that names nothing else — and a jsonb key is what an index can
+     * answer that with (`jsonb_exists`, and see the GIN index above). The
+     * reverse lookup a push wants is a scan of one series' own map, which is
+     * already in memory and never longer than the exceptions it has.
+     *
+     * **A column rather than a table**, and the trade is honest: a row per
+     * instance would index better and would not rewrite a series' whole map to
+     * add one id. But every read of this is a read of one event's own map by
+     * something that already holds the event, the writes happen in the same unit
+     * of work as the series, and the entries have no life of their own — so a
+     * second table would be a join and a cascade for data that is strictly one
+     * event's. The cost is that a weekly series pulled from Graph carries a
+     * couple of hundred entries; CalendarPuller drops the ones older than the
+     * horizon the occurrences are drawn to, because an id for an instance no
+     * view can show answers no question.
+     *
+     * @var array<string,string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    public array $remoteInstances = [];
 
     /**
      * Whether this row owes the remote a write. See SyncState — the marking is

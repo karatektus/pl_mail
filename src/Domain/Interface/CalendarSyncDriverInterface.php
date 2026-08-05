@@ -80,6 +80,16 @@ use App\Entity\Calendar\CalendarEvent;
  *     all. $recurrenceId is the instance's ORIGINAL start, not the moved one —
  *     it is the only name an instance keeps once it has been dragged.
  *
+ *     Such a provider also reports, in CalendarChangeSet::$instances, which
+ *     occurrence each instance id it mentioned stands for — including the ones
+ *     nothing happened to. That is not a change and is not applied as one; the
+ *     engine only remembers it, in CalendarEvent::$remoteInstances, so that a
+ *     later tombstone carrying an id and nothing else can be turned back into
+ *     deletedInstance() before it is applied. A driver that cannot say it (a
+ *     provider that never names an instance until it becomes an exception, which
+ *     is Google) leaves the list empty and loses nothing: its own tombstones
+ *     already name the series and the original start.
+ *
  *   An override whose series the engine holds no row for is logged and dropped.
  *   Creating the master from an instance would invent a series with one
  *   occurrence and the wrong rule.
@@ -170,6 +180,30 @@ interface CalendarSyncDriverInterface
      * derived from it and are consistent with it, because CalendarEventWriter
      * is the only thing that writes either. A driver may read whichever is
      * more convenient.
+     *
+     * **A series is pushed with its instances, not without them.** The event's
+     * recurrenceOverrides are part of what this row says about itself, and the
+     * two halves of a series travel differently depending on the provider — the
+     * same split the pull makes, and for the same reason. A driver whose
+     * resource is atomic writes the overrides inside it and is finished. A
+     * driver whose instances are separate resources must, after the master's own
+     * write, find the provider's instance for each override's ORIGINAL start and
+     * write it there: moved, renamed or lengthened by a patch, cancelled by an
+     * `{"excluded": true}`. InstanceOverride::listOf() resolves the stored map
+     * into the instants both of those need. Skipping it does not lose the
+     * change, but it does mean the change is visible in plMail alone until a
+     * full read that carries any exception for that series replaces the whole
+     * map and takes the local patch with it.
+     *
+     * Failing to place ONE instance must not fail the push. The master has
+     * already been written by then, and a driver that threw would leave the
+     * engine unable to record the id it just came back with — which on a create
+     * is a second copy of the meeting on the next sweep. An instance that cannot
+     * be found or cannot be written is logged and the rest go out.
+     *
+     * A driver may read CalendarEvent::$remoteInstances to address an instance
+     * directly, and must not write it: like every other column it is the
+     * engine's, and the pull that learned the id is what keeps it true.
      *
      * Returns what the remote assigned. The returned remoteId is stored
      * verbatim even on an update, so a provider that re-keys an event on edit

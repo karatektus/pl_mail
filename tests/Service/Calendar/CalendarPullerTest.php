@@ -6,6 +6,7 @@ namespace App\Tests\Service\Calendar;
 
 use App\Domain\DTO\Calendar\CalendarChangeSet;
 use App\Domain\DTO\Calendar\RemoteEvent;
+use App\Domain\DTO\Calendar\RemoteInstance;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
@@ -324,18 +325,139 @@ final class CalendarPullerTest extends KernelTestCase
         self::assertSame(1, $this->rowCount(), 'the duplicate goes, the series stays');
     }
 
+    // ── The cancelled instance nobody could name ──────────────────────────
+
+    public function testWhatAnInstanceIdMeansIsWrittenDownWhileTheOccurrenceStillExists(): void
+    {
+        // The only chance there is to learn it. Graph reports the deletion of an
+        // occurrence as that occurrence's id and nothing else, and by then the
+        // resource is gone — so either an earlier window recorded which
+        // occurrence the id was, or the removal is unreadable forever.
+        $this->apply([$this->graph($this->graphSeries())], instances: [
+            $this->instance('OCC-AUG11', '2026-08-11T08:00:00Z'),
+        ]);
+
+        $event = $this->events->findOneByRemoteId($this->calendar, 'MASTER');
+
+        self::assertNotNull($event);
+        self::assertSame(
+            ['OCC-AUG11' => '2026-08-11T08:00:00Z'],
+            $event->remoteInstances,
+            'UTC with the Z on it: read back in the reader\'s own zone this would be a different occurrence',
+        );
+    }
+
+    public function testARemovedInstanceIdBecomesAnExclusionOnItsSeriesRatherThanNothingAtAll(): void
+    {
+        $this->apply([$this->graph($this->graphSeries())], instances: [
+            $this->instance('OCC-AUG11', '2026-08-11T08:00:00Z'),
+        ]);
+
+        // What Graph actually sends when somebody deletes one occurrence in
+        // Outlook: an id, and no statement about what it belongs to. Applied as
+        // it stands it matches no row — an instance has never been one — so the
+        // deletion did nothing and the standup of the 11th stayed on screen.
+        $this->apply([RemoteEvent::deleted('OCC-AUG11')]);
+
+        $event = $this->events->findOneByRemoteId($this->calendar, 'MASTER');
+
+        self::assertNotNull($event, 'the series is alive; one instance of it is not');
+        self::assertSame(1, $this->rowCount());
+        self::assertCount(9, $event->occurrences, 'nine of the ten Tuesdays are left');
+        self::assertNotContains('2026-08-11 10:00', $this->startsOf($event));
+    }
+
+    public function testATombstoneForAnEventIsStillAnEventDeletion(): void
+    {
+        // The other side of the same lookup. An id that names no instance has to
+        // go on meaning what it always meant, or recognising instances would
+        // have cost the ability to delete an event.
+        $this->apply([$this->google($this->googleSeries())]);
+
+        self::assertSame(1, $this->rowCount());
+
+        $this->apply([RemoteEvent::deleted('ev-1', 'uid-1@google.com')]);
+
+        self::assertSame(0, $this->rowCount());
+    }
+
+    public function testAnInstanceIdIsForgottenOnceNoViewCouldEverDrawIt(): void
+    {
+        // The map is written on every window that mentions a series, so it grows
+        // without a bound of its own. The horizon is the bound that means
+        // something: an instance older than the occurrences are materialised to
+        // cannot be shown and cannot be cancelled from anywhere, so its id
+        // answers no question.
+        $stale = new \DateTimeImmutable('-2 years', new DateTimeZone('UTC'));
+
+        $this->apply([$this->graph($this->graphSeries())], instances: [
+            $this->instance('OCC-OLD', $stale->format('Y-m-d\TH:i:s\Z')),
+            $this->instance('OCC-AUG11', '2026-08-11T08:00:00Z'),
+        ]);
+
+        $event = $this->events->findOneByRemoteId($this->calendar, 'MASTER');
+
+        self::assertNotNull($event);
+        self::assertSame(['OCC-AUG11' => '2026-08-11T08:00:00Z'], $event->remoteInstances);
+    }
+
+    public function testASecondIdForTheSameOccurrenceReplacesTheFirstRatherThanJoiningIt(): void
+    {
+        // Graph re-keys an occurrence for some edits. Both ids left in the map,
+        // a push would address whichever came first and patch a resource that is
+        // not there.
+        $this->apply([$this->graph($this->graphSeries())], instances: [
+            $this->instance('OCC-OLD', '2026-08-11T08:00:00Z'),
+        ]);
+        $this->apply([], instances: [$this->instance('OCC-NEW', '2026-08-11T08:00:00Z')]);
+
+        $event = $this->events->findOneByRemoteId($this->calendar, 'MASTER');
+
+        self::assertNotNull($event);
+        self::assertSame(['OCC-NEW' => '2026-08-11T08:00:00Z'], $event->remoteInstances);
+    }
+
+    public function testAnInstanceIdForASeriesNobodyMirrorsIsDroppedWithoutComplaint(): void
+    {
+        // A window may name instances of a series on a calendar plMail does not
+        // hold. There is nothing to record it against, and it is not a fault
+        // worth a line — unlike an override, which is a change that will not be
+        // applied.
+        self::assertSame(0, $this->apply([], instances: [$this->instance('OCC-AUG11', '2026-08-11T08:00:00Z')]));
+
+        self::assertSame(
+            [],
+            $this->logger->matching('info', 'an instance arrived for a series that is not here'),
+        );
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
-     * @param list<RemoteEvent> $events
+     * @param list<RemoteEvent>    $events
+     * @param list<RemoteInstance> $instances
      */
-    private function apply(array $events, bool $wasFullRead = false): int
+    private function apply(array $events, bool $wasFullRead = false, array $instances = []): int
     {
-        $touched = $this->puller->apply($this->calendar, new CalendarChangeSet($events), $wasFullRead);
+        $touched = $this->puller->apply(
+            $this->calendar,
+            new CalendarChangeSet($events, instances: $instances),
+            $wasFullRead,
+        );
 
         $this->em->flush();
 
         return $touched;
+    }
+
+    /** One of Graph's occurrence resources, as the driver reports it. */
+    private function instance(string $remoteId, string $recurrenceId): RemoteInstance
+    {
+        return new RemoteInstance(
+            $remoteId,
+            'MASTER',
+            new \DateTimeImmutable($recurrenceId, new DateTimeZone('UTC')),
+        );
     }
 
     private function calDav(string $ics): ?RemoteEvent

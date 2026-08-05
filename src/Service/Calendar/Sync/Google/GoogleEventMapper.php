@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sync\Google;
 
+use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteEvent;
 use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Exception\CalendarSyncPermanentException;
@@ -43,6 +44,12 @@ use DateTimeZone;
  *   left. A cancelled instance was worse, because it mapped to a tombstone that
  *   matched no row and did nothing at all, so the occurrence somebody had called
  *   off stayed on the calendar.
+ *
+ *   The write direction is the same shape and is toGoogleInstance(): a stored
+ *   recurrenceOverride becomes a patch against the instance resource, never a
+ *   field on the series. toGoogleEvent() deliberately says nothing about
+ *   instances, which is why it was possible for a per-instance edit to travel as
+ *   a series update that changed nothing at all.
  *
  *   **Identity is `id`; the UID is `iCalUID`.** They are different strings at
  *   Google and both are needed — the id addresses the resource, the iCalUID is
@@ -245,6 +252,63 @@ final readonly class GoogleEventMapper
         }
 
         return $payload;
+    }
+
+    /**
+     * One stored override as the body of an events.patch against the provider's
+     * own instance resource.
+     *
+     * The counterpart of the instance mapping above, and the half that was
+     * missing: a per-instance change went out as a series update that said
+     * nothing about the instance, so Google left every occurrence where it was.
+     *
+     * `summary` is sent whether or not the patch renames the instance, and the
+     * series' title is what it falls back to — the same choice
+     * CalDavEventConverter::addOverrides() makes for the same reason. An
+     * instance renamed and then renamed back carries no title in its patch, and
+     * a payload that omitted the field would leave the old name on the one
+     * occurrence at Google forever.
+     *
+     * `status` is the exception and travels only to cancel. Sending `confirmed`
+     * on every other instance would resurrect an occurrence the user had called
+     * off in Google's own interface the first time anything else about the
+     * series was edited — plMail's own copy of that cancellation is the patch
+     * saying `status: cancelled`, which is not the same statement as "this
+     * instance is live".
+     *
+     * @return array<string,mixed>
+     */
+    public function toGoogleInstance(CalendarEvent $event, InstanceOverride $override): array
+    {
+        if (true === $override->isExcluded) {
+            return ['status' => self::CANCELLED];
+        }
+
+        return [
+            'summary' => $override->title ?? (string) $event->title,
+            'start'   => $this->googleTime($event, $override->startsAt),
+            'end'     => $this->googleTime($event, $override->endsAt),
+        ];
+    }
+
+    /**
+     * An instance's original start as the `originalStart` events.instances is
+     * asked to filter on.
+     *
+     * Written in the series' own zone rather than in UTC although both name the
+     * same moment, because that is the spelling Google itself puts in
+     * `originalStartTime.dateTime` — an all-day series answers a bare date and
+     * has no zone at all, and asking one for a timestamp matches nothing.
+     */
+    public function toGoogleOriginalStart(CalendarEvent $event, DateTimeImmutable $originalStart): string
+    {
+        if (true === $event->isAllDay) {
+            return $originalStart->format('Y-m-d');
+        }
+
+        $zone = $this->zoneNameOrNull($event->timeZone) ?? 'UTC';
+
+        return $originalStart->setTimezone(new DateTimeZone($zone))->format(DateTimeInterface::RFC3339);
     }
 
     /**

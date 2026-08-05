@@ -9,6 +9,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -75,6 +76,47 @@ class CalendarEventRepository extends ServiceEntityRepository
     public function findOneByRemoteId(Calendar $calendar, string $remoteId): ?CalendarEvent
     {
         return $this->findOneBy(['calendar' => $calendar, 'remoteId' => $remoteId]);
+    }
+
+    /**
+     * The series one of the remote's instance resources belongs to.
+     *
+     * The only question a bare tombstone can be asked. Microsoft reports a
+     * cancelled occurrence as an id with nothing attached, and this is what
+     * turns that id back into "one instance of this series is off" — without it
+     * the id matches no row, the deletion does nothing, and the occurrence the
+     * user removed in Outlook goes on being drawn.
+     *
+     * Raw DBAL because the test is jsonb key existence, which has no DQL
+     * operator and no registered function. Written as jsonb_exists() rather than
+     * the `?` operator that means the same thing, for the reason
+     * MessageRepository gives: DBAL reads a bare `?` as a positional placeholder
+     * and refuses the query. The id is fetched in SQL and the entity hydrated
+     * through the ORM, so the caller gets a managed row it can write the
+     * override onto — the same shape CalendarEventOccurrenceRepository uses for
+     * its range query.
+     *
+     * Scoped to the calendar like every other identity lookup here: provider ids
+     * are unique within a calendar and nowhere else.
+     */
+    public function findOneByRemoteInstanceId(Calendar $calendar, string $instanceId): ?CalendarEvent
+    {
+        $id = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT e.id FROM calendar_event e
+              WHERE e.calendar_id = :calendarId
+                AND jsonb_exists(e.remote_instances, :instanceId)
+              LIMIT 1',
+            [
+                'calendarId' => $calendar->id,
+                'instanceId' => $instanceId,
+            ],
+            [
+                'calendarId' => ParameterType::INTEGER,
+                'instanceId' => ParameterType::STRING,
+            ],
+        );
+
+        return false === $id ? null : $this->find((int) $id);
     }
 
     /**

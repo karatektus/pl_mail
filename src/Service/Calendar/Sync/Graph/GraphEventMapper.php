@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sync\Graph;
 
+use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteEvent;
 use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Enum\Calendar\ParticipationStatus;
@@ -232,6 +233,40 @@ final readonly class GraphEventMapper
     }
 
     /**
+     * One stored override as the body of a PATCH against Graph's own occurrence
+     * resource.
+     *
+     * Graph turns a patched occurrence into an exception of the series, which is
+     * exactly what a recurrenceOverride is on this side. The series' own write
+     * cannot say it: `recurrence` is the pattern, and an occurrence that differs
+     * from the pattern has no home in it.
+     *
+     * `subject` travels on every write and falls back to the series' title, the
+     * same choice CalDavEventConverter::addOverrides() makes — an instance
+     * renamed and then renamed back carries no title in its patch, and a payload
+     * that omitted the field would leave the old name on that one occurrence in
+     * Outlook forever.
+     *
+     * There is no cancellation here, deliberately. `isCancelled` is read-only at
+     * Graph and cancelling a meeting is its own action that mails every
+     * attendee, so an excluded instance is a DELETE against the occurrence —
+     * which is the same answer this mapper's docblock gives for cancelling a
+     * whole event, because it is the same restriction.
+     *
+     * @return array<string,mixed>
+     */
+    public function toGraphInstance(CalendarEvent $event, InstanceOverride $override): array
+    {
+        $zone = true === $event->isAllDay ? null : $event->timeZone;
+
+        return [
+            'subject' => $override->title ?? (string) $event->title,
+            'start'   => $this->dateTimeOut($override->startsAt, $zone),
+            'end'     => $this->dateTimeOut($override->endsAt, $zone),
+        ];
+    }
+
+    /**
      * Where the rule originally put an instance somebody has changed.
      *
      * Graph states it on an exception entry as `originalStart`, a UTC instant,
@@ -259,6 +294,24 @@ final readonly class GraphEventMapper
         } catch (\Exception) {
             return null;
         }
+    }
+
+    /**
+     * When one entry begins, as a UTC instant.
+     *
+     * Public for the one caller that needs it without the rest of the mapping:
+     * an occurrence nothing has happened to carries no `originalStart` on some
+     * tenants, and for such an entry the start IS the original one — the rule
+     * put it there and nothing has moved it. That equality is the whole reason
+     * this may stand in for originalStartOf(), and it holds only for
+     * `type: occurrence`; an exception's start is where somebody dragged it,
+     * which is not a name anything can look an override up by.
+     *
+     * @param array<string,mixed> $event
+     */
+    public function startOf(array $event): ?DateTimeImmutable
+    {
+        return $this->instant($event['start'] ?? null);
     }
 
     // ── Reading Graph ────────────────────────────────────────────────────────

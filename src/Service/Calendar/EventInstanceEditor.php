@@ -56,20 +56,18 @@ use DateTimeZone;
  *   exclusion as an EXDATE on the master, so a moved or cancelled instance
  *   arrives at the server as the instance it is.
  *
- *   Google and Graph do not, yet. Both model a moved instance as a separate
- *   resource — a Google instance under the series' id, a Graph exception under
- *   the series' event — and neither GoogleEventMapper::toGoogleEvent() nor
- *   GraphEventMapper::toGraphEvent() writes one: they send the master's fields
- *   and its recurrence rule alone. So a per-instance change on such a calendar
- *   is pushed as a series update that says nothing about the instance, the
- *   remote leaves every occurrence where it was, and the change is visible in
- *   plMail only. It is not lost — CalendarEventWriter::write() preserves
- *   recurrenceOverrides, and a pull that brings no instance exceptions for the
- *   series never calls overrideInstances() at all — but a later FULL read that
- *   does carry an exception for the same series replaces the whole map
- *   (overrideInstances($master, $patches, replaceExisting: true)) and the local
- *   patch goes with it. Closing that means writing the instance resource in each
- *   driver, which is those drivers' work and not this class's.
+ *   Google and Graph round-trip it in two writes rather than one, because both
+ *   model a changed instance as a separate resource — a Google instance under
+ *   the series' id, a Graph exception under the series' event.
+ *   GoogleEventMapper::toGoogleEvent() and GraphEventMapper::toGraphEvent()
+ *   still send the master's fields and its recurrence rule alone, and each
+ *   driver's push() follows them with one write per override against the
+ *   instance it names. Until that was written, a per-instance change on such a
+ *   calendar went out as a series update that said nothing about the instance:
+ *   the remote left every occurrence where it was, and the change was visible in
+ *   plMail only, until a later FULL read carrying any exception for that series
+ *   replaced the whole map (overrideInstances($master, $patches,
+ *   replaceExisting: true)) and took the local patch with it.
  */
 final readonly class EventInstanceEditor
 {

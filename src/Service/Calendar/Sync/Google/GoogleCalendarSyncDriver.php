@@ -6,11 +6,13 @@ namespace App\Service\Calendar\Sync\Google;
 
 use App\Domain\DTO\Calendar\CalendarChangeSet;
 use App\Domain\DTO\Calendar\CalendarSource;
+use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteCalendar;
 use App\Domain\DTO\Calendar\RemoteWriteResult;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
@@ -18,6 +20,7 @@ use App\Entity\Mail\Account;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
+use Psr\Log\LoggerInterface;
 
 /**
  * Google Calendar API v3, behind the sync driver contract.
@@ -48,7 +51,9 @@ use DateTimeZone;
  * the series rather than an event of its own — see RemoteEvent. Letting them
  * through as events, which is what this driver did until that was written, put
  * a duplicate on the day the instance moved to beside a series that still drew
- * it on the day it left.
+ * it on the day it left. A push says the same thing in the same direction: the
+ * series' own write carries no instance, so each override is a second write
+ * against the instance resource it names — see pushInstances().
  *
  * **The first read is bounded; every read after it is not.** See
  * INITIAL_WINDOW.
@@ -103,6 +108,7 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
     public function __construct(
         private GoogleCalendarApiClient $api,
         private GoogleEventMapper       $mapper,
+        private LoggerInterface         $logger,
     ) {
     }
 
@@ -217,9 +223,12 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
             // next pull writes it over the placeholder this row was created
             // with; the row is found by remote id, so the change of UID costs
             // nothing.
-            $body = $this->api->write($account, 'POST', $this->eventsPath($calendar), $payload, null, 'events.insert');
+            $body   = $this->api->write($account, 'POST', $this->eventsPath($calendar), $payload, null, 'events.insert');
+            $result = $this->writeResult($body, 'events.insert');
 
-            return $this->writeResult($body, 'events.insert');
+            $this->pushInstances($account, $calendar, $event, $result->remoteId);
+
+            return $result;
         }
 
         // PATCH rather than PUT: an update must not erase the parts of a Google
@@ -232,7 +241,7 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
         // change somebody else made in between is overwritten silently and they
         // never learn it is gone; with it Google answers 412 and the engine
         // re-reads instead.
-        $body = $this->api->write(
+        $body   = $this->api->write(
             $account,
             'PATCH',
             $this->eventPath($calendar, $remoteId),
@@ -240,8 +249,11 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
             $event->remoteEtag,
             'events.patch',
         );
+        $result = $this->writeResult($body, 'events.patch');
 
-        return $this->writeResult($body, 'events.patch');
+        $this->pushInstances($account, $calendar, $event, $result->remoteId);
+
+        return $result;
     }
 
     /**
@@ -265,6 +277,143 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
             $this->eventPath($calendar, $remoteId),
             'events.delete',
         );
+    }
+
+    // ── Instances ─────────────────────────────────────────────────────────
+
+    /**
+     * The series' recurrenceOverrides, as writes against Google's own instance
+     * resources.
+     *
+     * Google models an instance as a resource of its own under the series, so
+     * this is the only way a moved or cancelled occurrence reaches it: the
+     * series' own PATCH carries its fields and its RRULE and says nothing about
+     * any single occurrence. Without this a per-instance edit was visible in
+     * plMail alone, until a later full read carrying any exception for the same
+     * series replaced the whole override map and took the local patch with it.
+     *
+     * **One instance's failure is not the push's failure.** The master has
+     * already been written by the time this runs, and throwing here would stop
+     * CalendarPusher recording the id it just came back with — which on a create
+     * means the next sweep makes a second copy of the meeting. So a refusal is
+     * logged and the remaining instances still go out. Being throttled is the
+     * one thing that stops the loop rather than continuing it, for the reason
+     * CalendarPusher gives about its own batch: the quota is already gone, and
+     * the remaining requests would spend a retry that has not been granted yet.
+     */
+    private function pushInstances(
+        Account       $account,
+        Calendar      $calendar,
+        CalendarEvent $event,
+        string        $seriesRemoteId,
+    ): void {
+        foreach (InstanceOverride::listOf($event) as $override) {
+            try {
+                $this->pushInstance($account, $calendar, $event, $seriesRemoteId, $override);
+            } catch (CalendarSyncThrottledException $e) {
+                $this->logger->warning('GoogleCalendarSync: throttled while sending the instances of a series, stopping', [
+                    'calendarId' => $calendar->id,
+                    'eventId'    => $event->id,
+                    'error'      => $e->getMessage(),
+                ]);
+
+                return;
+            } catch (CalendarSyncException $e) {
+                $this->logger->warning('GoogleCalendarSync: one instance of a series could not be written', [
+                    'calendarId'    => $calendar->id,
+                    'eventId'       => $event->id,
+                    'originalStart' => $override->originalStart->format(DateTimeInterface::RFC3339),
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @throws CalendarSyncException
+     */
+    private function pushInstance(
+        Account          $account,
+        Calendar         $calendar,
+        CalendarEvent    $event,
+        string           $seriesRemoteId,
+        InstanceOverride $override,
+    ): void {
+        $instanceId = $this->instanceAt($account, $calendar, $event, $seriesRemoteId, $override);
+
+        if (null === $instanceId) {
+            // Not an error, and not rare enough to warn about: an override whose
+            // key the rule no longer puts an instance at is what a series edited
+            // after one of its occurrences was moved leaves behind. There is
+            // nothing at Google to change, and inventing a resource for it would
+            // add an occurrence the rule does not have.
+            $this->logger->info('GoogleCalendarSync: no instance of this series starts where the override says', [
+                'calendarId'    => $calendar->id,
+                'eventId'       => $event->id,
+                'originalStart' => $override->originalStart->format(DateTimeInterface::RFC3339),
+            ]);
+
+            return;
+        }
+
+        // No If-Match: the etag plMail stores belongs to the series, and sending
+        // it against an instance is a 412 on every write. An instance's own
+        // version marker is never read, so there is nothing to condition on —
+        // and the write is a PATCH, so what it does not mention it does not
+        // touch.
+        $this->api->write(
+            $account,
+            'PATCH',
+            $this->eventPath($calendar, $instanceId),
+            $this->mapper->toGoogleInstance($event, $override),
+            null,
+            'events.patch (instance)',
+        );
+    }
+
+    /**
+     * The id of the instance the rule put at one original start, or null when
+     * the series has none there.
+     *
+     * `originalStart` is a filter events.instances offers precisely for this,
+     * and it is why Google needs no record of instance ids to address one: the
+     * original start IS the name, which is what a recurrenceOverride is keyed by
+     * on this side too. Asking for the instances of a window and matching in PHP
+     * would be the same request without the accuracy.
+     *
+     * showDeleted so an instance already cancelled is still answered. Without it
+     * a cancellation pushed twice — a retried job, a second sweep — would find
+     * nothing the second time and report a series that has no instance there,
+     * which is a log line about something working correctly.
+     *
+     * @throws CalendarSyncException
+     */
+    private function instanceAt(
+        Account          $account,
+        Calendar         $calendar,
+        CalendarEvent    $event,
+        string           $seriesRemoteId,
+        InstanceOverride $override,
+    ): ?string {
+        $body = $this->api->get(
+            $account,
+            $this->eventPath($calendar, $seriesRemoteId) . '/instances',
+            [
+                'originalStart' => $this->mapper->toGoogleOriginalStart($event, $override->originalStart),
+                'showDeleted'   => 'true',
+            ],
+            'events.instances',
+        );
+
+        foreach ($this->itemsOf($body) as $item) {
+            $instanceId = $this->stringOrNull($item['id'] ?? null);
+
+            if (null !== $instanceId) {
+                return $instanceId;
+            }
+        }
+
+        return null;
     }
 
     // ── The listing ───────────────────────────────────────────────────────

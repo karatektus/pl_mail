@@ -72,6 +72,17 @@ use Psr\Log\LoggerInterface;
  *   into a row, because a master invented from one instance is a series with
  *   the wrong rule.
  *
+ *   **What an instance id means is remembered, so a bare tombstone can be
+ *   read.** Microsoft names a cancelled occurrence with its instance id and
+ *   nothing else — no series, no start — and an id that resolves to nothing is a
+ *   deletion that does nothing, which is how an occurrence deleted in Outlook
+ *   stayed on the calendar. So every instance a window mentions, changed or not,
+ *   is written into the series' CalendarEvent::$remoteInstances, and a tombstone
+ *   the ordinary lookups cannot place is asked about there before it is applied:
+ *   found, it becomes RemoteEvent::deletedInstance() and takes the ordinary
+ *   instance path. The map is pruned to the horizon occurrences are drawn to,
+ *   because an id for an instance no view can show answers no question.
+ *
  * Every write goes through CalendarEventWriter, so the JSCalendar object, the
  * projected columns and the materialised occurrences cannot disagree. Does not
  * flush — it joins the caller's unit of work.
@@ -101,14 +112,32 @@ final readonly class CalendarPuller
             return 0;
         }
 
-        $touched   = 0;
-        $seen      = [];
-        $instances = [];
-        $written   = [];
+        $touched    = 0;
+        $seen       = [];
+        $instances  = [];
+        $identities = [];
+        $written    = [];
+
+        // What the window's instance ids mean, before anything is applied: a
+        // driver reports these for the occurrences nothing happened to as well,
+        // and they are not changes — only the record that lets a later tombstone
+        // naming one of these ids be recognised at all.
+        foreach ($changes->instances as $instance) {
+            $identities[$instance->seriesRemoteId][$instance->remoteId] = $instance->recurrenceId;
+        }
 
         foreach ($changes->events as $remote) {
+            $remote = $this->recognisedInstance($calendar, $remote);
+
             if (true === $remote->isSeriesInstance()) {
-                $instances[(string) $remote->seriesRemoteId][] = $remote;
+                $seriesRemoteId = (string) $remote->seriesRemoteId;
+
+                $instances[$seriesRemoteId][] = $remote;
+
+                // An instance the window did say something about names itself
+                // too, which is what makes the map true for a provider that
+                // reports exceptions and nothing else.
+                $identities[$seriesRemoteId][$remote->remoteId] = $remote->recurrenceId;
 
                 continue;
             }
@@ -122,7 +151,7 @@ final readonly class CalendarPuller
         // between two polls — which arrives as the master and its moved
         // instance, in whichever order the provider felt like — has a row to
         // be patched onto.
-        $touched += $this->applyInstances($calendar, $instances, $written, $wasFullRead);
+        $touched += $this->applyInstances($calendar, $instances, $identities, $written, $wasFullRead);
 
         // An instance's own remote id is deliberately not in $seen. It never
         // named a local row, so listing it would protect nothing — and leaving
@@ -142,6 +171,71 @@ final readonly class CalendarPuller
         }
 
         return $touched;
+    }
+
+    /**
+     * A tombstone that names an instance rather than an event, said the way the
+     * driver could not say it.
+     *
+     * Graph's `@removed` carries an id and nothing else, so the driver has no
+     * way to tell an event from one occurrence of a series and reports the only
+     * thing it knows. Applied as it stands it matches no row — an instance has
+     * never been one — and the deletion does nothing at all, which is how an
+     * occurrence somebody removed in Outlook went on being drawn. Looked up in
+     * the map the pull itself wrote, it becomes the exclusion it always was.
+     *
+     * The lookup is on the map alone rather than after a row lookup, so an
+     * ordinary deletion costs one query rather than two. The guard against a
+     * master that somehow recorded its own id is the comparison below: turning a
+     * series' deletion into an exclusion would leave the series on the calendar
+     * forever, where failing to recognise an instance only leaves things as they
+     * were before this existed.
+     */
+    private function recognisedInstance(Calendar $calendar, RemoteEvent $remote): RemoteEvent
+    {
+        if (false === $remote->isDeleted || true === $remote->isSeriesInstance()) {
+            return $remote;
+        }
+
+        $master = $this->events->findOneByRemoteInstanceId($calendar, $remote->remoteId);
+
+        if (null === $master || null === $master->remoteId || $master->remoteId === $remote->remoteId) {
+            return $remote;
+        }
+
+        $recurrenceId = $this->recordedStart($master, $remote->remoteId);
+
+        if (null === $recurrenceId) {
+            return $remote;
+        }
+
+        return RemoteEvent::deletedInstance($remote->remoteId, $master->remoteId, $recurrenceId);
+    }
+
+    /**
+     * The original start recorded against one instance id, or null when the
+     * value stored there is not an instant.
+     *
+     * Total, because the column is JSON and a hand-edited row is one bad cast
+     * from a TypeError inside a sweep. Converted to UTC as well as constructed
+     * in it, for the reason EventInstanceEditor::instance() gives: the
+     * constructor's zone applies only to a string that names none of its own, so
+     * a value someone wrote with an offset on it would otherwise travel onward
+     * in that offset.
+     */
+    private function recordedStart(CalendarEvent $master, string $instanceId): ?DateTimeImmutable
+    {
+        $recorded = $master->remoteInstances[$instanceId] ?? null;
+
+        if (false === is_string($recorded) || '' === $recorded) {
+            return null;
+        }
+
+        try {
+            return new DateTimeImmutable($recorded, new DateTimeZone('UTC'))->setTimezone(new DateTimeZone('UTC'));
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**
@@ -215,31 +309,54 @@ final readonly class CalendarPuller
      * findOneByRemoteId() is a query, which would answer null and drop every
      * override that arrived in the same window as the series it belongs to.
      *
-     * @param array<string,list<RemoteEvent>> $instances keyed by series remote id
-     * @param array<string,CalendarEvent>     $written   what the first pass wrote
+     * @param array<string,list<RemoteEvent>>               $instances  keyed by series remote id
+     * @param array<string,array<string,DateTimeImmutable>> $identities what each instance id
+     *                                                                  means, by series and
+     *                                                                  then by instance id
+     * @param array<string,CalendarEvent>                   $written    what the first pass wrote
      *
      * @return int how many series this changed
      */
-    private function applyInstances(Calendar $calendar, array $instances, array $written, bool $wasFullRead): int
-    {
+    private function applyInstances(
+        Calendar $calendar,
+        array    $instances,
+        array    $identities,
+        array    $written,
+        bool     $wasFullRead,
+    ): int {
         $touched = 0;
+        $now     = new DateTimeImmutable();
 
-        foreach ($instances as $seriesRemoteId => $remotes) {
-            $master = $written[$seriesRemoteId] ?? $this->events->findOneByRemoteId($calendar, $seriesRemoteId);
+        // Every series the window named in either way. An identity with no patch
+        // is the ordinary case for Microsoft — fifty-two unchanged occurrences a
+        // year — and a patch with no identity is what a driver that only ever
+        // reports exceptions gives.
+        $seriesIds = array_unique([...array_keys($instances), ...array_keys($identities)]);
+
+        foreach ($seriesIds as $seriesRemoteId) {
+            $seriesRemoteId = (string) $seriesRemoteId;
+            $remotes        = $instances[$seriesRemoteId] ?? [];
+            $master         = $written[$seriesRemoteId] ?? $this->events->findOneByRemoteId($calendar, $seriesRemoteId);
 
             if (null === $master) {
                 // Not a defect on either side: the series may predate this
                 // calendar's first read, or belong to a calendar plMail does not
                 // mirror. Worth an info line, because "one instance is at the
-                // wrong time" is otherwise unexplainable.
-                $this->logger->info('CalendarSync: an instance arrived for a series that is not here', [
-                    'calendarId'     => $calendar->id,
-                    'seriesRemoteId' => $seriesRemoteId,
-                    'instances'      => count($remotes),
-                ]);
+                // wrong time" is otherwise unexplainable — but only when
+                // something was actually going to be applied, since a window
+                // naming ids for a series nobody holds is nothing to report.
+                if ([] !== $remotes) {
+                    $this->logger->info('CalendarSync: an instance arrived for a series that is not here', [
+                        'calendarId'     => $calendar->id,
+                        'seriesRemoteId' => $seriesRemoteId,
+                        'instances'      => count($remotes),
+                    ]);
+                }
 
                 continue;
             }
+
+            $this->rememberInstances($master, $identities[$seriesRemoteId] ?? [], $now);
 
             $patches = [];
             $zone    = $this->zoneOf($master);
@@ -265,6 +382,59 @@ final readonly class CalendarPuller
         }
 
         return $touched;
+    }
+
+    /**
+     * Records which occurrence each of the remote's instance ids is, and forgets
+     * the ones no view can reach.
+     *
+     * The whole point of the column, and it is written here rather than by the
+     * driver because it is a column: the driver reports what it saw and the
+     * engine owns what is stored, which is what keeps a driver free of Doctrine.
+     *
+     * An id whose original start another id already claims replaces it. A
+     * provider that re-keys an occurrence when it becomes an exception —
+     * Microsoft does, for some edits — would otherwise leave the dead id behind,
+     * and a push that addressed it would patch a resource that is not there.
+     *
+     * Pruned to the horizon RecurrenceMaterialiser draws to, and the two agree
+     * on purpose: an instance older than that has no occurrence row, cannot be
+     * shown, and cannot be cancelled from anywhere, so its id is a byte with no
+     * question behind it. Compared as strings because the stored spelling is
+     * ISO 8601 in UTC, where lexical order is chronological order.
+     *
+     * @param array<string,DateTimeImmutable> $identities by instance id
+     */
+    private function rememberInstances(CalendarEvent $master, array $identities, DateTimeImmutable $now): void
+    {
+        if ([] === $identities) {
+            return;
+        }
+
+        $known = $master->remoteInstances;
+
+        foreach ($identities as $instanceId => $recurrenceId) {
+            $start = $recurrenceId->setTimezone(new DateTimeZone('UTC'))
+                ->format(CalendarEvent::INSTANCE_START_FORMAT);
+
+            foreach (array_keys($known, $start, true) as $superseded) {
+                unset($known[$superseded]);
+            }
+
+            $known[$instanceId] = $start;
+        }
+
+        $horizon = $now->setTimezone(new DateTimeZone('UTC'))
+            ->modify(RecurrenceMaterialiser::HORIZON_PAST)
+            ->format(CalendarEvent::INSTANCE_START_FORMAT);
+
+        foreach ($known as $instanceId => $start) {
+            if ($start < $horizon) {
+                unset($known[$instanceId]);
+            }
+        }
+
+        $master->remoteInstances = $known;
     }
 
     /**

@@ -18,6 +18,7 @@ use App\Service\Calendar\Sync\Google\GoogleCalendarSyncDriver;
 use App\Service\Calendar\Sync\Google\GoogleEventMapper;
 use App\Service\Calendar\Sync\Google\GoogleRecurrenceMapper;
 use App\Service\OAuth\OAuthTokenManager;
+use App\Tests\Service\Calendar\RecordingLogger;
 use DateTimeImmutable;
 use DateTimeZone;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -48,15 +49,35 @@ final class GoogleDriverFixture
     /** @var list<MockResponse> in the order the driver will consume them */
     public readonly array $responses;
 
+    /**
+     * Everything the driver said while it worked.
+     *
+     * A real recorder rather than a NullLogger, because one thing this driver
+     * does is deliberately not visible in its answer: an instance the remote has
+     * no resource for is skipped, and the log line is the only evidence that it
+     * happened rather than the write silently going nowhere.
+     */
+    public readonly RecordingLogger $logger;
+
+    /**
+     * Kept so a test can count what was actually sent. Queuing a response the
+     * driver never asks for is how "it did nothing" is asserted, and that is
+     * invisible from the responses alone.
+     */
+    public readonly MockHttpClient $http;
+
     public function __construct(MockResponse ...$responses)
     {
         $this->responses = array_values($responses);
+        $this->logger    = new RecordingLogger();
+        $this->http      = new MockHttpClient($this->responses);
 
         $recurrence = new GoogleRecurrenceMapper(new RecurrenceRuleConverter());
 
         $this->driver = new GoogleCalendarSyncDriver(
-            new GoogleCalendarApiClient(new MockHttpClient($this->responses), self::tokens()),
+            new GoogleCalendarApiClient($this->http, self::tokens()),
             new GoogleEventMapper($recurrence),
+            $this->logger,
         );
     }
 

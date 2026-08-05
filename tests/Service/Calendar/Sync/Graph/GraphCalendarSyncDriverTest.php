@@ -383,6 +383,78 @@ final class GraphCalendarSyncDriverTest extends TestCase
         self::assertSame(1, $http->getRequestsCount());
     }
 
+    public function testEveryOccurrenceSaysWhichInstanceItIsSoALaterRemovalCanBeRead(): void
+    {
+        // The one thing that makes a cancelled occurrence knowable at all.
+        // Graph reports the deletion as an id and nothing else, and the resource
+        // it names is gone by then — so unless the window that carried the
+        // occurrence wrote down what that id meant, the removal matches nothing,
+        // does nothing, and the instance the user deleted in Outlook is drawn
+        // for good.
+        $http = new MockHttpClient([
+            $this->json([
+                'value' => [
+                    [
+                        'id'             => 'OCC1',
+                        'type'           => 'occurrence',
+                        'seriesMasterId' => 'MASTER',
+                        'start'          => ['dateTime' => '2026-08-04T09:00:00.0000000', 'timeZone' => 'UTC'],
+                        'end'            => ['dateTime' => '2026-08-04T10:00:00.0000000', 'timeZone' => 'UTC'],
+                    ],
+                    [
+                        'id'             => 'OCC2',
+                        'type'           => 'exception',
+                        'seriesMasterId' => 'MASTER',
+                        'originalStart'  => '2026-08-11T09:00:00.0000000Z',
+                        'start'          => ['dateTime' => '2026-08-11T15:00:00.0000000', 'timeZone' => 'UTC'],
+                        'end'            => ['dateTime' => '2026-08-11T16:00:00.0000000', 'timeZone' => 'UTC'],
+                    ],
+                    ['id' => 'MASTER', 'iCalUId' => 'uid-m', 'type' => 'seriesMaster'] + $this->times(),
+                ],
+                '@odata.deltaLink' => 'https://graph.microsoft.com/delta?$deltatoken=B',
+            ]),
+        ]);
+
+        $changes = $this->driver($http)->pull($this->calendar(), 'https://graph.microsoft.com/delta?$deltatoken=A');
+
+        self::assertCount(2, $changes->instances, 'the unchanged occurrence is named too, not only the exception');
+
+        self::assertSame('OCC1', $changes->instances[0]->remoteId);
+        self::assertSame('MASTER', $changes->instances[0]->seriesRemoteId);
+        self::assertSame('2026-08-04T09:00:00+00:00', $changes->instances[0]->recurrenceId->format('c'));
+
+        // originalStart, not the start it was dragged to — a cancellation filed
+        // under the moved time would name a day the series has no instance on.
+        self::assertSame('OCC2', $changes->instances[1]->remoteId);
+        self::assertSame('2026-08-11T09:00:00+00:00', $changes->instances[1]->recurrenceId->format('c'));
+
+        // And none of this is a change: an occurrence nothing happened to must
+        // not arrive as an event to apply, or a weekly meeting is fifty-two
+        // writes a year saying it is where the rule already puts it.
+        self::assertCount(2, $changes->events, 'the series, and the one instance that actually differs');
+    }
+
+    public function testAnExceptionWithNoOriginalStartNamesNoInstanceAtAll(): void
+    {
+        // Its start is where somebody dragged it, and recording that as the
+        // instance's identity would file a later cancellation under a day the
+        // rule never put an occurrence on — which is worse than not knowing,
+        // because it would cancel a different one.
+        $http = new MockHttpClient([
+            $this->json([
+                'value' => [
+                    ['id' => 'OCC3', 'type' => 'exception', 'seriesMasterId' => 'MASTER'] + $this->times(),
+                ],
+                '@odata.deltaLink' => 'https://graph.microsoft.com/delta?$deltatoken=B',
+            ]),
+            $this->json(['id' => 'MASTER', 'iCalUId' => 'uid-m', 'type' => 'seriesMaster'] + $this->times()),
+        ]);
+
+        $changes = $this->driver($http)->pull($this->calendar(), 'https://graph.microsoft.com/delta?$deltatoken=A');
+
+        self::assertSame([], $changes->instances);
+    }
+
     public function testAFullReadReportsNoTombstonesBecauseThereIsNothingToTombstoneAgainst(): void
     {
         // The engine treats a full read as authoritative and removes local rows

@@ -15,19 +15,26 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Keeps calendar push channels alive — and is also the only thing that opens
+ * Keeps calendar push channels alive — and is the thing that eventually opens
  * one.
  *
- * That second job is the decision worth arguing. The obvious place to register
- * a channel is the moment a user ticks a calendar to mirror, and it was
- * rejected: registration is best-effort and fails for reasons that have nothing
- * to do with the user's click — no public HTTPS address yet, a Google Cloud
- * project whose domain verification is still pending, a tenant that refuses
- * subscriptions. Tied to the subscribe flow, each of those means push never
- * happens for that calendar until somebody thinks to unsubscribe and
- * re-subscribe it. Driven from a sweep, the same install starts delivering by
- * push within the hour of the underlying problem being fixed, with nobody
- * touching anything.
+ * "Eventually" is the decision worth arguing, and it survived being revisited.
+ * The obvious place to register a channel is the moment a user ticks a calendar
+ * to mirror, and registering there and only there was rejected: registration is
+ * best-effort and fails for reasons that have nothing to do with the user's
+ * click — no public HTTPS address yet, a Google Cloud project whose domain
+ * verification is still pending, a tenant that refuses subscriptions. Tied to
+ * the subscribe flow alone, each of those means push never happens for that
+ * calendar until somebody thinks to unsubscribe and re-subscribe it. Driven from
+ * a sweep, the same install starts delivering by push within the hour of the
+ * underlying problem being fixed, with nobody touching anything.
+ *
+ * What the subscribe flow does now is dispatch RegisterCalendarPushMessage,
+ * which asks once, off the request, and gives up quietly. That is an addition on
+ * top of this command and not a replacement for it: it removes the first hour,
+ * during which a working feature otherwise looks like nothing happened, and it
+ * cannot remove anything else — an install that is not reachable when the box is
+ * ticked is still waiting for this sweep.
  *
  * Renewal is the same call: both managers treat "no channel" as "make one", so
  * there is one code path for register, renew and repair rather than three that

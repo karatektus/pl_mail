@@ -6,8 +6,10 @@ namespace App\Service\Calendar\Sync\Graph;
 
 use App\Domain\DTO\Calendar\CalendarChangeSet;
 use App\Domain\DTO\Calendar\CalendarSource;
+use App\Domain\DTO\Calendar\InstanceOverride;
 use App\Domain\DTO\Calendar\RemoteCalendar;
 use App\Domain\DTO\Calendar\RemoteEvent;
+use App\Domain\DTO\Calendar\RemoteInstance;
 use App\Domain\DTO\Calendar\RemoteWriteResult;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\CalendarResyncRequiredException;
@@ -71,13 +73,22 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * is what happened until this was written, the instance went on being drawn at
  * the time it was moved away from.
  *
- * **A cancelled instance is still a known loss.** Graph reports an occurrence
- * somebody deleted as a `@removed` entry carrying an id and nothing else — not
- * its series, not the start it had — and an instance id is not something plMail
- * stores, so there is no way from here to say which occurrence of which series
- * went. It is emitted as a tombstone, matches no row, and does nothing. Closing
- * it needs the instance ids kept somewhere, which is a column and therefore a
- * decision of its own.
+ * **A cancelled instance is recognised by what an earlier window wrote down.**
+ * Graph reports an occurrence somebody deleted as a `@removed` entry carrying an
+ * id and nothing else — not its series, not the start it had — and the resource
+ * it names is gone, so it cannot be asked. It is answerable only from a record
+ * made while the occurrence still existed, which is why every occurrence and
+ * exception this window mentions is also reported as a RemoteInstance, changed
+ * or not: the engine keeps them in CalendarEvent::$remoteInstances and reads the
+ * tombstone against them. Emitted as a bare tombstone, which is all this driver
+ * could say before, it matched no row and did nothing at all — an instance has
+ * never been one — and the occurrence removed in Outlook was drawn forever.
+ *
+ * **A push carries the instances too.** The series' PATCH is the pattern, and an
+ * occurrence that differs from the pattern has no home in it, so each stored
+ * recurrenceOverride is a second write against the occurrence resource it names
+ * — see pushInstances(). Written only as a series update, which is what this
+ * driver did until then, a moved or cancelled instance never left plMail.
  *
  * A calendarView delta also means a full read is authoritative only inside the
  * window. An event that has aged out of the past horizon is absent from the
@@ -226,11 +237,13 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
             $query = $this->window();
         }
 
-        $page = $this->collect($account, $url, $query, 'reading calendar changes');
+        $page   = $this->collect($account, $url, $query, 'reading calendar changes');
+        $window = $this->eventsIn($account, $page['items'], $isIncremental);
 
         return new CalendarChangeSet(
-            events:        $this->eventsIn($account, $page['items'], $isIncremental),
+            events:        $window['events'],
             nextSyncToken: $page['deltaLink'],
+            instances:     $window['instances'],
         );
     }
 
@@ -248,7 +261,11 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
                 'creating an event',
             );
 
-            return $this->writeResult($created, null);
+            $result = $this->writeResult($created, null);
+
+            $this->pushInstances($account, $event, $result->remoteId);
+
+            return $result;
         }
 
         $options = ['json' => $body];
@@ -270,7 +287,11 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
             'updating an event',
         );
 
-        return $this->writeResult($updated, $event->remoteId);
+        $result = $this->writeResult($updated, $event->remoteId);
+
+        $this->pushInstances($account, $event, $result->remoteId);
+
+        return $result;
     }
 
     public function delete(Calendar $calendar, CalendarEvent $event): void
@@ -313,20 +334,22 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
     }
 
     /**
-     * One window of calendarView entries as the events the engine stores.
+     * One window of calendarView entries as the events the engine stores, and as
+     * the record of what its instance ids mean.
      *
      * @param list<array<string,mixed>> $items
      * @param bool                      $isIncremental false for a full read, where
      *                                                 a tombstone would be a
      *                                                 tombstone against nothing
      *
-     * @return list<RemoteEvent>
+     * @return array{events: list<RemoteEvent>, instances: list<RemoteInstance>}
      */
     private function eventsIn(Account $account, array $items, bool $isIncremental): array
     {
-        $events  = [];
-        $emitted = [];
-        $series  = [];
+        $events    = [];
+        $instances = [];
+        $emitted   = [];
+        $series    = [];
 
         foreach ($items as $item) {
             $id = trim((string) ($item['id'] ?? ''));
@@ -338,8 +361,9 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
             if (true === array_key_exists('@removed', $item)) {
                 // A removed entry carries its id and nothing else — not even
                 // whether it was a series or one instance of one. Emitting the
-                // tombstone regardless is safe: CalendarPuller does nothing with
-                // an id it holds no row for.
+                // tombstone regardless is safe: an id the engine holds no row
+                // for is asked about against the instances recorded below, and
+                // does nothing when it is neither.
                 if (true === $isIncremental) {
                     $events[] = RemoteEvent::deleted($id);
                 }
@@ -354,6 +378,12 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
 
                 if ('' !== $masterId) {
                     $series[$masterId] = true;
+
+                    $instance = $this->identityOf($item, $id, $masterId, $type);
+
+                    if (null !== $instance) {
+                        $instances[] = $instance;
+                    }
                 }
 
                 // An occurrence is only a mention of its series — the rule
@@ -404,7 +434,43 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
             $emitted[$masterId] = true;
         }
 
-        return $events;
+        return [
+            'events'    => $events,
+            'instances' => $instances,
+        ];
+    }
+
+    /**
+     * Which occurrence of which series one calendarView entry is, whether or not
+     * anything about it changed.
+     *
+     * This is the whole answer to the cancelled instance, and it has to be
+     * recorded now because there is nothing to ask later: the `@removed` entry
+     * that eventually reports the deletion carries this id and no other
+     * property, and the resource it names is gone, so Graph cannot be asked what
+     * it was. It is written down while the occurrence still exists or it is
+     * never known — see CalendarEvent::$remoteInstances, which is where the
+     * engine keeps it.
+     *
+     * An occurrence with no `originalStart` falls back to its own start, and an
+     * exception with none is left unidentified. The difference is not a
+     * preference: an occurrence nothing has touched is, by definition, at the
+     * start the rule gave it, so the two are the same instant. An exception's
+     * start is where somebody dragged it, and recording that as its identity
+     * would file a later cancellation under a day the series has no instance on.
+     *
+     * @param array<string,mixed> $item
+     */
+    private function identityOf(array $item, string $id, string $masterId, string $type): ?RemoteInstance
+    {
+        $originalStart = $this->mapper->originalStartOf($item)
+            ?? ('occurrence' === $type ? $this->mapper->startOf($item) : null);
+
+        if (null === $originalStart) {
+            return null;
+        }
+
+        return new RemoteInstance($id, $masterId, $originalStart);
     }
 
     /**
@@ -541,6 +607,203 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
     }
 
     // ── Writing ──────────────────────────────────────────────────────────────
+
+    /**
+     * The series' recurrenceOverrides, as writes against Graph's own occurrence
+     * resources.
+     *
+     * A patched occurrence becomes an exception of the series, which is what a
+     * recurrenceOverride already is on this side; the series' own PATCH cannot
+     * say it, because `recurrence` is the pattern and an instance that differs
+     * from the pattern has no home in it. Without this a per-instance edit was
+     * visible in plMail alone, until a later full read carrying any exception
+     * for the same series replaced the whole map and took the local patch with
+     * it.
+     *
+     * **One instance's failure is not the push's failure.** The master has
+     * already been written by the time this runs, and throwing would stop
+     * CalendarPusher recording the id it just came back with — which on a create
+     * means the next sweep makes a second copy of the meeting. Throttling is the
+     * one thing that stops the loop instead of continuing it: the quota is gone,
+     * and the requests after it would spend a retry nobody has granted.
+     */
+    private function pushInstances(Account $account, CalendarEvent $event, string $seriesRemoteId): void
+    {
+        foreach (InstanceOverride::listOf($event) as $override) {
+            try {
+                $this->pushInstance($account, $event, $seriesRemoteId, $override);
+            } catch (CalendarSyncThrottledException $e) {
+                $this->logger->warning('GraphCalendarSync: throttled while sending the instances of a series, stopping', [
+                    'eventId' => $event->id,
+                    'error'   => $e->getMessage(),
+                ]);
+
+                return;
+            } catch (CalendarSyncException $e) {
+                $this->logger->warning('GraphCalendarSync: one instance of a series could not be written', [
+                    'eventId'       => $event->id,
+                    'originalStart' => $override->originalStart->format('Y-m-d\TH:i:s\Z'),
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * One override, against whichever resource Graph currently holds for that
+     * occurrence.
+     *
+     * The recorded id is tried first and it is not merely an optimisation. Graph
+     * has no way to ask for the instance at a given original start — `/instances`
+     * takes a window over where occurrences *are*, not where the rule put them —
+     * so an instance already dragged a fortnight away is only addressable by the
+     * id a previous pull wrote down. The window search below is the fallback,
+     * and it is enough for the case it serves: an occurrence nothing has moved
+     * yet is at its original start by definition.
+     *
+     * A 404 on the recorded id is not a failure. Graph re-keys an occurrence for
+     * some edits, so an id learned last week can name nothing today, and asking
+     * the series again is the recovery — where treating it as a permanent
+     * refusal would abandon an instance that is sitting there under a new id.
+     */
+    private function pushInstance(
+        Account          $account,
+        CalendarEvent    $event,
+        string           $seriesRemoteId,
+        InstanceOverride $override,
+    ): void {
+        $recorded = $this->recordedInstance($event, $override);
+
+        if (null !== $recorded) {
+            try {
+                $this->writeInstance($account, $recorded, $event, $override, []);
+
+                return;
+            } catch (CalendarSyncPermanentException $e) {
+                if (404 !== $e->getStatus()) {
+                    throw $e;
+                }
+            }
+        }
+
+        $instanceId = $this->instanceAt($account, $seriesRemoteId, $override);
+
+        if (null === $instanceId) {
+            // Not an error: an override whose key the rule no longer puts an
+            // instance at is what a series edited after one of its occurrences
+            // was moved leaves behind, and a cancellation pushed twice finds
+            // nothing the second time because the first one worked.
+            $this->logger->info('GraphCalendarSync: no instance of this series starts where the override says', [
+                'eventId'       => $event->id,
+                'originalStart' => $override->originalStart->format('Y-m-d\TH:i:s\Z'),
+            ]);
+
+            return;
+        }
+
+        // Tolerant on the second attempt, where the interface's idempotence rule
+        // applies: the instance was listed a moment ago, so a 404 now is a race
+        // with something else that removed it, and the outcome asked for has
+        // happened either way.
+        $this->writeInstance($account, $instanceId, $event, $override, [404, 410]);
+    }
+
+    /**
+     * Move, rename or cancel one occurrence.
+     *
+     * An excluded instance is a DELETE rather than a patched `isCancelled`,
+     * because that property is read-only at Graph and cancelling a meeting is
+     * its own action that mails every attendee — the same restriction that makes
+     * cancelling a whole event a delete here, applied to one occurrence of one.
+     * Deleting an occurrence of a series does not delete the series: Graph
+     * records it as a deleted occurrence, which is exactly `{"excluded": true}`.
+     *
+     * @param list<int> $tolerate statuses that mean the occurrence is not there
+     */
+    private function writeInstance(
+        Account          $account,
+        string           $instanceId,
+        CalendarEvent    $event,
+        InstanceOverride $override,
+        array            $tolerate,
+    ): void {
+        $url = sprintf('%s/events/%s', self::ME, rawurlencode($instanceId));
+
+        if (true === $override->isExcluded) {
+            $this->call($account, 'DELETE', $url, [], 'cancelling an instance of a series', $tolerate);
+
+            return;
+        }
+
+        $this->call(
+            $account,
+            'PATCH',
+            $url,
+            ['json' => $this->mapper->toGraphInstance($event, $override)],
+            'updating an instance of a series',
+            $tolerate,
+        );
+    }
+
+    /**
+     * The instance id a pull recorded for this override's original start.
+     *
+     * A scan of one series' own map rather than a query: it is already loaded,
+     * it holds one entry per occurrence the provider has named, and the reverse
+     * direction — id to occurrence — is the one the column is keyed for.
+     */
+    private function recordedInstance(CalendarEvent $event, InstanceOverride $override): ?string
+    {
+        $recorded = array_search(
+            $override->originalStart->format(CalendarEvent::INSTANCE_START_FORMAT),
+            $event->remoteInstances,
+            true,
+        );
+
+        return true === is_string($recorded) ? $recorded : null;
+    }
+
+    /**
+     * The occurrence of a series that begins at one original start, found by
+     * asking for the instances around it.
+     *
+     * Graph's `/instances` demands a window and expands the series into it, so
+     * the search is a day either side and the match is made here on
+     * `originalStart` — the property that survives a drag. A day is enough
+     * because of what this fallback is for: an occurrence that has never been
+     * changed, which is at its original start, and one that has been is
+     * addressable by the id the pull that carried it recorded. Widening the
+     * window would not help the case it cannot serve — an exception moved
+     * further than the window, whose id was never seen — and would fetch a
+     * fortnight of occurrences to look at one.
+     */
+    private function instanceAt(Account $account, string $seriesRemoteId, InstanceOverride $override): ?string
+    {
+        $page = $this->collect(
+            $account,
+            sprintf('%s/events/%s/instances', self::ME, rawurlencode($seriesRemoteId)),
+            [
+                'startDateTime' => $override->originalStart->modify('-1 day')->format('Y-m-d\TH:i:s\Z'),
+                'endDateTime'   => $override->originalStart->modify('+1 day')->format('Y-m-d\TH:i:s\Z'),
+            ],
+            'looking for one instance of a series',
+        );
+
+        foreach ($page['items'] as $item) {
+            $id    = trim((string) ($item['id'] ?? ''));
+            $start = $this->mapper->originalStartOf($item) ?? $this->mapper->startOf($item);
+
+            if ('' === $id || null === $start) {
+                continue;
+            }
+
+            if ($start->getTimestamp() === $override->originalStart->getTimestamp()) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * @param array<string,mixed> $body the event resource Graph answered with
