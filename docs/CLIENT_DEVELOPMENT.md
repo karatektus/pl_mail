@@ -443,7 +443,10 @@ paths**, and always re-read `apiUrl` etc. from here:
           "emailQuerySortOptions": ["receivedAt", "from", "to", "subject", "size"],
           "mayCreateTopLevelMailbox": true
         },
-        "urn:ietf:params:jmap:submission": { "maxDelayedSend": 0, "submissionExtensions": {} }
+        "urn:ietf:params:jmap:submission": {
+          "maxDelayedSend": 2592000,
+          "submissionExtensions": { "FUTURERELEASE": ["HOLDFOR", "HOLDUNTIL"] }
+        }
       }
     }
   },
@@ -751,13 +754,40 @@ Things to know:
 - **The web UI's undo-send grace period is deliberately NOT applied to JMAP submissions.** A JMAP
   client asked to send *now*. If you want an undo window in your app, implement it client-side by
   delaying the submission call.
-- `maxDelayedSend` is `0` — there is no scheduled send.
-- Errors: `invalidProperties` (missing/unknown `emailId`), `alreadyExists` (already sent),
-  `noRecipients`.
+- **Scheduled send** is supported, in the spec's spelling: RFC 8621 §7 carries the SMTP
+  FUTURERELEASE extension (RFC 4865) as envelope parameters rather than defining a property.
+  Put `HOLDFOR` (seconds) *or* `HOLDUNTIL` (a date-time) — not both — in
+  `envelope.mailFrom.parameters`, and read the real release time back off `sendAt`:
+
+  ```json
+  ["EmailSubmission/set", {
+    "accountId": "7",
+    "create": { "s1": {
+      "emailId": "#draft1",
+      "envelope": { "mailFrom": { "parameters": { "HOLDFOR": "3600" } } }
+    } }
+  }, "c0"]
+  ```
+
+  `maxDelayedSend` in the account's submission capabilities is the ceiling — 30 days — and it is
+  enforced, not clamped: a longer hold is refused rather than shortened. A hold that has already
+  elapsed sends immediately. The rest of the envelope is checked rather than applied: plMail sends
+  the From and the recipients stored on the Email, so a `mailFrom.email` or `rcptTo` naming anything
+  else is refused instead of silently ignored.
+- **Cancelling before release**: update the submission's `undoStatus` to `"canceled"`. That is
+  reliable while the mail is held, a race once it has been dispatched with no hold, and refused with
+  `cannotUnsend` once it has been sent. Note that a canceled submission is not gettable afterwards —
+  the Email is an unsent draft again, so `EmailSubmission/get` answers `notFound`.
+- Errors: `invalidProperties` (missing/unknown `emailId`, malformed envelope, hold too long),
+  `forbiddenFrom` (an `identityId` this account may not send as), `invalidRecipients`,
+  `alreadyExists` (already sent), `noRecipients`, `cannotUnsend`.
 
 **Identities** come from the same list the web composer's From dropdown shows — the account's
 sendable aliases, primary first. An account with no alias rows yet yields one synthetic identity for
-the account address itself. Always let the user pick, and default to the primary.
+the account address itself. Always let the user pick, and default to the primary: the `identityId`
+on a submission decides the From address the mail really goes out with, and one that is not an
+identity of that account is refused with `forbiddenFrom` rather than falling back to the account
+address.
 
 ### Blobs: upload and download
 

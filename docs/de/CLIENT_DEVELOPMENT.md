@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:20f490d14621a2fe889a0370a047e1ede2530e8f -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ba3a326e577ca699b1572089f8127471aad07c29 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -491,7 +491,10 @@ niemals fest**, und lies `apiUrl` und Konsorten immer wieder von hier:
           "emailQuerySortOptions": ["receivedAt", "from", "to", "subject", "size"],
           "mayCreateTopLevelMailbox": true
         },
-        "urn:ietf:params:jmap:submission": { "maxDelayedSend": 0, "submissionExtensions": {} }
+        "urn:ietf:params:jmap:submission": {
+          "maxDelayedSend": 2592000,
+          "submissionExtensions": { "FUTURERELEASE": ["HOLDFOR", "HOLDUNTIL"] }
+        }
       }
     }
   },
@@ -825,14 +828,44 @@ Was du wissen solltest:
 - **Die Kulanzfrist der Web-Oberfläche zum Rückgängigmachen wird bei JMAP-Submissions bewusst
   NICHT angewandt.** Ein JMAP-Client hat darum gebeten, *jetzt* zu senden. Wenn du in deiner App
   ein Rückgängig-Fenster willst, bau es clientseitig, indem du den Submission-Aufruf verzögerst.
-- `maxDelayedSend` ist `0` — es gibt kein terminiertes Senden.
-- Fehler: `invalidProperties` (fehlende/unbekannte `emailId`), `alreadyExists` (bereits
-  gesendet), `noRecipients`.
+- **Terminiertes Senden** wird unterstützt, und zwar in der Schreibweise der Spezifikation:
+  RFC 8621 §7 führt die SMTP-Erweiterung FUTURERELEASE (RFC 4865) als Envelope-Parameter mit,
+  statt eine eigene Eigenschaft zu definieren. Setze `HOLDFOR` (Sekunden) *oder* `HOLDUNTIL`
+  (einen Zeitpunkt) — nicht beides — in `envelope.mailFrom.parameters` und lies die echte
+  Freigabezeit an `sendAt` ab:
+
+  ```json
+  ["EmailSubmission/set", {
+    "accountId": "7",
+    "create": { "s1": {
+      "emailId": "#draft1",
+      "envelope": { "mailFrom": { "parameters": { "HOLDFOR": "3600" } } }
+    } }
+  }, "c0"]
+  ```
+
+  `maxDelayedSend` in den Submission-Capabilities des Kontos ist die Obergrenze — 30 Tage — und
+  sie wird durchgesetzt, nicht gekappt: Eine längere Haltezeit wird abgelehnt statt verkürzt.
+  Eine bereits verstrichene Haltezeit sendet sofort. Der Rest des Envelopes wird geprüft, aber
+  nicht angewandt: plMail sendet an die auf der Email gespeicherten Empfänger und mit der dort
+  gespeicherten Absenderadresse, eine abweichende `mailFrom.email` oder ein abweichendes
+  `rcptTo` wird also abgelehnt statt stillschweigend ignoriert.
+- **Abbrechen vor der Freigabe**: Setze `undoStatus` der Submission per Update auf `"canceled"`.
+  Das ist verlässlich, solange die Nachricht gehalten wird, ein Wettlauf, sobald sie ohne
+  Haltezeit eingereiht wurde, und wird mit `cannotUnsend` abgelehnt, sobald sie gesendet ist.
+  Beachte: Eine abgebrochene Submission ist danach nicht abrufbar — die Email ist wieder ein
+  ungesendeter Entwurf, `EmailSubmission/get` antwortet also mit `notFound`.
+- Fehler: `invalidProperties` (fehlende/unbekannte `emailId`, fehlerhafter Envelope, zu lange
+  Haltezeit), `forbiddenFrom` (eine `identityId`, unter der dieses Konto nicht senden darf),
+  `invalidRecipients`, `alreadyExists` (bereits gesendet), `noRecipients`, `cannotUnsend`.
 
 **Identitäten** kommen aus derselben Liste, die auch das Von-Auswahlfeld des Web-Editors zeigt —
 die sendefähigen Aliase des Kontos, das primäre zuerst. Ein Konto ohne Alias-Zeilen ergibt eine
 synthetische Identität für die Kontoadresse selbst. Lass immer die Nutzerin wählen, und
-voreingestellt ist das primäre.
+voreingestellt ist das primäre: Die `identityId` einer Submission entscheidet über die
+Absenderadresse, mit der die Nachricht tatsächlich hinausgeht, und eine, die keine Identität
+dieses Kontos ist, wird mit `forbiddenFrom` abgelehnt, statt auf die Kontoadresse
+zurückzufallen.
 
 ### Blobs: hochladen und herunterladen
 

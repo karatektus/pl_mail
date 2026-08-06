@@ -65,6 +65,12 @@ rather than leaking.
   `Email/set update` and `EmailSubmission/set onSuccessUpdateEmail`.
 - `Mail/JmapDraftWriter` — the draft content of `Email/set create` *and*
   `update`, mirroring the web composer. Both go through one attachment path.
+- `Mail/IdentityResolver` — the identities an account may send as. Read by
+  `Identity/get` (which publishes them) *and* `EmailSubmission/set` (which
+  spends one), so an id the server offered is exactly an id it accepts.
+- `Mail/SubmissionEnvelope` — the FUTURERELEASE parameters off a submission's
+  envelope, and the ceiling the session advertises. `Mail/QueuedSubmission` is
+  what a passed submission carries to the dispatch after the flush.
 
 **Calendar glue**
 - `Account/CalendarAccountResolver` — which JMAP account serves calendars, and
@@ -215,6 +221,19 @@ Get these wrong and things fail quietly rather than loudly.
   and drop it silently while the rest of the patch applied, which left a client
   told `updated` with no idea the file was gone; `EmailSetAttachmentsTest` is
   the pin.
+- **An Identity id is an `email_alias` id, not the accountId** — one identity
+  per sendable alias, from `Account::$sendableAliases`, which is also what the
+  web composer's From dropdown is built from. Only an account with no alias
+  rows yet publishes a single synthetic identity keyed by the *account* id.
+  `EmailSubmission/set` resolves `identityId` through the same
+  `IdentityResolver` and writes the result to `Message::$fromAddress`, which is
+  where `MessageSendService` reads the From header from. An id that resolves to
+  nothing is refused with `forbiddenFrom` — never sent as the account's own
+  address, which is what this did while it ignored the property.
+- **A submission's send is dispatched after the flush, not where it is
+  decided.** The worker reads the From off the row, so an envelope handed to
+  the bus before the transaction commits races it, and the mail that loses the
+  race leaves as the address the client did not pick.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
@@ -251,6 +270,61 @@ Get these wrong and things fail quietly rather than loudly.
 - **Restart `messenger-worker` and `imap-supervisor` after any DI change.**
   Long-running workers hold a stale compiled container and fail with "Too few
   arguments" or skip new event subscribers entirely.
+
+---
+
+## Sending
+
+`EmailSubmission/set` takes three decisions from the client, and refuses each by
+name rather than quietly doing something else.
+
+**Which address it leaves as** — `identityId`, an id from `Identity/get`:
+
+```json
+["EmailSubmission/set", {"accountId": "1", "create": {"s1": {
+  "emailId": "42", "identityId": "7"
+}}}, "c1"]
+```
+
+Answered with `created.s1 = {id, sendAt, undoStatus: "pending"}`, the id being
+the Email id. An `identityId` that is not a sendable alias of that account comes
+back in `notCreated` as `forbiddenFrom`. Omitting it leaves the draft's own From
+untouched, which is what a draft saved by the web composer already carries.
+
+**When it leaves** — RFC 8621 §7 has no scheduling property; it carries the SMTP
+FUTURERELEASE extension (RFC 4865) as envelope parameters:
+
+```json
+{"emailId": "42", "envelope": {"mailFrom": {"parameters": {"HOLDFOR": "3600"}}}}
+```
+
+`HOLDFOR` (seconds) or `HOLDUNTIL` (a date-time), not both; parameter names are
+ESMTP keywords and case-insensitive. The hold becomes a `DelayStamp` on the
+`SendMessageMessage`, `sendAt` in the answer is the real release time, and the
+ceiling is `maxDelayedSend` in the submission accountCapabilities — 30 days,
+`SubmissionEnvelope::MAX_HOLD_SECONDS`, enforced rather than clamped. A hold
+that has already elapsed sends immediately (RFC 4865), and no hold at all is the
+old path exactly: dispatched with no stamp.
+
+The rest of the envelope is **checked, not applied**: the pipeline sends the
+From and the recipients that are on the row, so a `mailFrom.email` or a `rcptTo`
+set naming anything else describes mail this server will not send and is refused
+(`forbiddenFrom` / `invalidRecipients`). Unknown parameters are refused naming
+the two that work.
+
+**Whether it still leaves** — an update of `undoStatus` to `canceled`:
+
+```json
+["EmailSubmission/set", {"accountId": "1", "update": {"42": {"undoStatus": "canceled"}}}, "c2"]
+```
+
+This sets `Message::$cancelled`, the same flag the web composer's undo button
+sets and `SendMessageHandler` reads when the envelope comes due — nothing is
+pulled out of the queue; the send declines to happen. It is therefore reliable
+for a held submission and a race for an immediate one, refused with
+`cannotUnsend` once `sentAt` is set, and **not visible afterwards**: there is no
+submission row to hold "canceled", so `EmailSubmission/get` answers `notFound`
+for what is once again an unsent draft.
 
 ---
 
@@ -337,7 +411,15 @@ worker message, so a sync importing 50 messages sends **one** notification.
 - `Email/query` has no anchor paging; use `position`.
 - Only `$seen` / `$flagged` are settable keywords.
 - An `EmailSubmission` id IS the Email id — no submission table, so no history.
-  Safe because a draft sends at most once.
+  Safe because a draft sends at most once. The cost is `undoStatus`: a pending
+  or canceled submission has no row to be found in, so `EmailSubmission/get`
+  answers `notFound` until the mail is sent and then reports `final`. A client
+  polls the Email, not the submission.
+- `EmailSubmission/set destroy` is not implemented; there is nothing to destroy.
+- Only `Email/set` and the web composer choose a From. `EmailSubmission/set`
+  writes `fromAddress` but never `fromName`: `MessageSendService` builds the
+  display name from the account, so an alias's own display name is not used by
+  either surface.
 - An `m-` blob is the original RFC822 bytes when available (IMAP stores them at
   sync time; Gmail/Graph fetch on first access) and a **reconstruction**
   otherwise. `MessageSourceBuilder` is the fallback, not the primary path, and

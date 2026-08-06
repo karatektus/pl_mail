@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\Account\AccountResolver;
+use App\Jmap\Mail\IdentityResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
@@ -29,6 +31,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver $accountResolver,
         private readonly MessageRepository $messageRepository,
+        private readonly IdentityResolver $identityResolver,
         private readonly StateManager $stateManager,
     ) {
     }
@@ -76,7 +79,7 @@ final class EmailSubmissionGetMethod implements JmapMethod
             }
 
             $found[] = (string) $message->id;
-            $list[] = $this->toJmap($message, (string) $accountId);
+            $list[] = $this->toJmap($account, $message);
         }
 
         return [
@@ -90,13 +93,18 @@ final class EmailSubmissionGetMethod implements JmapMethod
     /**
      * @return array<string,mixed>
      */
-    private function toJmap(Message $message, string $accountId): array
+    private function toJmap(Account $account, Message $message): array
     {
         $id = (string) $message->id;
 
         return [
             'id' => $id,
-            'identityId' => $accountId,
+            // The identity the mail actually left as, matched on the From
+            // address. This used to be the accountId, which is not an id
+            // Identity/get publishes at all once the account has aliases — so
+            // a client that followed it looked up an identity that was not
+            // there.
+            'identityId' => $this->identityResolver->identityIdFor($account, $message->fromAddress),
             'emailId' => $id,
             'threadId' => null === $message->thread ? null : (string) $message->thread->id,
             'envelope' => [

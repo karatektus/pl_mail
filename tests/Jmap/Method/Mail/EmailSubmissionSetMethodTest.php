@@ -6,13 +6,16 @@ namespace App\Tests\Jmap\Method\Mail;
 
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
+use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Method\Mail\EmailSubmissionGetMethod;
 use App\Jmap\Method\Mail\EmailSubmissionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Tests\Jmap\JmapTestCase;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
@@ -24,10 +27,12 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  * the whole of that decision — a draft with no recipients, or one already sent,
  * must not reach the bus.
  *
- * The gap pinned here is `identityId`, which this method ignores. That is
- * documented as an open ask rather than a product rule: the web composer
- * honours the chosen alias and JMAP does not, so a client offering an alias
- * picker would be lying to the user about which address the mail leaves as.
+ * Three client decisions are checked here beyond that, because each of them
+ * changes mail that leaves the building: the identity it is sent as, the time
+ * it is released, and a cancel before that time. Every one of them is refused
+ * by name when it cannot be honoured — an identity that resolves to nothing
+ * must never quietly become the account's own address, and a hold longer than
+ * the session advertises must never quietly become a send now.
  */
 final class EmailSubmissionSetMethodTest extends JmapTestCase
 {
@@ -173,33 +178,17 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
         $this->handle(['create' => 'not a map']);
     }
 
-    // ── the identityId gap ────────────────────────────────────────────────
+    // ── identityId: which address the mail leaves as ──────────────────────
 
     /**
-     * A DOCUMENTED GAP, pinned as it currently behaves.
-     *
-     * identityId is read by nothing: the message goes out as the account's own
-     * address whichever alias the client names, and no error says otherwise.
-     * The web composer honours the choice through
-     * ComposeController::resolveFromAddress(), so this is a JMAP-only omission
-     * rather than a product decision — which is why the Android client shows
-     * one From entry per account rather than one per alias.
-     *
-     * Pinned rather than fixed because honouring it is a production change.
-     * WHEN identityId IS HONOURED, THIS TEST MUST FAIL.
+     * The point of the property. MessageSendService reads From off the row, so
+     * writing it here is what actually changes the header — and the identity
+     * ids accepted are exactly the ones Identity/get published, because both
+     * go through IdentityResolver.
      */
-    public function testTheChosenIdentityDoesNotReachTheSubmittedMessage(): void
+    public function testTheChosenIdentityBecomesTheFromAddress(): void
     {
-        $alias = new EmailAlias(
-            $this->account,
-            'other-me@example.test',
-            EmailAliasSource::Manual,
-            EmailAliasStatus::Active,
-        );
-        $this->account->addAlias($alias);
-        $this->em->persist($alias);
-        $this->em->flush();
-
+        $alias = $this->alias('other-me@example.test');
         $draft = $this->addressedDraft();
         $draft->fromAddress = (string) $this->account->email;
         $this->em->flush();
@@ -208,8 +197,407 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
             'create' => ['s1' => ['emailId' => (string) $draft->id, 'identityId' => (string) $alias->id]],
         ]);
 
-        self::assertArrayHasKey('s1', (array) $result['created'], 'an unknown identity is not even refused');
+        self::assertArrayHasKey('s1', (array) $result['created']);
+        self::assertSame('other-me@example.test', $draft->fromAddress);
+        self::assertSame([(int) $draft->id], $this->queuedMessageIds());
+    }
+
+    /**
+     * An account with no alias rows yet publishes one synthetic identity for
+     * its own address, keyed by the account id — a client that names it is
+     * naming something Identity/get offered, so it resolves.
+     */
+    public function testTheSyntheticAccountIdentityResolvesWhileThereAreNoAliases(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => ['emailId' => (string) $draft->id, 'identityId' => $this->accountId()]],
+        ]);
+
+        self::assertArrayHasKey('s1', (array) $result['created']);
         self::assertSame($this->account->email, $draft->fromAddress);
+    }
+
+    /**
+     * The refusal this whole feature exists for. Sending it as the account's
+     * own address instead would put a different address on the wire than the
+     * user picked, and report success.
+     */
+    public function testAnIdentityThatResolvesToNothingIsRefusedRatherThanSubstituted(): void
+    {
+        $draft = $this->addressedDraft();
+        $draft->fromAddress = (string) $this->account->email;
+        $this->em->flush();
+
+        $result = $this->handle([
+            'create' => ['s1' => ['emailId' => (string) $draft->id, 'identityId' => '404404']],
+        ]);
+
+        $error = ((array) $result['notCreated'])['s1'];
+
+        self::assertSame('forbiddenFrom', $error['type']);
+        self::assertStringContainsString('Identity/get', $error['description']);
+        self::assertSame($this->account->email, $draft->fromAddress, 'a refused submission must not rewrite the From');
+        self::assertSame([], $this->queuedMessageIds(), 'and must not reach the bus');
+    }
+
+    /** An alias is an address of one account. Another account's is not this account's. */
+    public function testAnIdentityBelongingToAnotherAccountIsRefused(): void
+    {
+        $other = $this->secondAccount();
+        $alias = $this->alias('elsewhere@example.test', $other);
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => ['emailId' => (string) $draft->id, 'identityId' => (string) $alias->id]],
+        ]);
+
+        self::assertSame('forbiddenFrom', ((array) $result['notCreated'])['s1']['type']);
+    }
+
+    /**
+     * No identityId is the case every existing client is in, and the case the
+     * web composer leaves behind: it resolved the alias when it saved the
+     * draft, so the address on the row is already the user's choice and this
+     * method must not touch it.
+     */
+    public function testASubmissionWithoutAnIdentityLeavesTheFromAddressAlone(): void
+    {
+        $this->alias('other-me@example.test');
+
+        $draft = $this->addressedDraft();
+        $draft->fromAddress = 'other-me@example.test';
+        $this->em->flush();
+
+        $this->handle(['create' => ['s1' => ['emailId' => (string) $draft->id]]]);
+
+        self::assertSame('other-me@example.test', $draft->fromAddress);
+    }
+
+    /** EmailSubmission/get names the identity the mail really left as, not the accountId. */
+    public function testASentSubmissionReportsTheIdentityItWasSentAs(): void
+    {
+        $alias = $this->alias('other-me@example.test');
+
+        $draft = $this->addressedDraft();
+        $draft->fromAddress = 'other-me@example.test';
+        $draft->sentAt = new \DateTimeImmutable('-1 minute');
+        $this->em->flush();
+
+        $result = $this->get->handle(
+            ['accountId' => $this->accountId(), 'ids' => [(string) $draft->id]],
+            $this->context(),
+        );
+
+        self::assertSame((string) $alias->id, $result['list'][0]['identityId']);
+    }
+
+    // ── scheduled send (FUTURERELEASE) ────────────────────────────────────
+
+    /**
+     * RFC 8621 §7 carries the request as RFC 4865 envelope parameters rather
+     * than inventing a property, and plMail honours it by holding the
+     * messenger envelope. Both halves are asserted: the delay the bus is given
+     * and the sendAt the client is told, which have to describe the same
+     * instant or the client's "sending in an hour" is a guess.
+     */
+    public function testAHoldForDelaysTheEnvelopeAndTheReportedSendAt(): void
+    {
+        $draft = $this->addressedDraft();
+        $before = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        $created = ((array) $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '3600']]],
+            ]],
+        ])['created'])['s1'];
+
+        self::assertSame([3_600_000], $this->queuedDelays());
+        self::assertSame('pending', $created['undoStatus']);
+
+        $sendAt = new \DateTimeImmutable($created['sendAt']);
+
+        self::assertGreaterThanOrEqual(3_599, $sendAt->getTimestamp() - $before->getTimestamp());
+        self::assertLessThanOrEqual(3_610, $sendAt->getTimestamp() - $before->getTimestamp());
+    }
+
+    /** The other spelling of the same request: an instant rather than a duration. */
+    public function testAHoldUntilDelaysToThatInstant(): void
+    {
+        $draft = $this->addressedDraft();
+        $until = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+2 hours');
+
+        $created = ((array) $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDUNTIL' => $until->format('Y-m-d\TH:i:s\Z')]]],
+            ]],
+        ])['created'])['s1'];
+
+        self::assertSame($until->format('Y-m-d\TH:i:s\Z'), $created['sendAt']);
+        self::assertEqualsWithDelta(7_200_000, $this->queuedDelays()[0], 10_000);
+    }
+
+    /**
+     * Parameter names are ESMTP keywords, which RFC 5321 makes case
+     * insensitive — a client sending "holdFor" means the same thing.
+     */
+    public function testTheHoldParameterNameIsCaseInsensitive(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['holdFor' => 60]]],
+            ]],
+        ]);
+
+        self::assertSame([60_000], $this->queuedDelays());
+    }
+
+    /** The immediate path, unchanged: no stamp at all rather than a zero one. */
+    public function testASubmissionWithNoHoldIsDispatchedWithoutADelayStamp(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $this->handle(['create' => ['s1' => ['emailId' => (string) $draft->id]]]);
+
+        self::assertSame([null], $this->queuedDelays());
+    }
+
+    /** RFC 4865: a release time that has passed is a send now, not an error. */
+    public function testAHoldThatHasAlreadyElapsedSendsImmediately(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDUNTIL' => '2020-01-01T00:00:00Z']]],
+            ]],
+        ]);
+
+        self::assertSame([null], $this->queuedDelays());
+    }
+
+    /**
+     * maxDelayedSend is a promise, so the ceiling is enforced rather than
+     * clamped: a client asking for a year must not be told "pending" for a
+     * message that leaves in thirty days.
+     */
+    public function testAHoldBeyondTheAdvertisedMaximumIsRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => (string) (SubmissionEnvelope::MAX_HOLD_SECONDS + 1)]]],
+            ]],
+        ]);
+
+        $error = ((array) $result['notCreated'])['s1'];
+
+        self::assertSame('invalidProperties', $error['type']);
+        self::assertStringContainsString('maxDelayedSend', $error['description']);
+        self::assertSame([], $this->queuedMessageIds());
+    }
+
+    public function testAHoldUntilBeyondTheMaximumIsRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDUNTIL' => (new \DateTimeImmutable('+2 years'))->format('Y-m-d\TH:i:s\Z')]]],
+            ]],
+        ]);
+
+        self::assertSame('invalidProperties', ((array) $result['notCreated'])['s1']['type']);
+    }
+
+    /** Two answers to "when does this leave" is a disagreement, not a default. */
+    public function testHoldForAndHoldUntilTogetherAreRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '60', 'HOLDUNTIL' => '2099-01-01T00:00:00Z']]],
+            ]],
+        ]);
+
+        self::assertSame('invalidProperties', ((array) $result['notCreated'])['s1']['type']);
+        self::assertSame([], $this->queuedMessageIds());
+    }
+
+    /** Nothing else in the envelope is supported, and unsupported is said out loud. */
+    public function testAnUnknownEnvelopeParameterIsRefusedByName(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['RET' => 'FULL']]],
+            ]],
+        ]);
+
+        $error = ((array) $result['notCreated'])['s1'];
+
+        self::assertSame('invalidProperties', $error['type']);
+        self::assertStringContainsString('HOLDFOR', $error['description']);
+    }
+
+    /**
+     * The envelope describes the mail this server will send. It sends From the
+     * row, so an envelope naming another sender describes something else —
+     * refused rather than accepted and ignored.
+     */
+    public function testAnEnvelopeSenderThatIsNotTheSubmissionAddressIsRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['email' => 'someone-else@example.test']],
+            ]],
+        ]);
+
+        self::assertSame('forbiddenFrom', ((array) $result['notCreated'])['s1']['type']);
+        self::assertSame([], $this->queuedMessageIds());
+    }
+
+    /** And it is compared against the identity just chosen, not the account address. */
+    public function testAnEnvelopeSenderMatchingTheChosenIdentityIsAccepted(): void
+    {
+        $alias = $this->alias('other-me@example.test');
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'identityId' => (string) $alias->id,
+                'envelope' => ['mailFrom' => ['email' => 'Other-Me@example.test']],
+            ]],
+        ]);
+
+        self::assertArrayHasKey('s1', (array) $result['created']);
+    }
+
+    public function testAnEnvelopeNamingDifferentRecipientsIsRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['rcptTo' => [['email' => 'somebody@example.test']]],
+            ]],
+        ]);
+
+        self::assertSame('invalidRecipients', ((array) $result['notCreated'])['s1']['type']);
+    }
+
+    /** A client that echoes the Email's own recipients is describing this mail. */
+    public function testAnEnvelopeRepeatingTheEmailsRecipientsIsAccepted(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['rcptTo' => [['email' => 'recipient@example.test', 'parameters' => null]]],
+            ]],
+        ]);
+
+        self::assertArrayHasKey('s1', (array) $result['created']);
+    }
+
+    // ── cancelling a held submission ──────────────────────────────────────
+
+    /**
+     * The same flag the web composer's undo button sets, read by the same
+     * handler when the envelope comes due. Nothing is pulled back out of the
+     * queue — the send declines to happen.
+     */
+    public function testAPendingSubmissionCanBeCanceled(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $this->handle([
+            'create' => ['s1' => [
+                'emailId' => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '3600']]],
+            ]],
+        ]);
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        self::assertSame([(string) $draft->id => null], (array) $result['updated']);
+        self::assertTrue($draft->cancelled);
+    }
+
+    /** A mail that has left cannot be recalled, and saying otherwise would be a lie. */
+    public function testASentSubmissionCannotBeUnsent(): void
+    {
+        $draft = $this->addressedDraft();
+        $draft->sentAt = new \DateTimeImmutable('-1 minute');
+        $this->em->flush();
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        self::assertSame('cannotUnsend', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
+        self::assertFalse($draft->cancelled);
+    }
+
+    /** undoStatus is the only writable property, and "canceled" its only value. */
+    public function testAnUpdateOfAnythingElseIsRefused(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['identityId' => '1']]]);
+
+        self::assertSame('invalidProperties', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
+        self::assertFalse($draft->cancelled);
+    }
+
+    public function testUndoStatusCanOnlyBeSetToCanceled(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'final']]]);
+
+        self::assertSame('invalidProperties', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
+    }
+
+    public function testCancellingSomethingThatIsNotAnEmailOfThisAccountIsNotFound(): void
+    {
+        $result = $this->handle(['update' => ['999999' => ['undoStatus' => 'canceled']]]);
+
+        self::assertSame('notFound', ((array) $result['notUpdated'])['999999']['type']);
+    }
+
+    /**
+     * The flag is consumed by whichever envelope comes due first, so a cancel
+     * left over from an abandoned hold would swallow the next genuine send and
+     * report "pending" for mail that never goes out.
+     */
+    public function testSubmittingAgainClearsACancelThatWasNeverSpent(): void
+    {
+        $draft = $this->addressedDraft();
+        $draft->cancelled = true;
+        $this->em->flush();
+
+        $this->handle(['create' => ['s1' => ['emailId' => (string) $draft->id]]]);
+
+        self::assertFalse($draft->cancelled);
     }
 
     // ── onSuccessUpdateEmail ──────────────────────────────────────────────
@@ -350,6 +738,43 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
         }
 
         return $ids;
+    }
+
+    /**
+     * The hold each queued send carries, in milliseconds — null where there is
+     * no DelayStamp at all, which is what an immediate send must look like.
+     *
+     * The transport is in-memory here, so nothing is ever delivered: the
+     * envelope and its stamps are the whole of what this method promises.
+     *
+     * @return list<int|null>
+     */
+    private function queuedDelays(): array
+    {
+        $delays = [];
+
+        foreach ($this->transport->getSent() as $envelope) {
+            if (false === $envelope->getMessage() instanceof SendMessageMessage) {
+                continue;
+            }
+
+            $delays[] = $envelope->last(DelayStamp::class)?->getDelay();
+        }
+
+        return $delays;
+    }
+
+    /** A sendable alias, which is what an Identity is. */
+    private function alias(string $address, ?Account $account = null): EmailAlias
+    {
+        $account ??= $this->account;
+
+        $alias = new EmailAlias($account, $address, EmailAliasSource::Manual, EmailAliasStatus::Active);
+        $account->addAlias($alias);
+        $this->em->persist($alias);
+        $this->em->flush();
+
+        return $alias;
     }
 
     private function addressedDraft(): Message

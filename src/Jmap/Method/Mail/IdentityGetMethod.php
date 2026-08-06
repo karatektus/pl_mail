@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
-use App\Domain\Enum\Account\EmailAliasSource;
-use App\Domain\Enum\Account\EmailAliasStatus;
-use App\Entity\Mail\Account;
-use App\Entity\Mail\EmailAlias;
 use App\Jmap\Account\AccountResolver;
+use App\Jmap\Mail\IdentityResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
@@ -18,15 +15,16 @@ use App\Jmap\State\StateManager;
 /**
  * "Identity/get" (RFC 8621 §6.1) — the addresses a client may send from.
  *
- * Backed by Account::getSendableAliases(), the same list the web composer's
- * From dropdown shows, so the two agree by construction. Accounts with no
- * alias rows yet fall back to a single synthetic identity for the account
- * address itself, which is what getSendableAliases() degrades to elsewhere.
+ * The list itself is IdentityResolver's, not this method's, because
+ * "EmailSubmission/set" has to read the same one back: an identityId is only
+ * meaningful if the method that publishes it and the method that spends it
+ * agree on what exists. See IdentityResolver for why that is one class.
  */
 final class IdentityGetMethod implements JmapMethod
 {
     public function __construct(
         private readonly AccountResolver $accountResolver,
+        private readonly IdentityResolver $identityResolver,
         private readonly StateManager $stateManager,
     ) {
     }
@@ -47,7 +45,7 @@ final class IdentityGetMethod implements JmapMethod
             throw new MethodException('invalidArguments', '"ids" must be an array or null.');
         }
 
-        $identities = $this->identities($account);
+        $identities = $this->identityResolver->identities($account);
         $list = [];
         $found = [];
 
@@ -71,64 +69,6 @@ final class IdentityGetMethod implements JmapMethod
             'state' => $this->stateManager->stateFor($accountId, JmapObjectType::Identity),
             'list' => $list,
             'notFound' => $notFound,
-        ];
-    }
-
-    /**
-     * @return list<array<string,mixed>>
-     */
-    private function identities(Account $account): array
-    {
-        $aliases = $account->sendableAliases;
-
-        if (0 === count($aliases)) {
-            return [$this->fallbackIdentity($account)];
-        }
-
-        $identities = [];
-
-        foreach ($aliases as $alias) {
-            $identities[] = $this->fromAlias($account, $alias);
-        }
-
-        return $identities;
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function fromAlias(Account $account, EmailAlias $alias): array
-    {
-        return [
-            'id' => (string) $alias->id,
-            'name' => $alias->displayName ?? $account->name ?? '',
-            'email' => $alias->address,
-            'replyTo' => null,
-            'bcc' => null,
-            'textSignature' => '',
-            'htmlSignature' => '',
-            // Only aliases the user added by hand are theirs to remove. Ones
-            // discovered from the provider come back on the next sync, and the
-            // primary address is what the account sends as.
-            'mayDelete' => EmailAliasSource::Manual === $alias->source
-                && EmailAliasStatus::Primary !== $alias->status,
-        ];
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function fallbackIdentity(Account $account): array
-    {
-        return [
-            'id' => (string) $account->id,
-            'name' => $account->name ?? '',
-            'email' => (string) $account->email,
-            'replyTo' => null,
-            'bcc' => null,
-            'textSignature' => '',
-            'htmlSignature' => '',
-            'mayDelete' => false,
         ];
     }
 }

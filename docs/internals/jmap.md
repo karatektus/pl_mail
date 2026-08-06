@@ -46,9 +46,9 @@ so adding a method is a class implementing `App\Jmap\Method\JmapMethod` and noth
   neither of which a JMAP create could stand in for.
 - **`Calendar/changes` and `CalendarEvent/changes`.** Not an omission — see the state section
   below.
-- **`VacationResponse`, `EmailSubmission` delayed send, and `urn:ietf:params:jmap:calendars`.**
-  The submission capability advertises `maxDelayedSend: 0` because sending is queued on the
-  Messenger bus with no scheduling support, so there is no future-send window to claim.
+- **`VacationResponse` and `urn:ietf:params:jmap:calendars`.** Delayed send is no longer on
+  this list: the submission capability advertises `maxDelayedSend: 2592000` and the
+  FUTURERELEASE extension, and a held submission waits as a delayed Messenger envelope.
 - **Participants, privacy, alerts and links in `CalendarEvent/set`.** Each is listed with its
   reason; see below.
 

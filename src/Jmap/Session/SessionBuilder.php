@@ -6,6 +6,7 @@ namespace App\Jmap\Session;
 
 use App\Entity\User\User;
 use App\Jmap\Account\CalendarAccountResolver;
+use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
@@ -200,16 +201,26 @@ final class SessionBuilder
     }
 
     /**
-     * Sending is queued on the messenger bus with no scheduling support, so
-     * there is no future-send window to advertise.
+     * What a client may ask for when it sends, and how far ahead.
+     *
+     * maxDelayedSend was 0 — "this server does not do delayed send" — and is
+     * now the real ceiling EmailSubmission/set enforces, read off the same
+     * constant so the advertised number and the refusal can never disagree.
+     *
+     * The extension is advertised the way RFC 8621 §7 has it: FUTURERELEASE
+     * (RFC 4865) with the two parameters that carry the request. It is not a
+     * relay capability plMail discovered — nothing here speaks ESMTP to
+     * announce it — but the hold is genuinely honoured, by keeping the
+     * messenger envelope until the release time, and this is the vocabulary
+     * the spec gives a client for asking.
      *
      * @return array<string,mixed>
      */
     private function submissionCapabilities(): array
     {
         return [
-            'maxDelayedSend' => 0,
-            'submissionExtensions' => new \stdClass(),
+            'maxDelayedSend' => SubmissionEnvelope::MAX_HOLD_SECONDS,
+            'submissionExtensions' => ['FUTURERELEASE' => ['HOLDFOR', 'HOLDUNTIL']],
         ];
     }
 }
