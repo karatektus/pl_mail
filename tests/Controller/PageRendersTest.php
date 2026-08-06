@@ -62,6 +62,14 @@ final class PageRendersTest extends WebTestCase
         yield 'admin queue backlog' => ['/admin/queues/waiting'];
         yield 'admin queue backlog, filtered' => ['/admin/queues/waiting?q=sync&offset=25'];
         yield 'admin integrations' => ['/admin/integrations'];
+        yield 'admin push' => ['/admin/push'];
+        yield 'admin push deliveries' => ['/admin/push/deliveries'];
+        // Every filter at once, and each one spelled wrong: the delivery
+        // browser is reached by editing a query string, so an unparseable
+        // transport or outcome has to fall back to "no filter" rather than
+        // 400 — and a page that 500s on a typo is a page nobody diagnoses
+        // anything with.
+        yield 'admin push deliveries, nonsense filters' => ['/admin/push/deliveries?usr=nope&transport=fcmm&outcome=exploded&page=-3'];
         // The wizard renders into the modal frame, so these are fragments
         // rather than pages — but a broken step template still shows up as a
         // 500 here, which is the point.

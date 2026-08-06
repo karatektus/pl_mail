@@ -627,6 +627,17 @@
     color: rgb(var(--rgb-warning));
 }
 
+/* The fourth badge, added for the push delivery log, where "it arrived" is one
+   of four outcomes shown side by side. It shares --danger-soft-alpha with the
+   two above rather than declaring an alpha of its own: the number is the
+   per-theme strength of a tinted badge, not a statement about danger, and a
+   green mixed at a different opacity than the red beside it reads as a
+   different kind of thing. */
+@utility badge-success {
+    background-color: rgb(var(--rgb-success) / var(--danger-soft-alpha));
+    color: rgb(var(--rgb-success));
+}
+
 @utility badge-neutral {
     background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
     color: rgb(var(--rgb-ink-soft));

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ab0266727ebf76b04376fcf2e8d7bfd1d42a5961 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6ce497819de6637e04e072bf51dbd55448c73364 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -489,7 +489,16 @@ niemals fest**, und lies `apiUrl` und Konsorten immer wieder von hier:
     },
     "urn:ietf:params:jmap:mail": {},
     "urn:ietf:params:jmap:submission": {},
-    "urn:plmail:params:jmap:push": { "vapidPublicKey": "BN…" }
+    "urn:plmail:params:jmap:push": {
+      "vapidPublicKey": "BN…",
+      "fcm": true,
+      "fcmConfig": {
+        "projectId": "plmail-abc123",
+        "applicationId": "1:1234567890:android:0123456789abcdef",
+        "apiKey": "AIza…",
+        "senderId": "1234567890"
+      }
+    }
   },
   "accounts": {
     "7": {
@@ -528,32 +537,63 @@ offengelegt.* Eine Nutzerin mit drei Postfächern sieht unter einer Anmeldung dr
 und führst die Ergebnisse selbst zusammen, sortiert nach `receivedAt`. Es gibt keine
 serverseitige kontoübergreifende Abfrage.
 
-`urn:plmail:params:jmap:push` ist eine **Herstellererweiterung**, die den öffentlichen
-VAPID-Schlüssel trägt, den du brauchst, bevor du eine Web-Push-Subscription anlegen kannst;
-RFC 8620 definiert keinen standardisierten Platz dafür. Ein leerer `vapidPublicKey` ist dein
-Signal, dass Web Push auf dieser Instanz nicht konfiguriert ist — biete es dann nicht an.
+`urn:plmail:params:jmap:push` ist eine **Herstellererweiterung**, die beschreibt, über welche
+Push-Transporte diese Instanz tatsächlich zustellen kann; RFC 8620 definiert für nichts davon
+einen standardisierten Platz.
+
+| Schlüssel | Bedeutung |
+|---|---|
+| `vapidPublicKey` | Dein `applicationServerKey` für eine Web-Push-Subscription. **Leer** heißt, Web Push ist nicht konfiguriert — biete es dann nicht an. |
+| `fcm` | Ob Firebase konfiguriert *und* eingeschaltet ist. Immer vorhanden, `true` oder `false`. |
+| `fcmConfig` | Die Eingaben für Androids `FirebaseOptions.Builder`. **Fehlt vollständig, wenn `fcm` false ist** — nicht null. |
+
+`fcm` ist immer vorhanden, damit du „dieser Server kann kein FCM" von „dieser Server ist älter als
+FCM" unterscheiden kannst; die richtige Reaktion ist jeweils die entgegengesetzte. Bei `fcmConfig`
+gilt aus dem entgegengesetzten Grund die entgegengesetzte Regel: Ein Null-Objekt verleitet dazu,
+`.projectId` davon zu lesen und null zu bekommen, ein fehlender Schlüssel lässt sich nicht
+dereferenzieren. Prüfe zuerst `fcm`.
 
 Beachte: `capabilities` weist den Push-URN aus, aber die *unterstützte* `using`-Liste besteht nur
 aus Core, Mail und Submission. Setz den Push-URN nicht in `using`.
 
-#### Push auf Android, ohne Google
+#### Push auf Android
 
 Web Push setzt einen **Push-Dienst** voraus: etwas, dem die Endpunkt-URL gehört, das die
 Verbindung zum Gerät hält und den verschlüsselten POST des Servers entgegennimmt. Browser bringen
 so etwas mit. Eine native Android-App nicht, und Androids eigener Dienst ist FCM, der sein
 eigenes Protokoll spricht — der `WebPushSender` kann nicht dorthin posten.
 
-Ein Android-Client hat also drei Möglichkeiten, und nur die erste braucht nichts von diesem
-Server:
+Ein Android-Client hat also drei Möglichkeiten:
 
 1. **UnifiedPush.** Die Nutzerin installiert eine *Distributor*-App; die liefert einen Endpunkt
    nach RFC 8030 und entschlüsselt die `aes128gcm`-Nutzlast nach RFC 8291, die dieser Server
-   ohnehin schon sendet. Überhaupt keine Serveränderung.
+   ohnehin schon sendet. Überhaupt keine Serverkonfiguration.
 2. **Firebase.** Nichts, was die Nutzerin installieren müsste, und das, was die meisten
-   Android-Nutzerinnen erwarten — aber es braucht ein Firebase-Projekt und hier einen
-   FCM-Sender, und Google erfährt dann, dass eine Nachricht angekommen ist und wann.
+   Android-Nutzerinnen erwarten. Unterstützt, seit der Server einen `FcmSender` hat; die
+   Administration muss vorher die Zugangsdaten eines Firebase-Projekts einfügen — Google erfährt
+   dann, dass eine Nachricht angekommen ist und wann.
 3. **Ein eingebetteter Distributor**, bei dem die App den Socket selbst hält. Kostet je App
    einen Vordergrunddienst und eine dauerhafte Benachrichtigung.
+
+**Firebase gegen eine selbstgehostete Instanz initialisieren.** Die übliche Android-Anordnung —
+eine `google-services.json`, die zur Bauzeit verarbeitet wird — kann hier nicht funktionieren: Ein
+APK bedient jede Installation, und jede Installation hat ihr eigenes Firebase-Projekt. Also
+veröffentlicht der Server stattdessen die vier öffentlichen Werte als `fcmConfig` oben, und du
+baust `FirebaseOptions` zur Laufzeit daraus, nachdem du die Session geholt hast:
+
+```kotlin
+val options = FirebaseOptions.Builder()
+    .setProjectId(config.projectId)
+    .setApplicationId(config.applicationId)
+    .setApiKey(config.apiKey)
+    .setGcmSenderId(config.senderId)
+    .build()
+```
+
+Alle vier stecken im APK jeder Firebase-App und sind ihrer Natur nach öffentlich; der
+Dienstkonto-Schlüssel, der tatsächlich *senden* kann, verlässt den Server nie. Hat die Instanz
+mehrere Android-Pakete registriert, wird `de.plmail.google` veröffentlicht, sofern vorhanden,
+sonst der erste registrierte Client.
 
 Für (1) kann dieses Repository auch gleich den Push-Dienst liefern, damit Selbsthostende keinen
 suchen müssen:
@@ -839,7 +879,8 @@ aus), sodass auch ein Client, der `onSuccessUpdateEmail` weglässt, am Ende rich
 Was du wissen solltest:
 
 - **Eine Submission hat keine eigene Tabelle — ihre ID *ist* die Email-ID.** plMail sendet jeden
-  Entwurf höchstens einmal, die Zuordnung bleibt also eineindeutig.
+  Entwurf höchstens einmal, die Zuordnung bleibt also eineindeutig. Abrufbar ist sie trotzdem
+  vollständig: siehe [Eine Submission zurücklesen](#eine-submission-zurücklesen) weiter unten.
 - `undoStatus` wird als **`"pending"`** gemeldet: Der Versand steht wirklich in der Warteschlange
   und hat, wenn der Aufruf zurückkehrt, noch nicht stattgefunden.
 - **Die Kulanzfrist der Web-Oberfläche zum Rückgängigmachen wird bei JMAP-Submissions bewusst
@@ -870,11 +911,48 @@ Was du wissen solltest:
 - **Abbrechen vor der Freigabe**: Setze `undoStatus` der Submission per Update auf `"canceled"`.
   Das ist verlässlich, solange die Nachricht gehalten wird, ein Wettlauf, sobald sie ohne
   Haltezeit eingereiht wurde, und wird mit `cannotUnsend` abgelehnt, sobald sie gesendet ist.
-  Beachte: Eine abgebrochene Submission ist danach nicht abrufbar — die Email ist wieder ein
-  ungesendeter Entwurf, `EmailSubmission/get` antwortet also mit `notFound`.
+  Ein Abbruch auf einer Email, die du nie eingereicht hast, wird mit `notFound` abgelehnt — es
+  gibt keine Submission zum Abbrechen, und früher hinterließ ein solcher Aufruf eine Markierung,
+  die den nächsten Versand der Nutzerin verschluckte.
 - Fehler: `invalidProperties` (fehlende/unbekannte `emailId`, fehlerhafter Envelope, zu lange
   Haltezeit), `forbiddenFrom` (eine `identityId`, unter der dieses Konto nicht senden darf),
-  `invalidRecipients`, `alreadyExists` (bereits gesendet), `noRecipients`, `cannotUnsend`.
+  `invalidRecipients`, `alreadyExists` (bereits gesendet), `noRecipients`, `cannotUnsend`,
+  `notFound` (nichts abzubrechen).
+
+### Eine Submission zurücklesen
+
+`EmailSubmission/get` antwortet ab dem Moment der Annahme, und zwar in allen drei Zuständen der
+Spezifikation:
+
+| Zustand | `undoStatus` | `sendAt` |
+|---|---|---|
+| Eingereiht oder gehalten, noch nicht raus | `"pending"` | wann sie fällig ist — die echte Freigabezeit |
+| Vor dem Versand abgebrochen | `"canceled"` | wann sie hinausgegangen *wäre* |
+| Gesendet | `"final"` | wann sie tatsächlich hinausging |
+
+Eine Email, die nie eingereicht wurde, ist `notFound`. Das ist der einzige `notFound`-Fall: Er ist
+das Fehlen einer Submission, nicht einer ihrer Zustände.
+
+**Das hat sich geändert, und wenn du gegen das alte Verhalten gebaut hast, kannst du jetzt Code
+löschen.** Eine gehaltene Submission antwortete früher die ganze Haltezeit über mit `notFound` und
+tauchte dann als `"final"` auf — die Freigabezeit aus der Create-Antwort war also die einzige
+Kopie, die existierte. Ging diese Antwort verloren, war der Termin nicht mehr erfahrbar. Clients
+mussten eine eigene, gerätelokale Liste terminierter Sendungen führen, und ein Telefon und ein
+Laptop im selben Konto konnten sich nicht darüber einigen, wann eine Nachricht hinausgeht. Tu das
+nicht mehr: `sendAt` aus `EmailSubmission/get` ist maßgeblich und gilt für jedes Gerät.
+
+Praktisch heißt das:
+
+- **Frage die Submission ab, nicht die Email**, wenn es um den Versand geht.
+  `EmailSubmission/changes` meldet alle drei Übergänge — das Einreichen als `created`, einen
+  angenommenen Abbruch als `updated` und das tatsächliche Hinausgehen als `updated` —, eine Liste
+  terminierter Sendungen lässt sich also allein aus dem Änderungsprotokoll aktuell halten.
+- **`sendAt` einer `"pending"`-Submission ist eine Zusage über die Warteschlange, keine Garantie
+  auf die Sekunde.** Es ist der Zeitpunkt, ab dem der Worker starten darf, und eine ausgelastete
+  Installation startet später. Zeig es als Uhrzeit, nicht als Countdown auf null.
+- Eine Submission, die beim Ausrollen dieser Funktion gerade gehalten wurde, behält ihr altes
+  Verhalten — `notFound`, bis sie gesendet ist —, weil ihre Freigabezeit nur je im
+  Warteschlangeneintrag stand. Davon gibt es höchstens eine Haltezeit lang welche.
 
 **Identitäten** kommen aus derselben Liste, die auch das Von-Auswahlfeld des Web-Editors zeigt —
 die sendefähigen Aliase des Kontos, das primäre zuerst. Ein Konto ohne Alias-Zeilen ergibt eine
@@ -918,17 +996,69 @@ geglaubt.
 
 Drei Mechanismen, absteigend danach, was du bevorzugen solltest.
 
-**1. Web Push / `PushSubscription` — die richtige Antwort für Zustellung im Hintergrund.**
+**1. `PushSubscription` — die richtige Antwort für Zustellung im Hintergrund.**
 
-Leg eine Subscription über `PushSubscription/set` an und nimm den `vapidPublicKey` aus der
-`urn:plmail:params:jmap:push`-Capability der Session als deinen `applicationServerKey`.
+Zwei Transporte hinter einem Objekt. Ein Create mit `url` und `keys` ist eine
+**Web-Push**-Subscription; ein Create mit `fcmToken` eine **Firebase**-Subscription. `fcmToken`
+ist eine plMail-Erweiterung des Objekts aus RFC 8620; alles andere — `deviceClientId`, `types`,
+`expires`, der Handshake — ist identisch.
+
+```jsonc
+// Web Push
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "url": "https://ntfy.example.com/…",
+  "keys": { "p256dh": "…", "auth": "…" },
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+
+// Firebase — nur, wenn die Session "fcm": true sagt
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "fcmToken": "cX9…:APA91b…",
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+```
+
+Die beiden Formen schließen einander aus. Ein Create mit `fcmToken` *und* `url` (oder `keys`)
+wird mit `invalidProperties` abgelehnt und benennt den Konflikt, statt dass eines für dich
+ausgewählt wird. Ein Create mit `fcmToken` auf einer Instanz, auf der FCM nicht konfiguriert oder
+abgeschaltet ist, wird mit `forbidden` abgelehnt — prüf zuerst die Capability; das hier ist nur
+das Auffangnetz.
+
+`PushSubscription/get` meldet, welche Art du bekommen hast, als schreibgeschütztes `transport` mit
+`"webpush"` oder `"fcm"`. Du brauchst das, weil `deviceClientId` je Gerät stabil ist und ein
+erneutes Registrieren die Zeile *ersetzt*: Ein Telefon, das von einem UnifiedPush-Distributor auf
+Firebase gewechselt ist, hat eine Subscription, nicht zwei. Weder `keys` noch `fcmToken` werden je
+zurückgegeben — beides ist die Adresse eines Geräts, und sie zurückzuspiegeln hieße, dass jede
+Person, die eine Antwort lesen kann, dorthin pushen könnte. `url` ist bei einer
+FCM-Subscription `null`.
+
+**Ein FCM-Token zu rotieren** ist ein `PushSubscription/set`-`update` mit `fcmToken` auf einer
+bestehenden FCM-Subscription — die einzige Adress-Eigenschaft, die ein Update ändern darf, weil
+Android Tokens nach eigenem Zeitplan neu ausstellt. Es spannt den Handshake neu: `verified` fällt
+auf false zurück, und an das neue Token geht sofort eine frische `PushVerification`, die du genauso
+behandelst wie die erste. `url` und `keys` bleiben nur beim Anlegen setzbar; wo eine verschlüsselte
+Nutzlast hingeht, ändert man mit einem neuen Create.
 
 **Es gibt einen verpflichtenden Verifikations-Handshake, und er ist der springende Punkt.** Beim
-Anlegen schickt der Server sofort ein `PushVerification`-Objekt per POST an deine URL. Du liest
-den Code daraus und schickst ihn per `PushSubscription/set`-Update zurück. **Bis du das tust,
-empfängt die Subscription nichts.** Genau das verhindert, dass der Endpunkt ein offenes Relay
-wird — ohne ihn könnte jede Person mit einem Konto die URL einer Fremden registrieren. Plane
-diesen Roundtrip in deinem Einstieg ein.
+Anlegen schickt der Server sofort ein `PushVerification`-Objekt an die Adresse, die du angegeben
+hast — per POST an den Endpunkt bei Web Push, als gewöhnliche FCM-Datennachricht bei Firebase, in
+beiden Fällen dasselbe JSON. Du liest den Code daraus und schickst ihn per
+`PushSubscription/set`-Update zurück. **Bis du das tust, empfängt die Subscription nichts.** Genau
+das verhindert, dass der Endpunkt ein offenes Relay wird — ohne ihn könnte jede Person mit einem
+Konto die Adresse einer Fremden registrieren. Plane diesen Roundtrip in deinem Einstieg ein.
+
+**Jeder Versuch, dein Gerät zu erreichen, wird serverseitig protokolliert, und du kannst der
+Nutzerin sagen, wo sie nachsieht.** Die Verifikation, auf die du wartest, und jede spätere
+`StateChange` schreiben eine Zeile, die diese Nutzerin unter **Einstellungen →
+Benachrichtigungen** sieht (pro Gerät: Transportweg, Bestätigungsstand und die letzte Zustellung
+mit ihrem Ergebnis) und eine Administratorin unter **/admin/push**. „Die App hat sich registriert
+und nie ihren Code bekommen" ist damit beantwortbar, ohne dass jemand ein Container-Log liest: Die
+Zeile sagt, ob der Server es versucht hat und was der Transportweg geantwortet hat —
+`UNREGISTERED`, ein 410 oder „übersprungen, diese Installation hat keine Schlüssel". Protokolliert
+wird der `@type` der Nutzlast und sonst nichts von ihr, das Protokoll wird also nie zu einer
+Aufzeichnung der Mail-Aktivität; bau nichts, das mehr voraussetzt.
 
 **2. EventSource (SSE) — für eine Sitzung im Vordergrund, kurz.**
 
@@ -959,6 +1089,30 @@ Bewusst winzig. **JMAP pusht nie Mail-Inhalte, nur die Nachricht, dass sich ein 
 bewegt hat.** Danach rufst du `Email/changes` auf, um herauszufinden, was. Verfolgte Typen:
 `Mailbox`, `Email`, `Thread`, `EmailSubmission`. `Identity` ist ausgenommen — es ändert sich nur,
 wenn die Nutzerin ihre eigenen Adressen bearbeitet, was sie gerade in deiner App getan hat.
+
+**Über FCM kommt dasselbe JSON als Datennachricht an**, nie als `notification`-Nutzlast — die
+Systemleiste darf nichts zeichnen, bevor deine App es gesehen hat, denn nur du weißt, ob die
+Nutzerin ohnehin gerade auf dieses Postfach schaut. Das Objekt von oben ist der String-Wert eines
+einzelnen Datenschlüssels:
+
+```json
+{
+  "message": {
+    "token": "cX9…:APA91b…",
+    "data": { "payload": "{\"@type\":\"StateChange\",\"changed\":{\"7\":{\"Email\":\"9\"}}}" },
+    "android": { "priority": "HIGH", "ttl": "86400s", "collapse_key": "plmail-state-change" }
+  }
+}
+```
+
+`RemoteMessage.getData()["payload"]` ist also ein JSON-String, und dessen `@type` ist entweder
+`StateChange` oder `PushVerification`. Die Collapse-Keys sind je Typ getrennt —
+`plmail-state-change` und `plmail-push-verification` —, damit ein Rückstau von StateChanges auf den
+neuesten zusammenfällt, ohne je eine unzugestellte Verifikation zu verwerfen. Nachrichten leben
+24 Stunden.
+
+Ein Token, zu dem FCM `UNREGISTERED` oder `NOT_FOUND` meldet, **löscht die Subscription**, genau
+wie ein 404/410 bei Web Push. Kontingent-Ablehnungen und Firebase-Ausfälle tun das nicht.
 
 Jedes Token kommt aus demselben State-Manager, den auch die `/get`- und `/changes`-Methoden
 verwenden; ein Push und ein anschließendes `/changes` können sich also nie widersprechen.
@@ -1019,6 +1173,12 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 - Senden aus jedem Konto **und jedem sendefähigen Alias** — zeig immer die Von-Auswahl.
 - Automatisches Speichern von Entwürfen.
 - Senden rückgängig machen (bei JMAP clientseitig; siehe oben).
+- Terminiertes Senden, gesteuert vom Server statt von deinem eigenen Timer. Die Haltezeit steht im
+  Envelope (`HOLDFOR` / `HOLDUNTIL`), und `EmailSubmission/get` meldet die Freigabezeit und
+  `"pending"` zurück, solange die Nachricht gehalten wird — eine Liste „Terminiert" lässt sich
+  also aus der Antwort des Servers selbst bauen. Hier stand früher das Gegenteil, weil eine
+  gehaltene Submission mit `notFound` antwortete; siehe
+  [Eine Submission zurücklesen](#eine-submission-zurücklesen).
 
 **Ordnen**
 - Label: anwenden, entfernen, anlegen, löschen. Verschachtelte Label gibt es im Datenmodell; die

@@ -96,9 +96,18 @@ rather than leaking.
   `stateFor`/`changesSince` on the read side, plus `drainDirty()` for push.
 - `State/ChangeSet`, `JmapObjectType`, `ChangeType`.
 
-**Push** — `Push/WebPushSender` (RFC 8030/8291/8292 via `minishlink/web-push`),
-`Push/PushDispatcher` (fan out to a user's devices). Draining is driven by
-`App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
+**Push** — two transports behind `App\Domain\Interface\PushSenderInterface`,
+picked per subscription by `Push/PushSenderRegistry` on the row's `transport`
+column.
+- `Push/WebPushSender` (RFC 8030/8291/8292 via `minishlink/web-push`) — browsers,
+  the installed PWA, UnifiedPush distributors.
+- `Push/FcmSender` (FCM HTTP v1, data messages only) — a native Android app,
+  which has no push service of its own. `Push/FcmAccessTokenProvider` mints the
+  bearer token by the service-account JWT grant, `Push/FcmSettings` answers
+  "configured and enabled, and with what?" for the sender, the Session and
+  `PushSubscription/set` alike.
+- `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
+  driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
 
 **Appearance glue**
 - `Mapper/AppearanceMapper` — `App\Entity\Embeddable\Appearance` → the JMAP
@@ -125,6 +134,7 @@ vocabularies `Appearance/set` accepts (`urn:plmail:params:jmap:appearance`).
 |---|---|
 | App-password auth | `App\Entity\ApiToken`, `App\Security\ApiTokenAuthenticator`, `App\Security\JwtBearerTokenExtractor` |
 | Push subscriptions | `App\Entity\PushSubscription`, `App\Infrastructure\Event\Subscriber\JmapPushSubscriber` |
+| Firebase credentials | `App\Entity\Push\FcmConfig` (one row, encrypted key), `App\Controller\Admin\PushSettingsController` (`/admin/push`), `App\Form\Admin\FcmConfigType`, `App\Service\Push\FcmConfigWriter` |
 | Uploaded blobs | `App\Entity\UploadedBlob`, `App\Domain\Helper\UploadStorage` |
 | Raw message bytes | `App\Domain\Helper\RawMessageStorage`, `App\Service\Mail\RawMessageResolver` |
 | Label structure sync | `App\Service\Label\LabelStructurePropagator` |
@@ -408,6 +418,15 @@ Get these wrong and things fail quietly rather than loudly.
   (`WebPush.php` guards on `!empty($userPublicKey) && !empty($userAuthToken)`),
   which is why `keys.p256dh` and `keys.auth` are required even though RFC 8620
   marks them optional — a bodiless push cannot carry the verification code.
+- **One FCM collapse key would eat the handshake.** Collapsing is wanted, so a
+  phone that was off is woken by the newest state rather than nine stale ones —
+  but a `StateChange` sharing a key with an undelivered `PushVerification`
+  replaces it, and the subscription waits forever for a code FCM discarded.
+  `FcmSender` keys by payload `@type` for that reason alone.
+- **`PushSubscription::$url` is nullable now.** An FCM subscription has no
+  endpoint. `PushSenderRegistry` routes by transport so nothing should meet a
+  null, and `WebPushSender` guards anyway — a mis-routed row must be a logged
+  refusal rather than a TypeError inside the push library.
 - **`var/attachments`, `var/raw` and `var/uploads` must be shared storage.** The
   workers write them, the web container serves them. `php` overlays `/app/var`
   with a private volume for cache/logs, so those three paths are bound
@@ -476,10 +495,42 @@ the two that work.
 This sets `Message::$cancelled`, the same flag the web composer's undo button
 sets and `SendMessageHandler` reads when the envelope comes due — nothing is
 pulled out of the queue; the send declines to happen. It is therefore reliable
-for a held submission and a race for an immediate one, refused with
-`cannotUnsend` once `sentAt` is set, and **not visible afterwards**: there is no
-submission row to hold "canceled", so `EmailSubmission/get` answers `notFound`
-for what is once again an unsent draft.
+for a held submission and a race for an immediate one, and refused with
+`cannotUnsend` once `sentAt` is set. A cancel of an Email that was never
+submitted is refused with `notFound`: it used to be accepted, which armed a flag
+that the user's *next* send from the web composer then walked into.
+
+### What a submission looks like afterwards
+
+`EmailSubmission/get` reconstructs from the message row, and two columns exist
+for no other reader — `submission_send_at` (written for every accepted
+submission) and `submission_cancelled_at`:
+
+| On the row | `undoStatus` | `sendAt` |
+|---|---|---|
+| `sent_at` set | `final` | when it left |
+| `submission_cancelled_at` set | `canceled` | when it would have left |
+| `submission_send_at` only | `pending` | when it is due |
+| none of them | `notFound` | — |
+
+Both columns were added because a held submission used to be **invisible**:
+anything without a `sentAt` was skipped, so a scheduled send answered `notFound`
+for the whole hold and then `final`, and its release time existed only in the
+create response. A client that lost that response could not ask again, which
+forced every client to keep its schedules device-local — the gap that turned up
+during client adoption.
+
+The cancel needs a column of its own rather than reusing `Message::$cancelled`,
+which is a one-shot flag: `SendMessageHandler` clears it when the envelope comes
+due, so minutes later the flag no longer says anything happened. Reading
+`undoStatus` off it would report `pending` forever for mail that is never going
+out.
+
+`EmailSubmission/changes` keeps up with all three transitions: the submit
+records `created`, an accepted cancel records `updated`, and `MessageSendService`
+records `updated` when submitted mail actually leaves. The last two were
+deliberately absent while the submission was ungettable — announcing a change to
+an id that answers `notFound` wakes every client for nothing.
 
 ---
 
@@ -516,36 +567,71 @@ disagree.
 holds a PHP worker for its lifetime — a hard capacity limit under FrankenPHP —
 so it is capped at 5 minutes and clients reconnect.
 
-**PushSubscription + Web Push** is the background path, and the same
-implementation serves every platform:
+**PushSubscription** is the background path, over one of two transports:
 
 | Platform | How |
 |---|---|
-| Android | UnifiedPush distributor (ntfy, Conversations…) — its endpoint is Web Push compatible. No FCM, no Google. |
+| Android, no Google | UnifiedPush distributor (ntfy, Conversations…) — its endpoint is Web Push compatible. |
+| Android, native app | FCM, `transport: "fcm"` — Android has no other push service, and a plain Android app cannot speak Web Push. |
 | iOS | The PWA, **added to the Home Screen** (16.4+). Safari tabs do not get push. |
 | Desktop | Browser push service, via the same PWA flow. |
 
-FCM/APNs directly are not options for third-party clients: pushing through them
-requires *the client app's* credentials, which a self-hosted server does not
-have.
+APNs is still not an option, for the reason FCM used to share: pushing through
+it needs *the client app's* credentials. FCM stopped sharing it because the
+credentials are now the *instance's* — an admin pastes their own Firebase
+project's key, and the Session hands the app the public half so a single Play
+Store build can initialise Firebase against whichever install it is signed in to.
 
 The **verification handshake is mandatory** (RFC 8620 §7.2.2) and is what stops
-this being an open relay: on create the server POSTs a `PushVerification` to the
-supplied URL, and the subscription receives nothing until the client echoes the
-code back. plMail's own PWA is not exempt — `public/sw.js` posts the code to
-`/settings/push/verify`.
+this being an open relay: on create the server sends a `PushVerification` to the
+address supplied — POSTed for Web Push, a data message for FCM — and the
+subscription receives nothing until the client echoes the code back. plMail's own
+PWA is not exempt: `public/sw.js` posts the code to `/settings/push/verify`.
 
 VAPID keys come from `VAPID_SUBJECT` / `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`
 (`app:push:generate-vapid-keys` mints a pair). Locally they go in `.env.local`;
 in a container there is no such file, so they are set as environment variables —
 a real env var overrides the `.env.local.php` baked in by `composer dump-env
-prod`. Blank keys disable push cleanly: `WebPushSender::isConfigured()` returns
-false, the Session advertises an empty `vapidPublicKey`, and the settings UI
-hides the toggle.
+prod`. Blank keys disable Web Push cleanly: `WebPushSender::isConfigured()`
+returns false, the Session advertises an empty `vapidPublicKey`, and the settings
+UI hides the toggle.
+
+Firebase is configured at runtime instead, under `/admin/push` — the key is
+pasted out of a console rather than generated, is rotated when it leaks, and
+belongs to a project that may not exist when the image is built, so an env var
+would put the setup step behind the deployment mechanism. `FcmSettings` answers
+the same "is it usable?" question for the sender, the Session's `fcm` flag and
+`PushSubscription/set`'s refusal, so those three cannot disagree.
 
 `StateManager` collapses dirty `(account, type)` pairs in memory and
 `JmapPushSubscriber` drains them once per request (`kernel.terminate`) or per
 worker message, so a sync importing 50 messages sends **one** notification.
+
+### The delivery log
+
+Every attempt by either transport writes a `push_delivery` row — including the
+`PushVerification` of the handshake, and including the attempts that send
+nothing. It holds the device (`deviceClientId` plus transport), the user, the
+payload's `@type`, an outcome of `accepted` / `failed` / `subscription-destroyed`
+/ `skipped`, the HTTP status or FCM error name, the latency and the time. Read
+at `/admin/push` (filterable by user, transport and outcome) and, per device, in
+the user's own **Settings → Notifications**. Retention is
+`app:monitoring:prune --push-days=N`, 30 days by default.
+
+**It records the payload's `@type` and nothing else of the payload**, which is a
+promise `FcmSenderTest` asserts rather than a docblock. A `StateChange` carries
+the account ids and state tokens that moved; keeping it would make this table a
+retained, admin-readable index of when each user's mail arrives.
+
+`PushDeliveryRecorder` is called **from inside the senders**, not as a decorator
+over `PushSenderInterface`, and the interface is why. It collapses "refused",
+"unreachable" and "just destroyed" into one bool — correctly, since no caller
+distinguishes them — so a decorator sees `false` and could record neither the
+status code nor `UNREGISTERED` versus `QUOTA_EXCEEDED`, which is the difference
+between a dead phone and a Firebase outage. There is deliberately **no foreign
+key to `jmap_push_subscription`**: the most useful row is the one written as a
+subscription is destroyed, and a cascade would delete the evidence in the same
+statement that creates the need for it.
 
 ---
 
@@ -566,10 +652,10 @@ worker message, so a sync importing 50 messages sends **one** notification.
 - `Email/query` has no anchor paging; use `position`.
 - Only `$seen` / `$flagged` are settable keywords.
 - An `EmailSubmission` id IS the Email id — no submission table, so no history.
-  Safe because a draft sends at most once. The cost is `undoStatus`: a pending
-  or canceled submission has no row to be found in, so `EmailSubmission/get`
-  answers `notFound` until the mail is sent and then reports `final`. A client
-  polls the Email, not the submission.
+  Safe because a draft sends at most once. What that still costs is history
+  rather than state: the *current* state of a submission is reconstructible
+  (`pending` / `canceled` / `final`, see Sending above), but a draft submitted,
+  cancelled and submitted again has one id and one story, not two.
 - `EmailSubmission/set destroy` is not implemented; there is nothing to destroy.
 - Only `Email/set` and the web composer choose a From. `EmailSubmission/set`
   writes `fromAddress` but never `fromName`: `MessageSendService` builds the

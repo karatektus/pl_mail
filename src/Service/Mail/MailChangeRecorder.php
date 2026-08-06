@@ -103,6 +103,26 @@ final readonly class MailChangeRecorder
     }
 
     /**
+     * A submission moved between the states EmailSubmission/get reports —
+     * pending to final when the mail goes out, pending to canceled when it is
+     * called off.
+     *
+     * A method of its own, where the Email announcements above deliberately
+     * share one: this is a different OBJECT TYPE rather than a different
+     * feature, and the distinction the class docblock refuses to make is
+     * between features. A caller that announced the Email and not the
+     * submission would leave a client showing "sending at 09:00" for mail that
+     * left at 09:00, which is the whole reason the submission became gettable.
+     *
+     * The submission id is the Email id, which is why this takes a string
+     * rather than anything submission-shaped: there is no submission row.
+     */
+    public function submissionChanged(int $accountId, string $submissionId): void
+    {
+        $this->stateManager->recordUpdated($accountId, JmapObjectType::EmailSubmission, $submissionId);
+    }
+
+    /**
      * A label was renamed, moved or hidden.
      *
      * One JMAP Mailbox change per account the label is bound to, because JMAP

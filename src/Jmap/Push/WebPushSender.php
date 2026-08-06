@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
+use App\Domain\Enum\PushDeliveryOutcome;
+use App\Domain\Enum\PushTransport;
+use App\Domain\Interface\PushSenderInterface;
 use App\Entity\User\PushSubscription as JmapPushSubscription;
 use Doctrine\ORM\EntityManagerInterface;
+use Minishlink\WebPush\MessageSentReport;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Psr\Log\LoggerInterface;
@@ -14,16 +18,24 @@ use Psr\Log\LoggerInterface;
  * Delivers JMAP push payloads over Web Push (RFC 8030 transport, RFC 8291
  * payload encryption, RFC 8292 VAPID signing).
  *
- * One implementation covers every platform, because they all speak the same
- * protocol: UnifiedPush distributors on Android, Apple's gateway for an
- * installed PWA on iOS, and the browser push services on desktop.
+ * One implementation covers every platform that speaks the protocol:
+ * UnifiedPush distributors on Android, Apple's gateway for an installed PWA on
+ * iOS, and the browser push services on desktop. The one that does not is
+ * Android's own service, which is FcmSender's subject — the two are separate
+ * implementations of PushSenderInterface and share nothing but the JSON.
  *
  * Endpoints that are permanently gone (404/410) are deleted rather than
  * retried — a browser that revokes a subscription answers 410 forever, and
  * keeping it would mean a failing POST on every state change until the heat
  * death of the universe.
+ *
+ * **Every exit records a PushDelivery**, including the ones that send nothing
+ * and the one that deletes the row. See PushDeliveryRecorder for why that
+ * happens here rather than in a decorator: the status code and the
+ * failed-versus-destroyed distinction exist only inside this method, and the
+ * bool it returns has already discarded both.
  */
-final class WebPushSender
+final class WebPushSender implements PushSenderInterface
 {
     /**
      * Consecutive failures tolerated before an endpoint is dropped. Covers a
@@ -33,11 +45,17 @@ final class WebPushSender
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly PushDeliveryRecorder $deliveries,
         private readonly LoggerInterface $logger,
         private readonly string $vapidSubject,
         private readonly string $vapidPublicKey,
         private readonly string $vapidPrivateKey,
     ) {
+    }
+
+    public function transport(): PushTransport
+    {
+        return PushTransport::WebPush;
     }
 
     public function isConfigured(): bool
@@ -50,8 +68,30 @@ final class WebPushSender
      */
     public function send(JmapPushSubscription $subscription, array $payload): bool
     {
+        // Taken before the first thing that can cost time, so a recorded
+        // latency covers what the device waited for rather than what this
+        // method did after the answer arrived.
+        $startedAt = microtime(true);
+
         if (false === $this->isConfigured()) {
             $this->logger->warning('Web Push is not configured; set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.');
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-vapid-keys', $startedAt);
+
+            return false;
+        }
+
+        // Nullable since FCM subscriptions arrived, and they hold a token
+        // instead. PushSenderRegistry routes by transport so this cannot
+        // normally fire — it is here so a mis-routed row is a logged refusal
+        // rather than a TypeError inside the push library.
+        if (null === $subscription->url || '' === $subscription->url) {
+            $this->logger->error('Web Push: subscription has no endpoint URL', [
+                'subscriptionId' => $subscription->id,
+                'transport'      => $subscription->transport->value,
+            ]);
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-endpoint-url', $startedAt);
 
             return false;
         }
@@ -75,7 +115,7 @@ final class WebPushSender
                 'error' => $exception->getMessage(),
             ]);
 
-            $this->recordFailure($subscription);
+            $this->recordFailure($subscription, $payload, $exception->getMessage(), $startedAt);
 
             return false;
         }
@@ -83,6 +123,8 @@ final class WebPushSender
         if (true === $report->isSuccess()) {
             $subscription->failureCount = 0;
             $this->em->flush();
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Accepted, $this->statusOf($report), $startedAt);
 
             return true;
         }
@@ -93,6 +135,18 @@ final class WebPushSender
             $this->logger->info('Push endpoint gone; removing subscription', [
                 'subscriptionId' => $subscription->id,
             ]);
+
+            // Before the remove, not after: the record names the device by the
+            // subscription's own fields, and reading them off a row that has
+            // just been deleted and flushed is reading a detached entity for
+            // the one delivery anybody will ever go looking for.
+            $this->deliveries->record(
+                $subscription,
+                $payload,
+                PushDeliveryOutcome::SubscriptionDestroyed,
+                $this->statusOf($report),
+                $startedAt,
+            );
 
             $this->em->remove($subscription);
             $this->em->flush();
@@ -105,16 +159,34 @@ final class WebPushSender
             'reason' => $report->getReason(),
         ]);
 
-        $this->recordFailure($subscription);
+        $this->recordFailure($subscription, $payload, $this->statusOf($report), $startedAt);
 
         return false;
     }
 
-    private function recordFailure(JmapPushSubscription $subscription): void
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function recordFailure(JmapPushSubscription $subscription, array $payload, ?string $detail, float $startedAt): void
     {
         ++$subscription->failureCount;
 
-        if ($subscription->failureCount >= self::MAX_FAILURES) {
+        $retired = $subscription->failureCount >= self::MAX_FAILURES;
+
+        // The tenth failure is recorded as a destruction rather than as a
+        // failure, because that is what it was: the row is gone by the time
+        // anyone reads this, and a log saying "failed" for the attempt that
+        // retired the endpoint would leave the disappearance unexplained.
+        // Ahead of the remove for the reason the expiry path above states.
+        $this->deliveries->record(
+            $subscription,
+            $payload,
+            true === $retired ? PushDeliveryOutcome::SubscriptionDestroyed : PushDeliveryOutcome::Failed,
+            $detail,
+            $startedAt,
+        );
+
+        if (true === $retired) {
             $this->logger->info('Push endpoint failed too often; removing subscription', [
                 'subscriptionId' => $subscription->id,
                 'failures' => $subscription->failureCount,
@@ -124,6 +196,25 @@ final class WebPushSender
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * What the push service actually answered, as one short string.
+     *
+     * The status alone where there is one, because that is the vocabulary a
+     * reader can look up; the library's reason string only when there is no
+     * response at all, which is a connection that never completed and whose
+     * only description is that sentence.
+     */
+    private function statusOf(MessageSentReport $report): ?string
+    {
+        $status = $report->getResponse()?->getStatusCode();
+
+        if (null === $status) {
+            return '' === $report->getReason() ? null : $report->getReason();
+        }
+
+        return sprintf('HTTP %d', $status);
     }
 
     /**

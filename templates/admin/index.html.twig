@@ -57,7 +57,7 @@
                                 </span>
                             {% endif %}
 
-                            {% if section not in ['logs', 'integrations', 'reset'] %}
+                            {% if section not in ['logs', 'integrations', 'push', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -94,6 +94,15 @@
                                        class="{{ section == 'integrations' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.integrations'|trans }}
+                                    </a>
+                                    {# After integrations, because it is the same
+                                       kind of thing — a credential pasted out of
+                                       somebody's console — and before users, which
+                                       is where an admin goes for a different reason. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'push' }) }}"
+                                       class="{{ section == 'push' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.push'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'users' }) }}"
                                        class="{{ section == 'users' ? navActive : navInactive }}">
@@ -147,6 +156,36 @@
                                            telemetry, and a poll would fight the modal. #}
                                         <turbo-frame id="admin-integrations"
                                                      src="{{ path('app_admin_integrations_list') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'push' %}
+
+                                        {# No auto-refresh, same reasoning as
+                                           integrations — and more so: the field
+                                           in here takes a two-kilobyte paste,
+                                           and a poll would empty it mid-word. #}
+                                        <turbo-frame id="admin-push"
+                                                     src="{{ path('app_admin_push_settings') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                        {# A second frame rather than more of
+                                           the first: this one is re-rendered
+                                           every time a filter changes, and the
+                                           form above is holding a paste. Below
+                                           the configuration because that is the
+                                           reading order — what is set up, then
+                                           what it did. #}
+                                        <turbo-frame id="admin-push-deliveries"
+                                                     src="{{ path('app_admin_push_deliveries') }}"
+                                                     class="block mt-3"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

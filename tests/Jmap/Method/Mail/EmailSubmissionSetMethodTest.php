@@ -11,6 +11,7 @@ use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Jmap\Mail\SubmissionEnvelope;
+use App\Jmap\Method\Mail\EmailSubmissionChangesMethod;
 use App\Jmap\Method\Mail\EmailSubmissionGetMethod;
 use App\Jmap\Method\Mail\EmailSubmissionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -33,6 +34,14 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  * by name when it cannot be honoured — an identity that resolves to nothing
  * must never quietly become the account's own address, and a hold longer than
  * the session advertises must never quietly become a send now.
+ *
+ * The last section is about what a submission LOOKS like afterwards, and it
+ * pins a behaviour that was recently the opposite. A held submission answered
+ * notFound for the whole hold, so its release time existed only in the create
+ * response and clients had to keep schedules device-local; a cancel left no
+ * trace at all once the envelope had been consumed. Both are reconstructed from
+ * the message row now, and get is asserted against the create response so the
+ * two cannot describe different instants.
  */
 final class EmailSubmissionSetMethodTest extends JmapTestCase
 {
@@ -646,15 +655,12 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
     // ── EmailSubmission/get reconstructs from the Message ─────────────────
 
     /**
-     * A draft that was never sent is notFound, which is exactly what a client
-     * polling undoStatus needs: "not yet" and "no such thing" are the same
-     * answer here because there is no submission row to be in either state.
+     * A draft nobody ever submitted is notFound, and that is the one case that
+     * still is: it is the absence of a submission rather than a state of one.
      */
-    public function testAnUnsentDraftHasNoSubmissionToGet(): void
+    public function testADraftThatWasNeverSubmittedHasNoSubmissionToGet(): void
     {
         $draft = $this->addressedDraft();
-
-        $this->handle(['create' => ['s1' => ['emailId' => (string) $draft->id]]]);
 
         $result = $this->get->handle(
             ['accountId' => $this->accountId(), 'ids' => [(string) $draft->id]],
@@ -663,6 +669,146 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
 
         self::assertSame([], $result['list']);
         self::assertSame([(string) $draft->id], $result['notFound']);
+    }
+
+    /**
+     * The gap this pair of columns closes.
+     *
+     * A held submission used to answer notFound for the whole hold and then
+     * `final`, so the release time a client showed its user existed ONLY in the
+     * create response — lose that, and the schedule was unknowable. Every
+     * client was pushed into keeping a device-local copy of a decision the
+     * server had already made, and a phone and a laptop could not agree about
+     * when the mail was going out.
+     */
+    public function testAHeldSubmissionIsPendingAndReportsItsRealReleaseTime(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $created = ((array) $this->handle([
+            'create' => ['s1' => [
+                'emailId'  => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '3600']]],
+            ]],
+        ])['created'])['s1'];
+
+        $submission = $this->getOne($draft);
+
+        self::assertSame('pending', $submission['undoStatus']);
+        self::assertSame(
+            $created['sendAt'],
+            $submission['sendAt'],
+            'get and the create response must describe the same instant, or the client has two schedules',
+        );
+        self::assertSame((string) $draft->id, $submission['emailId']);
+    }
+
+    /**
+     * "It was called off" and "there is no such thing" are different facts and
+     * a client can only act on the first — it has a scheduled-send row on
+     * screen and needs to know whether to strike it out or drop it.
+     */
+    public function testACancelledSubmissionIsReportedAsCanceledRatherThanVanishing(): void
+    {
+        $draft = $this->held();
+
+        $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        $submission = $this->getOne($draft);
+
+        self::assertSame('canceled', $submission['undoStatus']);
+        self::assertNotNull($submission['sendAt'], 'when it would have gone is still the truth about it');
+    }
+
+    /**
+     * The reason a cancel needs a column of its own rather than reusing the
+     * flag. `cancelled` is consumed by whichever envelope comes due —
+     * SendMessageHandler clears it and declines to send — so half an hour after
+     * a cancelled hold fires, the flag says nothing happened. Reading
+     * undoStatus off it would have reported "pending" forever for mail that is
+     * never going out.
+     */
+    public function testACancelStaysVisibleAfterTheHeldEnvelopeHasBeenConsumed(): void
+    {
+        $draft = $this->held();
+
+        $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        // What SendMessageHandler does when the envelope finally arrives.
+        $draft->cancelled = false;
+        $this->em->flush();
+
+        self::assertSame('canceled', $this->getOne($draft)['undoStatus']);
+    }
+
+    /** Sent mail is final whatever else happened to it on the way. */
+    public function testASubmissionThatHasGoneReportsFinalAndWhenItLeft(): void
+    {
+        $draft = $this->held();
+
+        $draft->sentAt = new \DateTimeImmutable('2026-01-02T03:04:05Z');
+        $this->em->flush();
+
+        $submission = $this->getOne($draft);
+
+        self::assertSame('final', $submission['undoStatus']);
+        self::assertSame('2026-01-02T03:04:05Z', $submission['sendAt'], 'once it has gone, when it went is what a client wants');
+    }
+
+    /** A re-submission is on its way again, not eternally cancelled. */
+    public function testSubmittingAgainAfterACancelGoesBackToPending(): void
+    {
+        $draft = $this->held();
+
+        $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+        $this->handle(['create' => ['s2' => ['emailId' => (string) $draft->id]]]);
+
+        self::assertSame('pending', $this->getOne($draft)['undoStatus']);
+    }
+
+    /**
+     * Two bugs in one refusal.
+     *
+     * The client used to be told "updated" for a submission that get answered
+     * notFound for — and worse, the flag it set stayed on the row until SOME
+     * envelope consumed it, so the user's next send from the web composer was
+     * silently swallowed by a cancel aimed at a submission that never existed.
+     */
+    public function testCancellingADraftThatWasNeverSubmittedIsRefusedRatherThanArmingTheFlag(): void
+    {
+        $draft = $this->addressedDraft();
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        self::assertSame('notFound', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
+        self::assertFalse($draft->cancelled, 'a stale flag swallows the next genuine send');
+    }
+
+    /**
+     * EmailSubmission/changes has to keep up with what get now says.
+     *
+     * A cancel was deliberately unrecorded while the submission was ungettable
+     * — announcing it would have woken every client to re-fetch an id that was
+     * not there. Now it answers "canceled", so a second device that heard
+     * nothing would go on showing mail as scheduled that will never leave.
+     */
+    public function testACancelIsAnnouncedOnTheSubmissionChangeLog(): void
+    {
+        $draft = $this->held();
+
+        $sinceState = $this->get->handle(
+            ['accountId' => $this->accountId(), 'ids' => [(string) $draft->id]],
+            $this->context(),
+        )['state'];
+
+        $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        $changes = self::getContainer()->get(EmailSubmissionChangesMethod::class)->handle(
+            ['accountId' => $this->accountId(), 'sinceState' => $sinceState],
+            $this->context(),
+        );
+
+        self::assertSame([(string) $draft->id], $changes['updated']);
     }
 
     public function testASentEmailReconstructsIntoAFinalSubmission(): void
@@ -784,5 +930,41 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
         $this->em->flush();
 
         return $draft;
+    }
+
+    /** A draft submitted with an hour's hold — the case scheduling is about. */
+    private function held(): Message
+    {
+        $draft = $this->addressedDraft();
+
+        $this->handle([
+            'create' => ['s1' => [
+                'emailId'  => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '3600']]],
+            ]],
+        ]);
+
+        return $draft;
+    }
+
+    /**
+     * The one submission this Email resolves to.
+     *
+     * Asserts it is there rather than returning null, so a test that means to
+     * check undoStatus fails saying "notFound" instead of on an undefined index
+     * several lines later.
+     *
+     * @return array<string,mixed>
+     */
+    private function getOne(Message $message): array
+    {
+        $result = $this->get->handle(
+            ['accountId' => $this->accountId(), 'ids' => [(string) $message->id]],
+            $this->context(),
+        );
+
+        self::assertCount(1, $result['list'], 'expected one submission, got notFound: ' . json_encode($result['notFound']));
+
+        return $result['list'][0];
     }
 }

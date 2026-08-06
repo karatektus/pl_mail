@@ -1,0 +1,86 @@
+{#
+settings/_push_devices.html.twig — the devices this account can be pushed to.
+
+Accepts:
+  devices        — list<App\Entity\User\PushSubscription>, newest first
+  lastDeliveries — map of deviceClientId => App\Domain\DTO\Push\LastDelivery,
+                   with no entry for a device nothing has been sent to yet
+
+Sits under the browser toggle, and answers a different question from it. The
+toggle is about THIS browser and is resolved by JavaScript on connect; this is
+every device registered against the account — the phone, the tablet, the other
+laptop — which the person asking "why did my phone stop buzzing?" cannot see
+anywhere else.
+
+Three facts per row, and each is here because its absence produced a support
+question. The **transport** because a device on Firebase and one on a
+UnifiedPush distributor fail for entirely different reasons. **Verified**
+because an unverified subscription receives NOTHING by design (RFC 8620
+§7.2.2), which looks exactly like a broken one. And the **last delivery**,
+because "we tried and Firebase said the token is dead" and "nothing has ever
+been sent to this device" are the two answers, and they are opposites.
+
+What is deliberately NOT shown: what was pushed. The log stores the payload's
+`@type` and nothing else — see the PushDelivery docblock — so this line can say
+a state change was delivered and can never say which mail it was about.
+#}
+<div class="px-4 py-3.5 border-t border-line">
+
+    <p class="text-sm text-ink">{{ 'settings.notifications.devices.heading'|trans }}</p>
+
+    {% if devices|length == 0 %}
+        <p class="mt-1.5 text-[11px] text-ink-faint leading-relaxed">
+            {{ 'settings.notifications.devices.empty'|trans }}
+        </p>
+    {% else %}
+        <ul class="mt-2.5 space-y-2.5">
+            {% for device in devices %}
+                {# Keyed by the client's own device id, which is what the log
+                   records — a subscription that rotated its endpoint or its FCM
+                   token keeps it, so its history survives the rotation. #}
+                {% set last = lastDeliveries[device.deviceClientId] ?? null %}
+                {% set toneClass = last is null ? 'badge-neutral' : {
+                    success: 'badge-success',
+                    danger:  'badge-danger',
+                    warning: 'badge-warning',
+                    neutral: 'badge-neutral',
+                }[last.outcome.tone] %}
+
+                <li class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                    <span class="text-xs text-ink-soft font-mono truncate max-w-[12rem]">{{ device.deviceClientId }}</span>
+
+                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                        {{ ('settings.notifications.devices.transport.' ~ device.transport.value)|trans }}
+                    </span>
+
+                    {% if device.verified %}
+                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full badge-success">
+                            {{ 'settings.notifications.devices.verified'|trans }}
+                        </span>
+                    {% else %}
+                        {# Amber rather than red: the handshake being incomplete
+                           is the normal state for the first few seconds after
+                           registering, and only a problem if it stays. #}
+                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full badge-warning">
+                            {{ 'settings.notifications.devices.unverified'|trans }}
+                        </span>
+                    {% endif %}
+
+                    <span class="w-full @2xl:w-auto text-[11px] text-ink-faint">
+                        {% if last is null %}
+                            {{ 'settings.notifications.devices.never_delivered'|trans }}
+                        {% else %}
+                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full {{ toneClass }}">
+                                {{ ('settings.notifications.devices.outcome.' ~ last.outcome.value)|trans }}
+                            </span>
+                            {{ last.at|date('Y-m-d H:i') }}
+                            {% if last.payloadType is not null %}
+                                · {{ last.payloadType }}
+                            {% endif %}
+                        {% endif %}
+                    </span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>

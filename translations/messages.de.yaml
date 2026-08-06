@@ -237,6 +237,7 @@ admin:
         database: Datenbank
         integrations: Integrationen
         logs: Protokolle
+        push: Push
         reset: Zurücksetzen
         system: System
         users: Benutzer
@@ -260,6 +261,59 @@ admin:
         calendar_without_public_address: >-
             Ohne öffentlich erreichbare HTTPS-Adresse bleiben verbundene
             Kalender einfach beim Viertelstunden-Abruf.
+        deliveries:
+            all_outcomes: 'Beliebiges Ergebnis'
+            all_transports: 'Beide Transportwege'
+            all_users: 'Alle Benutzer'
+            attempts: 'Versuche'
+            empty_ever: >-
+                Es wurde noch nichts zugestellt. Entweder hat kein Gerät den
+                Bestätigungs-Handshake abgeschlossen, oder es ist kein
+                Transportweg konfiguriert — welches davon, steht oben.
+            empty_filter: 'Keine Zustellung passt zu diesem Filter.'
+            heading: 'Letzte Zustellungen'
+            newer: 'Neuer'
+            older: 'Älter'
+            outcome:
+                accepted: 'Angenommen'
+                failed: 'Fehlgeschlagen'
+                skipped: 'Übersprungen'
+                subscription-destroyed: 'Gerät entfernt'
+            page: 'Seite'
+            refresh: 'Aktualisieren'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
+        fcm:
+            android_package: 'Android-Paket'
+            api_key: 'API-Schlüssel'
+            application_id: 'Application ID'
+            clear_key: 'Hinterlegten Schlüssel verwerfen'
+            clear_key_help: 'Entfernt den Dienstkonto-Schlüssel und schaltet FCM ab. Bereits registrierte Geräte erhalten keine Benachrichtigungen mehr, bis ein neuer Schlüssel gespeichert ist.'
+            client_email: 'Dienstkonto'
+            enable_without_client: 'Es ist keine google-services.json hinterlegt — die Android-App hätte nichts, womit sie Firebase initialisieren könnte. Füge unten eine ein oder lass FCM abgeschaltet.'
+            enable_without_key: 'Es ist kein Dienstkonto-Schlüssel hinterlegt — füge unten einen ein oder lass FCM abgeschaltet.'
+            field:
+                enabled: 'Benachrichtigungen über FCM zustellen'
+                enabled_help: 'Clients sehen das als „fcm“ in der Session-Capability und bieten Firebase nur an, wenn es eingeschaltet ist.'
+                google_services: 'google-services.json'
+                google_services_help: 'Firebase-Konsole → Projekteinstellungen → Deine Apps → die Android-App → google-services.json. Die App ist ein Build für alle Installationen und initialisiert Firebase zur Laufzeit aus diesen Werten — sie sind öffentlich und werden in der JMAP-Session veröffentlicht.'
+                service_account: 'Firebase-Dienstkonto-Schlüssel (JSON)'
+                service_account_help: 'Firebase-Konsole → Projekteinstellungen → Dienstkonten → Neuen privaten Schlüssel erzeugen. Füge die ganze Datei ein. Sie wird verschlüsselt gespeichert und nie wieder angezeigt. Sie muss zum selben Projekt gehören wie die google-services.json darunter.'
+            heading: 'Firebase Cloud Messaging'
+            intro: 'FCM ist der Weg, auf dem eine native Android-App im Hintergrund Benachrichtigungen empfängt. Es ist optional — ein Gerät mit einem UnifiedPush-Distributor braucht nichts davon, die Browser-App ebenso wenig.'
+            paste_none: 'Ganze JSON-Datei hier einfügen'
+            paste_unchanged: 'Eine ist hinterlegt — leer lassen, um sie zu behalten'
+            project: 'Firebase-Projekt'
+            save: 'Speichern'
+            saved: 'Firebase-Einstellungen gespeichert.'
+            sender_id: 'Sender-ID'
+        status:
+            incomplete: 'Halb eingerichtet'
+            key_only: 'Eingerichtet, abgeschaltet'
+            live: 'Aktiv'
+            unconfigured: 'Nicht eingerichtet'
+        webpush_note: 'Web Push braucht hier nichts. Seine VAPID-Schlüssel sind Umgebungsvariablen, einmalig erzeugt von app:push:generate-vapid-keys, und bedienen Browser, die installierte PWA und UnifiedPush-Distributoren gleichermaßen.'
     queues:
         due_in: 'fällig in %duration%'
         empty: 'Keine wartenden Nachrichten.'
@@ -1703,6 +1757,22 @@ settings:
         notifications: Benachrichtigungen
         security: Sicherheit
     notifications:
+        devices:
+            empty: >-
+                Noch kein Gerät registriert. Mit dem Schalter oben registrierst
+                du diesen Browser; eine Handy-App registriert sich selbst.
+            heading: 'Registrierte Geräte'
+            never_delivered: 'Noch nichts gesendet'
+            outcome:
+                accepted: 'Zugestellt'
+                failed: 'Fehlgeschlagen'
+                skipped: 'Nicht gesendet'
+                subscription-destroyed: 'Entfernt'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
+            unverified: 'Nicht bestätigt'
+            verified: 'Bestätigt'
         heading: Benachrichtigungen
         ios_hint: >-
             Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn

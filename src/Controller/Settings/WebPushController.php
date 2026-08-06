@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Domain\Enum\PushTransport;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
 use App\Jmap\Push\WebPushSender;
@@ -71,12 +72,22 @@ final class WebPushController extends AbstractController
         // keeps the same deviceClientId in localStorage.
         $subscription = $this->subscriptions->findOneByDeviceClientId($user, $deviceClientId);
 
+        // A browser that once registered through a UnifiedPush distributor and
+        // is now subscribing directly keeps its deviceClientId, and the two
+        // transports have no row shape in common — so the old one goes rather
+        // than being half-overwritten. Flushed alone because (usr_id,
+        // device_client_id) is unique and Doctrine inserts before it deletes.
+        if (null !== $subscription && PushTransport::WebPush !== $subscription->transport) {
+            $this->em->remove($subscription);
+            $this->em->flush();
+            $subscription = null;
+        }
+
         if (null === $subscription) {
-            $subscription = new PushSubscription($user, $deviceClientId, $endpoint);
+            $subscription = PushSubscription::webPush($user, $deviceClientId, $endpoint);
             $this->em->persist($subscription);
         } else {
-            $subscription->url = $endpoint;
-            $subscription->reissueVerification();
+            $subscription->pointAt($endpoint);
         }
 
         $subscription->p256dh = $p256dh;

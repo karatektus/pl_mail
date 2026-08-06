@@ -1,0 +1,145 @@
+{#
+admin/push/_deliveries.html.twig — Admin → Push, the delivery log.
+
+Accepts:
+  deliveries — list<App\Entity\Push\PushDelivery>, newest first
+  total      — how many rows the current filter matches
+  everything — how many rows exist at all, ignoring the filter
+  page/pages — 1-based pager position
+  usr        — the filtered user id, or null
+  transport  — App\Domain\Enum\PushTransport, or null
+  outcome    — App\Domain\Enum\PushDeliveryOutcome, or null
+  users      — list<{id, email}> of users who appear in the log
+  transports — every PushTransport case
+  outcomes   — every PushDeliveryOutcome case
+
+Its own frame, beside the configuration one rather than inside it. The config
+form holds a two-kilobyte key somebody is pasting; this table is re-rendered
+every time a filter changes, and one frame for both would empty that field
+mid-paste. See PushSettingsController.
+
+**Two empty states, and they are different diagnoses.** "Nothing matches this
+filter" means the log works and this combination is quiet; "nothing has ever
+been delivered" means no device is registered, or no transport is configured,
+or push has never fired — which is what an admin opening this page at 2am is
+actually trying to find out. Collapsing them into one line would answer the
+easy question and hide the real one.
+
+The payload column shows the `@type` and nothing else, because that is all the
+row holds: see the PushDelivery docblock for why a StateChange's contents are
+deliberately not stored.
+#}
+<turbo-frame id="admin-push-deliveries" class="block">
+
+    {# A container, so the rows reflow on this pane's width rather than the
+       viewport's — the admin section nav takes 180px at 768px and the two are
+       not monotonic. Same reasoning as the log browser. #}
+    <section class="@container rounded-pane border border-line bg-pane-soft overflow-hidden">
+
+        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
+            <i class="fa-solid fa-paper-plane text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.push.deliveries.heading'|trans }}</h2>
+            <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.push.deliveries.attempts'|trans }}</span>
+
+            {# Its own row in a narrow pane: three selects are wider than the
+               heading beside them and were clipped by the overflow-hidden. #}
+            <form method="get" action="{{ path('app_admin_push_deliveries') }}"
+                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
+                <select name="usr"
+                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        onchange="this.form.requestSubmit();">
+                    <option value="">{{ 'admin.push.deliveries.all_users'|trans }}</option>
+                    {% for candidate in users %}
+                        <option value="{{ candidate.id }}" {{ usr == candidate.id ? 'selected' : '' }}>{{ candidate.email }}</option>
+                    {% endfor %}
+                </select>
+                <select name="transport"
+                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        onchange="this.form.requestSubmit();">
+                    <option value="">{{ 'admin.push.deliveries.all_transports'|trans }}</option>
+                    {% for case in transports %}
+                        <option value="{{ case.value }}" {{ transport and transport.value == case.value ? 'selected' : '' }}>
+                            {{ ('admin.push.deliveries.transport.' ~ case.value)|trans }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <select name="outcome"
+                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        onchange="this.form.requestSubmit();">
+                    <option value="">{{ 'admin.push.deliveries.all_outcomes'|trans }}</option>
+                    {% for case in outcomes %}
+                        <option value="{{ case.value }}" {{ outcome and outcome.value == case.value ? 'selected' : '' }}>
+                            {{ ('admin.push.deliveries.outcome.' ~ case.value)|trans }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                    {{ 'admin.push.deliveries.refresh'|trans }}
+                </button>
+            </form>
+        </div>
+
+        {% if deliveries|length == 0 %}
+            <p class="px-5 py-4 text-sm text-ink-faint leading-relaxed">
+                {{ everything == 0
+                    ? 'admin.push.deliveries.empty_ever'|trans
+                    : 'admin.push.deliveries.empty_filter'|trans }}
+            </p>
+        {% else %}
+            <div class="divide-y divide-line">
+                {% for delivery in deliveries %}
+                    {# Normalised once: the outcome's own tone() decides the
+                       colour, so the table and the user's settings pane cannot
+                       disagree about which outcomes are alarming. #}
+                    {% set tone = delivery.outcome.tone %}
+                    {% set toneClass = {
+                        success: 'badge-success',
+                        danger:  'badge-danger',
+                        warning: 'badge-warning',
+                        neutral: 'badge-neutral',
+                    }[tone] %}
+
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-sm @2xl:flex-nowrap">
+                        <span class="shrink-0 w-28 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5 {{ toneClass }}">
+                            {{ ('admin.push.deliveries.outcome.' ~ delivery.outcome.value)|trans }}
+                        </span>
+                        <span class="shrink-0 text-xs text-ink-faint font-mono">{{ delivery.createdAt|date('m-d H:i:s') }}</span>
+                        <span class="shrink-0 text-xs text-ink-muted">{{ ('admin.push.deliveries.transport.' ~ delivery.transport.value)|trans }}</span>
+                        <span class="shrink-0 text-xs text-ink-soft truncate max-w-[14rem]">{{ delivery.usr.email }}</span>
+                        {# The device, and it is the client's own id — there is
+                           no friendlier name anywhere, so showing it as
+                           monospace is honest about what it is. #}
+                        <span class="shrink-0 text-xs text-ink-faint font-mono truncate max-w-[10rem]">{{ delivery.deviceClientId }}</span>
+                        <span class="shrink-0 text-xs text-ink-muted">{{ delivery.payloadType ?? '—' }}</span>
+                        <span class="w-full min-w-0 truncate text-xs text-ink-soft @2xl:w-auto @2xl:flex-1">{{ delivery.detail ?? '' }}</span>
+                        <span class="shrink-0 text-xs text-ink-faint font-mono @2xl:ml-auto">{{ delivery.latencyMs }} ms</span>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if pages > 1 %}
+                <div class="flex items-center justify-between px-5 py-3 border-t border-line text-xs text-ink-muted">
+                    <span>{{ 'admin.push.deliveries.page'|trans }} {{ page }} / {{ pages }}</span>
+                    <div class="flex items-center gap-2">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_push_deliveries', { usr: usr, transport: transport ? transport.value : null, outcome: outcome ? outcome.value : null, page: page - 1 }) }}"
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
+                                {{ 'admin.push.deliveries.newer'|trans }}
+                            </a>
+                        {% endif %}
+                        {% if page < pages %}
+                            <a href="{{ path('app_admin_push_deliveries', { usr: usr, transport: transport ? transport.value : null, outcome: outcome ? outcome.value : null, page: page + 1 }) }}"
+                               class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
+                                {{ 'admin.push.deliveries.older'|trans }}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
+    </section>
+
+</turbo-frame>

@@ -17,6 +17,7 @@ use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Mapper\AppearanceMapper;
 use App\Jmap\Method\Contact\ContactAutocompleteMethod;
 use App\Jmap\Protocol\Capability;
+use App\Jmap\Push\FcmSettings;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -47,6 +48,7 @@ final class SessionBuilder
         private readonly CalendarAccountResolver $calendarAccountResolver,
         private readonly AppearanceMapper $appearanceMapper,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly FcmSettings $fcmSettings,
         private readonly string $vapidPublicKey,
     ) {
     }
@@ -322,15 +324,51 @@ final class SessionBuilder
     }
 
     /**
-     * The VAPID public key clients pass as applicationServerKey when creating
-     * a browser push subscription. Empty when Web Push is unconfigured, which
-     * is a client's signal not to offer push at all.
+     * Which push transports this installation can actually deliver over.
+     *
+     * `vapidPublicKey` is what clients pass as applicationServerKey when
+     * creating a browser push subscription; empty means Web Push is
+     * unconfigured. `fcm` is the same signal for Firebase.
+     *
+     * **`fcm` is advertised even when false**, so a client can tell "this
+     * server does not do FCM" from "this server is too old to know what FCM
+     * is". A missing key would make those two indistinguishable, and the
+     * sensible reaction to each is the opposite one.
+     *
+     * **`fcmConfig` is absent rather than null when FCM is off**, which is the
+     * opposite rule and deliberate. `fcm` is a question every client asks, so it
+     * always has an answer; fcmConfig is a set of values that either exist or do
+     * not, and a null-valued object invites a client to read `.projectId` off it
+     * and get null rather than to check first. Absence cannot be dereferenced.
+     *
+     * What it carries is the exact input to Android's FirebaseOptions.Builder,
+     * and it is published because the plMail app ships as ONE APK from the Play
+     * Store while every install has its own Firebase project — so the app cannot
+     * bake in a google-services.json and initialises from this instead. All four
+     * values ship inside every Firebase APK and are public by nature; the
+     * service-account key that can actually send is encrypted and stays here.
      *
      * @return array<string,mixed>
      */
     private function pushCapabilities(): array
     {
-        return ['vapidPublicKey' => $this->vapidPublicKey];
+        $capabilities = [
+            'vapidPublicKey' => $this->vapidPublicKey,
+            'fcm'            => $this->fcmSettings->isActive(),
+        ];
+
+        $client = $this->fcmSettings->clientConfig();
+
+        if (null !== $client) {
+            $capabilities['fcmConfig'] = [
+                'projectId'     => $client->projectId,
+                'applicationId' => $client->applicationId,
+                'apiKey'        => $client->apiKey,
+                'senderId'      => $client->senderId,
+            ];
+        }
+
+        return $capabilities;
     }
 
     /**

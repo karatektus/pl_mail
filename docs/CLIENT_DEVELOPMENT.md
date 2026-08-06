@@ -439,7 +439,16 @@ paths**, and always re-read `apiUrl` etc. from here:
     },
     "urn:ietf:params:jmap:mail": {},
     "urn:ietf:params:jmap:submission": {},
-    "urn:plmail:params:jmap:push": { "vapidPublicKey": "BN…" }
+    "urn:plmail:params:jmap:push": {
+      "vapidPublicKey": "BN…",
+      "fcm": true,
+      "fcmConfig": {
+        "projectId": "plmail-abc123",
+        "applicationId": "1:1234567890:android:0123456789abcdef",
+        "apiKey": "AIza…",
+        "senderId": "1234567890"
+      }
+    }
   },
   "accounts": {
     "7": {
@@ -477,29 +486,59 @@ three mailboxes sees three JMAP accounts under one login. **The unified inbox is
 concern** — you run one `Email/query` per account and merge the results yourself, ordering by
 `receivedAt`. There is no server-side cross-account query.
 
-`urn:plmail:params:jmap:push` is a **vendor extension** carrying the VAPID public key you need before
-you can create a Web Push subscription; RFC 8620 defines no standard place for it. An empty
-`vapidPublicKey` is your signal that Web Push is unconfigured on this instance — don't offer it.
+`urn:plmail:params:jmap:push` is a **vendor extension** describing which push transports this
+instance can actually deliver over; RFC 8620 defines no standard place for any of it.
+
+| Key | Meaning |
+|---|---|
+| `vapidPublicKey` | Your `applicationServerKey` for a Web Push subscription. **Empty** means Web Push is unconfigured — don't offer it. |
+| `fcm` | Whether Firebase is configured *and* switched on. Always present, `true` or `false`. |
+| `fcmConfig` | The inputs to Android's `FirebaseOptions.Builder`. **Absent entirely when `fcm` is false** — not null. |
+
+`fcm` is always present so you can tell "this server does not do FCM" from "this server predates
+FCM"; the right reaction to each is the opposite one. `fcmConfig` takes the opposite rule for the
+opposite reason: a null object invites you to read `.projectId` off it and get null, and an absent
+key cannot be dereferenced. Check `fcm` first.
 
 Note `capabilities` advertises the push URN but the *supported* `using` list is Core, Mail and
 Submission only. Do not put the push URN in `using`.
 
-#### Push on Android, without Google
+#### Push on Android
 
 Web Push assumes a **push service**: something that owns the endpoint URL, holds the connection to
 the device and receives the server's encrypted POST. Browsers ship one. A native Android app does
 not, and Android's own service is FCM, which speaks its own protocol — `WebPushSender` cannot POST
 to it.
 
-So an Android client has three options, and only the first needs nothing from this server:
+So an Android client has three options:
 
 1. **UnifiedPush.** The user installs a *distributor* app; it supplies an RFC 8030 endpoint and
-   decrypts the RFC 8291 `aes128gcm` payload this server already sends. No server change at all.
-2. **Firebase.** Nothing for the user to install, and what most Android users expect — but it needs
-   a Firebase project and an FCM sender here, and Google then learns that a message arrived and
-   when.
+   decrypts the RFC 8291 `aes128gcm` payload this server already sends. No server configuration at
+   all.
+2. **Firebase.** Nothing for the user to install, and what most Android users expect. Supported
+   since the server gained `FcmSender`, and the admin has to paste a Firebase project's credentials
+   before it works — Google then learns that a message arrived and when.
 3. **An embedded distributor**, where the app holds the socket itself. Costs a foreground service
    and a permanent notification, per app.
+
+**Initialising Firebase against a self-hosted instance.** The normal Android arrangement — a
+`google-services.json` processed at build time — cannot work here: one APK serves every installation
+and every installation has its own Firebase project. So the server publishes the four public values
+instead, as `fcmConfig` above, and you build `FirebaseOptions` from them at runtime after fetching
+the session:
+
+```kotlin
+val options = FirebaseOptions.Builder()
+    .setProjectId(config.projectId)
+    .setApplicationId(config.applicationId)
+    .setApiKey(config.apiKey)
+    .setGcmSenderId(config.senderId)
+    .build()
+```
+
+All four ship inside every Firebase app's APK and are public by nature; the service-account key that
+can actually *send* never leaves the server. If the instance registered several Android packages,
+the one published is `de.plmail.google` where present and the first registered client otherwise.
 
 For (1) this repository can supply the push service too, so a self-hoster does not have to find one:
 
@@ -763,7 +802,8 @@ mailbox), so a client that omits `onSuccessUpdateEmail` still ends up correct.
 Things to know:
 
 - **A submission has no table of its own — its id *is* the Email id.** plMail sends each draft at most
-  once, so the mapping stays one-to-one.
+  once, so the mapping stays one-to-one. It is still fully gettable: see
+  [what a submission looks like afterwards](#reading-a-submission-back) below.
 - `undoStatus` is reported as **`"pending"`**: the send is genuinely queued and has not happened yet
   when the call returns.
 - **The web UI's undo-send grace period is deliberately NOT applied to JMAP submissions.** A JMAP
@@ -791,11 +831,47 @@ Things to know:
   else is refused instead of silently ignored.
 - **Cancelling before release**: update the submission's `undoStatus` to `"canceled"`. That is
   reliable while the mail is held, a race once it has been dispatched with no hold, and refused with
-  `cannotUnsend` once it has been sent. Note that a canceled submission is not gettable afterwards —
-  the Email is an unsent draft again, so `EmailSubmission/get` answers `notFound`.
+  `cannotUnsend` once it has been sent. A cancel on an Email you never submitted is refused with
+  `notFound` — there is no submission to call off, and accepting it used to leave a flag behind that
+  swallowed the user's next send.
 - Errors: `invalidProperties` (missing/unknown `emailId`, malformed envelope, hold too long),
   `forbiddenFrom` (an `identityId` this account may not send as), `invalidRecipients`,
-  `alreadyExists` (already sent), `noRecipients`, `cannotUnsend`.
+  `alreadyExists` (already sent), `noRecipients`, `cannotUnsend`, `notFound` (nothing to cancel).
+
+### Reading a submission back
+
+`EmailSubmission/get` answers for a submission from the moment it is accepted, in all three of the
+spec's states:
+
+| State | `undoStatus` | `sendAt` |
+|---|---|---|
+| Queued or held, not gone yet | `"pending"` | when it is due — the real release time |
+| Cancelled before it left | `"canceled"` | when it *would* have left |
+| Sent | `"final"` | when it actually left |
+
+An Email that was never submitted is `notFound`. That is the only `notFound` case: it is the absence
+of a submission rather than a state of one.
+
+**This changed, and if you wrote against the old behaviour you can now delete code.** A held
+submission used to answer `notFound` for the entire hold and then appear as `"final"`, which meant
+the release time you were told in the create response was the only copy in existence — lose the
+response, and the schedule was unknowable. Clients had to keep their own device-local list of
+scheduled sends, and a phone and a laptop signed into the same account could not agree about when a
+mail was going out. Don't do that any more: `sendAt` off `EmailSubmission/get` is authoritative and
+shared by every device.
+
+Practically:
+
+- **Poll the submission, not the Email**, for anything about sending. `EmailSubmission/changes`
+  reports all three transitions — the submit as `created`, an accepted cancel as `updated`, and the
+  mail actually leaving as `updated` — so a scheduled-send list can be kept current from the change
+  log alone.
+- **`sendAt` on a `"pending"` submission is a promise about the queue, not a guarantee to the
+  second.** It is when the worker is allowed to start, and a busy install starts late. Show it as a
+  time, not as a countdown to zero.
+- A submission that was held when this feature was deployed keeps its old behaviour — `notFound`
+  until it sends — because its release time only ever existed in a queue entry. There is at most one
+  hold's worth of those.
 
 **Identities** come from the same list the web composer's From dropdown shows — the account's
 sendable aliases, primary first. An account with no alias rows yet yields one synthetic identity for
@@ -835,16 +911,62 @@ The `{name}` segment is used only for the download filename and is never trusted
 
 Three mechanisms, in descending order of what you should prefer.
 
-**1. Web Push / `PushSubscription` — the right answer for background delivery.**
+**1. `PushSubscription` — the right answer for background delivery.**
 
-Create a subscription via `PushSubscription/set`, using the `vapidPublicKey` from the session's
-`urn:plmail:params:jmap:push` capability as your `applicationServerKey`.
+Two transports behind one object. A create carrying `url` and `keys` is a **Web Push** subscription;
+a create carrying `fcmToken` is a **Firebase** one. `fcmToken` is a plMail extension of RFC 8620's
+object; everything else — `deviceClientId`, `types`, `expires`, the handshake — is identical.
+
+```jsonc
+// Web Push
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "url": "https://ntfy.example.com/…",
+  "keys": { "p256dh": "…", "auth": "…" },
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+
+// Firebase — only when the session says "fcm": true
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "fcmToken": "cX9…:APA91b…",
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+```
+
+The two shapes are exclusive. A create carrying both `fcmToken` and `url` (or `keys`) is refused
+with `invalidProperties` naming the conflict, rather than one being picked for you. A create
+carrying `fcmToken` on an instance where FCM is unconfigured or switched off is refused with
+`forbidden` — check the capability first; this is only a backstop.
+
+`PushSubscription/get` reports which kind you got back, as a read-only `transport` of `"webpush"` or
+`"fcm"`. You need it because `deviceClientId` is stable per device and re-registering *replaces* the
+row: a phone that moved from a UnifiedPush distributor to Firebase has one subscription, not two.
+Neither `keys` nor `fcmToken` is ever returned — both are the address of a device, and echoing them
+would let anyone who can read one response push to it. `url` is `null` on an FCM subscription.
+
+**Rotating an FCM token** is `PushSubscription/set` `update` with `fcmToken` on an existing FCM
+subscription — the one address property an update may change, because Android reissues tokens on its
+own schedule. It re-arms the handshake: `verified` goes back to false and a fresh `PushVerification`
+is sent to the new token, so handle that the same way you handled the first one. `url` and `keys`
+remain create-only; changing where an encrypted payload goes means a new create.
 
 **There is a mandatory verification handshake, and it is the whole point.** On create, the server
-immediately POSTs a `PushVerification` object to your URL. You read the code out of it and echo it
-back via a `PushSubscription/set` update. **Until you do, the subscription receives nothing.** This is
-what stops the endpoint being an open relay — without it anyone with an account could register a
-stranger's URL. Budget for this round trip in your onboarding.
+immediately sends a `PushVerification` object to the address you gave — POSTed to the endpoint for
+Web Push, delivered as an ordinary FCM data message for Firebase, identical JSON either way. You read
+the code out of it and echo it back via a `PushSubscription/set` update. **Until you do, the
+subscription receives nothing.** This is what stops the endpoint being an open relay — without it
+anyone with an account could register a stranger's address. Budget for this round trip in your
+onboarding.
+
+**Every attempt to reach your device is logged server-side, and you can tell the user where to
+look.** The verification you are waiting for, and every `StateChange` after it, writes a row visible
+to that user in **Settings → Notifications** (per device: transport, verified state, and the last
+delivery with its outcome) and to an admin at **/admin/push**. So "the app registered and never got
+its code" is answerable without anyone reading a container log: the row says whether the server tried
+and what the transport answered — `UNREGISTERED`, a 410, or "skipped, this install has no keys". The
+log records the payload's `@type` and nothing else of it, so it never becomes a record of the user's
+mail activity; do not build a feature that assumes more is kept.
 
 **2. EventSource (SSE) — for a foreground session, briefly.**
 
@@ -874,6 +996,28 @@ Deliberately tiny. **JMAP never pushes mail content, only the news that a state 
 then call `Email/changes` to find out what. Tracked types: `Mailbox`, `Email`, `Thread`,
 `EmailSubmission`. `Identity` is excluded — it changes only when the user edits their own addresses,
 which they just did in your app.
+
+**Over FCM the same JSON arrives as a data message**, never a `notification` payload — the system
+tray must not draw anything before your app has seen it, because only you know whether the user is
+already looking at that mailbox. The object above is the string value of one data key:
+
+```json
+{
+  "message": {
+    "token": "cX9…:APA91b…",
+    "data": { "payload": "{\"@type\":\"StateChange\",\"changed\":{\"7\":{\"Email\":\"9\"}}}" },
+    "android": { "priority": "HIGH", "ttl": "86400s", "collapse_key": "plmail-state-change" }
+  }
+}
+```
+
+So `RemoteMessage.getData()["payload"]` is a JSON string, and its `@type` is either `StateChange` or
+`PushVerification`. Collapse keys are per type — `plmail-state-change` and `plmail-push-verification`
+— so a backlog of state changes collapses to the newest without ever discarding an undelivered
+verification. Messages live 24 hours.
+
+A token the server is told is `UNREGISTERED` or `NOT_FOUND` **destroys the subscription**, exactly as
+a 404/410 does for Web Push. Quota rejections and Firebase outages do not.
 
 Every token comes from the same state manager the `/get` and `/changes` methods use, so a push and a
 subsequent `/changes` can never disagree.
@@ -927,6 +1071,11 @@ Ordered roughly by how much users will miss them.
 - Send from any account **and any sendable alias** — always show the From picker.
 - Draft autosave.
 - Undo send (client-side for JMAP; see above).
+- Scheduled send, driven by the server rather than by your own timer. The hold goes on the envelope
+  (`HOLDFOR` / `HOLDUNTIL`) and `EmailSubmission/get` reports the release time and `"pending"` back
+  for as long as it is held, so a "Scheduled" list can be built from the server's own answer. This
+  entry used to say the opposite, because a held submission answered `notFound` — see
+  [reading a submission back](#reading-a-submission-back).
 
 **Organising**
 - Labels: apply, remove, create, delete. Nested labels exist in the data model; nested label *UI* is

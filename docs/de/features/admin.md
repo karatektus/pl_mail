@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:78d502700d6ab9ce6a5e0acce8e881ce297b2087 -->
+<!-- translated-from: features/admin.md sha1:9754c799bab994f83af0846421b46b232d2f0b28 -->
 
 # Administration
 
@@ -176,6 +176,87 @@ Die Einrichtungsschritte je Anbieter stehen auf [Google](../providers/google.md)
 [Microsoft](../providers/microsoft.md) und, für die Kalenderseite,
 [CalDAV](../providers/caldav.md).
 
+## Push
+
+Ein Bildschirm, und er dreht sich nur um Firebase. Web Push braucht hier nichts: Seine
+VAPID-Schlüssel sind Umgebungsvariablen, einmalig von `app:push:generate-vapid-keys` geprägt, und
+sie bedienen Browser, die installierte PWA und UnifiedPush-Distributoren gleichermaßen. Eine
+Einstellungsseite, die sie schreibgeschützt neben einem editierbaren Firebase-Schlüssel zeigte,
+würde nahelegen, dass sie von hier aus änderbar sind.
+
+Firebase Cloud Messaging ist der Weg, auf dem eine **native Android-App** im Hintergrund
+Benachrichtigungen empfängt, denn Android hat keinen anderen Push-Dienst, und eine gewöhnliche
+Android-App kann kein Web Push sprechen. Es ist im vollen Sinne optional — wer einen
+UnifiedPush-Distributor betreibt, braucht nichts davon, und die Browser-App rührt es nie an.
+
+Zwei Dateien, und keine ist allein zu gebrauchen:
+
+- **Der Dienstkonto-Schlüssel**, aus Firebase-Konsole → Projekteinstellungen → Dienstkonten → Neuen
+  privaten Schlüssel erzeugen. So sendet der Server. Er wird verschlüsselt gespeichert wie alles
+  andere, was diese Installation vorhält, und nie wieder angezeigt.
+- **`google-services.json`**, aus Projekteinstellungen → Deine Apps → die Android-App. Damit
+  initialisiert die *App* Firebase. Die plMail-Android-App ist ein Build, der an jede Installation
+  ausgeliefert wird, während jede Installation ihr eigenes Firebase-Projekt hat — sie lässt sich
+  also nicht einkompilieren. Die Werte werden stattdessen in der JMAP-Session veröffentlicht, und
+  die App baut ihre `FirebaseOptions` zur Laufzeit. Sie stecken im APK jeder Firebase-App und sind
+  ihrer Natur nach öffentlich, werden also im Klartext gespeichert.
+
+**Ein Paar aus zwei verschiedenen Projekten wird abgelehnt, unter Nennung beider.** Nichts weiter
+unten kann diesen Fehler erkennen: Die App registriert sich fröhlich gegen das eine Projekt, der
+Server sendet fröhlich an das andere, jede Nachricht wird in eine Protokolldatei hinein abgelehnt,
+und das Symptom der Nutzerin ist, dass Benachrichtigungen nicht funktionieren. Dieser Bildschirm
+ist die einzige Stelle, an der beide Hälften in einer Hand liegen.
+
+Dasselbe gilt für die falsche Datei. Die Firebase-Konsole bietet vier Downloads an, die allesamt
+gültiges JSON sind, also benennt eine Ablehnung die Schlüssel, die der Datei fehlen, statt sie für
+ungültig zu erklären.
+
+Der Schalter ist von den Zugangsdaten getrennt, damit FCM abzuschalten nicht dasselbe ist wie den
+Schlüssel zu verlieren. Er lässt sich erst umlegen, wenn beide Dateien vorliegen — zu früh
+einzuschalten hieße, FCM jedem Client anzukündigen und dann jede Registrierung abzulehnen, was ein
+Client nicht von einem Fehler auf seiner eigenen Seite unterscheiden kann. Genau dafür unterscheidet
+die Plakette neben der Überschrift **Aktiv**, **Eingerichtet, abgeschaltet**, **Halb eingerichtet**
+und **Nicht eingerichtet**.
+
+Nichts davon braucht einen Neustart. Das ist der ganze Grund, warum hier eine Datenbankzeile steht
+und keine Umgebungsvariable.
+
+### Letzte Zustellungen
+
+Unter dem Firebase-Formular, und es umfasst **beide** Transportwege: jeden Versuch, ein Gerät zu
+wecken, neueste zuerst, filterbar nach Benutzerin, Transportweg und Ergebnis. Es gibt das, weil
+Push das Einzige war, was dieser Server tat, ohne eine Spur zu hinterlassen — eine Benachrichtigung,
+die nie ankam, sah genauso aus wie eine, die die Nutzerin nur nicht bemerkt hat, und der einzige
+Beleg war eine Log-Zeile, die nur bei einem Fehler geschrieben wurde.
+
+Jede Zeile ist ein Versuch: wann, welche Benutzerin, welches Gerät (die ID, die sich der Client
+selbst gegeben hat), der Transportweg, was transportiert wurde, wie lange es gedauert hat und was
+die Gegenstelle gesagt hat.
+
+| Ergebnis | Bedeutet |
+|---|---|
+| **Angenommen** | Der Transportweg hat es genommen. Kein Beleg dafür, dass es angezeigt wurde — ein Beleg dafür, dass es übergeben wurde |
+| **Fehlgeschlagen** | Abgelehnt oder nicht erreichbar, das Gerät bleibt bestehen. In der Detailspalte steht der Status oder der FCM-Fehlername |
+| **Gerät entfernt** | Die Adresse hat sich als dauerhaft tot erwiesen (ein 410 oder `UNREGISTERED`) und die Subscription wurde gelöscht. Diese Zeile ist die einzige Erklärung dafür, warum das Gerät aus der Liste der Nutzerin verschwunden ist |
+| **Übersprungen** | Es wurde nichts gesendet: Der Transportweg ist nicht eingerichtet, oder die Zeile kann ihn nicht adressieren. Kein Fehler — eine Installation, die noch nicht fertig eingerichtet ist |
+
+Die Unterscheidung **Übersprungen** ist die, die man genau lesen sollte. Eine Installation ohne
+VAPID-Schlüssel oder mit abgeschaltetem Firebase erzeugt pro Gerät und Zustandsänderung einen
+übersprungenen Versuch, und das ist eine Antwort über die Einrichtung, nicht über ein kaputtes
+Gerät.
+
+**Was gepusht wurde, wird bewusst nicht aufgezeichnet.** Das Protokoll hält den *Typ* der Nutzlast
+fest — `StateChange` oder `PushVerification` — und sonst nichts von ihr. Eine `StateChange` benennt
+die Konten und Zustandsmarken, die sich bewegt haben; sie aufzubewahren würde diese Tabelle in ein
+aufbewahrtes, für Administratorinnen lesbares Verzeichnis verwandeln, wann bei wem Mail ankommt —
+und das ist eine größere Sache als die Frage, bei der es helfen würde.
+
+Nutzerinnen sehen ihre eigene Hälfte davon, ohne die anderen, unter **Einstellungen →
+Benachrichtigungen**: jedes registrierte Gerät mit Transportweg, ob der Verifikations-Handshake
+abgeschlossen ist, und seiner letzten Zustellung.
+
+Aufbewahrt wird 30 Tage, nächtlich weggeräumt von `app:monitoring:prune`; `--push-days=N` ändert das.
+
 ## Benutzer
 
 Eine durchsuchbare, seitenweise Liste aller, die sich anmelden können, mit dem Zeitpunkt der
@@ -288,3 +369,29 @@ Verbinden bei der Zustimmung.
 
 **Die letzte Administratorin oder dich selbst kannst du nicht entfernen.** Beides wird abgelehnt
 statt mit einer Warnung versehen, was gelegentlich wie ein kaputter Knopf aussieht.
+
+**`APP_ENCRYPTION_KEY` zu wechseln nimmt den Firebase-Schlüssel mit.** Das Dienstkonto-JSON liegt
+verschlüsselt wie jedes andere Geheimnis, ein geänderter Schlüssel macht es also unlesbar — Push
+über FCM geht still aus, die Session sagt ab da `fcm: false`, und die Behebung ist, den Schlüssel
+erneut einzufügen. Die google-services-Werte überleben, weil sie nie verschlüsselt waren.
+
+**Nur eine der beiden Firebase-Dateien zu ersetzen wird abgelehnt, wenn die Projekte
+auseinandergehen.** Das ist Absicht, und die Meldung ist zu lesen statt zu umgehen: Ein
+Dienstkonto-Schlüssel aus dem einen Projekt mit einer `google-services.json` aus einem anderen
+ergibt eine Installation, in der alles eingerichtet aussieht und nie etwas zugestellt wird.
+
+**Ein leeres Zustellprotokoll heißt, dass nichts *versucht* wurde, nicht dass alles funktioniert
+hat.** Push feuert nur, wenn sich tatsächlich ein Zustand ändert, und nur an Geräte, die den
+Verifikations-Handshake abgeschlossen haben — eine frische Installation mit einem registrierten
+Browser kann also stundenlang leer bleiben und völlig gesund sein. Genau deshalb unterscheidet das
+Panel „Keine Zustellung passt zu diesem Filter" von „Es wurde noch nichts zugestellt": Die zweite
+Zeile ist die, bei der man die Einrichtung darüber prüft.
+
+**„Angenommen" heißt nicht „bei einem Menschen angekommen".** Es heißt, dass der Push-Dienst die
+Nachricht genommen hat. Ein Telefon im Doze-Modus, ein Browser, dem das Betriebssystem die
+Berechtigung entzogen hat, und eine weggewischte Benachrichtigung sehen von hier aus identisch aus;
+das Nächste, was man prüft, ist das Gerät und nicht diese Seite.
+
+**Das Zustellprotokoll wird nach 30 Tagen weggeräumt**, ein vor sechs Wochen entferntes Gerät hat
+hier also keine Zeile, die es erklärt. Wenn jemand meldet, Benachrichtigungen hätten „vor einer
+Weile" aufgehört, sieh nach, bevor du annimmst, es sei nie etwas versucht worden.

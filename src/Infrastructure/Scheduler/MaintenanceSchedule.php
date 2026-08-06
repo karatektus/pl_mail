@@ -110,7 +110,7 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // re-drawing is idempotent, so a missed night costs nothing.
                 RecurringMessage::cron('50 3 * * *', new RunCommandMessage('app:calendar:materialise')),
 
-                // Log entries and dead heartbeats.
+                // Log entries, push deliveries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 
                 // Expired JMAP uploads and files orphaned by deleted rows.

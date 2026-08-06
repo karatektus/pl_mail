@@ -7,7 +7,7 @@ namespace App\Service\Calendar\Alert;
 use App\Domain\DTO\Calendar\DueAlert;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Interface\AlertChannelInterface;
-use App\Jmap\Push\WebPushSender;
+use App\Jmap\Push\PushSenderRegistry;
 use App\Repository\User\PushSubscriptionRepository;
 use Psr\Log\LoggerInterface;
 
@@ -34,6 +34,13 @@ use Psr\Log\LoggerInterface;
  * A user with no verified subscription is not an error. It is the ordinary state
  * of an install where nobody has granted notification permission, and it answers
  * false so AlertDeliverer can say so once rather than raise something.
+ *
+ * **Delivery goes through PushSenderRegistry rather than one sender**, since
+ * push grew a second transport. A phone registered over FCM is in the same
+ * subscription list as the laptop's browser, and pushing it at WebPushSender
+ * would produce a subscription with no endpoint URL and an error per alert.
+ * Note that a CalendarAlert carries no FCM collapse key: two reminders about two
+ * different appointments must not replace one another.
  */
 final readonly class PushAlertChannel implements AlertChannelInterface
 {
@@ -48,7 +55,7 @@ final readonly class PushAlertChannel implements AlertChannelInterface
 
     public function __construct(
         private PushSubscriptionRepository $subscriptions,
-        private WebPushSender              $sender,
+        private PushSenderRegistry         $senders,
         private AlertMessageBuilder        $wording,
         private LoggerInterface            $logger,
     ) {
@@ -61,7 +68,11 @@ final readonly class PushAlertChannel implements AlertChannelInterface
 
     public function deliver(DueAlert $due): bool
     {
-        if (false === $this->sender->isConfigured()) {
+        // Any transport, not Web Push specifically. An install that runs
+        // Firebase and no VAPID keys still has devices to remind, and asking
+        // one sender whether push works at all was how this used to silently
+        // skip them.
+        if (false === $this->senders->anyConfigured()) {
             return false;
         }
 
@@ -88,11 +99,17 @@ final readonly class PushAlertChannel implements AlertChannelInterface
         $delivered = false;
 
         foreach ($devices as $device) {
+            $sender = $this->senders->for($device);
+
+            if (null === $sender || false === $sender->isConfigured()) {
+                continue;
+            }
+
             // Every device, and the result is an OR rather than an AND: one
             // phone with a dead endpoint must not make an alert that reached the
-            // laptop count as undelivered. WebPushSender already retires the
+            // laptop count as undelivered. The senders already retire the
             // endpoints that keep failing.
-            $delivered = $this->sender->send($device, $payload) || $delivered;
+            $delivered = $sender->send($device, $payload) || $delivered;
         }
 
         if (false === $delivered) {

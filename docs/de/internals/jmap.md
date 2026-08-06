@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:203bc3bd22b0e44f7d424528a59b3e2f27bcb4a2 -->
+<!-- translated-from: internals/jmap.md sha1:719b01d3f2ac12de7e54dd282df2283546630f21 -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -475,16 +475,53 @@ Konten zuerst zu ihren Eigentümern zurück auf, denn eine Subscription gehört 
 während Änderungen je Konto aufgezeichnet werden, und filtert jede Subscription auf die
 Objekttypen, die sie angefragt hat.
 
+**Zwei Transporte, je Subscription gewählt.** `App\Domain\Interface\PushSenderInterface` hat
+zwei Implementierungen — den `WebPushSender` (RFC 8030/8291/8292, deckt Browser, die installierte
+PWA und UnifiedPush-Distributoren gleichermaßen ab) und den `FcmSender` (FCM HTTP v1, für eine
+native Android-App, die keinen eigenen Push-Dienst hat). Die `PushSenderRegistry` wählt anhand der
+Spalte `transport` der Zeile und nicht über einen `supports()`-Durchlauf, denn der Transport ist
+eine Eigenschaft der Subscription und keine Auslegung davon. Eine Nutzerin mit einem Telefon auf
+Firebase und einem Browser auf Web Push wird in einem Durchgang zweimal benachrichtigt; ein nicht
+konfigurierter Transport überspringt seine eigenen Zeilen und lässt die anderen in Ruhe, sodass
+Firebase abzuschalten eine Entscheidung über Android ist und nicht über Push.
+
+Der `FcmSender` sendet **ausschließlich Datennachrichten** — eine `notification`-Nutzlast würde
+von der Systemleiste gezeichnet, bevor die App sie sieht, und JMAP pusht keine Inhalte, die
+irgendetwas zeichnen könnte. Der Rumpf ist dasselbe JSON, das der `WebPushSender` sendet, getragen
+als ein String unter `data.payload`, weil FCM-Datenkarten String-zu-String sind. Die Collapse-Keys
+sind je Nutzlast-`@type` getrennt, und das ist eine Absicherung, keine Feinheit: Ein gemeinsamer
+Key ließe einen gewöhnlichen `StateChange` eine unzugestellte `PushVerification` verwerfen, und die
+Subscription wartete dann ewig auf einen Code, den FCM weggeworfen hat. `UNREGISTERED`/`NOT_FOUND`
+löschen die Subscription so, wie es ein 404/410 tut; `QUOTA_EXCEEDED` und 5xx zählen nicht einmal
+als Fehlschlag, denn ein Ausfall ist kein kaputter Endpunkt.
+
+Das OAuth2-Bearer-Token, das FCM braucht, prägt der `FcmAccessTokenProvider` — ein
+Dienstkonto-JWT-Grant (RFC 7523), signiert mit ext-openssl und beim Token-Endpunkt von Google
+eingetauscht, zwischengespeichert bis zum Ablauf. Mit rund fünfzig Zeilen selbst geschrieben statt
+aus `google/auth` geholt, was für eine Signatur vier Pakete auf einen Raspberry Pi brächte.
+
+Die Firebase-Zugangsdaten liegen in der Datenbank (`fcm_config`, eine Zeile, unter `/admin/push`
+administrierbar) und nicht in Umgebungsvariablen: Der Schlüssel wird aus einer Konsole eingefügt,
+bei einem Leck rotiert und gehört zu einem Projekt, das es beim Bau des Containers vielleicht noch
+gar nicht gibt. Der Dienstkonto-Schlüssel wird über `EncryptedStringType` verschlüsselt; die
+google-services-Werte daneben nicht, denn sie werden jedem Client in der Session veröffentlicht.
+
 `PushSubscription/set` (RFC 8620 §7.2.2) trägt keine accountId — Subscriptions gelten je
 authentifizierter Nutzerin — und **der Verifikations-Handshake ist der springende Punkt**. Beim
-Anlegen schickt der Server sofort ein `PushVerification`-Objekt per POST an die vom Client
-angegebene URL; der Client liest den Code daraus und schickt ihn per Update zurück, und bis er
-das tut, empfängt die Subscription nichts. Ohne das könnte jede Person mit einem Konto die URL
-einer Fremden registrieren und plMail dazu bringen, bei jeder Zustandsänderung dorthin zu posten.
-Der Code beweist, dass wer die URL registriert hat, auch lesen kann, was dort ankommt.
+Anlegen schickt der Server sofort ein `PushVerification`-Objekt an die vom Client angegebene
+Adresse; der Client liest den Code daraus und schickt ihn per Update zurück, und bis er das tut,
+empfängt die Subscription nichts. Ohne das könnte jede Person mit einem Konto die Adresse einer
+Fremden registrieren und plMail dazu bringen, bei jeder Zustandsänderung dorthin zuzustellen. Der
+Code beweist, dass wer die Adresse registriert hat, auch lesen kann, was dort ankommt. FCM ist
+nicht ausgenommen — die Verifikation reist als gewöhnliche Datennachricht.
+
+Ein Create mit `fcmToken` ist die FCM-Form, ein Create mit `url` und `keys` die von Web Push;
+beides zugleich wird abgelehnt statt nach Vorrang aufgelöst. `fcmToken` ist die einzige
+Adress-Eigenschaft, die ein Update ändern darf, weil Android Tokens nach eigenem Zeitplan neu
+ausstellt — und das Rotieren spannt den Handshake neu, genau wie ein erneutes Anlegen mit neuer URL.
 
 `/jmap/eventsource` ist die andere Hälfte, für Clients, die eine Verbindung halten statt eines
-Web-Push-Endpunkts; die Session weist ihn mit den Parametern `types`, `closeafter` und `ping`
+Push-Endpunkts; die Session weist ihn mit den Parametern `types`, `closeafter` und `ping`
 aus.
 
 ## Fallstricke
