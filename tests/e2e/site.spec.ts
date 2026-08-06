@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, devices } from "@playwright/test";
 import { execSync } from "node:child_process";
 import { createServer } from "node:http";
 import { readFileSync, statSync } from "node:fs";
@@ -181,4 +181,123 @@ test("the theme picker offers plMail's own themes and remembers one", async ({ p
 
     await page.goto(`${BASE}/docs/features/mail.html`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "nord");
+});
+
+/**
+ * The phone.
+ *
+ * Three separate failures live here and each is invisible on a desktop run: a
+ * page that scrolls sideways, a sidebar that puts thirty-four links above the
+ * first paragraph, and a bar so crowded the search box collapses to a stub. The
+ * last one is why the theme picker is hidden below 26rem — asserted, because
+ * "make it narrower" is the tempting fix and it produces a 24px search box.
+ */
+test.describe("on a phone", () => {
+    // defaultBrowserType comes with the device preset and Playwright refuses it
+    // inside a describe — the viewport and the touch flags are what matter here.
+    const { defaultBrowserType: _ignored, ...phone } = devices["iPhone SE"];
+
+    test.use(phone);
+
+    test("nothing scrolls sideways and the drawer starts shut", async ({ page }) => {
+        await page.goto(`${BASE}/docs/features/calendar.html`);
+
+        await expect(page.locator("#sidebar")).toBeHidden();
+        await expect(page.locator("#menu")).toBeVisible();
+
+        const overflows = await page.evaluate(
+            () => document.documentElement.scrollWidth > window.innerWidth,
+        );
+
+        expect(overflows).toBe(false);
+    });
+
+    test("the burger opens the navigation and three things close it", async ({ page }) => {
+        await page.goto(`${BASE}/docs/features/calendar.html`);
+
+        await page.click("#menu");
+        await expect(page.locator("#sidebar")).toBeVisible();
+        await expect(page.locator("#menu")).toHaveAttribute("aria-expanded", "true");
+
+        // Tapped by coordinate rather than by locator: the scrim covers the
+        // whole viewport, so its CENTRE is underneath the open drawer and
+        // Playwright's hit-testing refuses the click. A finger lands to the
+        // right of the drawer, which is what this is.
+        //
+        // The point is derived from the drawer's own edge rather than written
+        // as a number. `devices["iPhone SE"]` is the FIRST-generation SE at
+        // 320×568, not the 375 the name suggests, so a hardcoded 350 was
+        // off-screen and the tap silently hit nothing.
+        const drawer = await page.locator("#sidebar").boundingBox();
+        const viewport = page.viewportSize();
+
+        await page.mouse.click(
+            (drawer!.x + drawer!.width + viewport!.width) / 2,
+            viewport!.height / 2,
+        );
+        await expect(page.locator("#sidebar")).toBeHidden();
+
+        await page.click("#menu");
+        await expect(page.locator("#sidebar")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#sidebar")).toBeHidden();
+
+        // And following a link, which navigates and must not leave the old
+        // page's drawer animating away over the new one.
+        await page.click("#menu");
+        await page.click('#sidebar a[href*="reminders"], #sidebar a[href*="calendar-alerts"]');
+        await expect(page.locator("#sidebar")).toBeHidden();
+    });
+
+    test("the search box keeps a usable width, and 16px so Safari does not zoom", async ({ page }) => {
+        await page.goto(`${BASE}/docs/`);
+
+        const box = await page.locator("#search").boundingBox();
+
+        expect(box?.width ?? 0).toBeGreaterThan(90);
+
+        // Anything under 16px makes iOS zoom the page to focus the field, which
+        // is the "why did my phone zoom in" that no viewport meta can fix.
+        const size = await page.evaluate(
+            () => getComputedStyle(document.getElementById("search")!).fontSize,
+        );
+
+        expect(parseFloat(size)).toBeGreaterThanOrEqual(16);
+    });
+
+    /**
+     * Both pickers move into the drawer on a phone. They used to sit in the bar
+     * and fight the search box for width — four controls across 375px left the
+     * search 24 pixels wide — so one of them was hidden to settle it. Neither is
+     * hidden now; they are somewhere with room.
+     */
+    test("the pickers are in the drawer, not the bar", async ({ page }) => {
+        await page.goto(`${BASE}/docs/`);
+
+        // Present in the DOM but not on screen while the drawer is shut.
+        await expect(page.locator("#theme")).toBeHidden();
+        await expect(page.locator("#language")).toBeHidden();
+
+        await page.click("#menu");
+
+        await expect(page.locator("#sidebar #theme")).toBeVisible();
+        await expect(page.locator("#sidebar #language")).toBeVisible();
+    });
+
+    /** And switching language from inside the drawer works. */
+    test("the drawer's language picker navigates", async ({ page }) => {
+        await page.goto(`${BASE}/docs/features/mail.html`);
+        await page.click("#menu");
+
+        await page.selectOption("#sidebar #language", "de");
+
+        await expect(page).toHaveURL(`${BASE}/docs/de/features/mail.html`);
+    });
+
+    /** The landing page has no sidebar, so it must not offer a button for one. */
+    test("the landing page has no burger", async ({ page }) => {
+        await page.goto(`${BASE}/index.html`);
+
+        await expect(page.locator("#menu")).toHaveCount(0);
+    });
 });

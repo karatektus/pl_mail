@@ -36,10 +36,39 @@ return static function (
 ): string {
     $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
+    // The shell's own words. Small enough to keep here rather than invent a
+    // catalogue for, and they have to be translated for the same reason the
+    // pages do: a German page framed in English chrome says the translation was
+    // an afterthought, which is the impression a handbook can least afford.
+    $chrome = [
+        'en' => [
+            'search'    => 'Search the handbook',
+            'handbook'  => 'Handbook',
+            'theme'     => 'Theme',
+            'language'  => 'Language',
+            'edit'      => 'Edit this page',
+            'generated' => 'it is generated from %s in the repository.',
+            'skip'      => 'Skip to content',
+            'menu'      => 'Navigation',
+        ],
+        'de' => [
+            'search'    => 'Handbuch durchsuchen',
+            'handbook'  => 'Handbuch',
+            'theme'     => 'Darstellung',
+            'language'  => 'Sprache',
+            'edit'      => 'Diese Seite bearbeiten',
+            'generated' => 'sie wird aus %s im Repository erzeugt.',
+            'skip'      => 'Zum Inhalt springen',
+            'menu'      => 'Navigation',
+        ],
+    ];
+
+    $t = $chrome[$locale] ?? $chrome['en'];
+
     $sidebar = '';
 
     if (false === $landing) {
-        $sidebar .= '<nav class="sidebar" aria-label="Handbook">';
+        $sidebar .= sprintf('<nav id="sidebar" class="sidebar" aria-label="%s">', $escape($t['handbook']));
 
         foreach ($nav as $section) {
             $sidebar .= sprintf('<p class="sidebar-heading">%s</p><ul>', $escape($section['title']));
@@ -117,33 +146,6 @@ return static function (
 
     // Said in the language the reader asked for, because a reader who does not
     // read English is exactly the person this notice is for.
-    // The shell's own words. Small enough to keep here rather than invent a
-    // catalogue for, and they have to be translated for the same reason the
-    // pages do: a German page framed in English chrome says the translation was
-    // an afterthought, which is the impression a handbook can least afford.
-    $chrome = [
-        'en' => [
-            'search'    => 'Search the handbook',
-            'handbook'  => 'Handbook',
-            'theme'     => 'Theme',
-            'language'  => 'Language',
-            'edit'      => 'Edit this page',
-            'generated' => 'it is generated from %s in the repository.',
-            'skip'      => 'Skip to content',
-        ],
-        'de' => [
-            'search'    => 'Handbuch durchsuchen',
-            'handbook'  => 'Handbuch',
-            'theme'     => 'Darstellung',
-            'language'  => 'Sprache',
-            'edit'      => 'Diese Seite bearbeiten',
-            'generated' => 'sie wird aus %s im Repository erzeugt.',
-            'skip'      => 'Zum Inhalt springen',
-        ],
-    ];
-
-    $t = $chrome[$locale] ?? $chrome['en'];
-
     $untranslated = [
         'de' => 'Diese Seite ist noch nicht übersetzt und wird auf Englisch angezeigt.',
     ];
@@ -154,6 +156,16 @@ return static function (
 
     $generated = sprintf($t['generated'], '<code>' . $escape($source) . '</code>');
 
+    // Rendered only where there is a sidebar to toggle. On the landing page the
+    // button would open nothing, and a control that does nothing is worse than
+    // an absent one.
+    $burger = true === $landing ? '' : sprintf(
+        '<button id="menu" type="button" class="burger" aria-controls="sidebar"'
+        . ' aria-expanded="false" aria-label="%s">'
+        . '<span></span><span></span><span></span></button>',
+        $escape($t['menu']),
+    );
+
     $bodyClass = true === $landing ? 'is-landing' : 'is-doc';
 
     return <<<HTML
@@ -161,7 +173,13 @@ return static function (
         <html lang="{$locale}">
         <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- user-scalable=no is asked for, and it is worth knowing it is half a
+             measure: iOS Safari has ignored it since iOS 10, and disabling pinch
+             zoom is a WCAG 1.4.4 failure where it IS honoured. What actually
+             stops a phone zooming unbidden is the 16px minimum on inputs in
+             site.css — Safari zooms to focus anything smaller — so that is the
+             part carrying the weight here. -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
         <title>{$escape($title)}</title>
         <meta name="description" content="plMail — a self-hosted mail client with a calendar, for one person or a household.">
         <link rel="stylesheet" href="{$root}assets/site.css">
@@ -186,6 +204,7 @@ return static function (
         <a class="skip" href="#content">{$escape($t['skip'])}</a>
 
         <div class="topbar">
+            {$burger}
             <a class="brand" href="{$root}index.html">plMail</a>
             <div class="topbar-links">
                 <a href="{$root}{$prefix}">{$escape($t['handbook'])}</a>

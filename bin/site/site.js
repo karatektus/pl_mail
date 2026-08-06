@@ -105,6 +105,98 @@ if (null !== languagePicker) {
     }
 }
 
+// ── The navigation drawer ────────────────────────────────────────────────────
+//
+// Below the breakpoint the sidebar is off-canvas and this opens it. Above it,
+// the button is display:none and none of this ever runs — there is no second
+// layout to keep in step, just one sidebar the stylesheet places differently.
+//
+// The scrim is created here rather than sitting in every page's HTML: it is
+// pure behaviour, it means nothing without JavaScript, and a page rendered
+// without JS should not carry a dead overlay element.
+
+const burger = document.getElementById("menu");
+const drawer = document.getElementById("sidebar");
+
+if (null !== burger && null !== drawer) {
+    const scrim = document.createElement("div");
+
+    scrim.className = "scrim";
+    document.body.appendChild(scrim);
+
+    const setOpen = (open) => {
+        burger.setAttribute("aria-expanded", open ? "true" : "false");
+        drawer.classList.toggle("is-open", open);
+        scrim.classList.toggle("is-open", open);
+        // The page behind a drawer must not scroll under it — otherwise a
+        // flick meant for the menu takes the article with it.
+        document.body.style.overflow = open ? "hidden" : "";
+    };
+
+    const isOpen = () => "true" === burger.getAttribute("aria-expanded");
+
+    burger.addEventListener("click", () => setOpen(false === isOpen()));
+    scrim.addEventListener("click", () => setOpen(false));
+
+    // Following a link navigates, and the new page arrives with the drawer
+    // shut; closing it first stops the old one animating away underneath.
+    drawer.addEventListener("click", (event) => {
+        if (null !== event.target.closest("a")) {
+            setOpen(false);
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if ("Escape" === event.key && true === isOpen()) {
+            setOpen(false);
+            burger.focus();
+        }
+    });
+
+    // The pickers live in the top bar on a wide screen and at the foot of the
+    // drawer on a narrow one.
+    //
+    // Moved rather than duplicated: two copies would mean two elements with the
+    // same id, which breaks getElementById and therefore both pickers. And
+    // moved by script rather than by CSS because no stylesheet can reparent a
+    // node — the alternative was a second markup block, which is the thing that
+    // drifts.
+    //
+    // It solves a real fight for width. Four controls do not fit across 375px;
+    // with all of them in the bar the search box was squeezed to 24 pixels,
+    // which is not a search box.
+    const pickers = document.querySelector(".pickers");
+    const bar = null === pickers ? null : pickers.parentElement;
+    const narrow = window.matchMedia("(max-width: 60rem)");
+
+    const placePickers = () => {
+        if (null === pickers || null === bar) {
+            return;
+        }
+
+        if (true === narrow.matches) {
+            drawer.appendChild(pickers);
+            pickers.classList.add("pickers-drawer");
+        } else {
+            bar.appendChild(pickers);
+            pickers.classList.remove("pickers-drawer");
+        }
+    };
+
+    placePickers();
+
+    narrow.addEventListener("change", () => {
+        placePickers();
+
+        // Dragged past the breakpoint with the drawer open, the sidebar becomes
+        // static again while body overflow is still hidden — a page that cannot
+        // be scrolled and no visible reason why.
+        if (false === narrow.matches) {
+            setOpen(false);
+        }
+    });
+}
+
 // ── Wide tables ──────────────────────────────────────────────────────────────
 //
 // Wrapped here rather than in the generator, because CommonMark's table
