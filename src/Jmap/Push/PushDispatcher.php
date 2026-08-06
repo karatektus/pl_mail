@@ -17,13 +17,20 @@ use Psr\Log\LoggerInterface;
  * accumulates the dirty (account, type) pairs in memory and this drains them,
  * so a Gmail batch that imports 50 messages produces one notification rather
  * than fifty.
+ *
+ * **The transport is per subscription, not per install.** A user with a phone
+ * on FCM and a desktop browser on Web Push has both told, from the same drained
+ * set, in the same pass — the registry answers with the sender each row asks
+ * for. An unconfigured transport skips its own rows and leaves the others
+ * alone, which is what makes turning Firebase off a decision about Android
+ * rather than about push.
  */
 final class PushDispatcher
 {
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
         private readonly UserRepository $users,
-        private readonly WebPushSender $sender,
+        private readonly PushSenderRegistry $senders,
         private readonly StateChangeBuilder $stateChangeBuilder,
         private readonly LoggerInterface $logger,
     ) {
@@ -34,7 +41,7 @@ final class PushDispatcher
      */
     public function dispatch(array $changed): void
     {
-        if (0 === count($changed) || false === $this->sender->isConfigured()) {
+        if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
 
@@ -42,13 +49,24 @@ final class PushDispatcher
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
 
             foreach ($deliverable as $subscription) {
+                $sender = $this->senders->for($subscription);
+
+                // Not logged per subscription: an install with Firebase
+                // switched off has one of these per Android device per state
+                // change, and a message repeated several times a second buries
+                // everything else. The Session already tells those clients that
+                // FCM is unavailable.
+                if (null === $sender || false === $sender->isConfigured()) {
+                    continue;
+                }
+
                 $filtered = $this->filterToWantedTypes($subscription, $userChanges);
 
                 if (0 === count($filtered)) {
                     continue;
                 }
 
-                $this->sender->send($subscription, $this->stateChangeBuilder->format($filtered));
+                $sender->send($subscription, $this->stateChangeBuilder->format($filtered));
             }
         }
     }

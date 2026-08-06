@@ -237,6 +237,7 @@ admin:
         database: Database
         integrations: Integrations
         logs: Logs
+        push: Push
         reset: Reset
         system: System
         users: Users
@@ -259,6 +260,36 @@ admin:
         calendar_without_public_address: >-
             Without a public HTTPS address, connected calendars simply stay on
             the fifteen-minute sweep.
+        fcm:
+            android_package: 'Android package'
+            api_key: 'API key'
+            application_id: 'Application ID'
+            clear_key: 'Forget the stored key'
+            clear_key_help: 'Removes the service-account key and switches FCM off. Devices already registered stop receiving notifications until a new key is saved.'
+            client_email: 'Service account'
+            enable_without_client: 'There is no google-services.json on file — the Android app would have nothing to initialise Firebase with. Paste one below, or leave FCM switched off.'
+            enable_without_key: 'There is no service-account key on file — paste one below, or leave FCM switched off.'
+            field:
+                enabled: 'Deliver notifications over FCM'
+                enabled_help: 'Clients see this as "fcm" in the session capability, and only offer Firebase when it is on.'
+                google_services: 'google-services.json'
+                google_services_help: 'Firebase console → Project settings → Your apps → the Android app → google-services.json. The app is one build for every installation, so it initialises Firebase from these values at runtime — they are public and are published in the JMAP session.'
+                service_account: 'Firebase service-account key (JSON)'
+                service_account_help: 'Firebase console → Project settings → Service accounts → Generate new private key. Paste the whole file. It is stored encrypted and never shown again. It must belong to the same project as the google-services.json below.'
+            heading: 'Firebase Cloud Messaging'
+            intro: 'FCM is how a native Android app receives notifications in the background. It is optional — a device running a UnifiedPush distributor needs none of this, and neither does the browser app.'
+            paste_none: 'Paste the whole JSON file here'
+            paste_unchanged: 'One is on file — leave blank to keep it'
+            project: 'Firebase project'
+            save: 'Save'
+            saved: 'Firebase settings saved.'
+            sender_id: 'Sender ID'
+        status:
+            incomplete: 'Half configured'
+            key_only: 'Configured, switched off'
+            live: 'Live'
+            unconfigured: 'Not configured'
+        webpush_note: 'Web Push needs nothing here. Its VAPID keys are environment variables, generated once by app:push:generate-vapid-keys, and they serve browsers, the installed PWA and UnifiedPush distributors alike.'
     queues:
         due_in: 'due in %duration%'
         empty: 'No pending messages.'

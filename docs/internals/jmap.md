@@ -441,15 +441,51 @@ resolves accounts back to their owners first, because a subscription belongs to 
 changes are recorded per account, and filters each subscription to the object types it asked
 for.
 
+**Two transports, chosen per subscription.** `App\Domain\Interface\PushSenderInterface` has two
+implementations — `WebPushSender` (RFC 8030/8291/8292, covering browsers, an installed PWA and
+UnifiedPush distributors alike) and `FcmSender` (FCM HTTP v1, for a native Android app, which
+has no push service of its own). `PushSenderRegistry` picks by the `transport` column on the
+row rather than by a `supports()` scan, because the transport is a property of the
+subscription and not an interpretation of it. A user with a phone on Firebase and a browser on
+Web Push is told twice, in one pass; a transport that is unconfigured skips its own rows and
+leaves the others alone, so turning Firebase off is a decision about Android rather than about
+push.
+
+`FcmSender` sends **data messages only** — a `notification` payload would be drawn by the
+system tray before the app saw it, and JMAP pushes no content for anything to draw. The body
+is the same JSON `WebPushSender` sends, carried as one string under `data.payload` because FCM
+data maps are string-to-string. Collapse keys are per payload `@type`, which is a guard rather
+than a refinement: one shared key would let an ordinary `StateChange` discard an undelivered
+`PushVerification`, and the subscription would then wait forever for a code FCM threw away.
+`UNREGISTERED`/`NOT_FOUND` destroy the subscription the way a 404/410 does; `QUOTA_EXCEEDED`
+and 5xx are not even counted as failures, since an outage is not a broken endpoint.
+
+The OAuth2 bearer token FCM needs is minted by `FcmAccessTokenProvider` — a service-account JWT
+grant (RFC 7523) signed with ext-openssl and exchanged at Google's token endpoint, cached until
+it expires. Hand-rolled at about fifty lines rather than pulled in from `google/auth`, which
+would put four packages on a Raspberry Pi for one signature.
+
+Firebase credentials live in the database (`fcm_config`, one row, admin-editable at
+`/admin/push`) rather than in env vars: the key is pasted out of a console, rotated when it
+leaks, and belongs to a project that may not exist when the container is built. The
+service-account key is encrypted through `EncryptedStringType`; the google-services values
+beside it are not, because they are published to every client in the Session.
+
 `PushSubscription/set` (RFC 8620 §7.2.2) carries no accountId — subscriptions are per
 authenticated user — and **the verification handshake is the point**. On create the server
-immediately POSTs a `PushVerification` object to the client-supplied URL; the client reads the
-code out of it and echoes it back via an update, and until it does the subscription receives
-nothing. Without that, anyone with an account could register a stranger's URL and have plMail
-POST to it on every state change. The code proves whoever registered the URL can also read
-what arrives there.
+immediately sends a `PushVerification` object to the address the client gave; the client reads
+the code out of it and echoes it back via an update, and until it does the subscription
+receives nothing. Without that, anyone with an account could register a stranger's address and
+have plMail deliver to it on every state change. The code proves whoever registered the
+address can also read what arrives there. FCM is not exempt — the verification travels as an
+ordinary data message.
 
-`/jmap/eventsource` is the other half, for clients holding a connection rather than a Web Push
+A create carrying `fcmToken` is the FCM shape and a create carrying `url` and `keys` is the Web
+Push one; carrying both is refused rather than resolved by precedence. `fcmToken` is the one
+address property an update may change, because Android reissues tokens on its own schedule —
+and rotating it re-arms the handshake, exactly as re-creating with a new URL does.
+
+`/jmap/eventsource` is the other half, for clients holding a connection rather than a push
 endpoint; the Session advertises it with the `types`, `closeafter` and `ping` parameters.
 
 ## Things that bite

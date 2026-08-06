@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Core;
 
+use App\Domain\Enum\PushTransport;
 use App\Entity\User\PushSubscription;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Jmap\Push\WebPushSender;
+use App\Jmap\Push\PushSenderRegistry;
 use App\Repository\User\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -17,20 +18,51 @@ use Doctrine\ORM\EntityManagerInterface;
  * per authenticated user.
  *
  * THE VERIFICATION HANDSHAKE IS THE POINT. On create the server immediately
- * POSTs a PushVerification object to the client-supplied URL; the client reads
- * the code out of it and echoes it back via an update. Until it does, the
+ * sends a PushVerification object to the address the client gave; the client
+ * reads the code out of it and echoes it back via an update. Until it does, the
  * subscription receives nothing.
  *
  * That is what stops this endpoint being an open relay: without it, anyone
- * with an account could register a stranger's URL and have plMail POST to it
- * on every state change. The code proves whoever registered the URL can also
- * read what arrives there.
+ * with an account could register a stranger's address and have plMail deliver
+ * to it on every state change. The code proves whoever registered the address
+ * can also read what arrives there.
+ *
+ * **Two transports, one handshake.** A create carrying `url` and `keys` is a
+ * Web Push subscription; a create carrying `fcmToken` is a Firebase one, and
+ * `fcmToken` is a plMail extension of the RFC's object. The two shapes are
+ * exclusive and a create carrying both is refused rather than resolved by
+ * precedence — a client that sends both has a bug, and picking one for it would
+ * mean the device it actually reaches depends on which check this class runs
+ * first. Everything else is identical: deviceClientId still identifies the
+ * device, `types` still filters, `expires` is still echoed unchanged, and the
+ * verification round trip is required of both. FCM is not exempt; the code is
+ * delivered as an ordinary data message and echoed back the same way.
+ *
+ * **`fcmToken` is the one address property an update may change.** Web Push
+ * refuses a `url` patch because repointing a verified subscription would carry
+ * the verification to an endpoint that proved nothing — but Android reissues
+ * registration tokens on its own schedule, so refusing rotation would mean a
+ * device going permanently silent for doing something normal. The safety
+ * property is kept rather than dropped: rotating re-arms the handshake, exactly
+ * as re-creating with a new URL does, and the client verifies again against the
+ * new token.
  */
 final class PushSubscriptionSetMethod implements JmapMethod
 {
+    /**
+     * What a create may carry, named in the refusals. Two shapes, so the
+     * message can say which one the caller is halfway into.
+     *
+     * @var array<string,list<string>>
+     */
+    private const array CREATE_PROPERTIES = [
+        PushTransport::WebPush->value => ['deviceClientId', 'url', 'keys', 'types', 'expires'],
+        PushTransport::Fcm->value     => ['deviceClientId', 'fcmToken', 'types', 'expires'],
+    ];
+
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
-        private readonly WebPushSender $sender,
+        private readonly PushSenderRegistry $senders,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -88,11 +120,14 @@ final class PushSubscriptionSetMethod implements JmapMethod
             }
 
             try {
+                $transport = $this->transportOf($properties);
                 $deviceClientId = $this->requireString($properties['deviceClientId'] ?? null, 'deviceClientId');
-                $url = $this->requireUrl($properties['url'] ?? null);
                 $types = $this->types($properties['types'] ?? null);
                 $expires = $this->expires($properties['expires'] ?? null);
-                $keys = $this->requireKeys($properties['keys'] ?? null);
+
+                $url = PushTransport::WebPush === $transport ? $this->requireUrl($properties['url'] ?? null) : null;
+                $keys = PushTransport::WebPush === $transport ? $this->requireKeys($properties['keys'] ?? null) : null;
+                $token = PushTransport::Fcm === $transport ? $this->requireString($properties['fcmToken'] ?? null, 'fcmToken') : null;
             } catch (MethodException $exception) {
                 $notCreated[$creationId] = $exception->toError();
                 continue;
@@ -103,18 +138,35 @@ final class PushSubscriptionSetMethod implements JmapMethod
             // dead endpoint per install.
             $subscription = $this->subscriptions->findOneByDeviceClientId($context->user, $deviceClientId);
 
+            // A device that changed transports — the user installed a
+            // UnifiedPush distributor, or removed it — cannot have its row
+            // mutated across the two shapes, so the old one goes and a new one
+            // takes its place. Flushed on its own first: (usr_id,
+            // device_client_id) is unique and Doctrine orders inserts before
+            // deletes within a flush, so doing both at once hits the
+            // constraint on the row being replaced.
+            if (null !== $subscription && $subscription->transport !== $transport) {
+                $this->entityManager->remove($subscription);
+                $this->entityManager->flush();
+                $subscription = null;
+            }
+
             if (null === $subscription) {
-                $subscription = new PushSubscription($context->user, $deviceClientId, $url);
+                $subscription = PushTransport::Fcm === $transport
+                    ? PushSubscription::fcm($context->user, $deviceClientId, (string) $token)
+                    : PushSubscription::webPush($context->user, $deviceClientId, (string) $url);
+
                 $this->entityManager->persist($subscription);
+            } elseif (PushTransport::Fcm === $transport) {
+                $subscription->rotateFcmToken((string) $token);
             } else {
-                $subscription->url = $url;
-                $subscription->reissueVerification();
+                $subscription->pointAt((string) $url);
             }
 
             $subscription->types = $types;
             $subscription->expires = $expires;
-            $subscription->p256dh = $keys['p256dh'];
-            $subscription->auth = $keys['auth'];
+            $subscription->p256dh = $keys['p256dh'] ?? null;
+            $subscription->auth = $keys['auth'] ?? null;
 
             $this->entityManager->flush();
 
@@ -164,10 +216,19 @@ final class PushSubscriptionSetMethod implements JmapMethod
             }
 
             try {
-                $this->applyPatch($subscription, $patch);
+                $reverify = $this->applyPatch($subscription, $patch);
             } catch (MethodException $exception) {
                 $notUpdated[$id] = $exception->toError();
                 continue;
+            }
+
+            if (true === $reverify) {
+                // Flushed here rather than with the rest of the call: the
+                // verification carries the code that was just minted, and a
+                // send made before the write would race a client that echoes
+                // it back faster than this method returns.
+                $this->entityManager->flush();
+                $this->sendVerification($subscription);
             }
 
             $updated[$id] = null;
@@ -177,8 +238,10 @@ final class PushSubscriptionSetMethod implements JmapMethod
     /**
      * @param array<string,mixed> $patch
      */
-    private function applyPatch(PushSubscription $subscription, array $patch): void
+    private function applyPatch(PushSubscription $subscription, array $patch): bool
     {
+        $reverify = false;
+
         foreach ($patch as $property => $value) {
             switch ((string) $property) {
                 case 'verificationCode':
@@ -196,12 +259,25 @@ final class PushSubscriptionSetMethod implements JmapMethod
                     $subscription->types = $this->types($value);
                     break;
 
+                case 'fcmToken':
+                    if (PushTransport::Fcm !== $subscription->transport) {
+                        throw new MethodException('invalidPatch', 'This is a Web Push subscription; "fcmToken" cannot be set on it. Create a new subscription with the same deviceClientId to move the device to FCM.');
+                    }
+
+                    $subscription->rotateFcmToken($this->requireString($value, 'fcmToken'));
+                    $reverify = true;
+                    break;
+
                 default:
-                    // url and keys are create-only: changing where pushes go
-                    // has to redo the handshake, which means a new create.
-                    throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated.', $property));
+                    // url and keys are create-only: changing where an encrypted
+                    // payload goes has to redo the handshake, which means a new
+                    // create. fcmToken above is the deliberate exception, and
+                    // it redoes the handshake in place rather than skipping it.
+                    throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated. Updatable properties are "verificationCode", "expires", "types" and, on an FCM subscription, "fcmToken".', $property));
             }
         }
+
+        return $reverify;
     }
 
     /**
@@ -236,17 +312,67 @@ final class PushSubscriptionSetMethod implements JmapMethod
     }
 
     /**
-     * RFC 8620 §7.2.2: a PushVerification object sent to the endpoint itself.
+     * RFC 8620 §7.2.2: a PushVerification object sent to the address itself —
+     * POSTed to the endpoint for Web Push, delivered as an FCM data message for
+     * Firebase, and identical JSON either way.
+     *
      * A failure is not fatal — the subscription simply stays unverified and
      * the client can ask for a new one by creating again.
      */
     private function sendVerification(PushSubscription $subscription): void
     {
-        $this->sender->send($subscription, [
+        $this->senders->for($subscription)?->send($subscription, [
             '@type' => 'PushVerification',
             'pushSubscriptionId' => (string) $subscription->id,
             'verificationCode' => (string) $subscription->verificationCode,
         ]);
+    }
+
+    /**
+     * Which kind of subscription this create is asking for, refusing the ones
+     * that are asking for both or for one that is switched off.
+     *
+     * `fcmToken` is what decides it, because it is the property RFC 8620 does
+     * not define — a create without it is the standard object and must keep
+     * meaning exactly what it meant before FCM existed.
+     *
+     * The conflict is refused rather than resolved. A create carrying both a
+     * token and a URL is a client bug, and choosing one would mean the device
+     * that actually receives the mail depends on the order of two ifs in here.
+     *
+     * @param array<string,mixed> $properties
+     */
+    private function transportOf(array $properties): PushTransport
+    {
+        if (false === array_key_exists('fcmToken', $properties) || null === $properties['fcmToken']) {
+            return PushTransport::WebPush;
+        }
+
+        foreach (['url', 'keys'] as $webPushOnly) {
+            if (true === array_key_exists($webPushOnly, $properties) && null !== $properties[$webPushOnly]) {
+                throw new MethodException('invalidProperties', sprintf(
+                    '"fcmToken" and "%s" cannot both be set: a subscription is either an FCM one or a Web Push one. '
+                    . 'An FCM create takes %s; a Web Push create takes %s.',
+                    $webPushOnly,
+                    implode(', ', self::CREATE_PROPERTIES[PushTransport::Fcm->value]),
+                    implode(', ', self::CREATE_PROPERTIES[PushTransport::WebPush->value]),
+                ));
+            }
+        }
+
+        $sender = $this->senders->of(PushTransport::Fcm);
+
+        // Refused rather than stored, because a stored FCM subscription on an
+        // install with no Firebase project is a device that has completed
+        // registration, is waiting for a verification that will never arrive,
+        // and has no way to find out. The Session says the same thing earlier
+        // and more cheaply — this is the backstop for a client that did not
+        // look.
+        if (null === $sender || false === $sender->isConfigured()) {
+            throw new MethodException('forbidden', 'FCM push is not configured on this server. Check "fcm" in the "urn:plmail:params:jmap:push" session capability before creating an FCM subscription, and use "url" with "keys" for Web Push instead.');
+        }
+
+        return PushTransport::Fcm;
     }
 
     /**

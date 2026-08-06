@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
+use App\Domain\Enum\PushTransport;
+use App\Domain\Interface\PushSenderInterface;
 use App\Entity\User\PushSubscription as JmapPushSubscription;
 use Doctrine\ORM\EntityManagerInterface;
 use Minishlink\WebPush\Subscription;
@@ -14,16 +16,18 @@ use Psr\Log\LoggerInterface;
  * Delivers JMAP push payloads over Web Push (RFC 8030 transport, RFC 8291
  * payload encryption, RFC 8292 VAPID signing).
  *
- * One implementation covers every platform, because they all speak the same
- * protocol: UnifiedPush distributors on Android, Apple's gateway for an
- * installed PWA on iOS, and the browser push services on desktop.
+ * One implementation covers every platform that speaks the protocol:
+ * UnifiedPush distributors on Android, Apple's gateway for an installed PWA on
+ * iOS, and the browser push services on desktop. The one that does not is
+ * Android's own service, which is FcmSender's subject — the two are separate
+ * implementations of PushSenderInterface and share nothing but the JSON.
  *
  * Endpoints that are permanently gone (404/410) are deleted rather than
  * retried — a browser that revokes a subscription answers 410 forever, and
  * keeping it would mean a failing POST on every state change until the heat
  * death of the universe.
  */
-final class WebPushSender
+final class WebPushSender implements PushSenderInterface
 {
     /**
      * Consecutive failures tolerated before an endpoint is dropped. Covers a
@@ -40,6 +44,11 @@ final class WebPushSender
     ) {
     }
 
+    public function transport(): PushTransport
+    {
+        return PushTransport::WebPush;
+    }
+
     public function isConfigured(): bool
     {
         return '' !== $this->vapidPublicKey && '' !== $this->vapidPrivateKey;
@@ -52,6 +61,19 @@ final class WebPushSender
     {
         if (false === $this->isConfigured()) {
             $this->logger->warning('Web Push is not configured; set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.');
+
+            return false;
+        }
+
+        // Nullable since FCM subscriptions arrived, and they hold a token
+        // instead. PushSenderRegistry routes by transport so this cannot
+        // normally fire — it is here so a mis-routed row is a logged refusal
+        // rather than a TypeError inside the push library.
+        if (null === $subscription->url || '' === $subscription->url) {
+            $this->logger->error('Web Push: subscription has no endpoint URL', [
+                'subscriptionId' => $subscription->id,
+                'transport'      => $subscription->transport->value,
+            ]);
 
             return false;
         }

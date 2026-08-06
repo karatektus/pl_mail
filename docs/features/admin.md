@@ -155,6 +155,46 @@ Per-provider setup steps are on [Google](../providers/google.md),
 [Microsoft](../providers/microsoft.md) and, for the calendar side,
 [CalDAV](../providers/caldav.md).
 
+## Push
+
+One screen, and it is only about Firebase. Web Push needs nothing here: its VAPID keys are
+environment variables minted once by `app:push:generate-vapid-keys`, and they serve browsers, the
+installed PWA and UnifiedPush distributors alike. A settings page showing them read-only beside an
+editable Firebase key would suggest they can be changed from here.
+
+Firebase Cloud Messaging is how a **native Android app** receives notifications in the background,
+because Android has no other push service and a plain Android app cannot speak Web Push. It is
+optional in the fullest sense — a user running a UnifiedPush distributor needs none of it, and the
+browser app never touches it.
+
+Two files, and neither is any use alone:
+
+- **The service-account key**, from Firebase console → Project settings → Service accounts →
+  Generate new private key. This is how the server sends. It is stored encrypted with everything
+  else this install holds, and never shown again.
+- **`google-services.json`**, from Project settings → Your apps → the Android app. This is how the
+  *app* initialises Firebase. The plMail Android app is one build published to every installation
+  while every installation has its own Firebase project, so it cannot be compiled in — the values
+  are published in the JMAP session instead and the app builds its `FirebaseOptions` at runtime.
+  They ship inside every Firebase APK and are public by nature, so they are stored in clear.
+
+**A pair from two different projects is refused, saying which is which.** Nothing downstream can
+detect that mistake: the app registers happily against one project, the server sends happily to the
+other, every message is rejected into a log file and the user's symptom is that notifications do not
+work. This screen is the only place both halves are in one person's hands.
+
+The same goes for the wrong file. The Firebase console offers four downloads that are all valid
+JSON, so a rejection names the keys the file is missing rather than saying it is invalid.
+
+The toggle is separate from the credentials, so switching FCM off is not the same as losing the key.
+It cannot be turned on until both files are present — enabling early would advertise FCM to every
+client and then refuse every registration, which a client cannot tell apart from a bug at its own
+end. The chip beside the heading distinguishes **Live**, **Configured, switched off**, **Half
+configured** and **Not configured** for exactly that reason.
+
+Nothing here needs a restart. That is the whole reason this is a database row rather than an
+environment variable.
+
 ## Users
 
 A searchable, paged list of everyone who can sign in, with when they last signed in and whether they
@@ -254,3 +294,13 @@ provider, or connecting fails at consent time.
 
 **You cannot remove the last administrator, or yourself.** Both are refused rather than warned
 about, which occasionally reads as a broken button.
+
+**Rotating `APP_ENCRYPTION_KEY` takes the Firebase key with it.** The service-account JSON is stored
+encrypted like every other credential, so a changed key makes it unreadable — push over FCM goes
+quietly off, the session starts saying `fcm: false`, and the fix is to paste the key again. The
+google-services values survive, because they were never encrypted.
+
+**Replacing only one of the two Firebase files is refused if the projects differ.** That is
+deliberate and it is the message to read rather than work around: a service-account key from one
+project with a `google-services.json` from another produces an installation where everything looks
+configured and nothing is ever delivered.

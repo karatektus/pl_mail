@@ -17,6 +17,12 @@ use App\Repository\User\PushSubscriptionRepository;
  * the authenticated user, not to a mail account — and it MUST NOT return the
  * verification code or the client's keys, so the response is deliberately
  * narrower than the stored object.
+ *
+ * `transport` is a plMail addition and read-only. A client that can create both
+ * kinds needs it: registration replaces itself per deviceClientId, so a phone
+ * that moved from a UnifiedPush distributor to FCM has one row rather than two,
+ * and "which kind did I end up with?" is otherwise answerable only by noticing
+ * that `url` is null.
  */
 final class PushSubscriptionGetMethod implements JmapMethod
 {
@@ -81,10 +87,15 @@ final class PushSubscriptionGetMethod implements JmapMethod
         return [
             'id' => (string) $subscription->id,
             'deviceClientId' => $subscription->deviceClientId,
+            // plMail extension. "webpush" or "fcm"; see the class docblock.
+            'transport' => $subscription->transport->value,
+            // Null on an FCM subscription — there is no URL, and inventing one
+            // would be a value a client could try to POST to.
             'url' => $subscription->url,
-            // "keys" and "verificationCode" are write-only by design: echoing
-            // them back would let anyone who can read one response forge
-            // pushes to that device.
+            // "keys", "fcmToken" and "verificationCode" are write-only by
+            // design: echoing them back would let anyone who can read one
+            // response forge pushes to that device. The token is in that class
+            // as much as the keys are — it is the whole address of a phone.
             'types' => $subscription->types,
             'expires' => $subscription->expires?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ];
