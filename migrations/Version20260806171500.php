@@ -45,7 +45,7 @@ use Doctrine\Migrations\AbstractMigration;
  * feature" and is called out here because migrations run automatically on boot
  * and a reader of the changelog is entitled to know what a rollback costs.
  */
-final class Version20260806120000 extends AbstractMigration
+final class Version20260806171500 extends AbstractMigration
 {
     public function getDescription(): string
     {
