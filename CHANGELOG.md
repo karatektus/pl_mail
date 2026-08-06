@@ -6,13 +6,15 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.0.18 — 2026-08-06
 
-**Two schema changes, both additive and applied automatically on boot.**
+**Five schema changes, all additive and applied automatically on boot.**
 `calendar_event` gains `my_participation` and `label_binding` gains
-`graph_category_id`. Neither is backfilled and neither rewrites anything; the
-reasons are in the migrations and are worth reading before upgrading, because
-one of them changes when an invitation appears on your calendar.
+`graph_category_id` (neither backfilled — the reasons are in the migrations and
+are worth reading before upgrading, because one of them changes when an
+invitation appears on your calendar). New tables `fcm_config` and
+`push_delivery`, and `message` gains two submission timestamps; those three
+carry the push and scheduled-send features below and touch nothing existing.
 
 **An invitation lands on the calendar when you accept it, and not before.**
 *Yes* or *Maybe* puts it there, *No* takes it back off, and nothing about that is
@@ -90,6 +92,53 @@ had, its id is recorded when Outlook is read, and every message carrying the old
 name is pushed again so it carries the new one. Also fixed alongside: a category
 id was being written into the column that means "this label is an Exchange
 folder", so a label plMail created as a tag started being pushed as a location.
+
+**Push can reach a phone through Firebase now, beside Web Push.** Configured at
+runtime under Admin → Push: paste your own Firebase project's service-account
+key and its `google-services.json`, and the session starts advertising the
+public half — which is how one stock Play-Store build of the Android app
+configures itself against whichever instance it is signed into. No Firebase, no
+Google: Web Push and pull-only still work exactly as before, and a client is
+told honestly which transports this instance can actually deliver over.
+Messages travel as data-only payloads; Google learns that something arrived and
+when, never what it says.
+
+**Every push attempt is on the record.** Admin → Push → Deliveries lists what
+was sent to which device over which transport, with the outcome, the error name
+that tells a dead phone from a Firebase outage, and the latency; your own
+devices and their last delivery appear in Settings → Notifications. Nothing of
+a payload beyond its type is stored, and the record outlives the subscription
+it is about. Pruned after 30 days.
+
+**A scheduled send is now something the server admits to.** `EmailSubmission/get`
+answers a held submission as `pending` with its real release time, a cancelled
+one as `canceled`, and the changes feed reports both transitions — so a mail
+scheduled on one device is visible, and cancellable, from every other. Found
+and fixed alongside: cancelling a mail that was never submitted used to arm a
+flag that silently swallowed that draft's *next* send.
+
+**JMAP grew the surface a native client was waiting for.** `Email/set` update
+applies `attachments` instead of silently dropping them (a refused patch now
+writes nothing at all, the subject beside it included); `EmailSubmission/set`
+honours `identityId`, so sending as an alias actually sends as the alias;
+scheduled send via the standard FUTURERELEASE envelope parameters, up to thirty
+days; `Contact/autocomplete` serves recipient suggestions ranked by the same
+query the web composer uses; `Appearance/get|set` syncs the theme a user chose;
+the session states each account's sync window instead of leaving a client to
+probe for it; and `CalendarEvent/query` expands recurrences server-side, so
+drawing a month of a repeating series costs one round trip instead of
+thirty-one. Every extension sits under a `urn:plmail:` URN and is documented in
+`docs/CLIENT_DEVELOPMENT.md`.
+
+**Your configuration fits in one file you can actually restore.** Admin →
+Backup exports the instance's secrets and credentials — env values, the JWT
+keypair, the provider and Firebase credentials, decrypted so they survive the
+move to a machine with a different encryption key — sealed with a password of
+yours (Argon2id + secretbox, format documented down to the shell one-liner that
+opens it). Import shows its plan before touching anything, applies what it
+honestly can, and prints the exact lines for what only you can place. A fresh
+install offers the same restore on `/install`, before the first account exists
+and never after.
 
 ## v0.0.17 — 2026-08-05
 
