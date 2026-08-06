@@ -38,8 +38,8 @@ Concretely, **stop and ask before** you:
 - invent local state (custom keywords, shadow flags, local-only labels) that can't round-trip;
 - denormalise or cache something in a way that would break if the server later did it properly.
 
-Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging, JMAP
-Contacts, JWT issuance, a cross-account unified query — are all *candidates for
+Things this document flags as **not implemented** — `Email/queryChanges`, anchor paging, JWT
+issuance, a cross-account unified query — are all *candidates for
 being built*, not permanent constraints. Raise the need with the maintainer and decide together
 whether it belongs in the server or the client.
 
@@ -585,7 +585,10 @@ your client wants one, **ask for it rather than engineering around it** (see [§
 - **`Email/query` always returns `total`; `Mailbox/query` only with `calculateTotal: true`.**
 - **`VacationResponse/*` and `Blob/copy`** are absent. `SearchSnippet/get` is not — it was listed
   here as missing while `SearchSnippetGetMethod` was in the tree.
-- **No JMAP Contacts.** Calendars are served, under `urn:plmail:params:jmap:calendars`; there is no
+- **Contacts are autocomplete only.** `Contact/autocomplete`, under
+  `urn:plmail:params:jmap:contacts`, returns ranked recipient suggestions; there is no
+  `Contact/get`, `/query` or `/set` — the address book is harvested from mail headers, not writable.
+  Calendars are served, under `urn:plmail:params:jmap:calendars`; there is no
   `Calendar/set` and no `/changes` on either type, because calendars cannot calculate changes — see
   [JMAP](internals/jmap.md).
 
@@ -917,9 +920,10 @@ Ordered roughly by how much users will miss them.
 
 **Writing**
 - Compose, reply, reply-all, forward. Rich text.
-- Contact autocomplete (harvested from synced mail server-side; there is no JMAP Contacts — for a
-  native client, either cache addresses locally from mail you've seen or fall back to the OS address
-  book).
+- Contact autocomplete (harvested from synced mail server-side; ask `Contact/autocomplete` under
+  `urn:plmail:params:jmap:contacts` — the server ranks over the whole address book, so it beats a
+  local cache. The OS address book remains a sensible *supplement* for people the user has never
+  mailed).
 - Send from any account **and any sendable alias** — always show the From picker.
 - Draft autosave.
 - Undo send (client-side for JMAP; see above).

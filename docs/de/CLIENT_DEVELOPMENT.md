@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:fd2328912608e23700be126b3cb795ca96be92d8 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ab0266727ebf76b04376fcf2e8d7bfd1d42a5961 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -47,7 +47,7 @@ Konkret: **halt inne und frag nach, bevor du**
   ordentlich täte.
 
 Was dieses Dokument als **nicht implementiert** kennzeichnet — `Email/queryChanges`,
-Anchor-Paging, JMAP Contacts, JWT-Ausgabe, eine kontoübergreifende
+Anchor-Paging, JWT-Ausgabe, eine kontoübergreifende
 vereinigte Abfrage — sind allesamt *Kandidaten für den Bau*, keine dauerhaften Einschränkungen.
 Bring den Bedarf beim Maintainer zur Sprache und entscheidet gemeinsam, ob er in den Server oder
 in den Client gehört.
@@ -645,7 +645,10 @@ konstruieren** (siehe [§0](#0-lies-das-zuerst-der-server-wird-aktiv-weiterentwi
 - **`Email/query` liefert immer `total`; `Mailbox/query` nur mit `calculateTotal: true`.**
 - **`VacationResponse/*` und `Blob/copy`** fehlen. `SearchSnippet/get` nicht — es stand hier als
   fehlend, während `SearchSnippetGetMethod` bereits im Baum lag.
-- **Kein JMAP Contacts.** Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
+- **Kontakte sind nur Autovervollständigung.** `Contact/autocomplete`, unter
+  `urn:plmail:params:jmap:contacts`, liefert gereihte Empfängervorschläge; es gibt kein
+  `Contact/get`, `/query` oder `/set` — das Adressbuch wird aus Mail-Headern geerntet und ist nicht
+  beschreibbar. Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
   gibt kein `Calendar/set` und kein `/changes` auf beiden Typen, weil Kalender keine Änderungen
   berechnen können — siehe [JMAP](internals/jmap.md).
 
@@ -1009,9 +1012,10 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Schreiben**
 - Verfassen, antworten, allen antworten, weiterleiten. Formatierter Text.
-- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet; es gibt
-  kein JMAP Contacts — für einen nativen Client entweder Adressen aus gesehener Mail lokal cachen
-  oder auf das Adressbuch des Betriebssystems zurückfallen).
+- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet; frag
+  `Contact/autocomplete` unter `urn:plmail:params:jmap:contacts` — der Server reiht über das ganze
+  Adressbuch und schlägt damit jeden lokalen Cache. Das Adressbuch des Betriebssystems bleibt eine
+  sinnvolle *Ergänzung* für Menschen, denen der Nutzer noch nie geschrieben hat).
 - Senden aus jedem Konto **und jedem sendefähigen Alias** — zeig immer die Von-Auswahl.
 - Automatisches Speichern von Entwürfen.
 - Senden rückgängig machen (bei JMAP clientseitig; siehe oben).
