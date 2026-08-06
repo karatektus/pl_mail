@@ -714,6 +714,15 @@ Creates drafts, updates keywords and `mailboxIds`, and "destroys".
   app archives in Gmail.
 - `ifInState` is honoured — use it for conflict detection on batch mutations.
 - Draft creation writes through the same draft writer the composer uses.
+- **`attachments` works on `update` as well as `create`, and is a whole value.**
+  Attach a file to a draft that already exists by sending the complete list you want it to end
+  up with — the `p-` blobIds `Email/get` gave you for the parts you are keeping, plus the `u-`
+  blobId of whatever you just uploaded. Parts you leave out are removed, and their bytes are
+  deleted. A part re-listed by its `p-` blobId keeps its id and is not re-uploaded; supply a
+  different `name` on it and the file is renamed. There is no need to recreate the draft.
+- **A blobId that will not resolve fails the whole update.** You get
+  `notUpdated[id].type = "invalidProperties"` and *nothing* in that patch is applied — not the
+  attachments, not the subject beside them. Retry the whole patch after re-uploading.
 
 **Semantic reminder:** "archived" in plMail's domain model means *carries no Inbox label*. To archive,
 remove the Inbox mailbox id. The Archive label itself is IMAP location bookkeeping for plain-IMAP

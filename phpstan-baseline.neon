@@ -503,12 +503,6 @@ parameters:
 			path: src/Jmap/Mail/EmailPatchApplier.php
 
 		-
-			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: src/Jmap/Mail/JmapDraftWriter.php
-
-		-
 			message: '#^Method App\\Jmap\\Mapper\\EmailMapper\:\:mailboxIds\(\) never returns array\<string, bool\> so it can be removed from the return type\.$#'
 			identifier: return.unusedType
 			count: 1

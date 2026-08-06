@@ -11,12 +11,14 @@ use App\Jmap\Blob\BlobId;
 use App\Jmap\Blob\BlobResolver;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Turns a JMAP Email/set "create" object into a persisted plMail draft.
+ * Turns a JMAP Email/set "create" or "update" object into a persisted plMail
+ * draft.
  *
  * What a draft is — Drafts label, mailbox pointer, sanitised body, threading,
  * thread-label resync — is DraftPersister's, shared with the web composer.
@@ -35,6 +37,7 @@ final class JmapDraftWriter
         private readonly BlobResolver $blobResolver,
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly DraftPersister $drafts,
+        private readonly DraftAttachmentService $draftAttachments,
     ) {
     }
 
@@ -71,12 +74,27 @@ final class JmapDraftWriter
      * subject the user never touched.
      *
      * The message keeps its id, its thread and its place in the Drafts label,
-     * so a draft edited from three devices stays one draft.
+     * so a draft edited from three devices stays one draft — which is what lets
+     * a phone composer attach a file to a draft it autosaved a minute ago
+     * instead of recreating it under a new id.
+     *
+     * A named property is a whole value, though: `attachments` carries the
+     * complete set the draft should end up with, not an addition to it. See
+     * planAttachments().
      *
      * @param array<string,mixed> $patch already filtered to draft properties
      */
-    public function update(Message $message, array $patch): void
+    public function update(Account $account, Message $message, array $patch): void
     {
+        // Worked out before anything is written, and applied last. Resolving a
+        // blob is the only part of an update that can fail on input the client
+        // could not check for itself, and a client told "notUpdated" has to be
+        // able to assume the draft is as it was — finding the subject from the
+        // same patch applied anyway leaves it unable to say what it now holds.
+        $attachments = true === array_key_exists('attachments', $patch)
+            ? $this->planAttachments($message, $account, $patch['attachments'])
+            : null;
+
         if (true === array_key_exists('subject', $patch)) {
             $message->subject = $this->stringOrNull($patch['subject'], 'subject');
         }
@@ -98,6 +116,9 @@ final class JmapDraftWriter
             $message->bodyText = $this->plainText($message->bodyHtml);
         }
 
+        if (null !== $attachments) {
+            $this->writeAttachments($message, $attachments);
+        }
 
         $this->entityManager->flush();
     }
@@ -129,28 +150,69 @@ final class JmapDraftWriter
     /**
      * Turns uploaded blobs into draft attachments.
      *
-     * RFC 8621 has a client upload bytes to /jmap/upload and then name the
-     * returned blobId in Email.attachments. The bytes are *copied* into
-     * attachment storage rather than referenced in place: an UploadedBlob is
-     * scratch space that PruneBlobsCommand reclaims on a timer, so a draft
-     * pointing at one would lose its files days later, with nothing to say
-     * why.
-     *
-     * Resolution goes through BlobResolver, which filters by account — so a
-     * blobId belonging to another account, or another user, resolves to null
-     * and is refused rather than attached.
+     * Nothing more than create's entry into the same machinery the update path
+     * uses: a create is the whole-value case with no existing parts to keep or
+     * to drop, so the two paths deliberately share one implementation rather
+     * than being two versions of blob resolution that can drift.
      *
      * @param array<string,mixed> $create
      */
     private function applyAttachments(Message $message, Account $account, array $create): void
     {
-        $attachments = $create['attachments'] ?? null;
-
-        if (false === is_array($attachments) || 0 === count($attachments)) {
+        if (false === array_key_exists('attachments', $create)) {
             return;
         }
 
-        $stored = 0;
+        $this->writeAttachments($message, $this->planAttachments($message, $account, $create['attachments']));
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Works out what the draft's attachments have to become, changing nothing.
+     *
+     * `attachments` is a whole value, not a patch — RFC 8620 §5.3 spells a
+     * patch as `attachments/0` and this key is the plain property — so the
+     * array carries the complete set the draft should end up with, and a part
+     * the client left out is one it removed. That is also what the web
+     * composer's attachment strip means when it re-renders.
+     *
+     * A part already on this draft, named by the `p-` blobId Email/get handed
+     * out, is kept exactly where it is. Re-uploading a file the server already
+     * holds in order to change the subject would be absurd, and the stored copy
+     * is what the send path reads.
+     *
+     * Everything else is resolved through BlobResolver, which filters by
+     * account, so a blobId belonging to another account — or another user —
+     * resolves to null and is refused rather than attached. The bytes are
+     * *copied* into attachment storage rather than referenced in place: an
+     * UploadedBlob is scratch space that PruneBlobsCommand reclaims on a timer,
+     * so a draft pointing at one would lose its files days later, with nothing
+     * to say why.
+     *
+     * The whole plan is built before the caller writes any of it, so a set
+     * naming one bad blobId leaves the draft's existing files alone.
+     *
+     * @return array{
+     *     keep: array<int,array{part:MessagePart,name:?string,type:?string}>,
+     *     add: list<array{name:string,type:string,content:string}>,
+     * }
+     */
+    private function planAttachments(Message $message, Account $account, mixed $attachments): array
+    {
+        if (false === is_array($attachments)) {
+            throw new MethodException('invalidProperties', '"attachments" must be an array of EmailBodyPart objects.');
+        }
+
+        $onDraft = [];
+
+        foreach ($message->messageParts as $part) {
+            if (null !== $part->id) {
+                $onDraft[$part->id] = $part;
+            }
+        }
+
+        $keep = [];
+        $add  = [];
 
         foreach ($attachments as $index => $attachment) {
             if (false === is_array($attachment)) {
@@ -164,64 +226,148 @@ final class JmapDraftWriter
             }
 
             $blobId = BlobId::parse($rawId);
-            $blob = null !== $blobId ? $this->blobResolver->resolve($account, $blobId) : null;
 
-            if (null === $blob) {
-                // Deliberately the same answer for "expired", "never existed"
-                // and "belongs to someone else": distinguishing them would tell
-                // a caller which blob ids are real.
-                throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId cannot be resolved.', (string) $index));
+            if (null !== $blobId && true === $blobId->isPart() && true === array_key_exists($blobId->id, $onDraft)) {
+                $keep[$blobId->id] = [
+                    'part' => $onDraft[$blobId->id],
+                    // Only when the client actually said so. An omitted name is
+                    // "leave it alone", not "call it attachment-3" — a client
+                    // re-listing a part it is not editing sends the blobId and
+                    // little else.
+                    'name' => $this->declaredName($attachment),
+                    'type' => $this->declaredType($attachment),
+                ];
+
+                continue;
             }
 
-            // A resolved blob carries either bytes or a path, depending on
-            // which of the four blob kinds it came from.
-            $content = $blob->content ?? (null !== $blob->path ? (string) file_get_contents($blob->path) : '');
-
-            if ('' === $content) {
-                throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId resolved to no content.', (string) $index));
-            }
-
-            $filename = $this->attachmentName($attachment, $index);
-
-            $storagePath = $this->attachmentStorage->store(
-                (int) $account->id,
-                (int) ($message->mailbox->id ?? 0),
-                (int) $message->id,
-                $filename,
-                $content,
-            );
-
-            $part = new MessagePart();
-            $part->message = $message;
-            // The client's declared type, as the spec requires it be echoed —
-            // but the download endpoint still refuses to render anything but
-            // images inline, so a lie here buys nothing.
-            $part->contentType = $this->attachmentType($attachment);
-            $part->filename    = $filename;
-            $part->disposition = 'attachment';
-            $part->size        = strlen($content);
-            $part->storagePath = $storagePath;
-            $part->isInline    = false;
-
-            $message->addMessagePart($part);
-            $this->entityManager->persist($part);
-
-            ++$stored;
+            // A `p-` blob belonging to a *different* message of this account
+            // lands here rather than above, and is copied: that is how a client
+            // forwards an attachment into a draft.
+            $add[] = [
+                'name'    => $this->declaredName($attachment) ?? sprintf('attachment-%s', (string) $index),
+                'type'    => $this->declaredType($attachment) ?? 'application/octet-stream',
+                'content' => $this->blobContent($account, $blobId, $index),
+            ];
         }
 
-        $message->hasAttachments = $stored > 0;
-        $this->entityManager->flush();
+        return ['keep' => $keep, 'add' => $add];
     }
 
     /**
+     * Writes a plan out: drop what was not kept, store what is new.
+     *
+     * Every message_part row in this schema is an attachment — bodies live in
+     * columns on the message, and every writer in the app (sync, Gmail, Graph,
+     * the composer, this class) sets a filename and a disposition. So "the
+     * parts this draft has" and "the parts Email/get published as attachments"
+     * are the same set, and a part missing from the plan really was one the
+     * client asked to remove.
+     *
+     * @param array{
+     *     keep: array<int,array{part:MessagePart,name:?string,type:?string}>,
+     *     add: list<array{name:string,type:string,content:string}>,
+     * } $plan
+     */
+    private function writeAttachments(Message $message, array $plan): void
+    {
+        foreach ($message->messageParts->toArray() as $part) {
+            if (null !== $part->id && true === array_key_exists($part->id, $plan['keep'])) {
+                continue;
+            }
+
+            // Bytes as well as row, the way the composer's remove button does
+            // it. AttachmentStorageHelper::delete ignores anything that is not
+            // one of our own relative paths, so a gmail:// part loses its row
+            // and its provider copy is left alone.
+            $this->attachmentStorage->delete($part->storagePath);
+            $message->removeMessagePart($part);
+            $this->entityManager->remove($part);
+        }
+
+        foreach ($plan['keep'] as $kept) {
+            // A rename is the one edit a client can make to a part that is
+            // already stored, and it reaches the wire: filename is what the
+            // download endpoint offers and what MessageSendService writes into
+            // the MIME part. Dropping it silently would be the bug this method
+            // exists to fix, one field smaller.
+            if (null !== $kept['name']) {
+                $kept['part']->filename = $kept['name'];
+            }
+
+            if (null !== $kept['type']) {
+                $kept['part']->contentType = $kept['type'];
+            }
+        }
+
+        foreach ($plan['add'] as $entry) {
+            $this->storeAttachment($message, $entry['name'], $entry['type'], $entry['content']);
+        }
+
+        // Derived rather than assigned, and through the composer's own rule:
+        // hardcoding it has already wiped the flag off a draft that had files.
+        $this->draftAttachments->syncFlag($message);
+    }
+
+    private function storeAttachment(Message $message, string $filename, string $contentType, string $content): void
+    {
+        $storagePath = $this->attachmentStorage->store(
+            (int) $message->account->id,
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
+            $filename,
+            $content,
+        );
+
+        $part = new MessagePart();
+        $part->message = $message;
+        // The client's declared type, as the spec requires it be echoed —
+        // but the download endpoint still refuses to render anything but
+        // images inline, so a lie here buys nothing.
+        $part->contentType = $contentType;
+        $part->filename    = $filename;
+        $part->disposition = 'attachment';
+        $part->size        = strlen($content);
+        $part->storagePath = $storagePath;
+        $part->isInline    = false;
+
+        $message->addMessagePart($part);
+        $this->entityManager->persist($part);
+    }
+
+    private function blobContent(Account $account, ?BlobId $blobId, int|string $index): string
+    {
+        $blob = null !== $blobId ? $this->blobResolver->resolve($account, $blobId) : null;
+
+        if (null === $blob) {
+            // Deliberately the same answer for "malformed", "expired", "never
+            // existed" and "belongs to someone else": distinguishing them would
+            // tell a caller which blob ids are real.
+            throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId cannot be resolved.', (string) $index));
+        }
+
+        // A resolved blob carries either bytes or a path, depending on
+        // which of the four blob kinds it came from.
+        $content = $blob->content ?? (null !== $blob->path ? (string) file_get_contents($blob->path) : '');
+
+        if ('' === $content) {
+            throw new MethodException('invalidProperties', sprintf('attachments[%s].blobId resolved to no content.', (string) $index));
+        }
+
+        return $content;
+    }
+
+    /**
+     * The filename the client asked for, or null when it named none.
+     *
      * @param array<string,mixed> $attachment
      */
-    private function attachmentName(array $attachment, int|string $index): string
+    private function declaredName(array $attachment): ?string
     {
         $name = $attachment['name'] ?? null;
 
         if (false === is_string($name) || '' === trim($name)) {
-            return sprintf('attachment-%s', (string) $index);
+            return null;
         }
 
         // basename() only: a name is a display label, and a client that sends
@@ -232,13 +378,11 @@ final class JmapDraftWriter
     /**
      * @param array<string,mixed> $attachment
      */
-    private function attachmentType(array $attachment): string
+    private function declaredType(array $attachment): ?string
     {
         $type = $attachment['type'] ?? null;
 
-        return is_string($type) && '' !== trim($type)
-            ? trim($type)
-            : 'application/octet-stream';
+        return is_string($type) && '' !== trim($type) ? trim($type) : null;
     }
 
     /**
