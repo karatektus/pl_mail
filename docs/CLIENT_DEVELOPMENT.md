@@ -64,6 +64,18 @@ know before you ask:
   reasons (an unbounded `FREQ=DAILY` has no last instance), and a client that expands rules itself
   will disagree with the web UI at DST boundaries and on overridden instances.
 
+**And the second half of that promise now exists.** "Do not expand recurrence rules yourself" was
+an instruction with no way to obey it cheaply: a collapsed `CalendarEvent/query` names a series
+without saying which days it lands on, so drawing a month meant one query per day. Send
+`expandRecurrences: true` and the same query answers one entry per *occurrence*, in start order,
+with `position`/`limit`/`total` counting occurrences — one query for the month. Each occurrence id
+is `<eventId>_<recurrenceId>`, e.g. `42_20260304T090000Z`; **treat it as opaque**, hand it straight
+to `CalendarEvent/get` (the usual `#ids` pairing works), and read `start` and `recurrenceId` off the
+object rather than out of the id. One-off events keep their plain series id, and with the argument
+absent or false nothing about the response changed. `CalendarEvent/set` does not accept an
+occurrence id and says so; the object's `seriesId` is the id you write through. Full shape,
+including what an expanded query refuses and why, in [JMAP](internals/jmap.md).
+
 The corollary: **when you read something surprising here, check it against the code before designing
 around it.** `src/Jmap/` is the authority, and it moves.
 
@@ -557,7 +569,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Thread/set` | plMail extension. One property, `snoozedUntil` — see §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
-| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window. |
+| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
 

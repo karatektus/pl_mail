@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Calendar\JmapEventWriter;
+use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
@@ -189,6 +190,14 @@ final class CalendarEventSetMethod implements JmapMethod
                 continue;
             }
 
+            $refusal = $this->refuseInstanceId($resolved);
+
+            if (null !== $refusal) {
+                $notUpdated[$id] = $refusal;
+
+                continue;
+            }
+
             $event = $this->findOne($context, $resolved);
 
             if (null === $event) {
@@ -246,7 +255,17 @@ final class CalendarEventSetMethod implements JmapMethod
 
         foreach ($destroy as $id) {
             $id = (string) $id;
-            $event = $this->findOne($context, $context->resolveId($id) ?? $id);
+            $resolved = $context->resolveId($id) ?? $id;
+
+            $refusal = $this->refuseInstanceId($resolved);
+
+            if (null !== $refusal) {
+                $notDestroyed[$id] = $refusal;
+
+                continue;
+            }
+
+            $event = $this->findOne($context, $resolved);
 
             if (null === $event) {
                 $notDestroyed[$id] = ['type' => 'notFound', 'description' => 'No such CalendarEvent.'];
@@ -291,6 +310,36 @@ final class CalendarEventSetMethod implements JmapMethod
         }
 
         return $this->events->findOneForUser($context->user, (int) $id);
+    }
+
+    /**
+     * The refusal an instance id gets, or null for every other id.
+     *
+     * `CalendarEvent/query` with `expandRecurrences` hands out ids that name one
+     * occurrence of a series (OccurrenceId), and this method cannot write one:
+     * changing a single instance is a `recurrenceOverrides` patch on the series,
+     * filed under that instance's original start, and there is nothing here that
+     * turns "update id 42_20260304T090000Z" into that patch.
+     *
+     * Said out loud rather than left to fall through findOne(), which would
+     * answer notFound. That is the wrong answer twice over: the id does exist,
+     * this server minted it, and a client told "no such event" would go looking
+     * for a bug in its own id handling instead of reading the sentence that says
+     * what to send instead. The draft expects `/set` to resolve these ids
+     * itself; until it does, refusing by name is the honest half.
+     *
+     * @return array<string,string>|null
+     */
+    private function refuseInstanceId(string $id): ?array
+    {
+        if (null === OccurrenceId::parse($id)) {
+            return null;
+        }
+
+        return [
+            'type' => 'invalidArguments',
+            'description' => 'This id names one occurrence of a series, which CalendarEvent/set cannot write. Send the series id — "seriesId" on the instance object — and patch "recurrenceOverrides" under this instance\'s "recurrenceId".',
+        ];
     }
 
     /**

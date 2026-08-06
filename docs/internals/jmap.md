@@ -125,6 +125,7 @@ not fail — it names a real, wrong object, which a client fetches and renders.
 | EmailSubmission | the **Email** id | a submission has no table of its own |
 | Calendar | `Calendar` row id | one account serves calendars, so there is nothing to translate |
 | CalendarEvent | **`CalendarEvent`** row id — the series | see below |
+| CalendarEvent, expanded | `<eventId>_<recurrenceId>` — one dated instance | only from a query that asked for it |
 | blobId | `m-<id>` / `p-<id>` / `u-<id>` | two independent sources of bytes, plus staged uploads |
 
 ### Mailbox is a binding, not a label
@@ -173,6 +174,89 @@ is. An event whose `jscalendar` is empty is therefore published nearly empty, wh
 — no writer made that row. `isRecurring` is published because a client cannot see it from the
 rule alone: a rule this server could not convert is stored verbatim and expands to a single
 occurrence, so `recurrenceRules` being present is not the same claim as "this recurs here".
+
+### …except when a query was asked to expand recurrences
+
+The series is the right unit for an *object*, and the wrong one for the question "which days
+does this land on?". A collapsed query answers a month-long window with one id and says
+nothing about where inside it the instances are, so a client drawing a month had exactly one
+way to find out: ask about one day at a time and see which windows the series comes back in.
+For a month that is up to 31 round trips to place one weekly meeting, and clients are
+forbidden from expanding the rule themselves — the phone and the web would disagree at DST
+boundaries and on overridden instances.
+
+`expandRecurrences: true` on `CalendarEvent/query` is the answer, as
+draft-ietf-jmap-calendars defines it. It switches the unit from the series to the occurrence:
+one entry per instance in the window, ordered by the instance's start, with `position`,
+`limit` and `total` counting instances rather than series. It is a **projection of a read that
+already happened**, not new computation — `findInRange()` returns occurrence rows and the
+collapsed answer throws the extra ones away — which is the payoff of materialising occurrences
+in the first place.
+
+An instance is named by a synthetic id, `App\Jmap\Calendar\OccurrenceId`:
+
+```
+42_20260304T090000Z
+```
+
+The event id, an underscore, and the instance's **original** start as a UTC instant in ISO 8601
+basic format. Three things about that spelling are decisions:
+
+- **It is opaque.** That is the draft's own word for it. The pair it encodes is a server-side
+  join, and a client that split it and reassembled its own would be expanding recurrence rules
+  by hand.
+- **The separator is `_`, not the `;` other implementations use.** RFC 8620 §1.2 restricts an
+  Id to the URL-safe base64 alphabet — `A-Za-z0-9`, `-` and `_` — so an id carrying a
+  semicolon, or the colons of an ISO timestamp, is one a conforming client library is entitled
+  to reject before this server's response is ever read. The draft says "opaque" rather than
+  naming a separator for exactly that reason.
+- **The timestamp is the recurrence id, never the moved start.** Where the rule put the
+  instance is the only name it keeps once somebody has dragged it, which is why
+  `recurrenceOverrides` is keyed by it and why
+  `CalendarEventOccurrenceRepository::findOneByRecurrence()` looks it up by that column.
+
+A one-off event keeps its plain series id even in an expanded answer: its single occurrence
+*is* the event, and the plain id is the one `CalendarEvent/set` accepts back. So an account
+with nothing recurring in the window answers an expanded query exactly as it answers a
+collapsed one, and with the argument absent or false the response is byte-for-byte what it was
+before any of this existed.
+
+`CalendarEvent/get` resolves both kinds of id, which is what makes the feature usable at all —
+a client pairs `/query` with a `/get` on `#ids` in one request, so ids the getter refused would
+leave the expansion a list of strings nothing accepts. An instance object is the series with
+its stored override applied, plus:
+
+| Property | Value |
+|---|---|
+| `id` | the synthetic instance id |
+| `seriesId` | the series' plain id — a plMail extension |
+| `recurrenceId` | the instance's original start, as a LocalDateTime |
+| `recurrenceIdTimeZone` | the zone that LocalDateTime is in — UTC for a floating series |
+| `start`, `duration` | where the instance actually is, from the occurrence row |
+| `recurrenceRules`, `recurrenceOverrides` | `null` — the draft says MUST |
+
+`seriesId` is load-bearing rather than decorative. `CalendarEvent/set` **refuses** an instance
+id by name, because writing one instance is a `recurrenceOverrides` patch on the series and
+nothing here turns "update `42_20260304T090000Z`" into that patch; the draft expects `/set` to
+resolve these ids itself, and until it does, refusing out loud is the honest half. Answering
+`notFound` instead would be wrong twice over — this server minted the id, and a client told
+"no such event" would go looking for a bug in its own id handling.
+
+Two refusals guard the expanded path, both for the reason every other refusal here exists:
+
+- **A window reaching past the materialised horizon** answers `cannotCalculateOccurrences`.
+  Collapsed, an overrunning window is merely thin — the series is still named and its rule
+  comes with it. Expanded, the answer *is* the list of instances, so a series that stops at the
+  horizon comes back as a series that ends, and nothing in the response says otherwise.
+- **`timeZone`** is refused alongside `expandRecurrences`. The draft pairs it with expansion so
+  a server can convert instance times for a simple client; this one does not convert, and a
+  client told nothing would draw a whole month in the wrong zone with no way to notice.
+
+The three cases worth knowing as a client: a moved instance is drawn and ordered at its new
+time and still named by its old; an `{"excluded": true}` instance has no occurrence row, so it
+is absent from the query and `notFound` from the getter; a `status: cancelled` instance keeps
+its row, leaves the query, and still resolves — because the answer to "wasn't there something
+today?" is more useful than a gap.
 
 `CalendarMapper` publishes writability as `myRights` rather than an `isReadOnly` flag,
 following RFC 8621's Mailbox — two spellings of "may I write here?" is how one of them ends up
@@ -275,6 +359,10 @@ reported. Refusing is the only answer that does not lie.
 index, which is the sequential scan the index exists to avoid; and an OR of two windows is two
 queries a client can make. It is refused by name, for the same reason `EmailFilterCompiler`
 refuses an unknown condition.
+
+`expandRecurrences: true` answers the same window with one entry per occurrence instead of one
+per series — see [the id space](#except-when-a-query-was-asked-to-expand-recurrences), which is
+where that shape and its refusals are argued.
 
 ## Writing
 

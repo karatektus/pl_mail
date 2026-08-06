@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Jmap\Query;
 
 use App\Entity\User\User;
+use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use App\Repository\Calendar\CalendarRepository;
+use App\Service\Calendar\RecurrenceMaterialiser;
 
 /**
  * Runs CalendarEvent/query: which calendars, which window, and the translation
@@ -40,6 +42,13 @@ use App\Repository\Calendar\CalendarRepository;
  * name rather than ignored, for the reason EmailFilterCompiler refuses an
  * unknown condition: a filter quietly dropped returns too much, and the client
  * has no way to tell.
+ *
+ * **Expansion is a projection of the same read, not a second one.** With
+ * `expandRecurrences` the rows this already fetched stop being collapsed onto
+ * their events and are published one id each — see run(). Nothing more is
+ * computed, because the occurrences are already rows: this is the payoff of
+ * materialising them, and it is why an Android client can stop asking one
+ * question per day of the month it is drawing.
  */
 final class CalendarEventQueryRunner
 {
@@ -52,7 +61,7 @@ final class CalendarEventQueryRunner
     /**
      * @param array<string,mixed>|null $filter
      */
-    public function run(User $user, ?array $filter, int $position, int $limit): CalendarEventQueryResult
+    public function run(User $user, ?array $filter, int $position, int $limit, bool $expandRecurrences = false): CalendarEventQueryResult
     {
         if (null === $filter || 0 === count($filter)) {
             throw new MethodException(
@@ -74,6 +83,10 @@ final class CalendarEventQueryRunner
         $after = $this->utcDate($filter['after'] ?? null, 'after');
         $before = $this->utcDate($filter['before'] ?? null, 'before');
 
+        if (true === $expandRecurrences) {
+            $this->refuseOutsideHorizon($after, $before);
+        }
+
         $calendarIds = $this->calendarIds($user, $filter['inCalendar'] ?? null);
 
         $ids = [];
@@ -85,9 +98,25 @@ final class CalendarEventQueryRunner
         // this method does not own.
         if ([] !== $calendarIds) {
             foreach ($this->occurrences->findInRange($user, $calendarIds, $after, $before) as $occurrence) {
-                $eventId = $occurrence->event?->id;
+                $event = $occurrence->event;
+                $eventId = $event?->id;
 
-                if (null === $eventId) {
+                if (null === $event || null === $eventId) {
+                    continue;
+                }
+
+                if (true === $expandRecurrences && true === $event->isRecurring && null !== $occurrence->recurrenceId) {
+                    // One entry per row, in the order the repository already
+                    // returns them: by start, then by id. No de-duplication,
+                    // because that is the whole difference — the four instances
+                    // of a weekly meeting in a month are four things a client
+                    // draws, and the id says which.
+                    //
+                    // Keyed like the branch below so the two share one shape;
+                    // a synthetic id cannot collide with any other row's,
+                    // because a recurrence id is unique within a series.
+                    $ids[OccurrenceId::of((int) $eventId, $occurrence->recurrenceId)] = true;
+
                     continue;
                 }
 
@@ -97,6 +126,14 @@ final class CalendarEventQueryRunner
                 // de-duplicated by keying on the id rather than appending: a
                 // weekly meeting overlaps a month-long window four times and
                 // is one event.
+                //
+                // A one-off event reaches here even when expanding, and keeps
+                // its plain series id. Its single occurrence IS the event, so a
+                // synthetic id would name the same thing less usefully: the
+                // plain id is the one CalendarEvent/set accepts back, and an
+                // account with nothing recurring in the window therefore
+                // answers an expanded query exactly as it answers a collapsed
+                // one.
                 $ids[(string) $eventId] = true;
             }
         }
@@ -108,6 +145,42 @@ final class CalendarEventQueryRunner
             $position,
             array_map('strval', array_slice($ids, $position, $limit)),
             $total,
+        );
+    }
+
+    /**
+     * An expanded query must not reach past the materialiser's horizon.
+     *
+     * Collapsed, a window that overruns it is merely thin: the series is still
+     * named, its rule and overrides come back with it, and a client that wanted
+     * more instances than are materialised can at least see there is a rule.
+     * Expanded, the same overrun is a lie with no tell — the answer IS the list
+     * of instances, so a series that stops two years out comes back as a series
+     * that ends, and nothing in the response says otherwise.
+     *
+     * So it is refused, by the draft's own error name, naming the horizon the
+     * Session already advertises as `materialisedHorizon`. The bounds are read
+     * from RecurrenceMaterialiser rather than restated, because the two agreeing
+     * is the entire point — see CalendarEventOccurrence for why the horizon
+     * exists at all.
+     */
+    private function refuseOutsideHorizon(\DateTimeImmutable $after, \DateTimeImmutable $before): void
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $earliest = $now->modify(RecurrenceMaterialiser::HORIZON_PAST);
+        $latest = $now->modify(RecurrenceMaterialiser::HORIZON_FUTURE);
+
+        if ($after >= $earliest && $before <= $latest) {
+            return;
+        }
+
+        throw new MethodException(
+            'cannotCalculateOccurrences',
+            sprintf(
+                'Occurrences are materialised only from %s to %s (the Session\'s "materialisedHorizon"), so this window cannot be expanded without stopping at it silently.',
+                $earliest->format(DATE_ATOM),
+                $latest->format(DATE_ATOM),
+            ),
         );
     }
 
