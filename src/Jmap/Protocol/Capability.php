@@ -63,6 +63,25 @@ final class Capability
     public const string SYNC = 'urn:plmail:params:jmap:sync';
 
     /**
+     * Vendor extension: the harvested address book, read-only, for recipient
+     * autocomplete.
+     *
+     * Deliberately NOT "urn:ietf:params:jmap:contacts". RFC 8621 has no
+     * Contacts section at all and the JMAP Contacts draft describes an
+     * AddressBook of full ContactCards a client may create, update and destroy.
+     * plMail has none of that: a Contact here is a row a sync wrote by reading
+     * message headers, with a name, an address and a count. Claiming the IETF
+     * URN would advertise a writable address book behind a table nobody can
+     * write to, and the first client to try would fail on a method that does
+     * not exist rather than on a capability it could have checked for.
+     *
+     * The same call PUSH and CALENDARS already made. Should plMail ever grow a
+     * real address book, the standard URN can be advertised alongside this one
+     * rather than in place of it.
+     */
+    public const string CONTACTS = 'urn:plmail:params:jmap:contacts';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -80,5 +99,6 @@ final class Capability
         self::CALENDARS,
         self::APPEARANCE,
         self::SYNC,
+        self::CONTACTS,
     ];
 }

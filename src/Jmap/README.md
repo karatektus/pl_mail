@@ -3,10 +3,11 @@
 A conformant JMAP subset (RFC 8620 core, RFC 8621 mail): the request envelope,
 the state/change engine every `/changes` method builds on, the Mailbox / Email /
 Thread / Identity / EmailSubmission object methods, blob upload and download,
-and push over both EventSource and Web Push. Plus calendars, under a vendor URN
-rather than the unratified draft's, and the user's appearance, under another.
+and push over both EventSource and Web Push. Plus calendars, recipient
+autocomplete and the user's appearance, all under vendor URNs rather than an
+unratified draft's.
 
-**26 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**27 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -21,6 +22,7 @@ Mail (Basic).
 | `Calendar/` | `get` |
 | `CalendarEvent/` | `get`, `query`, `set` |
 | `Appearance/` | `get`, `set` (plMail extension: the user's theme, a singleton) |
+| `Contact/` | `autocomplete` (plMail extension: recipient suggestions) |
 
 ---
 
@@ -100,6 +102,11 @@ rather than leaking.
   object, the compact read the Session carries, and the state token. Shared by
   both methods and the Session so one spelling per property survives.
 - `Method/Settings/AppearanceGet|SetMethod` — the singleton pair.
+
+**Contacts** — `Method/Contact/ContactAutocompleteMethod`, and nothing else.
+There is no mapper and no repository of its own: it is one call into
+`App\Repository\Mail\ContactRepository::findForAutocomplete()`, the same query
+the web composer's autocomplete runs.
 
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
 account; a unified inbox is a client-side concern. It also carries two things
@@ -296,6 +303,34 @@ Get these wrong and things fail quietly rather than loudly.
   decided.** The worker reads the From off the row, so an envelope handed to
   the bus before the transaction commits races it, and the mail that loses the
   race leaves as the address the client did not pick.
+- **`Contact/autocomplete` is a function call, not an object type.** It exists
+  because ranking recipient suggestions is the one part of composing a client
+  cannot do for itself: the order has to come from the *whole* address book —
+  a correspondent written to twice a year outranks a list seen once — and a
+  freshly-paired phone has no local mail to build one from. It takes
+  `accountId`, a non-empty `query` and an optional `limit`, and answers with
+  `{accountId, query, limit, list}` where each entry is a JMAP `EmailAddress`
+  (`name`, `email` — the shape `EmailMapper` already emits, so it goes straight
+  into an `Email/set` create) plus `frequency`, `lastSeenAt` and
+  `isCorrespondent`. The list is ordered `frequency DESC, last_seen_at DESC`
+  by the same repository method the web composer uses, so both surfaces rank
+  identically.
+
+  **No id, and that is the point.** A `contact` row's key is reachable from no
+  other method, so publishing it would invite a client to cache and re-fetch by
+  something with no getter. `uniq_contact_user_email` makes (user, email)
+  unique, so the address is the stable key. `initials`, which the HTML route at
+  `GET /contacts/autocomplete` returns, is deliberately absent: it is derived
+  from the two fields above it and exists there only because a Turbo response
+  fed a chip renderer.
+
+  It is served from **every** account, unlike calendars — the one place that
+  rule is deliberately not followed. Calendars are restricted because a client
+  keys objects by (accountId, id) and would draw one calendar per connected
+  account; nothing here has an id, so there is nothing to draw twice, and
+  refusing would fail a client composing from whichever account it is composing
+  from. `primaryAccounts` still names one for a client that just wants
+  somewhere to ask.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
@@ -542,6 +577,42 @@ worker message, so a sync importing 50 messages sends **one** notification.
   anyway. A client that lists a capability it depends on in `using` — the
   obvious thing to do — would otherwise have its whole request refused with
   `unknownCapability` rather than merely losing the extension.
+- **Contacts are advertised as `urn:plmail:params:jmap:contacts`, and there is
+  no `Contact/get`, `Contact/query` or `Contact/set`.** RFC 8621 has no Contacts
+  section, and the JMAP Contacts draft describes an AddressBook of ContactCards
+  a client may create, update and destroy. plMail's `contact` table is written
+  only by the header harvest (`HarvestContactsService`) and read by two
+  features; there is no address book to write to. The method is called
+  `autocomplete` rather than `query` for the same honesty: a `/query` returns
+  ids for a `/get` to resolve, and this returns objects.
+- **`Contact/autocomplete` ranks by `frequency DESC, last_seen_at DESC`**, and
+  the order is entirely the database's — nothing sorts the page in PHP, which
+  would produce a list ordered only within the window the client asked for.
+  `ContactRepository::findForAutocomplete()` owns both keys and is shared with
+  the web composer, so the two surfaces rank identically; changing the ranking
+  changes both at once, deliberately. Recency is a **tie-break, not a
+  competitor**: somebody written to twenty times last year still outranks
+  somebody seen once this morning. It exists because ties are the common case
+  — most of an address book is people seen exactly once — and frequency alone
+  left those to whatever order Postgres returned, so the list reshuffled
+  between keystrokes. `isCorrespondent` is *not* a sort key; it is returned so
+  a client can mark somebody the user has actually written to.
+
+  The `ORDER BY` carries an explicit nulls-last `CASE`. DQL cannot say
+  `NULLS LAST` (the ORM 3.6 parser rejects it) and Postgres orders NULLs
+  **first** on a DESC sort, so the default would put never-seen contacts at the
+  top of every list. It cannot fire today — `last_seen_at` is NOT NULL and both
+  write paths stamp it — and is there so that making the column nullable later
+  does not silently invert the ranking.
+- **An empty `Contact/autocomplete` query is `invalidArguments`, where the HTML
+  route returns `[]`.** A blank query LIKEs everything and would answer with the
+  eight most frequent addresses to somebody who has typed nothing. Returning an
+  empty list is right for a keystroke handler and wrong for an API: "no matches"
+  and "you sent no query" are different facts and a client can act on only one.
+  Arguments the method does not have (`filter`, `sort`, `position` — reasonable
+  guesses, since every other query-shaped method here takes them) are refused by
+  name rather than ignored. `limit` is the exception and is capped at
+  `maxSuggestions` rather than refused, with the applied value echoed back.
 - Not implemented: `Email/copy|import|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---
@@ -566,6 +637,10 @@ curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Conten
 
 The `updated` map in that response carries `paneAlpha: 1.0` — the clamp, stated
 rather than applied behind the client's back.
+
+```bash
+curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:plmail:params:jmap:contacts"],"methodCalls":[["Contact/autocomplete",{"accountId":"1","query":"an","limit":5},"c"]]}'
+```
 
 An app password works in place of the JWT, as `Bearer plmail_…` or
 `-u you@example.com:plmail_…`.

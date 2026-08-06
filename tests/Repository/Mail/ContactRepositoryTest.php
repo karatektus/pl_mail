@@ -173,6 +173,9 @@ final class ContactRepositoryTest extends KernelTestCase
      * Autocomplete matches a prefix or anything inside the address, so a
      * surname or a domain both find somebody, and the most-written-to come
      * first — a list ordered by anything else is a list you scroll.
+     *
+     * Frequency is the first key, not the only one; the tie-break below is the
+     * rest of the same claim.
      */
     public function testAutocompleteMatchesEitherHalfAndRanksByFrequency(): void
     {
@@ -199,6 +202,68 @@ final class ContactRepositoryTest extends KernelTestCase
     }
 
     /**
+     * The tie is the common case, not the exotic one: most of an address book
+     * is people seen exactly once, so frequency alone leaves most of the list
+     * to whatever order Postgres felt like returning. That is two bugs at once
+     * — suggestions that reshuffle between keystrokes, and the colleague
+     * mailed last week sitting below a stranger from two years ago.
+     *
+     * Deliberately equal frequencies. A test that also varied frequency would
+     * pass on the first key alone and never reach the one it is named for.
+     */
+    public function testContactsSeenEquallyOftenAreRankedByHowRecently(): void
+    {
+        $this->repository->upsertBatch($this->user, [
+            ['email' => 'stale@example.test', 'name' => 'Stale Contact'],
+            ['email' => 'recent@example.test', 'name' => 'Recent Contact'],
+            ['email' => 'middling@example.test', 'name' => 'Middling Contact'],
+        ]);
+
+        $this->seenAt('stale@example.test', '2024-01-01 09:00:00');
+        $this->seenAt('middling@example.test', '2025-06-15 09:00:00');
+        $this->seenAt('recent@example.test', '2026-07-30 09:00:00');
+
+        self::assertSame(
+            [1, 1, 1],
+            array_map(static fn (array $row): int => (int) $row['frequency'], $this->contacts()),
+            'the tie-break is only the subject while the frequencies are equal',
+        );
+
+        self::assertSame(
+            ['recent@example.test', 'middling@example.test', 'stale@example.test'],
+            array_map(
+                static fn ($contact): string => (string) $contact->email,
+                $this->repository->findForAutocomplete($this->user, 'example.test'),
+            ),
+        );
+    }
+
+    /**
+     * And frequency still outranks recency, rather than the new key quietly
+     * becoming the primary one: somebody written to twenty times last year
+     * belongs above somebody seen once this morning.
+     */
+    public function testRecencyBreaksTiesRatherThanOutrankingFrequency(): void
+    {
+        for ($i = 0; $i < 20; ++$i) {
+            $this->repository->upsertBatch($this->user, [['email' => 'colleague@example.test', 'name' => 'Colleague']]);
+        }
+
+        $this->repository->upsertBatch($this->user, [['email' => 'stranger@example.test', 'name' => 'Stranger']]);
+
+        $this->seenAt('colleague@example.test', '2025-01-01 09:00:00');
+        $this->seenAt('stranger@example.test', '2026-08-06 09:00:00');
+
+        self::assertSame(
+            ['colleague@example.test', 'stranger@example.test'],
+            array_map(
+                static fn ($contact): string => (string) $contact->email,
+                $this->repository->findForAutocomplete($this->user, 'example.test'),
+            ),
+        );
+    }
+
+    /**
      * Address books are per user. This is a query on a shared table with a
      * user column, which is exactly the shape that leaks when the clause is
      * dropped.
@@ -217,6 +282,34 @@ final class ContactRepositoryTest extends KernelTestCase
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────
+
+    /**
+     * Backdate a sighting, because the write path cannot.
+     *
+     * `upsertBatch` stamps `last_seen_at` with `now()` for every row it
+     * touches, and the column is `TIMESTAMP(0)` — second precision — so two
+     * contacts harvested in the same test are seen at the *same* instant and
+     * there is no tie to break. Written through the connection rather than the
+     * entity for the same reason the upsert is: this is the column, and going
+     * through Doctrine would only mean re-reading a row to write one field of
+     * it.
+     *
+     * **There is deliberately no NULL counterpart to this helper.**
+     * `last_seen_at` is NOT NULL (Version20260714094203, never altered), so a
+     * never-seen contact cannot be inserted and the query's nulls-last CASE
+     * cannot be exercised from here. It is in the query against the column
+     * becoming nullable later — see findForAutocomplete, which explains what
+     * would break — and the day it does, this is where the test goes.
+     */
+    private function seenAt(string $email, string $when): void
+    {
+        $updated = $this->connection->executeStatement(
+            'UPDATE contact SET last_seen_at = ? WHERE usr_id = ? AND email = ?',
+            [$when, $this->user->id, $email],
+        );
+
+        self::assertSame(1, $updated, sprintf('no contact "%s" to backdate — the fixture did not write one', $email));
+    }
 
     /** @return list<array<string,mixed>> this user's contacts, oldest first */
     private function contacts(): array
