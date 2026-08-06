@@ -19,10 +19,31 @@ use App\Repository\Mail\MessageRepository;
  * "EmailSubmission/get" (RFC 8621 §7.2).
  *
  * Reconstructed from the Message rather than stored: a submission id is the
- * Email id, and sentAt tells us whether the queued send has completed. Only
- * Emails that have actually been submitted resolve — an id that names a draft
- * that was never sent comes back in notFound, which is what a client polling
- * undoStatus needs to see.
+ * Email id, and three columns on that row say which of the spec's states it is
+ * in — `submissionSendAt` that it exists at all and when it is due,
+ * `submissionCancelledAt` that it was called off, `sentAt` that it has gone.
+ *
+ * | On the row | undoStatus | sendAt |
+ * |---|---|---|
+ * | sentAt set | `final` | when it left |
+ * | submissionCancelledAt set | `canceled` | when it would have left |
+ * | submissionSendAt only | `pending` | when it is due |
+ * | none of them | notFound | — |
+ *
+ * **Held submissions used to be notFound, and that was the bug this method
+ * exists in its current shape to fix.** Anything without a sentAt was skipped,
+ * so a scheduled send answered "no such submission" for the entire hold, then
+ * appeared as `final` — meaning the release time a client showed its user was
+ * only ever the one string in the create response. Lose that response and the
+ * schedule was unknowable, which pushed every client into keeping its own
+ * device-local copy of a decision the server had already made.
+ *
+ * A cancelled submission is reported rather than disappearing, for the same
+ * reason: "it was called off" and "there is no such thing" are different facts
+ * and a client can only act on the first.
+ *
+ * An id that names a draft nobody ever submitted is still notFound. That is not
+ * a state of a submission — it is the absence of one.
  */
 final class EmailSubmissionGetMethod implements JmapMethod
 {
@@ -74,7 +95,11 @@ final class EmailSubmissionGetMethod implements JmapMethod
         $found = [];
 
         foreach ($messages as $message) {
-            if (null === $message->sentAt) {
+            // Sent mail is a submission whatever produced it, including the web
+            // composer — the transition is the same one, and a client that sees
+            // a sent Email is entitled to the submission that describes it.
+            // Anything else needs a submission of its own to have been accepted.
+            if (null === $message->sentAt && null === $message->submissionSendAt) {
                 continue;
             }
 
@@ -111,12 +136,48 @@ final class EmailSubmissionGetMethod implements JmapMethod
                 'mailFrom' => ['email' => (string) $message->fromAddress, 'parameters' => null],
                 'rcptTo' => $this->recipients($message),
             ],
-            'sendAt' => $message->sentAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
-            'undoStatus' => 'final',
+            // The instant the mail left where it has, and the instant it is due
+            // where it has not. Falling back to submissionSendAt rather than
+            // reporting the schedule for a sent submission: what a client wants
+            // once mail is gone is when it went, and those differ by however
+            // long the worker took.
+            'sendAt' => $this->utc($message->sentAt ?? $message->submissionSendAt),
+            'undoStatus' => $this->undoStatus($message),
             'deliveryStatus' => null,
             'dsnBlobIds' => [],
             'mdnBlobIds' => [],
         ];
+    }
+
+    /**
+     * RFC 8621 §7's three values, read off the row in the order they settle:
+     * sent is final whatever else happened to it, a cancel outranks the hold it
+     * called off, and everything remaining is still on its way.
+     */
+    private function undoStatus(Message $message): string
+    {
+        if (null !== $message->sentAt) {
+            return 'final';
+        }
+
+        if (null !== $message->submissionCancelledAt) {
+            return 'canceled';
+        }
+
+        return 'pending';
+    }
+
+    /**
+     * The spec's date-time format, in UTC.
+     *
+     * Null-tolerant although the loop above has already established that one of
+     * the two instants exists: the guarantee lives in a guard clause several
+     * lines away, and a reader of this method should not have to find it to
+     * know that `sendAt: null` cannot be produced here by accident.
+     */
+    private function utc(?\DateTimeImmutable $instant): ?string
+    {
+        return $instant?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
     }
 
     /**

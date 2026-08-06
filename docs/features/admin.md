@@ -195,6 +195,38 @@ configured** and **Not configured** for exactly that reason.
 Nothing here needs a restart. That is the whole reason this is a database row rather than an
 environment variable.
 
+### Recent deliveries
+
+Under the Firebase form, and it covers **both** transports: every attempt to wake a device, newest
+first, filterable by user, transport and outcome. It exists because push was the one thing this
+server did that left no trace — a notification that never arrived looked exactly like one the user
+did not notice, and the only evidence was a log line written when something went wrong.
+
+Each row is one attempt: when, which user, which device (the id the client chose for itself), the
+transport, what was being carried, how long it took, and what the far end said.
+
+| Outcome | Means |
+|---|---|
+| **Accepted** | The transport took it. Not proof it was displayed — proof it was handed over |
+| **Failed** | Refused or unreachable, and the device was kept. The detail column has the status or the FCM error name |
+| **Device dropped** | The address proved permanently dead (a 410, or `UNREGISTERED`) and the subscription was deleted. This row is the only explanation of why the device disappeared from the user's list |
+| **Skipped** | Nothing was sent: the transport is not configured, or the row cannot address it. Not a failure — a deployment that has not been finished |
+
+The **Skipped** distinction is the one to read carefully. An install with no VAPID keys, or with
+Firebase switched off, produces a skip per device per state change, and that is a configuration
+answer rather than a broken device.
+
+**What was pushed is deliberately not recorded.** The log holds the payload's *type* — `StateChange`
+or `PushVerification` — and nothing else of it. A `StateChange` names the accounts and state tokens
+that moved, so keeping it would turn this table into a retained, admin-readable index of when each
+person's mail arrives, which is a bigger thing than the question it would help answer.
+
+Users see their own half of this, without the other users, in **Settings → Notifications**: each
+registered device with its transport, whether the verification handshake completed, and its last
+delivery.
+
+Retention is 30 days, swept nightly by `app:monitoring:prune`; `--push-days=N` changes it.
+
 ## Users
 
 A searchable, paged list of everyone who can sign in, with when they last signed in and whether they
@@ -304,3 +336,17 @@ google-services values survive, because they were never encrypted.
 deliberate and it is the message to read rather than work around: a service-account key from one
 project with a `google-services.json` from another produces an installation where everything looks
 configured and nothing is ever delivered.
+
+**An empty delivery log means nothing was *attempted*, not that everything worked.** Push only fires
+when a state actually changes and only to devices that finished the verification handshake, so a
+fresh install with one browser registered can sit empty for hours and be perfectly healthy. The
+panel distinguishes "nothing matches this filter" from "nothing has ever been pushed" for exactly
+this reason — the second line is the one that means check the configuration above.
+
+**"Accepted" is not "delivered to a human".** It means the push service took the message. A phone in
+a doze state, a browser that revoked permission at the OS level, and a notification the user swiped
+away all look identical from here, and the next thing to check is the device rather than this page.
+
+**The delivery log is pruned at 30 days**, so a device retired six weeks ago has no row explaining
+it. If somebody reports notifications stopping "a while ago", look before assuming nothing was ever
+tried.

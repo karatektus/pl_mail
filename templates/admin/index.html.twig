@@ -176,6 +176,22 @@
                                             </div>
                                         </turbo-frame>
 
+                                        {# A second frame rather than more of
+                                           the first: this one is re-rendered
+                                           every time a filter changes, and the
+                                           form above is holding a paste. Below
+                                           the configuration because that is the
+                                           reading order — what is set up, then
+                                           what it did. #}
+                                        <turbo-frame id="admin-push-deliveries"
+                                                     src="{{ path('app_admin_push_deliveries') }}"
+                                                     class="block mt-3"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
                                     {% elseif section == 'users' %}
 
                                         {# No auto-refresh, same reasoning as

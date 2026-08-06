@@ -11,6 +11,7 @@ use App\Jmap\Method\Core\PushSubscriptionSetMethod;
 use App\Jmap\Push\FcmAccessTokenProvider;
 use App\Jmap\Push\FcmSender;
 use App\Jmap\Push\FcmSettings;
+use App\Jmap\Push\PushDeliveryRecorder;
 use App\Jmap\Push\PushSenderRegistry;
 use App\Jmap\Push\WebPushSender;
 use App\Repository\Push\FcmConfigRepository;
@@ -191,6 +192,7 @@ final class FcmPushSubscriptionTest extends JmapTestCase
                 new FcmAccessTokenProvider($client, new NullLogger()),
                 $client,
                 $container->get(EntityManagerInterface::class),
+                $container->get(PushDeliveryRecorder::class),
                 new NullLogger(),
             ),
         ]);

@@ -188,6 +188,50 @@ class Message extends MessageModel
     public bool $cancelled = false;
 
     /**
+     * When an accepted EmailSubmission is due to leave, and the marker that
+     * says one exists at all.
+     *
+     * A submission has no table of its own — its id IS the Email id — so
+     * everything `EmailSubmission/get` reports has to be reconstructible from
+     * this row. Before this column there was nothing to reconstruct a *held*
+     * submission from: the release time existed only in the create response,
+     * and a client that lost it had no way to ask again, which forced every
+     * client to keep its schedules device-local. get answered notFound for the
+     * whole hold and then "final", so a scheduled send was invisible for the
+     * hours it mattered most.
+     *
+     * Set for every accepted submission, not only for held ones. It is what
+     * distinguishes "submitted, not gone yet" from "a draft nobody ever sent",
+     * and those two must not share an answer — an immediate submission is
+     * genuinely pending for as long as the worker takes.
+     *
+     * Deliberately NOT the same thing as sentAt, and named so the two cannot be
+     * confused at a glance: this is when it may leave, sentAt is when it did.
+     * The two differ by the queue delay even on an immediate send, and for a
+     * hold they differ by up to thirty days.
+     */
+    #[ORM\Column(name: 'submission_send_at', nullable: true)]
+    public ?DateTimeImmutable $submissionSendAt = null;
+
+    /**
+     * When a submission was cancelled, and the reason `undoStatus: "canceled"`
+     * can be reported at all.
+     *
+     * `cancelled` above cannot answer this: it is a one-shot flag that
+     * SendMessageHandler CLEARS when the envelope it belongs to comes due —
+     * deliberately, because the web composer's send path does not clear it and
+     * a leftover flag would swallow the next genuine send. So five minutes
+     * after a cancelled hold fires, `cancelled` is false again and the fact
+     * that anything was cancelled has been erased. This column is the durable
+     * half, and it is only ever written by EmailSubmission/set.
+     *
+     * Cleared when the same draft is submitted again, so a re-submission is
+     * pending rather than eternally canceled.
+     */
+    #[ORM\Column(name: 'submission_cancelled_at', nullable: true)]
+    public ?DateTimeImmutable $submissionCancelledAt = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]

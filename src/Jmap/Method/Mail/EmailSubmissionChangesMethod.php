@@ -14,8 +14,18 @@ use App\Jmap\State\StateManager;
 /**
  * "EmailSubmission/changes" (RFC 8621 §7.3).
  *
- * EmailSubmissionSetMethod already records JmapObjectType::EmailSubmission on
- * every successful submit, so this reports real data from the first send.
+ * Nothing is computed here: this reads the change log, and the three writes
+ * that put anything in it are the three transitions EmailSubmission/get can
+ * report. A submit records `created`; accepting a cancel records `updated`
+ * (EmailSubmissionSetMethod); and the send itself records `updated` when the
+ * mail finally leaves (MessageSendService, for submitted mail only).
+ *
+ * The last two were added with the submission becoming gettable while pending.
+ * While a held submission answered notFound there was deliberately nothing to
+ * announce — a change entry would have woken every client to re-fetch an id
+ * that was not there — and once it answers `pending`, `canceled` and `final` in
+ * turn, a client that heard only about the first would sit on a schedule for
+ * mail that has already gone or been called off.
  */
 final class EmailSubmissionChangesMethod implements JmapMethod
 {

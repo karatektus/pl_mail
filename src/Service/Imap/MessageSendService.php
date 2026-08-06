@@ -105,6 +105,22 @@ class MessageSendService
             thread: $message->thread,
         );
 
+        // Only for mail that arrived here through EmailSubmission/set, which is
+        // what submissionSendAt marks. A send from the web composer has no
+        // submission a client was told about — EmailSubmission/get reports it
+        // as final because any sent Email is describable that way, but nothing
+        // was ever "pending" for it, so announcing a change would wake clients
+        // for a transition none of them was watching.
+        //
+        // For the ones that were: the submission this client is holding says
+        // pending and a release time, and it has just become final. Without
+        // this the only announcement was the Email's, and a client that follows
+        // the submission — which is the object that told it "sending at 09:00"
+        // — would show a schedule for mail that has already gone.
+        if (null !== $message->submissionSendAt) {
+            $this->changes->submissionChanged((int) $account->id, (string) $message->id);
+        }
+
         $this->em->flush();
 
         return true;

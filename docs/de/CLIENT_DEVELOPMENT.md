@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:5b1621e23e91764a5aef2bf6064265301ecaf003 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6ce497819de6637e04e072bf51dbd55448c73364 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -879,7 +879,8 @@ aus), sodass auch ein Client, der `onSuccessUpdateEmail` weglässt, am Ende rich
 Was du wissen solltest:
 
 - **Eine Submission hat keine eigene Tabelle — ihre ID *ist* die Email-ID.** plMail sendet jeden
-  Entwurf höchstens einmal, die Zuordnung bleibt also eineindeutig.
+  Entwurf höchstens einmal, die Zuordnung bleibt also eineindeutig. Abrufbar ist sie trotzdem
+  vollständig: siehe [Eine Submission zurücklesen](#eine-submission-zurücklesen) weiter unten.
 - `undoStatus` wird als **`"pending"`** gemeldet: Der Versand steht wirklich in der Warteschlange
   und hat, wenn der Aufruf zurückkehrt, noch nicht stattgefunden.
 - **Die Kulanzfrist der Web-Oberfläche zum Rückgängigmachen wird bei JMAP-Submissions bewusst
@@ -910,11 +911,48 @@ Was du wissen solltest:
 - **Abbrechen vor der Freigabe**: Setze `undoStatus` der Submission per Update auf `"canceled"`.
   Das ist verlässlich, solange die Nachricht gehalten wird, ein Wettlauf, sobald sie ohne
   Haltezeit eingereiht wurde, und wird mit `cannotUnsend` abgelehnt, sobald sie gesendet ist.
-  Beachte: Eine abgebrochene Submission ist danach nicht abrufbar — die Email ist wieder ein
-  ungesendeter Entwurf, `EmailSubmission/get` antwortet also mit `notFound`.
+  Ein Abbruch auf einer Email, die du nie eingereicht hast, wird mit `notFound` abgelehnt — es
+  gibt keine Submission zum Abbrechen, und früher hinterließ ein solcher Aufruf eine Markierung,
+  die den nächsten Versand der Nutzerin verschluckte.
 - Fehler: `invalidProperties` (fehlende/unbekannte `emailId`, fehlerhafter Envelope, zu lange
   Haltezeit), `forbiddenFrom` (eine `identityId`, unter der dieses Konto nicht senden darf),
-  `invalidRecipients`, `alreadyExists` (bereits gesendet), `noRecipients`, `cannotUnsend`.
+  `invalidRecipients`, `alreadyExists` (bereits gesendet), `noRecipients`, `cannotUnsend`,
+  `notFound` (nichts abzubrechen).
+
+### Eine Submission zurücklesen
+
+`EmailSubmission/get` antwortet ab dem Moment der Annahme, und zwar in allen drei Zuständen der
+Spezifikation:
+
+| Zustand | `undoStatus` | `sendAt` |
+|---|---|---|
+| Eingereiht oder gehalten, noch nicht raus | `"pending"` | wann sie fällig ist — die echte Freigabezeit |
+| Vor dem Versand abgebrochen | `"canceled"` | wann sie hinausgegangen *wäre* |
+| Gesendet | `"final"` | wann sie tatsächlich hinausging |
+
+Eine Email, die nie eingereicht wurde, ist `notFound`. Das ist der einzige `notFound`-Fall: Er ist
+das Fehlen einer Submission, nicht einer ihrer Zustände.
+
+**Das hat sich geändert, und wenn du gegen das alte Verhalten gebaut hast, kannst du jetzt Code
+löschen.** Eine gehaltene Submission antwortete früher die ganze Haltezeit über mit `notFound` und
+tauchte dann als `"final"` auf — die Freigabezeit aus der Create-Antwort war also die einzige
+Kopie, die existierte. Ging diese Antwort verloren, war der Termin nicht mehr erfahrbar. Clients
+mussten eine eigene, gerätelokale Liste terminierter Sendungen führen, und ein Telefon und ein
+Laptop im selben Konto konnten sich nicht darüber einigen, wann eine Nachricht hinausgeht. Tu das
+nicht mehr: `sendAt` aus `EmailSubmission/get` ist maßgeblich und gilt für jedes Gerät.
+
+Praktisch heißt das:
+
+- **Frage die Submission ab, nicht die Email**, wenn es um den Versand geht.
+  `EmailSubmission/changes` meldet alle drei Übergänge — das Einreichen als `created`, einen
+  angenommenen Abbruch als `updated` und das tatsächliche Hinausgehen als `updated` —, eine Liste
+  terminierter Sendungen lässt sich also allein aus dem Änderungsprotokoll aktuell halten.
+- **`sendAt` einer `"pending"`-Submission ist eine Zusage über die Warteschlange, keine Garantie
+  auf die Sekunde.** Es ist der Zeitpunkt, ab dem der Worker starten darf, und eine ausgelastete
+  Installation startet später. Zeig es als Uhrzeit, nicht als Countdown auf null.
+- Eine Submission, die beim Ausrollen dieser Funktion gerade gehalten wurde, behält ihr altes
+  Verhalten — `notFound`, bis sie gesendet ist —, weil ihre Freigabezeit nur je im
+  Warteschlangeneintrag stand. Davon gibt es höchstens eine Haltezeit lang welche.
 
 **Identitäten** kommen aus derselben Liste, die auch das Von-Auswahlfeld des Web-Editors zeigt —
 die sendefähigen Aliase des Kontos, das primäre zuerst. Ein Konto ohne Alias-Zeilen ergibt eine
@@ -1010,6 +1048,17 @@ beiden Fällen dasselbe JSON. Du liest den Code daraus und schickst ihn per
 `PushSubscription/set`-Update zurück. **Bis du das tust, empfängt die Subscription nichts.** Genau
 das verhindert, dass der Endpunkt ein offenes Relay wird — ohne ihn könnte jede Person mit einem
 Konto die Adresse einer Fremden registrieren. Plane diesen Roundtrip in deinem Einstieg ein.
+
+**Jeder Versuch, dein Gerät zu erreichen, wird serverseitig protokolliert, und du kannst der
+Nutzerin sagen, wo sie nachsieht.** Die Verifikation, auf die du wartest, und jede spätere
+`StateChange` schreiben eine Zeile, die diese Nutzerin unter **Einstellungen →
+Benachrichtigungen** sieht (pro Gerät: Transportweg, Bestätigungsstand und die letzte Zustellung
+mit ihrem Ergebnis) und eine Administratorin unter **/admin/push**. „Die App hat sich registriert
+und nie ihren Code bekommen" ist damit beantwortbar, ohne dass jemand ein Container-Log liest: Die
+Zeile sagt, ob der Server es versucht hat und was der Transportweg geantwortet hat —
+`UNREGISTERED`, ein 410 oder „übersprungen, diese Installation hat keine Schlüssel". Protokolliert
+wird der `@type` der Nutzlast und sonst nichts von ihr, das Protokoll wird also nie zu einer
+Aufzeichnung der Mail-Aktivität; bau nichts, das mehr voraussetzt.
 
 **2. EventSource (SSE) — für eine Sitzung im Vordergrund, kurz.**
 
@@ -1124,6 +1173,12 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 - Senden aus jedem Konto **und jedem sendefähigen Alias** — zeig immer die Von-Auswahl.
 - Automatisches Speichern von Entwürfen.
 - Senden rückgängig machen (bei JMAP clientseitig; siehe oben).
+- Terminiertes Senden, gesteuert vom Server statt von deinem eigenen Timer. Die Haltezeit steht im
+  Envelope (`HOLDFOR` / `HOLDUNTIL`), und `EmailSubmission/get` meldet die Freigabezeit und
+  `"pending"` zurück, solange die Nachricht gehalten wird — eine Liste „Terminiert" lässt sich
+  also aus der Antwort des Servers selbst bauen. Hier stand früher das Gegenteil, weil eine
+  gehaltene Submission mit `notFound` antwortete; siehe
+  [Eine Submission zurücklesen](#eine-submission-zurücklesen).
 
 **Ordnen**
 - Label: anwenden, entfernen, anlegen, löschen. Verschachtelte Label gibt es im Datenmodell; die

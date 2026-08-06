@@ -260,6 +260,29 @@ admin:
         calendar_without_public_address: >-
             Without a public HTTPS address, connected calendars simply stay on
             the fifteen-minute sweep.
+        deliveries:
+            all_outcomes: 'Any outcome'
+            all_transports: 'Both transports'
+            all_users: 'All users'
+            attempts: 'attempts'
+            empty_ever: >-
+                Nothing has been pushed yet. Either no device has completed the
+                verification handshake, or neither transport is configured —
+                the panel above says which.
+            empty_filter: 'No delivery matches this filter.'
+            heading: 'Recent deliveries'
+            newer: 'Newer'
+            older: 'Older'
+            outcome:
+                accepted: 'Accepted'
+                failed: 'Failed'
+                skipped: 'Skipped'
+                subscription-destroyed: 'Device dropped'
+            page: 'Page'
+            refresh: 'Refresh'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
         fcm:
             android_package: 'Android package'
             api_key: 'API key'
@@ -1690,6 +1713,22 @@ settings:
         notifications: Notifications
         security: Security
     notifications:
+        devices:
+            empty: >-
+                No device is registered yet. Turning notifications on above
+                registers this browser; a phone app registers itself.
+            heading: 'Registered devices'
+            never_delivered: 'Nothing sent yet'
+            outcome:
+                accepted: 'Delivered'
+                failed: 'Failed'
+                skipped: 'Not sent'
+                subscription-destroyed: 'Dropped'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
+            unverified: 'Not verified'
+            verified: 'Verified'
         heading: Notifications
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to

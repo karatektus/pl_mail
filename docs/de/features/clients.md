@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:ac1fc5814f7e9735f22e34093cf4401b8f210b58 -->
+<!-- translated-from: features/clients.md sha1:5fc837871d7461c6afe83fe0ccf92c6c2981518d -->
 
 # Andere Clients
 
@@ -114,6 +114,19 @@ Sich aus demselben Browser erneut anzumelden ersetzt dessen Registrierung, statt
 anzuhäufen — Browser rotieren die Endpunkt-URL, und plMail schlüsselt nach einer Id, die der
 Browser behält.
 
+**Registrierte Geräte** listet unter dem Schalter jedes Gerät des Kontos auf, nicht nur dieses:
+die Handy-App, das Tablet, den anderen Laptop. Jede Zeile sagt, welchen Transportweg das Gerät
+benutzt (Web Push oder Firebase), ob der Bestätigungs-Handshake abgeschlossen ist, und was beim
+letzten Mal passiert ist, als etwas dorthin geschickt wurde — zugestellt, fehlgeschlagen oder noch
+nichts gesendet. Der letzte Teil ist der nützliche, wenn ein Telefon verstummt: „Wir haben es
+versucht und die Adresse ist tot" und „es wurde nie etwas geschickt" sind entgegengesetzte
+Probleme und waren von außen bisher nicht zu unterscheiden.
+
+Ein Gerät, dessen Adresse dauerhaft tot ist, wird automatisch entfernt und verschwindet aus der
+Liste; die Benachrichtigungen auf diesem Gerät wieder einzuschalten registriert es erneut. Was die
+Zeile nie sagt, ist, *was* gepusht wurde — festgehalten wird nur, ob es eine Zustandsänderung der
+Mail oder eine Bestätigung war, nie etwas über die Mail selbst.
+
 Eine Benachrichtigung über Mail trägt **keinen Mailinhalt**. Sie ist ein
 JMAP-`StateChange`-Objekt, das sagt, dass sich etwas bewegt hat, und nichts darüber, was — die
 App holt sich die Einzelheiten, sobald sie geöffnet wird. Kalender-Erinnerungen sind die
@@ -161,7 +174,14 @@ auf Bestätigung“ hängen bleiben, wenn der Worker nie hochkam.
 
 **Ein Gerät, das nie bestätigt, bleibt unbelieferbar.** Der Zustand ist darüber ehrlich, statt
 Erfolg zu behaupten, aber von allein wird nichts wiederholt; die Benachrichtigungen aus- und
-wieder einzuschalten stößt den Handshake erneut an.
+wieder einzuschalten stößt den Handshake erneut an. In der Geräteliste steht es als **Nicht
+bestätigt** mit einer Zustellung daneben — die Bestätigung wurde geschickt und das Gerät hat nie
+geantwortet.
+
+**„Noch nichts gesendet" neben einem bestätigten Gerät ist normal.** Push feuert nur, wenn sich
+tatsächlich etwas ändert, ein ruhiges Postfach erzeugt also gar keine Zustellungen. Als Problem zu
+lesen ist es nur neben einem unbestätigten Gerät, wo es heißt, dass der Handshake nicht einmal
+losgeschickt wurde.
 
 **Push-Benachrichtigungen brauchen eine öffentliche HTTPS-Adresse.** Ohne sie kann der
 Push-Dienst des Browsers diesen Server nicht erreichen, was der Schalter lokal auch sagen mag.

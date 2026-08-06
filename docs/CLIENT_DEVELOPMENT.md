@@ -802,7 +802,8 @@ mailbox), so a client that omits `onSuccessUpdateEmail` still ends up correct.
 Things to know:
 
 - **A submission has no table of its own — its id *is* the Email id.** plMail sends each draft at most
-  once, so the mapping stays one-to-one.
+  once, so the mapping stays one-to-one. It is still fully gettable: see
+  [what a submission looks like afterwards](#reading-a-submission-back) below.
 - `undoStatus` is reported as **`"pending"`**: the send is genuinely queued and has not happened yet
   when the call returns.
 - **The web UI's undo-send grace period is deliberately NOT applied to JMAP submissions.** A JMAP
@@ -830,11 +831,47 @@ Things to know:
   else is refused instead of silently ignored.
 - **Cancelling before release**: update the submission's `undoStatus` to `"canceled"`. That is
   reliable while the mail is held, a race once it has been dispatched with no hold, and refused with
-  `cannotUnsend` once it has been sent. Note that a canceled submission is not gettable afterwards —
-  the Email is an unsent draft again, so `EmailSubmission/get` answers `notFound`.
+  `cannotUnsend` once it has been sent. A cancel on an Email you never submitted is refused with
+  `notFound` — there is no submission to call off, and accepting it used to leave a flag behind that
+  swallowed the user's next send.
 - Errors: `invalidProperties` (missing/unknown `emailId`, malformed envelope, hold too long),
   `forbiddenFrom` (an `identityId` this account may not send as), `invalidRecipients`,
-  `alreadyExists` (already sent), `noRecipients`, `cannotUnsend`.
+  `alreadyExists` (already sent), `noRecipients`, `cannotUnsend`, `notFound` (nothing to cancel).
+
+### Reading a submission back
+
+`EmailSubmission/get` answers for a submission from the moment it is accepted, in all three of the
+spec's states:
+
+| State | `undoStatus` | `sendAt` |
+|---|---|---|
+| Queued or held, not gone yet | `"pending"` | when it is due — the real release time |
+| Cancelled before it left | `"canceled"` | when it *would* have left |
+| Sent | `"final"` | when it actually left |
+
+An Email that was never submitted is `notFound`. That is the only `notFound` case: it is the absence
+of a submission rather than a state of one.
+
+**This changed, and if you wrote against the old behaviour you can now delete code.** A held
+submission used to answer `notFound` for the entire hold and then appear as `"final"`, which meant
+the release time you were told in the create response was the only copy in existence — lose the
+response, and the schedule was unknowable. Clients had to keep their own device-local list of
+scheduled sends, and a phone and a laptop signed into the same account could not agree about when a
+mail was going out. Don't do that any more: `sendAt` off `EmailSubmission/get` is authoritative and
+shared by every device.
+
+Practically:
+
+- **Poll the submission, not the Email**, for anything about sending. `EmailSubmission/changes`
+  reports all three transitions — the submit as `created`, an accepted cancel as `updated`, and the
+  mail actually leaving as `updated` — so a scheduled-send list can be kept current from the change
+  log alone.
+- **`sendAt` on a `"pending"` submission is a promise about the queue, not a guarantee to the
+  second.** It is when the worker is allowed to start, and a busy install starts late. Show it as a
+  time, not as a countdown to zero.
+- A submission that was held when this feature was deployed keeps its old behaviour — `notFound`
+  until it sends — because its release time only ever existed in a queue entry. There is at most one
+  hold's worth of those.
 
 **Identities** come from the same list the web composer's From dropdown shows — the account's
 sendable aliases, primary first. An account with no alias rows yet yields one synthetic identity for
@@ -921,6 +958,15 @@ the code out of it and echo it back via a `PushSubscription/set` update. **Until
 subscription receives nothing.** This is what stops the endpoint being an open relay — without it
 anyone with an account could register a stranger's address. Budget for this round trip in your
 onboarding.
+
+**Every attempt to reach your device is logged server-side, and you can tell the user where to
+look.** The verification you are waiting for, and every `StateChange` after it, writes a row visible
+to that user in **Settings → Notifications** (per device: transport, verified state, and the last
+delivery with its outcome) and to an admin at **/admin/push**. So "the app registered and never got
+its code" is answerable without anyone reading a container log: the row says whether the server tried
+and what the transport answered — `UNREGISTERED`, a 410, or "skipped, this install has no keys". The
+log records the payload's `@type` and nothing else of it, so it never becomes a record of the user's
+mail activity; do not build a feature that assumes more is kept.
 
 **2. EventSource (SSE) — for a foreground session, briefly.**
 
@@ -1025,6 +1071,11 @@ Ordered roughly by how much users will miss them.
 - Send from any account **and any sendable alias** — always show the From picker.
 - Draft autosave.
 - Undo send (client-side for JMAP; see above).
+- Scheduled send, driven by the server rather than by your own timer. The hold goes on the envelope
+  (`HOLDFOR` / `HOLDUNTIL`) and `EmailSubmission/get` reports the release time and `"pending"` back
+  for as long as it is held, so a "Scheduled" list can be built from the server's own answer. This
+  entry used to say the opposite, because a held submission answered `notFound` — see
+  [reading a submission back](#reading-a-submission-back).
 
 **Organising**
 - Labels: apply, remove, create, delete. Nested labels exist in the data model; nested label *UI* is

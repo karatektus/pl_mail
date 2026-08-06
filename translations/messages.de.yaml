@@ -261,6 +261,29 @@ admin:
         calendar_without_public_address: >-
             Ohne öffentlich erreichbare HTTPS-Adresse bleiben verbundene
             Kalender einfach beim Viertelstunden-Abruf.
+        deliveries:
+            all_outcomes: 'Beliebiges Ergebnis'
+            all_transports: 'Beide Transportwege'
+            all_users: 'Alle Benutzer'
+            attempts: 'Versuche'
+            empty_ever: >-
+                Es wurde noch nichts zugestellt. Entweder hat kein Gerät den
+                Bestätigungs-Handshake abgeschlossen, oder es ist kein
+                Transportweg konfiguriert — welches davon, steht oben.
+            empty_filter: 'Keine Zustellung passt zu diesem Filter.'
+            heading: 'Letzte Zustellungen'
+            newer: 'Neuer'
+            older: 'Älter'
+            outcome:
+                accepted: 'Angenommen'
+                failed: 'Fehlgeschlagen'
+                skipped: 'Übersprungen'
+                subscription-destroyed: 'Gerät entfernt'
+            page: 'Seite'
+            refresh: 'Aktualisieren'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
         fcm:
             android_package: 'Android-Paket'
             api_key: 'API-Schlüssel'
@@ -1720,6 +1743,22 @@ settings:
         notifications: Benachrichtigungen
         security: Sicherheit
     notifications:
+        devices:
+            empty: >-
+                Noch kein Gerät registriert. Mit dem Schalter oben registrierst
+                du diesen Browser; eine Handy-App registriert sich selbst.
+            heading: 'Registrierte Geräte'
+            never_delivered: 'Noch nichts gesendet'
+            outcome:
+                accepted: 'Zugestellt'
+                failed: 'Fehlgeschlagen'
+                skipped: 'Nicht gesendet'
+                subscription-destroyed: 'Entfernt'
+            transport:
+                fcm: 'Firebase'
+                webpush: 'Web Push'
+            unverified: 'Nicht bestätigt'
+            verified: 'Bestätigt'
         heading: Benachrichtigungen
         ios_hint: >-
             Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn

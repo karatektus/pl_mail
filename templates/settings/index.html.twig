@@ -228,6 +228,17 @@
                                                 {% include 'settings/_notifications.html.twig' with {
                                                     vapidPublicKey: vapidPublicKey,
                                                 } %}
+
+                                                {# In the same pane as the
+                                                   toggle, because they are one
+                                                   subject: the toggle registers
+                                                   this browser, and the list
+                                                   below is what registering has
+                                                   produced across every device. #}
+                                                {% include 'settings/_push_devices.html.twig' with {
+                                                    devices: pushDevices,
+                                                    lastDeliveries: lastDeliveries,
+                                                } %}
                                             </div>
                                         </section>
 

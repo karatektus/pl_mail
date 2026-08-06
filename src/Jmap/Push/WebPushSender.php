@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
+use App\Domain\Enum\PushDeliveryOutcome;
 use App\Domain\Enum\PushTransport;
 use App\Domain\Interface\PushSenderInterface;
 use App\Entity\User\PushSubscription as JmapPushSubscription;
 use Doctrine\ORM\EntityManagerInterface;
+use Minishlink\WebPush\MessageSentReport;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Psr\Log\LoggerInterface;
@@ -26,6 +28,12 @@ use Psr\Log\LoggerInterface;
  * retried — a browser that revokes a subscription answers 410 forever, and
  * keeping it would mean a failing POST on every state change until the heat
  * death of the universe.
+ *
+ * **Every exit records a PushDelivery**, including the ones that send nothing
+ * and the one that deletes the row. See PushDeliveryRecorder for why that
+ * happens here rather than in a decorator: the status code and the
+ * failed-versus-destroyed distinction exist only inside this method, and the
+ * bool it returns has already discarded both.
  */
 final class WebPushSender implements PushSenderInterface
 {
@@ -37,6 +45,7 @@ final class WebPushSender implements PushSenderInterface
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly PushDeliveryRecorder $deliveries,
         private readonly LoggerInterface $logger,
         private readonly string $vapidSubject,
         private readonly string $vapidPublicKey,
@@ -59,8 +68,15 @@ final class WebPushSender implements PushSenderInterface
      */
     public function send(JmapPushSubscription $subscription, array $payload): bool
     {
+        // Taken before the first thing that can cost time, so a recorded
+        // latency covers what the device waited for rather than what this
+        // method did after the answer arrived.
+        $startedAt = microtime(true);
+
         if (false === $this->isConfigured()) {
             $this->logger->warning('Web Push is not configured; set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.');
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-vapid-keys', $startedAt);
 
             return false;
         }
@@ -74,6 +90,8 @@ final class WebPushSender implements PushSenderInterface
                 'subscriptionId' => $subscription->id,
                 'transport'      => $subscription->transport->value,
             ]);
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-endpoint-url', $startedAt);
 
             return false;
         }
@@ -97,7 +115,7 @@ final class WebPushSender implements PushSenderInterface
                 'error' => $exception->getMessage(),
             ]);
 
-            $this->recordFailure($subscription);
+            $this->recordFailure($subscription, $payload, $exception->getMessage(), $startedAt);
 
             return false;
         }
@@ -105,6 +123,8 @@ final class WebPushSender implements PushSenderInterface
         if (true === $report->isSuccess()) {
             $subscription->failureCount = 0;
             $this->em->flush();
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Accepted, $this->statusOf($report), $startedAt);
 
             return true;
         }
@@ -115,6 +135,18 @@ final class WebPushSender implements PushSenderInterface
             $this->logger->info('Push endpoint gone; removing subscription', [
                 'subscriptionId' => $subscription->id,
             ]);
+
+            // Before the remove, not after: the record names the device by the
+            // subscription's own fields, and reading them off a row that has
+            // just been deleted and flushed is reading a detached entity for
+            // the one delivery anybody will ever go looking for.
+            $this->deliveries->record(
+                $subscription,
+                $payload,
+                PushDeliveryOutcome::SubscriptionDestroyed,
+                $this->statusOf($report),
+                $startedAt,
+            );
 
             $this->em->remove($subscription);
             $this->em->flush();
@@ -127,16 +159,34 @@ final class WebPushSender implements PushSenderInterface
             'reason' => $report->getReason(),
         ]);
 
-        $this->recordFailure($subscription);
+        $this->recordFailure($subscription, $payload, $this->statusOf($report), $startedAt);
 
         return false;
     }
 
-    private function recordFailure(JmapPushSubscription $subscription): void
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function recordFailure(JmapPushSubscription $subscription, array $payload, ?string $detail, float $startedAt): void
     {
         ++$subscription->failureCount;
 
-        if ($subscription->failureCount >= self::MAX_FAILURES) {
+        $retired = $subscription->failureCount >= self::MAX_FAILURES;
+
+        // The tenth failure is recorded as a destruction rather than as a
+        // failure, because that is what it was: the row is gone by the time
+        // anyone reads this, and a log saying "failed" for the attempt that
+        // retired the endpoint would leave the disappearance unexplained.
+        // Ahead of the remove for the reason the expiry path above states.
+        $this->deliveries->record(
+            $subscription,
+            $payload,
+            true === $retired ? PushDeliveryOutcome::SubscriptionDestroyed : PushDeliveryOutcome::Failed,
+            $detail,
+            $startedAt,
+        );
+
+        if (true === $retired) {
             $this->logger->info('Push endpoint failed too often; removing subscription', [
                 'subscriptionId' => $subscription->id,
                 'failures' => $subscription->failureCount,
@@ -146,6 +196,25 @@ final class WebPushSender implements PushSenderInterface
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * What the push service actually answered, as one short string.
+     *
+     * The status alone where there is one, because that is the vocabulary a
+     * reader can look up; the library's reason string only when there is no
+     * response at all, which is a connection that never completed and whose
+     * only description is that sentence.
+     */
+    private function statusOf(MessageSentReport $report): ?string
+    {
+        $status = $report->getResponse()?->getStatusCode();
+
+        if (null === $status) {
+            return '' === $report->getReason() ? null : $report->getReason();
+        }
+
+        return sprintf('HTTP %d', $status);
     }
 
     /**

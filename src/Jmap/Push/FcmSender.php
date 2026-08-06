@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
+use App\Domain\Enum\PushDeliveryOutcome;
 use App\Domain\Enum\PushTransport;
 use App\Domain\Interface\PushSenderInterface;
 use App\Entity\User\PushSubscription;
@@ -64,6 +65,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *   admin having pasted a key for the wrong Firebase project, and destroying
  *   every subscription in the install over that would be unrecoverable. They
  *   count toward retirement instead, which is slow enough to be fixed.
+ *
+ * **Every one of those outcomes is recorded as a PushDelivery**, with FCM's own
+ * error name in it — which is the whole reason the recording happens in here
+ * rather than in a decorator around the interface. See PushDeliveryRecorder.
  *
  * Docs: https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages
  */
@@ -143,6 +148,7 @@ final class FcmSender implements PushSenderInterface
         private readonly FcmAccessTokenProvider $tokens,
         private readonly HttpClientInterface    $http,
         private readonly EntityManagerInterface $em,
+        private readonly PushDeliveryRecorder   $deliveries,
         private readonly LoggerInterface        $logger,
     ) {}
 
@@ -161,10 +167,17 @@ final class FcmSender implements PushSenderInterface
      */
     public function send(PushSubscription $subscription, array $payload): bool
     {
+        // Before the credential work as well as the request: fetching an
+        // access token is part of what the device waits for, and a latency
+        // that excluded it would hide the one FCM cost that is ours.
+        $startedAt = microtime(true);
+
         $account = $this->settings->serviceAccount();
 
         if (null === $account) {
             $this->logger->warning('FCM push is not configured; enable it under Admin → Push.');
+
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'not-configured', $startedAt);
 
             return false;
         }
@@ -176,6 +189,8 @@ final class FcmSender implements PushSenderInterface
                 'subscriptionId' => $subscription->id,
             ]);
 
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-registration-token', $startedAt);
+
             return false;
         }
 
@@ -184,7 +199,12 @@ final class FcmSender implements PushSenderInterface
         if (null === $accessToken) {
             // Already logged with the reason by the provider. Not counted as a
             // failure of this subscription: the credentials being wrong says
-            // nothing about the device.
+            // nothing about the device. Recorded as a skip for the same reason
+            // — nothing was sent, and an install whose service-account key has
+            // been revoked should read as a configuration problem rather than
+            // as every device having gone bad at once.
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-access-token', $startedAt);
+
             return false;
         }
 
@@ -205,7 +225,7 @@ final class FcmSender implements PushSenderInterface
                 'error'          => $exception->getMessage(),
             ]);
 
-            $this->recordFailure($subscription);
+            $this->recordFailure($subscription, $payload, $exception->getMessage(), $startedAt);
 
             return false;
         }
@@ -214,10 +234,12 @@ final class FcmSender implements PushSenderInterface
             $subscription->failureCount = 0;
             $this->em->flush();
 
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Accepted, 'HTTP 200', $startedAt);
+
             return true;
         }
 
-        return $this->handleRejection($subscription, $status, $body);
+        return $this->handleRejection($subscription, $payload, $status, $body, $startedAt);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -266,17 +288,39 @@ final class FcmSender implements PushSenderInterface
     }
 
     /**
+     * @param array<string,mixed> $payload
      * @param array<string,mixed> $body
      */
-    private function handleRejection(PushSubscription $subscription, int $status, array $body): bool
-    {
+    private function handleRejection(
+        PushSubscription $subscription,
+        array            $payload,
+        int              $status,
+        array            $body,
+        float            $startedAt,
+    ): bool {
         $code = $this->errorCode($body);
+
+        // FCM's own name where it gave one, the status where it did not. The
+        // name is the part worth keeping: UNREGISTERED and SENDER_ID_MISMATCH
+        // both arrive as a 404-shaped rejection and mean entirely different
+        // things — one is a dead phone and the other is the admin's key.
+        $detail = $code ?? sprintf('HTTP %d', $status);
 
         if (true === in_array($code, self::GONE_CODES, true)) {
             $this->logger->info('FCM token gone; removing subscription', [
                 'subscriptionId' => $subscription->id,
                 'code'           => $code,
             ]);
+
+            // Ahead of the remove, so the record that explains the
+            // disappearance is written while the row it describes still exists.
+            $this->deliveries->record(
+                $subscription,
+                $payload,
+                PushDeliveryOutcome::SubscriptionDestroyed,
+                $detail,
+                $startedAt,
+            );
 
             $this->em->remove($subscription);
             $this->em->flush();
@@ -291,6 +335,13 @@ final class FcmSender implements PushSenderInterface
                 'code'           => $code,
             ]);
 
+            // Recorded as a failure even though failureCount is deliberately
+            // not touched. The two are different questions: the counter asks
+            // whether this endpoint should be retired, and an outage is not a
+            // broken endpoint — the log asks what happened, and "Firebase
+            // answered 503" is exactly what an admin comes here to find.
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Failed, $detail, $startedAt);
+
             return false;
         }
 
@@ -301,7 +352,7 @@ final class FcmSender implements PushSenderInterface
             'reason'         => $body['error']['message'] ?? null,
         ]);
 
-        $this->recordFailure($subscription);
+        $this->recordFailure($subscription, $payload, $detail, $startedAt);
 
         return false;
     }
@@ -336,11 +387,28 @@ final class FcmSender implements PushSenderInterface
         return is_string($status) && '' !== $status ? $status : null;
     }
 
-    private function recordFailure(PushSubscription $subscription): void
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function recordFailure(PushSubscription $subscription, array $payload, ?string $detail, float $startedAt): void
     {
         ++$subscription->failureCount;
 
-        if ($subscription->failureCount >= self::MAX_FAILURES) {
+        $retired = $subscription->failureCount >= self::MAX_FAILURES;
+
+        // The attempt that retires the token is recorded as a destruction, not
+        // as the tenth failure: the row is gone afterwards, and a delivery log
+        // that says "failed" leaves the device's disappearance from the list
+        // with no explanation in it.
+        $this->deliveries->record(
+            $subscription,
+            $payload,
+            true === $retired ? PushDeliveryOutcome::SubscriptionDestroyed : PushDeliveryOutcome::Failed,
+            $detail,
+            $startedAt,
+        );
+
+        if (true === $retired) {
             $this->logger->info('FCM token failed too often; removing subscription', [
                 'subscriptionId' => $subscription->id,
                 'failures'       => $subscription->failureCount,

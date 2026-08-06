@@ -495,10 +495,42 @@ the two that work.
 This sets `Message::$cancelled`, the same flag the web composer's undo button
 sets and `SendMessageHandler` reads when the envelope comes due — nothing is
 pulled out of the queue; the send declines to happen. It is therefore reliable
-for a held submission and a race for an immediate one, refused with
-`cannotUnsend` once `sentAt` is set, and **not visible afterwards**: there is no
-submission row to hold "canceled", so `EmailSubmission/get` answers `notFound`
-for what is once again an unsent draft.
+for a held submission and a race for an immediate one, and refused with
+`cannotUnsend` once `sentAt` is set. A cancel of an Email that was never
+submitted is refused with `notFound`: it used to be accepted, which armed a flag
+that the user's *next* send from the web composer then walked into.
+
+### What a submission looks like afterwards
+
+`EmailSubmission/get` reconstructs from the message row, and two columns exist
+for no other reader — `submission_send_at` (written for every accepted
+submission) and `submission_cancelled_at`:
+
+| On the row | `undoStatus` | `sendAt` |
+|---|---|---|
+| `sent_at` set | `final` | when it left |
+| `submission_cancelled_at` set | `canceled` | when it would have left |
+| `submission_send_at` only | `pending` | when it is due |
+| none of them | `notFound` | — |
+
+Both columns were added because a held submission used to be **invisible**:
+anything without a `sentAt` was skipped, so a scheduled send answered `notFound`
+for the whole hold and then `final`, and its release time existed only in the
+create response. A client that lost that response could not ask again, which
+forced every client to keep its schedules device-local — the gap that turned up
+during client adoption.
+
+The cancel needs a column of its own rather than reusing `Message::$cancelled`,
+which is a one-shot flag: `SendMessageHandler` clears it when the envelope comes
+due, so minutes later the flag no longer says anything happened. Reading
+`undoStatus` off it would report `pending` forever for mail that is never going
+out.
+
+`EmailSubmission/changes` keeps up with all three transitions: the submit
+records `created`, an accepted cancel records `updated`, and `MessageSendService`
+records `updated` when submitted mail actually leaves. The last two were
+deliberately absent while the submission was ungettable — announcing a change to
+an id that answers `notFound` wakes every client for nothing.
 
 ---
 
@@ -575,6 +607,32 @@ the same "is it usable?" question for the sender, the Session's `fcm` flag and
 `JmapPushSubscriber` drains them once per request (`kernel.terminate`) or per
 worker message, so a sync importing 50 messages sends **one** notification.
 
+### The delivery log
+
+Every attempt by either transport writes a `push_delivery` row — including the
+`PushVerification` of the handshake, and including the attempts that send
+nothing. It holds the device (`deviceClientId` plus transport), the user, the
+payload's `@type`, an outcome of `accepted` / `failed` / `subscription-destroyed`
+/ `skipped`, the HTTP status or FCM error name, the latency and the time. Read
+at `/admin/push` (filterable by user, transport and outcome) and, per device, in
+the user's own **Settings → Notifications**. Retention is
+`app:monitoring:prune --push-days=N`, 30 days by default.
+
+**It records the payload's `@type` and nothing else of the payload**, which is a
+promise `FcmSenderTest` asserts rather than a docblock. A `StateChange` carries
+the account ids and state tokens that moved; keeping it would make this table a
+retained, admin-readable index of when each user's mail arrives.
+
+`PushDeliveryRecorder` is called **from inside the senders**, not as a decorator
+over `PushSenderInterface`, and the interface is why. It collapses "refused",
+"unreachable" and "just destroyed" into one bool — correctly, since no caller
+distinguishes them — so a decorator sees `false` and could record neither the
+status code nor `UNREGISTERED` versus `QUOTA_EXCEEDED`, which is the difference
+between a dead phone and a Firebase outage. There is deliberately **no foreign
+key to `jmap_push_subscription`**: the most useful row is the one written as a
+subscription is destroyed, and a cascade would delete the evidence in the same
+statement that creates the need for it.
+
 ---
 
 ## Deliberate limitations
@@ -594,10 +652,10 @@ worker message, so a sync importing 50 messages sends **one** notification.
 - `Email/query` has no anchor paging; use `position`.
 - Only `$seen` / `$flagged` are settable keywords.
 - An `EmailSubmission` id IS the Email id — no submission table, so no history.
-  Safe because a draft sends at most once. The cost is `undoStatus`: a pending
-  or canceled submission has no row to be found in, so `EmailSubmission/get`
-  answers `notFound` until the mail is sent and then reports `final`. A client
-  polls the Email, not the submission.
+  Safe because a draft sends at most once. What that still costs is history
+  rather than state: the *current* state of a submission is reconstructible
+  (`pending` / `canceled` / `final`, see Sending above), but a draft submitted,
+  cancelled and submitted again has one id and one story, not two.
 - `EmailSubmission/set destroy` is not implemented; there is nothing to destroy.
 - Only `Email/set` and the web composer choose a From. `EmailSubmission/set`
   writes `fromAddress` but never `fromName`: `MessageSendService` builds the

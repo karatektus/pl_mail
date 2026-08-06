@@ -16,7 +16,9 @@ use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
+use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
@@ -42,6 +44,8 @@ final class SettingsController extends AbstractController
         private readonly BookingPageRepository $bookingPageRepository,
         private readonly MailRuleRepository $mailRuleRepository,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
+        private readonly PushSubscriptionRepository $pushSubscriptions,
+        private readonly PushDeliveryRepository $pushDeliveries,
         private readonly ApiTokenRepository $apiTokenRepository,
         private readonly AliasAddFormFactory $aliasAddForms,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
@@ -78,6 +82,7 @@ final class SettingsController extends AbstractController
             ...$this->securitySectionData($section, $request),
             ...$this->calendarSectionData($section),
             ...$this->sharingSectionData($section),
+            ...$this->notificationsSectionData($section),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
             'vapidPublicKey'     => $this->vapidPublicKey,
             'locales'            => AppLocale::cases(),
@@ -134,6 +139,38 @@ final class SettingsController extends AbstractController
         return [
             'shareLinks'   => $this->shareLinkRepository->findForUser($user),
             'bookingPages' => $this->bookingPageRepository->findForUser($user),
+        ];
+    }
+
+    /**
+     * The user's registered devices and what last happened to each, and only
+     * when the Notifications section is on screen.
+     *
+     * Two queries rather than one join, deliberately. A subscription with no
+     * delivery yet — every device between registering and its first
+     * PushVerification — has to appear in the list saying so, and a join would
+     * either drop it or need an outer join whose null half means the same
+     * thing the missing key already means. The device ids come back keyed, so
+     * the template looks each one up rather than searching a list.
+     *
+     * This is the user's own view of the same table /admin/push reads, scoped
+     * to them: the admin sees who could not be reached across the install, the
+     * user sees whether their own phone is being reached, which is the question
+     * that gets asked as "notifications stopped working".
+     *
+     * @return array<string, mixed>
+     */
+    private function notificationsSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('notifications' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'pushDevices'    => $this->pushSubscriptions->findForUser($user),
+            'lastDeliveries' => $this->pushDeliveries->lastDeliveryPerDevice((int) $user->id),
         ];
     }
 

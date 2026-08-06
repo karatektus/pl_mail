@@ -36,6 +36,13 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  * once (MessageSendService is a no-op once sentAt is set), so the mapping
  * stays one-to-one and EmailSubmission/get can reconstruct from the Message.
  *
+ * **What "reconstruct" needs is written to the row here**, in two columns that
+ * exist for no other reader: `submissionSendAt` (the release time, set on every
+ * accepted submission) and `submissionCancelledAt`. Before them the release
+ * time lived only in this method's response and in a messenger envelope, so a
+ * held submission was invisible to get for exactly the hours a client wanted to
+ * show it — see Message's docblocks for both.
+ *
  * undoStatus is reported as "pending": the send is queued on the messenger bus
  * and has genuinely not happened yet when this returns. Note the web
  * composer's fixed ten-second undo window is deliberately NOT applied — a JMAP
@@ -51,7 +58,8 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  *   SubmissionEnvelope and honoured as a DelayStamp on the bus.
  * - **Whether it still leaves** — an update of `undoStatus` to "canceled",
  *   which sets the same `Message::$cancelled` flag the web composer's undo
- *   button sets and SendMessageHandler reads when the envelope comes due.
+ *   button sets and SendMessageHandler reads when the envelope comes due, plus
+ *   the durable `submissionCancelledAt` that lets get keep saying so.
  *   Genuinely best-effort, and see applyUpdates() for what it cannot promise.
  */
 final class EmailSubmissionSetMethod implements JmapMethod
@@ -127,7 +135,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
             }
         }
 
-        $this->applyUpdates($account, $arguments['update'] ?? null, $context, $updated, $notUpdated);
+        $this->applyUpdates($account, $arguments['update'] ?? null, $context, $now, $updated, $notUpdated);
 
         $updatedEmails = $this->applyOnSuccess($account, $arguments, $queued);
 
@@ -211,7 +219,23 @@ final class EmailSubmissionSetMethod implements JmapMethod
         // for it.
         $message->cancelled = false;
 
-        return new QueuedSubmission($message, $envelope->sendAt($now), $envelope->delayMs($now));
+        $sendAt = $envelope->sendAt($now);
+
+        // The release time goes on the row, not only into the response. It is
+        // what EmailSubmission/get reconstructs `sendAt` and `undoStatus:
+        // "pending"` from while the mail is held, and — being set for every
+        // accepted submission rather than only for held ones — it is also the
+        // marker that says this Email HAS a submission. Without that, "queued
+        // and not gone yet" and "a draft nobody submitted" are the same row,
+        // and get has to answer notFound for both.
+        $message->submissionSendAt = $sendAt;
+
+        // Re-submitting is a new submission, so the old cancel stops being the
+        // answer to "what is this submission doing?" — otherwise get would
+        // report canceled for mail that is on its way.
+        $message->submissionCancelledAt = null;
+
+        return new QueuedSubmission($message, $sendAt, $envelope->delayMs($now));
     }
 
     /**
@@ -275,10 +299,21 @@ final class EmailSubmissionSetMethod implements JmapMethod
      *   and a worker may already be inside MessageSendService, in which case
      *   the flag is set on a message that is being sent. The cancel is
      *   reliable only for a held submission, which is the case it exists for.
-     * - EmailSubmission/get will not report "canceled" afterwards. There is no
-     *   submission row to hold that state, and the Email is an unsent draft
-     *   again — so get answers notFound, exactly as it does for a draft that
-     *   was never submitted.
+     *
+     * It IS reported afterwards, which it did not used to be:
+     * `submissionCancelledAt` is written beside the flag, and
+     * EmailSubmission/get answers `undoStatus: "canceled"` from it rather than
+     * notFound. The two columns are needed because `cancelled` alone is a
+     * one-shot flag — SendMessageHandler clears it when the envelope comes due
+     * — so it stops being evidence of anything minutes after the cancel.
+     *
+     * **A draft that was never submitted cannot be cancelled**, and that is a
+     * refusal this method did not make before. It used to set the flag on any
+     * Email of the account, which had two consequences: the client was told
+     * "updated" for a submission that get answers notFound for, and the flag
+     * sat there until some envelope consumed it — so the user's next send from
+     * the web composer was silently swallowed by a cancel aimed at something
+     * that never existed.
      *
      * @param array<string,mixed> $updated
      * @param array<string,mixed> $notUpdated
@@ -287,6 +322,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
         Account $account,
         mixed $update,
         JmapContext $context,
+        \DateTimeImmutable $now,
         array &$updated,
         array &$notUpdated,
     ): void {
@@ -331,15 +367,30 @@ final class EmailSubmissionSetMethod implements JmapMethod
                 continue;
             }
 
+            // After the cannotUnsend check, deliberately: mail that has left is
+            // better described by "you cannot unsend that" than by "there is no
+            // such submission", and a message sent by the web composer is
+            // gettable as a final submission, so notFound would contradict get.
+            if (null === $message->submissionSendAt) {
+                $notUpdated[$id] = [
+                    'type' => 'notFound',
+                    'description' => 'That Email has no submission to cancel; submit it first.',
+                ];
+                continue;
+            }
+
             $message->cancelled = true;
+            $message->submissionCancelledAt = $now;
             $updated[$id] = null;
 
-            // Deliberately not recorded on the EmailSubmission state, for the
-            // reason ComposeController::undo() does not record setting the
-            // same flag: nothing a client can fetch changed. The submission
-            // was never gettable while pending, and the Email is the unsent
-            // draft it already holds — so a change entry here would wake every
-            // client to re-fetch an id that answers notFound.
+            // Recorded now, where it deliberately was not before. The reason it
+            // was not is gone: the submission used to be ungettable while
+            // pending, so a change entry would have woken every client to
+            // re-fetch an id answering notFound. It now answers "canceled",
+            // which is a different object from the "pending" the client is
+            // holding — and EmailSubmission/changes has to say so, or a second
+            // device goes on showing mail as scheduled that will never leave.
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::EmailSubmission, $id);
         }
     }
 

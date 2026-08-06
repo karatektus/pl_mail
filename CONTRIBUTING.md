@@ -709,7 +709,7 @@ php bin/mirror-wiki.php --check
 | `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
-| `app:monitoring:prune [--days=N]` | Prune old log entries and dead process heartbeats |
+| `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
 | `app:backup [dir] [--skip-secrets] [--skip-storage]` | Write a restorable snapshot: `pg_dump`, the stored files, and the generated secrets. Says explicitly when `APP_ENCRYPTION_KEY` is *not* in it |
 | `app:reset` | Truncate synced data — useful during development |
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |

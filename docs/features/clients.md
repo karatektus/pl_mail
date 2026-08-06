@@ -102,6 +102,18 @@ endpoint provably reaches this user's device.
 Re-subscribing from the same browser replaces its registration rather than piling up dead endpoints
 — browsers rotate the endpoint URL, and plMail keys on an id the browser keeps.
 
+**Registered devices** lists every device on the account below the toggle, not just this one: the
+phone app, the tablet, the other laptop. Each line says which transport it uses (Web Push or
+Firebase), whether the verification handshake completed, and what happened the last time something
+was sent to it — delivered, failed, or nothing sent yet. That last part is the useful one when a
+phone goes quiet, because "we tried and the address is dead" and "nothing has ever been sent" are
+opposite problems and used to be indistinguishable from the outside.
+
+A device whose address is permanently dead is dropped automatically and disappears from the list;
+re-enabling notifications on that device registers it again. What the line never says is *what* was
+pushed — the record keeps only whether it was a mail state change or a verification, never anything
+about the mail itself.
+
 A notification about mail carries **no mail content**. It is a JMAP `StateChange` object, which says
 that something moved and nothing about what, so the app fetches the detail when it is opened.
 Calendar reminders are the exception: they carry their own text, because a reminder that makes you
@@ -146,7 +158,12 @@ never came up.
 
 **A device that never confirms stays undeliverable.** The state is honest about it rather than
 claiming success, but nothing retries on its own; toggling notifications off and on re-issues the
-handshake.
+handshake. In the device list it reads as **Not verified** with a delivery beside it — the
+verification was sent and the device never answered.
+
+**"Nothing sent yet" beside a verified device is normal.** Push only fires when something actually
+changes, so a quiet mailbox produces no deliveries at all. It is only worth reading as a problem
+next to an unverified device, where it means the handshake never even left.
 
 **Push notifications require a public HTTPS address.** Without one the browser's push service cannot
 reach this server, whatever the toggle says locally.
