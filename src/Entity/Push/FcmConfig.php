@@ -147,8 +147,8 @@ class FcmConfig
 
         // The project each half will name once this save lands: the incoming
         // file's, or the stored one's when that half is being kept.
-        $serviceProject = $account?->projectId ?? ($this->hasServiceAccount() ? $this->projectId : null);
-        $clientProject  = $client?->projectId ?? ($this->hasClientConfig() ? $this->projectId : null);
+        $serviceProject = null !== $account ? $account->projectId : ($this->hasServiceAccount() ? $this->projectId : null);
+        $clientProject  = null !== $client ? $client->projectId : ($this->hasClientConfig() ? $this->projectId : null);
 
         if (null !== $serviceProject && null !== $clientProject && $serviceProject !== $clientProject) {
             throw new InvalidFirebaseCredentialsException(sprintf(
