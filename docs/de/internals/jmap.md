@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:ff0608b1c1ab43dfb25895bed051c33b0cf45c7a -->
+<!-- translated-from: internals/jmap.md sha1:b3d24e38460c1c9881dd96ee78f915ac20d56b54 -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -49,10 +49,10 @@ liefert einen Fehler an Ort und Stelle, ohne den Rest abzubrechen.
   beiden könnte ein JMAP-Create einspringen.
 - **`Calendar/changes` und `CalendarEvent/changes`.** Kein Versäumnis — siehe den Abschnitt zum
   State weiter unten.
-- **`VacationResponse`, verzögertes Senden in `EmailSubmission` und
-  `urn:ietf:params:jmap:calendars`.** Die Submission-Capability weist `maxDelayedSend: 0` aus,
-  weil das Senden auf dem Messenger-Bus eingereiht wird und dieser keine Terminierung kennt; es
-  gibt also kein Zeitfenster für späteres Senden, das man behaupten könnte.
+- **`VacationResponse` und `urn:ietf:params:jmap:calendars`.** Verzögertes Senden steht nicht
+  mehr auf dieser Liste: Die Submission-Capability weist `maxDelayedSend: 2592000` und die
+  FUTURERELEASE-Erweiterung aus, und eine gehaltene Submission wartet als verzögerter
+  Messenger-Envelope.
 - **Teilnehmer, Privatsphäre, Erinnerungen und Links in `CalendarEvent/set`.** Jedes davon ist
   mit seinem Grund aufgeführt; siehe unten.
 
