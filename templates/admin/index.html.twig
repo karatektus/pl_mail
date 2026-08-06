@@ -57,7 +57,7 @@
                                 </span>
                             {% endif %}
 
-                            {% if section not in ['logs', 'integrations', 'push', 'reset'] %}
+                            {% if section not in ['logs', 'integrations', 'push', 'backup', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -108,6 +108,17 @@
                                        class="{{ section == 'users' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-users w-4 {{ section == 'users' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.users'|trans }}
+                                    </a>
+                                    {# After users and before reset. It is the
+                                       only entry that is about the install as a
+                                       whole rather than a part of it, and it
+                                       belongs beside the other irreversible
+                                       thing rather than among the panels an
+                                       admin opens to look at something. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'backup' }) }}"
+                                       class="{{ section == 'backup' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-box-archive w-4 {{ section == 'backup' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.backup'|trans }}
                                     </a>
                                     {# Last, and the only one tinted: everything above reads or
                                        repairs, this one deletes. #}
@@ -199,6 +210,25 @@
                                            modal an admin is typing into. #}
                                         <turbo-frame id="admin-users"
                                                      src="{{ path('app_admin_user_default_index') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'backup' %}
+
+                                        {# No auto-refresh, and more emphatically
+                                           than anywhere else: there are three
+                                           password fields in this frame and a
+                                           poll would empty whichever one is
+                                           half-typed. The error travels on the
+                                           query string for the reason the reset
+                                           frame records — the frame is loaded by
+                                           its own request and would not see a
+                                           flash set for the page around it. #}
+                                        <turbo-frame id="admin-backup"
+                                                     src="{{ path('app_admin_config_backup_panel', app.request.query.get('error') ? { error: app.request.query.get('error') } : {}) }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

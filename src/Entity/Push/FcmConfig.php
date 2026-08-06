@@ -177,6 +177,78 @@ class FcmConfig
     }
 
     /**
+     * Put back a configuration that was exported from another install.
+     *
+     * **A second entry point beside useCredentials(), not a replacement for
+     * it.** That one takes the two files a human downloaded and derives the
+     * columns from them; a config backup no longer has the google-services.json
+     * — it is not a credential, it was parsed to five values at paste time, and
+     * carrying a copy of the raw file would mean the document held two
+     * descriptions of the client half with nothing deciding which wins. So the
+     * client values arrive as values, and only the service-account key arrives
+     * as the file it still is.
+     *
+     * The key is re-parsed rather than trusted, which is what keeps projectId
+     * and clientEmail derived from one place however the row was made — and
+     * incidentally refuses a document somebody has edited by hand. The
+     * project-match rule is then applied exactly as useCredentials() applies
+     * it, because a backup made before that rule existed could carry a mismatch
+     * that has never been checked.
+     *
+     * Nothing is assigned until every check has passed: a refused restore
+     * leaves the row as it was, so an import that fails here has not half-moved
+     * an install onto someone else's Firebase project.
+     *
+     * @throws InvalidFirebaseCredentialsException when the key is not a service
+     *                                             account, or the two halves
+     *                                             name different projects
+     */
+    public function restore(
+        ?string $serviceAccountJson,
+        ?string $projectId,
+        ?string $applicationId,
+        ?string $apiKey,
+        ?string $senderId,
+        ?string $androidPackage,
+        bool $isEnabled,
+    ): void {
+        $account = null === $serviceAccountJson || '' === trim($serviceAccountJson)
+            ? null
+            : ServiceAccount::fromJson($serviceAccountJson);
+
+        $client = null !== $applicationId && null !== $apiKey && null !== $senderId;
+
+        // The client half's project comes from the stored column rather than
+        // from a file, because the file it was parsed out of is not carried.
+        // Compared all the same: a document assembled by hand out of two
+        // installs' rows is exactly the mismatch nothing downstream can detect.
+        if (null !== $account && true === $client && null !== $projectId && $account->projectId !== $projectId) {
+            throw new InvalidFirebaseCredentialsException(sprintf(
+                'This backup\'s two Firebase halves disagree: the service-account key is for "%s" '
+                . 'and the stored client configuration is for "%s". Restoring it would produce an '
+                . 'install whose app can never receive what its server sends.',
+                $account->projectId,
+                $projectId,
+            ));
+        }
+
+        $this->serviceAccountJson = null === $account ? null : $serviceAccountJson;
+        $this->clientEmail        = $account?->clientEmail;
+        $this->projectId          = null !== $account ? $account->projectId : ($client ? $projectId : null);
+
+        $this->applicationId  = $client ? $applicationId : null;
+        $this->apiKey         = $client ? $apiKey : null;
+        $this->senderId       = $client ? $senderId : null;
+        $this->androidPackage = $client ? $androidPackage : null;
+
+        // Same rule isActive() enforces at read time, applied at write time so
+        // a restored row cannot advertise `fcm: true` with half a setup behind
+        // it. An enabled flag with no credentials is silently a disabled one,
+        // rather than a refusal: the flag is not the thing being restored.
+        $this->isEnabled = $isEnabled && null !== $account && $client;
+    }
+
+    /**
      * Forget the service-account key, and stop — leaving isEnabled true with
      * nothing behind it would advertise `fcm: true` in the Session and refuse
      * every create.

@@ -61,6 +61,17 @@ password in a max-w-sm card reads as a wall.
                     </button>
 
                 {{ form_end(form) }}
+
+                {# Beside the ordinary path rather than instead of it, and below
+                   the button rather than above: an install that has no backup —
+                   which is most of them — must not be made to read past an
+                   option it cannot use. The account is still created here
+                   afterwards; a config backup carries configuration, not
+                   people, and the link says so. #}
+                <p class="mt-6 border-t border-line pt-5 text-center text-xs text-ink-muted leading-relaxed">
+                    {{ 'setup.install.restore_prompt'|trans }}
+                    <a href="{{ path('app_install_restore') }}" class="text-accent hover:underline">{{ 'setup.install.restore_link'|trans }}</a>
+                </p>
             </div>
 
             <p class="text-center text-xs text-ink-faint mt-6">

@@ -16,6 +16,11 @@ The secrets file holds more than the key — `APP_SECRET`, `POSTGRES_PASSWORD`, 
 the VAPID keypair and the `APP_PUBLIC_URL` saved during setup — and the JWT keypair sits beside it
 in `var/secrets/jwt/`. All of those are regenerable; the encryption key is not.
 
+The *configuration* — the environment values, those secrets-volume files and the credentials an
+admin typed into a form — can also be carried on its own, without any mail, as a single encrypted
+file: see [Configuration backup](config-backup.md). That is the file you want when you are rebuilding
+an install rather than recovering one.
+
 Two volumes need no backup at all: `caddy_data`/`caddy_config` and `mercure_data`/`mercure_config`
 hold TLS material and hub state that are recreated on their own.
 

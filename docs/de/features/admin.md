@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:9754c799bab994f83af0846421b46b232d2f0b28 -->
+<!-- translated-from: features/admin.md sha1:01f2e2e79164990302b960285a2343fa09c8e256 -->
 
 # Administration
 
@@ -288,6 +288,41 @@ Zwei Entfernungen werden rundheraus abgelehnt: dein eigenes Konto und die letzte
 Administratorin. Die zweite ist die, die im Moment gut aussieht — jemand entfernt eine Kollegin,
 und niemand merkt es, bis das nächste Mal jemand das Panel braucht. Dich selbst oder die letzte
 Administratorin herabzustufen wird aus demselben Grund abgelehnt.
+
+## Sicherung
+
+Alles, womit diese Installation *konfiguriert* ist, in einer passwortverschlüsselten Datei — und der
+Weg zurück. Keine E-Mails: keine Nachrichten, keine Kalender, keine Benutzerkonten. Die ganze
+Geschichte samt Dateiformat steht in der [Konfigurationssicherung](../install/config-backup.md); das
+Format ist dokumentiert, damit die Datei nie davon abhängt, dass plMail läuft.
+
+**Exportieren** fragt zweimal nach einem Passwort und lädt `plmail-config-<datum>.backup` herunter.
+Das Passwort wird nirgends gespeichert, und es gibt keine Wiederherstellung dafür. Die Datei enthält
+jedes Geheimnis der Installation, auch den entschlüsselten Inhalt der verschlüsselten Spalten — das
+ist Absicht, denn die Installation, auf der sie geöffnet wird, hat einen anderen
+`APP_ENCRYPTION_KEY`, und Chiffrat wäre dort unlesbar. Bewahre die Datei so sorgfältig auf wie den
+Schlüssel selbst.
+
+**Importieren** nimmt Datei und Passwort und zeigt eine Prüfung, bevor irgendetwas geschrieben wird.
+Die Prüfung hat zwei Hälften, und genau darauf kommt es an:
+
+- Was plMail selbst schreibt: das Firebase-Projekt, die Mail-OAuth-Registrierungen und die
+  Integrationsanbieter, neu verschlüsselt mit dem Schlüssel *dieser* Installation. Dazu das
+  JWT-Schlüsselpaar, sofern der Prozess das Secrets-Volume tatsächlich schreiben kann — das wird
+  gemessen, nicht angenommen.
+- Was es nicht kann: jede Umgebungsvariable, allen voran `APP_ENCRYPTION_KEY`, und
+  `postgres_password`. Diese kommen als exakte Zeilen zum Einfügen und exakte Pfade zurück, jeweils
+  mit dem Grund, warum sie in dieser Hälfte stehen. Ein laufender Prozess kann seine eigene Umgebung
+  nicht ändern, und ein Import, der etwas anderes behauptete, fiele an dem Tag auf, an dem es darauf
+  ankäme.
+
+Jede Zeile sagt außerdem, ob der Wert hier neu ist, etwas anderes ersetzt oder bereits
+übereinstimmt. Bei diesem mittleren Zustand lohnt es sich innezuhalten: Eine Wiederherstellung auf
+einer laufenden Installation ersetzt lebende Zugangsdaten.
+
+Derselbe Import läuft auch bei der Ersteinrichtung, unter dem Kontoformular auf `/install`, sodass
+eine neue Installation konfiguriert hochgezogen werden kann, bevor es ihren Administrator gibt.
+Dieser Einstiegspunkt schließt mit 404, sobald das erste Konto angelegt ist.
 
 ## Zurücksetzen
 

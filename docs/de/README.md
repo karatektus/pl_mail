@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:09db3ee4cac9d287547887f24392f28a6899342e -->
+<!-- translated-from: README.md sha1:51634b0e6859cd1836b263f678af628da764270f -->
 
 # plMail-Dokumentation
 
@@ -50,6 +50,7 @@ wo der Mechanismus dahinter steht.
 | [Hinter einem Reverse Proxy](install/reverse-proxy.md) | TLS, `APP_PUBLIC_URL`, `TRUSTED_PROXIES` — und was ohne sie kaputtgeht |
 | [Konfigurationsreferenz](install/configuration.md) | Jede Umgebungsvariable, was sie tut und was passiert, wenn sie falsch steht |
 | [Sichern und Wiederherstellen](install/backup-restore.md) | Was zu sichern ist, der Verschlüsselungsschlüssel und die Wiederherstellung auf einem neuen Host |
+| [Konfigurationssicherung](install/config-backup.md) | Einstellungen und Zugangsdaten einer Installation als eine verschlüsselte Datei zu einer anderen tragen |
 | [Aktualisieren](install/upgrading.md) | Migrationen laufen beim Start, was das bedeutet, und wie du erkennst, welcher Build läuft |
 | [Fehlersuche](install/troubleshooting.md) | Health-Checks, die Warteschlange, Protokolle und die Fehler, die tatsächlich vorgekommen sind |
 

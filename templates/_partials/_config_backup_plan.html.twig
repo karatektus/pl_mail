@@ -1,0 +1,110 @@
+{#
+_config_backup_plan.html.twig — what a config backup would do, or has just done.
+
+Accepts:
+  plan — App\Domain\DTO\Backup\ConfigBackupPlan
+
+Shared by the admin page and the first-run restore screen, because the review is
+the substance of an import and two copies of it would be two accounts of the
+same file. The pages around it differ; this does not.
+
+Two lists, and the split is the point. The first is what plMail is going to do
+by itself and is therefore short. The second is everything it cannot do, with
+the exact line to paste or the exact path to write — an import that quietly
+listed those as "restored" would send an operator away believing their
+APP_ENCRYPTION_KEY had travelled, which it has not and must not.
+
+`plan.applied` decides tense throughout: the same list is a promise before the
+button and a receipt after it, and a receipt written in the future tense is how
+somebody comes to press apply twice.
+#}
+<div class="space-y-4">
+
+    {# Which file this is. An admin restoring the wrong backup is usually
+       holding two, and the only thing telling them apart is what is inside. #}
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+        <dt class="text-ink-faint">{{ 'admin.config_backup.review.from'|trans }}</dt>
+        <dd class="font-mono text-ink-soft break-all">
+            {{ plan.instance ?? ('admin.config_backup.review.unknown_instance'|trans) }}
+        </dd>
+        <dt class="text-ink-faint">{{ 'admin.config_backup.review.exported_at'|trans }}</dt>
+        <dd class="font-mono text-ink-soft">
+            {{ plan.exportedAt ? plan.exportedAt|date('Y-m-d H:i') : ('admin.config_backup.review.unknown_instance'|trans) }}
+        </dd>
+    </dl>
+
+    {# ── What plMail does itself ──────────────────────────────────────── #}
+    <div>
+        <h3 class="text-sm font-semibold text-ink">
+            {{ (plan.applied ? 'admin.config_backup.review.applied' : 'admin.config_backup.review.automatic')|trans }}
+        </h3>
+
+        {% if plan.automatic is empty %}
+            <p class="mt-1.5 text-xs text-ink-faint">{{ 'admin.config_backup.review.automatic_none'|trans }}</p>
+        {% else %}
+            <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
+                {% for item in plan.automatic %}
+                    <li class="flex items-center gap-3 px-3.5 py-2">
+                        <i class="{{ item.section.icon }} text-xs text-zinc-400 w-4 shrink-0" aria-hidden="true"></i>
+                        <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
+                        <span class="ml-auto shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full
+                                     {{ item.change.value == 'differs' ? 'bg-amber-500/15 text-amber-500'
+                                        : (item.change.value == 'absent' ? 'bg-emerald-500/15 text-emerald-500'
+                                        : 'bg-raised text-ink-faint') }}">
+                            {{ item.change.transKey|trans }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    {# ── What the admin has to do ─────────────────────────────────────── #}
+    {% set manual = plan.manualBySection %}
+
+    {% if manual is not empty %}
+        <div>
+            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.manual'|trans }}</h3>
+            <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ 'admin.config_backup.review.manual_lead'|trans }}</p>
+
+            <div class="mt-2 space-y-3">
+                {% for sectionValue, items in manual %}
+                    {# Off the first item rather than off the loop key: the key
+                       is the enum's backing value and a template that turned it
+                       back into a case would be re-implementing from_value. #}
+                    {% set firstItem = items|first %}
+                    {% set section = firstItem.section %}
+
+                    <div class="rounded-lg border border-line overflow-hidden">
+                        <div class="flex items-center gap-2 px-3.5 h-9 border-b border-line bg-raised/40">
+                            <i class="{{ section.icon }} text-xs text-zinc-400" aria-hidden="true"></i>
+                            <h4 class="text-xs font-semibold text-ink">{{ section.transKey|trans }}</h4>
+                        </div>
+
+                        <ul class="divide-y divide-line">
+                            {% for item in items %}
+                                <li class="px-3.5 py-2.5">
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
+                                        <span class="ml-auto shrink-0 text-[11px] text-ink-faint">{{ item.change.transKey|trans }}</span>
+                                    </div>
+
+                                    {# select-all on the line itself: this is the
+                                       thing the operator came for, and a triple
+                                       click that catches the label instead of the
+                                       value is how a truncated secret ends up in
+                                       a .env.local. #}
+                                    {% if item.instruction %}
+                                        <pre class="mt-1.5 overflow-x-auto rounded bg-zinc-500/10 px-2.5 py-1.5 text-[11px] font-mono text-ink-soft select-all whitespace-pre-wrap break-all">{{ item.instruction }}</pre>
+                                    {% endif %}
+
+                                    <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ item.obstacle.transKey|trans }}</p>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>

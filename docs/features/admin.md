@@ -256,6 +256,37 @@ second is the one that looks fine at the time — an admin removes a colleague, 
 until the next time somebody needs the panel. Demoting yourself, or the last administrator, is
 refused for the same reason.
 
+## Backup
+
+Everything this installation is *configured* with, in one password-encrypted file — and the way to
+put it back. Not mail: no messages, no calendars, no user accounts. See
+[Configuration backup](../install/config-backup.md) for the whole story, including the file format,
+which is documented so the file never depends on plMail being able to run.
+
+**Export** asks for a password twice and downloads `plmail-config-<date>.backup`. The password is
+never stored and there is no recovery for it. The file carries every secret the install has,
+including the decrypted contents of the encrypted columns — that is deliberate, because the install
+it will be opened on has a different `APP_ENCRYPTION_KEY` and ciphertext would be unreadable there.
+Keep the file as carefully as you keep the key itself.
+
+**Import** takes the file and the password and shows a review before anything is written. The review
+has two halves and the split is the point:
+
+- What plMail will write itself: the Firebase project, the mail OAuth registrations and the
+  integration providers, re-encrypted with *this* install's key. Plus the JWT keypair, where the
+  process can actually write the secrets volume — that is measured, not assumed.
+- What it cannot: every environment variable, `APP_ENCRYPTION_KEY` above all, and
+  `postgres_password`. Those come back as exact lines to paste and exact paths to write to, with the
+  reason each one is in this half. A running process cannot change its own environment, and an
+  import that claimed otherwise would be discovered on the day it mattered.
+
+Each line also says whether it is new here, replaces something different, or already matches. That
+middle state is worth stopping at: restoring onto a running install replaces live credentials.
+
+The same import runs during first-time setup, below the account form on `/install`, so a new
+installation can be brought up configured before its administrator exists. That entry point closes
+with a 404 the moment the first account is created.
+
 ## Reset
 
 `app:reset`, as buttons. Six stages, each deleting everything the one above it does and more:

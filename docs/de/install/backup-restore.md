@@ -1,4 +1,4 @@
-<!-- translated-from: install/backup-restore.md sha1:917baa648ae18fb826274b6994f8fdcc3abdb28f -->
+<!-- translated-from: install/backup-restore.md sha1:5eeb6136c8276242d84ca034efa8286261f42607 -->
 # Sichern und Wiederherstellen
 
 Eine plMail-Installation besteht aus drei Dingen, und eine Sicherung, die nur zwei davon enthält,
@@ -17,6 +17,11 @@ Die Datei mit den Geheimnissen enthält mehr als den Schlüssel — `APP_SECRET`
 `MERCURE_JWT_SECRET`, das VAPID-Schlüsselpaar und die bei der Einrichtung gespeicherte
 `APP_PUBLIC_URL` —, und das JWT-Schlüsselpaar liegt daneben in `var/secrets/jwt/`. All das lässt
 sich neu erzeugen; der Verschlüsselungsschlüssel nicht.
+
+Die *Konfiguration* — die Umgebungswerte, jene Dateien im Secrets-Volume und die Zugangsdaten, die
+ein Administrator in ein Formular getippt hat — lässt sich auch für sich allein mitnehmen, ohne jede
+E-Mail, als eine einzige verschlüsselte Datei: siehe [Konfigurationssicherung](config-backup.md).
+Das ist die Datei, die du willst, wenn du eine Installation neu aufbaust statt eine wiederherstellst.
 
 Zwei Volumes brauchen überhaupt keine Sicherung: `caddy_data`/`caddy_config` und
 `mercure_data`/`mercure_config` enthalten TLS-Material und Hub-Zustand, die sich von selbst wieder

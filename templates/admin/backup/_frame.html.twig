@@ -1,0 +1,182 @@
+{#
+admin/backup/_frame.html.twig — Admin → Config backup.
+
+Accepts:
+  plan              — App\Domain\DTO\Backup\ConfigBackupPlan, or null when there is nothing to review
+  error             — a translation key for a refusal, or null
+  errorLiteral      — an already-worded refusal (only FcmConfig's project-mismatch message), or null
+  envelope          — the uploaded ciphertext, carried into the apply step, or null
+  minPasswordLength — what the export form refuses to go below
+
+Two cards, and they are in the order an admin needs them: export first, because
+the person who has never used this page is here to make a file, and the person
+importing already knows where they are going.
+
+The export form carries data-turbo="false". Turbo cannot render a download —
+it would swap an octet-stream into the frame and leave a blank panel — so the
+browser has to perform this submission itself. Every other form here posts into
+the frame as usual.
+
+No auto-refresh wraps this frame, for the reason the push page states and more
+so: there are three password fields on it, and a poll would empty whichever one
+is half-typed.
+#}
+<turbo-frame id="admin-backup" class="block space-y-3">
+
+    {% if error or errorLiteral %}
+        <div role="alert" class="flex items-start gap-2.5 rounded-pane alert-danger px-4 py-3 text-sm text-danger">
+            <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+            <p class="leading-snug">{{ errorLiteral ?? (error|trans) }}</p>
+        </div>
+    {% endif %}
+
+    {# ── Review, when there is one ─────────────────────────────────────── #}
+    {% if plan is not null %}
+        <div class="rounded-pane border {{ plan.applied ? 'border-emerald-500/40' : 'border-line' }} bg-pane-soft overflow-hidden">
+            <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+                <i class="fa-solid {{ plan.applied ? 'fa-circle-check text-emerald-500' : 'fa-list-check text-zinc-400' }} text-xs" aria-hidden="true"></i>
+                <h2 class="text-sm font-semibold text-ink">
+                    {{ (plan.applied ? 'admin.config_backup.review.applied' : 'admin.config_backup.review.heading')|trans }}
+                </h2>
+            </div>
+
+            <div class="px-5 py-4">
+                {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
+
+                {% if not plan.applied %}
+                    <form method="post"
+                          action="{{ path('app_admin_config_backup_apply') }}"
+                          data-turbo-frame="admin-backup"
+                          class="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <input type="hidden" name="_token" value="{{ csrf_token('config_backup_apply') }}">
+                        {# The ciphertext, exactly as uploaded. Nothing about it
+                           is stored server-side between the two requests — see
+                           App\Controller\Admin\ConfigBackupController — and it
+                           is no more readable here than it was on disk. #}
+                        <input type="hidden" name="envelope" value="{{ envelope }}">
+
+                        <div class="flex-1 min-w-0">
+                            <label for="apply-password" class="block text-xs text-ink-muted">
+                                {{ 'admin.config_backup.review.confirm_password'|trans }}
+                            </label>
+                            <input type="password" id="apply-password" name="password" required autocomplete="off"
+                                   class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                          focus:outline-none focus:ring-2 focus:ring-accent">
+                        </div>
+
+                        <button type="submit" id="config-backup-apply"
+                                class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                       text-white bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                            <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+                            {{ 'admin.config_backup.review.apply'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# ── Export ────────────────────────────────────────────────────────── #}
+    <div class="rounded-pane border border-line bg-pane-soft overflow-hidden">
+        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+            <i class="fa-solid fa-file-export text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.export.heading'|trans }}</h2>
+        </div>
+
+        <div class="px-5 py-4 space-y-4">
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.config_backup.export.intro'|trans }}</p>
+            <p class="text-xs text-ink-faint leading-relaxed">
+                <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
+                {{ 'admin.config_backup.export.warning'|trans }}
+            </p>
+
+            <form method="post"
+                  action="{{ path('app_admin_config_backup_export') }}"
+                  data-turbo="false"
+                  class="space-y-3">
+                <input type="hidden" name="_token" value="{{ csrf_token('config_backup_export') }}">
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="export-password" class="block text-xs text-ink-muted">
+                            {{ 'admin.config_backup.export.password'|trans }}
+                        </label>
+                        <input type="password" id="export-password" name="password" required autocomplete="new-password"
+                               minlength="{{ minPasswordLength }}"
+                               class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                      focus:outline-none focus:ring-2 focus:ring-accent">
+                    </div>
+                    <div>
+                        <label for="export-password-repeat" class="block text-xs text-ink-muted">
+                            {{ 'admin.config_backup.export.password_repeat'|trans }}
+                        </label>
+                        <input type="password" id="export-password-repeat" name="password_repeat" required autocomplete="new-password"
+                               minlength="{{ minPasswordLength }}"
+                               class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                      focus:outline-none focus:ring-2 focus:ring-accent">
+                    </div>
+                </div>
+
+                <p class="text-xs text-ink-faint">{{ 'admin.config_backup.export.password_help'|trans({ '%length%': minPasswordLength }) }}</p>
+
+                <div class="flex justify-end">
+                    <button type="submit" id="config-backup-export"
+                            class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                   text-white bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                        <i class="fa-solid fa-file-arrow-down text-xs" aria-hidden="true"></i>
+                        {{ 'admin.config_backup.export.submit'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Import ────────────────────────────────────────────────────────── #}
+    <div class="rounded-pane border border-line bg-pane-soft overflow-hidden">
+        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+            <i class="fa-solid fa-file-import text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.import.heading'|trans }}</h2>
+        </div>
+
+        <div class="px-5 py-4 space-y-4">
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.config_backup.import.intro'|trans }}</p>
+
+            <form method="post"
+                  action="{{ path('app_admin_config_backup_import') }}"
+                  enctype="multipart/form-data"
+                  data-turbo-frame="admin-backup"
+                  class="space-y-3">
+                <input type="hidden" name="_token" value="{{ csrf_token('config_backup_import') }}">
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="import-file" class="block text-xs text-ink-muted">
+                            {{ 'admin.config_backup.import.file'|trans }}
+                        </label>
+                        <input type="file" id="import-file" name="backup" required accept=".backup,application/octet-stream"
+                               class="mt-1 w-full text-sm text-ink-soft file:mr-3 file:h-8 file:rounded-lg file:border-0
+                                      file:bg-raised file:px-3 file:text-xs file:text-ink file:cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="import-password" class="block text-xs text-ink-muted">
+                            {{ 'admin.config_backup.import.password'|trans }}
+                        </label>
+                        <input type="password" id="import-password" name="password" required autocomplete="off"
+                               class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                      focus:outline-none focus:ring-2 focus:ring-accent">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" id="config-backup-import"
+                            class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                   btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                        <i class="fa-solid fa-magnifying-glass text-xs" aria-hidden="true"></i>
+                        {{ 'admin.config_backup.import.submit'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</turbo-frame>

@@ -1,0 +1,130 @@
+{#
+setup/restore.html.twig — the alternative first screen: bring an old install's
+configuration with you.
+
+Accepts:
+  plan         — App\Domain\DTO\Backup\ConfigBackupPlan, or null before anything is uploaded
+  error        — a translation key for a refusal, or null
+  errorLiteral — an already-worded refusal, or null
+  envelope     — the uploaded ciphertext, carried into the apply step, or null
+
+Built on install.html.twig's card, because it is the same moment in the same
+flow and the two screens link to each other. Wider than that one (max-w-2xl):
+the review is a table of what will happen, and a list of .env.local lines in a
+max-w-md card wraps into nonsense.
+
+The whole page is data-turbo="false" for the reason install.html.twig gives —
+Turbo swaps only the <body>, so the appearance rendered onto <html> is ignored
+until a real navigation, and the next navigation from here is into the app.
+
+Restoring does NOT create an account, and the page says so at every step: this
+carries configuration, not people. The link back to /install is the actual next
+action and is never hidden.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'setup.restore.page_title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="min-h-screen flex items-center justify-center app-bg px-4 py-10">
+        <div class="w-full max-w-2xl">
+
+            <div class="flex flex-col items-center mb-8">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-envelope text-accent text-2xl" aria-hidden="true"></i>
+                    <span class="text-xl font-semibold text-ink">{{ 'app.name'|trans }}</span>
+                </div>
+                <p class="text-sm text-ink-muted">{{ 'setup.install.tagline'|trans }}</p>
+            </div>
+
+            <div class="bg-surface rounded-pane shadow-sm border border-line p-8">
+
+                <h1 class="text-base font-semibold text-ink">{{ 'setup.restore.heading'|trans }}</h1>
+                <p class="mt-1.5 text-sm text-ink-muted leading-relaxed">{{ 'setup.restore.lead'|trans }}</p>
+
+                {% if error or errorLiteral %}
+                    <div role="alert" class="mt-6 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                        <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-danger" aria-hidden="true"></i>
+                        <p class="leading-snug">{{ errorLiteral ?? (error|trans) }}</p>
+                    </div>
+                {% endif %}
+
+                {% if plan is not null %}
+                    <div class="mt-6">
+                        {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
+                    </div>
+
+                    {% if plan.applied %}
+                        {# The account is the next step and the only one left.
+                           Said plainly, because "restored" reads like "finished"
+                           and this install still has no users. #}
+                        <div class="mt-6 flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                            <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                            <p class="leading-snug">{{ 'setup.restore.applied_lead'|trans }}</p>
+                        </div>
+
+                        <a href="{{ path('app_install') }}"
+                           class="mt-6 block w-full text-center bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                            {{ 'setup.restore.continue'|trans }}
+                        </a>
+                    {% else %}
+                        <form method="post" action="{{ path('app_install_restore_apply') }}" data-turbo="false" class="mt-6 space-y-3">
+                            <input type="hidden" name="_token" value="{{ csrf_token('install_restore_apply') }}">
+                            <input type="hidden" name="envelope" value="{{ envelope }}">
+
+                            <div>
+                                <label for="restore-apply-password" class="block text-xs text-ink-muted">
+                                    {{ 'admin.config_backup.review.confirm_password'|trans }}
+                                </label>
+                                <input type="password" id="restore-apply-password" name="password" required autocomplete="off"
+                                       class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                              focus:outline-none focus:ring-2 focus:ring-accent">
+                            </div>
+
+                            <button type="submit" id="restore-apply"
+                                    class="w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                                {{ 'admin.config_backup.review.apply'|trans }}
+                            </button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <form method="post" action="{{ path('app_install_restore') }}" enctype="multipart/form-data" data-turbo="false" class="mt-6 space-y-4">
+                        <input type="hidden" name="_token" value="{{ csrf_token('install_restore') }}">
+
+                        <div>
+                            <label for="restore-file" class="block text-xs text-ink-muted">
+                                {{ 'admin.config_backup.import.file'|trans }}
+                            </label>
+                            <input type="file" id="restore-file" name="backup" required accept=".backup,application/octet-stream"
+                                   class="mt-1 w-full text-sm text-ink-soft file:mr-3 file:h-8 file:rounded-lg file:border-0
+                                          file:bg-raised file:px-3 file:text-xs file:text-ink file:cursor-pointer">
+                        </div>
+
+                        <div>
+                            <label for="restore-password" class="block text-xs text-ink-muted">
+                                {{ 'admin.config_backup.import.password'|trans }}
+                            </label>
+                            <input type="password" id="restore-password" name="password" required autocomplete="off"
+                                   class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                          focus:outline-none focus:ring-2 focus:ring-accent">
+                        </div>
+
+                        <button type="submit" id="restore-submit"
+                                class="w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                            {{ 'setup.restore.submit'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+
+                <p class="mt-6 text-center text-xs text-ink-faint">
+                    <a href="{{ path('app_install') }}" class="text-accent hover:underline">{{ 'setup.restore.back'|trans }}</a>
+                </p>
+            </div>
+
+            <p class="text-center text-xs text-ink-faint mt-6">
+                {{ 'setup.restore.footnote'|trans }}
+            </p>
+
+        </div>
+    </div>
+{% endblock %}

@@ -40,6 +40,93 @@ admin:
         messages: 'Nachrichten'
         threads: 'Konversationen'
     ago: 'her'
+    config_backup:
+        change:
+            absent: 'hier noch nicht gesetzt'
+            differs: 'ersetzt einen anderen Wert'
+            unchanged: 'bereits identisch'
+        error:
+            malformed-document: >-
+                Das Passwort hat die Datei geöffnet, aber ihr Inhalt ist keine
+                Konfigurationssicherung, die diese plMail-Version lesen kann. Es wurde
+                nichts geändert.
+            not-a-backup: >-
+                Das ist keine plMail-Konfigurationssicherung. Es wurde nichts geändert.
+            unsupported-version: >-
+                Diese Sicherung stammt aus einer neueren plMail-Version und liegt in einem
+                Format vor, das diese Version nicht lesen kann. Aktualisiere zuerst, dann
+                importiere sie.
+            wrong-password: >-
+                Mit diesem Passwort lässt sich die Datei nicht öffnen — oder die Datei
+                wurde seit dem Schreiben verändert. Es wurde nichts geändert.
+        export:
+            error:
+                mismatch: 'Die beiden Passwörter stimmten nicht überein, es wurde nichts exportiert.'
+                too_short: 'Dieses Passwort ist zu kurz, es wurde nichts exportiert.'
+            heading: 'Konfiguration exportieren'
+            intro: >-
+                Alle Einstellungen und Zugangsdaten, mit denen diese Installation läuft, in
+                einer passwortverschlüsselten Datei: die Umgebungswerte, die Dateien im
+                Secrets-Volume sowie die Anbieter- und Firebase-Zugangsdaten aus der
+                Datenbank. Keine E-Mails, keine Kalender, keine Benutzerkonten — dafür ist
+                `app:backup` da.
+            password: 'Passwort'
+            password_help: >-
+                Mindestens %length% Zeichen. Es wird nirgends gespeichert, und ohne es
+                lässt sich die Datei nicht öffnen.
+            password_repeat: 'Passwort wiederholen'
+            submit: 'Sicherung herunterladen'
+            warning: >-
+                Die entstehende Datei enthält jedes Geheimnis dieser Installation, geschützt
+                durch nichts als das Passwort, das du hier eingibst. Bewahre sie so auf, wie
+                du den Verschlüsselungsschlüssel selbst aufbewahren würdest.
+        import:
+            error:
+                no_file: 'Es kam keine Datei an, oder sie war weit größer, als eine Konfigurationssicherung sein kann.'
+                no_password: 'Gib das Passwort ein, mit dem diese Sicherung versiegelt wurde.'
+            file: 'Sicherungsdatei'
+            heading: 'Konfiguration importieren'
+            intro: >-
+                Lade eine Sicherung hoch und gib ihr Passwort ein. Es wird nichts
+                geschrieben, bevor du gesehen und bestätigt hast, was passieren würde.
+            password: 'Passwort'
+            submit: 'Sicherung prüfen'
+        obstacle:
+            encryption-key-in-use: >-
+                Diesen Wert zu schreiben würde jede bereits hier gespeicherte Zugangsdatei —
+                auch die, die dieser Import gerade geschrieben hat — beim nächsten Start
+                unlesbar machen. Setze ihn nur auf einer Installation, in der noch nichts
+                gespeichert ist.
+            external-system: >-
+                plMail ist hier Client und nicht Eigentümer. Den Wert hier zu ändern, ohne
+                ihn in der Datenbank selbst zu ändern, ergibt eine Installation, die nicht
+                mehr startet.
+            not-writable: >-
+                Dieser Prozess kann diesen Pfad nicht schreiben. Lege die Datei selbst dort
+                ab — sie steckt in der Sicherung, die du gerade hochgeladen hast.
+            process-environment: >-
+                Ein laufender Prozess kann die Umgebung, mit der er gestartet wurde, nicht
+                ändern. Trage diese Zeile ein und starte den Stack neu.
+        review:
+            apply: 'Schreibbare Teile anwenden'
+            applied: 'Was geschrieben wurde'
+            automatic: 'Das schreibt plMail selbst'
+            automatic_none: 'Aus dieser Sicherung kann plMail nichts selbst schreiben.'
+            confirm_password: 'Passwort, noch einmal'
+            exported_at: 'Exportiert'
+            from: 'Von'
+            heading: 'Sicherung prüfen'
+            manual: 'Das musst du selbst erledigen'
+            manual_lead: >-
+                Nichts davon kann plMail schreiben, und etwas anderes zu behaupten wäre eine
+                Lüge, die ein Betreiber erst an dem Tag bemerkt, an dem es darauf ankommt.
+                Jede Zeile ist genau das, was einzutragen ist, oder genau der Ort, an den
+                die Datei gehört.
+            unknown_instance: 'nicht vermerkt'
+        section:
+            database: 'Datenbank'
+            env: 'Umgebungsvariablen'
+            files: 'Dateien im Secrets-Volume'
     db:
         active:
             empty: 'Zurzeit keine aktiven Abfragen.'
@@ -234,6 +321,7 @@ admin:
         page: 'Seite'
         refresh: 'Aktualisieren'
     nav:
+        backup: Sicherung
         database: Datenbank
         integrations: Integrationen
         logs: Protokolle
@@ -1270,8 +1358,26 @@ setup:
         heading: Konto anlegen
         lead: Das ist das erste Konto auf dieser plMail-Instanz und bekommt daher volle Administratorrechte.
         page_title: plMail einrichten
+        restore_link: Stelle zuerst eine Konfigurationssicherung wieder her.
+        restore_prompt: Kommst du von einer anderen plMail-Instanz?
         submit: Konto anlegen und anmelden
         tagline: Hier hat sich noch niemand angemeldet
+    restore:
+        applied_lead: >-
+            Die Konfiguration steht. Diese Installation hat noch keine Benutzer — lege das
+            Administratorkonto an, um fertig zu werden.
+        back: 'Zurück zum Anlegen des Administrators'
+        continue: 'Weiter — Administrator anlegen'
+        footnote: >-
+            Eine Konfigurationssicherung enthält Einstellungen und Zugangsdaten, niemals
+            E-Mails und niemals Benutzerkonten.
+        heading: 'Konfigurationssicherung wiederherstellen'
+        lead: >-
+            Bring die Einstellungen und Zugangsdaten einer anderen plMail-Instanz hierher,
+            bevor du das erste Konto anlegst. Alles, was diese Installation nicht selbst
+            schreiben kann, wird danach aufgelistet — mit den genauen Zeilen zum Eintragen.
+        page_title: 'Konfiguration wiederherstellen'
+        submit: 'Sicherung öffnen'
 
 settings:
     accounts:

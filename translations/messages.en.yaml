@@ -40,6 +40,89 @@ admin:
         messages: 'Messages'
         threads: 'Threads'
     ago: 'ago'
+    config_backup:
+        change:
+            absent: 'nothing set here yet'
+            differs: 'replaces a different value'
+            unchanged: 'already identical'
+        error:
+            malformed-document: >-
+                The password opened that file, but what is inside is not a configuration
+                backup this plMail can read. Nothing has been changed.
+            not-a-backup: >-
+                That is not a plMail configuration backup. Nothing has been changed.
+            unsupported-version: >-
+                That backup was written by a newer plMail than this one, in a format this
+                version cannot read. Upgrade first, then import it.
+            wrong-password: >-
+                That password does not open this file — or the file has been altered since
+                it was written. Nothing has been changed.
+        export:
+            error:
+                mismatch: 'The two passwords did not match, so nothing was exported.'
+                too_short: 'That password is too short, so nothing was exported.'
+            heading: 'Export configuration'
+            intro: >-
+                Every setting and credential this installation runs on, in one
+                password-encrypted file: the environment values, the files in the secrets
+                volume, and the provider and Firebase credentials from the database. No
+                mail, no calendars and no user accounts — those are what `app:backup` is
+                for.
+            password: 'Password'
+            password_help: >-
+                At least %length% characters. It is never stored anywhere, and there is no
+                way to open the file without it.
+            password_repeat: 'Repeat password'
+            submit: 'Download backup'
+            warning: >-
+                The file that comes out is every secret this installation has, protected by
+                nothing but the password you type here. Keep it the way you would keep the
+                encryption key itself.
+        import:
+            error:
+                no_file: 'No file arrived, or it was far larger than a configuration backup can be.'
+                no_password: 'Enter the password this backup was sealed with.'
+            file: 'Backup file'
+            heading: 'Import configuration'
+            intro: >-
+                Upload a backup and enter its password. Nothing is written until you have
+                seen what it would do and confirmed it.
+            password: 'Password'
+            submit: 'Review this backup'
+        obstacle:
+            encryption-key-in-use: >-
+                Writing this would make every credential already stored here — including
+                the ones this import just wrote — unreadable on the next start. Set it only
+                on an install that has nothing stored yet.
+            external-system: >-
+                plMail is a client of this, not its owner. Changing the value here without
+                changing it in the database itself produces an installation that cannot
+                start.
+            not-writable: >-
+                This process cannot write that path. Put the file there yourself — it is in
+                the backup you just uploaded.
+            process-environment: >-
+                A running process cannot change the environment it was started with. Add
+                this line, then restart the stack.
+        review:
+            apply: 'Apply the writable parts'
+            applied: 'What was written'
+            automatic: 'plMail will write these'
+            automatic_none: 'Nothing in this backup is plMail''s own to write.'
+            confirm_password: 'Password, once more'
+            exported_at: 'Exported'
+            from: 'From'
+            heading: 'Review this backup'
+            manual: 'These are yours to do'
+            manual_lead: >-
+                plMail cannot write any of the following, and saying otherwise would be a
+                lie an operator only discovers on the day it matters. Each line is exactly
+                what to paste, or exactly where to put it.
+            unknown_instance: 'not recorded'
+        section:
+            database: 'Database'
+            env: 'Environment variables'
+            files: 'Files in the secrets volume'
     db:
         active:
             empty: 'No active queries right now.'
@@ -234,6 +317,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        backup: Backup
         database: Database
         integrations: Integrations
         logs: Logs
@@ -1246,8 +1330,26 @@ setup:
         heading: Create your account
         lead: This is the first account on this plMail, so it gets full administrator rights.
         page_title: Set up plMail
+        restore_link: Restore a configuration backup first.
+        restore_prompt: Moving from another plMail?
         submit: Create account and sign in
         tagline: Nobody has signed up yet — let's fix that
+    restore:
+        applied_lead: >-
+            The configuration is in place. This installation still has no users — create
+            the administrator account to finish.
+        back: 'Back to creating the administrator'
+        continue: 'Continue — create the administrator'
+        footnote: >-
+            A configuration backup carries settings and credentials, never mail and never
+            user accounts.
+        heading: 'Restore a configuration backup'
+        lead: >-
+            Bring another plMail's settings and credentials here before you create the
+            first account. Anything this installation cannot write itself is listed
+            afterwards, with the exact lines to add.
+        page_title: 'Restore configuration'
+        submit: 'Open the backup'
 
 settings:
     accounts:

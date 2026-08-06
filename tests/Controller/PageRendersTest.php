@@ -70,6 +70,12 @@ final class PageRendersTest extends WebTestCase
         // 400 — and a page that 500s on a typo is a page nobody diagnoses
         // anything with.
         yield 'admin push deliveries, nonsense filters' => ['/admin/push/deliveries?usr=nope&transport=fcmm&outcome=exploded&page=-3'];
+        yield 'admin config backup' => ['/admin/config-backup'];
+        // The one query string this frame reads. An unknown value has to render
+        // the panel without an error rather than 500 on a missing translation
+        // key, for the same reason the delivery filters above fall back.
+        yield 'admin config backup, export refused' => ['/admin/config-backup?error=password-mismatch'];
+        yield 'admin config backup, nonsense error' => ['/admin/config-backup?error=made-up'];
         // The wizard renders into the modal frame, so these are fragments
         // rather than pages — but a broken step template still shows up as a
         // 500 here, which is the point.
