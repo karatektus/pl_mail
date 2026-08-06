@@ -108,7 +108,7 @@ final class EmailPatchApplier
         }
 
         if ([] !== $content) {
-            $this->draftWriter->update($message, $content);
+            $this->draftWriter->update($account, $message, $content);
         }
 
         if (true === $touchesKeywords) {

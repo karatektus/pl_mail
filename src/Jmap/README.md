@@ -63,7 +63,8 @@ rather than leaking.
   nothing is hydrated).
 - `Mail/EmailPatchApplier` — keyword/mailbox patch semantics, shared by
   `Email/set update` and `EmailSubmission/set onSuccessUpdateEmail`.
-- `Mail/JmapDraftWriter` — `Email/set create`, mirroring the web composer.
+- `Mail/JmapDraftWriter` — the draft content of `Email/set create` *and*
+  `update`, mirroring the web composer. Both go through one attachment path.
 
 **Calendar glue**
 - `Account/CalendarAccountResolver` — which JMAP account serves calendars, and
@@ -200,6 +201,20 @@ Get these wrong and things fail quietly rather than loudly.
   change. A JMAP client is a person making a change, exactly as the web editor
   is; without the mark an edit made on a phone never leaves the machine and the
   next pull silently reverts it.
+- **`Email.attachments` is a whole value on create *and* update, never a patch.**
+  The array a client sends is the complete set the draft should end up with, so
+  a part left out of it is a part it removed — RFC 8620 §5.3 spells a patch as
+  `attachments/0`, and this is the plain property. A part already on the draft
+  is kept by the `p-` blobId `Email/get` handed out, with no second upload of
+  bytes already stored and no new part id; anything else is resolved through
+  `BlobResolver` and **copied** into attachment storage, because an
+  `UploadedBlob` is scratch space `app:prune:blobs` reclaims on a timer. A
+  blobId that will not resolve — malformed, expired, or another account's —
+  fails the whole update with `invalidProperties` and writes nothing at all,
+  including the subject in the same patch. Update used to accept the property
+  and drop it silently while the rest of the patch applied, which left a client
+  told `updated` with no idea the file was gone; `EmailSetAttachmentsTest` is
+  the pin.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*

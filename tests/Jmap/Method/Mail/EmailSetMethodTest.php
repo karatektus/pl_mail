@@ -24,8 +24,9 @@ use App\Tests\Jmap\JmapTestCase;
  *    creation path and it is the composer's, so a client cannot inject mail.
  * 2. **destroy adds Trash and removes Inbox**, which for a draft means it stays
  *    in Drafts. Right for received mail, startling for a draft.
- * 3. **`attachments` on an update is accepted and dropped.** That one is a bug,
- *    named as such below, pinned so a fix is a deliberate act.
+ * 3. **`attachments` is a whole value on both create and update**, and an
+ *    unresolvable blobId is refused on either. It used to be accepted and
+ *    dropped on an update; EmailSetAttachmentsTest is where that now lives.
  *
  * The response shape is asserted throughout rather than "it did not throw": a
  * /set answers per-id maps, and a client reads `notUpdated[id].type` to decide
@@ -292,23 +293,21 @@ final class EmailSetMethodTest extends JmapTestCase
         self::assertSame('invalidPatch', ((array) $result['notUpdated'])[(string) $message->id]['type']);
     }
 
-    // ── the attachments bug ───────────────────────────────────────────────
+    // ── attachments ───────────────────────────────────────────────────────
 
     /**
-     * A KNOWN BUG, pinned as it currently behaves.
+     * An unresolvable blobId is refused on an update, and the rest of the patch
+     * goes down with it.
      *
-     * `attachments` is in EmailPatchApplier::DRAFT_PROPERTIES, so the patch is
-     * accepted; JmapDraftWriter::update() never reads the key, so nothing is
-     * stored. The call answers `updated` and the attachment is gone, which is
-     * the worst available outcome — a rejection would at least let the client
-     * fall back.
-     *
-     * Not fixed here because fixing it is a production change with a shape to
-     * decide (store it, as create does, or refuse the property), and it is
-     * documented as an open ask in the Android client's SERVER_REQUESTS.md.
-     * WHEN THAT IS FIXED, THIS TEST MUST FAIL — that is what it is for.
+     * This used to be the opposite: `attachments` was in
+     * EmailPatchApplier::DRAFT_PROPERTIES so the patch was accepted, and
+     * JmapDraftWriter::update() never read the key, so the call answered
+     * `updated` while storing nothing — the worst available outcome, because a
+     * client that is told it succeeded has nothing to fall back to. The whole
+     * behaviour now lives in EmailSetAttachmentsTest; what is pinned here is
+     * the wire shape a batch caller reads.
      */
-    public function testAttachmentsOnAnUpdateAreAcceptedAndSilentlyDropped(): void
+    public function testAnUnresolvableBlobIsRefusedOnAnUpdate(): void
     {
         $message = $this->draftMessage();
 
@@ -319,17 +318,13 @@ final class EmailSetMethodTest extends JmapTestCase
             ]],
         ]);
 
-        self::assertArrayHasKey((string) $message->id, (array) $result['updated']);
-        self::assertSame('Now with a file', $message->subject, 'the rest of the patch did apply');
+        self::assertSame('invalidProperties', ((array) $result['notUpdated'])[(string) $message->id]['type']);
+        self::assertNotSame('Now with a file', $message->subject, 'the rest of the patch applied anyway');
         self::assertCount(0, $message->messageParts);
         self::assertFalse((bool) $message->hasAttachments);
     }
 
-    /**
-     * The same blobId on a create is refused, which is what makes the entry
-     * above a bug rather than a policy: the two paths disagree about whether
-     * an unresolvable blob is an error.
-     */
+    /** The same blobId on a create is refused in the same words. */
     public function testTheSameUnresolvableBlobIsRefusedOnACreate(): void
     {
         $result = $this->handle([

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e8b507a009a17b4a74b8b3d040491e1aa38aaf35 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:20f490d14621a2fe889a0370a047e1ede2530e8f -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -785,6 +785,16 @@ Legt Entwürfe an, aktualisiert Keywords und `mailboxIds`, und „zerstört".
   also genauso wie eine im Browser gemachte. Aus deiner App zu archivieren archiviert in Gmail.
 - `ifInState` wird beachtet — nimm es zur Konflikterkennung bei Stapelmutationen.
 - Das Anlegen von Entwürfen geht durch denselben Draft-Writer, den auch der Editor verwendet.
+- **`attachments` funktioniert bei `update` genauso wie bei `create` und ist ein ganzer Wert.**
+  Häng eine Datei an einen bereits bestehenden Entwurf, indem du die vollständige Liste schickst,
+  die am Ende dranhängen soll — die `p-`-BlobIDs, die dir `Email/get` für die behaltenen Teile
+  gegeben hat, plus die `u-`-BlobID des gerade Hochgeladenen. Weggelassene Teile werden entfernt
+  und ihre Bytes gelöscht. Ein per `p-`-BlobID erneut aufgeführter Teil behält seine ID und wird
+  nicht neu hochgeladen; gibst du dabei einen anderen `name` an, wird die Datei umbenannt. Du
+  musst den Entwurf nicht neu anlegen.
+- **Eine BlobID, die sich nicht auflösen lässt, bringt das ganze Update zu Fall.** Du bekommst
+  `notUpdated[id].type = "invalidProperties"`, und *nichts* aus diesem Patch wird angewendet —
+  weder die Anhänge noch der Betreff daneben. Lade neu hoch und schick den ganzen Patch erneut.
 
 **Semantische Erinnerung:** „archiviert" heißt in plMails Domänenmodell *trägt kein
 Posteingangs-Label*. Zum Archivieren entfernst du die Mailbox-ID des Posteingangs. Das
