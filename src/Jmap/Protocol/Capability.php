@@ -40,8 +40,36 @@ final class Capability
     public const string CALENDARS = 'urn:plmail:params:jmap:calendars';
 
     /**
+     * Vendor extension: Appearance/get and Appearance/set — the theme the user
+     * picked, so a phone paints what the browser paints.
+     *
+     * Vendor because it is one: RFC 8620 has no notion of a stored client
+     * preference, and the vocabulary behind it (Theme, Layout, Density, the
+     * background kinds) is plMail's own stylesheet, not a portable one. A
+     * standard-looking URN would invite a client to assume the enums mean what
+     * they mean somewhere else.
+     */
+    public const string APPEARANCE = 'urn:plmail:params:jmap:appearance';
+
+    /**
+     * Vendor extension: the sync window in force on an account, published in
+     * the Session's accountCapabilities and nowhere else — it has no methods.
+     *
+     * It exists so a client can answer "why is this mail not in search?".
+     * Without it the honest answer is unavailable: a search that misses old
+     * mail looks identical whether the server never fetched it or the phone
+     * has not caught up, and the two need opposite responses from the user.
+     */
+    public const string SYNC = 'urn:plmail:params:jmap:sync';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
+     *
+     * SYNC is here despite having no methods. A client that reads it out of
+     * the Session and lists it in "using" — which is the obvious thing to do
+     * with a capability you depend on — would otherwise have its whole request
+     * refused with unknownCapability.
      *
      * @var list<string>
      */
@@ -50,5 +78,7 @@ final class Capability
         self::MAIL,
         self::SUBMISSION,
         self::CALENDARS,
+        self::APPEARANCE,
+        self::SYNC,
     ];
 }
