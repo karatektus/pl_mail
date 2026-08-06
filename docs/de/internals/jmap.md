@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:ff0608b1c1ab43dfb25895bed051c33b0cf45c7a -->
+<!-- translated-from: internals/jmap.md sha1:718a041c5c75dc966f5fb6763a0bdb8a5cee0ce5 -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -133,6 +133,7 @@ echtes, falsches Objekt, das ein Client dann holt und darstellt.
 | EmailSubmission | die **Email**-ID | eine Submission hat keine eigene Tabelle |
 | Calendar | Zeilen-ID von `Calendar` | ein Konto liefert die Kalender, es gibt also nichts zu übersetzen |
 | CalendarEvent | **Zeilen-ID von `CalendarEvent`** — die Serie | siehe unten |
+| CalendarEvent, expandiert | `<eventId>_<recurrenceId>` — eine datierte Instanz | nur aus einer Abfrage, die danach gefragt hat |
 | blobId | `m-<id>` / `p-<id>` / `u-<id>` | zwei unabhängige Byte-Quellen, dazu vorgemerkte Uploads |
 
 ### Eine Mailbox ist ein Binding, kein Label
@@ -187,6 +188,95 @@ Writer hat diese Zeile gemacht. `isRecurring` wird veröffentlicht, weil ein Cli
 Regel allein nicht sehen kann: Eine Regel, die dieser Server nicht umwandeln konnte, wird
 wortgetreu gespeichert und expandiert zu einer einzigen Termininstanz; das Vorhandensein von
 `recurrenceRules` ist also nicht dieselbe Aussage wie „das wiederholt sich hier".
+
+### … außer wenn eine Abfrage um expandierte Wiederholungen gebeten hat
+
+Die Serie ist die richtige Einheit für ein *Objekt* und die falsche für die Frage „an welchen
+Tagen liegt das eigentlich?". Eine eingeklappte Abfrage beantwortet ein Monatsfenster mit einer
+einzigen ID und sagt nichts darüber, wo darin die Instanzen liegen; ein Client, der einen Monat
+zeichnet, hatte also genau einen Weg, das herauszufinden: einen Tag nach dem anderen abfragen und
+schauen, in welchen Fenstern die Serie zurückkommt. Für einen Monat sind das bis zu 31 Anfragen,
+um eine wöchentliche Besprechung zu platzieren — und Clients ist verboten, die Regel selbst zu
+expandieren, weil Telefon und Web sich sonst an Sommerzeitgrenzen und bei überschriebenen
+Instanzen widersprechen.
+
+`expandRecurrences: true` an `CalendarEvent/query` ist die Antwort darauf, so wie
+draft-ietf-jmap-calendars sie definiert. Es wechselt die Einheit von der Serie zur
+Termininstanz: ein Eintrag je Instanz im Fenster, sortiert nach deren Beginn, wobei `position`,
+`limit` und `total` Instanzen zählen statt Serien. Es ist eine **Projektion eines Lesevorgangs,
+der ohnehin stattfindet**, keine neue Berechnung — `findInRange()` liefert Instanzzeilen, und
+die eingeklappte Antwort wirft die überzähligen weg. Genau dafür werden Termininstanzen
+überhaupt materialisiert.
+
+Eine Instanz wird durch eine synthetische ID benannt, `App\Jmap\Calendar\OccurrenceId`:
+
+```
+42_20260304T090000Z
+```
+
+Die Termin-ID, ein Unterstrich und der **ursprüngliche** Beginn der Instanz als UTC-Zeitpunkt im
+ISO-8601-Basisformat. Drei Dinge an dieser Schreibweise sind Entscheidungen:
+
+- **Sie ist opak.** Das ist das Wort des Entwurfs selbst. Das Paar, das sie kodiert, ist ein
+  serverseitiger Join, und ein Client, der sie zerlegte und sich seine eigene zusammenbaute,
+  expandierte Wiederholungsregeln von Hand.
+- **Das Trennzeichen ist `_`, nicht das `;` anderer Implementierungen.** RFC 8620 §1.2 begrenzt
+  eine Id auf das URL-sichere Base64-Alphabet — `A-Za-z0-9`, `-` und `_` —, eine ID mit einem
+  Semikolon oder mit den Doppelpunkten eines ISO-Zeitstempels darf eine konforme
+  Client-Bibliothek also zurückweisen, bevor die Antwort dieses Servers überhaupt gelesen wird.
+  Der Entwurf sagt genau deshalb „opak", statt ein Trennzeichen zu nennen.
+- **Der Zeitstempel ist die Recurrence-ID, nie der verschobene Beginn.** Wo die Regel die Instanz
+  hingelegt hat, ist der einzige Name, den sie behält, sobald jemand sie gezogen hat — deshalb
+  ist `recurrenceOverrides` danach geschlüsselt und deshalb sucht
+  `CalendarEventOccurrenceRepository::findOneByRecurrence()` über diese Spalte.
+
+Ein einmaliger Termin behält auch in einer expandierten Antwort seine schlichte Serien-ID: Seine
+einzige Termininstanz *ist* der Termin, und die schlichte ID ist die, die `CalendarEvent/set`
+zurücknimmt. Ein Konto ohne Wiederholungen im Fenster beantwortet eine expandierte Abfrage also
+genauso wie eine eingeklappte, und ohne das Argument oder mit `false` ist die Antwort Byte für
+Byte die von vorher.
+
+`CalendarEvent/get` löst beide Arten von ID auf, und erst das macht die Sache benutzbar — ein
+Client paart `/query` in einer Anfrage mit einem `/get` auf `#ids`, IDs, die der Getter
+zurückwiese, ließen die Expansion also eine Liste von Zeichenketten sein, die niemand annimmt.
+Ein Instanzobjekt ist die Serie mit ihrem gespeicherten Override, dazu:
+
+| Eigenschaft | Wert |
+|---|---|
+| `id` | die synthetische Instanz-ID |
+| `seriesId` | die schlichte ID der Serie — eine plMail-Erweiterung |
+| `recurrenceId` | der ursprüngliche Beginn der Instanz als LocalDateTime |
+| `recurrenceIdTimeZone` | die Zone, in der dieses LocalDateTime steht — UTC bei einer freien Serie |
+| `start`, `duration` | wo die Instanz tatsächlich liegt, aus der Instanzzeile |
+| `recurrenceRules`, `recurrenceOverrides` | `null` — der Entwurf sagt MUSS |
+
+`seriesId` ist tragend, nicht schmückend. `CalendarEvent/set` **weist** eine Instanz-ID
+namentlich **zurück**, weil das Schreiben einer einzelnen Instanz ein `recurrenceOverrides`-Patch
+an der Serie ist und hier nichts „aktualisiere `42_20260304T090000Z`" in dieses Patch übersetzt;
+der Entwurf erwartet, dass `/set` diese IDs selbst auflöst, und solange das nicht so ist, ist die
+laute Verweigerung die ehrliche Hälfte. Stattdessen `notFound` zu antworten wäre gleich doppelt
+falsch — dieser Server hat die ID ausgegeben, und ein Client, dem man „diesen Termin gibt es
+nicht" sagt, sucht den Fehler in seiner eigenen ID-Behandlung.
+
+Zwei Verweigerungen sichern den expandierten Weg ab, beide aus dem Grund, aus dem hier jede
+Verweigerung existiert:
+
+- **Ein Fenster, das über den materialisierten Horizont hinausreicht**, antwortet mit
+  `cannotCalculateOccurrences`. Eingeklappt ist ein überstehendes Fenster nur dünn — die Serie
+  wird weiterhin benannt und ihre Regel kommt mit. Expandiert *ist* die Antwort die Liste der
+  Instanzen, eine Serie, die am Horizont aufhört, kommt also als Serie zurück, die endet, und
+  nichts in der Antwort sagt etwas anderes.
+- **`timeZone`** wird zusammen mit `expandRecurrences` zurückgewiesen. Der Entwurf paart es mit
+  der Expansion, damit ein Server Instanzzeiten für einen einfachen Client umrechnen kann; dieser
+  rechnet nicht um, und ein Client, dem man nichts sagt, zeichnete einen ganzen Monat in der
+  falschen Zone, ohne es merken zu können.
+
+Die drei Fälle, die ein Client kennen sollte: Eine verschobene Instanz wird an ihrer neuen Zeit
+gezeichnet und einsortiert und trägt weiterhin ihren alten Namen; eine Instanz mit
+`{"excluded": true}` hat keine Instanzzeile, ist also aus der Abfrage verschwunden und aus dem
+Getter `notFound`; eine Instanz mit `status: cancelled` behält ihre Zeile, verlässt die Abfrage
+und lässt sich weiterhin auflösen — weil die Antwort auf „war da heute nicht was?" nützlicher ist
+als eine Lücke.
 
 Der `CalendarMapper` veröffentlicht Schreibbarkeit als `myRights` statt als `isReadOnly`-Flag,
 der Mailbox aus RFC 8621 folgend — zwei Schreibweisen von „darf ich hier schreiben?" sind die
@@ -297,6 +387,10 @@ ausgewertet werden, und das ist genau der sequenzielle Scan, den der Index verme
 ein ODER zweier Zeitfenster sind zwei Abfragen, die ein Client stellen kann. Es wird namentlich
 zurückgewiesen, aus demselben Grund, aus dem der `EmailFilterCompiler` eine unbekannte Bedingung
 zurückweist.
+
+`expandRecurrences: true` beantwortet dasselbe Fenster mit einem Eintrag je Termininstanz statt
+je Serie — siehe den Abschnitt „… außer wenn eine Abfrage um expandierte Wiederholungen gebeten
+hat" weiter oben, wo diese Form und ihre Verweigerungen begründet werden.
 
 ## Schreiben
 

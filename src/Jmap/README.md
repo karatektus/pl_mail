@@ -69,9 +69,12 @@ rather than leaking.
 - `Account/CalendarAccountResolver` — which JMAP account serves calendars, and
   the refusal for every other one.
 - `Mapper/CalendarMapper`, `Mapper/CalendarEventMapper` — the two objects. The
-  second one carries the id-space argument.
+  second one carries the id-space argument, and maps one dated instance as well
+  as a series.
 - `Query/CalendarEventQueryRunner` — the window, the calendars, and the
   occurrence → event id translation.
+- `Calendar/OccurrenceId` — the id one dated instance is named by when a query
+  was asked to expand recurrences, and why it is spelled the way it is.
 - `Calendar/JmapEventWriter` — reads a JSCalendar object off the wire and hands
   it to `CalendarEventWriter`; nothing here assigns a column.
 - `Calendar/CalendarState` — why the calendar state string is a constant.
@@ -179,6 +182,61 @@ Get these wrong and things fail quietly rather than loudly.
   overrides, expanded client-side), and because occurrence rows are rewritten
   wholesale on every write, so an id naming one would go stale when somebody
   corrected a title.
+- **…unless the query was asked to expand recurrences, and then an id can name
+  one dated instance.** `CalendarEvent/query` takes `expandRecurrences: true`
+  (draft-ietf-jmap-calendars), which switches the unit from the series to the
+  occurrence: one entry per instance in the window, ordered by the instance's
+  start, with `position`/`limit`/`total` counting instances. The wire shape,
+  exactly:
+
+  ```json
+  ["CalendarEvent/query", {
+    "accountId": "1",
+    "filter": {"inCalendar": "3", "after": "2026-03-01T00:00:00Z", "before": "2026-04-01T00:00:00Z"},
+    "expandRecurrences": true
+  }, "q"]
+  ```
+
+  ```json
+  ["CalendarEvent/query", {
+    "accountId": "1", "queryState": "fixed", "canCalculateChanges": false,
+    "position": 0, "limit": 500, "total": 9,
+    "ids": ["42_20260302T090000Z", "17", "42_20260304T090000Z", "…"]
+  }, "q"]
+  ```
+
+  An instance id is `<eventId>_<recurrenceId as YYYYMMDDTHHMMSSZ>`. **Treat it
+  as opaque** — the draft's own word — and note it is `_` rather than the `;`
+  other implementations use, because RFC 8620 §1.2 restricts an Id to
+  `A-Za-z0-9`, `-` and `_`, so a semicolon or the colons of an ISO timestamp is
+  an id a conforming client library may reject before this server's response is
+  read. The timestamp half is the instance's **original** start (its
+  recurrence id), never where an override moved it. A one-off event keeps its
+  plain series id — its single occurrence is the event — so an account with
+  nothing recurring in the window answers an expanded query exactly as it
+  answers a collapsed one, and `expandRecurrences` absent or false is
+  byte-for-byte the old response.
+
+  `CalendarEvent/get` resolves both kinds, so the usual `#ids` pairing works
+  unchanged. An instance object is the series with its override applied,
+  plus `recurrenceId` and `recurrenceIdTimeZone`, its own `start` and
+  `duration`, `recurrenceRules` and `recurrenceOverrides` **null** (the draft
+  says MUST), and `seriesId` — a plMail extension, and load-bearing:
+  `CalendarEvent/set` refuses an instance id by name, so `seriesId` is how a
+  client gets back to an id it can write through. A moved instance is drawn and
+  ordered at its new time and still named by its old; an `{"excluded": true}`
+  instance has no occurrence row and so is absent from the query and `notFound`
+  from the getter; a `status: cancelled` one keeps its row, leaves the query and
+  still resolves.
+
+  Expanding a window that reaches past the materialised horizon is refused with
+  `cannotCalculateOccurrences` rather than answered short. Collapsed, an
+  overrunning window is merely thin — the series is named and its rule comes
+  with it. Expanded, the answer *is* the list of instances, so a series that
+  stops at the horizon comes back as a series that ends and nothing says
+  otherwise. `timeZone` is refused alongside `expandRecurrences` for the same
+  reason: this server does not convert, and a client told nothing would draw a
+  month in the wrong zone.
 - **Calendars are served from ONE account, and it is the session's primary.**
   A Calendar is user-scoped, with no per-account binding of the sort that makes
   a Mailbox id an account-local thing. Publishing the list under every connected
@@ -344,10 +402,19 @@ worker message, so a sync importing 50 messages sends **one** notification.
   materialised only to `RecurrenceMaterialiser`'s horizon, so an unbounded query
   would answer from a partial index and look complete. `inCalendar` is the only
   other condition; a FilterOperator and a `sort` are refused rather than ignored.
+  With `expandRecurrences`, a window past the horizon and a `timeZone` argument
+  are refused too — see the load-bearing fact above.
+- `CalendarEvent/set` cannot write ONE instance of a series. An instance id from
+  an expanded query is refused by name (`invalidArguments`, naming `seriesId`)
+  rather than answered `notFound`; the draft expects `/set` to resolve those ids
+  into a `recurrenceOverrides` patch, and `EventInstanceEditor` is the service
+  that would do it. The web editor already writes per-instance patches, so this
+  is a wiring job, not a design one.
 - `CalendarEvent/get` caps at 100 ids, not the session's 500, and says so in the
   calendars accountCapabilities. Ids are resolved one at a time through
   `CalendarEventRepository::findOneForUser()`, which is the only lookup there
-  that scopes on the owner; a `findByIdsForUser()` would make this one query.
+  that scopes on the owner; a `findByIdsForUser()` would make this one query. An
+  instance id costs a second lookup on top, for the occurrence row.
 - `Calendar/set` is not implemented. The two provisioned roles come from
   `CalendarProvisioner` and a mirrored one from the subscribe flow, neither of
   which a JMAP create could stand in for.

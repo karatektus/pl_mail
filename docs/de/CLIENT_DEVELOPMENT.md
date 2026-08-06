@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e8b507a009a17b4a74b8b3d040491e1aa38aaf35 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ea9f0da7c6e6fa15561e41f0bd616fccefe9de29 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -74,6 +74,20 @@ solltest du wissen, bevor du fragst:
   materialisiert, und das aus guten Gründen (ein unbegrenztes `FREQ=DAILY` hat keine letzte
   Instanz); ein Client, der Regeln selbst expandiert, wird an Zeitumstellungen und bei
   überschriebenen Instanzen von der Web-Oberfläche abweichen.
+
+**Und die zweite Hälfte dieses Versprechens gibt es jetzt.** „Expandiere Serienregeln nicht
+selbst" war eine Anweisung ohne günstigen Weg, ihr zu folgen: Eine eingeklappte
+`CalendarEvent/query` benennt eine Serie, ohne zu sagen, an welchen Tagen sie liegt — einen Monat
+zu zeichnen hieß also eine Abfrage pro Tag. Schick `expandRecurrences: true`, und dieselbe
+Abfrage antwortet mit einem Eintrag je *Termininstanz*, nach Beginn sortiert, wobei
+`position`/`limit`/`total` Instanzen zählen — eine Abfrage für den Monat. Jede Instanz-ID lautet
+`<eventId>_<recurrenceId>`, z. B. `42_20260304T090000Z`; **behandle sie als opak**, gib sie direkt
+an `CalendarEvent/get` (die übliche `#ids`-Paarung funktioniert) und lies `start` und
+`recurrenceId` vom Objekt statt aus der ID. Einmalige Termine behalten ihre schlichte Serien-ID,
+und ohne das Argument oder mit `false` hat sich an der Antwort nichts geändert.
+`CalendarEvent/set` nimmt keine Instanz-ID an und sagt das auch; `seriesId` am Objekt ist die ID,
+über die du schreibst. Die vollständige Form, samt dem, was eine expandierte Abfrage verweigert
+und warum, steht in [JMAP](internals/jmap.md).
 
 Daraus folgt: **Wenn du hier etwas Überraschendes liest, gleiche es mit dem Code ab, bevor du
 darum herum entwirfst.** `src/Jmap/` ist die maßgebliche Quelle, und sie bewegt sich.
@@ -611,7 +625,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Thread/set` | plMail-Erweiterung. Eine Eigenschaft, `snoozedUntil` — siehe §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
-| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum. |
+| `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
 

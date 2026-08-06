@@ -25,6 +25,16 @@ use App\Jmap\Query\CalendarEventQueryRunner;
  * the client has not seen the whole of, which is how a "sorted" list ends up
  * sorted only within a page. A `sort` argument is refused with unsupportedSort
  * rather than ignored.
+ *
+ * **`expandRecurrences` switches the unit from the series to the occurrence**,
+ * as draft-ietf-jmap-calendars defines it, and it exists because the collapsed
+ * answer does not say which days a series lands on. A client that has to find
+ * out was making one query per day of the visible month — up to 31 round trips
+ * to place one weekly meeting — because a one-day window is the only question
+ * this method could answer about membership. Expanded, the month is one query,
+ * `position`/`limit`/`total` count occurrences, and each id names one instance
+ * (OccurrenceId). Everything else about the method is unchanged, and with the
+ * argument absent or false the response is byte-for-byte what it was.
  */
 final class CalendarEventQueryMethod implements JmapMethod
 {
@@ -75,7 +85,24 @@ final class CalendarEventQueryMethod implements JmapMethod
             $limit = self::MAX_LIMIT;
         }
 
-        $result = $this->runner->run($context->user, $filter, $position, $limit);
+        $expandRecurrences = $arguments['expandRecurrences'] ?? false;
+
+        if (false === is_bool($expandRecurrences)) {
+            throw new MethodException('invalidArguments', '"expandRecurrences" must be a boolean.');
+        }
+
+        // The draft pairs `timeZone` with expansion, to have the server convert
+        // instance times for a client that would rather not. This server does
+        // not, and says so rather than answering as though it had: every time
+        // here is UTC, and a client told nothing would draw a whole month of
+        // occurrences in the wrong zone with no way to notice. Refused only
+        // alongside expansion, because it is only the expanded answer that
+        // carries times a zone could apply to.
+        if (true === $expandRecurrences && null !== ($arguments['timeZone'] ?? null)) {
+            throw new MethodException('invalidArguments', '"timeZone" is not supported: "after" and "before" are UTCDates and an expanded occurrence is named by its UTC recurrence id.');
+        }
+
+        $result = $this->runner->run($context->user, $filter, $position, $limit, $expandRecurrences);
 
         return [
             'accountId' => (string) $account->id,
