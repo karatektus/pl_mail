@@ -3,10 +3,10 @@
 A conformant JMAP subset (RFC 8620 core, RFC 8621 mail): the request envelope,
 the state/change engine every `/changes` method builds on, the Mailbox / Email /
 Thread / Identity / EmailSubmission object methods, blob upload and download,
-and push over both EventSource and Web Push. Plus calendars, under a vendor URN
-rather than the unratified draft's.
+and push over both EventSource and Web Push. Plus calendars and recipient
+autocomplete, both under vendor URNs rather than an unratified draft's.
 
-**24 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**25 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -20,6 +20,7 @@ Mail (Basic).
 | `SearchSnippet/` | `get` |
 | `Calendar/` | `get` |
 | `CalendarEvent/` | `get`, `query`, `set` |
+| `Contact/` | `autocomplete` (plMail extension: recipient suggestions) |
 
 ---
 
@@ -86,6 +87,11 @@ rather than leaking.
 **Push** — `Push/WebPushSender` (RFC 8030/8291/8292 via `minishlink/web-push`),
 `Push/PushDispatcher` (fan out to a user's devices). Draining is driven by
 `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
+
+**Contacts** — `Method/Contact/ContactAutocompleteMethod`, and nothing else.
+There is no mapper and no repository of its own: it is one call into
+`App\Repository\Mail\ContactRepository::findForAutocomplete()`, the same query
+the web composer's autocomplete runs.
 
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
 account; a unified inbox is a client-side concern.
@@ -200,6 +206,32 @@ Get these wrong and things fail quietly rather than loudly.
   change. A JMAP client is a person making a change, exactly as the web editor
   is; without the mark an edit made on a phone never leaves the machine and the
   next pull silently reverts it.
+- **`Contact/autocomplete` is a function call, not an object type.** It exists
+  because ranking recipient suggestions is the one part of composing a client
+  cannot do for itself: the order has to come from the *whole* address book —
+  a correspondent written to twice a year outranks a list seen once — and a
+  freshly-paired phone has no local mail to build one from. It takes
+  `accountId`, a non-empty `query` and an optional `limit`, and answers with
+  `{accountId, query, limit, list}` where each entry is a JMAP `EmailAddress`
+  (`name`, `email` — the shape `EmailMapper` already emits, so it goes straight
+  into an `Email/set` create) plus `frequency`, `lastSeenAt` and
+  `isCorrespondent`.
+
+  **No id, and that is the point.** A `contact` row's key is reachable from no
+  other method, so publishing it would invite a client to cache and re-fetch by
+  something with no getter. `uniq_contact_user_email` makes (user, email)
+  unique, so the address is the stable key. `initials`, which the HTML route at
+  `GET /contacts/autocomplete` returns, is deliberately absent: it is derived
+  from the two fields above it and exists there only because a Turbo response
+  fed a chip renderer.
+
+  It is served from **every** account, unlike calendars — the one place that
+  rule is deliberately not followed. Calendars are restricted because a client
+  keys objects by (accountId, id) and would draw one calendar per connected
+  account; nothing here has an id, so there is nothing to draw twice, and
+  refusing would fail a client composing from whichever account it is composing
+  from. `primaryAccounts` still names one for a client that just wants
+  somewhere to ask.
 - **`seen_at` / `starred_at` are authoritative** for `$seen` / `$flagged`, not
   the `\Seen` entry in `Message::$flags`. flags is an IMAP mirror only the
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
@@ -355,6 +387,33 @@ worker message, so a sync importing 50 messages sends **one** notification.
   by name — `participants` (an RSVP goes through `InviteResponder`, which sends
   an iTIP reply), `privacy`, `alerts`, `links`. It also refuses PatchObject
   paths (`locations/1/name`): the writer takes whole values.
+- **Contacts are advertised as `urn:plmail:params:jmap:contacts`, and there is
+  no `Contact/get`, `Contact/query` or `Contact/set`.** RFC 8621 has no Contacts
+  section, and the JMAP Contacts draft describes an AddressBook of ContactCards
+  a client may create, update and destroy. plMail's `contact` table is written
+  only by the header harvest (`HarvestContactsService`) and read by two
+  features; there is no address book to write to. The method is called
+  `autocomplete` rather than `query` for the same honesty: a `/query` returns
+  ids for a `/get` to resolve, and this returns objects.
+- **`Contact/autocomplete` ranks by `frequency` alone.** `lastSeenAt` and
+  `isCorrespondent` are returned but are not in the SQL `ORDER BY` —
+  `ContactRepository::findForAutocomplete()` sorts on `frequency DESC` and that
+  method is shared with the web composer, so changing the ranking changes both
+  surfaces at once and is a product decision rather than a JMAP one. Returned
+  rather than applied so a client can at least tell a colleague from a
+  newsletter of equal frequency, and so the day the ranking does grow a recency
+  term, nothing on the wire has to change. Ties within one frequency have no
+  defined order; there is no secondary sort, because sorting the page in PHP
+  would produce a list ordered only within the window the client asked for.
+- **An empty `Contact/autocomplete` query is `invalidArguments`, where the HTML
+  route returns `[]`.** A blank query LIKEs everything and would answer with the
+  eight most frequent addresses to somebody who has typed nothing. Returning an
+  empty list is right for a keystroke handler and wrong for an API: "no matches"
+  and "you sent no query" are different facts and a client can act on only one.
+  Arguments the method does not have (`filter`, `sort`, `position` — reasonable
+  guesses, since every other query-shaped method here takes them) are refused by
+  name rather than ignored. `limit` is the exception and is capped at
+  `maxSuggestions` rather than refused, with the applied value echoed back.
 - Not implemented: `Email/copy|import|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---
@@ -371,6 +430,10 @@ curl -sk https://localhost/jmap/session -H "Authorization: Bearer $TOKEN"
 
 ```bash
 curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],"methodCalls":[["Email/query",{"accountId":"1","limit":2},"q"],["Email/get",{"accountId":"1","#ids":{"resultOf":"q","name":"Email/query","path":"/ids/*"},"properties":["subject","from","keywords"]},"g"]]}'
+```
+
+```bash
+curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:plmail:params:jmap:contacts"],"methodCalls":[["Contact/autocomplete",{"accountId":"1","query":"an","limit":5},"c"]]}'
 ```
 
 An app password works in place of the JWT, as `Bearer plmail_…` or

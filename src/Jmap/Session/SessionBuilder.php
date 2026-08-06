@@ -6,6 +6,7 @@ namespace App\Jmap\Session;
 
 use App\Entity\User\User;
 use App\Jmap\Account\CalendarAccountResolver;
+use App\Jmap\Method\Contact\ContactAutocompleteMethod;
 use App\Jmap\Protocol\Capability;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
@@ -61,6 +62,12 @@ final class SessionBuilder
             $accountCapabilities = [
                 Capability::MAIL => $this->mailAccountCapabilities(),
                 Capability::SUBMISSION => $this->submissionCapabilities(),
+                // On every account, unlike calendars below. The address book is
+                // the user's, and Contact/autocomplete returns no ids for a
+                // client to key by (accountId, id) — so there is nothing here
+                // to draw once per account, and a client composing from the
+                // second account can ask the account it is composing from.
+                Capability::CONTACTS => new \stdClass(),
             ];
 
             if ($accountId === $calendarAccountId) {
@@ -79,6 +86,7 @@ final class SessionBuilder
 
         if (null !== $primaryId) {
             $primaryAccounts[Capability::MAIL] = $primaryId;
+            $primaryAccounts[Capability::CONTACTS] = $primaryId;
         }
 
         if (null !== $calendarAccountId) {
@@ -105,6 +113,7 @@ final class SessionBuilder
                 Capability::SUBMISSION => new \stdClass(),
                 Capability::PUSH => $this->pushCapabilities(),
                 Capability::CALENDARS => new \stdClass(),
+                Capability::CONTACTS => $this->contactsCapabilities(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -184,6 +193,27 @@ final class SessionBuilder
                 'past' => RecurrenceMaterialiser::HORIZON_PAST,
                 'future' => RecurrenceMaterialiser::HORIZON_FUTURE,
             ],
+        ];
+    }
+
+    /**
+     * The two numbers Contact/autocomplete would otherwise make a client
+     * discover: what it gets when it asks for nothing, and the point past which
+     * a larger "limit" stops making the list longer. Server-wide rather than
+     * per-account, because the address book is the user's and the cap is the
+     * method's.
+     *
+     * Read off the method so there is one place per fact — the same reason the
+     * calendar block below reads RecurrenceMaterialiser's horizon rather than
+     * repeating it.
+     *
+     * @return array<string,mixed>
+     */
+    private function contactsCapabilities(): array
+    {
+        return [
+            'maxSuggestions' => ContactAutocompleteMethod::MAX_LIMIT,
+            'defaultSuggestions' => ContactAutocompleteMethod::DEFAULT_LIMIT,
         ];
     }
 
