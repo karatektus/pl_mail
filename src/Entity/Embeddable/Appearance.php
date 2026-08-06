@@ -18,6 +18,20 @@ final class Appearance
     public const string DEFAULT_ACCENT = '#7d6b4f';
 
     /**
+     * The clamps the numeric setters below apply, named rather than inlined
+     * because the JMAP session publishes them (`SessionBuilder`) so a client
+     * can bound its own sliders. Two copies of these numbers is how a phone
+     * offers a blur of 80 and reports 80 while the server stores 60.
+     *
+     * Keyed min/max rather than a tuple: the pairs go over the wire as-is.
+     */
+    public const array RANGE_PANE_ALPHA = ['min' => 0.15, 'max' => 1.0];
+    public const array RANGE_PANE_BLUR = ['min' => 0, 'max' => 60];
+    public const array RANGE_RADIUS = ['min' => 0.0, 'max' => 2.0];
+    public const array RANGE_SCRIM_ALPHA = ['min' => 0.0, 'max' => 0.7];
+    public const array RANGE_MAIN_ALPHA = ['min' => 0.15, 'max' => 1.0];
+
+    /**
      * Paper rather than System. A new install should look like something
      * somebody chose, and "follow the OS" resolves to whichever of plain white
      * or plain dark the machine happens to prefer — the two least considered
@@ -45,14 +59,14 @@ final class Appearance
     #[ORM\Column(type: 'float', options: ['default' => 1.0])]
     public float $paneAlpha = 1.0 {
         set {
-            $this->paneAlpha = max(0.15, min(1.0, $value));
+            $this->paneAlpha = max(self::RANGE_PANE_ALPHA['min'], min(self::RANGE_PANE_ALPHA['max'], $value));
         }
     }
 
     #[ORM\Column(type: 'smallint', options: ['default' => 0])]
     public int $paneBlur = 0 {
         set {
-            $this->paneBlur = max(0, min(60, $value));
+            $this->paneBlur = max(self::RANGE_PANE_BLUR['min'], min(self::RANGE_PANE_BLUR['max'], $value));
         }
     }
 
@@ -60,7 +74,7 @@ final class Appearance
     #[ORM\Column(type: 'float', options: ['default' => 0.75])]
     public float $radius = 0.75 {
         set {
-            $this->radius = max(0.0, min(2.0, $value));
+            $this->radius = max(self::RANGE_RADIUS['min'], min(self::RANGE_RADIUS['max'], $value));
         }
     }
 
@@ -83,7 +97,7 @@ final class Appearance
     #[ORM\Column(type: 'float', options: ['default' => 0.0])]
     public float $scrimAlpha = 0.0 {
         set {
-            $this->scrimAlpha = max(0.0, min(0.7, $value));
+            $this->scrimAlpha = max(self::RANGE_SCRIM_ALPHA['min'], min(self::RANGE_SCRIM_ALPHA['max'], $value));
         }
     }
 
@@ -118,7 +132,9 @@ final class Appearance
     #[ORM\Column(type: 'float', nullable: true)]
     public ?float $mainAlpha = null {
         set {
-            $this->mainAlpha = null === $value ? null : max(0.15, min(1.0, $value));
+            $this->mainAlpha = null === $value
+                ? null
+                : max(self::RANGE_MAIN_ALPHA['min'], min(self::RANGE_MAIN_ALPHA['max'], $value));
         }
     }
 

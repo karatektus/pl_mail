@@ -4,9 +4,9 @@ A conformant JMAP subset (RFC 8620 core, RFC 8621 mail): the request envelope,
 the state/change engine every `/changes` method builds on, the Mailbox / Email /
 Thread / Identity / EmailSubmission object methods, blob upload and download,
 and push over both EventSource and Web Push. Plus calendars, under a vendor URN
-rather than the unratified draft's.
+rather than the unratified draft's, and the user's appearance, under another.
 
-**24 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**26 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -20,6 +20,7 @@ Mail (Basic).
 | `SearchSnippet/` | `get` |
 | `Calendar/` | `get` |
 | `CalendarEvent/` | `get`, `query`, `set` |
+| `Appearance/` | `get`, `set` (plMail extension: the user's theme, a singleton) |
 
 ---
 
@@ -87,8 +88,17 @@ rather than leaking.
 `Push/PushDispatcher` (fan out to a user's devices). Draining is driven by
 `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
 
+**Appearance glue**
+- `Mapper/AppearanceMapper` — `App\Entity\Embeddable\Appearance` → the JMAP
+  object, the compact read the Session carries, and the state token. Shared by
+  both methods and the Session so one spelling per property survives.
+- `Method/Settings/AppearanceGet|SetMethod` — the singleton pair.
+
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
-account; a unified inbox is a client-side concern.
+account; a unified inbox is a client-side concern. It also carries two things
+that have no methods of their own: the per-account **sync window**
+(`urn:plmail:params:jmap:sync`) and the user's **appearance** plus the closed
+vocabularies `Appearance/set` accepts (`urn:plmail:params:jmap:appearance`).
 
 ---
 
@@ -101,6 +111,8 @@ account; a unified inbox is a client-side concern.
 | Uploaded blobs | `App\Entity\UploadedBlob`, `App\Domain\Helper\UploadStorage` |
 | Raw message bytes | `App\Domain\Helper\RawMessageStorage`, `App\Service\Mail\RawMessageResolver` |
 | Label structure sync | `App\Service\Label\LabelStructurePropagator` |
+| Appearance | `App\Entity\Embeddable\Appearance` (the validated embeddable and its clamp constants), `App\Controller\Settings\AppearanceController` (the web pane, background uploads, export/import) |
+| The sync window | `App\Entity\Mail\Account::$syncLimit`, `$backfillTarget`, `needsBackfill()` — virtual properties over the `settings` JSONB bag |
 | PWA | `public/manifest.webmanifest`, `public/sw.js`, `assets/controllers/web_push_controller.js`, `App\Controller\Settings\WebPushController` |
 | Settings UI | `App\Controller\ApiTokenController`, `Settings\AccountLabelSyncController` |
 
@@ -185,6 +197,56 @@ Get these wrong and things fail quietly rather than loudly.
   account would put one calendar under three accountIds with the same id, which
   a client — keying objects by (accountId, id) — draws three times. Every other
   account answers `accountNotSupportedByMethod`.
+- **`Appearance` is per USER, and carries no accountId at all.** A user has one
+  theme and any number of connected mailboxes, so the object is resolved off
+  the authenticated user the way `PushSubscription` is — there is no id on the
+  wire that could name somebody else's. An `accountId` sent anyway is refused
+  with `invalidArguments` rather than ignored: a client that sent one believes
+  something false about what it is reading, and the first call is a cheaper
+  place to learn that than the first mismatch between two accounts.
+
+  It is a **singleton**: one object, id `singleton` (RFC 8620 §5.3, the shape
+  RFC 8621's VacationResponse uses). `create` and `destroy` are answered with
+  the spec's own `singleton` SetError.
+
+  **What is refused and what is clamped** is the decision to know here.
+  `Appearance`'s setters are deliberately forgiving — an unknown theme keeps
+  the old one, a malformed hex resets the accent to plMail's default, an
+  out-of-range slider is pulled to the nearest end. That is right for the web
+  pane, a closed form that cannot send anything else, and wrong over the wire,
+  where the client is somebody else's code and would be told it succeeded. So
+  closed vocabularies (`theme`, `layout`, `density`, `backgroundKind`,
+  `backgroundPreset`) and malformed colours are **refused** with
+  `invalidProperties` naming what is accepted — the `Mailbox.color` precedent —
+  while numeric ranges are **clamped**, because a slider is a continuum and 1.4
+  is a sloppy client rather than an impossible request. A clamp is never
+  silent: it comes back in the `updated` map (RFC 8620 §5.3 — what the server
+  changed beyond what was asked), and the bounds are published in the Session
+  under `ranges`, read off the setters' own `Appearance::RANGE_*` constants.
+- **Picking a `layout` seeds its knob preset.** That is what a layout *is* (see
+  the `Layout` enum: a structural CSS class plus starting values), and what the
+  web pane does client-side so its sliders stay in step. A client that sent
+  only `layout` would otherwise get the new structure wearing the old layout's
+  numbers, which looks like nothing happened. Explicit knobs in the same patch
+  are applied after the preset and win; the seeded ones are reported in
+  `updated` like any other change the client did not ask for.
+- **The sync window is published per account and read-only.** The Session's
+  `accountCapabilities` carry `urn:plmail:params:jmap:sync` beside the mail
+  capability: `syncLimit` (the newest-N cap in force, 0 for none),
+  `backfillTarget` (how far back a *completed* backfill reached — 0 for the
+  whole mailbox, null when none has finished) and `backfillPending`. It exists
+  so a client can answer "why is a mail I know exists not in search?": from the
+  phone, mail the server never fetched and mail the phone has not caught up on
+  are the same empty result, and they want opposite reactions.
+
+  `syncLimit` is reported as **0 on Microsoft accounts whatever is stored**,
+  because Graph cannot honour the cap (`Account::supportsSyncLimit`) and the
+  cap in force is the only honest thing to publish — a stored number would have
+  a client explain a gap that is not there. `backfillPending` is
+  `Account::needsBackfill()`, derived from the same two numbers the sync engine
+  decides on rather than recorded separately, so the two cannot disagree. It is
+  NOT "a backfill is running this second": nothing records that, and a client
+  would read a running flag as progress.
 - **The calendar state string is fixed, and that is deliberate.** Mail's token
   works because `MailChangeRecorder` makes the change log complete. An event
   changes from four places — the sync engine, extraction, the web editor and
@@ -355,6 +417,34 @@ worker message, so a sync importing 50 messages sends **one** notification.
   by name — `participants` (an RSVP goes through `InviteResponder`, which sends
   an iTIP reply), `privacy`, `alerts`, `links`. It also refuses PatchObject
   paths (`locations/1/name`): the writer takes whole values.
+- **There is no `Appearance/changes`, and the state token is a hash of the
+  object.** Appearance is not in the change log and cannot be: the log is keyed
+  by (mail account, object type) and this belongs to the user, so there is no
+  account to file it under. The hash has the one property a client needs — it
+  differs exactly when the object differs — and no monotonicity, so `/changes`
+  would have nothing to answer from. A client that sees the token move
+  re-fetches the one object, which is a single call. `ifInState` is honoured on
+  `Appearance/set`, so two devices editing the theme do not silently overwrite
+  each other.
+- **`Appearance.backgroundFile` is reported and not settable.** It names a file
+  uploaded through the web settings pane and served from a route behind the
+  session firewall, so a JMAP client can neither upload one nor fetch it, and
+  accepting the property would store a filename resolving to nothing. It is
+  still reported, because `backgroundKind: "custom"` with no way to see what
+  the background *is* leaves a client unable to tell "the user chose a photo I
+  cannot draw" from "this value is broken". Echoing the current value back is
+  accepted — get → edit one field → set is how a client is supposed to work —
+  and a different one is refused. `id` is treated the same way.
+- **The appearance in the Session is a hint, not the read.** The Session's
+  `state` is a hash of the user's account ids and does not move when a theme
+  changes, so a client holding an old Session holds an old theme.
+  `Appearance/get` is authoritative; the compact copy exists so the chrome can
+  be painted in the right palette on the first frame instead of flashing the
+  wrong one.
+- `urn:plmail:params:jmap:sync` has no methods, and is in `Capability::SUPPORTED`
+  anyway. A client that lists a capability it depends on in `using` — the
+  obvious thing to do — would otherwise have its whole request refused with
+  `unknownCapability` rather than merely losing the extension.
 - Not implemented: `Email/copy|import|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---
@@ -372,6 +462,13 @@ curl -sk https://localhost/jmap/session -H "Authorization: Bearer $TOKEN"
 ```bash
 curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],"methodCalls":[["Email/query",{"accountId":"1","limit":2},"q"],["Email/get",{"accountId":"1","#ids":{"resultOf":"q","name":"Email/query","path":"/ids/*"},"properties":["subject","from","keywords"]},"g"]]}'
 ```
+
+```bash
+curl -sk https://localhost/jmap/api -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"using":["urn:ietf:params:jmap:core","urn:plmail:params:jmap:appearance"],"methodCalls":[["Appearance/set",{"update":{"singleton":{"theme":"nord","paneAlpha":1.4}}},"s"],["Appearance/get",{},"g"]]}'
+```
+
+The `updated` map in that response carries `paneAlpha: 1.0` — the clamp, stated
+rather than applied behind the client's back.
 
 An app password works in place of the JWT, as `Bearer plmail_…` or
 `-u you@example.com:plmail_…`.
