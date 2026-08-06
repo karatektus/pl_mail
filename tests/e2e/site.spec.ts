@@ -199,18 +199,43 @@ test.describe("on a phone", () => {
 
     test.use(phone);
 
-    test("nothing scrolls sideways and the drawer starts shut", async ({ page }) => {
+    test("the drawer starts shut", async ({ page }) => {
         await page.goto(`${BASE}/docs/features/calendar.html`);
 
         await expect(page.locator("#sidebar")).toBeHidden();
         await expect(page.locator("#menu")).toBeVisible();
-
-        const overflows = await page.evaluate(
-            () => document.documentElement.scrollWidth > window.innerWidth,
-        );
-
-        expect(overflows).toBe(false);
     });
+
+    /**
+     * Every page type, because they failed differently and the landing page
+     * failed worst: `.layout` carries `align-items: flex-start` so the sidebar
+     * does not stretch to the article's height, and in the COLUMN layout a
+     * phone gets, that stops meaning "top" and starts meaning "as wide as your
+     * content" — so <main> sized itself to its widest unbreakable line and came
+     * out 1331px wide inside a 393px viewport. The handbook hid it, because
+     * .prose caps at 46rem there and so was merely wrong by less.
+     *
+     * The second cause was a long URL in inline code, which has nowhere to go
+     * and pushed a 320px phone over by seven pixels. Code inside a <pre> must
+     * still NOT wrap — that block scrolls, because a wrapped shell command is a
+     * command somebody pastes wrong.
+     */
+    for (const path of [
+        "/index.html",
+        "/docs/",
+        "/docs/install/docker.html",
+        "/docs/de/providers/google.html",
+    ]) {
+        test(`${path} does not scroll sideways`, async ({ page }) => {
+            await page.goto(BASE + path);
+
+            const [scroll, viewport] = await page.evaluate(
+                () => [document.documentElement.scrollWidth, window.innerWidth],
+            );
+
+            expect(scroll, `${path} overflows by ${scroll - viewport}px`).toBeLessThanOrEqual(viewport);
+        });
+    }
 
     test("the burger opens the navigation and three things close it", async ({ page }) => {
         await page.goto(`${BASE}/docs/features/calendar.html`);

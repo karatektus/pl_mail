@@ -212,6 +212,17 @@ main { min-width: 0; flex: 1; padding: 2rem 0 5rem; }
     padding: 0.12em 0.36em; border-radius: 0.3rem;
     background: rgb(var(--rgb-line) / 0.07);
 }
+
+/* Inline code only — `:not(pre) >` matters. A long unbreakable token, and this
+   handbook is full of them (URLs, scope strings, `urn:plmail:params:jmap:…`),
+   has nowhere to go inline and pushes the whole page sideways: seven pixels of
+   overflow on a 320px phone, from one address in one paragraph. Inside a <pre>
+   the same token must NOT break — the block scrolls instead, because a wrapped
+   shell command is a command somebody pastes wrong. */
+.prose :not(pre) > code { overflow-wrap: anywhere; }
+
+/* And the prose around it, for a bare URL nobody wrapped in backticks. */
+.prose p, .prose li { overflow-wrap: break-word; }
 .prose pre {
     padding: 0.9rem 1.1rem; border-radius: 0.6rem; overflow-x: auto;
     background: rgb(var(--rgb-sunken));
@@ -336,7 +347,19 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     .topbar { gap: 0.6rem; padding: 0.55rem 0.9rem; }
     .hero { padding: 3.5rem 1.25rem 2.5rem; }
 
-    .layout { flex-direction: column; gap: 0; padding: 0 1rem; }
+    /* align-items has to be reset with the direction. `flex-start` is what
+       keeps the sidebar from stretching to the article's height in the ROW
+       layout above — but in a column it stops meaning "top" and starts meaning
+       "as wide as your content", so <main> sized itself to its widest
+       unbreakable line and the landing page came out 1331px wide inside a
+       393px phone. The handbook hid it: .prose caps at 46rem there, which is
+       wrong by less. */
+    .layout { flex-direction: column; align-items: stretch; gap: 0; padding: 0 1rem; }
+
+    /* And a hard ceiling regardless, because the failure above was silent and
+       is the expensive kind: a page that scrolls sideways looks broken before
+       a single word of it is read. */
+    main, .is-landing main, .prose, .is-landing .prose { max-width: 100%; }
 
     .sidebar {
         position: fixed; inset: 3.1rem auto 0 0; z-index: 30;
