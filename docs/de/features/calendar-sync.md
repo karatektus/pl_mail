@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sync.md sha1:ba73c27ece32e1885fabcbb07fb27823978bfd40 -->
+<!-- translated-from: features/calendar-sync.md sha1:2035fa53b2757d4eef5706a37a0d6fab6f70ef92 -->
 
 # Verbundene Kalender
 
@@ -273,7 +273,7 @@ meisten zählt.
 ## Dieselbe Besprechung, zweimal angekommen
 
 Eine Besprechung kann plMail auf zwei ehrlichen Wegen zugleich erreichen: aus ihrer Einladung
-ausgelesen in den Kalender des E-Mail-Kontos, und vom Anbieter gespiegelt in einen verbundenen
+ausgelesen in deinen Standardkalender, und vom Anbieter gespiegelt in einen verbundenen
 Kalender. Beide Zeilen sind richtig, und plMail löscht keine von beiden. Die Doppelung wird
 stattdessen auf dem Bildschirm beantwortet.
 

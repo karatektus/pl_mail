@@ -16,7 +16,7 @@ use DateTimeImmutable;
  * What makes two rows the same meeting, and the one place that decides it.
  *
  * A meeting can reach plMail twice by two honest routes at once — extracted
- * from an invitation onto the account's calendar, and mirrored from the
+ * from an invitation onto the user's default calendar, and mirrored from the
  * provider onto a Remote calendar — and both rows are correct. CalendarPuller
  * already falls back from remoteId to uid, but scoped to one calendar, and
  * these are two, so the second row is created rather than matched. Nothing here

@@ -247,9 +247,11 @@ class Account extends AccountModel
     /**
      * Which calendar events extracted from this account's mail land on.
      *
-     * Absent means the account's own calendar, which CalendarProvisioner
-     * creates with the account — so this only has to exist for the user who
-     * wants everything in one place, or one kind of thing somewhere else.
+     * Absent means the user's default calendar, which is where a person looks
+     * for their own appointments — so this only has to exist for the user who
+     * wants a particular mailbox's bookings kept apart, and the account's own
+     * calendar (provisioned with the account) is the obvious thing to point it
+     * at.
      */
     public const string SETTING_CALENDAR_TARGET = 'calendar.target_id';
 

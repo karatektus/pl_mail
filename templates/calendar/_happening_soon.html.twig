@@ -1,21 +1,24 @@
 {#
 calendar/_happening_soon.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-"Happening Soon": everything plMail read out of mail and expects to happen
-within the fortnight, loaded into the app's body-level modal frame.
+"Happening Soon": everything expected within the fortnight — what plMail read
+out of mail and what the owner put in the calendar themselves — loaded into the
+app's body-level modal frame.
 
 Accepts:
   rows  list<HappeningSoonRow> — already windowed, ordered and capped by
         HappeningSoonReader; this template windows nothing and sorts nothing
 
-Four things per row, and each earns its place. The kind's ICON, off the enum, so
-a fortnight of bookings can be read by shape before it is read by word — a plane
-among boxes is found without reading anything. WHEN, because that is the
-question. WHAT. And WHICH MESSAGE it came from, which is the one that is not
-obvious: every row here is a guess a program made about somebody's mail, and
-"why is this on my calendar?" has to be answerable in one click or the guess is
-unfalsifiable. That link is the whole reason extracted events are marked as
-extracted.
+Four things per row, and each earns its place. The ICON, off the row rather than
+straight off the enum, so a fortnight can be read by shape before it is read by
+word — a plane among boxes is found without reading anything, and an event
+nobody extracted gets a plain calendar mark rather than a hole in the column.
+WHEN, because that is the question. WHAT. And WHICH MESSAGE it came from, where
+there is one: an extracted row is a guess a program made about somebody's mail,
+and "why is this on my calendar?" has to be answerable in one click or the guess
+is unfalsifiable. That link is the whole reason extracted events are marked as
+extracted, and its absence on a hand-made row is the correct answer — nothing
+made that one but the person reading it.
 
 The provenance link carries `data-turbo-frame="_top"`. Without it Turbo reads a
 link inside a <turbo-frame> as a navigation OF that frame, so clicking "from
@@ -61,7 +64,7 @@ most days, which is the normal case and must not look like a fault.
                        leaving the shape to do all the work. #}
                     <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
                                  rounded-lg bg-sunken text-ink-muted">
-                        <i class="{{ row.kind.icon }} text-sm" aria-hidden="true"></i>
+                        <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
                     </span>
 
                     <div class="min-w-0 flex-1">
@@ -70,9 +73,13 @@ most days, which is the normal case and must not look like a fault.
                         </p>
 
                         <p class="mt-0.5 text-xs text-ink-muted">
-                            <span class="sr-only">{{ row.kind.transKey|trans }} · </span>
-                            {{ row.startsAt|date('D, j M') }}
-                            {%- if not row.event.isAllDay %} · {{ row.startsAt|date('g:i a') }}{% endif %}
+                            <span class="sr-only">{{ row.transKey|trans }} · </span>
+                            {# An all-day row is floating — a wall date at
+                               midnight with no zone — so `false` keeps it in
+                               its own, and the reader's clock does not move it
+                               onto the day before. #}
+                            {{ row.startsAt|date('D, j M', row.event.isAllDay ? false : null) }}
+                            {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
                         </p>
 
                         {% if row.source is not null %}

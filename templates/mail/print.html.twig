@@ -44,7 +44,7 @@ print dialog on load). Only the sanitized body is rendered as markup.
         {%- for entry in message.toAddresses ?? [] %} {{ entry.address }}{{ not loop.last ? ',' : '' }}{% else %} —{% endfor %}
     </p>
     <p class="muted">
-        {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, g:i a') : '' }}
+        {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, ' ~ clock.time) : '' }}
     </p>
 </div>
 

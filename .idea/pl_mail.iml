@@ -198,6 +198,11 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/sabre/uri" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/sabre/vobject" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/sabre/xml" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/dflydev/dot-access-data" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/league/commonmark" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/league/config" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/nette/schema" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/nette/utils" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

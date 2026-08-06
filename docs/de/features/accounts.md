@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:55b0b372a73f00444317511923fc4d7dfcb28545 -->
+<!-- translated-from: features/accounts.md sha1:1de4244ae6384c6a997411de3179bd913ead41fe -->
 
 # Konten und Aliase
 
@@ -127,6 +127,18 @@ und riskantere Operation, als der Schalter verspricht.
 Es wirkt sich immer nur auf Änderungen ab jetzt aus. Bereits vorhandene Labels werden nicht
 rückwirkend übertragen, denn das hieße, deinen gesamten lokalen Baum mit einem Klick beim
 Anbieter anzulegen.
+
+**Bei Microsoft sind die meisten Labels Outlook-Kategorien und keine Ordner**, und eine Kategorie
+hat dort keine Identität außer ihrem Namen — der Name ist das, was an jeder Nachricht steht. Eine
+Umbenennung tut deshalb zweierlei: Die Hauptkategorie wird umbenannt, und jede Nachricht, die den
+alten Namen trägt, wird erneut übertragen, damit sie den neuen trägt. Diese zweite Hälfte ist
+dieselbe Frage, die auch Outlooks eigener Umbenennen-Dialog stellt; hier lautet die Antwort ja,
+denn sonst gäbe es das Label zweimal im Postfach — einmal als Kategorie und einmal als loser Text
+an der Mail, die es früher hatte. Ein Label auf tausenden Nachrichten heißt damit tausende
+Aktualisierungen, die im Hintergrund laufen.
+
+Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
+werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
 ### Zu synchronisierende Nachrichten
 

@@ -56,20 +56,22 @@ able to show nothing but its agenda.
 
 In month view a day that holds more entries than fit says **N more**, which opens that day.
 
-### The time grid, and why only the page gets it
+### The time grid
 
-On the full page, Day and Week are drawn as a time grid: hours down the left, and every event drawn
-where it actually starts and as long as it actually lasts. Overlapping events are placed in lanes,
-so three things happening at once are three narrower blocks side by side, and the lane count holds
-steady across an unbroken run of overlaps rather than changing block by block.
+Day and Week are drawn as a time grid: hours down the left, and every event drawn where it actually
+starts and as long as it actually lasts. Overlapping events are placed in lanes, so three things
+happening at once are three narrower blocks side by side, and the lane count holds steady across an
+unbroken run of overlaps rather than changing block by block.
 
-The docked pane keeps the older column list for the same two views, and that is a decision rather
-than an omission. Seven columns of positioned blocks behind a time gutter need roughly a screen's
-width to be legible; the pane has 380 pixels of a row it is sharing with your mail, and a grid there
-would be seven slivers under an axis nobody could read. The choice is made by the server from
-whether it is rendering the pane or the page — not from a media query, because the pane is narrow on
-a 2560-pixel monitor too, and CSS that rendered both and hid one would ship the whole drag-and-drop
-machinery to a pane that cannot use it.
+**The docked pane draws the same grid the page does.** It used to keep an older column list instead,
+on the reasoning that seven positioned columns need roughly a screen's width — true of 380 pixels,
+and no longer the right conclusion, because the pane's width is now yours: drag its handle as wide
+as you like, and past the end of its range it becomes the calendar full-width. A pane that quietly
+drew a *different* calendar was the worse answer, since widening it to see the timeline gave you the
+list anyway.
+
+A seven-day grid is still tight in a narrow pane, and the answer to that is the toolbar: **Day** is
+one click away and is a single full-width column.
 
 Month and Agenda have no time axis in either shape. A month cell is a couple of square centimetres
 and has no room to say where in the day anything is; an agenda's whole value is that it skips the
@@ -83,9 +85,12 @@ Three things about the grid are worth knowing:
   changed in the editor.
 - **It opens scrolled to the working day** rather than to midnight, which costs one scroll to reach
   the night instead of one scroll to reach everything.
-- **Clicking empty space does not create an event.** Each day heading keeps its own **+** button,
-  which is also a real tab stop. A click on the background would have to be told apart from the end
-  of a drag on every release, and drag-to-create is a separate piece of work.
+- **Double-clicking empty space creates an event there**, starting at the quarter hour under the
+  pointer. A *single* click deliberately does not, and that is the whole reason it is a double: a
+  single click on the background has to be told apart from the end of a drag on every release, and
+  getting that wrong opens a dialog every time you finish moving a meeting. Each day heading keeps
+  its own **+** button, which is the same thing for a keyboard — a double-click is not a gesture a
+  keyboard has.
 
 A seven-day week is tight below about 640 pixels — each column ends up around fifty pixels and a
 block says its colour and little else. The paths a phone actually takes into the calendar avoid it:
@@ -230,6 +235,12 @@ alone". The copy stays where it is, stops agreeing with the ones you did change,
 separate entry from then on. To take a meeting off a calendar, tick that calendar and press
 **Delete** — the delete acts on exactly the ticked ones.
 
+**A copy of an event that came from mail is still an event from mail.** Putting a meeting on a
+second calendar does not cut either copy off from the booking it was read out of: a later message
+moving the meeting moves both. See
+[Invitations and events from mail](calendar-invitations.md) for when a change you make yourself
+*does* stop that.
+
 **"All events" applies your change as a shift, not as an absolute time.** Opening the fifth
 occurrence of a weekly meeting, changing the start to Thursday 14:00 and choosing **All events**
 moves the entire series by that difference. If you only meant that one week, choose **This event**.
@@ -239,9 +250,6 @@ an attendee list to a provider is how the provider decides to re-send the invita
 it — and none of the per-occurrence moves the original had already accumulated. Those instances stay
 where they are on the original and are drawn as their own entries until you move them on both
 copies.
-
-**The docked pane never draws the time grid, however wide you drag it.** It is deliberately the
-column list at any width. Use the calendar page for hours-down-the-side.
 
 **The editor never opens inside the pane.** It is rendered at the top of the page instead, because
 both the pane and the mail pane carry a backdrop filter, which makes them clip anything positioned

@@ -100,20 +100,27 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
     }
 
     /**
-     * Extracted events only, from now forward — the "Happening Soon" query.
+     * Everything starting inside a window, soonest first — the "Happening Soon"
+     * query.
      *
-     * A kind is exactly what distinguishes an extracted event from one a person
-     * typed, which is why that feature needs no table of its own.
+     * It used to carry `event.kind IS NOT NULL`, which listed extracted events
+     * and nothing else. That was wrong for the panel it feeds: a person who
+     * types "dentist, Thursday" has said the same thing about Thursday that a
+     * booking confirmation says, and a glance surface that answers "what is
+     * coming up?" with everything *except* what the owner put there themselves
+     * is a surface nobody can trust. The kind still distinguishes the two —
+     * HappeningSoonRow keeps it, nullable, and the row wears its icon when there
+     * is one — it just no longer decides who is listed.
      *
-     * QueryBuilder for the window bounds, for `event.kind IS NOT NULL` on a
-     * joined entity, and for the fetch-join — the widget renders each event and
-     * its calendar, so lazy associations would be two queries per row.
+     * QueryBuilder for the window bounds and for the fetch-join — the widget
+     * renders each event and its calendar, so lazy associations would be two
+     * queries per row.
      *
      * @param list<int> $calendarIds
      *
      * @return list<CalendarEventOccurrence>
      */
-    public function findUpcomingExtracted(
+    public function findUpcoming(
         UserInterface     $user,
         array             $calendarIds,
         DateTimeImmutable $from,
@@ -131,7 +138,6 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
             ->where('occurrence.usr = :usr')
             ->andWhere('occurrence.calendar IN (:calendarIds)')
             ->andWhere('occurrence.cancelled = false')
-            ->andWhere('event.kind IS NOT NULL')
             ->andWhere('occurrence.startsAt >= :from')
             ->andWhere('occurrence.startsAt < :to')
             ->setParameter('usr', $user)

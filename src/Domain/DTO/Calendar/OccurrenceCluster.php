@@ -11,7 +11,7 @@ use App\Entity\Calendar\CalendarEventOccurrence;
  * The occurrences that draw one chip — one meeting, however many rows hold it.
  *
  * One meeting legitimately reaches plMail twice. An invitation arrives by mail
- * and is extracted onto the account's calendar with the organiser's UID; the
+ * and is extracted onto the user's default calendar with the organiser's UID; the
  * provider auto-adds the same meeting to the user's primary calendar and the
  * mirror pulls it onto a Remote calendar, with the same UID and a remote id of
  * its own. Both rows are correct: they are two remote objects with their own

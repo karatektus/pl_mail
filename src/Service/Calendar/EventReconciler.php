@@ -59,6 +59,7 @@ final readonly class EventReconciler
         private EventSourceLinkRepository      $links,
         private EventSuppressionRepository     $suppressions,
         private ExtractedEventCalendarResolver $calendarResolver,
+        private InviteParticipationResolver    $participation,
         private CalendarEventWriter            $writer,
         private EntityManagerInterface         $em,
         private LoggerInterface                $logger,
@@ -94,19 +95,66 @@ final readonly class EventReconciler
                 continue;
             }
 
-            $existing = $this->events->findOneByUid($calendar, $claim->uid)
-                ?? $this->pendingByUid($calendar, $claim->uid);
+            // EVERY copy this user holds under the UID, not just the one on the
+            // calendar extraction would file a new event to.
+            //
+            // This is the fix for a bug with no visible symptom. A user who
+            // ticks a second calendar in the editor gets a second row under the
+            // same UID — that is what a copy is — and the reconciler used to
+            // look for the claim's subject on one calendar only. So a later
+            // mail about the meeting updated whichever copy happened to be on
+            // that calendar and silently left the others describing the old
+            // time. The two copies then disagree, EventClusterer stops merging
+            // them, and the calendar draws the same meeting twice at two
+            // different hours: a duplicate that looks like a sync fault and is
+            // really an update that only went half way.
+            //
+            // A UID is unique within a calendar and deliberately not across
+            // them, so this is a list. Each copy is judged on its own — one may
+            // be user-edited and refuse the update while its sibling takes it —
+            // and that is the honest outcome, because the flags are per row.
+            $existing = $this->copiesOf($user, $calendar, $claim->uid);
 
-            $event = null === $existing
-                ? $this->create($claim, $calendar, $user, $message)
-                : $this->update($existing, $claim, $message);
+            if ([] === $existing) {
+                $touched[] = $this->create($claim, $calendar, $user, $message);
 
-            if (null !== $event) {
-                $touched[] = $event;
+                continue;
+            }
+
+            foreach ($existing as $copy) {
+                $event = $this->update($copy, $claim, $message);
+
+                if (null !== $event) {
+                    $touched[] = $event;
+                }
             }
         }
 
         return $touched;
+    }
+
+    /**
+     * Every row under one UID that this unit of work can see, committed or
+     * merely queued.
+     *
+     * The queued half is not a nicety — see pendingByUid(): a resend and its
+     * original land in the same batch routinely, and a claim that could not see
+     * the insert it just scheduled would create a second row and lose the flush
+     * to the unique constraint.
+     *
+     * @return list<CalendarEvent>
+     */
+    private function copiesOf(User $user, object $calendar, string $uid): array
+    {
+        $copies = $this->events->findByUidForUser($user, $uid);
+
+        $pending = $this->pendingByUid($calendar, $uid);
+
+        if (null !== $pending && false === in_array($pending, $copies, true)) {
+            $copies[] = $pending;
+        }
+
+        return $copies;
     }
 
     private function create(
@@ -118,7 +166,7 @@ final readonly class EventReconciler
         $event      = new CalendarEvent();
         $event->uid = $claim->uid;
 
-        $this->apply($event, $claim, $calendar, $user);
+        $this->apply($event, $claim, $calendar, $user, $message);
         $this->link($event, $claim, $message, applied: true);
 
         return $event;
@@ -162,7 +210,7 @@ final readonly class EventReconciler
             return null;
         }
 
-        $this->apply($event, $claim, $event->calendar, $event->usr);
+        $this->apply($event, $claim, $event->calendar, $event->usr, $message);
         $this->link($event, $claim, $message, applied: true);
 
         return $event;
@@ -194,8 +242,30 @@ final readonly class EventReconciler
         return null === $arrived || null === $latest || $arrived >= $latest;
     }
 
-    private function apply(CalendarEvent $event, ExtractedEvent $claim, object $calendar, User $user): void
-    {
+    private function apply(
+        CalendarEvent  $event,
+        ExtractedEvent $claim,
+        object         $calendar,
+        User           $user,
+        Message        $message,
+    ): void {
+        // Before write(), because write() materialises — and whether an
+        // invitation is drawn at all is decided by this field. Setting it
+        // afterwards would leave the occurrences reflecting the previous
+        // answer until the next write, which for a new event means an
+        // unanswered invitation sitting in the calendar exactly once.
+        //
+        // merge() is what stops an organiser's re-sent REQUEST un-accepting a
+        // meeting: their attendee list is as they last saw it, and a stale
+        // NEEDS-ACTION in it would take the chip away with no other symptom.
+        // Read off the CLAIM's object rather than the event's: the event still
+        // holds the previous revision until write() merges the overlay below,
+        // and the answer being decided here is the one this message states.
+        $event->myParticipation = $this->participation->merge(
+            $event->myParticipation,
+            $this->participation->resolve($claim->jscalendar, $message->account->ownedAddresses),
+        );
+
         $this->writer->write(
             event:       $event,
             calendar:    $calendar,

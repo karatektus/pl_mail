@@ -10,7 +10,13 @@ import { Controller } from "@hotwired/stimulus";
  *   revertedMessage    announced when a pending change is abandoned
  *
  * Targets:
- *   scroller        the element the hours scroll inside
+ *   scroller        the element everything scrolls inside — the headings and
+ *                   the all-day band are sticky rows in it, not siblings above
+ *                   it, so all three grids are measured by one box
+ *   hours           the 24-row grid itself, for the opening scroll position
+ *   heading         one per day, above the column of the same index — declared
+ *                   so a spec can assert the two line up, which they did not
+ *                   while the headings lived outside the scroller
  *   column          one per day, in view order — the index IS the day offset
  *   block           one positioned event; carries all of its own state in data-
  *   grip            the bottom edge of a block, for resizing
@@ -47,6 +53,9 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
     static targets = [
         "scroller",
+        "hours",
+        "heading",
+        "newTrigger",
         "column",
         "block",
         "grip",
@@ -62,6 +71,9 @@ export default class extends Controller {
 
     static values = {
         snap: { type: Number, default: 15 },
+        // Where a double-click on empty grid space sends the user. Passed in
+        // rather than built here, because a URL is the router's to know.
+        newEventUrl: String,
         readOnlyMessage: String,
         pendingMessage: String,
         revertedMessage: String,
@@ -94,8 +106,16 @@ export default class extends Controller {
         // Midnight is almost never what someone wants to look at. Opening on
         // the working day costs one scroll to reach the night, where opening at
         // the top costs one to reach everything.
-        if (this.hasScrollerTarget) {
-            this.scrollerTarget.scrollTop = (this.scrollerTarget.scrollHeight * 7) / 24;
+        //
+        // Measured off the HOURS grid rather than off the scroller, because the
+        // scroller also holds the day headings and the all-day band now — they
+        // are sticky rows inside it rather than siblings above it, so that the
+        // three grids share one width and the columns line up with their own
+        // headings. Read off the scroller's own height, 7/24 of it would land
+        // past 07:00 by however tall those two happen to be.
+        if (this.hasScrollerTarget && this.hasHoursTarget) {
+            this.scrollerTarget.scrollTop =
+                this.hoursTarget.offsetTop + (this.hoursTarget.offsetHeight * 7) / 24;
         }
     }
 
@@ -105,6 +125,70 @@ export default class extends Controller {
     }
 
     // ── Pointer ───────────────────────────────────────────────────────────
+
+    /**
+     * Double-click on empty grid space: the editor, opened at that quarter hour.
+     *
+     * A double rather than a single, and the template says why at length — the
+     * short version is that a single click on the background cannot be told
+     * apart from the end of a drag without arbitration nobody would enjoy
+     * maintaining, and a double-click needs none.
+     *
+     * Ignores a double-click that landed on a block, which already has a
+     * meaning: the chip's own click opens that event. Ignores one in the all-day
+     * band too, which is not part of a column and has no minute to offer.
+     *
+     * The minute is snapped to the same grid a drag snaps to, so the two agree
+     * about what "here" means, and the time is the COLUMN's wall clock — the day
+     * comes off the column's own data-day and the offset is measured inside its
+     * box, so nothing here has to know which zone the calendar is read in.
+     */
+    createAt(event) {
+        if (false === this.hasNewTriggerTarget) {
+            return;
+        }
+
+        if (null !== event.target.closest('[data-calendar--time-grid-target="block"]')) {
+            return;
+        }
+
+        const column = event.target.closest('[data-calendar--time-grid-target="column"]');
+
+        if (null === column) {
+            return;
+        }
+
+        const box = column.getBoundingClientRect();
+
+        if (0 >= box.height) {
+            return;
+        }
+
+        const raw = ((event.clientY - box.top) / box.height) * this.constructor.DAY;
+        const snap = this.snapValue > 0 ? this.snapValue : 15;
+        // Clamped to the last slot that still starts inside the day: snapping a
+        // click on the final pixel up to 24:00 would ask for an event beginning
+        // at midnight tomorrow.
+        const minute = Math.min(
+            this.constructor.DAY - snap,
+            Math.max(0, Math.round(raw / snap) * snap),
+        );
+
+        const pad = (part) => String(part).padStart(2, "0");
+        const start = `${column.dataset.day} ${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`;
+
+        // Written as an attribute rather than through the Stimulus value API of
+        // another controller: `data-ui--modal-src-value` has no camelCase
+        // dataset key — a `--` has no equivalent — so it is unreachable as
+        // `dataset.uiModalSrcValue` and has to be set by name. The same trap the
+        // controller rename left behind elsewhere.
+        this.newTriggerTarget.setAttribute(
+            "data-ui--modal-src-value",
+            `${this.newEventUrlValue}?start=${encodeURIComponent(start)}`,
+        );
+
+        this.newTriggerTarget.click();
+    }
 
     pointerdown(event) {
         // Left button only. A right-click is a context menu and a middle-click

@@ -1,0 +1,44 @@
+{#
+settings/_clock.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Twelve- or twenty-four-hour clock. Submits on change and redirects, like the
+timezone picker beside it and for the same reason: the choice changes every
+time printed anywhere on the page, not something local to this form.
+
+The first option is not a blank entry — it is "follow your language", the state
+a user who has never chosen is already in, and it stays that way rather than
+being silently converted into whichever format it currently resolves to. See
+ClockFormatResolver::chosen().
+
+Each option carries a live sample of the current time in its own format, which
+is the only thing that makes the choice self-explanatory: "12-hour" and
+"24-hour" are the names of the thing, "2:30 pm" and "14:30" are the thing.
+
+Variables:
+  clockOptions  {value: sample} — the two real formats, rendered
+  activeClock   string|null   the user's own choice, null when following
+  defaultClock  string        the sample the language resolves to
+#}
+<div class="px-4 py-3">
+    <form method="post" action="{{ path('app_settings_clock_update') }}" data-turbo="false">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-clock') }}">
+
+        <label for="settings-clock" class="sr-only">{{ 'settings.clock.label'|trans }}</label>
+
+        <select id="settings-clock"
+                name="clock"
+                onchange="this.form.requestSubmit();"
+                class="w-full h-9 rounded-lg border border-line bg-field px-2 text-sm text-ink-soft transition-colors
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+            <option value="" {{ activeClock is null ? 'selected' : '' }}>
+                {{ 'settings.clock.follow_language'|trans({'%sample%': defaultClock}) }}
+            </option>
+
+            {% for value, sample in clockOptions %}
+                <option value="{{ value }}" {{ value == activeClock ? 'selected' : '' }}>
+                    {{ ('settings.clock.option.' ~ value)|trans({'%sample%': sample}) }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>

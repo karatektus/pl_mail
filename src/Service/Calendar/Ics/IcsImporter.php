@@ -38,7 +38,7 @@ use Psr\Log\LoggerInterface;
  *
  * **On another of this user's calendars under the same UID: it is left alone,
  * and counted.** That population is not hypothetical: an invitation extracted
- * from the mailbox lands on the mail account's calendar carrying the
+ * from the mailbox lands on the user's default calendar carrying the
  * organiser's own UID, and the same meeting mirrored from a connected calendar
  * carries it too. A user who then imports the organiser's .ics is holding the
  * third copy of one meeting. Writing it would produce a row the calendar draws

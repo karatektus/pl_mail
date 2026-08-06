@@ -243,7 +243,7 @@ arrives from a request.
 ## One meeting, two rows
 
 A meeting can reach plMail twice by two honest routes at once: extracted from its invitation
-onto the account's calendar, and mirrored from the provider onto a Remote calendar. Both rows
+onto the user's default calendar, and mirrored from the provider onto a Remote calendar. Both rows
 are correct. `CalendarPuller` already falls back from `remoteId` to `uid`, but scoped to one
 calendar, and these are two.
 

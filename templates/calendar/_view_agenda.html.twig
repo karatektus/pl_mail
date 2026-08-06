@@ -11,7 +11,8 @@ empty day still needs to occupy its place.
 #}
 
 {% set dayKeys = days|keys %}
-{% set today = 'now'|date('Y-m-d') %}
+{# The view's clock — see _view_month for why. #}
+{% set today = 'now'|date('Y-m-d', range.zone) %}
 {% set anyEvents = false %}
 
 <div class="divide-y divide-line">

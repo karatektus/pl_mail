@@ -112,6 +112,17 @@ It only ever affects changes made from now on. Labels that already exist are not
 retroactively, because that would mean bulk-creating your entire local tree at the provider from
 one click.
 
+**On Microsoft, most labels are Outlook categories rather than folders**, and a category there has
+no identity but its name — the name is what is written onto each message. So renaming one does two
+things: the master category is renamed, and every message carrying the old name is pushed again so
+it carries the new one. That second half is the same question Outlook's own rename dialog asks; here
+it is answered yes, because the alternative is a mailbox where the label exists twice — once as a
+category and once as loose text on the mail that used to have it. A label on thousands of messages
+therefore means thousands of updates, sent in the background.
+
+Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
+folders instead, and nothing has to be re-tagged.
+
 ### Messages to sync
 
 How many of the newest messages a sync run may pull: **Sync everything**, or the newest 500, 1000,

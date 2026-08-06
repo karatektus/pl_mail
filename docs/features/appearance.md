@@ -77,6 +77,16 @@ The same section carries **Time zone**, which decides the clock times and dates 
 too rewrites nothing — the same instant is simply read on your own clock — and it can be left on the
 server default.
 
+Under it, **Clock** decides whether those times are written on a twelve- or a twenty-four-hour
+clock: `2:30 pm` or `14:30`. It applies everywhere a time appears — the mail list, a thread, a
+calendar chip, the agenda, the day grid's hour axis — because a setting honoured in most places and
+not in one reads as a bug rather than as an option.
+
+Its default is **Follow your language**, which is what everyone is on until they change it: German
+reads 14:30, English reads 2:30 pm. That is a real state and not a value in disguise — leave it
+there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
+whatever the language later becomes.
+
 ## Where to read further
 
 - [Mail](mail.md) — the lists and panes these settings paint.

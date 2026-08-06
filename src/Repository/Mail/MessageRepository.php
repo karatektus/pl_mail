@@ -1002,4 +1002,46 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Ids of one account's messages carrying one label, by keyset.
+     *
+     * For re-tagging after an Exchange master category is renamed: Exchange
+     * stores a category on each message as a string, so the messages have to be
+     * pushed again or they go on carrying the old name. See
+     * ApplyLabelStructureHandler.
+     *
+     * Ids rather than entities, and keyset rather than OFFSET: the population is
+     * "every message that has ever had this label", which on a busy mailbox is
+     * unbounded, and both hydrating it and paging it by offset degrade as it
+     * grows. The caller walks with the last id it saw.
+     *
+     * Only messages the provider knows about — a message with no graphId has
+     * never been at Exchange and there is nothing there to re-tag.
+     *
+     * @return list<int>
+     */
+    public function findIdsWithLabelForAccount(
+        int $accountId,
+        int $labelId,
+        int $afterId = 0,
+        int $limit = 200,
+    ): array {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.graphId IS NOT NULL')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
 }

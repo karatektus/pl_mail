@@ -1,4 +1,4 @@
-<!-- translated-from: internals/event-extraction.md sha1:9ff364a1d934155a93f9ed1822b2a5594898cc2e -->
+<!-- translated-from: internals/event-extraction.md sha1:b0e440ab7375ede4a676e3318de2cca2e2a3aaea -->
 # Extraktion von Terminen
 
 Wie aus einer `.ics`-Einladung ein Kalendereintrag wird, wie aus einem gewöhnlichen Satz das
@@ -205,13 +205,24 @@ Sechs Regeln, jede davon, weil die naheliegende Alternative schlechter ist:
    beim Termin abgelegt, damit die Beweiskette erhalten bleibt.
 
 Wohin der Termin geht, entscheidet
-`App\Service\Calendar\ExtractedEventCalendarResolver`: standardmäßig auf den eigenen Kalender
-des Kontos — `CalendarProvisioner` legt neben jedem Mailkonto einen an, damit es die Antwort
-immer gibt — mit `Account::SETTING_CALENDAR_TARGET` als Übersteuerung für alle, die alles an
-einer Stelle haben wollen. Diese Übersteuerung wird **gegen die Nutzerin geprüft** und nicht
-einfach geglaubt, denn eine Einstellung ist eine Zeichenkette in einem jsonb-Beutel, und eine
-Kalender-Id, die inzwischen gelöscht wurde oder jemand anderem gehört, muss zurückfallen, statt
-zu werfen oder etwas durchsickern zu lassen.
+`App\Service\Calendar\ExtractedEventCalendarResolver`: auf den **Standardkalender** der
+Nutzerin, mit `Account::SETTING_CALENDAR_TARGET` als Übersteuerung für alle, die die Buchungen
+eines bestimmten Postfachs getrennt halten wollen.
+
+Früher war es der eigene Kalender des Kontos, mit der Begründung, ein Termin gehöre dorthin, wo
+auch die Mail liegt, die ihn gebracht hat. Für Mail stimmt das, für einen Kalender nicht: Ein
+Mensch hat einen Terminkalender, und dass eine Flugbestätigung an die dienstliche statt an die
+private Adresse kam, ist eine Eigenschaft der Nachricht und keine des Flugs. Die Ablage danach
+zerlegte einen Tag in so viele Kalender, wie die Nutzerin Postfächer hat — und zwar lautlos,
+denn ein Kontokalender ist sichtbar und eingefärbt wie jeder andere, der Termin stand also auf
+dem Schirm und nur nicht dort, wo seine Besitzerin ihn suchen würde. `CalendarProvisioner` legt
+weiterhin je Konto einen Kalender an; darauf zeigt die Einstellung, und daran hängt auch ein
+gespiegelter Anbieterkalender.
+
+Diese Übersteuerung wird **gegen die Nutzerin geprüft** und nicht einfach geglaubt, denn eine
+Einstellung ist eine Zeichenkette in einem jsonb-Beutel, und eine Kalender-Id, die inzwischen
+gelöscht wurde oder jemand anderem gehört, muss zurückfallen, statt zu werfen oder etwas
+durchsickern zu lassen.
 
 ### Der Nachschlag in der Unit of Work
 

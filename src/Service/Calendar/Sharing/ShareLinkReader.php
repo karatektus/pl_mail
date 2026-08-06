@@ -409,7 +409,13 @@ final readonly class ShareLinkReader
         }
 
         foreach ($entries as $entry) {
-            $key = $entry->startsAt->setTimezone($zone)->format('Y-m-d');
+            // An all-day entry is floating — a wall date at midnight carrying no
+            // zone — so it is read as it is stored. Converting it into the
+            // link's zone moves it, which files it on the day before for any
+            // reader west of UTC. Same rule as CalendarRangeReader.
+            $key = true === $entry->isAllDay
+                ? $entry->startsAt->format('Y-m-d')
+                : $entry->startsAt->setTimezone($zone)->format('Y-m-d');
 
             if (true === array_key_exists($key, $days)) {
                 $days[$key][] = $entry;

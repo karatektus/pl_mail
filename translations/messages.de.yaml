@@ -724,6 +724,7 @@ calendar:
         call: Anruf
         delivery: Lieferung
         dining: Reservierung
+        event: Termin
         flight: Flug
         lodging: Übernachtung
         meeting: Termin
@@ -736,6 +737,10 @@ calendar:
         next: Weiter
         previous: Zurück
     pane:
+        mode:
+            calendar: Kalender in voller Breite zeigen
+            mail: Mail zeigen
+            split: Kalender neben der Mail zeigen
         resize: Kalender in der Breite ändern
     proposal:
         action:
@@ -827,8 +832,9 @@ calendar:
     soon:
         empty: Nichts in Sicht
         empty_hint: >-
-            Flüge, Lieferungen, Reservierungen und Tickets aus deinen E-Mails
-            erscheinen hier für die nächsten zwei Wochen.
+            Termine aus deinem Kalender und die Flüge, Lieferungen,
+            Reservierungen und Tickets aus deinen E-Mails erscheinen hier für
+            die nächsten zwei Wochen.
         from: 'Aus %subject%'
         open: Was demnächst ansteht
         title: Demnächst
@@ -1310,6 +1316,14 @@ settings:
         refresh: 'Vom Anbieter aktualisieren'
         subheading: 'Adressen, unter denen dieses Konto sendet und empfängt.'
         system: 'System'
+    clock:
+        heading: Uhrzeitformat
+        subheading: Ob Zeiten im 12- oder 24-Stunden-Format geschrieben werden. Gespeichert wird nichts anders — es ändern sich nur die Ziffern.
+        label: Uhrzeitformat
+        follow_language: 'Der Sprache folgen (%sample%)'
+        option:
+            '12': '12 Stunden (%sample%)'
+            '24': '24 Stunden (%sample%)'
     device_pairing:
         pair_device: "Gerät koppeln"
         scan_title: "Mit der plMail-App scannen"

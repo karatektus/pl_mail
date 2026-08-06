@@ -30,7 +30,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * is the whole reason this command exists. A UID is minted server-side and the
  * editor has no field for it, so nothing a user can click produces two rows
  * that share one — which is precisely the state that arises on its own when an
- * invitation is extracted from mail onto the account's calendar while the
+ * invitation is extracted from mail onto the default calendar while the
  * provider auto-adds the same meeting to a calendar plMail mirrors.
  *
  * The second calendar can be made read-only, because "a mirror of somewhere

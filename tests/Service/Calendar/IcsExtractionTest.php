@@ -40,6 +40,7 @@ final class IcsExtractionTest extends KernelTestCase
     private Account $account;
     private User $user;
     private Calendar $calendar;
+    private ?Calendar $accountCalendar = null;
     private string $projectDir;
 
     /** @var list<string> */
@@ -85,6 +86,41 @@ final class IcsExtractionTest extends KernelTestCase
 
         // Materialised, or it is on no calendar anyone can see.
         self::assertCount(1, $event->occurrences);
+    }
+
+    /**
+     * A person has one diary. Which mailbox the invitation happened to arrive
+     * at is a property of the message and not of the meeting, so filing by it
+     * split one day across as many calendars as the user had accounts — and did
+     * it silently, because a per-account calendar is visible and coloured like
+     * any other, so the event was on screen and simply not where its owner
+     * would look.
+     */
+    public function testAnInviteLandsOnTheDefaultCalendarRatherThanTheAccountsOwn(): void
+    {
+        $event = $this->ingest($this->ics('home@example.test', 'Home', '20260803T090000Z', '20260803T100000Z'));
+
+        self::assertNotNull($event);
+        self::assertTrue($event->calendar->isDefault, 'extraction files into the default calendar');
+        self::assertNotSame($this->accountCalendar?->id, $event->calendar->id);
+    }
+
+    /**
+     * The per-account calendar has not gone away — it is what a user who *does*
+     * want the split points the setting at, and the setting still wins.
+     */
+    public function testTheAccountSettingStillDirectsWhereAnInviteLands(): void
+    {
+        $this->account->setSetting(
+            Account::SETTING_CALENDAR_TARGET,
+            (int) $this->accountCalendar?->id,
+        );
+        $this->em->flush();
+
+        $event = $this->ingest($this->ics('split@example.test', 'Split', '20260803T090000Z', '20260803T100000Z'));
+
+        self::assertNotNull($event);
+        self::assertSame($this->accountCalendar?->id, $event->calendar->id);
     }
 
     /** The provenance that makes "why is this on my calendar?" answerable. */
@@ -491,11 +527,16 @@ final class IcsExtractionTest extends KernelTestCase
         $this->account = $account;
 
         $provisioner = self::getContainer()->get(CalendarProvisioner::class);
-        $provisioner->defaultFor($user);
-        $calendar = $provisioner->forAccount($account);
+
+        // Both are provisioned, and the DEFAULT one is where extraction files
+        // its results — see ExtractedEventCalendarResolver. The per-account
+        // calendar is created here anyway because the fixture must reproduce
+        // the real shape: it exists, it is visible, and an event landing on it
+        // instead is exactly the regression this fixture would otherwise hide.
+        $this->calendar        = $provisioner->defaultFor($user);
+        $this->accountCalendar = $provisioner->forAccount($account);
         $this->em->flush();
 
-        self::assertNotNull($calendar);
-        $this->calendar = $calendar;
+        self::assertNotNull($this->accountCalendar);
     }
 }

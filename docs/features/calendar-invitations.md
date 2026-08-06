@@ -9,7 +9,7 @@ There are three levels of confidence, and it is worth knowing which one you are 
 
 | What arrived | What plMail does | Where it appears |
 |---|---|---|
-| A real invitation (a `text/calendar` part) | Puts it on the calendar and offers you the RSVP buttons | The card above the message, and the calendar |
+| A real invitation (a `text/calendar` part) | Offers you the RSVP buttons, and puts it on the calendar once you say **Yes** or **Maybe** | The card above the message, and — once answered — the calendar |
 | A booking with schema.org markup — flights, parcels, hotels, restaurants, tickets, orders | Puts it on the calendar, marked as found in mail | The calendar, and *Happening soon* |
 | A date written in ordinary prose | **Offers** it, and adds nothing until you say yes | A card above the message only |
 
@@ -48,9 +48,21 @@ A cancellation shows the title struck through and says *This meeting has been ca
 answer buttons. The event stays on the calendar, struck through, rather than disappearing — "was
 this called off or did I imagine it?" is a question a calendar should be able to answer.
 
+**An invitation is on your calendar once you accept it, and not before.** Until then it lives on
+the card above the message and nowhere else. **Maybe** counts as yes — a tentative meeting is one
+whose slot you still have to keep, and hiding it is how people double-book — and **No** takes it
+back off. Nothing about that is one-way: the invitation itself never goes anywhere, so changing your
+mind later moves the meeting on or off again.
+
+This applies to invitations addressed to you and to nothing else. A flight confirmation, a parcel, a
+date you accepted out of a sentence, a calendar you mirror from Google, a meeting *you* organised —
+none of those are anybody's to accept, and all of them appear straight away as they always did.
+
 Answering an invitation does **not** count as editing the event. The organiser is still the
 authority on when the meeting is, so a later message moving it still moves it here, even after you
-accepted.
+accepted. Their update also cannot un-answer it: an organiser's "send update" carries the attendee
+list as *they* last saw it, which routinely still says nobody has replied, and believing that would
+quietly take an accepted meeting off your calendar.
 
 ## Events read out of a booking
 
@@ -161,23 +173,22 @@ resolves forward from the message.
 
 ## Happening soon
 
-When something plMail found in your mail is coming up, a button appears in the topbar wearing the
-next thing's icon — a plane, a box, a train. Pressing it opens **Happening soon**: everything read
-out of mail that is due within the next fortnight, soonest first, up to twelve entries.
+When something is coming up, a button appears in the topbar wearing the next thing's icon — a plane,
+a box, a train, or a plain calendar mark for an appointment you entered yourself. Pressing it opens
+**Happening soon**: everything due within the next fortnight, soonest first, up to twelve entries.
 
-Each row gives the kind's icon, when it is, what it is, and which message it came from. That last one
-is the one that matters: every row is a guess a program made about your mail, and "why is this on my
-calendar?" has to be answerable in one click or the guess cannot be checked at all. A row whose
-message has since gone renders without the link rather than with a dead one.
+Each row gives an icon, when it is, what it is, and — for the rows read out of mail — which message
+it came from. That last one is the one that matters: an extracted row is a guess a program made about
+your mail, and "why is this on my calendar?" has to be answerable in one click or the guess cannot be
+checked at all. A row whose message has since gone renders without the link rather than with a dead
+one, and so does a row you typed, because nothing made that one but you.
 
 The button is only there when there is something to open, deliberately. A control that is always
 present and usually says "nothing coming up" trains people not to press it; one that appears when a
 parcel is due is a piece of news.
 
-Two things are **not** in this list, and both are deliberate:
+One thing is **not** in this list, deliberately:
 
-- **Events you typed yourself.** The list is about what plMail read, not about your diary — the
-  calendar is one click away and is better at being a calendar.
 - **Proposals.** A date read out of a sentence and not yet accepted has no business sitting in a list
   people trust to be true, and stripped of the sentence it came from it could not be judged anyway. A
   proposal is answered where its evidence is: on the message.
@@ -204,6 +215,15 @@ anything you dismissed stays dismissed, and anything you edited yourself is not 
 
 ## Things that bite
 
+**An invitation you have not answered is not in your calendar.** That is deliberate — see above —
+but it does mean a week of unanswered requests looks like a free week. The card above each message
+is where they are; press **Yes** or **Maybe** and they appear.
+
+**An invitation that arrived before this behaviour existed stays on the calendar whatever you
+answered.** Nothing was rewritten on upgrade, on purpose: emptying somebody's calendar during a
+`docker compose up` is not an acceptable way to ship a feature. `app:backfill events` re-reads the
+mail and brings the old ones in line.
+
 **Your RSVP can be saved without the organiser hearing it.** The two halves are independent on
 purpose. When the reply cannot be sent, the toast says so — and that is the only notice you get.
 Check that the account the invitation arrived on can actually send mail.
@@ -220,6 +240,12 @@ undo screen; add the event by hand if you change your mind.
 **Editing an extracted event stops it tracking the booking.** That is what the note in the editor
 means. Correct a wrong time by hand and a later mail moving the meeting will no longer move it for
 you.
+
+Only a real correction counts, though. Opening the event and ticking another calendar — putting the
+same meeting on your work calendar as well — changes nothing about the meeting, so it does not stop
+it tracking, and a later mail moving it moves **every** copy. That used to be the other way round: a
+share was recorded as an edit, the event went quiet, and the only way to notice was that a
+reschedule you had been told about never appeared.
 
 **Deleting an extracted event is not the same as dismissing it.** A plain delete lasts until the next
 message about that booking arrives, or until the next time extraction is re-run — and then it comes

@@ -98,6 +98,12 @@ final class LabelController extends AbstractController
     {
         $this->assertOwnedUserLabel($label);
 
+        // Captured before the form binds, and it is the only chance: an Exchange
+        // master category has no id but its display name, so a rename that has
+        // lost the old one has nothing to address at the provider. See
+        // LabelStructurePropagator::renamed().
+        $previousFullName = $label->fullName;
+
         $form = $this->createForm(LabelType::class, $label, [
             'action'        => $this->generateUrl('app_label_edit', ['id' => $label->id]),
             'user'          => $this->getUser(),
@@ -109,7 +115,7 @@ final class LabelController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $this->em->flush();
 
-            $this->structurePropagator->renamed($label);
+            $this->structurePropagator->renamed($label, $previousFullName);
             $this->changes->labelChanged($label);
             $this->em->flush();
 

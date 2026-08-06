@@ -22,6 +22,18 @@ Accepts:
   startsAt      \ the INSTANCE's times when the chip named one, so that saving
   endsAt        / "this event" moves the occurrence that was clicked
   timeZone      IANA zone the two datetime fields are read in
+  displayZone   the clock they are PRINTED on, and `false` for an all-day event
+
+`displayZone` is not `timeZone` said twice. Twig's `|date` converts to whatever
+TwigTimezoneSubscriber last set — the reader's own zone — so leaving it out
+printed an event pinned to another zone on the reader's clock while the hidden
+timeZone field still said the event's, and the save read those digits back in
+the zone they were not written in. The controller states both, from one place.
+
+`false` is Twig for "leave this value in the zone it already carries", and it is
+what an all-day event needs: those are FLOATING — a wall date at midnight, no
+zone — so converting one does not translate it, it moves it. That is where
+"all day, 02:00 – 02:00" came from for anyone east of UTC.
   recurrenceId  the clicked occurrence's original start as a UTC instant, or ''
   returnTo      the page to go back to
 
@@ -113,7 +125,7 @@ behaviour.
            times that were posted. #}
         {% if event %}
             <input type="hidden" name="_deleteToken" value="{{ csrf_token('calendar_event_delete' ~ event.id) }}">
-            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
+            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d', displayZone) }}">
         {% endif %}
 
         <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
@@ -134,7 +146,7 @@ behaviour.
                         {{ 'calendar.event.starts'|trans }}
                     </label>
                     <input id="event-starts" name="startsAt" type="datetime-local" required
-                           value="{{ startsAt|date('Y-m-d\\TH:i') }}"
+                           value="{{ startsAt|date('Y-m-d\\TH:i', displayZone) }}"
                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
                                   focus:outline-none focus:ring-2 focus:ring-accent">
                 </div>
@@ -143,7 +155,7 @@ behaviour.
                         {{ 'calendar.event.ends'|trans }}
                     </label>
                     <input id="event-ends" name="endsAt" type="datetime-local" required
-                           value="{{ endsAt|date('Y-m-d\\TH:i') }}"
+                           value="{{ endsAt|date('Y-m-d\\TH:i', displayZone) }}"
                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
                                   focus:outline-none focus:ring-2 focus:ring-accent">
                 </div>
@@ -445,7 +457,7 @@ behaviour.
                   data-turbo-confirm="{{ 'calendar.event.dismiss_confirm'|trans }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_dismiss' ~ event.id) }}">
                 <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
-                <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d') }}">
+                <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d', displayZone) }}">
             </form>
         {% endif %}
     {% endif %}

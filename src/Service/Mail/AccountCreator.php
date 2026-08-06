@@ -75,8 +75,10 @@ final readonly class AccountCreator
         // After the flush: the seeder reads the persisted account.
         $this->aliasSeeder->seed($account);
 
-        // The account's own calendar, so anything extracted from its mail has
-        // a home before the first sync rather than after someone notices.
+        // The default calendar, because that is where extraction files, and
+        // the account's own beside it — so an event has a home before the first
+        // sync rather than after someone notices, whichever of the two
+        // Account::SETTING_CALENDAR_TARGET ends up naming.
         $this->calendarProvisioner->defaultFor($user);
         $this->calendarProvisioner->forAccount($account);
         $this->entityManager->flush();

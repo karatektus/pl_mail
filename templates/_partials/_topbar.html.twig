@@ -107,8 +107,9 @@
     </div>
 
     {# ── Happening soon ────────────────────────────────────────────────
-       The flights, deliveries, reservations and tickets plMail read out of
-       mail, opened as a panel in the shared modal frame.
+       Everything due within the fortnight — the flights, deliveries,
+       reservations and tickets plMail read out of mail, and the appointments
+       the owner entered — opened as a panel in the shared modal frame.
 
        Only rendered when there is something to open. A control that is always
        there and usually opens "nothing coming up" trains people not to press
@@ -116,11 +117,14 @@
        what keeps the cost honest — see CalendarGlobal::getSoonest(), which asks
        for one row rather than the panel's worth.
 
-       It wears the NEXT thing's kind icon rather than a dot. A dot beside the
+       It wears the NEXT thing's icon rather than a dot. A dot beside the
        calendar button already says "there is a reason to look"; a plane says
        that and says what, in the same nine pixels, and two dots in one corner
-       of a topbar say neither. See HappeningSoonController for why this is
-       here rather than a page or a mailbox panel. #}
+       of a topbar say neither. A row with no extraction kind falls back to a
+       plain calendar mark — see HappeningSoonRow::icon(), which is where both
+       this and the panel read it from so the two cannot disagree. See
+       HappeningSoonController for why this is here rather than a page or a
+       mailbox panel. #}
     {% set soonest = calendar.soonest %}
     {% if soonest %}
         <button
@@ -133,9 +137,9 @@
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover"
             aria-label="{{ 'calendar.soon.open'|trans }}"
-            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|date('D, j M') }}"
+            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|date('D, j M', soonest.event.isAllDay ? false : null) }}"
         >
-            <i class="{{ soonest.kind.icon }} text-base" aria-hidden="true"></i>
+            <i class="{{ soonest.icon }} text-base" aria-hidden="true"></i>
         </button>
     {% endif %}
 
@@ -152,25 +156,64 @@
        colour is how soon. Three bands, not a countdown: a colour you have to
        read a number off is not a dot. See UpcomingEventIndicator.
 
-       One behaviour at every width — below lg the pane takes the row instead
-       of docking beside the mail. The href is still a real URL so middle-click
-       reaches the page; ui--split#toggle suppresses the navigation. #}
+       **A three-way switch, not a toggle.** Mail → split → calendar → mail,
+       and it wraps, so three presses always return you to where you were. The
+       middle position is the one that used to be the only one; the third is
+       what made a full-width calendar reachable without navigating to a
+       different page and losing the mail behind it. See CalendarPaneMode, and
+       ui--split, which also arrives at these positions from the drag handle.
+
+       All three icons are rendered and the two that are not current carry
+       `hidden` — the ATTRIBUTE, written by the server and toggled by the
+       controller, not a stylesheet rule. That is deliberate and was learned the
+       hard way: a first version picked the icon with a CSS selector on the
+       shell's mode, and on a stack whose Tailwind build had not been rerun all
+       three drew at once, on top of each other. An icon control has to be right
+       from the markup alone. Same for the accented state, which is two utility
+       classes the controller adds and removes rather than a new rule.
+
+       Below lg the split position looks like the calendar position — the row
+       cannot hold both — but the switch still has three stops, because the
+       width is not a property of the preference.
+
+       The href is still a real URL so middle-click reaches the page;
+       ui--split#toggle suppresses the navigation. #}
     {% set upcoming = calendar.upcoming %}
+    {% set paneMode = app.user.calendarPaneMode %}
     <a
         href="{{ path('app_calendar_index') }}"
         data-calendar-toggle
         data-action="click->ui--split#toggle"
-        aria-pressed="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
         class="relative flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
                transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover
-               aria-pressed:bg-accent-soft aria-pressed:text-accent"
+               text-ink-muted hover:bg-hover"
         aria-label="{{ 'sidebar.nav.calendar'|trans }}"
         title="{{ upcoming
-            ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date('g:i a')
+            ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date(clock.time)
             : 'sidebar.nav.calendar'|trans }}"
     >
-        <i class="fa-regular fa-calendar text-base" aria-hidden="true"></i>
+        {# The server renders `mail` whatever the preference says — see
+           _mailbox.html.twig — and the controller corrects both this and the
+           layout on connect. So the icon that starts visible is the one that
+           matches what is actually on screen at first paint. #}
+        {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
+            <i class="{{ candidate.icon }} text-base"
+               data-calendar-mode-icon="{{ candidate.value }}"
+               {{ candidate.value == 'mail' ? '' : 'hidden' }}
+               aria-hidden="true"></i>
+        {% endfor %}
+
+        {# What pressing this does next, which is the only part of the control a
+           screen reader cannot get from the icon. The three names are rendered
+           once, translated, and the controller copies the right one into the
+           live label — so the strings exist in the template and not in the
+           JavaScript. #}
+        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey|trans }}</span>
+        <span hidden>
+            {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
+                <span data-calendar-mode-name="{{ candidate.value }}">{{ ('calendar.pane.mode.' ~ candidate.value)|trans }}</span>
+            {% endfor %}
+        </span>
 
         {% if upcoming %}
             <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full

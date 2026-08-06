@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:da1d4ddbb3e6aa66c1179ff6a9c65287ffe37d06 -->
+<!-- translated-from: features/appearance.md sha1:94a98cac5ab814833665b4e21ec14a0f1b8bd7ef -->
 
 # Darstellung
 
@@ -86,6 +86,17 @@ gerendert werden.
 Derselbe Abschnitt trägt die **Zeitzone**, die über die Uhrzeiten und Daten entscheidet, die
 dir angezeigt werden. Auch sie schreibt nichts um — derselbe Zeitpunkt wird schlicht auf deiner
 Uhr gelesen — und sie darf auf dem Server-Standard stehen bleiben.
+
+Darunter entscheidet das **Uhrzeitformat**, ob diese Zeiten im 12- oder im 24-Stunden-Format
+geschrieben werden: `2:30 pm` oder `14:30`. Es gilt überall dort, wo eine Uhrzeit auftaucht — in
+der Mailliste, in einem Thread, auf einem Kalender-Chip, in der Agenda, an der Stundenachse des
+Tagesrasters —, denn eine Einstellung, die an den meisten Stellen greift und an einer nicht, liest
+sich als Fehler und nicht als Wahlmöglichkeit.
+
+Der Standard ist **Der Sprache folgen**, und darauf steht anfangs jede: Deutsch liest 14:30,
+Englisch liest 2:30 pm. Das ist ein echter Zustand und kein getarnter Wert — lässt du ihn stehen,
+wandert das Format mit der Sprache mit. Wer eines von beiden ausdrücklich wählt, legt es fest,
+gleich welche Sprache später eingestellt wird.
 
 ## Wo du weiterliest
 

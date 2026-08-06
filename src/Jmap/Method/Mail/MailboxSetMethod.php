@@ -217,6 +217,12 @@ final class MailboxSetMethod implements JmapMethod
 
             $label = $binding->label;
 
+            // Read before the patch, because an Exchange master category is
+            // addressed at the provider by its display name and there is no
+            // second chance to learn what it was. See
+            // LabelStructurePropagator::renamed().
+            $previousFullName = $label->fullName;
+
             try {
                 $renamed = $this->applyPatch($account, $label, $patch, $context);
             } catch (MethodException $exception) {
@@ -225,7 +231,7 @@ final class MailboxSetMethod implements JmapMethod
             }
 
             if (true === $renamed) {
-                $this->propagator->renamed($label);
+                $this->propagator->renamed($label, $previousFullName);
             }
 
             $this->stateManager->recordUpdated($account->id, JmapObjectType::Mailbox, (string) $binding->id);

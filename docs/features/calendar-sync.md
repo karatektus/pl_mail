@@ -246,8 +246,8 @@ because you once dismissed it, would both be the import quietly doing nothing wh
 
 ## The same meeting arriving twice
 
-One meeting can reach plMail by two honest routes at once: extracted from its invitation onto the mail
-account's calendar, and mirrored from the provider onto a connected one. Both rows are correct, and
+One meeting can reach plMail by two honest routes at once: extracted from its invitation onto your
+default calendar, and mirrored from the provider onto a connected one. Both rows are correct, and
 plMail does not delete either. The duplication is answered on screen instead.
 
 Two entries are treated as the same meeting when they share an identity **and** a start instant.

@@ -6,6 +6,91 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Two schema changes, both additive and applied automatically on boot.**
+`calendar_event` gains `my_participation` and `label_binding` gains
+`graph_category_id`. Neither is backfilled and neither rewrites anything; the
+reasons are in the migrations and are worth reading before upgrading, because
+one of them changes when an invitation appears on your calendar.
+
+**An invitation lands on the calendar when you accept it, and not before.**
+*Yes* or *Maybe* puts it there, *No* takes it back off, and nothing about that is
+one-way — the invitation itself never goes anywhere, so changing your mind later
+moves the meeting on or off again. Until now every invitation was drawn the
+moment the mail arrived, so a week of unanswered requests looked exactly like a
+week somebody had agreed to. Only invitations addressed to you are affected: a
+flight confirmation, a mirrored Google calendar and a meeting you organised
+yourself all appear as they always did.
+
+Invitations that arrived **before** this upgrade keep their old behaviour and
+stay on the calendar whatever you answered — emptying somebody's calendar during
+a `docker compose up` is not an acceptable way to ship a feature.
+`app:backfill events` re-reads the mail and brings them into line.
+
+**Events read out of mail land on your default calendar**, not on the
+per-account one. A person has one diary; which mailbox a flight confirmation
+happened to arrive at is a property of the message, not of the flight, and
+filing by it split one day across as many calendars as you had accounts. The
+per-account calendars still exist, and `Account::SETTING_CALENDAR_TARGET` still
+points at one for anybody who wants the split.
+
+**A meeting you put on a second calendar still hears its own updates.** Ticking
+another calendar in the editor was recorded as an edit, which is the flag that
+tells plMail to stop letting mail revise an event — so a shared meeting went
+quiet, and the only symptom was a reschedule that never arrived. Sharing is not
+correcting; and a later message now updates every copy rather than the one on
+the calendar extraction happens to file to.
+
+**All-day events are no longer two hours long, or on the wrong day.** They are
+floating — a wall-clock date with no zone — and every reader was converting them
+into one anyway, so an all-day invitation opened in the editor reading
+"02:00 – 02:00" for anyone east of UTC and was drawn on two days. West of UTC the
+same arithmetic moved it onto the day before. The container's own timezone was
+never the problem and is still deliberately UTC.
+
+**A twelve- or twenty-four-hour clock, in Settings → General.** It reaches every
+time plMail prints — the mail list, a thread, a calendar chip, the day grid's
+hour axis. The default is *Follow your language*, and it stays that state rather
+than being silently converted into whichever format it currently resolves to.
+
+**"Happening soon" lists what you typed as well as what was found in your mail.**
+It filtered on "was this extracted?", which meant the one thing a person had put
+in the calendar themselves was the one thing missing from the list telling them
+what is coming up.
+
+**Double-clicking empty space on the time grid creates an event there**, at the
+quarter hour under the pointer. A single click deliberately does not — it cannot
+be told apart from the end of a drag without arbitration nobody would enjoy
+maintaining — and the **+** in each day heading stays, because a double-click is
+not a gesture a keyboard has.
+
+**Every day column lines up with its own heading again, and every chip prints
+the hour it is drawn against.** The headings and the all-day band were siblings
+above the scrolling hours, so they were as wide as the pane while the hours were
+as wide as the pane minus the scrollbar; all three share one scroll container
+now. Separately, a block was positioned against the calendar's zone while the
+time inside it was printed on the reader's, so a meeting on the 15:00 line could
+say 17:30. Both are the same kind of fault — one grid, two clocks — and neither
+looked like an error.
+
+**The calendar switch has three positions**: mail, split, calendar. The third is
+a full-width calendar without navigating away from the mail — the mail is still
+there behind it, so coming back is instant. The drag handle reaches the same two
+ends: past the pane's limits it keeps moving with resistance, and letting go past
+the threshold switches. The docked pane also draws the same time grid the page
+does now, rather than a column list of its own, and choosing Week or Month
+widens it to fit — animated, and only ever upward.
+
+**Renaming a label no longer creates a second Outlook category.** With label sync
+on, renaming a category that had come from Outlook created a new one under the
+new name and left the old one standing, which the next sync imported back as a
+label beside the renamed one. A master category is now addressed by the name it
+had, its id is recorded when Outlook is read, and every message carrying the old
+name is pushed again so it carries the new one. Also fixed alongside: a category
+id was being written into the column that means "this label is an Exchange
+folder", so a label plMail created as a tag started being pushed as a location.
+
 ## v0.0.17 — 2026-08-05
 
 **Two schema changes, applied automatically on boot.** `calendar_event` gains a

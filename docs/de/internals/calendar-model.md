@@ -1,4 +1,4 @@
-<!-- translated-from: internals/calendar-model.md sha1:7c82dbb22e19aa9d49c9de3588e586b79b7a940a -->
+<!-- translated-from: internals/calendar-model.md sha1:ec2e45ae942b88d9913928b05e9c3b7f7cb0aeae -->
 # Das Kalendermodell
 
 JSCalendar in jsonb, mit den abfragbaren Teilen in Spalten herausgezogen; die Tabelle der
@@ -273,7 +273,7 @@ statt zu werfen, denn all das kommt aus einem Request.
 ## Eine Besprechung, zwei Zeilen
 
 Eine Besprechung kann plMail auf zwei ehrlichen Wegen gleichzeitig zweimal erreichen: aus ihrer
-Einladung extrahiert auf den Kalender des Kontos, und vom Anbieter gespiegelt auf einen
+Einladung extrahiert auf den Standardkalender, und vom Anbieter gespiegelt auf einen
 Remote-Kalender. Beide Zeilen sind richtig. `CalendarPuller` fällt zwar bereits von `remoteId`
 auf `uid` zurück, aber begrenzt auf einen Kalender, und hier sind es zwei.
 

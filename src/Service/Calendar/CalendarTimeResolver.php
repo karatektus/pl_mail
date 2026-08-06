@@ -48,9 +48,22 @@ final readonly class CalendarTimeResolver
      * An event's own zone, falling back to the user's when it was stored
      * without one — every event predating the timeZone column, and every one
      * imported from a source that omitted it.
+     *
+     * **An all-day event is floating and answers UTC**, never the user's zone.
+     * Its columns hold a wall-clock date at midnight with no zone at all — see
+     * RecurrenceMaterialiser::zoneOf(), which expands it in UTC for exactly that
+     * reason — so converting it into a real zone does not translate it, it moves
+     * it. Falling back to the user's zone here is what put "02:00 – 02:00" in
+     * the editor for every all-day event a Berlin user received: midnight UTC,
+     * read as though it had been an instant, rendered two hours later. In a
+     * zone west of UTC the same arithmetic lands the event on the day before.
      */
     public function eventZone(CalendarEvent $event, User $user): DateTimeZone
     {
+        if (true === $event->isAllDay) {
+            return new DateTimeZone('UTC');
+        }
+
         return $this->safeZone($event->timeZone ?? $this->zoneFor($user)->getName());
     }
 

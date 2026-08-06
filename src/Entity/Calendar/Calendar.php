@@ -20,10 +20,12 @@ use Doctrine\ORM\Mapping as ORM;
  * One list of events, owned by a user.
  *
  * User-scoped like Label and MailRule, and for the same reason: a calendar is
- * the user's, not an account's. The optional account is what makes "the
- * calendar the email came from" expressible — every mail account is provisioned
- * a CalendarRole::Account calendar, and that is where anything extracted from
- * its mail lands unless the user says otherwise.
+ * the user's, not an account's. The optional account is what makes "the calendar
+ * the email came from" expressible — every mail account is provisioned a
+ * CalendarRole::Account calendar. Extraction does not use it by default;
+ * ExtractedEventCalendarResolver files into the user's default calendar, and
+ * this is where it files instead when Account::SETTING_CALENDAR_TARGET names
+ * one.
  *
  * The optional integration is for calendars mirrored from elsewhere. It is
  * declared now rather than added later because remote_id and sync_token are

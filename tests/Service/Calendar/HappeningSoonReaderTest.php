@@ -24,15 +24,18 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * "Happening Soon" lists what plMail read out of mail, and only that.
+ * "Happening Soon" lists what is about to happen.
  *
  * Three claims are the subject, and each of them is a way the panel becomes a
  * liar rather than a way it breaks.
  *
- * It lists **extracted events only**. The filter is `event.kind IS NOT NULL`,
- * which is one clause in one query — drop it and the panel silently becomes a
- * second, worse agenda, showing every meeting somebody typed by hand under a
- * heading that says these were found in mail.
+ * It lists **the owner's events as well as the extracted ones**. It used to
+ * carry `event.kind IS NOT NULL` and list extracted events only, which meant an
+ * appointment somebody typed was missing from a panel that claims to say what is
+ * coming up — the one case where the omission is least explicable, because the
+ * user put it there. What must still hold is that a *proposal* stays out: a
+ * guessed date is not a thing that is happening, and that distinction is the one
+ * the kind filter was mistaken for.
  *
  * It lists **what is coming up**. Both edges matter and neither is visible: a
  * window that forgot its lower bound shows last month's flight as though it were
@@ -91,16 +94,36 @@ final class HappeningSoonReaderTest extends KernelTestCase
     }
 
     /**
-     * The clause the whole feature rests on. A hand-made event in exactly the
-     * same window is the case that catches its absence, which is why one is
-     * seeded here rather than trusted to be missing.
+     * The regression this feature's first shape had: an appointment the user
+     * typed was silently absent from the list that tells them what is coming up.
+     * Seeded beside an extracted one, because what is being asserted is that the
+     * two are listed together and not that either is listed at all.
      */
-    public function testOnlyWhatWasFoundInMailIsListed(): void
+    public function testWhatTheOwnerTypedIsListedBesideWhatWasFoundInMail(): void
     {
         $this->extractedEvent('Flight to Berlin', '+2 days', ExtractionKind::Flight);
-        $this->handMadeEvent('Dentist', '+2 days');
+        $this->handMadeEvent('Dentist', '+3 days');
 
-        self::assertSame(['Flight to Berlin'], $this->titles());
+        self::assertSame(['Flight to Berlin', 'Dentist'], $this->titles());
+    }
+
+    /**
+     * The kind is decoration now rather than the filter, and the row still has
+     * to carry it: it is what draws the plane on a flight and the link back to
+     * the mail. A hand-made event answers null, which is what the icon falls
+     * back from.
+     */
+    public function testTheKindStillTellsTheTwoApart(): void
+    {
+        $this->extractedEvent('Flight to Berlin', '+2 days', ExtractionKind::Flight);
+        $this->handMadeEvent('Dentist', '+3 days');
+
+        $rows = $this->reader->read($this->user, $this->now);
+
+        self::assertSame(ExtractionKind::Flight, $rows[0]->kind);
+        self::assertNull($rows[1]->kind);
+        self::assertSame('fa-solid fa-plane', $rows[0]->icon());
+        self::assertSame('fa-regular fa-clock', $rows[1]->icon(), 'a kindless row still draws something');
     }
 
     /**

@@ -30,14 +30,24 @@ use Psr\Log\LoggerInterface;
  * is still the authority on when the meeting is, and a moved meeting must still
  * be allowed to move here after somebody accepted it.
  *
+ * **Answering is what puts the meeting on the calendar.** An invitation is not
+ * drawn until it is accepted or answered "maybe" — see CalendarEvent's
+ * $myParticipation and RecurrenceMaterialiser, which writes no occurrence rows
+ * for one that is unanswered or declined — so the answer is projected onto the
+ * column here and the occurrences are written again from it. That is the whole
+ * of "yes" meaning something, and it works in both directions: declining a
+ * meeting that was accepted takes its rows away again, and the invitation
+ * itself survives either way, so nothing here is one-way.
+ *
  * Does not flush — it joins the caller's unit of work.
  */
 final readonly class InviteResponder
 {
     public function __construct(
-        private ItipReplyBuilder   $replies,
-        private MailSenderRegistry $senders,
-        private LoggerInterface    $logger,
+        private ItipReplyBuilder       $replies,
+        private MailSenderRegistry     $senders,
+        private RecurrenceMaterialiser $materialiser,
+        private LoggerInterface        $logger,
     ) {
     }
 
@@ -48,6 +58,14 @@ final readonly class InviteResponder
     public function respond(MessageInvite $invite, ParticipationStatus $status): bool
     {
         $this->record($invite->event, $invite->me->email ?? '', $status);
+
+        // The projection, and then the rows that follow from it. Both, in this
+        // order, and neither on its own: the participants object is what an
+        // .ics export and an iTIP reply are written from, the column is what
+        // the materialiser reads, and occurrences are what every view reads.
+        $invite->event->myParticipation = $status;
+
+        $this->materialiser->materialise($invite->event);
 
         return $this->tell($invite, $status);
     }

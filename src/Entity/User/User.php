@@ -2,6 +2,7 @@
 
 namespace App\Entity\User;
 
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\Appearance;
@@ -338,6 +339,20 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_ADMIN_COLLAPSED_PANELS = 'admin.collapsed_panels';
 
     /**
+     * Twelve-hour or twenty-four-hour clock, as a ClockFormat value.
+     *
+     * Absent means "follow the interface language", which is the state everyone
+     * is in until they open Settings — see ClockFormat::forLocale(), and
+     * ClockFormatResolver, which is the only thing that should read this key.
+     *
+     * In the settings bag rather than beside $locale and $timezone as a column
+     * of its own, because unlike those two nothing ever queries by it and
+     * nothing outside the renderer cares: it is one of three strings, read once
+     * per request, and changing it changes only digits.
+     */
+    public const string SETTING_CLOCK = 'display.clock';
+
+    /**
      * The account whose folder list is expanded in the sidebar, or null.
      *
      * Server-side for the same reason the calendar pane's width is: the
@@ -369,6 +384,18 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_CALENDAR_PANE_OPEN = 'calendar.pane_open';
     public const string SETTING_CALENDAR_PANE_WIDTH = 'calendar.pane_width';
 
+    /**
+     * Which of the three positions the topbar's calendar switch is in — see
+     * CalendarPaneMode, which is what SETTING_CALENDAR_PANE_OPEN grew into when
+     * "the calendar, full width, without leaving the mail" turned out to be the
+     * state people wanted and a boolean could not hold.
+     *
+     * The old key is still read as the fallback, so an upgrade does not reset
+     * anybody's pane: `true` there means Split, which is what it always meant.
+     * It is no longer written.
+     */
+    public const string SETTING_CALENDAR_PANE_MODE = 'calendar.pane_mode';
+
     /** Matches the clamp in ui--split; the server is what enforces it. */
     public const int CALENDAR_PANE_MIN_WIDTH = 320;
     public const int CALENDAR_PANE_MAX_WIDTH = 900;
@@ -392,14 +419,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Virtual, out of the settings bag — see SETTING_CALENDAR_PANE_MODE.
+     *
+     * Falls back to the boolean this replaced rather than to Mail, so upgrading
+     * does not shut the pane on everybody who had it open.
+     */
+    public CalendarPaneMode $calendarPaneMode {
+        get => CalendarPaneMode::fromSetting(
+            $this->getSetting(self::SETTING_CALENDAR_PANE_MODE),
+            true === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN, false)
+                ? CalendarPaneMode::Split
+                : CalendarPaneMode::Mail,
+        );
+        set (CalendarPaneMode $mode) {
+            $this->setSetting(self::SETTING_CALENDAR_PANE_MODE, $mode->value);
+        }
+    }
+
+    /**
      * Stays a method rather than becoming a property: there is no boolean
-     * column here to read. This interprets an untyped entry in the settings
-     * bag, which may be missing or may be anything at all, and answers a
-     * question about it.
+     * column here to read. It interprets the mode, which is the thing actually
+     * stored, and answers the one question most callers have — is there a
+     * calendar on this page at all?
      */
     public function isCalendarPaneOpen(): bool
     {
-        return true === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN, false);
+        return $this->calendarPaneMode->showsCalendar();
     }
 
     /**

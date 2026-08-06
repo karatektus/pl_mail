@@ -624,6 +624,7 @@ calendar:
         call: A hailin'
         delivery: Cargo
         dining: A table held
+        event: A doin'
         flight: A crossin'
         lodging: A berth
         meeting: A gatherin'
@@ -636,6 +637,10 @@ calendar:
         next: Onward
         previous: Back
     pane:
+        mode:
+            calendar: Give the almanac the whole deck
+            mail: Show the letters
+            split: Set the almanac alongside the letters
         resize: Shift the almanac's width
     proposal:
         action:
@@ -724,8 +729,9 @@ calendar:
     soon:
         empty: Naught on the horizon
         empty_hint: >-
-            Passages, cargo, tables held and tickets spied in yer letters be
-            posted here for the next fortnight.
+            Doin's in yer almanac, and the passages, cargo, tables held and
+            tickets spied in yer letters, be posted here for the next
+            fortnight.
         from: 'Out o'' %subject%'
         open: 'What be comin'' soon'
         title: 'Comin'' soon'
@@ -1188,6 +1194,14 @@ settings:
         refresh: 'Fetch from the harbourmaster'
         subheading: 'Addresses this crew member sends and receives under.'
         system: 'ship''s own'
+    clock:
+        heading: Th' glass
+        subheading: Whether th' hours be writ in twelves or in four-and-twenty. Naught be stored different — only th' figures change.
+        label: Th' glass
+        follow_language: 'Follow yer tongue (%sample%)'
+        option:
+            '12': 'Twelve hours (%sample%)'
+            '24': 'Four-and-twenty hours (%sample%)'
     device_pairing:
         pair_device: "Sign on a spyglass"
         scan_title: "Point th' plMail app at this"

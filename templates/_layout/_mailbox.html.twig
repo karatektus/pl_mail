@@ -66,12 +66,18 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
              data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
              data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
-             data-ui--split-open-value="{{ app.user.isCalendarPaneOpen ? 'true' : 'false' }}"
-             {# Rendered false whatever the preference says: the attribute only drives
-                the below-lg rule that hides the mail, and landing on the calendar is
-                not what anyone means by opening plMail on a phone. The controller
-                sets it when the pane is actually opened on this device. #}
-             data-calendar-open="false"
+             data-ui--split-mode-value="{{ app.user.calendarPaneMode.value }}"
+             {# Rendered as `mail` whatever the preference says, and corrected by the
+                controller on connect if the window is wide enough to hold the
+                remembered position. The attribute drives every layout rule below,
+                and landing on a full-width calendar is not what anyone means by
+                opening plMail on a phone. #}
+             data-calendar-mode="mail"
+             {# The pane reloads its body through a Turbo Frame, and the view it
+                lands on decides how much room it wants — see
+                CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
+                the boundary's own controller can hear it from up here. #}
+             data-action="turbo:frame-load->ui--split#paneLoaded"
              {% endif %}
         >
 

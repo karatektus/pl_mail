@@ -8,17 +8,20 @@ namespace App\Domain\Enum\Calendar;
  * What a calendar is for, which decides where things land without the user
  * having to file them.
  *
- * Account is the load-bearing one: the todo asks that an event extracted from a
- * message belong to "the calendar the email came from", so every mail account
- * gets one of these at creation and it is the default target for anything
- * extracted from that account's mail.
+ * Account is not where extracted events go. It was — "the calendar the email
+ * came from" — and that split one person's day across as many calendars as they
+ * had mailboxes; see ExtractedEventCalendarResolver, which files into the
+ * user's Default calendar now. Every mail account still gets one of these at
+ * creation, because it is what Account::SETTING_CALENDAR_TARGET points at when
+ * somebody does want a mailbox's bookings kept apart, and what a mirrored
+ * provider calendar attaches to.
  */
 enum CalendarRole: string
 {
     /** The user's own calendar. Exactly one per user, never deleted. */
     case Default = 'default';
 
-    /** Bound to a mail account; the default home for its extracted events. */
+    /** Bound to a mail account; where its extracted events go if asked for. */
     case Account = 'account';
 
     /** A user-made calendar with no special meaning. */

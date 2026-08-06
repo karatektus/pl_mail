@@ -40,10 +40,11 @@ Variables:
 
                 <p class="text-xs text-ink-muted mt-0.5">
                     {% if proposal.isAllDay %}
-                        {{ proposal.startsAt|date('D, j M Y') }} · {{ 'calendar.event.all_day'|trans }}
+                        {# Floating, like an all-day event — see _invite_card. #}
+                        {{ proposal.startsAt|date('D, j M Y', false) }} · {{ 'calendar.event.all_day'|trans }}
                     {% else %}
                         {{ proposal.startsAt|date('D, j M Y') }} ·
-                        {{ proposal.startsAt|date('g:i a') }}–{{ proposal.endsAt|date('g:i a') }}
+                        {{ proposal.startsAt|date(clock.time) }}–{{ proposal.endsAt|date(clock.time) }}
                     {% endif %}
                 </p>
 

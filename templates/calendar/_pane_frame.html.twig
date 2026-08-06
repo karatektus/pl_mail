@@ -7,7 +7,27 @@ Every link inside targets the frame by name; without that, clicking "next week"
 in the pane would navigate the whole page to a calendar and take the mail away.
 #}
 
-<turbo-frame id="calendar-pane-frame" class="flex flex-col min-h-0 flex-1">
-    {% include 'calendar/_toolbar.html.twig' with { compact: true, frame: 'calendar-pane-frame' } %}
-    {% include 'calendar/_grid.html.twig' %}
+{% set frame = 'calendar-pane-frame' %}
+
+<turbo-frame id="{{ frame }}" class="flex flex-col min-h-0 flex-1">
+    {# `data-pane-min-width` is read by ui--split on turbo:frame-load: choosing a
+       view that needs seven columns widens the pane to fit it rather than
+       drawing seven slivers. Rendered per view, because the view is what has
+       the requirement — see CalendarView::minimumPaneWidth().
+
+       INSIDE the frame rather than on it, and that is the whole reason this
+       wrapper exists. Turbo replaces a frame's CONTENTS and leaves the frame
+       element's own attributes as they were, so a value written on the
+       <turbo-frame> tag is read once on first load and never updated again —
+       the pane would widen for whichever view it happened to open on and then
+       stop reacting. `display: contents` so the wrapper changes no layout: its
+       children are laid out by the frame exactly as if it were not here. #}
+    <div class="contents" data-pane-min-width="{{ view.minimumPaneWidth }}">
+        {% include 'calendar/_toolbar.html.twig' with { compact: true } %}
+        {# `frame` is set above rather than passed here, because the grid does
+           not use it itself — _view_month's "N more" link does, two includes
+           down, and an `include ... with` would have to be repeated at every
+           level to get it there. #}
+        {% include 'calendar/_grid.html.twig' %}
+    </div>
 </turbo-frame>

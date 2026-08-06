@@ -63,7 +63,23 @@ identity is threaded through a URL that would outlive the render that made it.
 {% set showTime = showTime|default(true) and not event.isAllDay %}
 {% set tall = tall|default(false) %}
 
-{% set chip_title = event.title ~ (showTime ? ' · ' ~ occurrence.startsAt|date('g:i a') : '') %}
+{# The clock this chip's time is printed on, and it is the VIEW's, not the
+   reader's default.
+ 
+   A time-grid block is positioned against the calendar's zone — see
+   DayGridLayout, and CalendarRangeReader::zoneOf(), which is where that zone
+   comes from — while Twig's `|date` converts to whatever TwigTimezoneSubscriber
+   set, which is the user's own. Where the two differ, and they do for every
+   calendar provisioned before the zone was seeded from the user, the block was
+   drawn on the 15:00 line with "17:30" written inside it. The grid was right
+   and the label was on a different clock, which is the one failure mode of that
+   view the file's own header warns about.
+ 
+   Falls back to `null` — the reader's clock — for a caller that has no view
+   zone to offer, which is every context outside the calendar grids. #}
+{% set chip_zone = zone|default(range.zone|default(null)) %}
+
+{% set chip_title = event.title ~ (showTime ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone) : '') %}
 
 {% if cluster.isMerged %}
     {% set chip_title = chip_title ~ ' · ' ~ 'calendar.chip.on_calendars'|trans({
@@ -106,7 +122,7 @@ identity is threaded through a URL that would outlive the render that made it.
 
     {% if showTime %}
         <span class="shrink-0 text-[11px] tabular-nums text-ink-faint {{ tall ? 'leading-5' : '' }}">
-            {{ occurrence.startsAt|date('g:i') }}
+            {{ occurrence.startsAt|date(clock.timeCompact, chip_zone) }}
         </span>
     {% endif %}
 

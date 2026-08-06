@@ -6,6 +6,7 @@ namespace App\Controller\Calendar;
 
 use App\Domain\DTO\Calendar\EventCopy;
 use App\Domain\Enum\Calendar\AlertAction;
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
@@ -24,6 +25,7 @@ use App\Service\Calendar\EventInstanceEditor;
 use App\Service\Calendar\EventMover;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -164,6 +166,10 @@ final class CalendarController extends AbstractController
             'startsAt'     => $startsAt,
             'endsAt'       => $startsAt->modify('+1 hour'),
             'timeZone'     => $zone->getName(),
+            // The clock the two datetime fields are printed on, stated rather
+            // than left to Twig's default — see _event_modal. Here it is the
+            // same zone the save will read them back in, which is the point.
+            'displayZone'  => $zone->getName(),
             'recurrenceId' => '',
             'returnTo'     => $this->returnTo($request),
         ]);
@@ -202,6 +208,20 @@ final class CalendarController extends AbstractController
             'startsAt'     => $startsAt->setTimezone($zone),
             'endsAt'       => $endsAt->setTimezone($zone),
             'timeZone'     => $event->timeZone ?? $this->time->zoneFor($this->currentUser())->getName(),
+            // The clock the fields are printed on, and it has to be the one
+            // they were converted to just above — Twig's `|date` re-converts to
+            // whatever TwigTimezoneSubscriber last set, which is the *user's*
+            // zone, so leaving it to the default silently printed an event
+            // pinned to another zone on the reader's clock while the hidden
+            // timeZone field still said the event's, and the save then read the
+            // digits back in the zone they were not written in.
+            //
+            // `false` for an all-day event, which is what tells Twig to leave
+            // the value in the zone it arrives in. eventZone() answers UTC for
+            // one because it is FLOATING — a wall date at midnight, no zone —
+            // and converting it does not translate it, it moves it. That is
+            // where "all day · 02:00 – 02:00" came from for a Berlin user.
+            'displayZone'  => true === $event->isAllDay ? false : $zone->getName(),
             'recurrenceId' => $this->instances->identify($instance),
             'returnTo'     => $this->returnTo($request),
         ]);
@@ -217,14 +237,40 @@ final class CalendarController extends AbstractController
         $event   = 0 === $eventId ? null : $this->ownedEvent($eventId);
 
         $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
-        $zone     = $this->time->safeZone($zoneName);
         $isAllDay = $request->request->getBoolean('isAllDay');
+
+        // An all-day event is FLOATING: the same wall-clock day everywhere, no
+        // zone at all. So its digits are read in UTC rather than in the posted
+        // zone, which is the same rule RecurrenceMaterialiser::zoneOf() expands
+        // it by and the same one CalendarTimeResolver::eventZone() prints it
+        // by. Reading them in a real zone instead stored midnight-in-Berlin as
+        // 22:00 the previous day, and the calendar then drew the event across
+        // two days — the "2am to 2am" shape, from the other end.
+        $zone = true === $isAllDay
+            ? new DateTimeZone('UTC')
+            : $this->time->safeZone($zoneName);
 
         $startsAt = $this->time->parseDateTime($request->request->getString('startsAt'), $zone);
         $endsAt   = $this->time->parseDateTime($request->request->getString('endsAt'), $zone);
 
         if (null === $startsAt || null === $endsAt || $endsAt < $startsAt) {
             return $this->json(['error' => 'calendar.error.invalid_times'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Snapped rather than trusted. The checkbox is beside two
+        // datetime-local fields that keep whatever hours they held when it was
+        // ticked, so "all day" arrives carrying 09:00–10:00 unless something
+        // makes it mean what it says. Midnight to the next midnight, exclusive,
+        // which is the iCalendar convention the exporter and every sync mapper
+        // already write — and at least one whole day, because an all-day event
+        // that ends where it starts is a zero-length row no view can draw.
+        if (true === $isAllDay) {
+            $startsAt = $startsAt->setTime(0, 0);
+            $endsAt   = $endsAt->setTime(0, 0);
+
+            if ($endsAt <= $startsAt) {
+                $endsAt = $startsAt->modify('+1 day');
+            }
         }
 
         $this->ensureCalendars($user);
@@ -284,6 +330,11 @@ final class CalendarController extends AbstractController
             AlertAction::fromJsCalendar($request->request->getString('alertCustomAction') ?: null),
         );
 
+        // What the meeting said before this save, taken once from the event the
+        // editor was opened on. Null for a brand-new event, which has nothing
+        // to have been corrected — see where this is read, below the write.
+        $openedOnContent = null === $event ? null : $this->contentOf($event);
+
         // Where the user is put down afterwards. Read off the first copy
         // written rather than off the posted field, because "all events" from
         // an editor opened on one occurrence rebases the series — and any copy
@@ -296,8 +347,6 @@ final class CalendarController extends AbstractController
         // EventCopyResolver::chosen() drops it whatever the request claimed.
         foreach ($targets as $index => $target) {
             $copy = $target->event;
-
-            $this->writer->markUserEdited($copy);
 
             // "This event" is not a smaller version of "all events": there is no
             // row for one occurrence to write, so it becomes a patch on the
@@ -335,6 +384,10 @@ final class CalendarController extends AbstractController
             }
 
             if (null !== $instance) {
+                // A per-instance edit is always a real edit: there is no way to
+                // reach this branch except by moving or renaming one occurrence.
+                $this->writer->markUserEdited($copy);
+
                 $this->instances->edit(
                     $copy,
                     $instance,
@@ -378,6 +431,26 @@ final class CalendarController extends AbstractController
                 // cleared.
                 alerts:         $alerts,
             );
+
+            // Only where the save actually changed the meeting.
+            //
+            // markUserEdited() used to fire for every ticked calendar,
+            // unconditionally, and that is wrong for the commonest use of this
+            // form: opening an extracted event and ticking a *second* calendar
+            // changes nothing about the meeting. It stamped every copy
+            // user-edited anyway — the flag that tells EventReconciler to leave
+            // an event alone — so the next update from the organiser was filed
+            // and never applied, on every copy, with nothing on screen to say
+            // why. Sharing a meeting is not correcting it.
+            //
+            // Compared against the event the editor was OPENED on rather than
+            // against each copy, so the answer is the same for all of them:
+            // "did this save change the meeting?" is one question, and a copy
+            // created by this very save must be judged by it too — a new copy
+            // carrying a title the user just typed is as edited as an old one.
+            if (null !== $openedOnContent && $openedOnContent !== $this->contentOf($copy)) {
+                $this->writer->markUserEdited($copy);
+            }
 
             // After write(), so the event carries the calendar the mark is
             // decided against. Both are no-ops on a calendar that mirrors
@@ -582,7 +655,8 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * Remembers the docked pane's width and whether it is open.
+     * Remembers which position the calendar switch is in and how wide the
+     * docked pane is.
      *
      * Its own endpoint rather than a query parameter on the grid, because the
      * drag handle writes on release and must not re-render anything: a pane
@@ -595,8 +669,15 @@ final class CalendarController extends AbstractController
 
         $user = $this->currentUser();
 
-        if (true === $request->request->has('open')) {
-            $user->setSetting(User::SETTING_CALENDAR_PANE_OPEN, $request->request->getBoolean('open'));
+        if (true === $request->request->has('mode')) {
+            // Anything unrecognised keeps the mode the user is already in
+            // rather than resetting it: this is posted by a controller, so a
+            // value that is not one of the three is a bug or a forgery, and
+            // neither is a reason to shut somebody's calendar.
+            $user->calendarPaneMode = CalendarPaneMode::fromSetting(
+                $request->request->getString('mode'),
+                $user->calendarPaneMode,
+            );
         }
 
         if (true === $request->request->has('width')) {
@@ -612,7 +693,7 @@ final class CalendarController extends AbstractController
         $this->em->flush();
 
         return $this->json([
-            'open'  => $user->isCalendarPaneOpen(),
+            'mode'  => $user->calendarPaneMode->value,
             'width' => $user->calendarPaneWidth,
         ]);
     }
@@ -692,19 +773,17 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * $isPane is what decides whether day and week draw a time-grid or the
-     * column list, and it is passed from the actions rather than guessed in
-     * CSS. The pane is ~380px of a shared row: hour rows, a time gutter and
-     * seven positioned columns do not fit in it, and a media query would be
-     * asking the window a question only the layout can answer — the pane is
-     * narrow on a 2560px monitor too. The route already knows which of the two
-     * it is rendering, so that is where the answer comes from.
+     * $isPane no longer decides which layout day and week draw — the pane and
+     * the page render the same grid, and _grid.html.twig says why. What it
+     * still decides is which links belong inside the pane's Turbo Frame: the
+     * month view's "N more" carries `?pane=1` so following it re-renders the
+     * pane rather than navigating the whole page away from the mail. It is
+     * passed from the actions rather than guessed in CSS, because the route
+     * already knows which of the two it is rendering and a media query would be
+     * asking the window a question only the layout can answer.
      *
-     * Deliberately not called `compact`, which _toolbar and _view_month already
-     * read for something else: `compact` also switches the month view's "N
-     * more" link to the pane's query string, and reusing the name would have
-     * given the full page's month grid a link the pane needs and the page does
-     * not.
+     * Deliberately not called `compact`, which _toolbar reads for something
+     * else: whether the view switcher is drawn as icons or as words.
      *
      * @return array<string,mixed>
      */
@@ -729,6 +808,47 @@ final class CalendarController extends AbstractController
             'isPane'    => $isPane,
             'calendars' => $this->calendars->findForUser($user),
             'range'     => $this->rangeReader->read($user, $view, $anchor),
+        ];
+    }
+
+    /**
+     * What this editor can change about a meeting, as one comparable value.
+     *
+     * Exactly the fields the form has a control for, and deliberately NOT the
+     * whole JSCalendar object: the writer rebuilds that from the columns on
+     * every save, so an object that arrived from an extractor and one derived
+     * from the same values differ in key order and in keys no control can
+     * reach — and a strict comparison of the two would call every save an
+     * edit, which is the behaviour this replaced.
+     *
+     * Also not included: the calendar a copy is on, its sync state, its remote
+     * id. Those are what a save legitimately changes when somebody ticks
+     * another box, and treating them as content is the mistake itself.
+     *
+     * Alerts compare by key, sorted. jsonb returns an object's keys in its own
+     * order, so the stored list and a freshly written one are the same set in
+     * different orders more often than not.
+     *
+     * @return array<string, mixed>
+     */
+    private function contentOf(CalendarEvent $event): array
+    {
+        $alerts = $event->jscalendar['alerts'] ?? [];
+        $keys   = is_array($alerts) ? array_map(strval(...), array_keys($alerts)) : [];
+
+        sort($keys);
+
+        return [
+            'title'       => (string) $event->title,
+            'startsAt'    => $event->startsAt?->format(DateTimeImmutable::ATOM),
+            'endsAt'      => $event->endsAt?->format(DateTimeImmutable::ATOM),
+            'timeZone'    => $event->timeZone,
+            'isAllDay'    => $event->isAllDay,
+            'location'    => (string) $event->location,
+            'status'      => $event->status->value,
+            'description' => (string) ($event->jscalendar['description'] ?? ''),
+            'recurrence'  => $event->jscalendar['recurrenceRules'] ?? null,
+            'alerts'      => $keys,
         ];
     }
 

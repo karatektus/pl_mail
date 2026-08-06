@@ -42,10 +42,18 @@ final readonly class LabelStructurePropagator
     /**
      * Gmail encodes hierarchy in the name, so a re-parent is a rename too —
      * both callers land here with the label's new full name.
+     *
+     * $previousFullName is what the label was called before, and it is not
+     * optional in spirit even though it is in the signature. An Exchange master
+     * category has no id anywhere except where plMail happens to have recorded
+     * one: its identity at the provider is its display name. Without the old
+     * name, a rename of a category that came *from* Outlook has nothing to
+     * address — which is exactly how renaming one used to end up creating a
+     * second category under the new name and leaving the first standing.
      */
-    public function renamed(Label $label): void
+    public function renamed(Label $label, ?string $previousFullName = null): void
     {
-        $this->dispatch($label, ApplyLabelStructureMessage::ACTION_RENAME);
+        $this->dispatch($label, ApplyLabelStructureMessage::ACTION_RENAME, $previousFullName);
     }
 
     /**
@@ -65,7 +73,7 @@ final readonly class LabelStructurePropagator
      * A label with no bindings has never been used on any account and has
      * nothing to propagate.
      */
-    private function dispatch(Label $label, string $action): void
+    private function dispatch(Label $label, string $action, ?string $previousFullName = null): void
     {
         // System labels map onto provider built-ins (INBOX, SENT, …) that
         // cannot be created, renamed or deleted through the API.
@@ -87,6 +95,12 @@ final readonly class LabelStructurePropagator
                 fullName: $label->fullName,
                 remoteId: $this->remoteIdOf($binding),
                 parentRemoteId: $this->remoteIdOf($label->parent?->bindingFor($account)),
+                // Sent beside the folder id rather than folded into it. The two
+                // are different things at the provider and the handler picks
+                // between them by asking GraphLabelPolicy which shape this
+                // label takes — see LabelBinding for what conflating them did.
+                categoryRemoteId: $binding->graphCategoryId,
+                previousFullName: $previousFullName,
             ));
         }
     }
@@ -96,6 +110,12 @@ final readonly class LabelStructurePropagator
         return true === $account->isLabelSyncEnabled();
     }
 
+    /**
+     * The id of the thing this label IS at the provider — a Gmail label, or an
+     * Exchange folder. Deliberately not the master category id, which travels
+     * separately: a category is a tag rather than a place, and the handler must
+     * not be able to address one as the other.
+     */
     private function remoteIdOf(?LabelBinding $binding): ?string
     {
         return $binding?->gmailLabelId ?? $binding?->graphFolderId;

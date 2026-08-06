@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\EventPrivacy;
 use App\Domain\Enum\Calendar\EventSource;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
+use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\User\User;
@@ -146,6 +147,34 @@ class CalendarEvent
 
     #[ORM\Column(length: 16, enumType: EventPrivacy::class, options: ['default' => 'public'])]
     public EventPrivacy $privacy = EventPrivacy::Public;
+
+    /**
+     * The owner's own answer to this invitation, and **whether it is drawn**.
+     *
+     * Projected out of `jscalendar.participants[me].participationStatus`, which
+     * is where the answer actually lives, because a jsonb key named after the
+     * reader's email address is not something any query can filter on and this
+     * has to be filterable: RecurrenceMaterialiser refuses to write occurrences
+     * for an invitation that is unanswered or declined, so an invitation appears
+     * in the calendar when it is accepted or answered "maybe" and not before.
+     * One rule in one place, and every reader — the views, the alert sweep,
+     * Happening Soon, a share link, JMAP — follows from it without a clause of
+     * its own.
+     *
+     * **Null is not "needs action".** It means this event is not an invitation
+     * addressed to the owner at all, which is the ordinary case: something they
+     * typed, a booking read out of a confirmation, a row mirrored from a
+     * provider, or an invitation they themselves organised. Those are drawn
+     * unconditionally, and conflating the two would empty the calendar.
+     *
+     * Set by EventReconciler when an invitation arrives and by InviteResponder
+     * when one is answered. The reconciler NEVER downgrades an answer that has
+     * already been given: an organiser's re-sent REQUEST carries the attendee
+     * list as they last saw it, so a stale NEEDS-ACTION in it would silently
+     * un-accept a meeting somebody is already going to.
+     */
+    #[ORM\Column(length: 16, nullable: true, enumType: ParticipationStatus::class)]
+    public ?ParticipationStatus $myParticipation = null;
 
     /**
      * What this event is about, when it was extracted from mail. Null means a

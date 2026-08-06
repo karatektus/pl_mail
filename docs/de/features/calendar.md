@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:4eeb04dab2b3e02ce739e62b9f9749e82e656a35 -->
+<!-- translated-from: features/calendar.md sha1:037f8baa49967f6c92c940a57150f637478e1aa8 -->
 
 # Kalender
 
@@ -62,22 +62,24 @@ Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als
 In der Monatsansicht sagt ein Tag, der mehr Einträge trägt, als hineinpassen, **N weitere**, was
 diesen Tag öffnet.
 
-### Das Zeitraster, und warum nur die Seite es bekommt
+### Das Zeitraster
 
-Auf der vollen Seite werden Tag und Woche als Zeitraster gezeichnet: die Stunden links untereinander,
-und jeder Termin dort, wo er tatsächlich beginnt, und so lang, wie er tatsächlich dauert. Termine,
-die sich überschneiden, werden in Spuren gelegt, sodass drei gleichzeitige Dinge drei schmalere
-Blöcke nebeneinander sind — und die Zahl der Spuren bleibt über eine ununterbrochene Kette von
+Tag und Woche werden als Zeitraster gezeichnet: die Stunden links untereinander, und jeder Termin
+dort, wo er tatsächlich beginnt, und so lang, wie er tatsächlich dauert. Termine, die sich
+überschneiden, werden in Spuren gelegt, sodass drei gleichzeitige Dinge drei schmalere Blöcke
+nebeneinander sind — und die Zahl der Spuren bleibt über eine ununterbrochene Kette von
 Überschneidungen hinweg gleich, statt sich von Block zu Block zu ändern.
 
-Die angedockte Fläche behält für dieselben zwei Ansichten die ältere Spaltenliste, und das ist eine
-Entscheidung und kein Versäumnis. Sieben Spalten platzierter Blöcke hinter einer Zeitleiste brauchen
-ungefähr eine Bildschirmbreite, um lesbar zu sein; die Fläche hat 380 Pixel einer Zeile, die sie sich
-mit deiner Mail teilt, und ein Raster wäre dort sieben Splitter unter einer Achse, die niemand lesen
-könnte. Die Wahl trifft der Server danach, ob er die Fläche oder die Seite zeichnet — und nicht eine
-Media Query, denn die Fläche ist auch auf einem 2560 Pixel breiten Monitor schmal, und CSS, das
-beides zeichnete und eines davon versteckte, lieferte die ganze Drag-and-drop-Maschinerie an eine
-Fläche aus, die nichts damit anfangen kann.
+**Die angedockte Fläche zeichnet dasselbe Raster wie die Seite.** Früher behielt sie stattdessen
+eine ältere Spaltenliste, mit der Begründung, sieben platzierte Spalten bräuchten ungefähr eine
+Bildschirmbreite — für 380 Pixel richtig, und trotzdem nicht mehr der richtige Schluss, denn die
+Breite der Fläche gehört jetzt dir: Zieh ihren Griff, so weit du magst, und jenseits ihres Bereichs
+wird sie der Kalender in voller Breite. Eine Fläche, die lautlos einen *anderen* Kalender zeichnete,
+war die schlechtere Antwort, denn wer sie eigens verbreiterte, um die Zeitachse zu sehen, bekam
+trotzdem die Liste.
+
+Ein Sieben-Tage-Raster ist in einer schmalen Fläche weiterhin eng, und die Antwort darauf steht in
+der Werkzeugleiste: **Tag** ist einen Klick entfernt und ist eine einzige Spalte in voller Breite.
 
 Monat und Agenda haben in keiner der beiden Gestalten eine Zeitachse. Eine Monatszelle ist ein paar
 Quadratzentimeter groß und hat keinen Platz zu sagen, wo im Tag etwas liegt; und der ganze Wert einer
@@ -92,10 +94,12 @@ Drei Dinge über das Raster sind es wert, gewusst zu werden:
   und Arten werden im Editor geändert.
 - **Es öffnet auf den Arbeitstag gescrollt** statt auf Mitternacht, was ein Scrollen kostet, um die
   Nacht zu erreichen, statt eines Scrollens, um alles zu erreichen.
-- **Ein Klick auf leere Fläche legt keinen Termin an.** Jede Tagesüberschrift trägt ihre eigene
-  Schaltfläche **+**, die auch eine echte Station für die Tabulatortaste ist. Ein Klick auf den
-  Hintergrund müsste bei jedem Loslassen vom Ende eines Ziehens unterschieden werden, und
-  Ziehen-zum-Anlegen ist ein eigenes Stück Arbeit.
+- **Ein Doppelklick auf leere Fläche legt dort einen Termin an**, beginnend zur Viertelstunde unter
+  dem Zeiger. Ein *einfacher* Klick tut das bewusst nicht, und genau deshalb ist es ein Doppelklick:
+  Ein einfacher Klick auf den Hintergrund müsste bei jedem Loslassen vom Ende eines Ziehens
+  unterschieden werden, und wenn das schiefgeht, öffnet sich jedes Mal ein Dialog, wenn du eine
+  Besprechung verschoben hast. Jede Tagesüberschrift trägt weiterhin ihre eigene Schaltfläche **+**,
+  die dasselbe für die Tastatur ist — einen Doppelklick hat eine Tastatur nicht.
 
 Eine Sieben-Tage-Woche wird unterhalb von etwa 640 Pixeln eng — jede Spalte landet bei ungefähr
 fünfzig Pixeln, und ein Block sagt seine Farbe und sonst wenig. Die Wege, die ein Telefon tatsächlich
@@ -253,6 +257,12 @@ Kopie in Ruhe“. Die Kopie bleibt, wo sie ist, ist sich mit den geänderten nic
 erscheint von da an als eigener Eintrag. Um eine Besprechung aus einem Kalender zu nehmen, hak diesen
 Kalender an und drück **Löschen** — das Löschen wirkt auf genau die angehakten.
 
+**Eine Kopie eines Termins aus der Mail ist immer noch ein Termin aus der Mail.** Eine Besprechung
+auf einen zweiten Kalender zu legen, schneidet keine der beiden Kopien von der Buchung ab, aus der
+sie gelesen wurde: Eine spätere Nachricht, die die Besprechung verlegt, verschiebt beide. Wann eine
+Änderung, die du selbst machst, das *sehr wohl* beendet, steht unter
+[Einladungen und Termine aus der Mail](calendar-invitations.md).
+
 **„Alle Termine“ wendet deine Änderung als Verschiebung an, nicht als absolute Zeit.** Öffnest du die
 fünfte Termininstanz einer wöchentlichen Besprechung, änderst den Beginn auf Donnerstag 14:00 und
 wählst **Alle Termine**, wandert die gesamte Serie um diese Differenz. Wenn du nur diese eine Woche
@@ -264,9 +274,6 @@ der Anbieter beschließt, die Einladung erneut an alle darin zu senden — und k
 einzelner Termininstanzen, die das Original bereits angesammelt hatte. Diese Instanzen bleiben, wo
 sie im Original sind, und werden als eigene Einträge gezeichnet, bis du sie in beiden Kopien
 verschiebst.
-
-**Die angedockte Fläche zeichnet nie das Zeitraster, wie breit du sie auch ziehst.** Sie ist in jeder
-Breite bewusst die Spaltenliste. Für Stunden an der Seite nimm die Kalenderseite.
 
 **Der Editor öffnet nie innerhalb der Fläche.** Er wird stattdessen am oberen Rand der Seite
 gezeichnet, weil sowohl die Kalender- als auch die Mail-Fläche einen Hintergrundfilter tragen, der

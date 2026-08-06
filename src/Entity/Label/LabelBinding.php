@@ -34,6 +34,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_label_binding_label_account', columns: ['label_id', 'account_id'])]
 #[ORM\Index(name: 'idx_label_binding_gmail_label_id', columns: ['gmail_label_id'])]
 #[ORM\Index(name: 'idx_label_binding_graph_folder_id', columns: ['graph_folder_id'])]
+#[ORM\Index(name: 'idx_label_binding_graph_category_id', columns: ['graph_category_id'])]
 #[ORM\Index(name: 'idx_label_binding_account', columns: ['account_id'])]
 class LabelBinding
 {
@@ -71,8 +72,35 @@ class LabelBinding
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $gmailLabelId = null;
 
+    /**
+     * The Exchange **folder** this label is backed by, or null.
+     *
+     * Load-bearing beyond identity: GraphLabelPolicy reads exactly this to
+     * decide whether a label pushes as a folder move or as a master category,
+     * so anything written here changes how the label behaves at the provider.
+     * That is why a category id does NOT live here — see $graphCategoryId.
+     */
     #[ORM\Column(length: 512, nullable: true)]
     public ?string $graphFolderId = null;
+
+    /**
+     * The Exchange **master category** id (a GUID), or null.
+     *
+     * Its own column rather than sharing $graphFolderId, which is where it used
+     * to be written by the create-a-category path. That was not a naming
+     * quibble: GraphLabelPolicy answers "is this label folder-backed?" by
+     * looking for a graphFolderId, so a label pushed to Outlook as a category
+     * acquired one and, from the next change onwards, was pushed as a folder
+     * MOVE instead — silently turning a many-to-many tag into a location.
+     *
+     * Null on a category that has never been pushed or read back. That is
+     * survivable rather than fatal, because a master category's real identity
+     * at the provider is its displayName: ApplyLabelStructureHandler falls back
+     * to looking one up by the name it had before a rename. The id is what makes
+     * that lookup unnecessary, not what makes the rename possible.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $graphCategoryId = null;
 
     /**
      * The IMAP folder this label is fed by on this account. Null for

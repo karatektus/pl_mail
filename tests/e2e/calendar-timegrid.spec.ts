@@ -116,12 +116,12 @@ test.describe("calendar time-grid", () => {
     });
 
     /**
-     * The layout choice, from the outside. The page draws hours and positioned
-     * blocks; the pane, at the same view, keeps the column list — and asserting
-     * the grid is ABSENT there is the half that matters, because a pane that
-     * rendered both and hid one would pass a check for only the list.
+     * One calendar, two windows onto it. The pane used to keep a column list of
+     * its own at the same view; it does not any more — see _grid.html.twig —
+     * and asserting that the pane draws the SAME seven columns is what would
+     * catch the branch coming back.
      */
-    test("draws a time-grid on the page and keeps the column list in the pane", async ({ page }) => {
+    test("draws the same time-grid on the page and in the pane", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
 
         await page.goto("/calendar/week");
@@ -130,7 +130,109 @@ test.describe("calendar time-grid", () => {
 
         await page.goto("/calendar/week?pane=1");
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
-        await expect(page.locator('[data-controller="calendar--time-grid"]')).toHaveCount(0);
+        await expect(page.locator('[data-controller="calendar--time-grid"]')).toHaveCount(1);
+        await expect(page.locator('[data-calendar--time-grid-target="column"]')).toHaveCount(7);
+    });
+
+    /**
+     * Every day column sits under its own heading.
+     *
+     * It did not: the headings and the all-day band were siblings ABOVE the
+     * scroller, so they were as wide as the pane while the hours were as wide as
+     * the pane minus the scrollbar — and every column below was a scrollbar's
+     * width out from the date it belonged to. All three grids share one scroll
+     * container now, with the first two stuck to its top.
+     *
+     * Asserted on the last column, because the error accumulates from the left
+     * and Monday was almost right even when Sunday was fifteen pixels out.
+     */
+    test("each day column lines up with its own heading", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 700 });
+        await page.goto("/calendar/week");
+
+        const columns = page.locator('[data-calendar--time-grid-target="column"]');
+        const headings = page.locator('[data-calendar--time-grid-target="heading"]');
+
+        await expect(columns).toHaveCount(7);
+        await expect(headings).toHaveCount(7);
+
+        for (const index of [0, 6]) {
+            const column = (await columns.nth(index).boundingBox())!;
+            const heading = (await headings.nth(index).boundingBox())!;
+
+            expect(column.x).toBeCloseTo(heading.x, 0);
+            expect(column.width).toBeCloseTo(heading.width, 0);
+        }
+    });
+
+    /**
+     * Double-clicking empty grid space opens the editor at that quarter hour.
+     *
+     * A double rather than a single: a single click on the background has to be
+     * told apart from the end of a drag on every pointerup, and getting that
+     * wrong opens a dialog every time somebody finishes moving a meeting.
+     *
+     * The assertion is on the START FIELD, not on the dialog appearing. "A
+     * dialog opened" would pass for a create-at-09:00 button, and the whole
+     * claim is that it opened *there* — a quarter past ten, because the click
+     * lands 42.5% down a 24-hour column.
+     */
+    test("double-clicking a slot opens the editor at that time", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 700 });
+        await page.goto("/calendar/week");
+
+        // The grid opens scrolled to the working day, so 03:15 starts off
+        // screen and a click aimed at it would land on whatever is drawn where
+        // it is not. Scroll to the top first and the arithmetic below describes
+        // a point the pointer can actually reach.
+        await page.locator('[data-calendar--time-grid-target="scroller"]')
+            .evaluate((el) => { el.scrollTop = 0; });
+
+        const column = page.locator('[data-calendar--time-grid-target="column"]').nth(2);
+        const box = (await column.boundingBox())!;
+
+        // 03:15, which is 195/1440 of the way down. Aimed at the slot's own line
+        // rather than at the middle of it, because the snap is to the NEAREST
+        // quarter — the middle is equidistant and rounds up. Three in the
+        // morning rather than a civilised hour because the seeded fixtures are
+        // during the working day: land the first click of the double on a block
+        // and the chip's own handler opens ITS editor, which is a different test.
+        const at = 195 / 1440;
+
+        await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height * at);
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+
+        const day = await column.getAttribute("data-day");
+
+        await expect(modal.locator("#event-starts")).toHaveValue(`${day}T03:15`);
+    });
+
+    /**
+     * And a double-click on a block does NOT offer to create another: that
+     * gesture already has a meaning, and the chip's own click opens the event it
+     * landed on.
+     *
+     * Asserted on the grid's hidden trigger rather than on the dialog, because
+     * a double-click on a chip legitimately opens the editor with the first
+     * click and closes it again with the second — a race the user never sees,
+     * since they single-click a chip. What must never happen is the grid
+     * pointing that trigger at the new-event route, and that is exactly what
+     * this reads. See the note on the trigger in _view_timegrid.html.twig.
+     */
+    test("double-clicking an event does not offer to create another", async ({ page }) => {
+        await page.goto("/calendar/day");
+
+        const block = blocks(page, TIMED).first();
+        await expect(block).toBeVisible();
+
+        const box = (await block.boundingBox())!;
+        await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+
+        await expect(
+            page.locator('[data-calendar--time-grid-target="newTrigger"]'),
+        ).toHaveAttribute("data-ui--modal-src-value", "");
     });
 
     /**

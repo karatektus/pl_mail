@@ -230,7 +230,7 @@ the conversation it answers.
                     {% endif %}
                     {% if date %}
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
-                            {{ date|date('g:i a') }}
+                            {{ date|date(clock.time) }}
                         {% elseif date|date('Y') == 'now'|date('Y') %}
                             {{ date|date('M j') }}
                         {% else %}

@@ -91,11 +91,20 @@ final class CalendarTimeGridTest extends WebTestCase
     }
 
     /**
-     * The pane asks for the same week and gets the column list. Asserted on the
-     * absence of the grid as well as the presence of the list: a pane that
-     * rendered both and hid one would pass a check for only the second.
+     * The pane asks for the same week and gets the same grid.
+     *
+     * It used to get a column list instead, on the reasoning that seven
+     * positioned columns need more than 380px. The pane is resizable now — as
+     * far as the window, past its own maximum and into a full-width calendar —
+     * so its width is the user's choice rather than a constant to design
+     * around, and a pane that quietly draws a *different* calendar is a worse
+     * answer to a narrow column than a grid that is tight in one. See
+     * _grid.html.twig.
+     *
+     * Both halves are asserted, because "renders the grid" alone would pass on
+     * a pane that rendered the grid *and* something else beside it.
      */
-    public function testTheSameWeekInThePaneKeepsTheColumnListInstead(): void
+    public function testTheSameWeekInThePaneIsTheSameTimeGrid(): void
     {
         $client = $this->signIn();
 
@@ -103,9 +112,14 @@ final class CalendarTimeGridTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(
-            0,
+            1,
             $crawler->filter('[data-controller="calendar--time-grid"]'),
-            'a 380px pane has no business drawing a time-grid',
+            'the pane is a narrower window onto the same calendar, not a lesser one',
+        );
+        self::assertCount(
+            7,
+            $crawler->filter('[data-calendar--time-grid-target="column"]'),
+            'one column per day, exactly as on the page',
         );
         self::assertCount(1, $crawler->filter('turbo-frame#calendar-pane-frame'));
     }
@@ -143,6 +157,51 @@ final class CalendarTimeGridTest extends WebTestCase
         self::assertSame(
             $this->start()->setTimezone(new DateTimeZone('Europe/Berlin'))->format('Y-m-d\TH:i:s'),
             $block->attr('data-starts-at'),
+        );
+    }
+
+    /**
+     * And so does the time PRINTED in it, which is a different code path and
+     * was on a different clock.
+     *
+     * The block is positioned against the calendar's zone; the chip inside it
+     * printed through Twig's `|date`, which converts to whatever
+     * TwigTimezoneSubscriber last set — the reader's own. Where the two differ,
+     * and they do for every calendar provisioned before its zone was seeded from
+     * its owner, a block sat on the 15:00 line with "17:30" written inside it.
+     * The grid was right; the label was on another clock.
+     *
+     * The fixture makes them differ deliberately: the calendar reads Berlin and
+     * the user reads UTC, which is the shape of the report — a legacy UTC
+     * calendar under a Berlin reader — with the two swapped so the assertion
+     * can name one and not the other.
+     */
+    public function testTheTimeDrawnInABlockIsOnTheSameClockAsItsPosition(): void
+    {
+        $client = $this->signIn();
+
+        $this->calendar->timeZone = 'Europe/Berlin';
+        $this->user->timezone     = 'UTC';
+        $this->em->flush();
+
+        $event = $this->oneOff();
+
+        $crawler = $client->request('GET', '/calendar/day/' . $this->start()->format('Y-m-d'));
+        $block   = $crawler->filter(sprintf('[data-event-id="%d"]', $event->id));
+
+        self::assertCount(1, $block, 'the event is on the grid');
+
+        $berlin = $this->start()->setTimezone(new DateTimeZone('Europe/Berlin'));
+
+        self::assertStringContainsString(
+            $berlin->format('H:i'),
+            $block->text(),
+            'the chip prints the hour the block is drawn against',
+        );
+        self::assertStringNotContainsString(
+            $this->start()->format('H:i'),
+            $block->text(),
+            'and not the reader\'s, which is where the two hours came from',
         );
     }
 

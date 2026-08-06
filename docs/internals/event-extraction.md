@@ -183,12 +183,22 @@ Six rules, each because the obvious alternative is worse:
    draws that line, and the claim is still filed against the event so the audit trail
    survives.
 
-Where the event goes is `App\Service\Calendar\ExtractedEventCalendarResolver`: the account's
-own calendar by default — `CalendarProvisioner` creates one alongside every mail account, so
-the answer always exists — with `Account::SETTING_CALENDAR_TARGET` as an override for the user
-who wants everything in one place. The override is **validated against the user** rather than
-trusted, because a setting is a string in a jsonb bag and a calendar id that has since been
-deleted, or belongs to somebody else, must fall back rather than throw or leak.
+Where the event goes is `App\Service\Calendar\ExtractedEventCalendarResolver`: the user's
+**default calendar**, with `Account::SETTING_CALENDAR_TARGET` as an override for anyone who
+wants a particular mailbox's bookings kept apart.
+
+It used to be the account's own calendar, on the reasoning that an event should land where the
+mail that carried it lives. That is right about mail and wrong about a calendar: a person has
+one diary, the fact that a flight confirmation arrived at the work address rather than the
+private one is a property of the message and not of the flight, and filing by it split one day
+across as many calendars as the user had mailboxes. It did so silently, too — a per-account
+calendar is visible and coloured like any other, so the event was on screen and simply not
+where its owner would look. `CalendarProvisioner` still creates a calendar per account; that
+is what the setting points at, and what a mirrored provider calendar attaches to.
+
+The override is **validated against the user** rather than trusted, because a setting is a
+string in a jsonb bag and a calendar id that has since been deleted, or belongs to somebody
+else, must fall back rather than throw or leak.
 
 ### The unit-of-work lookup
 

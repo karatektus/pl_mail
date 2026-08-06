@@ -13,15 +13,23 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * What plMail has read out of mail and expects to happen shortly — the flights,
- * deliveries, reservations, meetings and tickets, in one list.
+ * What is about to happen — the flights, deliveries, reservations, meetings and
+ * tickets plMail read out of mail, and the appointments the owner typed, in one
+ * list.
  *
  * This is the read side of "Happening Soon" and the only caller of
- * CalendarEventOccurrenceRepository::findUpcomingExtracted(), which was written
- * when extraction shipped and had nothing to surface it. The filter is
- * CalendarEvent::$kind being set at all: a kind is exactly what distinguishes an
- * event an extractor produced from one a person typed, so the feature needs no
- * table, no flag and no second list to stay in step with the calendar.
+ * CalendarEventOccurrenceRepository::findUpcoming().
+ *
+ * **Extracted events are not the only ones listed**, and used to be. The filter
+ * was CalendarEvent::$kind being set at all, which is exactly what distinguishes
+ * an event an extractor produced from one a person typed — a clean rule, and the
+ * wrong one for this panel. A user who creates "dentist, Thursday" and then
+ * presses a button labelled "happening soon" is asking about Thursday, not about
+ * provenance, and a list that answered with everything except the thing they
+ * entered themselves read as broken. The kind survives as *decoration* — the row
+ * still wears a plane or a box, and still links to the mail it came from — but
+ * it no longer decides membership. See HappeningSoonRow, where both are nullable
+ * for that reason.
  *
  * **Occurrences, not events.** A recurring extracted event — a standing weekly
  * call read out of its invitation — has one row in calendar_event and one row
@@ -50,7 +58,7 @@ final readonly class HappeningSoonReader
      * How far ahead "soon" reaches.
      *
      * A fortnight, and the number is the answer to "how long is something still
-     * worth acting on?". Everything in this list is a booking: a flight can
+     * worth acting on?". Most of this list is a booking: a flight can
      * still be rebooked, a delivery can still be redirected, a table can still
      * be cancelled, a ticket can still be given away — but only while the date
      * is close enough that a person would do something about it today. Beyond
@@ -74,10 +82,10 @@ final readonly class HappeningSoonReader
      * The most rows the panel will draw.
      *
      * A cap rather than paging: this is a glance surface, and a fortnight that
-     * genuinely holds more than a dozen bookings is a fortnight to look at in
-     * the calendar instead. Twelve is also what findUpcomingExtracted() already
-     * defaulted to, so the number is stated once here and passed rather than
-     * left to be agreed in two places.
+     * genuinely holds more than a dozen things is a fortnight to look at in the
+     * calendar instead. Twelve is also what findUpcoming() already defaulted to,
+     * so the number is stated once here and passed rather than left to be agreed
+     * in two places.
      */
     private const int LIMIT = 12;
 
@@ -116,7 +124,7 @@ final readonly class HappeningSoonReader
         // from local midnight. "Soon" is a duration, not a date range: pinning
         // it to midnight would make the same booking fall in or out of the list
         // depending on what time of day the page was loaded.
-        $occurrences = $this->occurrences->findUpcomingExtracted(
+        $occurrences = $this->occurrences->findUpcoming(
             $user,
             $calendarIds,
             $from,
@@ -129,7 +137,12 @@ final readonly class HappeningSoonReader
         foreach ($occurrences as $occurrence) {
             $event = $occurrence->event;
 
-            if (null !== $event) {
+            // Only the extracted ones. An event with no kind was typed here and
+            // has no EventSourceLink by construction, so putting its id in the
+            // IN below asks the provenance query a question whose answer is
+            // known — and on a calendar of ordinary appointments that is the
+            // whole list.
+            if (null !== $event && null !== $event->kind) {
                 $events[] = $event;
             }
         }
@@ -138,7 +151,9 @@ final readonly class HappeningSoonReader
         // narrowed the set — asked per row it would be a query per row, and
         // asked before the window it would be a query over the whole mailbox's
         // extraction history to fill twelve lines.
-        $sources = $this->sourceLinks->findLatestAppliedMessageByEvent($events);
+        $sources = [] === $events
+            ? []
+            : $this->sourceLinks->findLatestAppliedMessageByEvent($events);
 
         $rows = [];
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
@@ -109,6 +110,30 @@ final readonly class RecurrenceMaterialiser
 
         $this->clear($event);
 
+        // An invitation nobody has accepted is not on the calendar yet.
+        //
+        // This is the whole of that rule, and it is here rather than as a
+        // clause in each reader because occurrences are what every reader
+        // reads: the views, the alert sweep, Happening Soon, a public share
+        // link, an .ics export, a JMAP client. Writing no rows makes all of
+        // them agree, and answering the invitation later re-materialises
+        // through this same method — see InviteResponder, which is what puts
+        // the meeting on the calendar the moment somebody says yes or maybe.
+        //
+        // The EVENT row is untouched, deliberately. The invite card above the
+        // message still finds it, a later update from the organiser still
+        // revises it, and declining is therefore reversible — none of which
+        // would be true if the answer decided whether the row existed.
+        //
+        // $myParticipation is null for everything that is not an invitation
+        // addressed to the owner, which is nearly everything; see the property.
+        if (false === $this->isOnTheCalendar($event)) {
+            $event->isRecurring     = false;
+            $event->recurrenceUntil = $event->endsAt;
+
+            return;
+        }
+
         $rule = $this->firstRule($event);
 
         if (null === $rule) {
@@ -123,6 +148,24 @@ final readonly class RecurrenceMaterialiser
         $event->isRecurring = true;
 
         $this->expand($event, $rule, $now ?? new DateTimeImmutable());
+    }
+
+    /**
+     * Whether this event has earned a place in the calendar's views.
+     *
+     * Only an invitation addressed to the owner can answer false, and only
+     * while it is unanswered or declined. "Maybe" counts as yes: a tentative
+     * meeting is one you have to keep the slot for, and hiding it is how people
+     * double-book.
+     */
+    private function isOnTheCalendar(CalendarEvent $event): bool
+    {
+        return match ($event->myParticipation) {
+            null,
+            ParticipationStatus::Accepted,
+            ParticipationStatus::Tentative => true,
+            default                        => false,
+        };
     }
 
     /**

@@ -102,7 +102,7 @@ final readonly class EventCopyResolver
 
             $options[] = new EventCopy(
                 $calendar,
-                $rows[(int) $calendar->id] ?? $this->rowFor($calendar, $user, $uid),
+                $rows[(int) $calendar->id] ?? $this->rowFor($calendar, $user, $uid, $event),
                 // A read-only copy is offered and never ticked, so an ordinary
                 // submit cannot name one. chosen() refuses it a second time.
                 false === $calendar->isReadOnly && true === $isChosen,
@@ -306,6 +306,16 @@ final readonly class EventCopyResolver
      * the calendar's collection, so an editor that is opened and closed leaves
      * nothing behind.
      *
+     * **Its PROVENANCE is copied**, and only that: source, kind and confidence.
+     * A copy of a meeting read out of a mail is the same meeting from the same
+     * mail, and a row that says otherwise is cut off from its own updates —
+     * EventReconciler refuses to revise anything whose source says a person
+     * decided on it (EventSource::mayBeRewrittenByMail), so a copy defaulting to
+     * Manual took the user's tick as "this is now mine" and then quietly ignored
+     * the organiser's next reschedule. It also decides whether the copy can be
+     * marked user-edited at all, and whether the chip wears the extraction icon
+     * its sibling does.
+     *
      * It carries nothing else, and the absence is deliberate. The participants
      * are not copied: a row on a synced calendar is pushed to the provider, and
      * pushing an attendee list is how a provider decides to send the invitation
@@ -314,12 +324,18 @@ final readonly class EventCopyResolver
      * the copy existed is drawn as its own chip until the user moves it on both,
      * which is the same honest disagreement any two copies show.
      */
-    private function rowFor(Calendar $calendar, User $user, string $uid): CalendarEvent
+    private function rowFor(Calendar $calendar, User $user, string $uid, ?CalendarEvent $of): CalendarEvent
     {
         $event           = new CalendarEvent();
         $event->uid      = $uid;
         $event->usr      = $user;
         $event->calendar = $calendar;
+
+        if (null !== $of) {
+            $event->source     = $of->source;
+            $event->kind       = $of->kind;
+            $event->confidence = $of->confidence;
+        }
 
         return $event;
     }

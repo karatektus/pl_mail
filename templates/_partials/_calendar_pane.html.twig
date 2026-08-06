@@ -27,11 +27,12 @@ than one that does not remember at all.
    down to CSS source order, which is not something to rely on.
 
    Below lg it is still this pane, not a different page — it just takes the
-   whole row and the mail steps aside (see [data-calendar-open] in app.css).
+   whole row and the mail steps aside (see [data-calendar-mode] in app.css).
    The row cannot hold a sidebar, a usable list and a usable calendar at once
    under 1024px, so rather than squeezing both under their minimums the
-   calendar takes over. Same toggle, same DOM, no navigation: closing it puts
-   the mail back exactly as it was. #}
+   calendar takes over. That is also what the switch's third position does at
+   every width. Same control, same DOM, no navigation: going back to the mail
+   puts it back exactly as it was. #}
 <div
     data-ui--split-target="wrapper"
     {# hidden lg:flex when remembered open: the preference is one value shared by
@@ -62,9 +63,11 @@ than one that does not remember at all.
                hidden lg:flex items-center justify-center
                focus:outline-none"
     >
-        <span class="w-0.5 h-8 rounded-full bg-line
-                     group-hover:bg-accent group-focus-visible:bg-accent
-                     transition-colors" aria-hidden="true"></span>
+        {# `.split-grip` is what the strain state in app.css grabs, so the two
+           pixels of grip can say "there is more past this" while the pane is
+           being dragged beyond its range. #}
+        <span class="split-grip w-0.5 h-8 rounded-full bg-line
+                     group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
     </div>
 
     {# Width in classes rather than an inline style: inline would beat the

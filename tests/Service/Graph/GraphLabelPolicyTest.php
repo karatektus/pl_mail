@@ -79,6 +79,27 @@ final class GraphLabelPolicyTest extends TestCase
         self::assertTrue($this->policy->pushesAsCategory($label, new Account()));
     }
 
+    /**
+     * The regression the separate column exists for.
+     *
+     * A category id used to be written into `graphFolderId` — the same column
+     * this class reads to mean "this label IS an Exchange folder". So a label
+     * plMail had pushed to Outlook as a category came back holding a folder id
+     * and, from the next change onwards, was pushed as a folder MOVE: a
+     * many-to-many tag silently became a location, and applying a second label
+     * then took the message off the first.
+     */
+    public function testACategoryIdDoesNotTurnALabelIntoAFolder(): void
+    {
+        $label   = $this->label(name: 'Receipts');
+        $binding = $this->bind($label, $this->account, null);
+
+        $binding->graphCategoryId = '6f2f1a3e-0000-4000-8000-000000000001';
+
+        self::assertTrue($this->policy->pushesAsCategory($label, $this->account));
+        self::assertFalse($this->policy->pushesAsFolder($label, $this->account));
+    }
+
     public function testCategoryNamesAreTheCustomLabelsOnly(): void
     {
         $message = $this->message(
@@ -141,13 +162,15 @@ final class GraphLabelPolicyTest extends TestCase
         return $label;
     }
 
-    private function bind(Label $label, Account $account, string $graphFolderId): void
+    private function bind(Label $label, Account $account, ?string $graphFolderId): LabelBinding
     {
         $binding = new LabelBinding();
         $binding->account = $account;
         $binding->graphFolderId = $graphFolderId;
 
         $label->addBinding($binding);
+
+        return $binding;
     }
 
     private function message(Label ...$labels): Message

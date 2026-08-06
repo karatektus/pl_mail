@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:d52dd93bd0958dd5e2bbdc87131397c3c2f552a3 -->
+<!-- translated-from: features/calendar-invitations.md sha1:b5f183b8329854ef3f1ae0330ad48fe0a8d7fdfd -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -11,7 +11,7 @@ Es gibt drei Stufen der Zuversicht, und es lohnt sich zu wissen, welche man gera
 
 | Was ankam | Was plMail tut | Wo es erscheint |
 |---|---|---|
-| Eine echte Einladung (ein `text/calendar`-Teil) | Legt sie in den Kalender und bietet dir die Antwortschaltflächen an | Die Karte über der Nachricht, und der Kalender |
+| Eine echte Einladung (ein `text/calendar`-Teil) | Bietet dir die Antwortschaltflächen an und legt sie in den Kalender, sobald du **Zusagen** oder **Vielleicht** sagst | Die Karte über der Nachricht, und — sobald beantwortet — der Kalender |
 | Eine Buchung mit schema.org-Auszeichnung — Flüge, Pakete, Hotels, Restaurants, Tickets, Bestellungen | Legt sie in den Kalender, gekennzeichnet als in der Mail gefunden | Der Kalender, und *Demnächst* |
 | Ein Datum in gewöhnlicher Prosa | **Bietet** es an und trägt nichts ein, bis du zustimmst | Nur eine Karte über der Nachricht |
 
@@ -52,9 +52,24 @@ Antwortschaltflächen. Der Termin bleibt durchgestrichen im Kalender stehen, sta
 „wurde das abgesagt, oder habe ich mir das eingebildet?“ ist eine Frage, die ein Kalender
 beantworten können sollte.
 
+**Eine Einladung steht in deinem Kalender, sobald du sie zusagst, und vorher nicht.** Bis dahin
+lebt sie auf der Karte über der Nachricht und sonst nirgends. **Vielleicht** zählt als Ja — ein
+vorläufiger Termin ist einer, dessen Platz du dir freihalten musst, und ihn zu verstecken ist der
+Weg zur Doppelbuchung — und **Absagen** nimmt ihn wieder heraus. Nichts daran ist einseitig: Die
+Einladung selbst verschwindet nie, du kannst es dir also später anders überlegen, und der Termin
+wandert wieder hinein oder heraus.
+
+Das gilt für Einladungen an dich und für sonst nichts. Eine Flugbestätigung, ein Paket, ein Datum,
+das du aus einem Satz übernommen hast, ein von Google gespiegelter Kalender, eine Besprechung, die
+*du* einberufen hast — nichts davon ist irgendjemandes Zusage, und all das erscheint sofort, wie es
+das immer getan hat.
+
 Eine Einladung zu beantworten, zählt **nicht** als Bearbeiten des Termins. Die Organisation bleibt
 die Instanz dafür, wann die Besprechung ist, eine spätere Nachricht, die sie verschiebt, verschiebt
-sie hier also auch nach deiner Zusage noch.
+sie hier also auch nach deiner Zusage noch. Ihre Aktualisierung kann die Zusage auch nicht
+zurücknehmen: Ein „Update senden“ trägt die Teilnehmerliste so, wie *sie* sie zuletzt gesehen hat,
+und darin steht regelmäßig noch, dass niemand geantwortet hat — das zu glauben würde einen
+zugesagten Termin lautlos aus deinem Kalender nehmen.
 
 ## Termine aus einer Buchung
 
@@ -175,26 +190,24 @@ ergibt sich vorwärts aus der Nachricht.
 
 ## Demnächst
 
-Wenn etwas, das plMail in deiner Mail gefunden hat, ansteht, erscheint in der Kopfleiste eine
-Schaltfläche mit dem Symbol des nächsten Dings — ein Flugzeug, ein Paket, ein Zug. Ein Druck darauf
-öffnet **Demnächst**: alles aus der Mail Gelesene, das in den nächsten zwei Wochen fällig ist, das
-Nächste zuerst, bis zu zwölf Einträge.
+Wenn etwas ansteht, erscheint in der Kopfleiste eine Schaltfläche mit dem Symbol des nächsten Dings —
+ein Flugzeug, ein Paket, ein Zug, oder ein schlichtes Kalenderzeichen für einen Termin, den du selbst
+eingetragen hast. Ein Druck darauf öffnet **Demnächst**: alles, was in den nächsten zwei Wochen
+fällig ist, das Nächste zuerst, bis zu zwölf Einträge.
 
-Jede Zeile nennt das Symbol der Art, wann es ist, was es ist und aus welcher Nachricht es stammt. Das
-Letzte ist das, worauf es ankommt: Jede Zeile ist eine Vermutung, die ein Programm über deine Mail
-angestellt hat, und „warum steht das in meinem Kalender?“ muss mit einem Klick beantwortbar sein,
-sonst lässt sich die Vermutung gar nicht prüfen. Eine Zeile, deren Nachricht inzwischen weg ist, wird
-ohne den Link gezeichnet statt mit einem toten.
+Jede Zeile nennt ein Symbol, wann es ist, was es ist und — bei den aus der Mail gelesenen Zeilen —
+aus welcher Nachricht es stammt. Das Letzte ist das, worauf es ankommt: Eine ausgelesene Zeile ist
+eine Vermutung, die ein Programm über deine Mail angestellt hat, und „warum steht das in meinem
+Kalender?“ muss mit einem Klick beantwortbar sein, sonst lässt sich die Vermutung gar nicht prüfen.
+Eine Zeile, deren Nachricht inzwischen weg ist, wird ohne den Link gezeichnet statt mit einem toten —
+und eine Zeile, die du selbst eingetragen hast, ebenso, denn die hat niemand gemacht außer dir.
 
 Die Schaltfläche ist bewusst nur da, wenn es etwas zu öffnen gibt. Ein Bedienelement, das immer da
 ist und meistens „nichts in Sicht“ sagt, erzieht Menschen dazu, es nicht zu drücken; eines, das
 auftaucht, wenn ein Paket ansteht, ist eine Nachricht.
 
-Zwei Dinge stehen **nicht** in dieser Liste, und beides ist Absicht:
+Eines steht **nicht** in dieser Liste, und das ist Absicht:
 
-- **Termine, die du selbst eingetippt hast.** Die Liste handelt davon, was plMail gelesen hat, und
-  nicht von deinem Kalender — der ist einen Klick entfernt und ist besser darin, ein Kalender zu
-  sein.
 - **Vorschläge.** Ein Datum, das aus einem Satz gelesen und noch nicht angenommen wurde, hat nichts
   in einer Liste verloren, der die Leute glauben, dass sie wahr ist, und ohne den Satz, aus dem es
   stammt, ließe es sich ohnehin nicht beurteilen. Ein Vorschlag wird dort beantwortet, wo sein Beleg
@@ -225,6 +238,16 @@ hast, wird nicht überschrieben.
 
 ## Fallstricke
 
+**Eine Einladung, die du nicht beantwortet hast, steht nicht in deinem Kalender.** Das ist Absicht
+— siehe oben —, es heißt aber auch, dass eine Woche voller unbeantworteter Anfragen wie eine freie
+Woche aussieht. Die Karte über jeder Nachricht ist der Ort, an dem sie liegen; drück **Zusagen**
+oder **Vielleicht**, und sie erscheinen.
+
+**Eine Einladung, die vor dieser Änderung ankam, bleibt im Kalender stehen, ganz gleich, was du
+geantwortet hast.** Beim Upgrade wurde nichts umgeschrieben, und zwar mit Absicht: jemandem während
+eines `docker compose up` den Kalender zu leeren, ist keine annehmbare Art, eine Funktion
+auszuliefern. `app:backfill events` liest die Mail neu und bringt die alten in Ordnung.
+
 **Deine Antwort kann gespeichert werden, ohne dass die Organisation davon erfährt.** Die beiden
 Hälften sind mit Absicht unabhängig. Kann die Antwort nicht gesendet werden, sagt die Meldung das —
 und das ist der einzige Hinweis, den du bekommst. Prüf, ob das Konto, auf dem die Einladung ankam,
@@ -244,6 +267,13 @@ Termin von Hand an, wenn du es dir anders überlegst.
 **Einen ausgelesenen Termin zu bearbeiten, beendet, dass er der Buchung folgt.** Das ist es, was der
 Hinweis im Editor meint. Korrigierst du eine falsche Zeit von Hand, verschiebt eine spätere Mail, die
 die Besprechung verlegt, sie nicht mehr für dich.
+
+Es zählt allerdings nur eine echte Korrektur. Den Termin zu öffnen und einen weiteren Kalender
+anzuhaken — dieselbe Besprechung auch auf den Arbeitskalender zu legen — ändert nichts an der
+Besprechung; es beendet also nicht, dass sie der Buchung folgt, und eine spätere Mail, die sie
+verlegt, verschiebt **jede** Kopie. Früher war es umgekehrt: Ein Teilen wurde als Bearbeitung
+verbucht, der Termin verstummte, und das Einzige, woran man es merkte, war, dass eine angekündigte
+Verlegung nie ankam.
 
 **Einen ausgelesenen Termin zu löschen, ist nicht dasselbe wie ihn zu verwerfen.** Ein einfaches
 Löschen hält, bis die nächste Nachricht zu dieser Buchung ankommt oder bis die Auswertung das nächste

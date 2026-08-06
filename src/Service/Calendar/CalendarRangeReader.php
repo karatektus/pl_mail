@@ -132,8 +132,18 @@ final readonly class CalendarRangeReader
         }
 
         foreach ($clusters as $cluster) {
-            $start = $cluster->primary->startsAt->setTimezone($zone);
-            $end   = $cluster->primary->endsAt->setTimezone($zone);
+            // An all-day event is FLOATING — its columns hold a wall date at
+            // midnight and no zone, which is what "the same day everywhere"
+            // means and how RecurrenceMaterialiser expands it. Converting one
+            // into a real zone does not translate it, it moves it: midnight UTC
+            // read as an instant becomes 02:00 in Berlin, so the event ran from
+            // 02:00 on its day to 02:00 on the next and the walk below filed it
+            // under BOTH. West of UTC it moved onto the day before instead.
+            // Left alone, its own zone is UTC and its wall date is the key.
+            $isFloating = true === $cluster->primary->event?->isAllDay;
+
+            $start = $isFloating ? $cluster->primary->startsAt : $cluster->primary->startsAt->setTimezone($zone);
+            $end   = $isFloating ? $cluster->primary->endsAt : $cluster->primary->endsAt->setTimezone($zone);
 
             // A multi-day event belongs to every day it touches, not only the
             // one it started on — otherwise it vanishes from the week whose

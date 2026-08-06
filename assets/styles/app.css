@@ -227,13 +227,86 @@
     --app-bg: linear-gradient(to bottom right, #fdf6e3, #eee8d5, #f5e6c8);
 }
 
-/* Calendar open on a narrow screen: the pane takes the row and the mail
-   steps aside. One rule rather than a class toggled onto .main-pane from two
-   places — the server renders the open state and the controller changes it,
-   and those two must not be able to disagree. */
+/* ═══ The calendar switch ═══════════════════════════════════════════════════
+   Three positions — mail, split, calendar — driven entirely by one attribute
+   on the shell. Rules rather than classes toggled onto .main-pane from two
+   places: the server renders the position and the controller changes it, and
+   those two must not be able to disagree about what a position looks like.
+   See App\Domain\Enum\Calendar\CalendarPaneMode.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Calendar: the pane has the row and the mail steps aside. The mail is still
+   in the DOM, so coming back is a class change rather than a navigation —
+   which is the whole reason this is a third position of the pane and not a
+   link to /calendar. */
+[data-calendar-mode="calendar"] .main-pane:not([data-ui--split-target="pane"]) {
+    display: none;
+}
+
+/* …and the pane stops honouring the stored width, at both levels. The wrapper
+   is `lg:w-auto` — sized by its contents — so telling only the pane to fill it
+   is circular and collapses both to the width of the handle. Each has to be
+   told to grow, which is what `flex: 1 1 0%` says and what `width: auto`
+   un-says about the stored pixel count. The handle goes too: there is no
+   boundary left to drag when one side has all of it. */
+[data-calendar-mode="calendar"] [data-ui--split-target="wrapper"],
+[data-calendar-mode="calendar"] [data-ui--split-target="pane"] {
+    flex: 1 1 0%;
+    width: auto;
+}
+
+[data-calendar-mode="calendar"] [data-ui--split-target="handle"] {
+    display: none;
+}
+
+/* Split below lg is Calendar. The row cannot hold a sidebar, a usable message
+   list and a usable calendar at once under 1024px, so rather than squeezing
+   both under their minimums the calendar takes over — the same behaviour the
+   boolean version had, kept because it is right. */
 @media (max-width: 1023px) {
-    [data-calendar-open="true"] .main-pane:not([data-ui--split-target="pane"]) {
+    [data-calendar-mode="split"] .main-pane:not([data-ui--split-target="pane"]) {
         display: none;
+    }
+}
+
+/* The switch itself needs no rule here, deliberately. Which icon is drawn is
+   the `hidden` ATTRIBUTE on the other two, and the accented state is two
+   utility classes — both written by the server and toggled by ui--split. A
+   first version selected the icon from the shell's mode here, and on a stack
+   whose Tailwind build had not been rerun all three drew on top of each other:
+   a control that says which mode you are in has to be right from the markup
+   alone. The rules below are layout, which genuinely is CSS's job.
+
+   The rubber band, and the settle back from it.
+   Dragging past the pane's minimum or maximum does not stop dead — the handle
+   keeps moving, with resistance, which is what tells you there IS something
+   past the end without a label saying so. Past a threshold, letting go
+   switches position; short of it, this transition is what puts the pane back.
+   Only ever on for the length of that settle: a transition left on would make
+   every drag lag a frame behind the pointer. */
+[data-ui--split-target="pane"].is-settling {
+    transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* And the grip says the same thing, so the affordance is visible on a handle
+   that is only two pixels wide. */
+[data-ui--split-target="handle"].is-straining .split-grip {
+    background-color: rgb(var(--rgb-accent));
+    transform: scaleY(1.6);
+}
+
+.split-grip {
+    transition: transform 120ms ease-out, background-color 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui--split-target="pane"].is-settling,
+    .split-grip {
+        transition: none;
+    }
+
+    [data-ui--split-target="handle"].is-straining .split-grip {
+        transform: none;
     }
 }
 

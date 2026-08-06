@@ -476,18 +476,33 @@ test.describe("a meeting on two calendars", () => {
 
 test.describe("calendar pane", () => {
     /**
-     * Open/closed is a stored user preference, so it survives from whichever
-     * test ran last. Start every case from closed rather than assuming.
+     * The switch has three positions — mail, split, calendar — and cycles
+     * through them in that order, wrapping. Which one it is in is a stored user
+     * preference, so it survives from whichever test ran last: every case here
+     * puts it where it needs it rather than assuming.
+     *
+     * Driven by the shell attribute rather than by counting clicks, because
+     * counting only works from a known start and the whole problem is that
+     * there is not one.
      */
+    async function setPaneMode(page: Page, mode: "mail" | "split" | "calendar") {
+        const shell = page.locator("[data-calendar-mode]");
+
+        for (let press = 0; press < 3; press++) {
+            if ((await shell.getAttribute("data-calendar-mode")) === mode) {
+                return;
+            }
+
+            await page.locator("[data-calendar-toggle]").click();
+        }
+
+        await expect(shell).toHaveAttribute("data-calendar-mode", mode);
+    }
+
     async function ensurePaneClosed(page: Page) {
         await page.goto("/mail/inbox");
-
-        const wrapper = page.locator('[data-ui--split-target="wrapper"]');
-
-        if (await wrapper.isVisible()) {
-            await page.locator("[data-calendar-toggle]").click();
-            await expect(wrapper).toBeHidden();
-        }
+        await setPaneMode(page, "mail");
+        await expect(page.locator('[data-ui--split-target="wrapper"]')).toBeHidden();
     }
 
     test("docks beside the mail and gives the width back when closed", async ({ page }) => {
@@ -497,7 +512,7 @@ test.describe("calendar pane", () => {
         const mainPane = page.locator(".main-pane").first();
         const widthWithoutPane = (await mainPane.boundingBox())!.width;
 
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -508,15 +523,150 @@ test.describe("calendar pane", () => {
         // The mail is still there beside it — the pane took width, not the page.
         await expect(page.locator("#message-list")).toBeVisible();
 
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "mail");
         await expect(paneFrame).toBeHidden();
         expect((await mainPane.boundingBox())!.width).toBeCloseTo(widthWithoutPane, 0);
+    });
+
+    /**
+     * The third position, and the reason the boolean became a switch: a
+     * full-width calendar without navigating away from the mail. The mail is
+     * still in the DOM behind it, which is what makes coming back a class
+     * change rather than a page load.
+     */
+    test("cycles mail, split, calendar and back", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+
+        const shell = page.locator("[data-calendar-mode]");
+        const messageList = page.locator("#message-list");
+        const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
+        const toggle = page.locator("[data-calendar-toggle]");
+
+        await toggle.click();
+        await expect(shell).toHaveAttribute("data-calendar-mode", "split");
+        await expect(messageList).toBeVisible();
+        await expect(paneFrame).toBeVisible();
+
+        await toggle.click();
+        await expect(shell).toHaveAttribute("data-calendar-mode", "calendar");
+        await expect(paneFrame).toBeVisible();
+        await expect(messageList).toBeHidden();
+
+        // The calendar has the row, and it really is the whole row.
+        const shellBox = (await shell.boundingBox())!;
+        const paneBox = (await page.locator('[data-ui--split-target="pane"]').boundingBox())!;
+        expect(paneBox.width).toBeGreaterThan(shellBox.width * 0.7);
+
+        // Nothing navigated: still the inbox, with the mail waiting behind it.
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+
+        await toggle.click();
+        await expect(shell).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(messageList).toBeVisible();
+        await expect(paneFrame).toBeHidden();
+    });
+
+    /**
+     * The handle reaches the same two ends the switch does. Dragging past the
+     * pane's maximum keeps moving, with resistance, and letting go past the
+     * threshold hands the row to the calendar — which is what the resistance
+     * was telling you was there.
+     */
+    test("dragging the handle past its limit switches to the full calendar", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+        await setPaneMode(page, "split");
+
+        const shell = page.locator("[data-calendar-mode]");
+        const handle = page.locator('[data-ui--split-target="handle"]');
+        await expect(handle).toBeVisible();
+
+        const box = (await handle.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        // Well past the ceiling: the threshold is 140px of raw overshoot, and
+        // the ceiling on a 1440px window is a few hundred px to the left.
+        await page.mouse.move(20, box.y + box.height / 2, { steps: 16 });
+        await page.mouse.up();
+
+        await expect(shell).toHaveAttribute("data-calendar-mode", "calendar");
+        await expect(page.locator("#message-list")).toBeHidden();
+    });
+
+    /**
+     * A view that needs seven columns gets the room for them.
+     *
+     * The pane draws the same grid the page does now, which means it can be
+     * asked to draw a week in 380px — seven slivers under an axis nobody can
+     * read. Choosing Week widens it instead, animated, and choosing Day again
+     * leaves the width alone: a width nobody asked for is annoying, one that
+     * shrinks back the moment you look at a single day is worse.
+     */
+    test("widening happens by itself when the pane is asked for a week", async ({ page }) => {
+        await page.setViewportSize({ width: 1600, height: 900 });
+        await ensurePaneClosed(page);
+        await setPaneMode(page, "split");
+
+        const pane = page.locator('[data-ui--split-target="pane"]');
+        const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
+        await expect(paneFrame).toBeVisible();
+
+        await page.locator('[data-ui--split-target="handle"]').dblclick();
+        await expect(pane).toHaveCSS("width", "380px");
+
+        await paneFrame.getByRole("link", { name: "Week" }).click();
+
+        // The transition is 180ms, so poll rather than reading once.
+        await expect
+            .poll(async () => (await pane.boundingBox())!.width, { timeout: 2_000 })
+            .toBeGreaterThanOrEqual(720);
+
+        // And Day does not take it back. `exact`, because "Today" sits in the
+        // same toolbar and matches a loose "Day".
+        const day = paneFrame.getByRole("link", { name: "Day", exact: true });
+
+        await day.click();
+        await expect(day).toHaveAttribute("aria-current", "page");
+
+        expect((await pane.boundingBox())!.width).toBeGreaterThanOrEqual(720);
+    });
+
+    /** And the other end: dragging it shut hands the row back to the mail. */
+    test("dragging the handle past the pane's minimum closes it", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await ensurePaneClosed(page);
+        await setPaneMode(page, "split");
+
+        const shell = page.locator("[data-calendar-mode]");
+        const handle = page.locator('[data-ui--split-target="handle"]');
+
+        // From the default width, so the drag has a known distance to cover —
+        // and waited for, because the reset is animated: grabbing the handle
+        // mid-transition freezes the pane wherever it had got to, which is the
+        // right behaviour and the wrong starting point for a fixed-distance
+        // drag.
+        await handle.dblclick();
+        await expect(page.locator('[data-ui--split-target="pane"]')).toHaveCSS("width", "380px");
+
+        const box = (await handle.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(
+            box.x + box.width / 2 + 400,
+            box.y + box.height / 2,
+            { steps: 16 },
+        );
+        await page.mouse.up();
+
+        await expect(shell).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(page.locator('[data-ui--split-target="wrapper"]')).toBeHidden();
     });
 
     test("remembers its width across a reload", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const pane = page.locator('[data-ui--split-target="pane"]');
         await expect(pane).toBeVisible();
@@ -563,7 +713,7 @@ test.describe("calendar pane", () => {
     test("the event dialog is not clipped by the pane", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -583,7 +733,7 @@ test.describe("calendar pane", () => {
     test("reaches the month view from inside the pane", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
@@ -600,30 +750,54 @@ test.describe("calendar pane", () => {
         await expect(page.locator("#message-list")).toBeVisible();
     });
 
+    /**
+     * The clamp still holds for a drag that stays inside the rubber band.
+     *
+     * Deliberately not "drag as far left as possible": that is now a way of
+     * asking for the full-width calendar, and it has its own test. What this
+     * pins is the settle — go past the ceiling by less than the threshold, let
+     * go, and the pane comes back to a width that leaves the mail its minimum.
+     */
     test("will not squeeze the mail pane below its minimum", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
         await ensurePaneClosed(page);
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const mainPane = page.locator('[data-ui--split-target="main"]');
+        const pane = page.locator('[data-ui--split-target="pane"]');
         const handle = page.locator('[data-ui--split-target="handle"]');
         await expect(handle).toBeVisible();
 
-        // Drag far past anywhere sensible: the clamp is what is under test, not
-        // the arithmetic of a modest drag.
+        await handle.dblclick();
+        await expect(pane).toHaveCSS("width", "380px");
+
+        // How far left the ceiling is from here, worked out the way the
+        // controller does — the two panes' combined width less the mail's
+        // minimum, capped at the pane's own maximum. Overshooting it by 100
+        // engages the band and stays under the 140px threshold, so releasing
+        // settles rather than switching.
+        const paneWidth = (await pane.boundingBox())!.width;
+        const combined = paneWidth + (await mainPane.boundingBox())!.width;
+        const ceiling = Math.min(900, combined - 340);
+
         const box = (await handle.boundingBox())!;
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        const from = box.x + box.width / 2;
+
+        await page.mouse.move(from, box.y + box.height / 2);
         await page.mouse.down();
-        await page.mouse.move(20, box.y + box.height / 2, { steps: 12 });
+        await page.mouse.move(from - (ceiling - paneWidth) - 100, box.y + box.height / 2, { steps: 12 });
         await page.mouse.up();
 
-        expect((await mainPane.boundingBox())!.width).toBeGreaterThanOrEqual(339);
+        // The settle is animated, so give it the transition's length.
+        await expect
+            .poll(async () => (await mainPane.boundingBox())!.width, { timeout: 2_000 })
+            .toBeGreaterThanOrEqual(339);
     });
 
     test("centres its grip in the gap between the panes", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensurePaneClosed(page);
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
 
         const mainPane = page.locator('[data-ui--split-target="main"]');
         const pane = page.locator('[data-ui--split-target="pane"]');
@@ -657,7 +831,7 @@ test.describe("calendar pane", () => {
 
         await expect(layout).toHaveCSS("flex-direction", "row");
 
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "split");
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
 
         // Drag the pane out to its limit, which is where the list is tightest.
@@ -684,7 +858,11 @@ test.describe("calendar pane", () => {
         const mailPane = page.locator(".main-pane").first();
         await expect(mailPane).toBeVisible();
 
-        await page.locator("[data-calendar-toggle]").click();
+        // Split, not calendar: below lg the row cannot hold both, so the middle
+        // position already looks like the last one. That is the case under
+        // test — the switch keeps three stops whatever the width, and the width
+        // decides what the middle one looks like.
+        await setPaneMode(page, "split");
 
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
         await expect(mailPane).toBeHidden();
@@ -692,7 +870,7 @@ test.describe("calendar pane", () => {
         // Still /mail/inbox — nothing navigated.
         await expect(page).toHaveURL(/\/mail\/inbox/);
 
-        await page.locator("[data-calendar-toggle]").click();
+        await setPaneMode(page, "mail");
         await expect(mailPane).toBeVisible();
     });
 

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
+use App\Domain\Enum\User\ClockFormat;
 use App\Domain\Helper\TimezoneHelper;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
+use App\Service\User\ClockFormatResolver;
 use App\Service\User\ProfileSectionViewData;
 use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
@@ -52,6 +54,7 @@ final class SettingsController extends AbstractController
         private readonly ProfileSectionViewData $profileSection,
         private readonly SecuritySectionViewData $securitySection,
         private readonly UserTimezoneResolver $timezones,
+        private readonly ClockFormatResolver $clocks,
     ) {
     }
 
@@ -152,6 +155,7 @@ final class SettingsController extends AbstractController
         }
 
         $zone = $this->timezones->resolve($user);
+        $now  = new \DateTimeImmutable('now', $zone);
 
         return [
             'timezoneGroups'  => TimezoneHelper::grouped(),
@@ -160,7 +164,22 @@ final class SettingsController extends AbstractController
             // Rendered here rather than in the template so the sample is
             // unambiguously the picked zone, not whatever Twig is currently set
             // to — the point of the line is to let someone check their choice.
-            'currentTime'     => new \DateTimeImmutable('now', $zone)->format('H:i'),
+            'currentTime'     => $now->format('H:i'),
+
+            // The clock picker, which belongs beside the zone: the two together
+            // are "what time is it, and how is it written". Its samples are
+            // rendered here for the same reason the line above is — a sample
+            // formatted by the template would be formatted by the setting it is
+            // supposed to be demonstrating, so every option would read the same.
+            'clockOptions'    => [
+                ClockFormat::Twelve->value     => $now->format(ClockFormat::Twelve->time()),
+                ClockFormat::TwentyFour->value => $now->format(ClockFormat::TwentyFour->time()),
+            ],
+            'activeClock'     => $this->clocks->chosen($user)?->value,
+            'defaultClock'    => $now->format(
+                ClockFormat::forLocale(AppLocale::tryFromRequest($user->locale)
+                    ?? AppLocale::tryFromRequest($this->defaultLocale))->time(),
+            ),
         ];
     }
 

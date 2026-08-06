@@ -13,7 +13,10 @@ empty space under the grid.
 
 {% set dayKeys = days|keys %}
 {% set anchorMonth = anchor|date('n') %}
-{% set today = 'now'|date('Y-m-d') %}
+{# The view's clock, not the reader's: the day keys are grouped in it, so
+   asking a different one which day is today highlights the wrong cell for
+   however many hours the two are apart. #}
+{% set today = 'now'|date('Y-m-d', range.zone) %}
 
 <div class="h-full min-h-0 flex flex-col">
     <div class="grid grid-cols-7 shrink-0 border-b border-line">
@@ -72,7 +75,7 @@ empty space under the grid.
                 </div>
 
                 {% if dayEvents|length > 3 %}
-                    <a href="{{ path('app_calendar_view', { view: 'day', date: dayKey }) }}{{ compact|default(false) ? '?pane=1' : '' }}"
+                    <a href="{{ path('app_calendar_view', { view: 'day', date: dayKey }) }}{{ isPane|default(false) ? '?pane=1' : '' }}"
                        {% if frame|default(null) %}data-turbo-frame="{{ frame }}"{% endif %}
                        class="shrink-0 px-1.5 text-[11px] text-ink-faint hover:text-ink hover:underline">
                         {{ 'calendar.more_count'|trans({ '%count%': dayEvents|length - 3 }) }}

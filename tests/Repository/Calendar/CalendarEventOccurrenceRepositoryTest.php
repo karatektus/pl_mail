@@ -135,23 +135,49 @@ final class CalendarEventOccurrenceRepositoryTest extends KernelTestCase
     }
 
     /**
-     * "Happening Soon" is a window over the same table filtered on kind, which
-     * is what makes a second table for it unnecessary.
+     * "Happening Soon" is a window over the same table, which is what makes a
+     * second table for it unnecessary.
+     *
+     * It is deliberately NOT filtered on kind. It was, and that dropped every
+     * appointment the owner typed from the one list that claims to say what is
+     * coming up — so a hand-made occurrence is seeded here to pin its presence,
+     * not its absence.
      */
-    public function testUpcomingExtractedIgnoresHandMadeEvents(): void
+    public function testUpcomingListsWhatWasTypedBesideWhatWasExtracted(): void
     {
         $this->occurrence('2026-04-15 09:00', '2026-04-15 10:00');
         $this->occurrence('2026-04-16 09:00', '2026-04-16 10:00', kind: ExtractionKind::Delivery);
 
-        $found = $this->repository->findUpcomingExtracted(
+        $found = $this->repository->findUpcoming(
             $this->user,
             [(int) $this->calendar->id],
             new DateTimeImmutable('2026-04-13 00:00', new DateTimeZone('UTC')),
             new DateTimeImmutable('2026-04-20 00:00', new DateTimeZone('UTC')),
         );
 
+        self::assertCount(2, $found);
+        self::assertNull($found[0]->event->kind);
+        self::assertSame(ExtractionKind::Delivery, $found[1]->event->kind);
+    }
+
+    /** The window still has both edges, and the cap is still a cap. */
+    public function testUpcomingHonoursItsWindowAndItsLimit(): void
+    {
+        $this->occurrence('2026-04-12 09:00', '2026-04-12 10:00');
+        $this->occurrence('2026-04-15 09:00', '2026-04-15 10:00');
+        $this->occurrence('2026-04-16 09:00', '2026-04-16 10:00');
+        $this->occurrence('2026-04-25 09:00', '2026-04-25 10:00');
+
+        $found = $this->repository->findUpcoming(
+            $this->user,
+            [(int) $this->calendar->id],
+            new DateTimeImmutable('2026-04-13 00:00', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2026-04-20 00:00', new DateTimeZone('UTC')),
+            limit: 1,
+        );
+
         self::assertCount(1, $found);
-        self::assertSame(ExtractionKind::Delivery, $found[0]->event->kind);
+        self::assertSame('2026-04-15', $found[0]->startsAt->format('Y-m-d'));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

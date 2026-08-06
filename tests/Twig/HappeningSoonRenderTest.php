@@ -26,11 +26,11 @@ use Twig\Extension\CoreExtension;
  * The "Happening Soon" panel, actually rendered.
  *
  * A template test rather than more reader tests, because what is left to go
- * wrong here is not in the PHP. The row's icon comes off an enum METHOD
- * (`row.kind.icon`) and Twig resolves that by name at runtime: rename it, or let
- * it quietly become a property, and every row renders an empty `class` — valid
- * Twig, valid PHP, twelve blank squares, and a green suite. `lint:twig` cannot
- * see it either; it parses.
+ * wrong here is not in the PHP. The row's icon comes off a METHOD (`row.icon`)
+ * and Twig resolves that by name at runtime: rename it, or let it quietly become
+ * a property, and every row renders an empty `class` — valid Twig, valid PHP,
+ * twelve blank squares, and a green suite. `lint:twig` cannot see it either; it
+ * parses.
  *
  * Two more things are asserted here and nowhere else, because both are only
  * true in the markup. The provenance link has to carry `data-turbo-frame="_top"`
@@ -92,6 +92,21 @@ final class HappeningSoonRenderTest extends KernelTestCase
 
         self::assertStringContainsString('fa-plane', $html, 'the icon comes off the enum');
         self::assertStringContainsString('fa-box', $html);
+    }
+
+    /**
+     * An event the owner typed has no kind, and the panel lists it now — so the
+     * icon column must still draw something. A hole there reads as a row that
+     * failed to load, which is exactly what a fallback exists to prevent.
+     */
+    public function testARowWithNoKindStillWearsAnIcon(): void
+    {
+        $html = $this->render([$this->row('Dentist', null)]);
+
+        self::assertStringContainsString('Dentist', $html);
+        // A clock, not a calendar: this icon is also the topbar trigger's, and
+        // the trigger sits next to the calendar switch — see the constant.
+        self::assertStringContainsString('fa-regular fa-clock', $html);
     }
 
     public function testARowSaysWhatIsHappeningAndWhen(): void
@@ -159,7 +174,7 @@ final class HappeningSoonRenderTest extends KernelTestCase
         $html = $this->render([]);
 
         self::assertStringContainsString('Nothing coming up', $html);
-        self::assertStringContainsString('Flights, deliveries', $html, 'the empty state says what would appear here');
+        self::assertStringContainsString('reservations and tickets', $html, 'the empty state says what would appear here');
         self::assertStringNotContainsString('<ul', $html);
     }
 
@@ -171,7 +186,7 @@ final class HappeningSoonRenderTest extends KernelTestCase
         return $this->twig->render('calendar/_happening_soon.html.twig', ['rows' => $rows]);
     }
 
-    private function row(string $title, ExtractionKind $kind, ?Message $source = null): HappeningSoonRow
+    private function row(string $title, ?ExtractionKind $kind, ?Message $source = null): HappeningSoonRow
     {
         $event        = new CalendarEvent();
         $event->title = $title;
@@ -184,7 +199,7 @@ final class HappeningSoonRenderTest extends KernelTestCase
 
         $row = HappeningSoonRow::of($occurrence, $source);
 
-        self::assertNotNull($row, 'an extracted occurrence must produce a row');
+        self::assertNotNull($row, 'a dated occurrence must produce a row');
 
         return $row;
     }

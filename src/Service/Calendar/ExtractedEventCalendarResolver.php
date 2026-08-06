@@ -12,10 +12,24 @@ use App\Repository\Calendar\CalendarRepository;
 /**
  * Which calendar an extracted event belongs on.
  *
- * "The calendar the email came from, configurable" — the account's own
- * calendar by default, which CalendarProvisioner creates alongside the account
- * so the answer always exists, and an override in Account::$settings for the
- * user who wants everything in one place.
+ * **The user's default calendar**, with an override in Account::$settings for
+ * anyone who wants a particular mailbox's bookings kept apart.
+ *
+ * It used to be the account's own calendar — the one CalendarProvisioner
+ * creates alongside every account — on the reasoning that an event should land
+ * where the mail that carried it lives. That reasoning is right about mail and
+ * wrong about a calendar. A person has one diary; the fact that a flight
+ * confirmation happened to arrive at the work address rather than the private
+ * one is a property of the message, not of the flight, and filing by it splits
+ * one day across as many calendars as the user has mailboxes. Worse, it is
+ * silent: the per-account calendar is visible and coloured like any other, so
+ * the event *is* on screen and simply not where the owner would look for it,
+ * and every "where did my appointment go?" has the same invisible cause.
+ *
+ * The per-account calendars still exist and are still provisioned — they are
+ * what SETTING_CALENDAR_TARGET points at when somebody does want the split, and
+ * what a mirrored provider calendar attaches to. They are no longer the default
+ * answer.
  *
  * The override is validated against the user rather than trusted: a setting is
  * a string in a jsonb bag, and a calendar id that has since been deleted, or
@@ -47,12 +61,11 @@ final readonly class ExtractedEventCalendarResolver
             }
         }
 
-        // Provisioned with the account, but resolve rather than assume: an
-        // account added before calendars existed has not been backfilled until
-        // someone runs the task, and an event arriving first should still land
-        // somewhere.
-        return $this->calendars->findForAccount($account)
-            ?? $this->provisioner->forAccount($account)
-            ?? $this->provisioner->defaultFor($user);
+        // Provisioned with the user, but go through the provisioner rather than
+        // the repository: a user created before calendars existed has not been
+        // backfilled until someone runs the task, and an event arriving first
+        // should still land somewhere. defaultFor() find-or-creates, so this
+        // never answers null for a real user.
+        return $this->provisioner->defaultFor($user);
     }
 }

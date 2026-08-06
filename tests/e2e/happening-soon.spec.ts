@@ -3,16 +3,24 @@ import { test } from "./support/test";
 import { INBOX_SUBJECTS, TEST_USER, consoleCommand, seed } from "./support/config";
 
 /**
- * "Happening Soon" — the bookings plMail read out of mail, opened from the
- * topbar.
+ * "Happening Soon" — what is coming up, opened from the topbar.
  *
  * A browser spec rather than more render tests because the two things that can
  * go wrong here are only true in a browser. The trigger is conditional markup
- * on every authenticated page, so "it appears when there is something and not
- * when there is not" cannot be asserted anywhere else; and the provenance link
- * lives inside a <turbo-frame>, where Turbo's default is to load a click into
- * the frame it came from — the failure is a whole mailbox rendered inside a
- * dialog, which every server-side test in this repo would call a 200.
+ * on every authenticated page, so "it appears when there is something" cannot be
+ * asserted anywhere else; and the provenance link lives inside a <turbo-frame>,
+ * where Turbo's default is to load a click into the frame it came from — the
+ * failure is a whole mailbox rendered inside a dialog, which every server-side
+ * test in this repo would call a 200.
+ *
+ * **Everything here is asserted about the seeded booking's own row**, never
+ * about the panel being otherwise empty or about which row is first. The panel
+ * lists what the owner typed as well as what was read out of mail, so anything
+ * else on this user's calendar — a fixture another spec file left behind, an
+ * event a person made while looking at the app — is legitimately in it too. A
+ * spec that assumed an empty calendar was asserting the absence of other specs.
+ * The empty state itself is pinned where it can be reached honestly, in
+ * HappeningSoonRenderTest.
  *
  * Seeds and clears its own fixture. The seeded booking would otherwise leave a
  * topbar button on this worker's user for whichever spec file runs next, and
@@ -21,9 +29,8 @@ import { INBOX_SUBJECTS, TEST_USER, consoleCommand, seed } from "./support/confi
 
 const TITLE = "E2E flight to Berlin";
 
-/** What the trigger and the empty state are worded as, from messages.en.yaml. */
+/** What the trigger is worded as, from messages.en.yaml. */
 const OPEN_LABEL = "What is happening soon";
-const NOTHING = "Nothing coming up";
 
 function clearFixture(): void {
     consoleCommand(`app:test:seed-extracted-event --email=${TEST_USER.email} --clear`);
@@ -42,16 +49,28 @@ test.describe("happening soon", () => {
         clearFixture();
     });
 
-    test("the topbar offers the booking that is coming up", async ({ page }) => {
+    test("the topbar offers the panel when something is coming up", async ({ page }) => {
         await page.goto("/mail/inbox");
 
-        const trigger = page.getByRole("button", { name: OPEN_LABEL });
+        await expect(page.getByRole("button", { name: OPEN_LABEL })).toBeVisible();
+    });
 
-        await expect(trigger).toBeVisible();
+    /**
+     * The icon is the kind's, off ExtractionKind::icon() — a plane says both
+     * "there is a reason to look" and what the reason is.
+     *
+     * Read off the booking's own row rather than off the topbar trigger, which
+     * wears whichever thing is soonest and is therefore a claim about the rest
+     * of the calendar rather than about this booking.
+     */
+    test("the booking's row wears its kind", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("button", { name: OPEN_LABEL }).click();
 
-        // The icon is the kind's, off ExtractionKind::icon() — a plane says
-        // both "there is a reason to look" and what the reason is.
-        await expect(trigger.locator("i")).toHaveClass(/fa-plane/);
+        const row = page.locator("#modal-backdrop li").filter({ hasText: TITLE });
+
+        await expect(row).toBeVisible();
+        await expect(row.locator("i.fa-plane")).toBeVisible();
     });
 
     test("the panel names the booking and the mail it was read out of", async ({ page }) => {
@@ -88,19 +107,22 @@ test.describe("happening soon", () => {
     });
 
     /**
-     * Last, because it takes the fixture away. Both halves matter: an empty
-     * panel has to read as an answer rather than as a failed load, and the
-     * topbar must stop offering a panel there is nothing to open.
+     * Last, because it takes the fixture away.
+     *
+     * Asserts the booking is gone rather than that the panel is empty: the panel
+     * lists the owner's own events too, so "empty" is a claim about every other
+     * spec file that has run against this user. What must be true is that
+     * dropping the row drops its line — see the note at the top of this file,
+     * and HappeningSoonRenderTest for the empty state itself.
      */
-    test("nothing coming up reads as an answer, and the topbar stops offering it", async ({ page }) => {
+    test("a booking that is gone stops being listed", async ({ page }) => {
         clearFixture();
 
         await page.goto("/calendar/soon");
 
-        await expect(page.getByText(NOTHING)).toBeVisible();
-
-        await page.goto("/mail/inbox");
-
-        await expect(page.getByRole("button", { name: OPEN_LABEL })).toHaveCount(0);
+        await expect(page.getByText(TITLE)).toHaveCount(0);
+        await expect(
+            page.getByRole("link", { name: `From ${INBOX_SUBJECTS.read}` }),
+        ).toHaveCount(0);
     });
 });

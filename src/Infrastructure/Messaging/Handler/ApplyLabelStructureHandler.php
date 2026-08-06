@@ -6,8 +6,10 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
+use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Label\LabelRepository;
 use App\Domain\Enum\Mail\LabelColor;
 use App\Service\Gmail\GmailLabelColorMapper;
@@ -19,6 +21,7 @@ use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Mirrors a label create/rename/delete onto Gmail or Microsoft.
@@ -32,9 +35,20 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class ApplyLabelStructureHandler
 {
+    /**
+     * How many message ids go into one re-tag job.
+     *
+     * The same 200 the rest of this application walks a mailbox in. Small
+     * enough that a failure retries a bounded amount of work, large enough that
+     * a label on ten thousand messages is fifty jobs rather than ten thousand.
+     */
+    private const int RETAG_BATCH = 200;
+
     public function __construct(
         private AccountRepository      $accountRepository,
         private LabelRepository        $labelRepository,
+        private MessageRepository      $messageRepository,
+        private MessageBusInterface    $bus,
         private GraphCategoryColorMapper $colorMapper,
         private GmailLabelColorMapper  $gmailColorMapper,
         private GmailApiClient         $gmailApiClient,
@@ -127,14 +141,8 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        if (ApplyLabelStructureMessage::ACTION_RENAME === $message->action && null !== $message->remoteId) {
-            if (true === $asFolder) {
-                $this->graphApiClient->patchFolder($account, $message->remoteId, $this->leafOf($message->fullName));
-
-                return;
-            }
-
-            $this->graphApiClient->patchMasterCategory($account, $message->remoteId, $message->fullName);
+        if (ApplyLabelStructureMessage::ACTION_RENAME === $message->action) {
+            $this->renameGraph($account, $message, $asFolder);
 
             return;
         }
@@ -161,7 +169,138 @@ final readonly class ApplyLabelStructureHandler
             $message->fullName,
             $this->colorMapper->toPreset(LabelColor::tryFrom((string) $label?->color)),
         );
-        $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), false);
+        $this->storeCategoryId($account, $message->labelId, (string) ($created['id'] ?? ''));
+    }
+
+    /**
+     * A rename, which is the one action that used to make things worse rather
+     * than merely not work.
+     *
+     * The old code required a remote id and, without one, fell through to the
+     * create branch below it — so renaming a category that had come *from*
+     * Outlook created a second master category under the new name and left the
+     * first standing. The next inbound sync then read that first one back and
+     * put the old label beside the new one. Nothing about that looked like an
+     * error anywhere.
+     *
+     * Two things fix it. A rename never falls through to a create: if there is
+     * nothing to address, the correct outcome is to say so and stop. And an
+     * Exchange master category can be addressed by the name it had, because
+     * that IS its identity there — the GUID is a convenience plMail records
+     * when it can, not the only handle.
+     *
+     * Renaming the master category is also not the whole job: Exchange stores
+     * the category on each message as a STRING, so every message carrying the
+     * old one keeps carrying it. Outlook's own rename dialog asks whether to
+     * re-tag the items; this does it without asking, because the alternative is
+     * a mailbox where the label exists twice — once as a category and once as
+     * loose text on the mail that used to have it.
+     */
+    private function renameGraph(Account $account, ApplyLabelStructureMessage $message, bool $asFolder): void
+    {
+        if (true === $asFolder) {
+            if (null === $message->remoteId) {
+                $this->logger->warning('ApplyLabelStructure: no folder id to rename', [
+                    'accountId' => $message->accountId,
+                    'label'     => $message->fullName,
+                ]);
+
+                return;
+            }
+
+            $this->graphApiClient->patchFolder($account, $message->remoteId, $this->leafOf($message->fullName));
+
+            return;
+        }
+
+        $categoryId = $message->categoryRemoteId ?? $this->categoryIdByName($account, $message->previousFullName);
+
+        if (null === $categoryId) {
+            // Deliberately not a create. A rename that cannot find its subject
+            // has lost track of something, and inventing a second category is
+            // how one label became two.
+            $this->logger->warning('ApplyLabelStructure: no master category to rename', [
+                'accountId' => $message->accountId,
+                'from'      => $message->previousFullName,
+                'to'        => $message->fullName,
+            ]);
+
+            return;
+        }
+
+        $this->graphApiClient->patchMasterCategory($account, $categoryId, $message->fullName);
+
+        // Recorded now if it was only just discovered, so the next rename does
+        // not have to go looking.
+        $this->storeCategoryId($account, $message->labelId, $categoryId);
+
+        $this->retagMessages($account, $message->labelId);
+    }
+
+    /**
+     * The master category whose display name is this, or null.
+     *
+     * A list-and-scan rather than a filtered query: Graph exposes no filter on
+     * masterCategories, the collection is a couple of dozen rows for any real
+     * mailbox, and this runs once per rename.
+     */
+    private function categoryIdByName(Account $account, ?string $displayName): ?string
+    {
+        $needle = mb_strtolower(trim((string) $displayName));
+
+        if ('' === $needle) {
+            return null;
+        }
+
+        foreach ($this->graphApiClient->listMasterCategories($account) as $category) {
+            if (mb_strtolower(trim((string) ($category['displayName'] ?? ''))) === $needle) {
+                $id = (string) ($category['id'] ?? '');
+
+                return '' === $id ? null : $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Push every message that carries this label again, so the category string
+     * stored on each one becomes the new name.
+     *
+     * ApplyGraphChangesMessage derives the whole categories array from the
+     * database rather than being told a delta, so re-dispatching it for a
+     * message is exactly "make Exchange agree with us about this message" —
+     * which after the rename is what is needed and nothing more.
+     *
+     * Batched, and bounded by the messages that actually hold the label rather
+     * than by the mailbox. A label on ten thousand messages really is ten
+     * thousand PATCHes; that is the cost of Exchange storing a tag as loose
+     * text, and the alternative is leaving the old name on all of them.
+     */
+    private function retagMessages(Account $account, ?int $labelId): void
+    {
+        if (null === $labelId) {
+            return;
+        }
+
+        $afterId = 0;
+
+        while (true) {
+            $ids = $this->messageRepository->findIdsWithLabelForAccount(
+                (int) $account->id,
+                $labelId,
+                $afterId,
+                self::RETAG_BATCH,
+            );
+
+            if ([] === $ids) {
+                return;
+            }
+
+            $this->bus->dispatch(new ApplyGraphChangesMessage((int) $account->id, $ids));
+
+            $afterId = (int) end($ids);
+        }
     }
 
     private function deleteGraph(Account $account, ApplyLabelStructureMessage $message, bool $asFolder): void
@@ -193,6 +332,31 @@ final readonly class ApplyLabelStructureHandler
      * (label, account) pair, and the same label pushed to two Gmail accounts
      * gets two different ids.
      */
+    /**
+     * The master category id, onto its own column.
+     *
+     * Emphatically not storeRemoteId(..., gmail: false), which is where this
+     * used to go: that writes graphFolderId, and GraphLabelPolicy reads
+     * graphFolderId to mean "this label is an Exchange folder". A category
+     * recorded there turned itself into a location on the next push.
+     */
+    private function storeCategoryId(Account $account, ?int $labelId, string $categoryId): void
+    {
+        if (null === $labelId || '' === $categoryId) {
+            return;
+        }
+
+        $label = $this->labelRepository->find($labelId);
+
+        if (null === $label) {
+            return;
+        }
+
+        $this->labelResolver->binding($label, $account)->graphCategoryId = $categoryId;
+
+        $this->em->flush();
+    }
+
     private function storeRemoteId(Account $account, ?int $labelId, string $remoteId, bool $gmail): void
     {
         if (null === $labelId || '' === $remoteId) {

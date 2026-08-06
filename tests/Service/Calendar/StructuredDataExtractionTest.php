@@ -858,11 +858,14 @@ final class StructuredDataExtractionTest extends KernelTestCase
         $this->account = $account;
 
         $provisioner = self::getContainer()->get(CalendarProvisioner::class);
-        $provisioner->defaultFor($user);
-        $calendar = $provisioner->forAccount($account);
-        $this->em->flush();
 
-        self::assertNotNull($calendar);
-        $this->calendar = $calendar;
+        // Both are provisioned, and the DEFAULT one is where extraction files
+        // its results — see ExtractedEventCalendarResolver. The per-account
+        // calendar is created here anyway because the fixture must reproduce
+        // the real shape: it exists, it is visible, and an event landing on it
+        // instead is exactly the regression this fixture would otherwise hide.
+        $this->calendar = $provisioner->defaultFor($user);
+        $provisioner->forAccount($account);
+        $this->em->flush();
     }
 }

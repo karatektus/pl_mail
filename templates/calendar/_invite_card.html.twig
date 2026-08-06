@@ -37,10 +37,14 @@ Variables:
 
                 <p class="text-xs text-ink-muted mt-0.5">
                     {% if event.isAllDay %}
-                        {{ event.startsAt|date('D, j M Y') }} · {{ 'calendar.event.all_day'|trans }}
+                        {# `false` leaves the value in its own zone. An all-day
+                           event is floating — a wall date at midnight, no zone
+                           — so converting it to the reader's clock moves it,
+                           and west of UTC that prints the day before. #}
+                        {{ event.startsAt|date('D, j M Y', false) }} · {{ 'calendar.event.all_day'|trans }}
                     {% else %}
                         {{ event.startsAt|date('D, j M Y') }} ·
-                        {{ event.startsAt|date('g:i a') }}–{{ event.endsAt|date('g:i a') }}
+                        {{ event.startsAt|date(clock.time) }}–{{ event.endsAt|date(clock.time) }}
                     {% endif %}
                 </p>
 

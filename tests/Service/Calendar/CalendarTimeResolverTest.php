@@ -60,6 +60,40 @@ final class CalendarTimeResolverTest extends TestCase
     }
 
     /**
+     * The exception to the line above, and the bug it caused: an all-day event
+     * also has no zone, and it does not have one *on purpose*. It is floating —
+     * a wall date at midnight, the same day everywhere — which is how
+     * RecurrenceMaterialiser expands it. Falling back to the calendar's zone
+     * here read midnight UTC as an instant and rendered it two hours later, so
+     * every all-day invitation a Berlin user received opened in the editor
+     * reading "02:00 – 02:00". West of UTC it moves onto the day before.
+     */
+    public function testAnAllDayEventIsFloatingAndReadsInUtc(): void
+    {
+        $resolver = $this->resolver('Europe/Berlin');
+
+        $event           = new CalendarEvent();
+        $event->isAllDay = true;
+
+        self::assertSame('UTC', $resolver->eventZone($event, new User())->getName());
+    }
+
+    /**
+     * And it wins over a zone the row happens to carry. Some sources stamp one
+     * on an all-day event anyway; honouring it would move the event by that
+     * zone's offset for no gain, since a floating date has no instant to
+     * translate.
+     */
+    public function testAnAllDayEventIgnoresAZoneItWasStoredWith(): void
+    {
+        $event           = new CalendarEvent();
+        $event->isAllDay = true;
+        $event->timeZone = 'America/New_York';
+
+        self::assertSame('UTC', $this->resolver('Europe/Berlin')->eventZone($event, new User())->getName());
+    }
+
+    /**
      * The date in a route segment is a day, not an instant: it has to start at
      * local midnight, or a week view anchored on it renders the wrong week for
      * anyone east of UTC.

@@ -705,6 +705,7 @@ calendar:
         call: Call
         delivery: Delivery
         dining: Reservation
+        event: Appointment
         flight: Flight
         lodging: Stay
         meeting: Meeting
@@ -717,6 +718,10 @@ calendar:
         next: Next
         previous: Previous
     pane:
+        mode:
+            calendar: Show the calendar full width
+            mail: Show the mail
+            split: Show the calendar beside the mail
         resize: Resize the calendar
     proposal:
         action:
@@ -806,8 +811,9 @@ calendar:
     soon:
         empty: Nothing coming up
         empty_hint: >-
-            Flights, deliveries, reservations and tickets found in your mail
-            appear here for the next two weeks.
+            Appointments in your calendar, and the flights, deliveries,
+            reservations and tickets found in your mail, appear here for the
+            next two weeks.
         from: 'From %subject%'
         open: What is happening soon
         title: Happening soon
@@ -1279,6 +1285,14 @@ settings:
         refresh: 'Refresh from provider'
         subheading: 'Addresses this account sends and receives as.'
         system: 'system'
+    clock:
+        heading: Clock
+        subheading: Whether times are written on a twelve- or twenty-four-hour clock. Nothing is stored differently — only the digits change.
+        label: Clock
+        follow_language: 'Follow your language (%sample%)'
+        option:
+            '12': '12-hour (%sample%)'
+            '24': '24-hour (%sample%)'
     device_pairing:
         pair_device: "Pair a device"
         scan_title: "Scan this with the plMail app"

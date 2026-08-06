@@ -93,6 +93,29 @@ final readonly class GraphCategorySyncer
             if (null !== $label) {
                 $created++;
 
+                // The category's id, recorded on the binding.
+                //
+                // Not decoration: without it, renaming this label in plMail had
+                // nothing to address at the provider, fell through to the
+                // create branch, and produced a SECOND category under the new
+                // name while the old one stayed — which the next run of this
+                // very method then imported back as a label beside the renamed
+                // one. See ApplyLabelStructureHandler::renameGraph().
+                //
+                // Deliberately NOT graphFolderId, where the create path used to
+                // put it: GraphLabelPolicy reads that column to mean "this label
+                // is an Exchange folder", so a category recorded there starts
+                // being pushed as a location. See LabelBinding.
+                //
+                // Only for the LEAF of a "Work/Invoices" chain — the ancestors
+                // are labels plMail invented to hold the tree, and no category
+                // on the remote corresponds to them.
+                $categoryId = trim((string) ($category['id'] ?? ''));
+
+                if ('' !== $categoryId) {
+                    $this->labelResolver->binding($label, $account)->graphCategoryId = $categoryId;
+                }
+
                 // Only onto a label with no colour: a colour picked in plMail
                 // outranks the one Outlook happens to carry, and re-reading it
                 // on every sync is exactly the round trip that would make a

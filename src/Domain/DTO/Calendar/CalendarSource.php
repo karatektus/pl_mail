@@ -55,10 +55,11 @@ final readonly class CalendarSource
     /**
      * The source a calendar already bound to a remote came from.
      *
-     * Returns null for a calendar that mirrors nothing — a hand-made one, or
-     * the per-account calendar extraction writes to. A caller that has one of
-     * those and asks for a driver has made a mistake, and a null here is what
-     * lets the sync service say so instead of guessing.
+     * Returns null for a calendar that mirrors nothing — a hand-made one, the
+     * user's default (which is where extraction writes), or a per-account one.
+     * A caller that has one of those and asks for a driver has made a mistake,
+     * and a null here is what lets the sync service say so instead of
+     * guessing.
      */
     public static function ofCalendar(Calendar $calendar): ?self
     {

@@ -2,8 +2,9 @@
 Day and week as a time-grid: hours down the side, an event drawn where it is
 and as long as it is, and draggable.
 
-Only ever reached from the full calendar page — _grid.html.twig picks between
-this and the column list on `isPane`, and the reasoning for that lives there.
+Reached from the full calendar page and from the docked pane alike: there is one
+calendar here and the pane is a narrower window onto it, not a lesser version of
+it. _grid.html.twig says why the pane no longer gets a list of its own.
 
 Accepts (all from CalendarController::viewData):
   days    array<Y-m-d, list<OccurrenceCluster>>  — the day walk, for the keys
@@ -32,20 +33,26 @@ expressible at all. It is deliberately not a drop target: dragging a timed event
 into it would mean "make this all-day", which is a change of kind rather than of
 time, and the editor is where kinds are changed.
 
-Deliberately absent: clicking empty grid space does not create an event. Each
-day header keeps the same + button the column list has, which is a real tab
-stop; a click-to-create on the background would have to be told apart from the
-end of a drag on every pointerup, and drag-to-create is its own piece of work.
+**Double-clicking empty grid space creates an event there**, at the quarter hour
+under the pointer. A single click deliberately does not, and that is the whole
+reason it is a double: a single click on the background has to be told apart
+from the end of a drag on every pointerup, and getting that wrong opens a dialog
+every time somebody finishes moving a meeting. A double-click is unambiguous, is
+what every other calendar uses for this, and needs no gesture arbitration at all.
+
+The + button in each day heading stays, and is not redundant: it is the real tab
+stop, and a double-click is not a gesture a keyboard has.
 
 **A known limitation, stated rather than hidden: a seven-day week is tight below
-about 640px.** The columns divide whatever width there is, so on a phone each is
-around fifty pixels and a block says its colour and little else. It is not
-solved here because the only fixes are disproportionate — a horizontal scroll
-means either three scroll containers kept in step by JavaScript or rewriting the
-three grids below as one with sticky rows and a sticky gutter — and the paths a
-phone actually takes into the calendar do not hit it: the pane, which is what
-opens from the mail, keeps the agenda, and the toolbar's Day view is one tap
-away and is a single full-width column. Worth revisiting; not worth guessing at.
+about 640px.** The columns divide whatever width there is, so on a phone, or in
+a narrow docked pane, each is around fifty pixels and a block says its colour and
+little else. It is not solved here because the only fixes are disproportionate —
+a horizontal scroll means either three scroll containers kept in step by
+JavaScript or rewriting the three grids below as one with sticky rows and a
+sticky gutter. What answers it instead is that neither width is forced on anyone:
+the pane opens on the agenda, Day view is one tap away in the toolbar and is a
+single full-width column, and the pane's own handle widens it as far as the
+window allows. Worth revisiting; not worth guessing at.
 #}
 
 {% set dayKeys = days|keys %}
@@ -63,21 +70,44 @@ away and is a single full-width column. Worth revisiting; not worth guessing at.
 <div class="h-full min-h-0 flex flex-col"
      data-controller="calendar--time-grid"
      data-action="pointerdown->calendar--time-grid#pointerdown
+                  dblclick->calendar--time-grid#createAt
                   keydown->calendar--time-grid#keydown"
      data-calendar--time-grid-snap-value="15"
+     data-calendar--time-grid-new-event-url-value="{{ path('app_calendar_event_new') }}"
      data-calendar--time-grid-read-only-message-value="{{ 'calendar.grid.read_only'|trans }}"
      data-calendar--time-grid-pending-message-value="{{ 'calendar.grid.pending'|trans }}"
      data-calendar--time-grid-reverted-message-value="{{ 'calendar.grid.reverted'|trans }}"
 >
+    {# ── One scroll container, three grids ─────────────────────────────────
+       The day headings, the all-day band and the hours are all inside the
+       scroller, with the first two stuck to its top rather than sitting above
+       it as siblings.
+
+       That is the fix for a misalignment nobody could see the cause of: as
+       siblings, the two pinned rows were as wide as the pane and the hours were
+       as wide as the pane MINUS the scrollbar, so every day column below sat a
+       scrollbar's width left of its own heading. Reserving the gutter on the
+       other two is not expressible in CSS — `scrollbar-gutter` applies to
+       scroll containers and these are not — so the only honest answer is for
+       all three to be measured by the same box. Sharing one is also what makes
+       a horizontal scroll possible later, which is the open question in the
+       note at the top of this file.
+
+       The offsets are a fixed 2rem because a sticky element needs a number:
+       `top-0` for the headings, `top-8` for the band under them, and the
+       headings are given `h-8` so the two agree. #}
+    <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
+
     {# ── The day headings ──────────────────────────────────────────────── #}
-    <div class="shrink-0 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
+    <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
         <div class="border-r border-line" aria-hidden="true"></div>
 
         {% for dayKey in dayKeys %}
             {% set isToday = dayKey == today %}
 
-            <div class="group/day flex items-baseline gap-1.5 px-2 py-1.5 border-r border-line
-                        {{ isToday ? 'bg-accent/5' : '' }}">
+            <div class="group/day flex items-baseline gap-1.5 px-2 border-r border-line
+                        {{ isToday ? 'bg-accent/5' : '' }}"
+                 data-calendar--time-grid-target="heading">
                 <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
                     {{ dayKey|date('D', zone) }}
                 </span>
@@ -110,7 +140,7 @@ away and is a single full-width column. Worth revisiting; not worth guessing at.
     </div>
 
     {# ── All day ───────────────────────────────────────────────────────── #}
-    <div class="shrink-0 grid border-b border-line bg-surface max-h-24 overflow-y-auto"
+    <div class="sticky top-8 z-10 grid border-b border-line bg-surface max-h-24 overflow-y-auto"
          style="grid-template-columns: {{ columnTemplate }}">
         <div class="border-r border-line px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint text-right">
             {{ 'calendar.grid.all_day'|trans }}
@@ -127,19 +157,27 @@ away and is a single full-width column. Worth revisiting; not worth guessing at.
     </div>
 
     {# ── The hours ─────────────────────────────────────────────────────── #}
-    <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
-        <div class="grid" style="grid-template-columns: {{ columnTemplate }}">
+        <div class="grid" style="grid-template-columns: {{ columnTemplate }}"
+             data-calendar--time-grid-target="hours">
 
             {# The gutter's labels sit ON the hour line rather than inside the
                row below it, which is why they are nudged up by half their own
                height — a "10:00" printed at the top of the 10:00 row appears to
-               label the space between 10 and 11. #}
+               label the space between 10 and 11.
+
+               Formatted through `clock.hour` rather than printed as digits, so
+               the axis reads "9 am" for anyone on a twelve-hour clock. The date
+               it is formatted FROM is arbitrary and must be — the label says
+               which hour, not which day — so it is built at midnight UTC and
+               read back in UTC, which is what `false` does here. Handing it the
+               reader's zone instead would shift every label by their offset and
+               produce a gutter starting at 02:00. #}
             <div class="border-r border-line">
                 {% for hour in 0..23 %}
                     <div class="relative h-12">
                         {% if hour > 0 %}
                             <span class="absolute -top-1.5 right-1.5 text-[10px] tabular-nums text-ink-faint">
-                                {{ '%02d:00'|format(hour) }}
+                                {{ ('2000-01-01 %02d:00:00'|format(hour))|date(clock.hour, false) }}
                             </span>
                         {% endif %}
                     </div>
@@ -262,7 +300,23 @@ away and is a single full-width column. Worth revisiting; not worth guessing at.
                 </div>
             {% endfor %}
         </div>
-    </div>
+    </div>{# /scroller #}
+
+    {# The double-click's way into the editor.
+       Hidden, and carrying the modal controller itself, because a Stimulus
+       action only reaches controllers mounted on an ancestor and this one lives
+       on #modal-backdrop — the same reason every chip carries its own. The grid
+       writes the URL onto it and clicks it, which is exactly what a user
+       pressing a + button does, so there is one path into the editor rather
+       than two. #}
+    <button type="button" hidden
+            data-calendar--time-grid-target="newTrigger"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-src-value=""
+            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+            tabindex="-1"
+            aria-hidden="true"></button>
 
     {# ── What the grid says back ───────────────────────────────────────── #}
 

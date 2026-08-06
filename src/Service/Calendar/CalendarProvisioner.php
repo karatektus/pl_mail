@@ -16,9 +16,12 @@ use Doctrine\ORM\EntityManagerInterface;
  * Makes sure a user always has somewhere to put an event.
  *
  * Two calendars are provisioned rather than left to the user: one personal
- * default, and one per mail account. The per-account one is what makes "the
- * calendar the email came from" a thing that exists — an extracted event has a
- * home the moment its account does, with nobody having to have set it up first.
+ * default, and one per mail account. The default is where extracted events land
+ * — see ExtractedEventCalendarResolver — so an event has a home the moment its
+ * owner does. The per-account one is what makes "the calendar the email came
+ * from" a thing that exists at all, for the user who points
+ * Account::SETTING_CALENDAR_TARGET at it, and what a mirrored provider calendar
+ * attaches to.
  *
  * Idempotent throughout, because it is called from three places that can each
  * happen twice: account creation, the backfill task, and any page that finds a
@@ -73,7 +76,7 @@ final readonly class CalendarProvisioner
     }
 
     /**
-     * The calendar mail from this account lands on.
+     * The calendar bound to one mail account.
      *
      * Named after the account's address rather than something generic, because
      * a user with four accounts is about to have four of these and "Calendar"
