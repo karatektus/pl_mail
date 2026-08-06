@@ -139,15 +139,16 @@ final class ContactAutocompleteMethod implements JmapMethod
         return [
             'name' => '' === (string) $contact->displayName ? null : $contact->displayName,
             'email' => (string) $contact->email,
-            // The sort key: how many times this address has been seen in a
-            // header, in either direction.
+            // The two sort keys, in order: how many times this address has been
+            // seen in a header (in either direction), and when it was last
+            // seen. Returned as well as applied so a client can show or explain
+            // the order it was given rather than having to trust it.
             'frequency' => $contact->frequency,
-            // Recency, and whether the user has ever *written* to them as
-            // opposed to merely heard from them. Neither is in the SQL order
-            // today — see the README's deliberate limitations — so they are
-            // returned rather than applied, which at least lets a client
-            // distinguish a colleague from a newsletter of equal frequency.
             'lastSeenAt' => $this->utcOrNull($contact->lastSeenAt),
+            // Not a sort key. Whether the user has ever *written* to this
+            // address rather than merely heard from it — the same signal
+            // MessageCategorizer uses to pull somebody out of Promotions, and
+            // enough for a client to mark a real correspondent in the list.
             'isCorrespondent' => $contact->isCorrespondent,
         ];
     }

@@ -215,7 +215,9 @@ Get these wrong and things fail quietly rather than loudly.
   `{accountId, query, limit, list}` where each entry is a JMAP `EmailAddress`
   (`name`, `email` — the shape `EmailMapper` already emits, so it goes straight
   into an `Email/set` create) plus `frequency`, `lastSeenAt` and
-  `isCorrespondent`.
+  `isCorrespondent`. The list is ordered `frequency DESC, last_seen_at DESC`
+  by the same repository method the web composer uses, so both surfaces rank
+  identically.
 
   **No id, and that is the point.** A `contact` row's key is reachable from no
   other method, so publishing it would invite a client to cache and re-fetch by
@@ -395,16 +397,25 @@ worker message, so a sync importing 50 messages sends **one** notification.
   features; there is no address book to write to. The method is called
   `autocomplete` rather than `query` for the same honesty: a `/query` returns
   ids for a `/get` to resolve, and this returns objects.
-- **`Contact/autocomplete` ranks by `frequency` alone.** `lastSeenAt` and
-  `isCorrespondent` are returned but are not in the SQL `ORDER BY` —
-  `ContactRepository::findForAutocomplete()` sorts on `frequency DESC` and that
-  method is shared with the web composer, so changing the ranking changes both
-  surfaces at once and is a product decision rather than a JMAP one. Returned
-  rather than applied so a client can at least tell a colleague from a
-  newsletter of equal frequency, and so the day the ranking does grow a recency
-  term, nothing on the wire has to change. Ties within one frequency have no
-  defined order; there is no secondary sort, because sorting the page in PHP
+- **`Contact/autocomplete` ranks by `frequency DESC, last_seen_at DESC`**, and
+  the order is entirely the database's — nothing sorts the page in PHP, which
   would produce a list ordered only within the window the client asked for.
+  `ContactRepository::findForAutocomplete()` owns both keys and is shared with
+  the web composer, so the two surfaces rank identically; changing the ranking
+  changes both at once, deliberately. Recency is a **tie-break, not a
+  competitor**: somebody written to twenty times last year still outranks
+  somebody seen once this morning. It exists because ties are the common case
+  — most of an address book is people seen exactly once — and frequency alone
+  left those to whatever order Postgres returned, so the list reshuffled
+  between keystrokes. `isCorrespondent` is *not* a sort key; it is returned so
+  a client can mark somebody the user has actually written to.
+
+  The `ORDER BY` carries an explicit nulls-last `CASE`. DQL cannot say
+  `NULLS LAST` (the ORM 3.6 parser rejects it) and Postgres orders NULLs
+  **first** on a DESC sort, so the default would put never-seen contacts at the
+  top of every list. It cannot fire today — `last_seen_at` is NOT NULL and both
+  write paths stamp it — and is there so that making the column nullable later
+  does not silently invert the ranking.
 - **An empty `Contact/autocomplete` query is `invalidArguments`, where the HTML
   route returns `[]`.** A blank query LIKEs everything and would answer with the
   eight most frequent addresses to somebody who has typed nothing. Returning an

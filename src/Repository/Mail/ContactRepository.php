@@ -134,11 +134,38 @@ class ContactRepository extends ServiceEntityRepository
 
     /**
      * Autocomplete: return up to $limit contacts whose email or display_name
-     * starts with (or contains) the query string, ordered by frequency desc.
+     * starts with (or contains) the query string, most-written-to first and
+     * most-recently-seen within that.
      *
      * QueryBuilder because the test is four case-folded LIKEs joined by OR.
      * findBy() states equality on fields; prefix-or-substring across two
      * columns is not something it can be asked.
+     *
+     * **Frequency alone used to be the whole order**, which left every tie to
+     * whatever order Postgres happened to return — and ties are the common
+     * case, not the exotic one: most of an address book is people seen once.
+     * So the list a user saw could reshuffle between keystrokes, and the
+     * colleague mailed last week sat below a stranger from two years ago
+     * because both had frequency 1.
+     *
+     * Both surfaces read this one method — the JMAP `Contact/autocomplete` and
+     * the web composer's route — so the ranking is the same wherever somebody
+     * composes. That is the point of it being here rather than in either
+     * caller; two rankings would make the suggestion order depend on which
+     * device you happened to be addressing mail from.
+     *
+     * The CASE is how "NULLS LAST" is spelled: **DQL cannot say it** (the ORM
+     * 3.6 parser rejects `NULLS LAST` outright), and Postgres orders NULLs
+     * FIRST on a DESC sort, so leaving it to the database default would put
+     * never-seen contacts at the top of every suggestion list — silently, and
+     * exactly backwards.
+     *
+     * It cannot fire today: `last_seen_at` is NOT NULL (Version20260714094203,
+     * never altered since) and both write paths guarantee a value — the entity
+     * constructor sets it, and upsertBatch above writes `:now` on insert and on
+     * conflict alike. It is here for the day somebody makes the column
+     * nullable — an imported contact, a merge — because that change would
+     * otherwise invert this list and nothing would fail.
      *
      * @return Contact[]
      */
@@ -160,6 +187,8 @@ class ContactRepository extends ServiceEntityRepository
             ->setParameter('prefix',   mb_strtolower($query) . '%')
             ->setParameter('contains', '%' . mb_strtolower($query) . '%')
             ->orderBy('c.frequency', 'DESC')
+            ->addOrderBy('CASE WHEN c.lastSeenAt IS NULL THEN 1 ELSE 0 END', 'ASC')
+            ->addOrderBy('c.lastSeenAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

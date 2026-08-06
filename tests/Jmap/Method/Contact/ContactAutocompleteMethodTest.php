@@ -72,6 +72,27 @@ final class ContactAutocompleteMethodTest extends JmapTestCase
     }
 
     /**
+     * The second half of the same ranking, through the method rather than the
+     * repository: equal frequency is broken by the most recent sighting.
+     *
+     * Worth asserting here and not only in ContactRepositoryTest because the
+     * ordering is the one thing this method does not do for itself — it hands
+     * the list straight out of SQL. A `usort` added here later, or an
+     * `array_column` reshuffle, would pass every other test in this class.
+     */
+    public function testEqualFrequencyIsBrokenByTheMostRecentlySeen(): void
+    {
+        $this->seedContact('stale@example.test', 'Stale', lastSeenAt: new DateTimeImmutable('2024-01-01 09:00:00', new DateTimeZone('UTC')));
+        $this->seedContact('recent@example.test', 'Recent', lastSeenAt: new DateTimeImmutable('2026-07-30 09:00:00', new DateTimeZone('UTC')));
+
+        self::assertSame(
+            ['recent@example.test', 'stale@example.test'],
+            $this->emailsFor('example.test'),
+            'both have frequency 1, so recency is the only thing that can order them',
+        );
+    }
+
+    /**
      * A suggestion is a JMAP EmailAddress with the ranking signals hung off it,
      * so a client can put it straight into an Email/set create. `initials` is
      * deliberately absent — the web route computes it for a chip renderer, and
