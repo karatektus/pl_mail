@@ -96,8 +96,13 @@ test("the handbook is reachable in both languages", async ({ page }) => {
 test("a German page's navigation stays in German", async ({ page }) => {
     await page.goto(`${BASE}/docs/de/features/mail.html`);
 
+    // Internal links only. The drawer also carries a link to GitHub, which is
+    // absolute and has no language — asserting over every anchor would fail on
+    // it for no reason and teach the next person to weaken the check.
     const links = await page.locator(".sidebar a").evaluateAll(
-        (anchors) => anchors.map((anchor) => anchor.getAttribute("href") ?? ""),
+        (anchors) => anchors
+            .map((anchor) => anchor.getAttribute("href") ?? "")
+            .filter((href) => false === href.startsWith("http")),
     );
 
     expect(links.length).toBeGreaterThan(20);
@@ -319,10 +324,48 @@ test.describe("on a phone", () => {
         await expect(page).toHaveURL(`${BASE}/docs/de/features/mail.html`);
     });
 
-    /** The landing page has no sidebar, so it must not offer a button for one. */
-    test("the landing page has no burger", async ({ page }) => {
+    /**
+     * The landing page needs the drawer MORE than a handbook page does, not
+     * less: .topbar-links are hidden at this width, so without it the front
+     * page offers no navigation at all and somebody arriving from a link has a
+     * page and no way off it.
+     */
+    test("the landing page has a drawer with a way into the handbook", async ({ page }) => {
         await page.goto(`${BASE}/index.html`);
 
-        await expect(page.locator("#menu")).toHaveCount(0);
+        await expect(page.locator("#menu")).toBeVisible();
+
+        await page.click("#menu");
+
+        await expect(page.locator("#sidebar")).toBeVisible();
+        await expect(page.locator(".drawer-links a").first()).toBeVisible();
+    });
+});
+
+/**
+ * And above the breakpoint the landing page is a front page again: no burger,
+ * no docs sidebar beside the hero, and the bar's own links back.
+ *
+ * The rule that hides them is scoped to a min-width query rather than left to
+ * source order — written as a plain rule it sat after the narrow block, matched
+ * at every width and won on order, so the phone had a burger in the markup that
+ * nothing could click.
+ */
+test.describe("on a desktop", () => {
+    test.use({ viewport: { width: 1280, height: 900 } });
+
+    test("the landing page shows no sidebar and no burger", async ({ page }) => {
+        await page.goto(`${BASE}/index.html`);
+
+        await expect(page.locator("#menu")).toBeHidden();
+        await expect(page.locator("#sidebar")).toBeHidden();
+        await expect(page.locator(".topbar-links a").first()).toBeVisible();
+    });
+
+    test("a handbook page still shows its sidebar", async ({ page }) => {
+        await page.goto(`${BASE}/docs/features/mail.html`);
+
+        await expect(page.locator("#sidebar")).toBeVisible();
+        await expect(page.locator("#menu")).toBeHidden();
     });
 });

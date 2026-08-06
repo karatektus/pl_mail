@@ -6,8 +6,29 @@ on:
         # Releases. `latest` moves only when one of these is pushed — see the
         # tag rules in the merge job.
         tags: ['v*']
+        # Not for documentation. A handbook page, a translation or a change to
+        # the site tooling cannot alter the image, and rebuilding it for two
+        # architectures to publish identical bytes is the most expensive way to
+        # do nothing. The wiki and Pages workflows handle those.
+        #
+        # CHANGELOG.md is deliberately NOT in this list, and that is the whole
+        # safety net: a release commit always touches it, so the release path
+        # is never filtered out by a rule aimed at prose. If you ever tag a
+        # commit that changed only docs, start this workflow by hand.
+        paths-ignore:
+            - 'docs/**'
+            - 'README.md'
+            - 'CONTRIBUTING.md'
+            - 'CODESTYLE.md'
+            - 'bin/build-site.php'
+            - 'bin/mirror-wiki.php'
+            - 'bin/site/**'
+            - '.github/workflows/pages.yml'
+            - '.github/workflows/wiki.yml'
     pull_request:
         branches: [main]
+    # The escape hatch for the case the note above describes.
+    workflow_dispatch:
 
 env:
     REGISTRY: ghcr.io

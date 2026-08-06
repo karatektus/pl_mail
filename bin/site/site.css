@@ -446,3 +446,28 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     color: rgb(var(--rgb-ink-faint));
 }
 .pickers-drawer select { flex: 0 0 9rem; font-size: 0.9rem; padding: 0.4rem 1.5rem 0.4rem 0.6rem; }
+
+/* The landing page's drawer.
+
+   It carries the same navigation but is hidden above the breakpoint: a front
+   page has no business showing a docs sidebar beside its hero. Below it, the
+   drawer is the only way off the page — .topbar-links are hidden at that width
+   — so it appears exactly where it is needed and nowhere else.
+
+   Scoped to a min-width query rather than left to source order. Written as a
+   plain rule it sat after the narrow block, matched at every width and won on
+   order, so the landing page had a burger in the markup that nothing could
+   ever click. */
+@media (min-width: 60.01rem) {
+    .is-landing .sidebar,
+    .is-landing .burger { display: none; }
+}
+
+/* The bar's own links, repeated at the top of the drawer because they are
+   hidden from the bar on a phone. */
+.drawer-links a { font-weight: 550; }
+
+/* Nothing may ever pan the page sideways. `clip` rather than `hidden`: hidden
+   makes the element a scroll container, which silently breaks the sticky top
+   bar — the fix would have cost the thing it was protecting. */
+body { overflow-x: clip; }

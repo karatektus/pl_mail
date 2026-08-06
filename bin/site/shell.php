@@ -65,33 +65,45 @@ return static function (
 
     $t = $chrome[$locale] ?? $chrome['en'];
 
-    $sidebar = '';
+    // Rendered on the landing page too. It is hidden there above the
+    // breakpoint — a front page has no business carrying a docs sidebar — but
+    // on a phone it is the only way in: .topbar-links are hidden at that width,
+    // so the landing page offered no navigation at all, which is how somebody
+    // arriving from a link ended up with a page and no way off it.
+    $sidebar = sprintf('<nav id="sidebar" class="sidebar" aria-label="%s">', $escape($t['handbook']));
 
-    if (false === $landing) {
-        $sidebar .= sprintf('<nav id="sidebar" class="sidebar" aria-label="%s">', $escape($t['handbook']));
+    // The bar's own links, which are hidden on a phone, repeated where they can
+    // still be reached.
+    $sidebar .= sprintf(
+        '<p class="sidebar-heading">plMail</p><ul class="drawer-links">'
+        . '<li><a href="%s%s">%s</a></li>'
+        . '<li><a href="https://github.com/karatektus/pl_mail">GitHub</a></li></ul>',
+        $escape($root),
+        $escape($prefix),
+        $escape($t['handbook']),
+    );
 
-        foreach ($nav as $section) {
-            $sidebar .= sprintf('<p class="sidebar-heading">%s</p><ul>', $escape($section['title']));
+    foreach ($nav as $section) {
+        $sidebar .= sprintf('<p class="sidebar-heading">%s</p><ul>', $escape($section['title']));
 
-            foreach ($section['pages'] as $page) {
-                // $prefix, not a literal 'docs/'. Built against the English
-                // path, every link in the German sidebar pointed at the English
-                // page — so choosing German lasted exactly one click, and the
-                // language picker looked broken when the navigation was.
-                $sidebar .= sprintf(
-                    '<li><a href="%s%s"%s>%s</a></li>',
-                    $escape($root . $prefix),
-                    $escape($page['href']),
-                    $page['href'] === $here ? ' aria-current="page"' : '',
-                    $escape($page['title']),
-                );
-            }
-
-            $sidebar .= '</ul>';
+        foreach ($section['pages'] as $page) {
+            // $prefix, not a literal 'docs/'. Built against the English path,
+            // every link in the German sidebar pointed at the English page — so
+            // choosing German lasted exactly one click, and the language picker
+            // looked broken when the navigation was.
+            $sidebar .= sprintf(
+                '<li><a href="%s%s"%s>%s</a></li>',
+                $escape($root . $prefix),
+                $escape($page['href']),
+                $page['href'] === $here ? ' aria-current="page"' : '',
+                $escape($page['title']),
+            );
         }
 
-        $sidebar .= '</nav>';
+        $sidebar .= '</ul>';
     }
+
+    $sidebar .= '</nav>';
 
     // The hero holds no writing of its own. The lead is README's own opening
     // paragraph, handed in by the generator, so there is no sentence on this
@@ -156,10 +168,7 @@ return static function (
 
     $generated = sprintf($t['generated'], '<code>' . $escape($source) . '</code>');
 
-    // Rendered only where there is a sidebar to toggle. On the landing page the
-    // button would open nothing, and a control that does nothing is worse than
-    // an absent one.
-    $burger = true === $landing ? '' : sprintf(
+    $burger = sprintf(
         '<button id="menu" type="button" class="burger" aria-controls="sidebar"'
         . ' aria-expanded="false" aria-label="%s">'
         . '<span></span><span></span><span></span></button>',
