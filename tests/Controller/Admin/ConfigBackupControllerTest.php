@@ -7,6 +7,7 @@ namespace App\Tests\Controller\Admin;
 use App\Controller\Admin\ConfigBackupController;
 use App\Entity\User\User;
 use App\Infrastructure\Backup\ConfigBackupCipher;
+use App\Infrastructure\Setup\GeneratedSecretsFile;
 use App\Service\Backup\ConfigBackupDatabase;
 use App\Service\Backup\ConfigBackupExporter;
 use Doctrine\DBAL\Connection;
@@ -31,10 +32,16 @@ use Symfony\Component\HttpFoundation\Request;
  * that had already applied its changes would render exactly the same page.
  *
  * Everything runs inside a transaction that is rolled back, so the suite's
- * shared database is left as it was found. Files are deliberately not part of
- * any fixture here: an apply that wrote a PEM into var/secrets would escape the
- * transaction, and what a file write does is ConfigBackupImporterTest's subject
- * anyway.
+ * shared database is left as it was found. The JWT keypair is deliberately not
+ * part of any fixture here: an apply that wrote a PEM into var/secrets would
+ * escape the transaction, and what a file write does is
+ * ConfigBackupImporterTest's subject anyway.
+ *
+ * The generated secrets file is a different matter and cannot be left out,
+ * because writing it is now what an import DOES with the environment half. It
+ * is snapshotted and put back instead — phpunit.dist.xml already points
+ * APP_SECRETS_FILE at a file of the test suite's own, and this keeps that file
+ * as each test found it.
  */
 final class ConfigBackupControllerTest extends WebTestCase
 {
@@ -44,11 +51,18 @@ final class ConfigBackupControllerTest extends WebTestCase
 
     private Connection $connection;
 
+    /** The generated secrets file as this test found it; see the class docblock. */
+    private ?string $secretsBefore = null;
+
+    private ?string $secretsPath = null;
+
     protected function tearDown(): void
     {
         if (isset($this->connection) && true === $this->connection->isTransactionActive()) {
             $this->connection->rollBack();
         }
+
+        $this->restoreTheSecretsFile();
 
         parent::tearDown();
     }
@@ -156,11 +170,24 @@ final class ConfigBackupControllerTest extends WebTestCase
         $body = (string) $client->getResponse()->getContent();
 
         self::assertStringContainsString(ConfigBackupDatabase::FCM_CONFIG, $body, 'the review does not say what it would do');
-        // Every environment value has to appear under the manual heading, with
-        // its line. This one is the check that the page is honest.
+
+        // The two halves of the new model, on one page.
+        //
+        // GOOGLE_OAUTH_CLIENT_ID is nothing's business but the generated
+        // secrets file, so it is listed as something plMail writes and NOT as a
+        // line to paste — that absence is the whole rework, and asserting the
+        // name without the line is the only way to catch a page that quietly
+        // went back to handing everything over.
+        self::assertStringContainsString('GOOGLE_OAUTH_CLIENT_ID', $body);
+        self::assertStringNotContainsString('GOOGLE_OAUTH_CLIENT_ID=an-id.apps.googleusercontent.com', $body);
+
+        // APP_SECRET is pinned in this container's real environment — the test
+        // harness passes it with -e, exactly as a compose file would — so it is
+        // the honest residue, and it still comes back as a line.
         self::assertStringContainsString('APP_SECRET=a-restored-secret', $body);
 
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT count(*) FROM fcm_config'), 'the review applied itself');
+        self::assertSame($this->secretsBefore, $this->secretsNow(), 'the review wrote the secrets file');
     }
 
     /**
@@ -170,7 +197,7 @@ final class ConfigBackupControllerTest extends WebTestCase
      * review, so a test that forged one would be exercising a path no browser
      * can take.
      */
-    public function testApplyingWritesTheDatabaseHalfAndNothingElse(): void
+    public function testApplyingWritesTheDatabaseAndTheGeneratedSecrets(): void
     {
         $client = $this->signInAsAdmin();
         $this->connection->executeStatement('TRUNCATE TABLE fcm_config CASCADE');
@@ -201,6 +228,18 @@ final class ConfigBackupControllerTest extends WebTestCase
             'enc:v1:',
             (string) $this->connection->fetchOne('SELECT service_account_json FROM fcm_config LIMIT 1'),
         );
+
+        // The environment half is now a write too, into the file the container
+        // entrypoint loads before it execs the server — which is what makes
+        // "upload the backup" the whole job rather than the first half of it.
+        self::assertSame(
+            'an-id.apps.googleusercontent.com',
+            static::getContainer()->get(GeneratedSecretsFile::class)->read()['GOOGLE_OAUTH_CLIENT_ID'] ?? null,
+        );
+
+        // And the page says the one thing that is left, once, for the whole
+        // list — not once per value, which is what it used to do.
+        self::assertStringContainsString('restart the stack', (string) $client->getResponse()->getContent());
     }
 
     public function testAWrongPasswordSaysSoAndChangesNothing(): void
@@ -244,6 +283,50 @@ final class ConfigBackupControllerTest extends WebTestCase
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     /**
+     * Remember the generated secrets file so tearDown can put it back.
+     *
+     * Called from boot(), so every test in this class is covered whether or not
+     * it goes on to apply anything — a test that forgot would leave a restored
+     * GOOGLE_OAUTH_CLIENT_ID behind for whatever suite runs next, which is the
+     * kind of cross-test coupling that shows up as one unexplained failure a
+     * month later.
+     */
+    private function rememberTheSecretsFile(): void
+    {
+        $this->secretsPath   = static::getContainer()->get(GeneratedSecretsFile::class)->path();
+        $this->secretsBefore = $this->secretsNow();
+    }
+
+    private function secretsNow(): ?string
+    {
+        if (null === $this->secretsPath || false === is_file($this->secretsPath)) {
+            return null;
+        }
+
+        $contents = file_get_contents($this->secretsPath);
+
+        return false === $contents ? null : $contents;
+    }
+
+    private function restoreTheSecretsFile(): void
+    {
+        if (null === $this->secretsPath) {
+            return;
+        }
+
+        if (null === $this->secretsBefore) {
+            if (is_file($this->secretsPath)) {
+                unlink($this->secretsPath);
+            }
+        } else {
+            file_put_contents($this->secretsPath, $this->secretsBefore);
+        }
+
+        $this->secretsPath   = null;
+        $this->secretsBefore = null;
+    }
+
+    /**
      * A backup with one row's worth of database and one environment line, and
      * deliberately no `files` section — see the class docblock.
      */
@@ -254,7 +337,10 @@ final class ConfigBackupControllerTest extends WebTestCase
             'version'    => ConfigBackupExporter::DOCUMENT_VERSION,
             'exportedAt' => '2026-01-01T00:00:00+00:00',
             'instance'   => 'https://elsewhere.plmail.test',
-            'env'        => ['APP_SECRET' => 'a-restored-secret'],
+            'env'        => [
+                'APP_SECRET'             => 'a-restored-secret',
+                'GOOGLE_OAUTH_CLIENT_ID' => 'an-id.apps.googleusercontent.com',
+            ],
             'files'      => [],
             'database'   => [
                 ConfigBackupDatabase::FCM_CONFIG => [
@@ -298,6 +384,7 @@ final class ConfigBackupControllerTest extends WebTestCase
         $this->connection = $container->get(Connection::class);
 
         $this->connection->beginTransaction();
+        $this->rememberTheSecretsFile();
 
         return $client;
     }

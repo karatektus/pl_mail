@@ -8,11 +8,18 @@ Shared by the admin page and the first-run restore screen, because the review is
 the substance of an import and two copies of it would be two accounts of the
 same file. The pages around it differ; this does not.
 
-Two lists, and the split is the point. The first is what plMail is going to do
-by itself and is therefore short. The second is everything it cannot do, with
-the exact line to paste or the exact path to write — an import that quietly
-listed those as "restored" would send an operator away believing their
-APP_ENCRYPTION_KEY had travelled, which it has not and must not.
+Three lists, and the proportions between them are the point. The first — what
+plMail writes itself — is nearly everything. The second is the residue that
+still needs a person, which on a supported deployment is empty. The third is the
+one thing worth stating and not asking about: APP_ENCRYPTION_KEY, kept on
+purpose.
+
+This used to be two lists in the other proportion, with two dozen environment
+variables printed as lines to paste into .env.local. That was built on a wrong
+premise — nobody hand-edits those on a plMail install; they are generated into
+var/secrets/generated.env on first run, and the app can write that file. The
+restart notice below replaces the whole wall: one sentence for the whole plan,
+because it IS one action.
 
 `plan.applied` decides tense throughout: the same list is a promise before the
 button and a receipt after it, and a receipt written in the future tense is how
@@ -20,7 +27,7 @@ somebody comes to press apply twice.
 #}
 <div class="space-y-4">
 
-    {# Which file this is. An admin restoring the wrong backup is usually
+    {# Which file this is. An operator restoring the wrong backup is usually
        holding two, and the only thing telling them apart is what is inside. #}
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
         <dt class="text-ink-faint">{{ 'admin.config_backup.review.from'|trans }}</dt>
@@ -33,21 +40,32 @@ somebody comes to press apply twice.
         </dd>
     </dl>
 
-    {# ── What plMail does itself ──────────────────────────────────────── #}
+    {# ── What plMail writes itself ────────────────────────────────────── #}
     <div>
         <h3 class="text-sm font-semibold text-ink">
-            {{ (plan.applied ? 'admin.config_backup.review.applied' : 'admin.config_backup.review.automatic')|trans }}
+            {{ (plan.applied ? 'admin.config_backup.review.written_applied' : 'admin.config_backup.review.written')|trans }}
         </h3>
 
-        {% if plan.automatic is empty %}
-            <p class="mt-1.5 text-xs text-ink-faint">{{ 'admin.config_backup.review.automatic_none'|trans }}</p>
+        {% if plan.written is empty %}
+            <p class="mt-1.5 text-xs text-ink-faint">{{ 'admin.config_backup.review.written_none'|trans }}</p>
         {% else %}
             <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
-                {% for item in plan.automatic %}
+                {% for item in plan.written %}
                     <li class="flex items-center gap-3 px-3.5 py-2">
                         <i class="{{ item.section.icon }} text-xs text-zinc-400 w-4 shrink-0" aria-hidden="true"></i>
                         <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
-                        <span class="ml-auto shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full
+
+                        {# Two badges, because they answer two different
+                           questions: what this does to the value that was here
+                           (absent / differs / unchanged), and when it becomes
+                           real (now / at the next start). #}
+                        {% if item.disposition.needsRestart %}
+                            <span class="ml-auto shrink-0 text-[11px] text-ink-faint">
+                                {{ 'admin.config_backup.disposition.applied-on-restart'|trans }}
+                            </span>
+                        {% endif %}
+
+                        <span class="{{ item.disposition.needsRestart ? 'shrink-0' : 'ml-auto shrink-0' }} text-[11px] font-medium px-2 py-0.5 rounded-full
                                      {{ item.change.value == 'differs' ? 'bg-amber-500/15 text-amber-500'
                                         : (item.change.value == 'absent' ? 'bg-emerald-500/15 text-emerald-500'
                                         : 'bg-raised text-ink-faint') }}">
@@ -57,18 +75,31 @@ somebody comes to press apply twice.
                 {% endfor %}
             </ul>
         {% endif %}
+
+        {# The single instruction that replaced two dozen. Asked once for the
+           whole plan, and only when something material is actually waiting on
+           it — a re-import that changes nothing has no reason to send anybody
+           to a terminal. #}
+        {% if plan.needsRestart %}
+            <div class="mt-2.5 flex items-start gap-2.5 rounded-lg border border-line bg-raised/40 px-3.5 py-2.5">
+                <i class="fa-solid fa-rotate mt-0.5 shrink-0 text-xs text-zinc-400" aria-hidden="true"></i>
+                <p class="text-xs text-ink-muted leading-relaxed">
+                    {{ (plan.applied ? 'admin.config_backup.review.restart_applied' : 'admin.config_backup.review.restart')|trans }}
+                </p>
+            </div>
+        {% endif %}
     </div>
 
-    {# ── What the admin has to do ─────────────────────────────────────── #}
-    {% set manual = plan.manualBySection %}
+    {# ── The residue: what still needs a person ───────────────────────── #}
+    {% set instructed = plan.instructedBySection %}
 
-    {% if manual is not empty %}
+    {% if instructed is not empty %}
         <div>
-            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.manual'|trans }}</h3>
-            <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ 'admin.config_backup.review.manual_lead'|trans }}</p>
+            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.instructed'|trans }}</h3>
+            <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ 'admin.config_backup.review.instructed_lead'|trans }}</p>
 
             <div class="mt-2 space-y-3">
-                {% for sectionValue, items in manual %}
+                {% for sectionValue, items in instructed %}
                     {# Off the first item rather than off the loop key: the key
                        is the enum's backing value and a template that turned it
                        back into a case would be re-implementing from_value. #}
@@ -93,18 +124,38 @@ somebody comes to press apply twice.
                                        thing the operator came for, and a triple
                                        click that catches the label instead of the
                                        value is how a truncated secret ends up in
-                                       a .env.local. #}
+                                       a compose file. #}
                                     {% if item.instruction %}
                                         <pre class="mt-1.5 overflow-x-auto rounded bg-zinc-500/10 px-2.5 py-1.5 text-[11px] font-mono text-ink-soft select-all whitespace-pre-wrap break-all">{{ item.instruction }}</pre>
                                     {% endif %}
 
-                                    <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ item.obstacle.transKey|trans }}</p>
+                                    <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ item.disposition.transKey|trans }}</p>
                                 </li>
                             {% endfor %}
                         </ul>
                     </div>
                 {% endfor %}
             </div>
+        </div>
+    {% endif %}
+
+    {# ── Stated, not asked ────────────────────────────────────────────── #}
+    {% if plan.notes is not empty %}
+        <div>
+            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.notes'|trans }}</h3>
+
+            <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
+                {% for item in plan.notes %}
+                    <li class="px-3.5 py-2.5">
+                        <span class="font-mono text-xs text-ink-soft break-all">{{ item.key }}</span>
+                        <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ item.disposition.transKey|trans }}</p>
+
+                        {% if item.instruction %}
+                            <pre class="mt-1.5 overflow-x-auto rounded bg-zinc-500/10 px-2.5 py-1.5 text-[11px] font-mono text-ink-soft select-all whitespace-pre-wrap break-all">{{ item.instruction }}</pre>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
         </div>
     {% endif %}
 </div>

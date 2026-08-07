@@ -103,6 +103,36 @@ final readonly class GeneratedSecretsFile
      */
     public function set(string $name, string $value): void
     {
+        $this->setMany([$name => $value]);
+    }
+
+    /**
+     * Write several values in one pass, updating the names already present and
+     * appending the ones that are not, and leaving every other line alone.
+     *
+     * One method rather than a loop over set(), because a config-backup import
+     * writes two dozen names at once and a loop would take the lock, re-read
+     * and rewrite the whole file two dozen times. A file that is momentarily
+     * missing half its secrets while another service is starting is exactly the
+     * failure the lock exists to prevent, and doing it twenty-four times is
+     * twenty-four chances at it.
+     *
+     * **Unrelated keys survive.** The file is read under the lock, merged over,
+     * and written back whole. Anything the entrypoint or `app:secrets:init`
+     * put there that this call says nothing about — MERCURE_JWT_SECRET on an
+     * import that did not carry one, a name a newer plMail added — is still
+     * there afterwards, in its original position: array_merge-by-assignment
+     * keeps insertion order, so updates land in place and additions go to the
+     * end.
+     *
+     * @param array<string, string> $values
+     */
+    public function setMany(array $values): void
+    {
+        if ([] === $values) {
+            return;
+        }
+
         $handle = $this->open();
 
         try {
@@ -110,21 +140,57 @@ final readonly class GeneratedSecretsFile
                 throw new RuntimeException(sprintf('Could not lock %s.', $this->path));
             }
 
-            $values        = $this->readFrom($handle);
-            $values[$name] = $value;
+            $stored = $this->readFrom($handle);
+
+            foreach ($values as $name => $value) {
+                $stored[$name] = $value;
+            }
 
             // Rewritten whole: appending a second line for the same name would
             // leave the old one above it, and read() takes the last it sees.
             ftruncate($handle, 0);
             rewind($handle);
 
-            foreach ($values as $key => $stored) {
-                fwrite($handle, sprintf("%s=%s\n", $key, $stored));
+            foreach ($stored as $key => $value) {
+                if (false === fwrite($handle, sprintf("%s=%s\n", $key, $value))) {
+                    throw new RuntimeException(sprintf('Could not write %s to %s.', $key, $this->path));
+                }
             }
         } finally {
             flock($handle, LOCK_UN);
             fclose($handle);
         }
+    }
+
+    /**
+     * Whether this process could write the file — measured, not assumed, for
+     * the same reason ConfigBackupFiles measures its own: a secrets volume
+     * mounted read-only is a supported deployment, and an import has to say so
+     * on the review page rather than discover it at the write.
+     *
+     * An existing file has to be writable itself; an absent one needs a
+     * directory that can be created, which is the case on an install whose
+     * first boot has not finished.
+     */
+    public function isWritable(): bool
+    {
+        if (true === is_file($this->path)) {
+            return is_writable($this->path);
+        }
+
+        $directory = \dirname($this->path);
+
+        while (false === is_dir($directory)) {
+            $parent = \dirname($directory);
+
+            if ($parent === $directory) {
+                return false;
+            }
+
+            $directory = $parent;
+        }
+
+        return is_writable($directory);
     }
 
     /**

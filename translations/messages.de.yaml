@@ -45,6 +45,34 @@ admin:
             absent: 'hier noch nicht gesetzt'
             differs: 'ersetzt einen anderen Wert'
             unchanged: 'bereits identisch'
+        disposition:
+            applied: 'Geschrieben und ab sofort wirksam.'
+            applied-on-restart: 'wirkt nach dem nächsten Neustart'
+            external: >-
+                plMail ist hier Client des Systems und nicht sein Eigentümer. Die
+                Datenbankrolle wurde mit dem Passwort angelegt, das Postgres bereits hält,
+                und nur eine Neuinitialisierung liest ein anderes ein — den Wert allein
+                hier zu ändern ergibt also eine Installation, die sich nicht mehr mit ihrer
+                eigenen Datenbank verbinden kann. Ändere ihn zuerst in Postgres, dann hier.
+            kept-deliberately: >-
+                Bleibt bewusst so, wie er hier ist. Die Zugangsdaten aus dieser Sicherung
+                wurden beim Schreiben mit dem Schlüssel dieser Installation neu
+                verschlüsselt; den Schlüssel aus der Sicherung einzusetzen würde sie — und
+                alles andere bereits Gespeicherte — beim nächsten Start unlesbar machen.
+                Die Zeile unten ist nur für den Fall gedacht, dass du auch die alte
+                Datenbank wiederherstellst, deren Zeilen damit verschlüsselt sind; dann
+                muss sie eingetragen sein, bevor irgendetwas gespeichert wird.
+            not-writable: >-
+                Dieser Prozess konnte diesen Pfad nicht schreiben. Schreibgeschütztes
+                Secrets-Volume, falsche UID oder ein Dienst, der das Volume nie bekommen
+                hat. Der Wert steckt in der Sicherung, die du gerade hochgeladen hast —
+                lege ihn selbst dort ab.
+            shadowed-by-compose: >-
+                Geschrieben, aber dieser Name ist auch in der Prozessumgebung gesetzt, und
+                der Entrypoint lässt einen ausdrücklich konfigurierten Wert über den
+                erzeugten siegen. Entferne oder aktualisiere ihn in deiner Compose-Datei —
+                oder in der `.env` daneben — und starte neu; der wiederhergestellte Wert
+                liegt bereits darunter bereit.
         error:
             malformed-document: >-
                 Das Passwort hat die Datei geöffnet, aber ihr Inhalt ist keine
@@ -91,38 +119,32 @@ admin:
                 geschrieben, bevor du gesehen und bestätigt hast, was passieren würde.
             password: 'Passwort'
             submit: 'Sicherung prüfen'
-        obstacle:
-            encryption-key-in-use: >-
-                Diesen Wert zu schreiben würde jede bereits hier gespeicherte Zugangsdatei —
-                auch die, die dieser Import gerade geschrieben hat — beim nächsten Start
-                unlesbar machen. Setze ihn nur auf einer Installation, in der noch nichts
-                gespeichert ist.
-            external-system: >-
-                plMail ist hier Client und nicht Eigentümer. Den Wert hier zu ändern, ohne
-                ihn in der Datenbank selbst zu ändern, ergibt eine Installation, die nicht
-                mehr startet.
-            not-writable: >-
-                Dieser Prozess kann diesen Pfad nicht schreiben. Lege die Datei selbst dort
-                ab — sie steckt in der Sicherung, die du gerade hochgeladen hast.
-            process-environment: >-
-                Ein laufender Prozess kann die Umgebung, mit der er gestartet wurde, nicht
-                ändern. Trage diese Zeile ein und starte den Stack neu.
         review:
-            apply: 'Schreibbare Teile anwenden'
+            apply: 'Diese Sicherung anwenden'
             applied: 'Was geschrieben wurde'
-            automatic: 'Das schreibt plMail selbst'
-            automatic_none: 'Aus dieser Sicherung kann plMail nichts selbst schreiben.'
             confirm_password: 'Passwort, noch einmal'
             exported_at: 'Exportiert'
             from: 'Von'
             heading: 'Sicherung prüfen'
-            manual: 'Das musst du selbst erledigen'
-            manual_lead: >-
-                Nichts davon kann plMail schreiben, und etwas anderes zu behaupten wäre eine
-                Lüge, die ein Betreiber erst an dem Tag bemerkt, an dem es darauf ankommt.
-                Jede Zeile ist genau das, was einzutragen ist, oder genau der Ort, an den
-                die Datei gehört.
+            instructed: 'Das musst du selbst erledigen'
+            instructed_lead: >-
+                Alles Übrige steht bereits. Diese wenigen Punkte lassen sich von hier aus
+                nicht abschließen, und jeder sagt warum — etwas anderes zu behaupten wäre
+                eine Lüge, die ein Betreiber erst an dem Tag bemerkt, an dem es darauf
+                ankommt.
+            notes: 'Gut zu wissen'
+            restart: >-
+                Das meiste davon wird beim Start des Stacks gelesen, deshalb schreibt es
+                plMail in die erzeugten Geheimnisse, und es wirkt ab dem nächsten Neustart.
+                Das ist ein Neustart für die ganze Liste, nicht einer pro Wert.
+            restart_applied: >-
+                Geschrieben. Die beim Containerstart gelesenen Werte liegen bereit, sind
+                aber noch nicht in Kraft — starte den Stack einmal neu, und diese
+                Installation kommt als die hoch, von der die Sicherung stammt.
             unknown_instance: 'nicht vermerkt'
+            written: 'Das schreibt plMail'
+            written_applied: 'Geschrieben'
+            written_none: 'In dieser Sicherung ist nichts, was plMail schreiben müsste.'
         section:
             database: 'Datenbank'
             env: 'Umgebungsvariablen'
@@ -1398,7 +1420,8 @@ setup:
     restore:
         applied_lead: >-
             Die Konfiguration steht. Diese Installation hat noch keine Benutzer — lege das
-            Administratorkonto an, um fertig zu werden.
+            Administratorkonto an, um fertig zu werden. Falls oben ein Neustart vermerkt
+            ist, kann er bis danach warten.
         back: 'Zurück zum Anlegen des Administrators'
         continue: 'Weiter — Administrator anlegen'
         footnote: >-
@@ -1407,8 +1430,8 @@ setup:
         heading: 'Konfigurationssicherung wiederherstellen'
         lead: >-
             Bring die Einstellungen und Zugangsdaten einer anderen plMail-Instanz hierher,
-            bevor du das erste Konto anlegst. Alles, was diese Installation nicht selbst
-            schreiben kann, wird danach aufgelistet — mit den genauen Zeilen zum Eintragen.
+            bevor du das erste Konto anlegst. Datei hochladen, Passwort eingeben — den Rest
+            schreibt plMail selbst in diese Installation.
         page_title: 'Konfiguration wiederherstellen'
         submit: 'Sicherung öffnen'
 

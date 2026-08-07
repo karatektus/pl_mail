@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:01f2e2e79164990302b960285a2343fa09c8e256 -->
+<!-- translated-from: features/admin.md sha1:e81ff942864ab3ec30ef141055262b8f349ba57a -->
 
 # Administration
 
@@ -304,25 +304,30 @@ ist Absicht, denn die Installation, auf der sie geöffnet wird, hat einen andere
 Schlüssel selbst.
 
 **Importieren** nimmt Datei und Passwort und zeigt eine Prüfung, bevor irgendetwas geschrieben wird.
-Die Prüfung hat zwei Hälften, und genau darauf kommt es an:
+Die Prüfung hat drei Teile, in absteigender Reihenfolge dessen, was dich beschäftigen sollte:
 
-- Was plMail selbst schreibt: das Firebase-Projekt, die Mail-OAuth-Registrierungen und die
-  Integrationsanbieter, neu verschlüsselt mit dem Schlüssel *dieser* Installation. Dazu das
-  JWT-Schlüsselpaar, sofern der Prozess das Secrets-Volume tatsächlich schreiben kann — das wird
-  gemessen, nicht angenommen.
-- Was es nicht kann: jede Umgebungsvariable, allen voran `APP_ENCRYPTION_KEY`, und
-  `postgres_password`. Diese kommen als exakte Zeilen zum Einfügen und exakte Pfade zurück, jeweils
-  mit dem Grund, warum sie in dieser Hälfte stehen. Ein laufender Prozess kann seine eigene Umgebung
-  nicht ändern, und ein Import, der etwas anderes behauptete, fiele an dem Tag auf, an dem es darauf
-  ankäme.
+- **Was plMail selbst schreibt**, und das ist fast alles: das Firebase-Projekt, die
+  Mail-OAuth-Registrierungen und die Integrationsanbieter, neu verschlüsselt mit dem Schlüssel
+  *dieser* Installation und ab dem Commit wirksam — dazu das JWT-Schlüsselpaar und jeden
+  Umgebungswert, in `var/secrets/generated.env` und die Dateien daneben. Das sind die Dateien, die
+  der Container-Entrypoint beim Start liest, sie liegen also sofort bereit und sind nach einem
+  Neustart *in Kraft*. Die Seite sagt das einmal, für die ganze Liste.
+- **Was noch bei dir liegt**, und das sind auf einem unveränderten Stack höchstens zwei oder drei
+  Namen: Ein Wert, den deine Compose-Datei auf etwas Nichtleeres festlegt, überschreibt beim
+  nächsten Start den wiederhergestellten, und `POSTGRES_PASSWORD` gehört zu einer Rolle in einer
+  Datenbank, deren Client plMail nur ist. Jeder kommt mit der exakten Zeile und dem Grund zurück.
+- **Gut zu wissen**: `APP_ENCRYPTION_KEY`, der bewusst nicht geschrieben wird, weil die Zugangsdaten,
+  die der Import gerade geschrieben hat, mit dem aktuell geltenden Schlüssel verschlüsselt sind.
 
 Jede Zeile sagt außerdem, ob der Wert hier neu ist, etwas anderes ersetzt oder bereits
 übereinstimmt. Bei diesem mittleren Zustand lohnt es sich innezuhalten: Eine Wiederherstellung auf
 einer laufenden Installation ersetzt lebende Zugangsdaten.
 
 Derselbe Import läuft auch bei der Ersteinrichtung, unter dem Kontoformular auf `/install`, sodass
-eine neue Installation konfiguriert hochgezogen werden kann, bevor es ihren Administrator gibt.
-Dieser Einstiegspunkt schließt mit 404, sobald das erste Konto angelegt ist.
+eine neue Installation konfiguriert hochgezogen werden kann, bevor es ihren Administrator gibt —
+Datei hochladen und Passwort eintippen ist dort die ganze Arbeit, und nach einem Neustart kommt die
+Instanz als die alte hoch. Dieser Einstiegspunkt schließt mit 404, sobald das erste Konto angelegt
+ist.
 
 ## Zurücksetzen
 
