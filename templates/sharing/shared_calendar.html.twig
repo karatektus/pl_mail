@@ -1,118 +1,194 @@
 {#
 sharing/shared_calendar.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Somebody's calendar, as much of it as their link reveals.
+Somebody's calendar, as much of it as their link reveals — drawn as a calendar.
 
-**This template cannot leak, and the reason is what it is given.** `view.days`
-holds SharedOccurrence objects, not events: on a busy/free link their `title`,
-`location` and `description` are already null and `participants` is already
-empty, decided once in ShareLinkReader against the link's checkboxes AND the
-event's own privacy. So there is no `if` here that could be forgotten, no
-tooltip that could carry a subject, and no data attribute that could carry one
-into JavaScript. Adding a field to this page means adding it to the DTO first,
-which is where the decision about revealing it has to be made.
+**This template cannot leak, and the reason is what it is given.** `month.days`
+and `view.days` hold SharedOccurrence objects, not events: on a busy/free link
+their `title`, `location` and `description` are already null and `participants`
+is already empty, decided once in ShareLinkReader against the link's checkboxes
+AND the event's own privacy. So there is no `if` here that could be forgotten,
+no tooltip that could carry a subject, and no data attribute that could carry
+one into JavaScript. Adding a field to this page means adding it to the DTO
+first, which is where the decision about revealing it has to be made.
+
+The month grid is a rearrangement of exactly those objects and nothing else —
+see SharedCalendarMonthBuilder, which has no repository and could not fetch more
+if it wanted to.
 
 The counterpart rule: nothing below may reach for `app.user`, a session, or a
 CSRF token. See sharing/_layout.html.twig for why.
 
-A list of days, not a grid. A grid needs a viewport, a scroll position and a
-zone control to be readable, and this page is opened once by somebody who was
-asked to look at it — usually on a phone. Every day in the window is rendered,
-including the empty ones, so "free on the 4th" is a thing the page says rather
-than a gap the reader has to notice.
+── A grid AND a list, which is a change of mind, recorded ──────────────────
+
+This page used to be a list of days and nothing else, on the argument that a
+grid needs a viewport, a scroll position and a zone control to be readable and
+that this page is opened once, usually on a phone, by somebody who was asked to
+look at it. That argument was right about phones and wrong about everything
+else: a calendar that arrives as a list does not look like a calendar, which is
+not what the person who sent the link thought they were sending.
+
+So both, from the same objects. The grid is the app's own month — literally, via
+calendar/_month_shell.html.twig — and carries a mark per entry. The list under
+it carries the detail, is the only thing worth reading on a narrow screen, and
+keeps the property the old page was built around: every shared day in the month
+is printed, including the empty ones, so "free on the 4th" is a thing the page
+says rather than a gap the reader has to notice.
+
+── Days outside the window are not free days ───────────────────────────────
+
+A month has 42 cells; a rolling link publishes fourteen days. The cells the link
+does not cover are drawn dimmed, absent from the list, and named in a legend,
+because a blank cell that looked like a free one would make this page claim
+something about its owner's diary that its owner never published. Paging is
+bounded to the months the window actually touches for the same reason.
 
 Variables:
-  view     SharedCalendarView  window, zone, and days keyed Y-m-d
-  icsPath  string              where the same window is downloadable
+  view            SharedCalendarView   window, zone, and days keyed Y-m-d
+  month           SharedCalendarMonth  those days as a 42-cell grid, plus the steps
+  token           string               this link's own URL segment, for the paging
+  icsPath         string               where the same window is downloadable
+  appearance      PublicAppearance     the owner's theme
+  chipTimeFormat  string               a PHP date() format for a grid cell: compact
+  rowTimeFormat   string               the same clock, spelled in full, for the list
 #}
 {% extends 'sharing/_layout.html.twig' %}
 
+{% block container_class %}max-w-3xl{% endblock %}
+
 {% block body %}
-    <header class="mb-6">
+    <header class="mb-4">
         <h1 class="text-lg font-semibold text-ink">{{ 'calendar.share.heading'|trans }}</h1>
 
+        {# `window_label`, not `window`. The latter is a two-child node —
+           `window.fixed` and `window.rolling`, which the settings form uses for
+           its radio labels — and asking the translator for the parent got the
+           key itself printed on the page under the heading. It has said
+           "calendar.share.window" to every recipient since the feature shipped;
+           `bin/console debug:translation en --only-missing` lists it, which is
+           where it was finally caught. #}
         <p class="mt-1 text-sm text-ink-muted">
-            {{ 'calendar.share.window'|trans({
+            {{ 'calendar.share.window_label'|trans({
                 '%from%': view.from|date('j M Y'),
                 '%to%': view.to|date_modify('-1 day')|date('j M Y'),
             }) }}
         </p>
 
-        {# Named on every page, not only when it differs from the reader's. The
-           reader has no account here, so there is no stored preference to
-           compare against, and a list of hours with no zone beside it is the
-           single most reliable way to make somebody miss a meeting. #}
-        <p class="mt-0.5 text-xs text-ink-faint">
-            {{ 'calendar.share.zone'|trans({ '%zone%': view.zone }) }}
-        </p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+            {# Named on every page, not only when it differs from the reader's. The
+               reader has no account here, so there is no stored preference to
+               compare against, and a list of hours with no zone beside it is the
+               single most reliable way to make somebody miss a meeting. #}
+            <span class="inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1 text-xs text-ink-muted">
+                <i class="fa-regular fa-clock text-[10px]" aria-hidden="true"></i>
+                {{ 'calendar.share.zone'|trans({ '%zone%': view.zone }) }}
+            </span>
 
-        {% if view.isBusyFreeOnly %}
-            <p class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1.5 text-xs text-ink-muted">
-                <i class="fa-solid fa-eye-slash text-[10px]" aria-hidden="true"></i>
-                {{ 'calendar.share.busy_free_only'|trans }}
-            </p>
-        {% endif %}
+            {% if view.isBusyFreeOnly %}
+                <span class="inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1 text-xs text-ink-muted">
+                    <i class="fa-solid fa-eye-slash text-[10px]" aria-hidden="true"></i>
+                    {{ 'calendar.share.busy_free_only'|trans }}
+                </span>
+            {% endif %}
+        </div>
     </header>
 
+    <section class="rounded-pane border border-line overflow-hidden bg-surface">
+        {# The toolbar of a read-only calendar: where you are, and the two ways
+           out of it. No view switcher — a link publishes one window and there is
+           no second arrangement of it to offer — and no "today", which would be
+           a control that does nothing whenever the window does not contain it.
+           A step that leaves the window is rendered as a disabled span rather
+           than omitted, so the row does not change shape as you page. #}
+        <div class="flex items-center gap-2 px-3 py-1 border-b border-line min-h-[var(--pane-header-h)]">
+            <div class="flex items-center gap-0.5 shrink-0">
+                {% if month.previous is not null %}
+                    <a href="{{ path('app_shared_calendar_show', { token: token, month: month.previous }) }}"
+                       class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+                       aria-label="{{ 'calendar.nav.previous'|trans }}"
+                    ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
+                {% else %}
+                    <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                          aria-hidden="true"
+                    ><i class="fa-solid fa-chevron-left text-xs"></i></span>
+                {% endif %}
+
+                {% if month.next is not null %}
+                    <a href="{{ path('app_shared_calendar_show', { token: token, month: month.next }) }}"
+                       class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+                       aria-label="{{ 'calendar.nav.next'|trans }}"
+                    ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
+                {% else %}
+                    <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                          aria-hidden="true"
+                    ><i class="fa-solid fa-chevron-right text-xs"></i></span>
+                {% endif %}
+            </div>
+
+            <h2 class="text-sm font-medium text-ink truncate min-w-0">{{ month.anchor|date('F Y') }}</h2>
+        </div>
+
+        {# `auto-rows` rather than the authenticated calendar's `h-full`: that
+           grid lives in a pane with a height of its own to divide up, and this
+           one is in a document that is as tall as it needs to be. A minimum per
+           row is what stops a quiet month collapsing into six thin stripes. #}
+        {% embed 'calendar/_month_shell.html.twig' with {
+            dayKeys: month.dayKeys,
+            days: month.gridDays,
+            anchorMonth: month.anchor|date('n'),
+            today: 'now'|date('Y-m-d', view.zone),
+            shellOuterClass: 'flex flex-col',
+            shellRowsClass: 'auto-rows-[minmax(3.25rem,auto)] sm:auto-rows-[minmax(5.5rem,auto)]',
+        } %}
+            {% block cell_body %}
+                <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden">
+                    {% for entry in dayEntries|slice(0, 3) %}
+                        {% include 'sharing/_entry_chip.html.twig' with {
+                            entry: entry,
+                            zone: view.zone,
+                            timeFormat: chipTimeFormat,
+                        } only %}
+                    {% endfor %}
+
+                    {% if dayEntries|length > 3 %}
+                        <p class="px-0.5 sm:px-1.5 text-[10px] sm:text-[11px] text-ink-faint">
+                            {{ 'calendar.more_count'|trans({ '%count%': dayEntries|length - 3 }) }}
+                        </p>
+                    {% endif %}
+                </div>
+            {% endblock %}
+        {% endembed %}
+    </section>
+
+    <p class="mt-2 flex items-center gap-1.5 text-[11px] text-ink-faint">
+        <span class="inline-block w-3 h-3 rounded-sm bg-sunken/20 border border-line" aria-hidden="true"></span>
+        {{ 'calendar.share.outside_window'|trans }}
+    </p>
+
     {% if view.isEmpty %}
-        <p class="rounded-pane border border-line px-4 py-10 text-center text-sm text-ink-faint italic">
+        <p class="mt-6 rounded-pane border border-line px-4 py-10 text-center text-sm text-ink-faint italic">
             {{ 'calendar.share.empty'|trans }}
         </p>
     {% else %}
-        <ol class="space-y-4">
-            {% for day, entries in view.days %}
-                <li class="rounded-pane border border-line overflow-hidden">
-                    <h2 class="px-4 py-2 text-xs font-semibold text-ink-soft bg-sunken border-b border-line">
-                        {{ day|date('l, j F Y') }}
-                    </h2>
+        <ol class="mt-6 space-y-4">
+            {% for day in month.sharedDays %}
+                <li class="rounded-pane border border-line overflow-hidden bg-surface">
+                    <h3 class="px-4 py-2 text-xs font-semibold text-ink-soft bg-sunken border-b border-line">
+                        {{ day.date|date('l, j F Y') }}
+                    </h3>
 
-                    {% if entries is empty %}
+                    {% if day.entries is empty %}
                         <p class="px-4 py-3 text-sm text-ink-faint italic">
                             {{ 'calendar.share.day_free'|trans }}
                         </p>
                     {% else %}
                         <ul class="divide-y divide-line">
-                            {% for entry in entries %}
-                                <li class="flex items-baseline gap-3 px-4 py-2.5">
-                                    <span class="shrink-0 tabular-nums text-xs font-medium text-ink-soft">
-                                        {% if entry.isAllDay %}
-                                            {{ 'calendar.share.all_day'|trans }}
-                                        {% else %}
-                                            {{ entry.startsAt|date('H:i', view.zone) }}–{{ entry.endsAt|date('H:i', view.zone) }}
-                                        {% endif %}
-                                    </span>
-
-                                    <span class="min-w-0 flex-1">
-                                        {# The busy bar and the labelled row are one branch, on
-                                           isDetailed() rather than on the link's settings: a
-                                           private event inside an otherwise detailed link
-                                           arrives here with every field null, and asking the
-                                           link would draw it an empty label. #}
-                                        {% if entry.isDetailed %}
-                                            <span class="block truncate text-sm text-ink">
-                                                {{ entry.title ?? 'calendar.share.busy'|trans }}
-                                            </span>
-
-                                            {% if entry.location is not null %}
-                                                <span class="block truncate text-xs text-ink-muted">
-                                                    <i class="fa-solid fa-location-dot text-[10px] mr-1" aria-hidden="true"></i>{{ entry.location }}
-                                                </span>
-                                            {% endif %}
-
-                                            {% if entry.participants is not empty %}
-                                                <span class="block truncate text-xs text-ink-muted">
-                                                    <i class="fa-solid fa-users text-[10px] mr-1" aria-hidden="true"></i>{{ entry.participants|join(', ') }}
-                                                </span>
-                                            {% endif %}
-
-                                            {% if entry.description is not null %}
-                                                <span class="mt-1 block whitespace-pre-line text-xs text-ink-muted">{{ entry.description }}</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="block text-sm text-ink-muted">{{ 'calendar.share.busy'|trans }}</span>
-                                        {% endif %}
-                                    </span>
-                                </li>
+                            {% for entry in day.entries %}
+                                {% include 'sharing/_entry_row.html.twig' with {
+                                    entry: entry,
+                                    zone: view.zone,
+                                    timeFormat: rowTimeFormat,
+                                } only %}
                             {% endfor %}
                         </ul>
                     {% endif %}

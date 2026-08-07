@@ -93,10 +93,34 @@ that *could* carry a title the link did not unlock.
 
 ### What the recipient sees
 
-A page of your days over the link's window, times shown in your zone and labelled as such, with an
-**Add to your calendar** link that hands out the same window as an `.ics` for their own calendar app
-to subscribe to. A window with nothing in it says *Nothing in this window.* A single page renders at
-most 2000 entries.
+A month grid, drawn with the same weeks, chips and day markings as your own calendar, and under it a
+list of the days it covers. Times are shown in your zone and labelled as such. There is an **Add to
+your calendar** link that hands out the same window as an `.ics` for their own calendar app to
+subscribe to. A window with nothing in it says *Nothing in this window*, and a covered day with
+nothing on it says *Nothing on this day* rather than being skipped. A single page renders at most
+2000 entries.
+
+The grid is a calendar month; your link publishes a window. Where the two differ — and for a rolling
+fortnight most of the month is the difference — the days your link does not cover are drawn dimmed
+and named in a legend as **Days outside the shared window**. That distinction is not cosmetic: a
+blank cell that looked like a free one would have the page claiming you are free on days you never
+published. For the same reason the ◀ ▶ steps only reach the months your window actually touches, and
+are drawn greyed out at the ends rather than paging into a month that would look empty.
+
+Chips carry no calendar colour, deliberately. A shared page says nothing about your calendars — not
+their names, not their colours, not how many there are — so every chip is drawn in your accent
+instead. Colours would let somebody holding a busy/free link group a fortnight of anonymous blocks by
+which diary they came from, which is structure about your life that no checkbox offered to reveal.
+
+The page is drawn in **your** appearance: your theme, your accent, your corner radius and density.
+Nothing else about you crosses over — the page has no name, no address and no hint of which install
+it came from, and the template is handed three strings rather than your account so it could not print
+one if somebody added a line that tried. An account that never chose gets Paper, which is what a new
+account starts as. A theme set to *Follow the system* is resolved against the reader's own machine, so
+the page is legible light or dark.
+
+On a phone the grid keeps the shape of a month and drops the labels inside each cell to a mark per
+entry; the list underneath is where the detail is read.
 
 **Revoke** takes a link out of service without deleting the row, so you keep a record of it; a revoked
 link is marked as such in the list. **Delete** removes it entirely — *Anyone still holding its address
@@ -159,10 +183,24 @@ for a fortnight away. A disabled page 404s exactly like an unknown address.
 
 ### What a booker sees
 
-A page naming the appointment, and every free time still on offer under **Pick a time**. Times are
-first drawn in your zone and then re-drawn in theirs — only the display changes; which slots exist is
-decided entirely by your hours and your diary. They fill in **Your name**, **Your email** — *the
-confirmation and the calendar file go here* — and an optional note, and press **Confirm the booking**.
+A card naming the appointment, its length and the zone the hours are printed in, and under it one
+**week** of your availability: seven columns, each holding the times still free on that day. Times
+are first drawn in your zone and then re-drawn in theirs — only the display changes; which slots
+exist is decided entirely by your hours and your diary. The ◀ ▶ steps move a week at a time and stop
+at the ends of what the page offers rather than paging into empty weeks. The page opens on the first
+week that has anything in it, which matters when your shortest notice is long: a page with a
+fortnight's notice has nothing this week by construction.
+
+A day with nothing free says *Nothing free* rather than disappearing, and days that have already
+passed are dimmed. Nothing says **why** a time is missing — a gap in your morning is indistinguishable
+from an hour outside your working day, and an empty column from a day off. Whoever holds the address
+is not entitled to read your diary out of the shape of the holes in it.
+
+They fill in **Your name**, **Your email** — *the confirmation and the calendar file go here* — and an
+optional note, and press **Confirm the booking**. Choosing a time and filling the form is one submit,
+not two pages.
+
+Like the shared calendar, the page is drawn in your appearance and says nothing else about you.
 
 Afterwards they land on a page saying **That is booked**, and a confirmation with an `.ics` attached
 is sent to them. That mail comes **from you**, through your own account, because it goes to a stranger
@@ -170,7 +208,8 @@ about a meeting with you and mail from nobody about a meeting with nobody is wor
 attachment carries no invitation method, so no client tries to RSVP to it.
 
 If your diary leaves nothing free, the page says *There are no free times at the moment. Try again
-later.*
+later.* If it is only this week that is full, the week itself says *No free times this week. Try the
+week either side.*
 
 The public POST is rate limited to six attempts an hour per address, because it creates rows and sends
 mail, which is the definition of a spam vector — and the address in the URL is no help, since the

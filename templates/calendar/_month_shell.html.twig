@@ -1,0 +1,114 @@
+{#
+calendar/_month_shell.html.twig — what a month LOOKS like, with nothing in it.
+
+Extracted from _view_month.html.twig when the public shared-calendar page grew a
+month view of its own. The two calendars draw different things in a cell — one
+opens an editor on an event, the other prints a redacted block that has no event
+behind it to open — but the grid itself is the same object in both: a weekday
+strip, six rows that share the height evenly, hairline gutters, and a cell that
+says whether it is today, a weekend, a spill-in from a neighbouring month, or
+outside the range altogether.
+
+It is a shell rather than a copy because that last sentence is the visual
+identity of this application's calendar. Copied into a second file it drifts on
+the first change to either, and the public page ends up looking like a calendar
+from a different product — which is exactly the complaint that produced it.
+
+Always six weeks, never five-or-six. Callers hand over 42 keys from the Monday
+on or before the first, so the grid does not change height between months — a
+calendar that reflows as you page through it is disorienting, and it means the
+surrounding layout never has to reserve for the taller case.
+
+`grid-rows-6` is what makes the six weeks share the height evenly instead of each
+row shrinking to its busiest cell. The authenticated calendar pairs it with
+`h-full` on a flex parent; a page with no fixed height passes a row-height
+minimum instead, which is what shellRowsClass is for.
+
+Embed it, do not include it:
+
+    {% embed 'calendar/_month_shell.html.twig' with { ... } %}
+        {% block cell_actions %}…{% endblock %}
+        {% block cell_body %}…{% endblock %}
+    {% endembed %}
+
+Variables:
+  dayKeys          list<string>  42 keys, Y-m-d, Monday first
+  days             map           keyed by those; a MISSING key means the cell is
+                                 outside the range the caller is publishing,
+                                 which is not the same as an empty one
+  anchorMonth      string|int    the `n` of the month on screen — spill-in days
+                                 are the ones that do not match
+  today            string        Y-m-d in the view's own zone, never the reader's
+  shellOuterClass  string        optional, the frame's own sizing
+  shellRowsClass   string        optional, how the six rows get their height
+  shellCellClass   string        optional, extra classes on every cell
+
+Blocks, both rendered inside the cell loop and both able to read `dayKey`,
+`dayEntries`, `isToday`, `isWeekend`, `isOtherMonth` and `isOutside`:
+  cell_actions  the top-right corner of a cell
+  cell_body     everything under the date
+#}
+
+{% set shellOuterClass = shellOuterClass|default('h-full min-h-0 flex flex-col') %}
+{% set shellRowsClass  = shellRowsClass|default('flex-1 min-h-0') %}
+{% set shellCellClass  = shellCellClass|default('') %}
+
+<div class="{{ shellOuterClass }}">
+    <div class="grid grid-cols-7 shrink-0 border-b border-line">
+        {% for dayKey in dayKeys|slice(0, 7) %}
+            <div class="px-2 py-1.5 text-[10px] uppercase tracking-wide text-ink-faint">
+                {{ dayKey|date('D') }}
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Named in the markup rather than left to a class list. `data-day` is the
+       spelling the time-grid's columns already use for the same idea, and it is
+       what lets a test say "this is a month grid and it has 42 cells" without
+       asserting against Tailwind classes, which are layout and are allowed to
+       change. #}
+    <div class="{{ shellRowsClass }} grid grid-cols-7 grid-rows-6 gap-px bg-line"
+         data-calendar-grid="month">
+        {% for dayKey in dayKeys %}
+            {# A key the caller did not supply is a day it is not publishing.
+               The authenticated calendar always supplies all 42, so this is
+               false there and the branch costs it nothing; the shared page uses
+               it to keep "outside the window" distinguishable from "free",
+               which is the one thing that page must never confuse. #}
+            {% set isOutside = days[dayKey] is not defined %}
+            {% set dayEntries = days[dayKey]|default([]) %}
+            {% set isToday = dayKey == today %}
+            {% set isWeekend = dayKey|date('N') >= 6 %}
+            {% set isOtherMonth = dayKey|date('n') != anchorMonth %}
+
+            {# The spill-in days are dimmed as a whole cell, not just by their
+               date number: a neighbouring month's events rendered at full
+               strength read as part of this month. #}
+            <div data-day="{{ dayKey }}"
+                 {% if isOutside %}data-day-unpublished{% endif %}
+                 class="group/cell min-h-0 min-w-0 flex flex-col p-1 gap-0.5 overflow-hidden {{ shellCellClass }}
+                        {{ isOutside
+                            ? 'bg-sunken/20'
+                            : (isToday ? 'bg-accent/5' : (isWeekend ? 'bg-sunken/40' : 'bg-surface')) }}
+                        {{ isOtherMonth ? 'opacity-55' : '' }}">
+
+                <div class="flex items-center justify-between shrink-0 px-0.5">
+                    {% if isToday %}
+                        <span class="w-5 h-5 flex items-center justify-center rounded-full
+                                     bg-accent text-white text-xs font-semibold tabular-nums">
+                            {{ dayKey|date('j') }}
+                        </span>
+                    {% else %}
+                        <span class="text-xs tabular-nums {{ isOtherMonth or isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
+                            {{ dayKey|date('j') }}
+                        </span>
+                    {% endif %}
+
+                    {% block cell_actions %}{% endblock %}
+                </div>
+
+                {% block cell_body %}{% endblock %}
+            </div>
+        {% endfor %}
+    </div>
+</div>

@@ -7,10 +7,13 @@ namespace App\Controller\Sharing;
 use App\Domain\Exception\BookingRefusedException;
 use App\Domain\Exception\BookingSlotTakenException;
 use App\Entity\Calendar\BookingPage;
+use App\Service\Appearance\PublicAppearanceResolver;
 use App\Service\Calendar\Booking\BookingAvailabilityReader;
 use App\Service\Calendar\Booking\BookingPageReader;
 use App\Service\Calendar\Booking\BookingService;
+use App\Service\Calendar\Booking\BookingWeekBuilder;
 use App\Service\Calendar\Sharing\PublicLinkToken;
+use App\Service\User\ClockFormatResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -63,6 +66,14 @@ use Symfony\Component\Routing\Attribute\Route;
  * from what is true now. It is also the right answer on its own terms, because
  * the slot the form pointed at no longer exists and a re-render would show it
  * again.
+ *
+ * ── The page wears the owner's theme, and nothing else of theirs ──────────
+ *
+ * A booking page that looks like a default nobody chose is a page people
+ * hesitate over, so it is drawn in the appearance of the account it books into.
+ * The template is handed three strings rather than the User, for the reason
+ * PublicAppearanceResolver states: a template that cannot reach a name cannot
+ * print one.
  */
 #[Route('/book', name: 'app_booking_')]
 final class BookingController extends AbstractController
@@ -77,10 +88,24 @@ final class BookingController extends AbstractController
      */
     private const string TAKEN_FLAG = 'taken';
 
+    /**
+     * The parameter naming which week is on screen, in the query and in the
+     * form alike.
+     *
+     * Carried through the POST as a hidden field for the same reason
+     * `timeZone` is: a refused booking re-renders this page, and re-rendering
+     * it on a different week than the one somebody was reading would move the
+     * slot they had chosen out from under them.
+     */
+    private const string WEEK_PARAM = 'w';
+
     public function __construct(
         private readonly BookingPageReader           $pages,
         private readonly BookingAvailabilityReader   $availability,
+        private readonly BookingWeekBuilder          $weeks,
         private readonly BookingService              $bookings,
+        private readonly PublicAppearanceResolver    $appearance,
+        private readonly ClockFormatResolver         $clocks,
         private readonly RateLimiterFactoryInterface $bookingAttemptLimiter,
     ) {
     }
@@ -221,7 +246,8 @@ final class BookingController extends AbstractController
         }
 
         return $this->render('sharing/booked.html.twig', [
-            'page' => $page,
+            'page'       => $page,
+            'appearance' => $this->appearance->forOwner($page->usr),
         ]);
     }
 
@@ -245,22 +271,58 @@ final class BookingController extends AbstractController
         ?string     $error = null,
     ): Response {
         $zone = $this->displayZone($request, $page);
+        $now  = new DateTimeImmutable();
+        $days = $this->availability->freeSlotsByDay($page, $now, $zone);
 
         return $this->render('sharing/booking_page.html.twig', [
-            'page'     => $page,
-            'token'    => $token,
-            'days'     => $this->availability->freeSlotsByDay($page, new DateTimeImmutable(), $zone),
-            'zone'     => $zone->getName(),
-            'errorKey' => $errorKey,
-            'error'    => $error,
-            'wasTaken' => $wasTaken,
+            'page'       => $page,
+            'token'      => $token,
+            'days'       => $days,
+            'week'       => $this->weeks->build($days, $zone, $now, $this->displayWeek($request)),
+            'weekParam'  => self::WEEK_PARAM,
+            'zone'       => $zone->getName(),
+            // Three strings, not the owner: the page wears that person's theme
+            // and says nothing else about them. See PublicAppearanceResolver.
+            'appearance' => $this->appearance->forOwner($page->usr),
+            // The install's clock, not the owner's. Which slots exist is the
+            // owner's business; how a stranger reads twelve or twenty-four is
+            // not, and publishing their preference would be one more fact about
+            // them that nobody asked for.
+            // The full form, not the compact one: a day's pills run from
+            // morning to evening in one column, and "1:00" with nothing
+            // beside it is an appointment booked twelve hours out.
+            'timeFormat' => $this->clocks->resolve(null)->time(),
+            'errorKey'   => $errorKey,
+            'error'      => $error,
+            'wasTaken'   => $wasTaken,
             // Echoed back so a refused booking does not make somebody type
             // their name and address again — the one thing that reliably stops
             // people finishing a form.
-            'name'     => $request->request->getString('name'),
-            'email'    => $request->request->getString('email'),
-            'note'     => $request->request->getString('note'),
+            'name'       => $request->request->getString('name'),
+            'email'      => $request->request->getString('email'),
+            'note'       => $request->request->getString('note'),
         ], new Response(status: $status));
+    }
+
+    /**
+     * Which week the slot picker is showing.
+     *
+     * Read from the query on a GET and from the form on a POST, the same two
+     * places and in the same order as the zone above — and for the same reason:
+     * a booking refused at the last moment has to come back on the week the
+     * reader was looking at, or the slot they chose is no longer on screen.
+     *
+     * Like the zone, it is a DISPLAY parameter. BookingWeekBuilder clamps it to
+     * the weeks the page offers, and the POST re-derives its slot from
+     * BookingAvailabilityReader regardless — no value here can make an instant
+     * bookable that was not.
+     */
+    private function displayWeek(Request $request): ?string
+    {
+        $candidate = $request->query->getString(self::WEEK_PARAM)
+            ?: $request->request->getString(self::WEEK_PARAM);
+
+        return '' === $candidate ? null : $candidate;
     }
 
     /**

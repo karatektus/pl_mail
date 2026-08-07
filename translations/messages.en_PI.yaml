@@ -385,6 +385,7 @@ calendar:
             title: Booked, matey
         confirm: Seal the booking
         count: '{0}No boarding notices|{1}1 boarding notice|]1,Inf[ %count% boarding notices'
+        day_none: Naught free
         delete_confirm: 'Scuttle "%name%"? Every appointment already booked goes down wi it.'
         disabled: Struck
         duration: '{1} 1 minute|]1,Inf[ %count% minutes'
@@ -425,6 +426,7 @@ calendar:
             weekdays: Days ye be boardable
         lands_on: 'lands in %calendar%'
         no_slots: No free hours at present. Come back later, matey.
+        no_slots_this_week: No free hours this week. Try the week fore or aft.
         note: Aught else? (optional)
         pick_a_time: Pick an hour
         toast:
@@ -710,6 +712,7 @@ calendar:
             once: >-
                 Copy it now. It be stored nowhere, so this be the only time it can
                 be shown.
+        outside_window: Days beyond the shared stretch
         page_title: Shared log
         reveals: 'Gives away %details%'
         reveals_busy_free: Occupied/free only
