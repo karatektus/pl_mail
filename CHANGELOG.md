@@ -6,6 +6,61 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.19 — 2026-08-07
+
+**No schema changes.** Everything below lands in code and templates; nothing
+touches a table.
+
+**One meeting is one row, everywhere.** The time grid always collapsed a
+meeting that lives on two calendars into a single chip with a multicoloured
+dot; every other surface listed each copy separately. The same collapse now
+runs in "Happening soon", on shared calendar pages and their `.ics` feeds, and
+in the alert sweep — which was quietly the worst offender, sending two pushes
+per reminder for a two-calendar meeting.
+
+**Search sorts by date, and says so.** Results used to come back
+relevance-ordered, which put a 2004 eBay mail above last week's. The default
+is now most-recent, with a dropdown beside the pagination for most-relevant,
+and the choice follows you to your other devices. Fixed underneath, because it
+had to be: neither order was total, so paging through tied rows could show a
+result twice and another never — measured at 148 distinct rows out of 150
+before the fix. The search page also finally speaks the reader's language;
+its headings and filter pills were English written into the template.
+
+**Restoring a backup is uploading a backup.** The import used to print a wall
+of `.env` lines to paste by hand, built on the assumption those values were
+hand-maintained — they are generated on first run, so the import now writes
+them where the entrypoint reads them and asks for one restart instead. The
+database's own credentials left the export entirely: they are machine-local,
+consumed once at initdb, and useless-to-harmful on any restore target. Old
+backups still import; those entries are recognised and left alone. Beside the
+export form there is now a generate button that fills both password fields and
+puts the password on your clipboard — and where the browser withholds its
+clipboard, the fields unmask instead of pretending.
+
+**The badge that would not die is dead.** FrankenPHP keeps services alive
+between requests, and four topbar helpers memoised per request without ever
+being reset — so the first answer a worker computed was the answer every later
+request got. That is the yellow log-alert outline that survived an emptied log
+table, and on a multi-user install two of the four could show one user's
+sidebar counts or calendar dot to another. All four now reset per request,
+like the services that always did.
+
+**Registered devices can be removed from settings.** A push subscription that
+delivers perfectly well to a phone that no longer wants it — an old build's
+leftover registration, a retired device — used to be a `DELETE` typed into
+psql. It is now a button in Settings → Notifications, and the delivery log
+deliberately keeps the removed device's history.
+
+**Shared calendars and booking pages look like plMail now.** A share link
+renders the app's own month grid — today marked, chips in place, prev/next —
+in the owner's theme, falling back to Paper; booking pages get the same
+treatment. What a link does not reveal is unchanged, and deliberately so:
+chips on a busy/free page carry the owner's accent rather than calendar
+colours, because colours would let a stranger group anonymous blocks by which
+diary they came from. Also fixed: the share page had printed the literal text
+`calendar.share.window` under its heading since the feature shipped.
+
 ## v0.0.18 — 2026-08-06
 
 **Five schema changes, all additive and applied automatically on boot.**
