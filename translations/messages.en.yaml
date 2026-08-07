@@ -627,6 +627,7 @@ calendar:
             title: That is booked
         confirm: Confirm the booking
         count: '{0}No booking pages|{1}1 booking page|]1,Inf[ %count% booking pages'
+        day_none: Nothing free
         delete_confirm: 'Delete "%name%"? The appointments already booked through it go with it.'
         disabled: 'Off'
         duration: '{1} 1 minute|]1,Inf[ %count% minutes'
@@ -668,6 +669,7 @@ calendar:
             weekdays: Days you are bookable
         lands_on: 'lands on %calendar%'
         no_slots: There are no free times at the moment. Try again later.
+        no_slots_this_week: No free times this week. Try the week either side.
         note: Anything else? (optional)
         pick_a_time: Pick a time
         toast:
@@ -953,6 +955,7 @@ calendar:
             once: >-
                 Copy it now. It is not stored anywhere, so this is the only time
                 it can be shown.
+        outside_window: Days outside the shared window
         page_title: Shared calendar
         reveals: 'Reveals %details%'
         reveals_busy_free: Busy/free only

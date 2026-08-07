@@ -1,0 +1,59 @@
+{#
+One shared entry, as a line in the day list under the month grid.
+
+This is where the detail is actually read — the location, the people, the note —
+because a month cell has room for a title and nothing else, and on a phone not
+even that. The grid says WHEN somebody is busy at a glance; this says what the
+link was ticked to say about it.
+
+The branch below is on `entry.isDetailed()` rather than on the link's settings,
+and that is the load-bearing part of this file. A private event inside an
+otherwise detailed link arrives here with every field null — see
+ShareLinkReader, where EventPrivacy is the ceiling over the checkboxes — and
+asking the LINK whether to draw a label would draw it an empty one. Asking the
+ENTRY is the only question that cannot be wrong.
+
+Nothing here may add a `title` attribute, a `data-` attribute or a JSON payload.
+It has only what the DTO carries, which is the point of the DTO; the way to keep
+it that way is to add nothing that would need more.
+
+Variables:
+  entry       SharedOccurrence
+  zone        string
+  timeFormat  string
+#}
+<li class="flex items-baseline gap-3 px-4 py-2.5">
+    <span class="shrink-0 tabular-nums text-xs font-medium text-ink-soft">
+        {% if entry.isAllDay %}
+            {{ 'calendar.share.all_day'|trans }}
+        {% else %}
+            {{ entry.startsAt|date(timeFormat, zone) }}–{{ entry.endsAt|date(timeFormat, zone) }}
+        {% endif %}
+    </span>
+
+    <span class="min-w-0 flex-1">
+        {% if entry.isDetailed %}
+            <span class="block truncate text-sm text-ink">
+                {{ entry.title ?? 'calendar.share.busy'|trans }}
+            </span>
+
+            {% if entry.location is not null %}
+                <span class="block truncate text-xs text-ink-muted">
+                    <i class="fa-solid fa-location-dot text-[10px] mr-1" aria-hidden="true"></i>{{ entry.location }}
+                </span>
+            {% endif %}
+
+            {% if entry.participants is not empty %}
+                <span class="block truncate text-xs text-ink-muted">
+                    <i class="fa-solid fa-users text-[10px] mr-1" aria-hidden="true"></i>{{ entry.participants|join(', ') }}
+                </span>
+            {% endif %}
+
+            {% if entry.description is not null %}
+                <span class="mt-1 block whitespace-pre-line text-xs text-ink-muted">{{ entry.description }}</span>
+            {% endif %}
+        {% else %}
+            <span class="block text-sm text-ink-muted">{{ 'calendar.share.busy'|trans }}</span>
+        {% endif %}
+    </span>
+</li>

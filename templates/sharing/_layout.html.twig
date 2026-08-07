@@ -17,14 +17,37 @@ It is also deliberately anonymous. No sidebar, no account switcher, no
 calendar, not introduced to somebody's mail client, and the page should not
 tell them which install it came from or who else uses it.
 
-Blocks:
-  title  the browser tab
-  body   the page
+── The theme is the owner's, and it is the only thing of theirs here ────────
 
-Variables: none. Everything comes from the extending template.
+`appearance` is a PublicAppearance: a class list, a theme name and a block of
+CSS variables, built by PublicAppearanceResolver from the account the link
+belongs to. That is what makes a shared calendar look like the calendar it came
+out of rather than like the `:root` fallback, which is not a theme anybody
+picked — it is what a stylesheet resolves against before a user is known.
+
+It carries no name, no address and no id, and the object is three strings
+precisely so that it cannot: the same argument SharedOccurrence makes about
+events, applied to appearance. A page rendered without it falls back to Paper,
+which is what a fresh account starts as.
+
+The one script here resolves a `system` theme against the visitor's own OS. It
+deliberately does NOT read localStorage the way _layout/app.html.twig does —
+that cache holds the VISITOR's appearance, and replaying it would repaint
+somebody else's calendar in the reader's colours.
+
+Blocks:
+  title            the browser tab
+  body             the page
+  container_class  the width the content is held to
+
+Variables:
+  appearance  PublicAppearance  the owner's theme, or Paper by default
 #}
 <!DOCTYPE html>
-<html lang="{{ app.request.locale }}">
+<html lang="{{ app.request.locale }}"
+      class="{{ appearance is defined ? appearance.htmlClass : '' }}"
+      data-theme="{{ appearance is defined ? appearance.theme : 'paper' }}"
+      style="{{ appearance is defined ? appearance.cssVariables : '' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -39,10 +62,22 @@ Variables: none. Everything comes from the extending template.
        must not carry the token in the Referer header to wherever it goes. #}
     <meta name="referrer" content="no-referrer">
 
+    <script>
+        // A `system` theme is the one the server cannot resolve: it means
+        // "whatever the machine reading this prefers", and only the machine
+        // knows. Three lines, before first paint, exactly as the application's
+        // own layout does it — without them a system-themed owner's page paints
+        // light and then never corrects, because nothing else here is dynamic.
+        if (document.documentElement.dataset.theme === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+
     {{ importmap('app') }}
 </head>
 <body class="min-h-screen app-bg text-ink antialiased">
-    <main class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+    <main class="mx-auto w-full {% block container_class %}max-w-2xl{% endblock %} px-3 py-6 sm:px-4 sm:py-10">
         {% block body %}{% endblock %}
     </main>
 </body>

@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Controller\Sharing;
 
+use App\Service\Appearance\PublicAppearanceResolver;
 use App\Service\Calendar\Sharing\PublicLinkToken;
+use App\Service\Calendar\Sharing\SharedCalendarMonthBuilder;
 use App\Service\Calendar\Sharing\SharedIcsBuilder;
 use App\Service\Calendar\Sharing\ShareLinkReader;
 use App\Service\Calendar\Sharing\ShareLinkWriter;
+use App\Service\User\ClockFormatResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -56,6 +60,14 @@ use Symfony\Component\Routing\Attribute\Route;
  * template cannot leak a title into markup, into a data attribute or into a
  * JSON payload, because it has not got one. SharedCalendarLeakTest asserts that
  * from the outside for the whole response body.
+ *
+ * The same rule is why the page's THEME arrives as three strings rather than as
+ * the owner. It is drawn in that person's appearance — see
+ * PublicAppearanceResolver, which is where the decision about what may be
+ * carried over lives — and a template holding the User could print anything on
+ * it. The clock format is deliberately NOT the owner's: it is the install's
+ * default, because twelve-or-twenty-four is a preference of the reader's and
+ * publishing the owner's would be one more fact about them nobody asked for.
  */
 #[Route('/share', name: 'app_shared_calendar_')]
 final class SharedCalendarController extends AbstractController
@@ -68,10 +80,13 @@ final class SharedCalendarController extends AbstractController
     private const string CONTENT_TYPE = 'text/calendar; charset=utf-8';
 
     public function __construct(
-        private readonly ShareLinkReader        $reader,
-        private readonly ShareLinkWriter        $writer,
-        private readonly SharedIcsBuilder       $ics,
-        private readonly EntityManagerInterface $em,
+        private readonly ShareLinkReader            $reader,
+        private readonly ShareLinkWriter            $writer,
+        private readonly SharedIcsBuilder           $ics,
+        private readonly SharedCalendarMonthBuilder $months,
+        private readonly PublicAppearanceResolver   $appearance,
+        private readonly ClockFormatResolver        $clocks,
+        private readonly EntityManagerInterface     $em,
     ) {
     }
 
@@ -79,8 +94,14 @@ final class SharedCalendarController extends AbstractController
      * The page a recipient opens.
      *
      * The reader gets one instant and everything downstream is computed from
-     * it, so the window, the "today" heading and the day walk cannot disagree
-     * about what time it is within one request.
+     * it, so the window, the "today" heading, the day walk and the month the
+     * grid opens on cannot disagree about what time it is within one request.
+     *
+     * `month` is a display parameter and nothing more. It picks which month of
+     * the published window is on screen; it cannot widen the window, and
+     * SharedCalendarMonthBuilder clamps it to the months the link actually
+     * covers — a reader who could step into an empty December would read it as
+     * "free in December".
      */
     #[Route(
         '/{token}',
@@ -88,7 +109,7 @@ final class SharedCalendarController extends AbstractController
         requirements: ['token' => PublicLinkToken::ROUTE_PATTERN],
         methods: ['GET'],
     )]
-    public function show(string $token): Response
+    public function show(Request $request, string $token): Response
     {
         $link = $this->reader->resolve($token);
 
@@ -107,9 +128,21 @@ final class SharedCalendarController extends AbstractController
         // than a counter or an address.
         $this->em->flush();
 
+        $view = $this->reader->read($link, $now);
+
         return $this->render('sharing/shared_calendar.html.twig', [
-            'view'    => $this->reader->read($link, $now),
-            'icsPath' => $this->generateUrl('app_shared_calendar_ics', ['token' => $token]),
+            'view'       => $view,
+            'month'      => $this->months->build($view, $request->query->getString('month') ?: null, $now),
+            'token'      => $token,
+            'icsPath'    => $this->generateUrl('app_shared_calendar_ics', ['token' => $token]),
+            'appearance' => $this->appearance->forOwner($link->usr),
+            // Two shapes, the same vocabulary the `clock` global gives the
+            // authenticated app: compact inside a grid cell, where a
+            // meridiem costs a fifth of the width, and the full form in the
+            // day list, where "10:00–11:00" with no am on it is a meeting
+            // somebody misses by twelve hours.
+            'chipTimeFormat' => $this->clocks->resolve(null)->timeCompact(),
+            'rowTimeFormat'  => $this->clocks->resolve(null)->time(),
         ]);
     }
 

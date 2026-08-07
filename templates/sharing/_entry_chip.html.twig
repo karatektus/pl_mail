@@ -1,0 +1,53 @@
+{#
+One shared entry, as it appears in a cell of the public month grid.
+
+The same object the app's own chip is: a coloured dot, the time, then whatever
+label is left over. It is NOT calendar/_event_chip.html.twig and cannot be —
+that one is a <button> carrying an event id and an occurrence id, and it opens
+an editor. There is no event behind this. A SharedOccurrence is a redaction with
+no path back to the row it came from, which is the whole design (see the DTO),
+so a chip drawn from one has nothing to open and is deliberately not focusable.
+
+**The dot is the accent, and it is not the calendar's colour.** The app's chip
+paints the calendar an event lives on; this one must not, and the rule is
+ShareLinkReader's, stated where the merge is done: "a shared page says nothing
+about the owner's calendars — not their names, not their colours, not how many
+there are". Colours here would let somebody holding a busy/free link count the
+diaries behind it and group a fortnight's blocks by which one they came from,
+which is structure about the owner's life that no box on the form offered to
+reveal. So every chip is one accent — the owner's accent, which is a fact about
+their theme rather than about their calendars.
+
+**No `title` attribute, ever.** A tooltip is the classic way a redacted page
+starts leaking: it is invisible in review and it carries the full string.
+SharedCalendarLeakTest reads the whole response body, so it would catch one —
+but it is written here as well, because the next person adding a hover hint
+should be told before the build tells them.
+
+Below `sm` the dot is the whole chip. Seven columns on a phone have room for a
+mark and not for a label, and the day list under the grid is where the detail
+is read — which is the honest version of the argument the old list-only page
+made, kept rather than thrown away.
+
+Variables:
+  entry       SharedOccurrence  already redacted; may carry nothing but times
+  zone        string            the owner's zone, which the grid is drawn in
+  timeFormat  string            a PHP date() format, from the install's clock
+#}
+<div data-shared-entry
+     class="flex items-center gap-1.5 px-0.5 sm:px-1.5 py-0.5 rounded-md min-w-0
+            {{ entry.isDetailed ? 'bg-accent/10' : 'bg-sunken/60' }}">
+    <span data-shared-entry-mark
+          class="w-1.5 h-1.5 rounded-full shrink-0 {{ entry.isDetailed ? 'bg-accent' : 'bg-ink-faint' }}"
+          aria-hidden="true"></span>
+
+    {% if not entry.isAllDay %}
+        <span class="hidden sm:inline shrink-0 text-[11px] tabular-nums text-ink-faint">
+            {{ entry.startsAt|date(timeFormat, zone) }}
+        </span>
+    {% endif %}
+
+    <span class="hidden sm:block min-w-0 flex-1 truncate text-xs text-ink">
+        {{ entry.title ?? 'calendar.share.busy'|trans }}
+    </span>
+</div>

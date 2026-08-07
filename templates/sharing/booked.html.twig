@@ -16,15 +16,18 @@ two to disagree. What this page promises is exactly what has happened: the
 appointment is made and a message is on its way.
 
 Variables:
-  page  BookingPage  what was booked, for the heading
+  page        BookingPage       what was booked, for the heading
+  appearance  PublicAppearance  the owner's theme, so this page and the form
+                                that led to it are visibly the same place
 #}
 {% extends 'sharing/_layout.html.twig' %}
 
 {% block title %}{{ 'calendar.booking.booked.title'|trans }}{% endblock %}
 
 {% block body %}
-    <div class="rounded-pane border border-line px-6 py-10 text-center">
-        <i class="fa-solid fa-circle-check text-2xl text-accent" aria-hidden="true"></i>
+    <div class="rounded-pane border border-line bg-surface px-6 py-10 text-center">
+        <span class="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-accent/10 text-accent"
+              aria-hidden="true"><i class="fa-solid fa-check text-xl"></i></span>
 
         <h1 class="mt-4 text-lg font-semibold text-ink">{{ 'calendar.booking.booked.title'|trans }}</h1>
 

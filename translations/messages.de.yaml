@@ -636,6 +636,7 @@ calendar:
             title: Termin gebucht
         confirm: Buchung bestätigen
         count: '{0}Keine Buchungsseiten|{1}1 Buchungsseite|]1,Inf[ %count% Buchungsseiten'
+        day_none: Nichts frei
         delete_confirm: '"%name%" löschen? Die bereits gebuchten Termine gehen mit.'
         disabled: Aus
         duration: '{1} 1 Minute|]1,Inf[ %count% Minuten'
@@ -679,6 +680,7 @@ calendar:
             weekdays: Tage, an denen du buchbar bist
         lands_on: 'landet in %calendar%'
         no_slots: Zurzeit sind keine Zeiten frei. Versuche es später noch einmal.
+        no_slots_this_week: Diese Woche ist nichts frei. Schau eine Woche vor oder zurück.
         note: Noch etwas? (optional)
         pick_a_time: Zeit wählen
         toast:
@@ -978,6 +980,7 @@ calendar:
             once: >-
                 Kopiere sie jetzt. Sie wird nirgends gespeichert, also ist dies
                 die einzige Gelegenheit.
+        outside_window: Tage außerhalb des geteilten Zeitraums
         page_title: Geteilter Kalender
         reveals: 'Zeigt %details%'
         reveals_busy_free: Nur belegt/frei

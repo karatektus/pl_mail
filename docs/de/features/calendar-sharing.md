@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sharing.md sha1:be6e21a8e00bb445d354f03df628e747efb3785f -->
+<!-- translated-from: features/calendar-sharing.md sha1:bd20ab63b8bfc9daac8a21995ad685c9669f3331 -->
 
 # Teilen und Buchen
 
@@ -105,10 +105,37 @@ Datenattribut und keine `.ics`, die einen Titel tragen *könnte*, den der Link n
 
 ### Was die empfangende Person sieht
 
-Eine Seite deiner Tage über das Fenster des Links, die Zeiten in deiner Zone gezeigt und als solche
-benannt, mit einem Link **Zu deinem Kalender hinzufügen**, der dasselbe Fenster als `.ics` herausgibt,
-damit die eigene Kalender-App sie abonnieren kann. Ein Fenster, in dem nichts steht, sagt *In diesem
-Zeitraum nichts.* Eine einzelne Seite zeichnet höchstens 2000 Einträge.
+Ein Monatsraster, gezeichnet mit denselben Wochen, Chips und Tagesmarkierungen wie dein eigener
+Kalender, und darunter eine Liste der Tage, die es abdeckt. Die Zeiten werden in deiner Zone gezeigt
+und als solche benannt. Ein Link **Zu deinem Kalender hinzufügen** gibt dasselbe Fenster als `.ics`
+heraus, damit die eigene Kalender-App es abonnieren kann. Ein Fenster, in dem nichts steht, sagt *In
+diesem Zeitraum nichts*, und ein abgedeckter Tag ohne Eintrag sagt *An diesem Tag nichts*, statt
+übersprungen zu werden. Eine einzelne Seite zeichnet höchstens 2000 Einträge.
+
+Das Raster ist ein Kalendermonat; dein Link veröffentlicht ein Fenster. Wo die beiden auseinandergehen
+— und bei zwei rollenden Wochen ist das der größte Teil des Monats — werden die Tage, die dein Link
+nicht abdeckt, gedimmt gezeichnet und in einer Legende als **Tage außerhalb des geteilten Zeitraums**
+benannt. Dieser Unterschied ist keine Kosmetik: Eine leere Zelle, die wie ein freier Tag aussähe,
+ließe die Seite behaupten, du seiest an Tagen frei, die du nie veröffentlicht hast. Aus demselben
+Grund reichen die Schritte ◀ ▶ nur bis zu den Monaten, die dein Fenster wirklich berührt, und sind an
+den Enden ausgegraut, statt in einen Monat zu blättern, der leer aussähe.
+
+Chips tragen bewusst keine Kalenderfarbe. Eine geteilte Seite sagt nichts über deine Kalender — nicht
+ihre Namen, nicht ihre Farben, nicht wie viele es sind — also wird jeder Chip stattdessen in deiner
+Akzentfarbe gezeichnet. Farben ließen jemanden mit einem Belegt/Frei-Link zwei Wochen anonymer Blöcke
+danach gruppieren, aus welchem Kalender sie stammen, und das ist Struktur über dein Leben, die kein
+Ankreuzfeld freigegeben hat.
+
+Die Seite wird in **deinem** Erscheinungsbild gezeichnet: dein Thema, deine Akzentfarbe, deine
+Eckenrundung und Dichte. Sonst geht nichts über dich hinüber — die Seite trägt keinen Namen, keine
+Adresse und keinen Hinweis darauf, von welcher Installation sie stammt, und die Vorlage bekommt drei
+Zeichenketten statt deines Kontos, könnte also selbst dann nichts ausgeben, wenn jemand eine Zeile
+hinzufügte, die es versucht. Ein Konto, das nie gewählt hat, bekommt Papier — das, womit ein neues
+Konto beginnt. Ein auf *Dem System folgen* gesetztes Thema wird gegen den Rechner der lesenden Person
+aufgelöst, die Seite ist also hell wie dunkel lesbar.
+
+Auf dem Telefon behält das Raster die Form eines Monats und reduziert die Beschriftung in jeder Zelle
+auf eine Marke pro Eintrag; die Liste darunter ist, wo die Einzelheiten gelesen werden.
 
 **Widerrufen** nimmt einen Link außer Betrieb, ohne die Zeile zu löschen, sodass dir der Nachweis
 bleibt; ein widerrufener Link ist in der Liste als solcher gekennzeichnet. **Löschen** entfernt ihn
@@ -175,11 +202,26 @@ unbekannte Adresse.
 
 ### Was die buchende Person sieht
 
-Eine Seite, die den Termin benennt, und unter **Zeit wählen** jede freie Zeit, die noch zu haben ist.
-Die Zeiten werden zuerst in deiner Zone gezogen und dann in ihrer neu gezeichnet — nur die Anzeige
-ändert sich; welche Zeitfenster es gibt, entscheiden ausschließlich deine Stunden und dein Kalender.
+Eine Karte, die den Termin, seine Länge und die Zone der gezeigten Stunden benennt, und darunter eine
+**Woche** deiner Verfügbarkeit: sieben Spalten, jede mit den an diesem Tag noch freien Zeiten. Die
+Zeiten werden zuerst in deiner Zone gezogen und dann in ihrer neu gezeichnet — nur die Anzeige ändert
+sich; welche Zeitfenster es gibt, entscheiden ausschließlich deine Stunden und dein Kalender. Die
+Schritte ◀ ▶ gehen eine Woche weiter und halten an den Enden dessen, was die Seite anbietet, statt in
+leere Wochen zu blättern. Die Seite öffnet auf der ersten Woche, in der überhaupt etwas steht — was
+zählt, wenn deine kürzeste Vorlaufzeit lang ist: Eine Seite mit zwei Wochen Vorlauf hat diese Woche
+schon von Natur aus nichts.
+
+Ein Tag ohne freie Zeit sagt *Nichts frei*, statt zu verschwinden, und bereits vergangene Tage sind
+gedimmt. Nichts sagt, **warum** eine Zeit fehlt — eine Lücke am Vormittag ist nicht von einer Stunde
+außerhalb deines Arbeitstags zu unterscheiden und eine leere Spalte nicht von einem freien Tag. Wer
+die Adresse hält, hat kein Anrecht darauf, deinen Kalender aus der Form seiner Löcher zu lesen.
+
 Sie tragen **Dein Name** und **Deine E-Mail-Adresse** ein — *Bestätigung und Kalenderdatei gehen
-hierhin.* — dazu eine freiwillige Notiz, und drücken **Buchung bestätigen**.
+hierhin.* — dazu eine freiwillige Notiz, und drücken **Buchung bestätigen**. Zeit wählen und Formular
+ausfüllen ist ein Absenden, nicht zwei Seiten.
+
+Wie der geteilte Kalender wird die Seite in deinem Erscheinungsbild gezeichnet und sagt sonst nichts
+über dich.
 
 Danach landen sie auf einer Seite, die **Termin gebucht** sagt, und eine Bestätigung mit angehängter
 `.ics` geht an sie hinaus. Diese Mail kommt **von dir**, über dein eigenes Konto, denn sie geht an eine
@@ -188,7 +230,8 @@ niemandem ist schlimmer als gar keine. Der Anhang trägt keine Einladungsmethode
 Programm, darauf zu antworten.
 
 Lässt dein Kalender nichts frei, sagt die Seite *Zurzeit sind keine Zeiten frei. Versuche es später
-noch einmal.*
+noch einmal.* Ist nur diese Woche voll, sagt die Woche selbst *Diese Woche ist nichts frei. Schau eine
+Woche vor oder zurück.*
 
 Das öffentliche POST ist auf sechs Versuche pro Stunde und Adresse begrenzt, denn es legt Zeilen an und
 verschickt Mail, was die Definition eines Spam-Vektors ist — und die Adresse in der URL hilft dabei
