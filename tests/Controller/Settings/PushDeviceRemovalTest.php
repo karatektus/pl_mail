@@ -58,6 +58,10 @@ final class PushDeviceRemovalTest extends WebTestCase
     protected function setUp(): void
     {
         $this->client = static::createClient();
+        // The rows below are staged inside a rolled-back transaction, so the
+        // kernel must not reboot between requests — a rebooted kernel opens a
+        // fresh connection that cannot see them. Same as ThreadSnoozeEndpointTest.
+        $this->client->disableReboot();
 
         $container           = static::getContainer();
         $this->em            = $container->get(EntityManagerInterface::class);
@@ -184,6 +188,12 @@ final class PushDeviceRemovalTest extends WebTestCase
                 ->getToken('push-device-remove' . $id)
                 ->getValue();
         } finally {
+            // Generated outside any kernel request, so nothing will save the
+            // session for us — without this the token exists only in memory
+            // and the POST's freshly-loaded session has never heard of it.
+            // The owner test hides this: rendering his own row's form mints
+            // the token inside the GET, which the kernel then saves.
+            $this->client->getRequest()->getSession()->save();
             $stack->pop();
         }
     }
