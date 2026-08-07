@@ -116,4 +116,80 @@ final class GeneratedSecretsFileTest extends TestCase
 
         self::assertSame('0600', substr(sprintf('%o', fileperms($this->path)), -4));
     }
+
+    /**
+     * The write a config-backup import performs, in one call.
+     *
+     * All three behaviours at once, because they are one behaviour and testing
+     * them apart would let an implementation pass that appends a second
+     * APP_SECRET= line below the first: an existing name is updated in place, a
+     * missing one is added, and anything the caller said nothing about is still
+     * there afterwards. That last part is the one with teeth — an import
+     * carries the names the backup happened to hold, and a rewrite that dropped
+     * MERCURE_JWT_SECRET because this backup had none would silently
+     * disconnect the hub at the next start.
+     */
+    public function testSetManyUpdatesAddsAndLeavesEverythingElseAlone(): void
+    {
+        $file = new GeneratedSecretsFile($this->path);
+
+        $file->ensure('APP_SECRET', static fn (): string => 'the-old-secret');
+        $file->ensure('MERCURE_JWT_SECRET', static fn (): string => 'the-hub-secret');
+
+        $file->setMany([
+            'APP_SECRET'        => 'the-restored-secret',
+            'VAPID_PRIVATE_KEY' => 'a-key-this-file-never-had',
+        ]);
+
+        self::assertSame(
+            [
+                // In place, not appended: order is the file's original order,
+                // with the additions at the end.
+                'APP_SECRET'         => 'the-restored-secret',
+                'MERCURE_JWT_SECRET' => 'the-hub-secret',
+                'VAPID_PRIVATE_KEY'  => 'a-key-this-file-never-had',
+            ],
+            (new GeneratedSecretsFile($this->path))->read(),
+        );
+
+        // One line per name, so nothing is shadowing anything: the shell in
+        // frankenphp/docker-entrypoint.sh exports every line it reads, and a
+        // duplicate would have the stale value win or lose depending on which
+        // reader looked.
+        $lines = file($this->path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+        self::assertIsArray($lines);
+        self::assertCount(3, $lines);
+    }
+
+    /**
+     * The mode has to survive a rewrite, not just the first creation. The whole
+     * file is truncated and written again, and a rewrite that ended up 0644
+     * would put every secret the install has where any process on the host can
+     * read it — with nothing anywhere saying it had happened.
+     */
+    public function testSetManyLeavesTheFileUnreadableByAnyoneElse(): void
+    {
+        $file = new GeneratedSecretsFile($this->path);
+        $file->ensure('APP_SECRET', static fn (): string => 'secret');
+
+        $file->setMany(['APP_SECRET' => 'a-restored-secret']);
+
+        clearstatcache();
+
+        self::assertSame('0600', substr(sprintf('%o', fileperms($this->path)), -4));
+    }
+
+    /** A file that does not exist yet is writable if its directory can be made. */
+    public function testWritabilityIsMeasuredAgainstTheNearestExistingAncestor(): void
+    {
+        self::assertTrue(
+            (new GeneratedSecretsFile($this->path))->isWritable(),
+            'a path under a directory that can be created must count as writable',
+        );
+
+        // /sys is read-only even to uid 0, which this container is — so a
+        // chmod-ed temporary directory would prove nothing.
+        self::assertFalse((new GeneratedSecretsFile('/sys/plmail-nowhere/generated.env'))->isWritable());
+    }
 }

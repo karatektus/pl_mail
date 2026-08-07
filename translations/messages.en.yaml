@@ -45,6 +45,31 @@ admin:
             absent: 'nothing set here yet'
             differs: 'replaces a different value'
             unchanged: 'already identical'
+        disposition:
+            applied: 'Written, and in force now.'
+            applied-on-restart: 'takes effect on next restart'
+            external: >-
+                plMail is a client of the system this belongs to, not its owner. The
+                database role was created with the password Postgres already holds, and
+                only an initdb reads a new one — so changing it here alone gives you an
+                installation that cannot connect to its own database. Change it in Postgres
+                first, then here.
+            kept-deliberately: >-
+                Kept as it is here, on purpose. The credentials out of this backup were
+                re-encrypted with this installation's key as they were written, so putting
+                the backup's key in place would make them — and everything else already
+                stored — unreadable at the next start. The line below is only for the case
+                where you are also restoring the old database, whose rows are encrypted
+                with it; then it has to go in before anything is stored.
+            not-writable: >-
+                This process could not write that path. Read-only secrets volume, wrong
+                uid, or a service that was never given the volume. The value is in the
+                backup you just uploaded — put it there yourself.
+            shadowed-by-compose: >-
+                Written, but something in the process environment sets this name too, and
+                the entrypoint lets an explicitly configured value win over the generated
+                one. Remove or update it in your compose file — or in the `.env` beside it
+                — and restart; the restored value is already waiting underneath.
         error:
             malformed-document: >-
                 The password opened that file, but what is inside is not a configuration
@@ -89,36 +114,31 @@ admin:
                 seen what it would do and confirmed it.
             password: 'Password'
             submit: 'Review this backup'
-        obstacle:
-            encryption-key-in-use: >-
-                Writing this would make every credential already stored here — including
-                the ones this import just wrote — unreadable on the next start. Set it only
-                on an install that has nothing stored yet.
-            external-system: >-
-                plMail is a client of this, not its owner. Changing the value here without
-                changing it in the database itself produces an installation that cannot
-                start.
-            not-writable: >-
-                This process cannot write that path. Put the file there yourself — it is in
-                the backup you just uploaded.
-            process-environment: >-
-                A running process cannot change the environment it was started with. Add
-                this line, then restart the stack.
         review:
-            apply: 'Apply the writable parts'
+            apply: 'Apply this backup'
             applied: 'What was written'
-            automatic: 'plMail will write these'
-            automatic_none: 'Nothing in this backup is plMail''s own to write.'
             confirm_password: 'Password, once more'
             exported_at: 'Exported'
             from: 'From'
             heading: 'Review this backup'
-            manual: 'These are yours to do'
-            manual_lead: >-
-                plMail cannot write any of the following, and saying otherwise would be a
-                lie an operator only discovers on the day it matters. Each line is exactly
-                what to paste, or exactly where to put it.
+            instructed: 'These are yours to do'
+            instructed_lead: >-
+                Everything else is in place. These few cannot be finished from here, and
+                each one says why — saying otherwise would be a lie an operator only
+                discovers on the day it matters.
+            notes: 'Worth knowing'
+            restart: >-
+                Most of this is read when the stack starts, so plMail writes it into the
+                generated secrets and it takes effect on the next restart. That is one
+                restart for the whole list, not one per value.
+            restart_applied: >-
+                Written. The values read at container start are in place but not yet in
+                force — restart the stack once and this installation comes up as the one
+                the backup was made from.
             unknown_instance: 'not recorded'
+            written: 'plMail writes these'
+            written_applied: 'Written'
+            written_none: 'There is nothing in this backup for plMail to write.'
         section:
             database: 'Database'
             env: 'Environment variables'
@@ -1337,7 +1357,8 @@ setup:
     restore:
         applied_lead: >-
             The configuration is in place. This installation still has no users — create
-            the administrator account to finish.
+            the administrator account to finish. If a restart is noted above, it can wait
+            until after that.
         back: 'Back to creating the administrator'
         continue: 'Continue — create the administrator'
         footnote: >-
@@ -1346,8 +1367,8 @@ setup:
         heading: 'Restore a configuration backup'
         lead: >-
             Bring another plMail's settings and credentials here before you create the
-            first account. Anything this installation cannot write itself is listed
-            afterwards, with the exact lines to add.
+            first account. Upload the file and type its password — plMail writes the rest
+            into this installation itself.
         page_title: 'Restore configuration'
         submit: 'Open the backup'
 

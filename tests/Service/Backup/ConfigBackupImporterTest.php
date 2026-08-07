@@ -9,7 +9,7 @@ use App\Domain\DTO\Backup\ConfigBackupPlanItem;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Backup\ConfigBackupChange;
 use App\Domain\Enum\Backup\ConfigBackupFailure;
-use App\Domain\Enum\Backup\ConfigBackupObstacle;
+use App\Domain\Enum\Backup\ConfigBackupDisposition;
 use App\Domain\Enum\Backup\ConfigBackupSection;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\ConfigBackupException;
@@ -17,15 +17,19 @@ use App\Entity\Push\FcmConfig;
 use App\Infrastructure\Backup\ConfigBackupCipher;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
+use App\Infrastructure\Setup\GeneratedSecretsFile;
+use App\Infrastructure\Setup\ProcessEnvironment;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\MailProviderConfigRepository;
 use App\Repository\Push\FcmConfigRepository;
 use App\Service\Backup\ConfigBackupDatabase;
+use App\Service\Backup\ConfigBackupEnvironment;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupFiles;
 use App\Service\Backup\ConfigBackupImporter;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -44,10 +48,17 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * of the importer that wrote the ciphertext straight through would satisfy
  * everything above it.
  *
- * The classification half is asserted per section rather than by counting.
- * "Sixteen automatic, four manual" passes for an importer that put
- * APP_ENCRYPTION_KEY in the wrong list, and that mistake is the one with the
- * worst consequence in the whole feature.
+ * The classification half is asserted per disposition rather than by counting —
+ * with one exception, and it is deliberate: the fresh-install path asserts that
+ * `instructed()` is *empty*, because the number that matters there is zero and
+ * a change that quietly makes it one has to fail rather than pass with a
+ * different list.
+ *
+ * The classification tests run against a secrets store of their own, under a
+ * temporary directory, with a stubbed process environment. Not for isolation's
+ * sake: the answers depend entirely on what is in `generated.env` and what is
+ * in `getenv()`, and a test that read the real ones would assert whatever the
+ * container it happened to run in was configured with.
  */
 final class ConfigBackupImporterTest extends KernelTestCase
 {
@@ -68,9 +79,14 @@ final class ConfigBackupImporterTest extends KernelTestCase
 
     private Encryptor $originalEncryptor;
 
+    /** A secrets volume of this test's own; see the class docblock. */
+    private string $secretsDirectory;
+
     protected function setUp(): void
     {
         self::bootKernel();
+
+        $this->secretsDirectory = sys_get_temp_dir() . '/plmail-backup-' . bin2hex(random_bytes(6));
 
         $container               = static::getContainer();
         $this->entityManager     = $container->get(EntityManagerInterface::class);
@@ -98,6 +114,8 @@ final class ConfigBackupImporterTest extends KernelTestCase
         if (true === $this->connection->isTransactionActive()) {
             $this->connection->rollBack();
         }
+
+        $this->removeDirectory($this->secretsDirectory);
 
         parent::tearDown();
     }
@@ -193,53 +211,308 @@ final class ConfigBackupImporterTest extends KernelTestCase
     }
 
     /**
-     * Every environment value is manual, and the two whose mishandling is worst
-     * carry their own reason rather than the generic one.
+     * The headline case: a fresh instance, a backup, and nothing left for the
+     * operator to do.
+     *
+     * This is the assertion the whole rework is judged by, and it is written as
+     * a count of zero rather than as a list of dispositions on purpose — a
+     * future change that quietly sends one more value back to the operator has
+     * to fail here and be argued for, which is exactly what happened to the
+     * version of this feature that classified all twenty-six of them as
+     * "paste this into .env.local".
+     *
+     * The instance is fresh in the sense that matters: a generated secrets file
+     * this process can write, and nothing pinned in the environment over the
+     * top of it.
      */
-    public function testEveryEnvironmentValueIsManualAndCarriesTheRightReason(): void
+    public function testAFreshInstanceAppliesEverythingAndInstructsNothing(): void
     {
-        $plan = $this->importer->plan([
+        $importer = $this->importerWith(processEnvironment: []);
+
+        $plan = $importer->apply([
             'env' => [
-                'APP_ENCRYPTION_KEY' => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
-                'APP_SECRET'         => 'deadbeef',
-                'POSTGRES_PASSWORD'  => 'hunter2',
-                'VAPID_PRIVATE_KEY'  => 'a-vapid-private-key',
+                'APP_SECRET'         => 'a-restored-app-secret',
+                'MERCURE_JWT_SECRET' => 'a-restored-hub-secret',
+                'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
+                'VAPID_PRIVATE_KEY'  => 'a-restored-vapid-private-key',
+                'APP_PUBLIC_URL'     => 'https://mail.example.test',
+                'MAILER_DSN'         => 'smtp://user:pa ss#word@host:587',
+            ],
+            'files' => [
+                ConfigBackupFiles::JWT_PRIVATE => base64_encode("-----BEGIN PRIVATE KEY-----\nrestored\n"),
+                ConfigBackupFiles::JWT_PUBLIC  => base64_encode("-----BEGIN PUBLIC KEY-----\nrestored\n"),
             ],
         ]);
 
-        foreach ($plan->items as $item) {
-            self::assertFalse($item->isAutomatic(), $item->key . ' must never be written by an import');
-        }
+        self::assertSame([], $plan->instructed(), 'a fresh instance must have nothing left to hand back');
+        self::assertCount(8, $plan->written());
+        self::assertTrue($plan->needsRestart(), 'these are read at container start, and the page has to say so once');
 
+        // And the values are genuinely where the entrypoint will read them,
+        // rather than merely reported as written. Asserted in order, because
+        // the order is the inventory's — the file is written from the plan, and
+        // a plan that walked the document instead would land in whatever order
+        // the JSON happened to have.
         self::assertSame(
-            ConfigBackupObstacle::EncryptionKeyInUse,
-            $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY')->obstacle,
-        );
-        self::assertSame(
-            ConfigBackupObstacle::ExternalSystem,
-            $this->itemFor($plan, ConfigBackupSection::Environment, 'POSTGRES_PASSWORD')->obstacle,
-        );
-        self::assertSame(
-            ConfigBackupObstacle::ProcessEnvironment,
-            $this->itemFor($plan, ConfigBackupSection::Environment, 'VAPID_PRIVATE_KEY')->obstacle,
+            [
+                'APP_SECRET'         => 'a-restored-app-secret',
+                'MERCURE_JWT_SECRET' => 'a-restored-hub-secret',
+                'MAILER_DSN'         => 'smtp://user:pa ss#word@host:587',
+                'APP_PUBLIC_URL'     => 'https://mail.example.test',
+                'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
+                'VAPID_PRIVATE_KEY'  => 'a-restored-vapid-private-key',
+            ],
+            (new GeneratedSecretsFile($this->secretsPath()))->read(),
         );
     }
 
     /**
-     * The instruction is the deliverable for a manual item, so it has to be the
-     * literal line — quoted when the value would otherwise be mangled by the
-     * dotenv parser, which is the case that actually bites.
+     * One case per word in the review's vocabulary, in one test, because the
+     * vocabulary is only meaningful as a set: an implementation that answered
+     * `AppliedOnRestart` to everything would pass any five of these taken
+     * alone.
      */
-    public function testManualInstructionsArePasteableLines(): void
+    public function testEachDispositionIsReachedByTheCaseItDescribes(): void
     {
-        $plan = $this->importer->plan([
+        $importer = $this->importerWith(processEnvironment: [
+            // Pinned in the process environment and absent from the generated
+            // file: exactly what compose.yaml does to MAILER_DSN,
+            // MESSENGER_TRANSPORT_DSN and MERCURE_PUBLIC_URL.
+            'MAILER_DSN' => 'null://null',
+        ]);
+
+        $plan = $importer->plan([
             'env' => [
-                'APP_SECRET' => 'deadbeef',
-                'MAILER_DSN' => 'smtp://user:pa ss#word@host:587',
+                'APP_SECRET'         => 'a-restored-app-secret',
+                'MAILER_DSN'         => 'smtp://relay.example.test',
+                'APP_ENCRYPTION_KEY' => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
+                'POSTGRES_PASSWORD'  => 'hunter2',
+                'DATABASE_URL'       => 'postgresql://app:hunter2@old-host:5432/app',
+            ],
+            'database' => [
+                ConfigBackupDatabase::MAIL_PROVIDERS => ['google' => ['clientId' => 'an-id']],
             ],
         ]);
 
-        self::assertSame('APP_SECRET=deadbeef', $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_SECRET')->instruction);
+        $expected = [
+            [ConfigBackupSection::Database, ConfigBackupDatabase::MAIL_PROVIDERS . '.google', ConfigBackupDisposition::Applied],
+            [ConfigBackupSection::Environment, 'APP_SECRET', ConfigBackupDisposition::AppliedOnRestart],
+            [ConfigBackupSection::Environment, 'MAILER_DSN', ConfigBackupDisposition::ShadowedByCompose],
+            [ConfigBackupSection::Environment, 'POSTGRES_PASSWORD', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'DATABASE_URL', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY', ConfigBackupDisposition::KeptDeliberately],
+        ];
+
+        foreach ($expected as [$section, $key, $disposition]) {
+            self::assertSame($disposition, $this->itemFor($plan, $section, $key)->disposition, $key);
+        }
+
+        // The sixth word, which no fixture on a working stack produces: a
+        // secrets store this process cannot write. /sys is read-only even to
+        // uid 0, which this container is, so a chmod-ed temporary directory
+        // would prove nothing.
+        $unwritable = $this->importerWith(processEnvironment: [], secretsDirectory: '/sys/plmail-nowhere');
+
+        self::assertSame(
+            ConfigBackupDisposition::NotWritable,
+            $this->itemFor(
+                $unwritable->plan(['env' => ['APP_SECRET' => 'a-restored-app-secret']]),
+                ConfigBackupSection::Environment,
+                'APP_SECRET',
+            )->disposition,
+        );
+    }
+
+    /**
+     * The crux of the whole classification, and the one thing that cannot be
+     * read off the code: telling a value compose pinned from a value the
+     * entrypoint exported out of the generated file.
+     *
+     * `frankenphp/docker-entrypoint.sh` exports every line of `generated.env`
+     * into the real environment before it execs the server, so "is it in
+     * getenv" answers yes for both and distinguishes nothing. What separates
+     * them is whether the file could have produced the live value — and both
+     * directions are asserted here, because an implementation that flagged
+     * everything as shadowed would restore an install and then tell its owner
+     * that none of it counted.
+     */
+    public function testTheEntrypointsOwnExportIsNotMistakenForAComposePin(): void
+    {
+        (new GeneratedSecretsFile($this->secretsPath()))->setMany([
+            'APP_SECRET'         => 'what-this-install-generated',
+            'MERCURE_JWT_SECRET' => 'the-hub-secret',
+        ]);
+
+        $environment = $this->environmentWith([
+            // As the entrypoint left it: the file's own value, re-exported.
+            'APP_SECRET'              => 'what-this-install-generated',
+            // As compose leaves it: a name the file has never held.
+            'MESSENGER_TRANSPORT_DSN' => 'doctrine://default?auto_setup=0',
+            // As an operator leaves it: the file has a value and something in
+            // the environment disagrees with it.
+            'MERCURE_JWT_SECRET'      => 'what the operator pinned instead',
+            // Empty counts as absent — compose passes ${APP_PUBLIC_URL:-}
+            // through as "" when nobody set one, and treating that as pinned
+            // would flag every generated secret on every install.
+            'APP_PUBLIC_URL'          => '',
+        ]);
+
+        self::assertFalse($environment->isShadowed('APP_SECRET'));
+        self::assertFalse($environment->isShadowed('APP_PUBLIC_URL'));
+        self::assertFalse($environment->isShadowed('VAPID_PUBLIC_KEY'), 'a name nothing sets is not shadowed either');
+
+        self::assertTrue($environment->isShadowed('MESSENGER_TRANSPORT_DSN'));
+        self::assertTrue($environment->isShadowed('MERCURE_JWT_SECRET'));
+    }
+
+    /**
+     * A shadowed value is written anyway, and still reported.
+     *
+     * Both halves matter. Writing it means that the moment the operator drops
+     * the pin from their compose file the restored value is already underneath
+     * — one step instead of two. Reporting it means they are never told a
+     * restore took effect when the next container start will overwrite it,
+     * which is the honest residue of the old instruction wall and the only
+     * thing left of it.
+     */
+    public function testAShadowedValueIsWrittenAndStillHandedBack(): void
+    {
+        $importer = $this->importerWith(processEnvironment: ['MAILER_DSN' => 'null://null']);
+
+        $plan = $importer->apply(['env' => ['MAILER_DSN' => 'smtp://relay.example.test']]);
+
+        $item = $this->itemFor($plan, ConfigBackupSection::Environment, 'MAILER_DSN');
+
+        self::assertSame(ConfigBackupDisposition::ShadowedByCompose, $item->disposition);
+        self::assertSame('MAILER_DSN=smtp://relay.example.test', $item->instruction, 'the line to change in compose');
+        self::assertSame([$item], $plan->instructed());
+
+        self::assertSame(
+            ['MAILER_DSN' => 'smtp://relay.example.test'],
+            (new GeneratedSecretsFile($this->secretsPath()))->read(),
+            'the value goes in regardless, so removing the pin is the only step left',
+        );
+    }
+
+    /**
+     * The JWT keypair is the file half, and overwriting is the whole job: every
+     * service in the stack has to verify tokens the others signed, so an
+     * install that kept its own generated pair would reject every JMAP session
+     * the restored one had issued.
+     */
+    public function testTheJwtKeypairIsOverwrittenWithTheOneFromTheBackup(): void
+    {
+        $files = $this->filesFor($this->secretsDirectory);
+
+        $files->write(ConfigBackupFiles::JWT_PRIVATE, "-----BEGIN PRIVATE KEY-----\nthis instance generated this one\n");
+
+        $restored = "-----BEGIN PRIVATE KEY-----\nthe one from the backup\n";
+
+        $plan = $this->importerWith(processEnvironment: [])->apply([
+            'files' => [ConfigBackupFiles::JWT_PRIVATE => base64_encode($restored)],
+        ]);
+
+        $item = $this->itemFor($plan, ConfigBackupSection::SecretsFile, ConfigBackupFiles::JWT_PRIVATE);
+
+        self::assertSame(ConfigBackupChange::Differs, $item->change);
+        self::assertSame(ConfigBackupDisposition::AppliedOnRestart, $item->disposition);
+        self::assertNull($item->instruction, 'nothing is asked of an operator whose keypair plMail just replaced');
+
+        self::assertSame($restored, $files->read(ConfigBackupFiles::JWT_PRIVATE));
+        self::assertSame('0600', substr(sprintf('%o', (int) fileperms($files->pathFor(ConfigBackupFiles::JWT_PRIVATE))), -4));
+    }
+
+    /**
+     * The postgres password separates "can we write it" from "should we".
+     *
+     * `generate-secrets.sh` rewrites the bare `postgres_password` file from
+     * `generated.env` on every boot, so it would stay in step — but the
+     * Postgres image reads `POSTGRES_PASSWORD_FILE` only at initdb, and on a
+     * database that already exists the ROLE keeps the password it was created
+     * with. A writable secrets volume is therefore no argument for writing it,
+     * and this asserts that the file is left exactly as it was.
+     */
+    public function testThePostgresPasswordIsRefusedEvenWhereItIsWritable(): void
+    {
+        $files = $this->filesFor($this->secretsDirectory);
+
+        $files->write(ConfigBackupFiles::POSTGRES_PASSWORD, 'what-this-stack-was-initialised-with');
+
+        $importer = $this->importerWith(processEnvironment: []);
+
+        $plan = $importer->apply([
+            'env'   => ['POSTGRES_PASSWORD' => 'the-old-hosts-password'],
+            'files' => [ConfigBackupFiles::POSTGRES_PASSWORD => base64_encode('the-old-hosts-password')],
+        ]);
+
+        foreach ([
+            $this->itemFor($plan, ConfigBackupSection::Environment, 'POSTGRES_PASSWORD'),
+            $this->itemFor($plan, ConfigBackupSection::SecretsFile, ConfigBackupFiles::POSTGRES_PASSWORD),
+        ] as $item) {
+            self::assertSame(ConfigBackupDisposition::External, $item->disposition, $item->key);
+            self::assertNotNull($item->instruction);
+        }
+
+        self::assertSame('what-this-stack-was-initialised-with', $files->read(ConfigBackupFiles::POSTGRES_PASSWORD));
+        self::assertSame([], (new GeneratedSecretsFile($this->secretsPath()))->read());
+    }
+
+    /**
+     * APP_ENCRYPTION_KEY is the one value whose *not* being written is the
+     * correct outcome rather than a limitation, so it is a note and not a
+     * chore: the import re-encrypted the backup's credentials under the key in
+     * force here, and putting the backup's key in place would make the rows it
+     * just wrote unreadable at the next start.
+     *
+     * The line is still offered, because an operator restoring the old database
+     * alongside this backup genuinely needs it — but it is not counted among
+     * the things left to do, which is what keeps the fresh-install path clean.
+     */
+    public function testTheEncryptionKeyIsANoteRatherThanAChore(): void
+    {
+        $plan = $this->importerWith(processEnvironment: [])->apply([
+            'env' => ['APP_ENCRYPTION_KEY' => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw=='],
+        ]);
+
+        $item = $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY');
+
+        self::assertSame(ConfigBackupDisposition::KeptDeliberately, $item->disposition);
+        self::assertSame([$item], $plan->notes());
+        self::assertSame([], $plan->instructed());
+        self::assertSame([], $plan->written());
+        self::assertSame(
+            'APP_ENCRYPTION_KEY=c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
+            $item->instruction,
+        );
+
+        self::assertSame([], (new GeneratedSecretsFile($this->secretsPath()))->read());
+    }
+
+    /**
+     * A secrets store this process cannot write falls all the way back to what
+     * the feature used to do for everything: the exact lines to paste.
+     *
+     * Demoted rather than thrown, and demoted as one batch, because the write
+     * is one operation — there is no partial outcome to report, and an import
+     * that threw here would leave the operator with a committed database and no
+     * account of the rest.
+     */
+    public function testAnUnwritableSecretsStoreFallsBackToLinesToPaste(): void
+    {
+        $plan = $this->importerWith(processEnvironment: [], secretsDirectory: '/sys/plmail-nowhere')->apply([
+            'env' => ['APP_SECRET' => 'a-restored-app-secret', 'MAILER_DSN' => 'smtp://user:pa ss#word@host:587'],
+        ]);
+
+        self::assertCount(2, $plan->instructed());
+        self::assertSame([], $plan->written());
+
+        self::assertSame(
+            'APP_SECRET=a-restored-app-secret',
+            $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_SECRET')->instruction,
+        );
+
+        // Quoted, because Symfony's dotenv would read the `#` as a comment and
+        // hand the operator a truncated password with no error anywhere.
         self::assertSame(
             'MAILER_DSN="smtp://user:pa ss#word@host:587"',
             $this->itemFor($plan, ConfigBackupSection::Environment, 'MAILER_DSN')->instruction,
@@ -247,55 +520,20 @@ final class ConfigBackupImporterTest extends KernelTestCase
     }
 
     /**
-     * The postgres password file is the case that separates "can we write it"
-     * from "should we": a writable secrets volume must not make it automatic,
-     * because the other half of the change is a role inside a database.
+     * A value already identical to what is here is not rewritten, and does not
+     * make the page ask for a restart. Re-importing the same backup twice has
+     * to be a no-op the second time, or "restart the stack" becomes noise an
+     * operator learns to ignore.
      */
-    public function testThePostgresPasswordFileStaysManualEvenWhereItIsWritable(): void
+    public function testAnUnchangedValueIsNeitherWrittenNorAReasonToRestart(): void
     {
-        $files = static::getContainer()->get(ConfigBackupFiles::class);
+        (new GeneratedSecretsFile($this->secretsPath()))->setMany(['APP_SECRET' => 'already-this']);
 
-        $plan = $this->importer->plan([
-            'files' => [ConfigBackupFiles::POSTGRES_PASSWORD => base64_encode('a-password')],
-        ]);
+        $plan = $this->importerWith(processEnvironment: [])->plan(['env' => ['APP_SECRET' => 'already-this']]);
 
-        $item = $this->itemFor($plan, ConfigBackupSection::SecretsFile, ConfigBackupFiles::POSTGRES_PASSWORD);
-
-        self::assertSame(ConfigBackupObstacle::ExternalSystem, $item->obstacle);
-        self::assertSame($files->pathFor(ConfigBackupFiles::POSTGRES_PASSWORD), $item->instruction);
-    }
-
-    /**
-     * A file is automatic exactly when this process can write it — measured,
-     * not assumed. Both directions, so an implementation that hard-coded either
-     * answer fails one of them.
-     */
-    public function testAFileIsAutomaticOnlyWhereThisProcessCanWriteIt(): void
-    {
-        $files = static::getContainer()->get(ConfigBackupFiles::class);
-
-        self::assertTrue(
-            $files->isWritable(ConfigBackupFiles::JWT_PRIVATE),
-            'the fixture is only meaningful where the secrets directory can be written',
-        );
-
-        $plan = $this->importer->plan([
-            'files' => [ConfigBackupFiles::JWT_PRIVATE => base64_encode("-----BEGIN PRIVATE KEY-----\n")],
-        ]);
-
-        self::assertTrue($this->itemFor($plan, ConfigBackupSection::SecretsFile, ConfigBackupFiles::JWT_PRIVATE)->isAutomatic());
-
-        // And the other direction, which this stack cannot produce but every
-        // read-only secrets mount does: the same class, pointed under a
-        // directory nothing can create a file in, must say so rather than
-        // promise a write it would fail at.
-        //
-        // /sys, because it is read-only even to uid 0 — which this container
-        // is, so a chmod-ed temporary directory would prove nothing.
-        $readOnly = new ConfigBackupFiles('/sys/plmail-nowhere/jwt/private.pem', '/sys/plmail-nowhere/jwt/public.pem', '/sys/plmail-nowhere/generated.env');
-
-        self::assertFalse($readOnly->isWritable(ConfigBackupFiles::JWT_PRIVATE));
-        self::assertSame(ConfigBackupObstacle::NotWritable, $readOnly->obstacleFor(ConfigBackupFiles::JWT_PRIVATE));
+        self::assertSame(ConfigBackupChange::Unchanged, $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_SECRET')->change);
+        self::assertFalse($plan->needsRestart());
+        self::assertFalse($plan->hasMaterialChanges());
     }
 
     /**
@@ -385,6 +623,89 @@ final class ConfigBackupImporterTest extends KernelTestCase
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * An importer whose secrets store and process environment are this test's,
+     * not the container's.
+     *
+     * Assembled by hand rather than pulled from the container, because the two
+     * collaborators being substituted are precisely the two the classification
+     * reads — and a test that took the real ones would be asserting the shape
+     * of whatever CI image it ran inside.
+     *
+     * @param array<string, string> $processEnvironment
+     */
+    private function importerWith(array $processEnvironment, ?string $secretsDirectory = null): ConfigBackupImporter
+    {
+        $directory = $secretsDirectory ?? $this->secretsDirectory;
+
+        return new ConfigBackupImporter(
+            static::getContainer()->get(ConfigBackupCipher::class),
+            $this->environmentWith($processEnvironment, $directory),
+            $this->filesFor($directory),
+            static::getContainer()->get(ConfigBackupDatabase::class),
+            $this->entityManager,
+            new NullLogger(),
+        );
+    }
+
+    /**
+     * @param array<string, string> $values
+     */
+    private function environmentWith(array $values, ?string $secretsDirectory = null): ConfigBackupEnvironment
+    {
+        return new ConfigBackupEnvironment(
+            new GeneratedSecretsFile(($secretsDirectory ?? $this->secretsDirectory) . '/generated.env'),
+            // The contract RealProcessEnvironment implements over getenv():
+            // trimmed, and empty means absent.
+            new class($values) implements ProcessEnvironment {
+                /** @param array<string, string> $values */
+                public function __construct(private readonly array $values)
+                {
+                }
+
+                public function get(string $name): ?string
+                {
+                    $value = trim($this->values[$name] ?? '');
+
+                    return '' === $value ? null : $value;
+                }
+            },
+        );
+    }
+
+    private function filesFor(string $secretsDirectory): ConfigBackupFiles
+    {
+        return new ConfigBackupFiles(
+            $secretsDirectory . '/jwt/private.pem',
+            $secretsDirectory . '/jwt/public.pem',
+            $secretsDirectory . '/generated.env',
+        );
+    }
+
+    private function secretsPath(): string
+    {
+        return $this->secretsDirectory . '/generated.env';
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (false === is_dir($directory)) {
+            return;
+        }
+
+        foreach ((array) scandir($directory) as $entry) {
+            if (false === is_string($entry) || '.' === $entry || '..' === $entry) {
+                continue;
+            }
+
+            $path = $directory . '/' . $entry;
+
+            is_dir($path) ? $this->removeDirectory($path) : unlink($path);
+        }
+
+        rmdir($directory);
+    }
 
     /**
      * Everything a different machine would have: another encryption key, and

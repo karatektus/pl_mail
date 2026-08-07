@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Backup;
 
-use App\Domain\Enum\Backup\ConfigBackupObstacle;
+use App\Domain\Enum\Backup\ConfigBackupDisposition;
 use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -44,10 +44,15 @@ final readonly class ConfigBackupFiles
      * The Postgres image's own copy of the password, written beside the
      * generated secrets by frankenphp/generate-secrets.sh.
      *
-     * Carried so a restore is complete, never applied. The string in this file
-     * has to agree with the password of a role inside a database plMail is a
-     * client of; writing one without the other produces an instance that cannot
-     * connect on its next start, and plMail cannot do the other half.
+     * Carried so a restore is complete, never applied — and the reason is a
+     * property of the Postgres image rather than a caution. `generate-secrets`
+     * rewrites this file from the `POSTGRES_PASSWORD=` line in `generated.env`
+     * on *every* boot, so it does stay in step with the secrets file; but the
+     * image consumes `POSTGRES_PASSWORD_FILE` only at initdb, when the data
+     * directory is first created. On a database that already exists the ROLE
+     * keeps the password it was created with, and plMail — a client of that
+     * database, not its administrator — cannot do the other half. Writing this
+     * alone produces an instance that cannot connect on its next start.
      */
     public const string POSTGRES_PASSWORD = 'postgres_password';
 
@@ -143,19 +148,28 @@ final readonly class ConfigBackupFiles
     }
 
     /**
-     * Why this file cannot be written, or null when it can be.
+     * What becomes of one restored file.
      *
      * The order matters: the postgres password is refused on principle before
      * anybody looks at permissions, so an instance that happens to have a
      * writable secrets volume is not offered a write that would break it.
+     *
+     * The JWT keypair is `AppliedOnRestart` rather than `Applied` even though
+     * the bytes land immediately. lexik's key loader reads and parses the PEM
+     * once per process, and under FrankenPHP's worker mode a process outlives
+     * many requests — so the tokens this container signs go on being signed
+     * with the old key until it is restarted. Calling that "applied" would be
+     * true of the disk and false of the behaviour.
      */
-    public function obstacleFor(string $name): ?ConfigBackupObstacle
+    public function dispositionFor(string $name): ConfigBackupDisposition
     {
         if (self::POSTGRES_PASSWORD === $name) {
-            return ConfigBackupObstacle::ExternalSystem;
+            return ConfigBackupDisposition::External;
         }
 
-        return $this->isWritable($name) ? null : ConfigBackupObstacle::NotWritable;
+        return $this->isWritable($name)
+            ? ConfigBackupDisposition::AppliedOnRestart
+            : ConfigBackupDisposition::NotWritable;
     }
 
     /**

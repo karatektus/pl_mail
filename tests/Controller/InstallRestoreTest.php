@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Infrastructure\Backup\ConfigBackupCipher;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
+use App\Infrastructure\Setup\GeneratedSecretsFile;
 use App\Repository\Push\FcmConfigRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Backup\ConfigBackupDatabase;
@@ -37,9 +38,17 @@ use Symfony\Component\HttpFoundation\Request;
  * EncryptedStringType's static seam, the one Kernel::boot() uses, because that
  * is as close to "a different machine" as one process gets.
  *
+ * The other half is the one this feature was reworked for: on a fresh install,
+ * uploading the file and typing its password is supposed to be the whole job.
+ * That claim is only true if the environment values are genuinely written into
+ * the generated secrets file the entrypoint loads at the next start, so this
+ * asserts the file and not only the page.
+ *
  * Everything is done inside a transaction that is rolled back — without it this
  * test destroys the seed every other suite and the e2e run depend on, which is
- * the note InstallEmptyInstallTest makes for the same reason.
+ * the note InstallEmptyInstallTest makes for the same reason. The generated
+ * secrets file is outside any transaction, so it is snapshotted and put back
+ * instead.
  */
 final class InstallRestoreTest extends WebTestCase
 {
@@ -48,6 +57,10 @@ final class InstallRestoreTest extends WebTestCase
     private ?Connection $connection = null;
 
     private ?Encryptor $originalEncryptor = null;
+
+    private ?string $secretsPath = null;
+
+    private ?string $secretsBefore = null;
 
     protected function tearDown(): void
     {
@@ -61,6 +74,15 @@ final class InstallRestoreTest extends WebTestCase
         }
 
         $this->connection = null;
+
+        if (null !== $this->secretsPath) {
+            null === $this->secretsBefore
+                ? (is_file($this->secretsPath) ? unlink($this->secretsPath) : null)
+                : file_put_contents($this->secretsPath, $this->secretsBefore);
+
+            $this->secretsPath   = null;
+            $this->secretsBefore = null;
+        }
 
         parent::tearDown();
     }
@@ -121,13 +143,35 @@ final class InstallRestoreTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // Nothing has happened yet — the review is a review here too.
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT count(*) FROM fcm_config'));
-        // And the honest half is on the page: the environment values the app
-        // will not write, as lines to paste.
-        self::assertStringContainsString('APP_SECRET=a-restored-secret', (string) $client->getResponse()->getContent());
+
+        $reviewBody = (string) $client->getResponse()->getContent();
+
+        // The onboarding screen is not an instruction wall any more:
+        // GOOGLE_OAUTH_CLIENT_ID is listed as something plMail writes, and its
+        // value is NOT handed back as a line to paste anywhere.
+        self::assertStringContainsString('GOOGLE_OAUTH_CLIENT_ID', $reviewBody);
+        self::assertStringNotContainsString('GOOGLE_OAUTH_CLIENT_ID=an-id.apps.googleusercontent.com', $reviewBody);
+
+        // APP_SECRET is the residue and is honest about being one: this test
+        // container really does carry it in its process environment, the way a
+        // compose file would, so the entrypoint would override the restored
+        // value at the next start and the page says so with the line to fix.
+        self::assertStringContainsString('APP_SECRET=a-restored-secret', $reviewBody);
 
         $client->submit($review->filter('#restore-apply')->form(['password' => self::PASSWORD]));
 
         self::assertResponseIsSuccessful();
+
+        // Written where the next container start reads it — this is what makes
+        // the instance come up as the one the backup was made from.
+        self::assertSame(
+            'an-id.apps.googleusercontent.com',
+            static::getContainer()->get(GeneratedSecretsFile::class)->read()['GOOGLE_OAUTH_CLIENT_ID'] ?? null,
+        );
+
+        // One restart notice for the whole plan, and the account form still
+        // the next action.
+        self::assertStringContainsString('restart the stack', (string) $client->getResponse()->getContent());
 
         static::getContainer()->get(EntityManagerInterface::class)->clear();
         $restored = static::getContainer()->get(FcmConfigRepository::class)->current();
@@ -215,6 +259,10 @@ final class InstallRestoreTest extends WebTestCase
         $this->connection->executeStatement(sprintf('TRUNCATE TABLE %s CASCADE', implode(', ', $tables)));
         $entityManager->clear();
 
+        // Outside the transaction, so remembered and put back by hand.
+        $this->secretsPath   = static::getContainer()->get(GeneratedSecretsFile::class)->path();
+        $this->secretsBefore = is_file($this->secretsPath) ? (file_get_contents($this->secretsPath) ?: null) : null;
+
         return $client;
     }
 
@@ -239,7 +287,11 @@ final class InstallRestoreTest extends WebTestCase
             'version'    => ConfigBackupExporter::DOCUMENT_VERSION,
             'exportedAt' => '2026-01-01T00:00:00+00:00',
             'instance'   => 'https://the-old-machine.plmail.test',
-            'env'        => ['APP_SECRET' => 'a-restored-secret', 'APP_ENCRYPTION_KEY' => 'dGhlIG9sZCBtYWNoaW5lcyBrZXksIHRoaXJ0eS10d28='],
+            'env'        => [
+                'APP_SECRET'             => 'a-restored-secret',
+                'APP_ENCRYPTION_KEY'     => 'dGhlIG9sZCBtYWNoaW5lcyBrZXksIHRoaXJ0eS10d28=',
+                'GOOGLE_OAUTH_CLIENT_ID' => 'an-id.apps.googleusercontent.com',
+            ],
             'files'      => [],
             'database'   => [
                 ConfigBackupDatabase::FCM_CONFIG => [

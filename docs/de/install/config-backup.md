@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:912bce495800941997697024e1dc19043758604c -->
+<!-- translated-from: install/config-backup.md sha1:f60f806bd4e9a94ed5b982886afad388ac348ea5 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -16,18 +16,50 @@ nie wieder.
 
 ## Wo Konfiguration tatsächlich liegt
 
-An drei Orten, und zu wissen, welcher welcher ist, ist der größte Teil davon zu verstehen, was der
-Import kann und was nicht.
+An drei Orten, und zu wissen, welcher welcher ist, ist der größte Teil davon zu verstehen, was ein
+Import tut und wann er wirkt.
 
 | Wo | Was dort liegt | Kann plMail das schreiben? |
 |---|---|---|
-| **Die Umgebung** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`, `MAILER_DSN`, die VAPID-Schlüssel, die Mercure-Geheimnisse, die OAuth-Zugangsdaten — gesetzt in `.env.local`, in Compose oder einmalig erzeugt in `var/secrets/generated.env` | **Nein.** Ein laufender Prozess kann die Variablen, mit denen er gestartet wurde, nicht ändern |
-| **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem`, `postgres_password` — die Dateien unter `var/secrets/`, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Manchmal.** Pro Datei und pro Installation gemessen |
-| **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja** |
+| **Die Datei mit den erzeugten Geheimnissen** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
+| **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem`, `postgres_password` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Das Schlüsselpaar ja.** Pro Datei und pro Installation gemessen |
+| **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
 
-Der Export enthält alle drei. Der Import wendet den dritten an, bietet den zweiten dort an, wo das
-Dateisystem es zulässt, und gibt den ersten als Zeilen zum Einfügen zurück. Er tut nie so, als wäre
-es anders; siehe [Was der Import kann und was nicht](#was-der-import-kann-und-was-nicht).
+**Das ist nicht dieselbe Aussage, die plMail früher gemacht hat.** Frühere Versionen führten jeden
+Umgebungswert als etwas auf, das nur der Betreiber setzen kann, und druckten zwei Dutzend Zeilen zum
+Einfügen in `.env.local`. Das beruhte auf einer Annahme, die für die Art, wie plMail betrieben wird,
+falsch ist: Niemand bearbeitet diese Werte von Hand. Sie werden *beim ersten Start erzeugt*, von
+`frankenphp/generate-secrets.sh` in `var/secrets/generated.env`, jeder Dienst bindet das Volume mit
+dieser Datei ein, und der App-Prozess kann sie schreiben. Also schreibt der Import sie, und was er
+dir danach schuldet, ist ein einziger Satz — starte den Stack neu — statt einer Liste von Aufgaben.
+
+### Die Rangfolge, die alles davon entscheidet
+
+Vollständig dargelegt in der [Konfigurationsreferenz](configuration.md#woher-ein-wert-kommt); die
+Kurzfassung, höchste zuerst:
+
+1. **eine echte Umgebungsvariable** — Compose, deine Shell, `docker run -e`;
+2. **`var/secrets/generated.env`**;
+3. `.env.local`, dann `.env`.
+
+Ein leerer Wert zählt auf jeder Ebene als nicht gesetzt, denn Compose reicht `${APP_SECRET:-}` als
+leere Zeichenkette durch, wenn niemand etwas gesetzt hat. Beide Leser wenden genau diese Regel an:
+`load_generated_secrets` im Entrypoint überspringt jeden Namen, den `printenv` schon beantwortet, und
+`config/bootstrap_generated_secrets.php` überspringt jeden Namen, den `$_SERVER` schon hat.
+
+Ein wiederhergestellter Wert wirkt also ab dem nächsten Start — **es sei denn, etwas in der echten
+Prozessumgebung setzt denselben Namen auf etwas Nichtleeres**. Das ist der einzige Fall, vor dem die
+Prüfung noch warnt, und alles, was von der alten Wand aus Anweisungen übrig ist. In der
+mitgelieferten `compose.yaml` sind das drei Namen, nicht mehr: `MAILER_DSN`,
+`MESSENGER_TRANSPORT_DSN` und `MERCURE_PUBLIC_URL` — die einzigen gesicherten Variablen, die sie auf
+einen nichtleeren Vorgabewert festlegt. Alles Übrige reicht sie als `${NAME:-}` durch.
+
+`truenas.compose.yaml` ist die Ausnahme, und zwar bewusst: Es ist eine von Hand gepflegte Datei, die
+`APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`, `MERCURE_JWT_SECRET` und den Rest aus
+YAML-Ankern setzt, weil es auf dieser Plattform keine `.env` neben der Compose-Datei gibt. Auf diesem
+Weg verwaltest du diese Werte selbst, und die Prüfung sagt das zu jedem einzelnen — was richtig ist
+und kein Fehlschlag der Wiederherstellung; die zurückgegebenen Zeilen sind die, die in die Anker
+gehören.
 
 ## Exportieren
 
@@ -178,53 +210,113 @@ Verzeichnis, das du gleich verlässt.
 **Administration → Sicherung → Konfiguration importieren.** Datei auswählen, Passwort eintippen,
 **Sicherung prüfen** drücken.
 
-**Die Prüfung schreibt nichts.** Sie liest die Datei und zeigt zwei Listen: was plMail tun wird und
-was es nicht kann. Jede Zeile sagt, ob der Wert hier neu ist, ob er etwas anderes ersetzt oder ob er
-bereits übereinstimmt — dieser mittlere Zustand ist der, bei dem es sich innezuhalten lohnt, denn
-eine Wiederherstellung auf einer laufenden Installation ersetzt lebende Zugangsdaten durch andere
-lebende Zugangsdaten.
+**Die Prüfung schreibt nichts.** Sie liest die Datei und zeigt, was passieren würde: was plMail
+selbst schreibt — und das ist fast alles —, dann alles, was noch für dich übrig bleibt, dann alles,
+was lediglich wissenswert ist. Jede Zeile sagt, ob der Wert hier neu ist, ob er etwas anderes ersetzt
+oder ob er bereits übereinstimmt. Dieser mittlere Zustand ist der, bei dem es sich innezuhalten
+lohnt, denn eine Wiederherstellung auf einer laufenden Installation ersetzt lebende Zugangsdaten
+durch andere lebende Zugangsdaten.
 
-**Schreibbare Teile anwenden** fragt das Passwort noch einmal ab und führt dann genau die gezeigte
+**Diese Sicherung anwenden** fragt das Passwort noch einmal ab und führt dann genau die gezeigte
 Liste aus. Die Datenbankschreibvorgänge laufen in einer Transaktion, sodass ein Dokument mit
 kaputtem Firebase-Schlüssel nicht drei Anbieterregistrierungen aus einer fremden Installation
-zurücklässt.
+zurücklässt. Die erzeugten Geheimnisse werden danach geschrieben, in einem Durchgang unter derselben
+Sperre, die auch `generate-secrets.sh` nimmt: Namen, die die Datei kennt, werden an Ort und Stelle
+aktualisiert, unbekannte angehängt, und **alles, wozu die Sicherung nichts sagt, bleibt genau so, wie
+es war.**
 
 Die hochgeladene Datei wird nie gespeichert — weder in einer temporären Datei noch in der Session.
 Zwischen Prüfung und Anwendung reist sie als genau das Chiffrat, das du hochgeladen hast, durch die
 Seite zurück; deshalb muss das Passwort ein zweites Mal getippt werden.
 
-### Was der Import kann und was nicht
+### Was die Prüfung zu jedem Wert sagt
 
-| Abschnitt | Von plMail angewendet | Warum |
+Sechs Begriffe, und jeder steht für ein anderes Schicksal. Die Prüfseite versieht jede Zeile mit
+einem davon.
+
+| Begriff | Bedeutet | Kommt bei dir an als |
 |---|---|---|
-| `database` (Firebase, Mail-OAuth, Integrationen) | **Ja**, neu verschlüsselt mit dem `APP_ENCRYPTION_KEY` *dieser* Installation | plMail besitzt diese Zeilen vollständig |
-| `files` → `jwt/private.pem`, `jwt/public.pem` | **Dort, wo der Prozess sie schreiben kann.** Zur Prüfzeit mit `is_writable` gemessen, nicht angenommen | Das Secrets-Volume darf legitim schreibgeschützt eingebunden sein |
-| `files` → `postgres_password` | **Nie** | Der Inhalt dieser Datei muss mit dem Passwort einer Rolle innerhalb von Postgres übereinstimmen, und plMail kann die Rolle nicht ändern. Eins ohne das andere zu schreiben ergibt eine Installation, die nicht startet |
-| `env` → `APP_ENCRYPTION_KEY` | **Nie** | Ihn zu schreiben würde jede hier bereits gespeicherte Zugangsdatei — auch die gerade importierten — beim nächsten Start unlesbar machen |
-| `env` → alles Übrige | **Nie** | Ein laufender PHP-Prozess kann seine eigene Umgebung nicht ändern, und eine Datei zu schreiben, die der Entrypoint beim *nächsten* Containerstart liest, ist nicht das, was „angewendet“ bedeutet |
+| **angewendet** | Geschrieben und ab sofort wirksam | Nichts zu tun |
+| **wirkt nach dem nächsten Neustart** | In `var/secrets/generated.env` geschrieben oder über eine Datei daneben, und beim nächsten Start des Stacks gelesen | Ein Neustarthinweis für die ganze Liste |
+| **von Compose überdeckt** | Geschrieben — und ein nichtleerer Wert desselben Namens in der Prozessumgebung gewinnt beim nächsten Start trotzdem darüber | Die Zeile, zum Ändern oder Entfernen in deiner Compose-Datei (oder der `.env` daneben) |
+| **extern** | Nicht geschrieben, weil die andere Hälfte der Änderung in einem System liegt, dessen Client plMail nur ist | Die Zeile, plus was sonst noch geändert werden muss |
+| **bewusst behalten** | Nicht geschrieben, und das ist das richtige Ergebnis. Nur `APP_ENCRYPTION_KEY` | Ein Hinweis, und die Zeile für den einen Fall, der sie braucht |
+| **nicht schreibbar** | Der Pfad hat den Schreibvorgang verweigert — schreibgeschütztes Secrets-Volume, falsche UID, volle Platte | Die Zeile oder der Pfad, wie bisher |
 
-Alles aus den letzten drei Zeilen kommt als exakte Zeile zum Einfügen oder als exakter Pfad zurück.
-Das ist die ehrliche Antwort, und die Prüfung sagt zu jedem Wert, welcher der vier Gründe zutrifft,
-damit du „kann nicht“ von „darf nicht“ unterscheiden kannst.
+Abschnitt für Abschnitt:
+
+| Abschnitt | Was passiert |
+|---|---|
+| `database` (Firebase, Mail-OAuth, Integrationen) | **angewendet**, neu verschlüsselt mit dem `APP_ENCRYPTION_KEY` *dieser* Installation. plMail besitzt diese Zeilen vollständig |
+| `files` → `jwt/private.pem`, `jwt/public.pem` | **wirkt nach dem nächsten Neustart**, dort wo der Prozess sie schreiben kann. Zur Prüfzeit mit `is_writable` gemessen, nicht angenommen — ein schreibgeschützt eingebundenes Secrets-Volume ist ein unterstützter Betrieb. Die Bytes landen sofort; lexik liest den Schlüssel einmal pro Prozess, die Tokens *dieses* Containers werden also bis zum Neustart weiter mit dem alten signiert |
+| `files` → `postgres_password` | **extern**, immer. Siehe unten |
+| `env` → `POSTGRES_PASSWORD`, `DATABASE_URL` | **extern**, immer. Siehe unten |
+| `env` → `APP_ENCRYPTION_KEY` | **bewusst behalten.** Siehe [Speziell zu `APP_ENCRYPTION_KEY`](#speziell-zu-app_encryption_key) |
+| `env` → alles Übrige | **wirkt nach dem nächsten Neustart**, oder **von Compose überdeckt**, wo etwas denselben Namen festlegt |
+
+#### Warum `POSTGRES_PASSWORD` der eine bleibt, der Handarbeit erfordert
+
+Weil der Entrypoint die *Datei* bei jedem Start abgleicht, Postgres sie aber nur *einmal* liest.
+
+`generate-secrets.sh` schreibt `var/secrets/postgres_password` bei jedem einzelnen Lauf aus der Zeile
+`POSTGRES_PASSWORD=` in `generated.env` neu, diese beiden laufen also nie auseinander. Aber
+`compose.yaml` reicht diese Datei als `POSTGRES_PASSWORD_FILE` an die Datenbank weiter, und das
+offizielle Postgres-Image liest sie bei **initdb** — wenn das Datenverzeichnis angelegt wird, und nie
+wieder. Auf einer bereits vorhandenen Datenbank behält die Rolle das Passwort, mit dem sie angelegt
+wurde.
+
+Das `POSTGRES_PASSWORD` des alten Hosts in einen laufenden Stack zurückzuspielen ergäbe also eine
+`generated.env` und eine Datei `postgres_password`, die miteinander übereinstimmen und sonst mit
+nichts, eine zusammengesetzte `DATABASE_URL` mit einem Passwort, das die Rolle nicht hat, und eine
+Anwendung, die beim nächsten Start ihre eigene Datenbank nicht erreicht. plMail ist Client dieser
+Datenbank, nicht ihr Administrator; es kann die andere Hälfte nicht erledigen, also tut es keines von
+beidem und sagt warum. `DATABASE_URL` folgt aus demselben Grund um die Ecke — jede Sicherung enthält
+eine, zusammengesetzt aus dem Passwort und dem Host der *Quelle*, und eine DSN mit Passwort
+unterdrückt die eigene Zusammensetzung des Ziels.
+
+#### Die eine Überdeckung, die die Prüfung nicht sehen kann
+
+Die Erkennung vergleicht den lebenden Wert mit dem, was in `generated.env` steht, denn der Entrypoint
+exportiert den Inhalt dieser Datei in die Umgebung, bevor er den Server startet — „steht es in
+`getenv`“ beantwortet also beides mit ja und unterscheidet nichts. Ein lebender Wert, der von dem der
+Datei abweicht, oder ein Name, den die Datei nie hatte, ist eine Festlegung; ein lebender Wert, der
+dem der Datei gleicht, ist der Export des Entrypoints selbst.
+
+Die Lücke: Hast du einen Namen in Compose auf *genau die Zeichenkette* festgelegt, die die erzeugte
+Datei ohnehin schon enthält, sind beide aus der Anwendung heraus nicht zu unterscheiden, und der
+wiederhergestellte Wert würde ohne Warnung überdeckt. Dazu muss man ein erzeugtes Geheimnis von Hand
+in die Compose-Datei kopiert haben. Wenn du das getan hast, sind die selbst verwalteten Werte die,
+die du nach einer Wiederherstellung noch einmal prüfen solltest.
 
 ## Auf eine neue Installation zurückspielen
 
-Die Reihenfolge, die funktioniert:
+Datei hochladen, Passwort eintippen. Das ist die Arbeit.
 
 1. **Den Stack leer hochfahren.** Er erzeugt beim ersten Start seine eigenen `APP_SECRET`,
    `APP_ENCRYPTION_KEY`, `POSTGRES_PASSWORD` und `MERCURE_JWT_SECRET` in `var/secrets/generated.env`.
 2. **`/install` öffnen.** Unter dem Kontoformular steht *Stelle zuerst eine Konfigurationssicherung
-   wieder her* — Datei hochladen, Passwort eintippen, prüfen, anwenden.
+   wieder her* — Datei hochladen, Passwort eintippen, prüfen, anwenden. Alles, was die Sicherung
+   enthält, landet in der eigenen Geheimnisdatei und der Datenbank dieser Instanz.
 3. **Das Administratorkonto anlegen.** Die Wiederherstellung tut das nicht: Eine
    Konfigurationssicherung enthält Konfiguration, niemals Personen. Die Seite führt anschließend
    hierher zurück.
-4. **Die von der Prüfung aufgelisteten Umgebungszeilen einfügen**, in `.env.local` oder in deine
-   Compose-Datei, und den Stack neu starten.
+4. **Den Stack einmal neu starten.** Danach kommt die Instanz als die hoch, von der die Sicherung
+   stammt.
 
 Schritt 2 kommt vor Schritt 3, weil `/install` endgültig schließt, sobald das erste Konto existiert —
 und weil die beiden Administratorschritte des Einrichtungsassistenten anhand von „ist schon etwas
 konfiguriert?“ entscheiden, ob sie zutreffen; eine zuvor durchgeführte Wiederherstellung führt den
 neuen Administrator also direkt an ihnen vorbei.
+
+Schritt 4 ist nötig, weil der erste Start bereits stattgefunden hat: Der Entrypoint hat die eigenen
+Geheimnisse dieser Instanz erzeugt und in die laufenden Prozesse geladen, bevor du überhaupt
+`/install` erreicht hast, und diese Prozesse lesen ihre Umgebung genau einmal. Die
+wiederhergestellten Werte liegen ab dem Druck auf „Anwenden“ auf der Platte; der Neustart setzt sie
+in Kraft. Er kann bis nach dem Konto warten, und die Prüfseite sagt das auch.
+
+Falls die Prüfung etwas unter *Das musst du selbst erledigen* aufgeführt hat, ist das deine restliche
+Arbeit, und jede Zeile sagt warum. Auf einem unveränderten Stack sind das höchstens die zwei oder
+drei Namen, die `compose.yaml` festlegt, plus das Datenbankpasswort.
 
 Der Einstiegspunkt für die Wiederherstellung ist durch genau dasselbe geschützt wie `/install`:
 dadurch, dass die Installation keine Benutzer hat. Sobald einer existiert, antwortet er mit 404, und
@@ -237,10 +329,14 @@ Du hast zwei Möglichkeiten, und sie sind nicht gleichwertig.
 - **Den Schlüssel der neuen Installation behalten** (der Normalfall, wenn du nichts tust). Die
   Zugangsdaten aus der Sicherung werden beim Schreiben damit neu verschlüsselt. Das ist der Fall, für
   den der gesamte Entwurf mit entschlüsseltem Umschlag existiert, und der, der einfach funktioniert.
-- **Den alten Schlüssel mitnehmen**, indem du den exportierten `APP_ENCRYPTION_KEY` in `.env.local`
-  einträgst, **bevor irgendetwas gespeichert wurde**, und neu startest. Tu das nur, wenn du auch die
-  alte *Datenbank* wiederherstellst, deren Zeilen damit verschlüsselt sind — siehe
-  [Sichern und Wiederherstellen](backup-restore.md).
+- **Den alten Schlüssel mitnehmen**, indem du den exportierten `APP_ENCRYPTION_KEY` in
+  `var/secrets/generated.env` (oder deine Compose-Datei) einträgst, **bevor irgendetwas gespeichert
+  wurde**, und neu startest. Tu das nur, wenn du auch die alte *Datenbank* wiederherstellst, deren
+  Zeilen damit verschlüsselt sind — siehe [Sichern und Wiederherstellen](backup-restore.md). Die
+  Prüfung führt die Zeile genau für diesen Fall unter *Gut zu wissen* auf; es ist der eine Wert, den
+  der Import nie für dich schreibt, weil die Zugangsdaten, die er gerade geschrieben hat, mit dem
+  aktuell geltenden Schlüssel verschlüsselt sind und ein Austausch darunter sie unlesbar machen
+  würde.
 
 Das Zweite *nach* einem Import zu tun, der bereits Zugangsdaten geschrieben hat, hinterlässt Zeilen
 unter dem einen Schlüssel und einen Prozess mit dem anderen — was `app:secrets:init` beim nächsten
@@ -266,16 +362,17 @@ markiert diese Zeilen mit „ersetzt einen anderen Wert“ statt mit „hier noc
 diese Spalte: Ein Import ist keine Zusammenführung, und der überschriebene Firebase-Schlüssel ist
 derjenige, gegen den die Geräte in den Hosentaschen der Leute registriert sind.
 
-**Anwenden startet nichts neu.** Die Datenbankhälfte wirkt sofort. Die Umgebungshälfte wirkt, wenn du
-sie eingetragen *und* den Stack neu gestartet hast — und bis dahin läuft die Installation auf den
-erzeugten Geheimnissen der neuen Maschine, was ein funktionierender Zustand ist, der wie eine
-fertige Wiederherstellung aussieht.
+**Anwenden startet nichts neu.** Die Datenbankhälfte wirkt sofort. Alles, was im Secrets-Volume
+liegt, steht sofort auf der Platte und ist erst nach einem Neustart *in Kraft* — und bis du neu
+startest, läuft die Installation weiter auf den erzeugten Geheimnissen der neuen Maschine, was ein
+funktionierender Zustand ist, der wie eine fertige Wiederherstellung aussieht.
 
 **Das `postgres_password` in der Sicherung ist nicht das Passwort der Datenbank, in die du
-wiederherstellst.** Es ist das vom alten Host. Es wird mitgeführt, weil eine Wiederherstellung des
-alten *Volumes* es byteweise braucht; es in einen neuen Stack einzutragen, dessen Postgres mit einem
-anderen initialisiert wurde, bringt dir beim nächsten Start „password authentication failed“ und
-sonst nichts.
+wiederherstellst.** Es ist das vom alten Host, und plMail weigert sich aus dem
+[oben](#warum-postgres_password-der-eine-bleibt-der-handarbeit-erfordert) dargelegten Grund, es zu
+schreiben. Es wird mitgeführt, weil eine Wiederherstellung des alten *Volumes* es byteweise braucht;
+es in einen neuen Stack einzutragen, dessen Postgres mit einem anderen initialisiert wurde, bringt
+dir beim nächsten Start „password authentication failed“ und sonst nichts.
 
 **Exportieren ist nicht folgenlos.** Die entstehende Datei ist eine vollständige Offline-Kopie jedes
 Geheimnisses der Installation, mit unbegrenzt vielen Rateversuchen. Eine Sicherung, die im
