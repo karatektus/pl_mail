@@ -1307,6 +1307,12 @@ profile:
         name_first: First name
         name_last: Last name
 
+search:
+    sort:
+        label: Sort by
+        recent: Most recent
+        relevance: Most relevant
+
 sent:
     empty: No sent messages.
     heading: Sent

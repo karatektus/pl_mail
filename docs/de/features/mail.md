@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0401c696430a39313d3fa6363bc227e1c41c2d8e -->
+<!-- translated-from: features/mail.md sha1:26c30111dd6ca95675a31086a02bf21913b27b6b -->
 
 # Mail
 
@@ -121,6 +121,12 @@ findet er wenig bis nichts, und das ist immerhin die Wahrheit.
 
 Eine Abfrage, die aus nichts als einem halb getippten Operator besteht — `from:` ohne Wert —
 liefert eine leere Seite und nicht das ganze Postfach.
+
+Ergebnisse kommen **Neueste zuerst**. Der Schalter neben der Seitenblätterung stellt auf
+**Relevanteste zuerst** um, also auf den Volltext-Rang — der beste Treffer führt, wann immer er
+angekommen ist. Was du wählst, wird für deine nächste Suche gemerkt, und das Blättern behält es
+bei. Ein Wechsel der Reihenfolge beginnt wieder auf der ersten Seite, denn Seite vier der einen
+Reihenfolge ist Seite vier von nichts in der anderen.
 
 Die Suche erfasst nur Mail, die synchronisiert wurde. Wie weit das zurückreicht, ist eine
 Einstellung pro Konto; siehe [Konten und Aliase](accounts.md).

@@ -5,6 +5,7 @@ namespace App\Repository\Mail;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
@@ -445,23 +446,28 @@ class MessageThreadRepository extends ServiceEntityRepository
 
     /**
      * Full-text + operator search across messages for a given user.
-     * Returns hydrated MessageThread entities ordered by relevance then date.
+     * Returns hydrated MessageThread entities in the order $sort asks for.
      *
      * Uses raw DBAL SQL because:
      *  - websearch_to_tsquery / @@ / ts_rank are not native DQL functions
      *  - We need DISTINCT ON which DQL cannot express
+     *
+     * The ORDER BY comes from the enum rather than being spelled here, because
+     * it has to stay in step with the tiebreaker every order needs to survive
+     * pagination — see SearchSortOrder::orderBy().
      */
     public function search(
         UserInterface     $user,
         ParsedSearchQuery $query,
         int               $page = 1,
         int               $perPage = 50,
+        SearchSortOrder   $sort = SearchSortOrder::Recent,
     ): array {
         $offset = ($page - 1) * $perPage;
 
         [$sql, $params, $types] = $this->buildSearchSql($user, $query, false);
 
-        $sql .= ' ORDER BY rank DESC, last_message_at DESC LIMIT :limit OFFSET :offset';
+        $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
         $params['limit']  = $perPage;
         $params['offset'] = $offset;
         $types['limit']   = ParameterType::INTEGER;
@@ -477,11 +483,11 @@ class MessageThreadRepository extends ServiceEntityRepository
         $ids = array_column($rows, 'thread_id');
 
         // Hydrate via Doctrine so we get full entities (same as other finders).
-        // Order does not matter here — relevance is restored below, from the
-        // order the SQL returned.
+        // Order does not matter here — it is restored below, from the order the
+        // SQL returned.
         $threads = $this->findBy(['id' => $ids]);
 
-        // Re-order to match relevance order from SQL
+        // Re-order to match the sort order from SQL
         $indexed = [];
         foreach ($threads as $thread) {
             $indexed[$thread->id] = $thread;

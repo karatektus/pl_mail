@@ -1335,6 +1335,12 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
+search:
+    sort:
+        label: Sortieren nach
+        recent: Neueste zuerst
+        relevance: Relevanteste zuerst
+
 sent:
     empty: Keine gesendeten Nachrichten.
     heading: Gesendet

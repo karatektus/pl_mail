@@ -1,0 +1,62 @@
+{#
+    The search results' order switch, beside the pagination.
+
+    Links rather than a <form> or a Stimulus write: the two orders are two
+    renderings of the same query, so each entry is a GET into the same route
+    inside #inbox-list-frame — Turbo swaps the list and the URL, and the
+    controller remembers the choice as a side effect of answering. Nothing here
+    needs JavaScript beyond opening the menu.
+
+    Page is dropped, never carried: page 4 of relevance is not page 4 of
+    anything else, and landing on it after switching shows a slice of results
+    with no relation to what was on screen. Every switch starts at the top.
+
+    Parameters:
+      sort — the SearchSortOrder currently in force
+#}
+{% set base_params = app.request.query.all|merge({page: null})|filter(v => v is not null) %}
+{% set sort_options = enum('App\\Domain\\Enum\\Mail\\SearchSortOrder').cases %}
+
+{# data-search-sort-menu is the stable hook for "this control, here" — the
+   toolbar holds other ui--dropdown menus and none of them are this one. #}
+<div class="relative shrink-0" data-search-sort-menu data-controller="ui--dropdown">
+    <button type="button"
+            data-action="click->ui--dropdown#toggle"
+            aria-haspopup="true"
+            title="{{ 'search.sort.label'|trans }}"
+            class="flex items-center gap-1 h-7 px-2 rounded-full
+                   text-xs text-ink-muted
+                   hover:text-ink hover:bg-hover
+                   transition-colors duration-100 cursor-pointer">
+        <i class="fa-solid fa-arrow-down-short-wide text-[11px]" aria-hidden="true"></i>
+        <span class="whitespace-nowrap">{{ sort.transKey|trans }}</span>
+        <svg class="w-2.5 h-2.5" viewBox="0 0 10 10" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="2,3.5 5,6.5 8,3.5"/>
+        </svg>
+    </button>
+
+    <div data-ui--dropdown-target="menu" hidden
+         role="menu"
+         aria-label="{{ 'search.sort.label'|trans }}"
+         class="absolute top-full mt-1 right-0 z-30 min-w-44 popover py-1">
+
+        {% for option in sort_options %}
+            <a href="{{ path('app_mail_search', base_params|merge({sort: option.value})) }}"
+               data-turbo-frame="inbox-list-frame"
+               data-turbo-action="advance"
+               data-action="click->ui--dropdown#close"
+               data-search-sort="{{ option.value }}"
+               role="menuitem"
+               aria-current="{{ option is same as(sort) ? 'true' : 'false' }}"
+               class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left
+                      hover:bg-hover hover:text-ink transition-colors
+                      {{ option is same as(sort) ? 'text-accent' : 'text-ink-muted' }}">
+                <i class="fa-solid fa-check w-3 text-center text-[11px] {{ option is same as(sort) ? '' : 'invisible' }}"
+                   aria-hidden="true"></i>
+                <span>{{ option.transKey|trans }}</span>
+            </a>
+        {% endfor %}
+    </div>
+</div>

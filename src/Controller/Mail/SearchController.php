@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Search\SearchQueryParser;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,6 +22,7 @@ final class SearchController extends AbstractController
     public function __construct(
         private readonly SearchQueryParser       $parser,
         private readonly MessageThreadRepository $threadRepository,
+        private readonly EntityManagerInterface  $em,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -26,6 +30,7 @@ final class SearchController extends AbstractController
     {
         $raw  = trim($request->query->getString('q'));
         $page = max(1, $request->query->getInt('page', 1));
+        $sort = $this->resolveSort($request);
 
         if ($raw === '') {
             return $this->render('search/search.html.twig', [
@@ -35,6 +40,7 @@ final class SearchController extends AbstractController
                 'page'     => 1,
                 'per_page' => 50,
                 'parsed'   => null,
+                'sort'     => $sort,
             ]);
         }
 
@@ -52,11 +58,12 @@ final class SearchController extends AbstractController
                 'page'     => 1,
                 'per_page' => 50,
                 'parsed'   => $parsed,
+                'sort'     => $sort,
             ]);
         }
 
         $user    = $this->getUser();
-        $threads = $this->threadRepository->search($user, $parsed, $page);
+        $threads = $this->threadRepository->search($user, $parsed, $page, sort: $sort);
         $total   = $this->threadRepository->countSearch($user, $parsed);
 
         return $this->render('search/search.html.twig', [
@@ -66,6 +73,46 @@ final class SearchController extends AbstractController
             'page'     => $page,
             'per_page' => 50,
             'parsed'   => $parsed,
+            'sort'     => $sort,
         ]);
+    }
+
+    /**
+     * The order to answer in, and — when the request asked for one — the order
+     * to remember.
+     *
+     * A GET parameter rather than a POST to a preferences endpoint, because the
+     * control has to re-run the search anyway: the menu's entries are links
+     * into this route, so switching order is one navigation inside the Turbo
+     * frame instead of a write followed by a reload. The write is a side effect
+     * of asking, which is what makes the choice stick for the next search —
+     * that one arrives with no `sort` at all, from the search box in the
+     * topbar, and reads the setting back.
+     */
+    private function resolveSort(Request $request): SearchSortOrder
+    {
+        $user = $this->getUser();
+
+        if (false === $user instanceof User) {
+            return SearchSortOrder::fromSetting($request->query->get('sort'));
+        }
+
+        if (false === $request->query->has('sort')) {
+            return $user->searchSortOrder;
+        }
+
+        // Anything unrecognised keeps the order the user is already in rather
+        // than resetting it to the default — a mistyped URL is not a choice.
+        $sort = SearchSortOrder::fromSetting(
+            $request->query->get('sort'),
+            $user->searchSortOrder,
+        );
+
+        if ($sort !== $user->searchSortOrder) {
+            $user->searchSortOrder = $sort;
+            $this->em->flush();
+        }
+
+        return $sort;
     }
 }

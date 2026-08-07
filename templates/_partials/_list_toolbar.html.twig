@@ -7,6 +7,12 @@ Variables (passed via `with` from _mailbox.html.twig):
   page     int   current page (1-based)
   total    int   total thread count
   per_page int   items per page
+
+Inherited from the rendering context rather than passed (the include above is
+not `only`):
+
+  sort     SearchSortOrder|null  set by the search page alone; its presence is
+                                 what puts the order switch on the toolbar
 #}
 
 {% set total    = total    ?? 0 %}
@@ -213,6 +219,15 @@ The button itself carries `group` and `relative`.
 
     {# Spacer #}
     <div class="flex-1"></div>
+
+    {# ── Sort order ────────────────────────────────────────────────────────
+       Search only. Every other list has one order and a control offering a
+       choice nobody has would be noise. Sits before the pagination because
+       switching it resets the pagination, and a control that changes the one
+       beside it belongs upstream of it. #}
+    {% if sort is defined and sort is not null and total > 0 %}
+        {% include '_partials/_search_sort_menu.html.twig' with { sort: sort } only %}
+    {% endif %}
 
     {# ── Pagination ───────────────────────────────────────────────────────── #}
     {% if total > 0 %}

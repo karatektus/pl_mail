@@ -1078,6 +1078,12 @@ profile:
         name_first: First name
         name_last: Family name
 
+search:
+    sort:
+        label: Sort by
+        recent: Freshest catch
+        relevance: Closest to the mark
+
 sent:
     empty: No bottles cast off.
     heading: Cast off

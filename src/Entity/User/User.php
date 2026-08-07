@@ -3,6 +3,7 @@
 namespace App\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\Appearance;
@@ -445,6 +446,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function isCalendarPaneOpen(): bool
     {
         return $this->calendarPaneMode->showsCalendar();
+    }
+
+    /**
+     * Which order search results come back in, as a SearchSortOrder value.
+     *
+     * In the settings bag for the same reason the sidebar's expanded account
+     * is: it is one string of UI state, nothing queries by it, and the search
+     * page re-renders on every visit — so it belongs in the bag that already
+     * carries per-user view state to the same user's other devices, rather
+     * than in a session that forgets when the browser does.
+     *
+     * Absent means Recent, which is the default the enum documents.
+     */
+    public const string SETTING_SEARCH_SORT = 'search.sort';
+
+    /** Virtual, out of the settings bag — see SETTING_SEARCH_SORT. */
+    public SearchSortOrder $searchSortOrder {
+        get => SearchSortOrder::fromSetting($this->getSetting(self::SETTING_SEARCH_SORT));
+        set (SearchSortOrder $order) {
+            $this->setSetting(self::SETTING_SEARCH_SORT, $order->value);
+        }
     }
 
     /**

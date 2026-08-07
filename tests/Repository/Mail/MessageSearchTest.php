@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
@@ -186,14 +188,130 @@ final class MessageSearchTest extends KernelTestCase
         self::assertSame(1, $this->repository->countSearch($this->user, $this->parser->parse('from:billing@acme.test')));
     }
 
+    // ── Order ────────────────────────────────────────────────────────────────
+
+    /**
+     * The default is newest first, and it did not use to be.
+     *
+     * Search answered in `ts_rank` order with no way to ask for anything else,
+     * so a keyword that matched a 2004 mail and a 2026 mail put them in an
+     * order that had nothing to do with when they arrived. That is a search
+     * engine's answer to a mailbox's question.
+     */
+    public function testResultsAreNewestFirstByDefault(): void
+    {
+        // Deliberately seeded out of order, and with the *worse* full-text
+        // match on the newest one: under the old ordering "Ancient" led.
+        $this->seedMessage(subject: 'Middle',  body: 'invoice', receivedAt: '2015-06-01');
+        $this->seedMessage(subject: 'Ancient', body: 'invoice invoice invoice', receivedAt: '2004-12-01');
+        $this->seedMessage(subject: 'Newest',  body: 'invoice', receivedAt: '2026-05-01');
+
+        self::assertSame(['Newest', 'Middle', 'Ancient'], $this->search('invoice'));
+    }
+
+    /** And the other position of the switch is the order search shipped with. */
+    public function testRelevanceOrdersByRankInstead(): void
+    {
+        $this->seedMessage(subject: 'Middle',  body: 'invoice', receivedAt: '2015-06-01');
+        $this->seedMessage(subject: 'Ancient', body: 'invoice invoice invoice', receivedAt: '2004-12-01');
+        $this->seedMessage(subject: 'Newest',  body: 'invoice', receivedAt: '2026-05-01');
+
+        $byRank = $this->search('invoice', SearchSortOrder::Relevance);
+
+        self::assertSame('Ancient', $byRank[0], 'the densest match should lead under relevance');
+        self::assertCount(3, $byRank);
+        self::assertNotSame($this->search('invoice'), $byRank, 'the two orders must differ');
+    }
+
+    /**
+     * Pagination over a tied sort, which is the bug this order switch exposed.
+     *
+     * `ORDER BY rank DESC, last_message_at DESC` is not a total order: identical
+     * text scoring identically on the same day leaves Postgres free to break the
+     * tie however each page's plan happens to, and LIMIT/OFFSET over that shows
+     * a row twice and some other row never. Not an exotic case either — a query
+     * that stems to nothing makes `ts_rank` degenerate and ties *every* row, so
+     * the entire ordering rests on the tiebreaker.
+     *
+     * Asserted as "the pages, concatenated, are the whole result set in the
+     * documented order" rather than merely "no duplicates": a wrong-but-stable
+     * order would pass the weaker check on a small table.
+     */
+    public function testRelevanceStaysStableAcrossPagesWhenRanksTie(): void
+    {
+        // Same body, same day: rank ties and last_message_at ties with it.
+        for ($i = 1; $i <= 6; $i++) {
+            $this->seedMessage(subject: 'Tied ' . $i, body: 'quarterly report', receivedAt: '2026-02-02');
+        }
+
+        $parsed = $this->parser->parse('quarterly report');
+        $single = $this->searchIds($parsed, page: 1, perPage: 6, sort: SearchSortOrder::Relevance);
+
+        self::assertCount(6, $single);
+
+        $paged = array_merge(
+            $this->searchIds($parsed, page: 1, perPage: 2, sort: SearchSortOrder::Relevance),
+            $this->searchIds($parsed, page: 2, perPage: 2, sort: SearchSortOrder::Relevance),
+            $this->searchIds($parsed, page: 3, perPage: 2, sort: SearchSortOrder::Relevance),
+        );
+
+        self::assertSame($single, $paged, 'paging a tied ranking dropped or repeated rows');
+        self::assertSame($single, array_values(array_unique($paged)));
+
+        // The tiebreaker is id, descending — deterministic, and the same one
+        // whichever page you are on.
+        $descending = $single;
+        rsort($descending);
+
+        self::assertSame($descending, $single);
+    }
+
+    /** The same guarantee for the default order, whose dates tie just as often. */
+    public function testRecentStaysStableAcrossPagesWhenDatesTie(): void
+    {
+        for ($i = 1; $i <= 6; $i++) {
+            $this->seedMessage(subject: 'Same day ' . $i, body: 'standup notes', receivedAt: '2026-02-02');
+        }
+
+        $parsed = $this->parser->parse('standup notes');
+        $single = $this->searchIds($parsed, page: 1, perPage: 6);
+
+        $paged = array_merge(
+            $this->searchIds($parsed, page: 1, perPage: 2),
+            $this->searchIds($parsed, page: 2, perPage: 2),
+            $this->searchIds($parsed, page: 3, perPage: 2),
+        );
+
+        self::assertCount(6, $single);
+        self::assertSame($single, $paged, 'paging a tied date order dropped or repeated rows');
+
+        $descending = $single;
+        rsort($descending);
+
+        self::assertSame($descending, $single);
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
 
     /** @return list<string> subjects of the matching threads */
-    private function search(string $query): array
+    private function search(string $query, SearchSortOrder $sort = SearchSortOrder::Recent): array
     {
         return array_map(
             static fn (MessageThread $thread): string => (string) $thread->subject,
-            $this->repository->search($this->user, $this->parser->parse($query)),
+            $this->repository->search($this->user, $this->parser->parse($query), sort: $sort),
+        );
+    }
+
+    /** @return list<int> thread ids, in the order the SQL returned them */
+    private function searchIds(
+        ParsedSearchQuery $parsed,
+        int $page = 1,
+        int $perPage = 50,
+        SearchSortOrder $sort = SearchSortOrder::Recent,
+    ): array {
+        return array_map(
+            static fn (MessageThread $thread): int => (int) $thread->id,
+            $this->repository->search($this->user, $parsed, $page, $perPage, $sort),
         );
     }
 

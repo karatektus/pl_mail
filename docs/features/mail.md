@@ -107,6 +107,11 @@ search had been ignored. As free text it finds little or nothing, which is at le
 A query that is nothing but a half-typed operator — `from:` with no value — returns an empty page
 rather than the whole mailbox.
 
+Results are **Most recent** first. The switch beside the pagination changes that to **Most
+relevant**, which is full-text rank — the best match leads, whenever it arrived. Whichever you pick
+is remembered for your next search, and paging keeps it. Switching orders starts again at the first
+page, because page four of one order is page four of nothing in the other.
+
 Search only covers mail that has been synced. How far back that goes is a per-account setting; see
 [Accounts and aliases](accounts.md).
 
