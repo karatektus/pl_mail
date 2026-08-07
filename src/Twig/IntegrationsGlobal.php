@@ -8,6 +8,7 @@ use App\Domain\Enum\Integration\Capability;
 use App\Entity\Integration\Integration;
 use App\Repository\Integration\IntegrationRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * The current user's integrations, by capability, for templates that cannot be
@@ -22,10 +23,19 @@ use Symfony\Bundle\SecurityBundle\Security;
  * Per-request memoised, like SidebarCounts: a thread renders one chip per
  * attachment, and each would otherwise be a query.
  */
-class IntegrationsGlobal
+class IntegrationsGlobal implements ResetInterface
 {
     /** @var array<string,list<Integration>> */
     private array $byCapability = [];
+
+    /**
+     * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
+     * staleness was actually caught in the wild.
+     */
+    public function reset(): void
+    {
+        $this->byCapability = [];
+    }
 
     public function __construct(
         private readonly IntegrationRepository $integrations,

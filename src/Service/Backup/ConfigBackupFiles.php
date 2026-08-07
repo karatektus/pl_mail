@@ -64,6 +64,19 @@ final readonly class ConfigBackupFiles
     ];
 
     /**
+     * What an export carries: postgres_password is deliberately not in it -
+     * see ConfigBackupEnvironment::VARIABLES for the reasoning. It stays in
+     * NAMES so an OLD backup that carries the file is still recognised and
+     * classified External on import, rather than silently dropped.
+     *
+     * @var list<string>
+     */
+    private const array EXPORTED = [
+        self::JWT_PRIVATE,
+        self::JWT_PUBLIC,
+    ];
+
+    /**
      * Largest file this will carry, per file.
      *
      * A PEM is two kilobytes and a password is twenty-four bytes. The ceiling
@@ -116,7 +129,7 @@ final readonly class ConfigBackupFiles
     {
         $files = [];
 
-        foreach (self::NAMES as $name) {
+        foreach (self::EXPORTED as $name) {
             $contents = $this->read($name);
 
             if (null !== $contents) {

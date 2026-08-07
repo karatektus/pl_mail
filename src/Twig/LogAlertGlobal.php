@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Entity\User\User;
 use App\Repository\Monitoring\LogEntryRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Whether the user menu should be outlined, and why.
@@ -23,7 +24,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * global that queried on every call would be a query per include the moment
  * something else wanted this.
  */
-class LogAlertGlobal
+class LogAlertGlobal implements ResetInterface
 {
     /** Monolog's numeric levels, the two the outline distinguishes. */
     private const int WARNING = 300;
@@ -38,6 +39,20 @@ class LogAlertGlobal
         private readonly LogEntryRepository $logEntries,
         private readonly Security           $security,
     ) {
+    }
+
+    /**
+     * Worker-mode hygiene: FrankenPHP keeps this service alive across
+     * requests, so the per-request memo above is per-request only because the
+     * kernel resets us between them. Without this, the first value a worker
+     * computes is the value every later request - and every later USER - gets,
+     * which is exactly the stale log badge that survived an emptied table.
+     * InviteReader and ProposalReader already live by this rule.
+     */
+    public function reset(): void
+    {
+        $this->resolved = false;
+        $this->unseen   = null;
     }
 
     /**

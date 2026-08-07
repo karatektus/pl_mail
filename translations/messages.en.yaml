@@ -93,6 +93,9 @@ admin:
                 volume, and the provider and Firebase credentials from the database. No
                 mail, no calendars and no user accounts — those are what `app:backup` is
                 for.
+            generate: 'Generate one'
+            generated_copied: 'Copied to your clipboard — store it somewhere that outlives this machine.'
+            generated_shown: 'Your browser would not share its clipboard, so the password is shown above — store it now.'
             password: 'Password'
             password_help: >-
                 At least %length% characters. It is never stored anywhere, and there is no

@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Per-request cache of sidebar counts and the user label tree.
@@ -20,7 +21,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * data model did not have. LabelBinding made that entity real, so the merge,
  * the node DTO and the id-summing counters are gone.
  */
-class SidebarCounts
+class SidebarCounts implements ResetInterface
 {
     private ?array $roleCounts = null;
     private ?array $labelCounts = null;
@@ -32,6 +33,22 @@ class SidebarCounts
     private array $accountLabels = [];
     /** @var array<int, array<int,int>> account id => (label id => unread) */
     private array $accountLabelCounts = [];
+
+    /**
+     * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
+     * staleness was actually caught in the wild.
+     */
+    public function reset(): void
+    {
+        $this->roleCounts         = null;
+        $this->labelCounts        = null;
+        $this->starredCount       = null;
+        $this->snoozedCount       = null;
+        $this->userLabelTree      = null;
+        $this->visibleLabels      = null;
+        $this->accountLabels      = [];
+        $this->accountLabelCounts = [];
+    }
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,

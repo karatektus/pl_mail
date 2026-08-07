@@ -19,7 +19,7 @@ takes effect.
 | Where | What is there | Can plMail write it? |
 |---|---|---|
 | **The generated secrets file** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs | **Yes**, and the values take effect at the next container start |
-| **The secrets volume** | `jwt/private.pem`, `jwt/public.pem`, `postgres_password` — files beside that one, on the `app_secrets` volume every service mounts | **The keypair, yes.** Measured per file, per install |
+| **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings — everything an admin typed into a form rather than into a file | **Yes**, immediately |
 
 **This is not the same claim plMail used to make.** Earlier versions listed every environment value
@@ -77,7 +77,7 @@ Names only; the values are yours.
 are omitted rather than exported as blanks.
 
 ```
-APP_ENCRYPTION_KEY  APP_SECRET  DATABASE_URL  POSTGRES_PASSWORD
+APP_ENCRYPTION_KEY  APP_SECRET
 MERCURE_JWT_SECRET  MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 MAILER_DSN  MESSENGER_TRANSPORT_DSN  APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
@@ -100,7 +100,7 @@ in-network address of a sibling container. Every one of these is described in th
 configuration says they go:
 
 ```
-jwt/private.pem  jwt/public.pem  postgres_password
+jwt/private.pem  jwt/public.pem
 ```
 
 **Database**:
@@ -236,28 +236,24 @@ Section by section:
 |---|---|
 | `database` (Firebase, mail OAuth, integrations) | **applied**, re-encrypted with *this* install's `APP_ENCRYPTION_KEY`. plMail owns these rows outright |
 | `files` → `jwt/private.pem`, `jwt/public.pem` | **takes effect on next restart**, where the process can write them. Checked with `is_writable` at review time, not assumed — a read-only secrets mount is a supported deployment. The bytes land at once; lexik parses the key once per process, so the tokens *this* container signs stay signed with the old one until it restarts |
-| `files` → `postgres_password` | **external**, always. See below |
-| `env` → `POSTGRES_PASSWORD`, `DATABASE_URL` | **external**, always. See below |
 | `env` → `APP_ENCRYPTION_KEY` | **kept deliberately.** See [About `APP_ENCRYPTION_KEY` specifically](#about-app_encryption_key-specifically) |
 | `env` → everything else | **takes effect on next restart**, or **shadowed by compose** where something pins the same name |
 
-#### Why `POSTGRES_PASSWORD` is the one that stays manual
+#### Why the database credentials are not in the backup at all
 
-Because the entrypoint syncs the *file* on every boot but Postgres only reads it *once*.
+`POSTGRES_PASSWORD`, the `postgres_password` file and `DATABASE_URL` are machine-local
+infrastructure: minted before the first user exists, consumed by the Postgres image at **initdb**
+— when the data directory is created and never again — and assembled from the *source's* password
+and the *source's* host. A restore target's database already has its own working credentials, so
+there is nothing an operator could ever do with the old ones except break the new instance with
+them. Earlier versions exported them anyway and every review carried two "external" rows nobody
+could act on; now they are simply not part of a backup. An old backup that still contains them
+imports fine — they are classified as external and left alone.
 
-`generate-secrets.sh` rewrites `var/secrets/postgres_password` from the `POSTGRES_PASSWORD=` line in
-`generated.env` every single time it runs, so those two never drift. But `compose.yaml` hands that
-file to the database as `POSTGRES_PASSWORD_FILE`, and the official Postgres image consumes it at
-**initdb** — when the data directory is created and never again. On a database that already exists,
-the role keeps the password it was created with.
-
-So restoring the old host's `POSTGRES_PASSWORD` into a running stack would give you a
-`generated.env` and a `postgres_password` file that agree with each other and with nothing else, an
-assembled `DATABASE_URL` carrying a password the role does not have, and an app that cannot reach
-its own database on the next start. plMail is a client of that database, not its administrator; it
-cannot do the other half, so it does neither and says why. `DATABASE_URL` follows for the same
-reason once removed — every backup carries one, assembled from the *source's* password and the
-*source's* host, and a DSN that carries a password suppresses the target's own assembly.
+The one scenario the old export theoretically served — the secrets volume lost while the database
+volume survived — is handled by Postgres, not plMail: reset the role's password with
+`ALTER ROLE app PASSWORD …` as the database superuser and write the same value into
+`generated.env`.
 
 #### The one shadow the review cannot see
 
@@ -343,12 +339,6 @@ Firebase key that gets overwritten is the one the devices in people's pockets ar
 lives in the secrets volume is on disk at once and *in force* only after a restart — and until you
 restart, the install goes on running on the new machine's generated secrets, which is a working
 state that looks like a finished restore.
-
-**`postgres_password` in the backup is not the password of the database you are restoring into.** It
-is the one from the old host, and plMail refuses to write it for the reason set out
-[above](#why-postgres_password-is-the-one-that-stays-manual). It is carried because a restore of the
-old *volume* needs it byte for byte; putting it into a new stack whose Postgres was initialised with
-a different one gets you "password authentication failed" on the next start and nothing else.
 
 **Exporting is not free of consequence.** The file that comes out is a complete, offline, unlimited-
 attempt copy of every secret the installation has. A backup left in a downloads folder is a worse

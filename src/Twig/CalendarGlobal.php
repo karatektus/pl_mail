@@ -10,6 +10,7 @@ use App\Service\Calendar\HappeningSoonReader;
 use App\Service\Calendar\UpcomingEventIndicator;
 use DateTimeImmutable;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * What the topbar's calendar button needs to know, for a partial that cannot be
@@ -23,7 +24,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * global that queried on every call would be a query per include the moment
  * something else wanted this.
  */
-class CalendarGlobal
+class CalendarGlobal implements ResetInterface
 {
     private bool $resolved = false;
 
@@ -39,6 +40,18 @@ class CalendarGlobal
         private readonly HappeningSoonReader    $happeningSoon,
         private readonly Security               $security,
     ) {
+    }
+
+    /**
+     * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
+     * staleness was actually caught in the wild.
+     */
+    public function reset(): void
+    {
+        $this->resolved        = false;
+        $this->upcoming        = null;
+        $this->soonestResolved = false;
+        $this->soonest         = null;
     }
 
     /**

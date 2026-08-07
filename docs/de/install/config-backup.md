@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:f60f806bd4e9a94ed5b982886afad388ac348ea5 -->
+<!-- translated-from: install/config-backup.md sha1:180c96d98341c00375b3f3a126200be02403440e -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -22,7 +22,7 @@ Import tut und wann er wirkt.
 | Wo | Was dort liegt | Kann plMail das schreiben? |
 |---|---|---|
 | **Die Datei mit den erzeugten Geheimnissen** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
-| **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem`, `postgres_password` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Das Schlüsselpaar ja.** Pro Datei und pro Installation gemessen |
+| **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
 | **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
 
 **Das ist nicht dieselbe Aussage, die plMail früher gemacht hat.** Frühere Versionen führten jeden
@@ -82,7 +82,7 @@ Nur Namen; die Werte gehören dir.
 Leere werden weggelassen statt als Leerstring exportiert.
 
 ```
-APP_ENCRYPTION_KEY  APP_SECRET  DATABASE_URL  POSTGRES_PASSWORD
+APP_ENCRYPTION_KEY  APP_SECRET
 MERCURE_JWT_SECRET  MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 MAILER_DSN  MESSENGER_TRANSPORT_DSN  APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
@@ -105,7 +105,7 @@ und `MERCURE_URL` ist die netzinterne Adresse eines Nachbarcontainers. Jede davo
 legt, wo seine eigene Konfiguration sie erwartet:
 
 ```
-jwt/private.pem  jwt/public.pem  postgres_password
+jwt/private.pem  jwt/public.pem
 ```
 
 **Datenbank**:
@@ -249,30 +249,25 @@ Abschnitt für Abschnitt:
 |---|---|
 | `database` (Firebase, Mail-OAuth, Integrationen) | **angewendet**, neu verschlüsselt mit dem `APP_ENCRYPTION_KEY` *dieser* Installation. plMail besitzt diese Zeilen vollständig |
 | `files` → `jwt/private.pem`, `jwt/public.pem` | **wirkt nach dem nächsten Neustart**, dort wo der Prozess sie schreiben kann. Zur Prüfzeit mit `is_writable` gemessen, nicht angenommen — ein schreibgeschützt eingebundenes Secrets-Volume ist ein unterstützter Betrieb. Die Bytes landen sofort; lexik liest den Schlüssel einmal pro Prozess, die Tokens *dieses* Containers werden also bis zum Neustart weiter mit dem alten signiert |
-| `files` → `postgres_password` | **extern**, immer. Siehe unten |
-| `env` → `POSTGRES_PASSWORD`, `DATABASE_URL` | **extern**, immer. Siehe unten |
 | `env` → `APP_ENCRYPTION_KEY` | **bewusst behalten.** Siehe [Speziell zu `APP_ENCRYPTION_KEY`](#speziell-zu-app_encryption_key) |
 | `env` → alles Übrige | **wirkt nach dem nächsten Neustart**, oder **von Compose überdeckt**, wo etwas denselben Namen festlegt |
 
-#### Warum `POSTGRES_PASSWORD` der eine bleibt, der Handarbeit erfordert
+#### Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind
 
-Weil der Entrypoint die *Datei* bei jedem Start abgleicht, Postgres sie aber nur *einmal* liest.
+`POSTGRES_PASSWORD`, die Datei `postgres_password` und `DATABASE_URL` sind maschinenlokale
+Infrastruktur: erzeugt, bevor der erste Benutzer existiert, vom Postgres-Image bei **initdb**
+gelesen — wenn das Datenverzeichnis angelegt wird, und nie wieder — und zusammengesetzt aus dem
+Passwort und dem Host der *Quelle*. Die Datenbank des Ziels hat längst eigene, funktionierende
+Zugangsdaten; mit den alten könnte ein Betreiber nichts anfangen, außer die neue Installation damit
+zu beschädigen. Frühere Versionen haben sie trotzdem exportiert, und jede Prüfansicht trug zwei
+„extern“-Zeilen, mit denen niemand etwas tun konnte; jetzt sind sie schlicht kein Teil der
+Sicherung. Eine alte Sicherung, die sie noch enthält, lässt sich weiter einspielen — sie werden als
+extern eingestuft und nicht angefasst.
 
-`generate-secrets.sh` schreibt `var/secrets/postgres_password` bei jedem einzelnen Lauf aus der Zeile
-`POSTGRES_PASSWORD=` in `generated.env` neu, diese beiden laufen also nie auseinander. Aber
-`compose.yaml` reicht diese Datei als `POSTGRES_PASSWORD_FILE` an die Datenbank weiter, und das
-offizielle Postgres-Image liest sie bei **initdb** — wenn das Datenverzeichnis angelegt wird, und nie
-wieder. Auf einer bereits vorhandenen Datenbank behält die Rolle das Passwort, mit dem sie angelegt
-wurde.
-
-Das `POSTGRES_PASSWORD` des alten Hosts in einen laufenden Stack zurückzuspielen ergäbe also eine
-`generated.env` und eine Datei `postgres_password`, die miteinander übereinstimmen und sonst mit
-nichts, eine zusammengesetzte `DATABASE_URL` mit einem Passwort, das die Rolle nicht hat, und eine
-Anwendung, die beim nächsten Start ihre eigene Datenbank nicht erreicht. plMail ist Client dieser
-Datenbank, nicht ihr Administrator; es kann die andere Hälfte nicht erledigen, also tut es keines von
-beidem und sagt warum. `DATABASE_URL` folgt aus demselben Grund um die Ecke — jede Sicherung enthält
-eine, zusammengesetzt aus dem Passwort und dem Host der *Quelle*, und eine DSN mit Passwort
-unterdrückt die eigene Zusammensetzung des Ziels.
+Das eine Szenario, dem der alte Export theoretisch diente — Secrets-Volume verloren,
+Datenbank-Volume überlebt — löst Postgres, nicht plMail: das Rollenpasswort als
+Datenbank-Superuser mit `ALTER ROLE app PASSWORD …` neu setzen und denselben Wert in die
+`generated.env` schreiben.
 
 #### Die eine Überdeckung, die die Prüfung nicht sehen kann
 
@@ -366,13 +361,6 @@ derjenige, gegen den die Geräte in den Hosentaschen der Leute registriert sind.
 liegt, steht sofort auf der Platte und ist erst nach einem Neustart *in Kraft* — und bis du neu
 startest, läuft die Installation weiter auf den erzeugten Geheimnissen der neuen Maschine, was ein
 funktionierender Zustand ist, der wie eine fertige Wiederherstellung aussieht.
-
-**Das `postgres_password` in der Sicherung ist nicht das Passwort der Datenbank, in die du
-wiederherstellst.** Es ist das vom alten Host, und plMail weigert sich aus dem
-[oben](#warum-postgres_password-der-eine-bleibt-der-handarbeit-erfordert) dargelegten Grund, es zu
-schreiben. Es wird mitgeführt, weil eine Wiederherstellung des alten *Volumes* es byteweise braucht;
-es in einen neuen Stack einzutragen, dessen Postgres mit einem anderen initialisiert wurde, bringt
-dir beim nächsten Start „password authentication failed“ und sonst nichts.
 
 **Exportieren ist nicht folgenlos.** Die entstehende Datei ist eine vollständige Offline-Kopie jedes
 Geheimnisses der Installation, mit unbegrenzt vielen Rateversuchen. Eine Sicherung, die im

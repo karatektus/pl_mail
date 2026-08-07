@@ -80,8 +80,13 @@ final readonly class ConfigBackupEnvironment
     private const array VARIABLES = [
         'APP_ENCRYPTION_KEY',
         'APP_SECRET',
-        'DATABASE_URL',
-        'POSTGRES_PASSWORD',
+        // DATABASE_URL and POSTGRES_PASSWORD are deliberately NOT here. They
+        // are machine-local infrastructure: generated before any user exists,
+        // consumed by initdb once, and never applicable on a restore target,
+        // whose database has its own working credentials. Exporting them made
+        // every plan carry two "external" rows nobody could act on. An OLD
+        // backup that still contains them imports fine - unknown env names are
+        // classified, not refused - and stays inert.
         'MERCURE_JWT_SECRET',
         'MERCURE_PUBLIC_URL',
         'JWT_PASSPHRASE',

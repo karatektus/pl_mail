@@ -98,6 +98,9 @@ admin:
                 Secrets-Volume sowie die Anbieter- und Firebase-Zugangsdaten aus der
                 Datenbank. Keine E-Mails, keine Kalender, keine Benutzerkonten — dafür ist
                 `app:backup` da.
+            generate: 'Eins erzeugen'
+            generated_copied: 'In die Zwischenablage kopiert — bewahre es an einem Ort auf, der diese Maschine überlebt.'
+            generated_shown: 'Dein Browser gibt die Zwischenablage nicht frei, das Passwort steht deshalb oben im Feld — sichere es jetzt.'
             password: 'Passwort'
             password_help: >-
                 Mindestens %length% Zeichen. Es wird nirgends gespeichert, und ohne es

@@ -100,9 +100,11 @@ final class ConfigBackupExporterTest extends KernelTestCase
 
         self::assertSame([], array_diff(array_keys($env), $inventory->variables()), 'nothing outside the inventory');
 
-        // The test stack sets these three; if the harness ever stops, this
+        // The test stack sets these two; if the harness ever stops, this
         // assertion is the thing that says so rather than a silently empty file.
-        foreach (['APP_SECRET', 'APP_ENCRYPTION_KEY', 'DATABASE_URL'] as $expected) {
+        // (DATABASE_URL used to be the third - it left the inventory when the
+        // database credentials stopped being exported at all.)
+        foreach (['APP_SECRET', 'APP_ENCRYPTION_KEY'] as $expected) {
             self::assertArrayHasKey($expected, $env, $expected . ' is set in this environment and belongs in the file');
         }
 

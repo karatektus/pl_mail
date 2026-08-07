@@ -96,28 +96,45 @@ is half-typed.
                   class="space-y-3">
                 <input type="hidden" name="_token" value="{{ csrf_token('config_backup_export') }}">
 
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label for="export-password" class="block text-xs text-ink-muted">
-                            {{ 'admin.config_backup.export.password'|trans }}
-                        </label>
-                        <input type="password" id="export-password" name="password" required autocomplete="new-password"
-                               minlength="{{ minPasswordLength }}"
-                               class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
-                                      focus:outline-none focus:ring-2 focus:ring-accent">
+                <div data-controller="ui--password-generator"
+                     data-ui--password-generator-copied-text-value="{{ 'admin.config_backup.export.generated_copied'|trans }}"
+                     data-ui--password-generator-shown-text-value="{{ 'admin.config_backup.export.generated_shown'|trans }}"
+                     class="space-y-3">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <label for="export-password" class="block text-xs text-ink-muted">
+                                    {{ 'admin.config_backup.export.password'|trans }}
+                                </label>
+                                {# Optional by design: filling the fields is all it does, and
+                                   typing afterwards overwrites it. #}
+                                <button type="button" data-action="ui--password-generator#generate"
+                                        class="text-xs text-accent hover:text-accent-strong transition-colors cursor-pointer">
+                                    {{ 'admin.config_backup.export.generate'|trans }}
+                                </button>
+                            </div>
+                            <input type="password" id="export-password" name="password" required autocomplete="new-password"
+                                   minlength="{{ minPasswordLength }}"
+                                   data-ui--password-generator-target="field"
+                                   class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                          focus:outline-none focus:ring-2 focus:ring-accent">
+                        </div>
+                        <div>
+                            <label for="export-password-repeat" class="block text-xs text-ink-muted">
+                                {{ 'admin.config_backup.export.password_repeat'|trans }}
+                            </label>
+                            <input type="password" id="export-password-repeat" name="password_repeat" required autocomplete="new-password"
+                                   minlength="{{ minPasswordLength }}"
+                                   data-ui--password-generator-target="field"
+                                   class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                          focus:outline-none focus:ring-2 focus:ring-accent">
+                        </div>
                     </div>
-                    <div>
-                        <label for="export-password-repeat" class="block text-xs text-ink-muted">
-                            {{ 'admin.config_backup.export.password_repeat'|trans }}
-                        </label>
-                        <input type="password" id="export-password-repeat" name="password_repeat" required autocomplete="new-password"
-                               minlength="{{ minPasswordLength }}"
-                               class="mt-1 w-full h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
-                                      focus:outline-none focus:ring-2 focus:ring-accent">
-                    </div>
-                </div>
 
-                <p class="text-xs text-ink-faint">{{ 'admin.config_backup.export.password_help'|trans({ '%length%': minPasswordLength }) }}</p>
+                    <p class="text-xs text-ink-faint">{{ 'admin.config_backup.export.password_help'|trans({ '%length%': minPasswordLength }) }}</p>
+
+                    <p class="text-xs text-ink-soft hidden" data-ui--password-generator-target="note" aria-live="polite"></p>
+                </div>
 
                 <div class="flex justify-end">
                     <button type="submit" id="config-backup-export"
