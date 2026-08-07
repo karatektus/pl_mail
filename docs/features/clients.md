@@ -110,7 +110,21 @@ phone goes quiet, because "we tried and the address is dead" and "nothing has ev
 opposite problems and used to be indistinguishable from the outside.
 
 A device whose address is permanently dead is dropped automatically and disappears from the list;
-re-enabling notifications on that device registers it again. What the line never says is *what* was
+re-enabling notifications on that device registers it again.
+
+Each line also has a **Remove**, which is the only remedy for the opposite problem: a registration
+that works exactly as designed and should not exist. The usual shape of it is an old build of an app
+still registered under a device id nothing uses any more, so one phone receives every notification
+twice. Nothing about that registration fails, so nothing retires it on its own.
+
+Removing it stops deliveries to that device from the next notification onwards. It does not
+uninstall anything or switch anything off on the device itself — an app that still wants
+notifications registers again the next time it runs, and reappears in the list. What removal does
+*not* take with it is the history: the delivery log is keyed on the device id rather than on the
+registration, so the rows describing a removed device remain in the admin's log at `/admin/push`
+until they are pruned by age.
+
+What the line never says is *what* was
 pushed — the record keeps only whether it was a mail state change or a verification, never anything
 about the mail itself.
 

@@ -20,6 +20,12 @@ because an unverified subscription receives NOTHING by design (RFC 8620
 because "we tried and Firebase said the token is dead" and "nothing has ever
 been sent to this device" are the two answers, and they are opposites.
 
+Each row can also be removed, which is the only way to be rid of a subscription
+that is working exactly as designed and should not exist — the classic case
+being an old build of an app still registered under a stale device id, so one
+phone receives everything twice. The delivery log is addressed by device id and
+not by a relation, so the removed device's history stays readable afterwards.
+
 What is deliberately NOT shown: what was pushed. The log stores the payload's
 `@type` and nothing else — see the PushDelivery docblock — so this line can say
 a state change was delivered and can never say which mail it was about.
@@ -79,6 +85,29 @@ a state change was delivered and can never say which mail it was about.
                             {% endif %}
                         {% endif %}
                     </span>
+
+                    {# The only way to be rid of a device that is working
+                       perfectly and should not be — an old build of an app
+                       still registered under a device id nobody uses, pushing
+                       a second copy of everything at the same phone. Automatic
+                       retirement never reaches it, because nothing about it
+                       fails.
+
+                       Confirmed inline like the app-password row rather than
+                       through a modal, and the confirm text carries the honest
+                       half: this stops deliveries, it does not uninstall
+                       anything, and a device whose app still wants push will
+                       register itself again. #}
+                    <form method="post"
+                          action="{{ path('app_push_device_remove', { id: device.id }) }}"
+                          data-turbo-stream class="ml-auto shrink-0"
+                          onsubmit="return confirm('{{ 'settings.notifications.devices.remove_confirm'|trans({ '%device%': device.deviceClientId })|e('js') }}')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('push-device-remove' ~ device.id) }}">
+                        <button type="submit"
+                                class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
+                            {{ 'settings.notifications.devices.remove'|trans }}
+                        </button>
+                    </form>
                 </li>
             {% endfor %}
         </ul>

@@ -1840,6 +1840,15 @@ settings:
                 failed: 'Failed'
                 skipped: 'Not sent'
                 subscription-destroyed: 'Dropped'
+            remove: 'Remove'
+            remove_confirm: >-
+                Remove %device%? Notifications stop being sent to it. Nothing is
+                uninstalled or turned off on the device itself, and if its app
+                still wants notifications it will register again the next time
+                it runs.
+            removed: >-
+                Device removed — nothing more is sent to it. It registers itself
+                again if its app still wants notifications.
             transport:
                 fcm: 'Firebase'
                 webpush: 'Web Push'

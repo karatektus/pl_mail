@@ -252,10 +252,16 @@
                                                    this browser, and the list
                                                    below is what registering has
                                                    produced across every device. #}
-                                                {% include 'settings/_push_devices.html.twig' with {
-                                                    devices: pushDevices,
-                                                    lastDeliveries: lastDeliveries,
-                                                } %}
+                                                {# Wrapped in an id because removing
+                                                   a device replaces the whole list
+                                                   over Turbo — see
+                                                   push_device/_mutation.stream.html.twig. #}
+                                                <div id="settings-push-device-list">
+                                                    {% include 'settings/_push_devices.html.twig' with {
+                                                        devices: pushDevices,
+                                                        lastDeliveries: lastDeliveries,
+                                                    } %}
+                                                </div>
                                             </div>
                                         </section>
 

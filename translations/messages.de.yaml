@@ -1874,6 +1874,16 @@ settings:
                 failed: 'Fehlgeschlagen'
                 skipped: 'Nicht gesendet'
                 subscription-destroyed: 'Entfernt'
+            remove: 'Entfernen'
+            remove_confirm: >-
+                %device% entfernen? Dorthin werden keine Benachrichtigungen mehr
+                geschickt. Auf dem Gerät selbst wird nichts deinstalliert oder
+                abgeschaltet, und wenn dessen App weiterhin Benachrichtigungen
+                möchte, registriert sie sich beim nächsten Start erneut.
+            removed: >-
+                Gerät entfernt — dorthin wird nichts mehr geschickt. Es
+                registriert sich von selbst wieder, wenn seine App weiterhin
+                Benachrichtigungen möchte.
             transport:
                 fcm: 'Firebase'
                 webpush: 'Web Push'

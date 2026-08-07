@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:5fc837871d7461c6afe83fe0ccf92c6c2981518d -->
+<!-- translated-from: features/clients.md sha1:5c4e7621822946ff0662da3a649ed21aef65c292 -->
 
 # Andere Clients
 
@@ -123,7 +123,22 @@ versucht und die Adresse ist tot" und „es wurde nie etwas geschickt" sind entg
 Probleme und waren von außen bisher nicht zu unterscheiden.
 
 Ein Gerät, dessen Adresse dauerhaft tot ist, wird automatisch entfernt und verschwindet aus der
-Liste; die Benachrichtigungen auf diesem Gerät wieder einzuschalten registriert es erneut. Was die
+Liste; die Benachrichtigungen auf diesem Gerät wieder einzuschalten registriert es erneut.
+
+Jede Zeile hat außerdem ein **Entfernen**, und das ist das einzige Mittel gegen das umgekehrte
+Problem: eine Registrierung, die genau wie vorgesehen funktioniert und trotzdem nicht existieren
+sollte. Der übliche Fall ist ein alter App-Stand, der noch unter einer Geräte-ID registriert ist,
+die niemand mehr benutzt — ein Telefon bekommt dann jede Benachrichtigung doppelt. An dieser
+Registrierung schlägt nichts fehl, also räumt sie auch nichts von selbst weg.
+
+Entfernen hält die Zustellungen an dieses Gerät ab der nächsten Benachrichtigung an. Auf dem Gerät
+selbst wird dadurch nichts deinstalliert und nichts abgeschaltet — eine App, die weiterhin
+Benachrichtigungen möchte, registriert sich beim nächsten Start erneut und taucht wieder in der
+Liste auf. Was das Entfernen *nicht* mitnimmt, ist die Vorgeschichte: Das Zustellprotokoll hängt an
+der Geräte-ID und nicht an der Registrierung, die Zeilen zu einem entfernten Gerät bleiben also im
+Protokoll unter `/admin/push`, bis sie nach Alter weggeräumt werden.
+
+Was die
 Zeile nie sagt, ist, *was* gepusht wurde — festgehalten wird nur, ob es eine Zustandsänderung der
 Mail oder eine Bestätigung war, nie etwas über die Mail selbst.
 

@@ -1,0 +1,29 @@
+{#
+push_device/_mutation.stream.html.twig — the device list after a row was removed.
+
+Accepts:
+  devices        — list<App\Entity\User\PushSubscription>, newest first
+  lastDeliveries — map of deviceClientId => App\Domain\DTO\Push\LastDelivery
+  toastMessage   — translation key
+
+The whole list is replaced rather than the one <li> removed: a device that
+disappears takes its "last delivery" line with it, and the empty state has to
+appear when the last row goes. Re-rendering the partial is how that stays the
+same markup the full page renders, instead of a second opinion about it.
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="settings-push-device-list">
+    <template>
+        <div id="settings-push-device-list">
+            {% include 'settings/_push_devices.html.twig' with {
+                devices: devices,
+                lastDeliveries: lastDeliveries,
+            } %}
+        </div>
+    </template>
+</turbo-stream>
