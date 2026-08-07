@@ -48,6 +48,18 @@ use DateTimeZone;
  * flip. A proposal is answered where its evidence is, on the message. See
  * EventProposal and Proposal/ProposalReader.
  *
+ * **One meeting is one row.** A meeting can reach plMail twice by two honest
+ * routes at once — extracted from its invitation onto the account's calendar,
+ * mirrored from the provider onto a Remote calendar, both carrying the
+ * organiser's UID — and both rows are correct. The calendar grid has answered
+ * that on the screen since EventClusterer existed; this panel did not, and drew
+ * the same meeting on two consecutive lines, which is the more damaging place
+ * for it to happen: a grid draws two chips in one visibly shared hour, while a
+ * list of twelve lines just claims there are two things. So the occurrences go
+ * through the same clusterer the grid uses, and the rows are built from
+ * clusters. Nothing here decides what "the same meeting" means; that lives in
+ * one place and this is a caller of it.
+ *
  * Visible calendars only, like the topbar dot and every calendar view: a
  * calendar the user has switched off is switched off everywhere, or the setting
  * means nothing.
@@ -89,10 +101,34 @@ final readonly class HappeningSoonReader
      */
     private const int LIMIT = 12;
 
+    /**
+     * The most occurrences one query will read, however many calendars are on.
+     *
+     * The window is capped in ROWS and the cap is applied before anything is
+     * collapsed, so a limit of twelve occurrences is at most twelve meetings and
+     * possibly fewer — a meeting on three calendars eats three of them. The fix
+     * is to read more than the panel draws: a meeting can occupy at most one row
+     * per visible calendar, because uniq_calendar_event_calendar_uid makes a UID
+     * unique within one, so $limit × (visible calendars) occurrences cannot
+     * collapse to fewer than $limit clusters.
+     *
+     * That product is unbounded by anything a user cannot change, hence this
+     * ceiling. A user with forty visible calendars would otherwise turn a glance
+     * panel into a five-hundred-row read on every topbar click.
+     *
+     * Being cut short by the ceiling cannot duplicate anything, which is the
+     * property worth stating: a cluster whose second member fell outside the
+     * fetched set is a cluster of one and draws ONE row. The cost of the cut is
+     * a single-coloured dot where a multicoloured one belonged, and only on rows
+     * far past the twelve the panel shows.
+     */
+    private const int MAX_SCAN = 120;
+
     public function __construct(
         private CalendarRepository                $calendars,
         private CalendarEventOccurrenceRepository $occurrences,
         private EventSourceLinkRepository         $sourceLinks,
+        private EventClusterer                    $clusterer,
     ) {
     }
 
@@ -124,18 +160,26 @@ final readonly class HappeningSoonReader
         // from local midnight. "Soon" is a duration, not a date range: pinning
         // it to midnight would make the same booking fall in or out of the list
         // depending on what time of day the page was loaded.
-        $occurrences = $this->occurrences->findUpcoming(
+        // Read wide, drawn narrow — see MAX_SCAN. The clusters are capped after
+        // the collapse, so the panel shows $limit MEETINGS rather than $limit
+        // rows of which some are the same meeting twice.
+        $clusters = $this->clusterer->cluster($this->occurrences->findUpcoming(
             $user,
             $calendarIds,
             $from,
             $from->modify(sprintf('+%d days', self::WINDOW_DAYS)),
-            $limit,
-        );
+            min(self::MAX_SCAN, $limit * count($calendarIds)),
+        ));
+
+        $clusters = array_slice($clusters, 0, $limit);
 
         $events = [];
 
-        foreach ($occurrences as $occurrence) {
-            $event = $occurrence->event;
+        foreach ($clusters as $cluster) {
+            // The member the row will speak for, resolved here and again inside
+            // the row through the same method — the provenance looked up must be
+            // the provenance of the copy whose icon is drawn.
+            $event = HappeningSoonRow::representativeOf($cluster)->event;
 
             // Only the extracted ones. An event with no kind was typed here and
             // has no EventSourceLink by construction, so putting its id in the
@@ -157,10 +201,10 @@ final readonly class HappeningSoonReader
 
         $rows = [];
 
-        foreach ($occurrences as $occurrence) {
-            $eventId = $occurrence->event?->id;
+        foreach ($clusters as $cluster) {
+            $eventId = HappeningSoonRow::representativeOf($cluster)->event?->id;
             $row     = HappeningSoonRow::of(
-                $occurrence,
+                $cluster,
                 null === $eventId ? null : ($sources[$eventId] ?? null),
             );
 

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/calendar-model.md sha1:ec2e45ae942b88d9913928b05e9c3b7f7cb0aeae -->
+<!-- translated-from: internals/calendar-model.md sha1:28f6c0c193efafdb492b2b38d8d0882acf3798e1 -->
 # Das Kalendermodell
 
 JSCalendar in jsonb, mit den abfragbaren Teilen in Spalten herausgezogen; die Tabelle der
@@ -311,6 +311,52 @@ zeichnen, von der einem Weg bereits gesagt wurde, dass sie abgesagt ist.
 `copiesOf()` beantwortet dieselbe Frage über Termine statt über Termininstanzen, für den Editor,
 und vergleicht dieselben fünf Felder über dieselbe private Signatur — zwei Implementierungen von
 „dieselbe Besprechung" wären sich einig, bis eine davon von einem sechsten Feld erführe.
+
+### Jede Oberfläche, die Termininstanzen auflistet, führt sie zusammen
+
+Der Clusterer gehört nicht dem Raster. Jede Oberfläche, die Instanzzeilen in eine Liste
+verwandelt, die ein Mensch liest, zeigt eine Besprechung sonst zweimal — und je flacher die
+Oberfläche, desto schlimmer liest es sich: Ein Raster zeichnet seine beiden Chips wenigstens
+innerhalb einer sichtbar geteilten Stunde, während eine Liste aus zwölf Zeilen schlicht
+behauptet, es seien zwei Dinge.
+
+| Oberfläche | Leser | Wie die Dopplung beantwortet wird |
+| --- | --- | --- |
+| Tag, Woche, Monat, Agenda, angedockte Leiste | `CalendarRangeReader` | Vor dem Tageslauf geclustert, damit ein Cluster über Mitternacht genau einmal platziert wird |
+| „Steht bald an" | `HappeningSoonReader` | Geclustert; die SQL-Obergrenze wird großzügiger gelesen und erst nach dem Zusammenführen zugeschnitten, damit zwölf Zeilen zwölf Besprechungen heißt |
+| Geteilte Kalenderseite und ihr `.ics`-Feed | `ShareLinkReader` | Vor der Schwärzung geclustert — danach zusammenzuführen würde Blöcke vergleichen, die die Schwärzung absichtlich ununterscheidbar gemacht hat, und jede Besprechung einer Stunde fiele in eine zusammen |
+| Erinnerungslauf | `DueAlertReader` | Gefaltet über Nutzerin + UID + Beginn + Auslösezeitpunkt. Das Zustellregister kann das nicht: `uniq_calendar_alert_delivery_event_alert_instance` hängt am *Termin*, und genau davon gibt es zwei |
+| Dringlichkeitspunkt in der Topbar | `UpcomingEventIndicator` | Bereits sicher — er antwortet mit der ersten Instanz und kehrt zurück |
+| Buchungsverfügbarkeit | `BookingAvailabilityReader` | Bewusst gelassen. Belegte Blöcke werden von der Verfügbarkeit abgezogen, und dasselbe Intervall zweimal abzuziehen entfernt denselben Slot |
+| Kalender-`.ics`-Export | `IcsExporter` + `CalendarEventRepository::iterateForCalendar()` | Bereits sicher — ein Kalender pro Dokument, und `uniq_calendar_event_calendar_uid` macht eine UID innerhalb eines Kalenders eindeutig |
+| JMAP `CalendarEvent/query` | `CalendarEventQueryRunner` | Bewusst gelassen. Ein Protokoll antwortet mit den Ids der Zeilen, die es hält; sie zusammenzuführen gäbe einem Client Ids, die er anschließend nicht `get`en kann |
+
+Zwei Regeln verbirgt die Tabelle. Die Faltung der Erinnerungen hängt auch an der **Nutzerin**,
+denn der Lauf ist global und eine UID gehört der *einladenden Person* — zwei Menschen auf einer
+Installation, die zur selben Besprechung eingeladen sind, halten Zeilen mit derselben UID zum
+selben Zeitpunkt, und sie zusammenzufalten würde eine der beiden klammheimlich nicht mehr
+erinnern. Und sie hängt am **Auslösezeitpunkt** statt an der Erinnerung selbst, denn
+Erinnerungsschlüssel werden je Zeile vergeben: Zwei Kopien teilen nie einen, und Kopien mit
+fünfzehn und mit zehn Minuten ergeben zwei Erinnerungen, was richtig ist.
+
+### Eine extrahierte Kopie mit eigener UID ist eine zweite Besprechung
+
+Der Screenshot, mit dem das hier anfing — dieselbe Besprechung auf zwei aufeinanderfolgenden
+Zeilen von „Steht bald an", einmal mit dem Personen-Symbol einer extrahierten Einladung und
+einmal mit der schlichten Uhr einer gespiegelten Kopie — war **rein anzeigeseitig**: zwei Zeilen
+unter einer UID, also der Fall oben, in einer Leiste, die das Zusammenführen nie gelernt hatte.
+Nichts war entstanden, was nicht hätte entstehen sollen.
+
+Der Nachbarfall ist keine Dopplung und darf nicht als eine behandelt werden. `IcsEventExtractor`
+übernimmt die UID der einladenden Person wörtlich; `StructuredDataEventExtractor` errechnet eine
+aus dem gelesenen Fragment. Eine Nachricht, die beides trägt, ist kein Problem — der
+ICS-Extraktor läuft zuerst und stoppt die Kaskade — aber zwei *Nachrichten* über eine Buchung,
+eine mit schema.org-Auszeichnung und eine mit echter Einladung, ergeben zwei Termine mit zwei
+UIDs und keiner Möglichkeit zu wissen, dass sie dasselbe meinen. Die werden bewusst zweimal
+gezeichnet: Sie zusammenzuführen hieße, über Titel und Zeit zu gruppieren, und das ist der
+Vieraugengespräch-Fehler von oben. Beantwortet werden sie durch Verwerfen (`EventDismisser`
+schreibt eine `EventSuppression` auf den Dedup-Schlüssel, sodass eine erneute Extraktion sie
+nicht zurückbringt), nicht durch eine breitere Zusammenführung.
 
 ### Eine Kopie teilt die UID der Besprechung
 

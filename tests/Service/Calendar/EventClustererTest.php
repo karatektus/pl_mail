@@ -6,6 +6,7 @@ namespace App\Tests\Service\Calendar;
 
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
@@ -107,6 +108,33 @@ final class EventClustererTest extends KernelTestCase
                 ['calendar' => 'mirror',  'uid' => 'invite@organiser.test'],
             ],
             [2],
+        ];
+
+        // The pair the "Happening Soon" screenshot showed twice: the copy an
+        // extractor read out of the invitation, carrying a kind and a message
+        // behind it, and the copy the provider mirrored, carrying neither. They
+        // differ in provenance and in nothing a user would notice, which is
+        // exactly the case the five-field signature is meant to merge — so
+        // provenance must not be a sixth field.
+        yield 'the extracted copy and the mirrored copy of one meeting draw one chip' => [
+            [
+                ['calendar' => 'account', 'uid' => 'invite@organiser.test', 'kind' => ExtractionKind::Meeting],
+                ['calendar' => 'mirror',  'uid' => 'invite@organiser.test'],
+            ],
+            [2],
+        ];
+
+        // The other half of the same story, and the reason the fix is a display
+        // one rather than a wider match. An extraction that minted its OWN uid
+        // — schema.org markup hashes one, an invite carries the organiser's —
+        // is a second meeting by construction, and collapsing it on title and
+        // time would be the weekly-1:1 bug below wearing a different hat.
+        yield 'an extracted copy under a uid of its own is a second meeting' => [
+            [
+                ['calendar' => 'account', 'uid' => 'invite@organiser.test'],
+                ['calendar' => 'account', 'uid' => 'a1b2c3@plmail', 'kind' => ExtractionKind::Ticket],
+            ],
+            [1, 1],
         ];
 
         yield 'a lone event is a cluster of one and is left alone' => [
@@ -215,6 +243,40 @@ final class EventClustererTest extends KernelTestCase
         self::assertTrue($clusters[0]->isMerged);
         self::assertSame(['#2563eb', '#16a34a'], $clusters[0]->colors);
         self::assertSame(['account', 'mirror'], $clusters[0]->calendarNames);
+    }
+
+    /**
+     * Which member a list surface speaks for.
+     *
+     * $primary is whichever row the query returned first, and for the pair above
+     * that is a coin flip between the mirrored copy — no kind, no message — and
+     * the extracted one that carries both. A panel that read the primary would
+     * gain and lose its icon and its "why is this on my calendar?" link with the
+     * sort order, so the cluster answers the provenance question itself.
+     */
+    public function testAClusterNamesItsExtractedMemberWhicheverOrderTheRowsArrivedIn(): void
+    {
+        $mirrorFirst = $this->clusterer->cluster($this->occurrences([
+            ['calendar' => 'mirror',  'uid' => 'both@organiser.test'],
+            ['calendar' => 'account', 'uid' => 'both@organiser.test', 'kind' => ExtractionKind::Meeting],
+        ]));
+
+        self::assertCount(1, $mirrorFirst);
+        self::assertSame(
+            ExtractionKind::Meeting,
+            $mirrorFirst[0]->extracted()?->event?->kind,
+            'the extracted member is found even when it is not the primary',
+        );
+    }
+
+    public function testAClusterNobodyExtractedNamesNoExtractedMember(): void
+    {
+        $clusters = $this->clusterer->cluster($this->occurrences([
+            ['calendar' => 'account', 'uid' => 'typed@plmail'],
+            ['calendar' => 'mirror',  'uid' => 'typed@plmail'],
+        ]));
+
+        self::assertNull($clusters[0]->extracted());
     }
 
     public function testALoneClusterIsNotMergedAndAnswersItsOwnColour(): void
@@ -411,6 +473,7 @@ final class EventClustererTest extends KernelTestCase
             $event->title    = (string) ($row['title'] ?? 'Sync');
             $event->isAllDay = true === ($row['isAllDay'] ?? false);
             $event->status   = $row['status'] ?? EventStatus::Confirmed;
+            $event->kind     = $row['kind'] ?? null;
             $event->calendar = $calendars[$name];
             $event->usr      = $this->user;
 

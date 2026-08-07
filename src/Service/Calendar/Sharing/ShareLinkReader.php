@@ -14,6 +14,7 @@ use App\Entity\Calendar\CalendarShareLink;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Service\Calendar\CalendarTimeResolver;
+use App\Service\Calendar\EventClusterer;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -57,6 +58,27 @@ use DateTimeZone;
  * template that forgets is a template that leaks and there is no test that
  * notices a missing `if`.
  *
+ * ── One meeting, one block ────────────────────────────────────────────────
+ *
+ * A link may name several calendars, and a meeting that reached plMail twice —
+ * extracted from its invitation onto the account's calendar, mirrored from the
+ * provider onto a Remote one — sits on two of them under the organiser's UID.
+ * Left alone that is two blocks at the same hour on somebody else's screen, and
+ * two VEVENTs in the .ics a subscriber's client files as two meetings. Neither
+ * is a leak, but both are a lie about how busy the owner is, which is the one
+ * thing this page exists to state.
+ *
+ * So the occurrences go through EventClusterer before they are redacted, and
+ * only the primary of each cluster survives. Redacting first and merging after
+ * would be the wrong order twice over: the merge asks about titles and statuses
+ * that redaction has already thrown away, and a busy/free link would end up
+ * comparing blocks that were made deliberately indistinguishable — every
+ * meeting in the same hour would collapse into one.
+ *
+ * The cluster's other members are dropped rather than named. A shared page says
+ * nothing about the owner's calendars — not their names, not their colours, not
+ * how many there are — and "this one is on two of them" is exactly that fact.
+ *
  * Cancelled is dropped for a different reason and it is worth separating: a
  * called-off meeting is not a claim on the owner's time, so leaving it in would
  * make a shared calendar say "busy" at an hour the owner is free. That is also
@@ -83,6 +105,7 @@ final readonly class ShareLinkReader
         private CalendarEventOccurrenceRepository $occurrences,
         private CalendarTimeResolver              $time,
         private PublicLinkToken                   $tokens,
+        private EventClusterer                    $clusterer,
     ) {
     }
 
@@ -230,12 +253,16 @@ final readonly class ShareLinkReader
         $revealed = $link->revealed();
         $entries  = [];
 
-        foreach ($occurrences as $occurrence) {
+        // Collapsed before the cap, not after: MAX_ENTRIES is a bound on what
+        // the page renders, and two rows of one meeting must not spend two of
+        // it. See the class docblock for why the merge happens before the
+        // redaction rather than after.
+        foreach ($this->clusterer->cluster($occurrences) as $cluster) {
             if (count($entries) >= self::MAX_ENTRIES) {
                 break;
             }
 
-            $entry = $this->redact($link, $revealed, $occurrence);
+            $entry = $this->redact($link, $revealed, $cluster->primary);
 
             if (null !== $entry) {
                 $entries[] = $entry;

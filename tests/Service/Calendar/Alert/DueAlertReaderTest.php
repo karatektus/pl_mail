@@ -256,7 +256,123 @@ final class DueAlertReaderTest extends KernelTestCase
         self::assertCount(0, $this->due->due($this->now()));
     }
 
+    /**
+     * One meeting, one reminder.
+     *
+     * A meeting that reached plMail twice — extracted from its invitation onto
+     * the account's calendar, mirrored from the provider onto a Remote one — is
+     * two events under one UID, each carrying its own alarms. The calendar draws
+     * one chip and the sweep sent two notifications, at the same second, saying
+     * the same thing. The delivery ledger cannot stop it: its unique constraint
+     * is keyed on the EVENT, which is precisely the thing there are two of.
+     */
+    public function testTwoCopiesOfOneMeetingProduceOneReminder(): void
+    {
+        $this->meetingOnTwoCalendars('2026-06-02 09:10:00', ['-PT10M']);
+
+        self::assertCount(1, $this->due->due($this->now()));
+    }
+
+    /**
+     * The fold is on the trigger instant, not on the meeting. A reminder the
+     * user set on one of their calendars is not noise because a mirror of the
+     * same meeting also carries one at a different offset — two different
+     * instants are two different things the user asked for.
+     */
+    public function testCopiesCarryingDifferentOffsetsBothStillAlert(): void
+    {
+        $this->meetingOnTwoCalendars('2026-06-02 09:10:00', ['-PT10M'], ['-PT11M']);
+
+        $due = $this->due->due($this->now());
+
+        self::assertCount(2, $due);
+        self::assertSame(
+            ['2026-06-02 08:59:00', '2026-06-02 09:00:00'],
+            array_map(static fn ($alert): string => $alert->triggerAt->format('Y-m-d H:i:s'), $due),
+        );
+    }
+
+    /**
+     * The fold is per user, and that is not a detail. This sweep is global and a
+     * UID is the ORGANISER's: two people on one install invited to the same
+     * meeting hold rows carrying the same UID at the same instant, and folding
+     * those together would silently stop reminding one of them.
+     */
+    public function testTwoPeopleInvitedToOneMeetingAreBothReminded(): void
+    {
+        $this->eventAt('2026-06-02 09:10:00', ['-PT10M'], uid: 'shared@organiser.test');
+        $this->secondUsersCopy('2026-06-02 09:10:00', '-PT10M', 'shared@organiser.test');
+
+        self::assertCount(2, $this->due->due($this->now()));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * One meeting on two of this user's calendars under one UID, each copy
+     * carrying its own alarms.
+     *
+     * @param list<string> $offsets       the extracted copy's alarms
+     * @param list<string>|null $mirrored  the mirror's, where they differ
+     */
+    private function meetingOnTwoCalendars(string $startsAt, array $offsets, ?array $mirrored = null): void
+    {
+        $uid = 'meeting@organiser.test';
+
+        $mirror           = new Calendar();
+        $mirror->usr      = $this->user;
+        $mirror->name     = 'Mirror';
+        $mirror->role     = CalendarRole::Custom;
+        $mirror->timeZone = 'UTC';
+        $this->em->persist($mirror);
+        $this->em->flush();
+
+        $this->eventAt($startsAt, $offsets, uid: $uid);
+        $this->eventAt($startsAt, $mirrored ?? $offsets, calendar: $mirror, uid: $uid);
+    }
+
+    /** The same meeting, in somebody else's mailbox — a different user entirely. */
+    private function secondUsersCopy(string $startsAt, string $offset, string $uid): void
+    {
+        $other            = new User();
+        $other->email     = 'alerts-other-' . uniqid('', true) . '@example.test';
+        $other->nameFirst = 'Other';
+        $other->nameLast  = 'Attendee';
+        $other->roles     = ['ROLE_USER'];
+        $other->password  = 'x';
+        $this->em->persist($other);
+
+        $calendar           = new Calendar();
+        $calendar->usr      = $other;
+        $calendar->name     = 'Theirs';
+        $calendar->role     = CalendarRole::Custom;
+        $calendar->timeZone = 'UTC';
+        $this->em->persist($calendar);
+        $this->em->flush();
+
+        $alert = $this->alerts->offsetAlert($offset, AlertAction::Display);
+
+        self::assertNotNull($alert);
+
+        $event      = new CalendarEvent();
+        $event->uid = $uid;
+
+        $start = new DateTimeImmutable($startsAt, new DateTimeZone('UTC'));
+
+        $this->writer->write(
+            event:    $event,
+            calendar: $calendar,
+            user:     $other,
+            title:    'Standup',
+            startsAt: $start,
+            endsAt:   $start->modify('+30 minutes'),
+            timeZone: 'UTC',
+            alerts:   [$alert],
+        );
+
+        $this->em->flush();
+    }
+
 
     private function now(): DateTimeImmutable
     {
@@ -268,8 +384,13 @@ final class DueAlertReaderTest extends KernelTestCase
      *
      * @param list<string> $offsets
      */
-    private function eventAt(string $startsAt, array $offsets, bool $daily = false): CalendarEvent
-    {
+    private function eventAt(
+        string    $startsAt,
+        array     $offsets,
+        bool      $daily = false,
+        ?Calendar $calendar = null,
+        string    $uid = '',
+    ): CalendarEvent {
         $utc   = new DateTimeZone('UTC');
         $start = new DateTimeImmutable($startsAt, $utc);
 
@@ -283,9 +404,18 @@ final class DueAlertReaderTest extends KernelTestCase
             $alerts[] = $alert;
         }
 
+        $fresh = new CalendarEvent();
+
+        // Before write(), which mints one for an event that has none: a copy
+        // carries the MEETING's UID rather than getting one of its own, and
+        // that shared identity is what makes the two rows one reminder.
+        if ('' !== $uid) {
+            $fresh->uid = $uid;
+        }
+
         $event = $this->writer->write(
-            event:          new CalendarEvent(),
-            calendar:       $this->calendar,
+            event:          $fresh,
+            calendar:       $calendar ?? $this->calendar,
             user:           $this->user,
             title:          'Standup',
             startsAt:       $start,

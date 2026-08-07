@@ -38,6 +38,26 @@ use DateTimeImmutable;
  * HappeningSoonReader, which picks the newest applied link, because "why is this
  * on my calendar?" is answered by the message the event currently reflects and
  * not by the first one that mentioned it.
+ *
+ * **A row is a CLUSTER, not an occurrence**, and that is what stops the panel
+ * listing one meeting twice. A meeting that reached plMail by two honest routes
+ * at once — extracted from its invitation onto the account's calendar, mirrored
+ * from the provider onto a Remote one — is two rows in the database and one
+ * thing that is about to happen; the calendar grid has drawn it as a single
+ * merged chip since EventClusterer existed, and this panel drew it twice for as
+ * long as it read occurrences. $cluster is carried through so the template can
+ * wear the same multicolour affordance the chip does, which is what keeps
+ * "collapsed" visible rather than merely quiet.
+ *
+ * $event, $kind and $source are read off the cluster's EXTRACTED member where
+ * there is one, and off its primary otherwise. The primary is whichever row the
+ * query returned first, and for the pair above that is a coin flip between a
+ * mirrored copy that carries no kind and no message, and the extracted copy that
+ * carries both. Taking the primary's answer would make the panel's icon and its
+ * "why is this on my calendar?" link appear and disappear with the sort order.
+ * Only provenance is chosen this way — the five things a user would notice are
+ * identical across the members by construction, or EventClusterer would not have
+ * merged them.
  */
 final readonly class HappeningSoonRow
 {
@@ -63,6 +83,7 @@ final readonly class HappeningSoonRow
 
     private function __construct(
         public CalendarEventOccurrence $occurrence,
+        public OccurrenceCluster       $cluster,
         public CalendarEvent           $event,
         public ?ExtractionKind         $kind,
         public DateTimeImmutable       $startsAt,
@@ -72,23 +93,43 @@ final readonly class HappeningSoonRow
 
     /**
      * A named constructor rather than a public one, so a row can never be built
-     * out of step with the occurrence it describes — the event and the kind are
-     * read off it here rather than passed in beside it.
+     * out of step with the cluster it describes — the occurrence, the event and
+     * the kind are read off it here rather than passed in beside it.
      *
-     * Answers null for an occurrence with nothing to draw: no event, or no
-     * start. Both are impossible for a row the repository returned and both are
+     * $source is the message behind the member this row speaks for, resolved by
+     * the reader against the same member this picks: see representativeOf(),
+     * which both go through so the icon and the provenance link cannot end up
+     * describing two different rows of one meeting.
+     *
+     * Answers null for a cluster with nothing to draw: no event, or no start.
+     * Both are impossible for a row the repository returned and both are
      * nullable on the entity, which is the whole reason this exists — it is what
      * lets $event and $startsAt above be non-nullable.
      */
-    public static function of(CalendarEventOccurrence $occurrence, ?Message $source): ?self
+    public static function of(OccurrenceCluster $cluster, ?Message $source): ?self
     {
-        $event = $occurrence->event;
+        $occurrence = self::representativeOf($cluster);
+        $event      = $occurrence->event;
 
         if (null === $event || null === $occurrence->startsAt) {
             return null;
         }
 
-        return new self($occurrence, $event, $event->kind, $occurrence->startsAt, $source);
+        return new self($occurrence, $cluster, $event, $event->kind, $occurrence->startsAt, $source);
+    }
+
+    /**
+     * Which member of a cluster this panel speaks for.
+     *
+     * Public because the reader asks it too, before this row exists: it needs
+     * the representative's EVENT to look provenance up by, and one question
+     * answered in two places is two answers waiting to disagree — the shape of
+     * the disagreement being an icon off one copy and a message link off
+     * another, for one meeting.
+     */
+    public static function representativeOf(OccurrenceCluster $cluster): CalendarEventOccurrence
+    {
+        return $cluster->extracted() ?? $cluster->primary;
     }
 
     /**

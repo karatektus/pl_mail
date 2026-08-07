@@ -6,8 +6,17 @@ out of mail and what the owner put in the calendar themselves — loaded into th
 app's body-level modal frame.
 
 Accepts:
-  rows  list<HappeningSoonRow> — already windowed, ordered and capped by
-        HappeningSoonReader; this template windows nothing and sorts nothing
+  rows  list<HappeningSoonRow> — already windowed, ordered, COLLAPSED and capped
+        by HappeningSoonReader; this template windows nothing, sorts nothing and
+        merges nothing
+
+One meeting is one row. A meeting that reached plMail twice — extracted from its
+invitation onto the account's calendar, mirrored from the provider onto a Remote
+one — is one HappeningSoonRow carrying both, exactly as the grid draws it as one
+chip. Where it is more than one row of the database, the icon tile wears the
+same conic-gradient dot _event_chip wears and names the calendars in its title,
+because a list that silently merges is indistinguishable from a list that lost
+something.
 
 Four things per row, and each earns its place. The ICON, off the row rather than
 straight off the enum, so a fortnight can be read by shape before it is read by
@@ -57,14 +66,41 @@ most days, which is the normal case and must not look like a fault.
                     '%subject%': row.source ? (row.source.subject ?: 'calendar.soon.untitled'|trans) : '',
                 }) %}
 
+                {# Equal slices in the members' order, the same construction and
+                   the same reading as the merged chip's dot — one affordance
+                   learned once. Built only for a merged row: a cluster of one
+                   has a single calendar and a plain coloured dot would add a
+                   mark to every line for no information. #}
+                {% if row.cluster.isMerged %}
+                    {% set slices = [] %}
+                    {% for color in row.cluster.colors %}
+                        {% set slices = slices|merge([
+                            color
+                                ~ ' ' ~ (loop.index0 * 100 / row.cluster.colors|length)|round(3) ~ '%'
+                                ~ ' ' ~ (loop.index * 100 / row.cluster.colors|length)|round(3) ~ '%',
+                        ]) %}
+                    {% endfor %}
+                    {% set row_on = 'calendar.chip.on_calendars'|trans({
+                        '%calendars%': row.cluster.calendarNames|join(', '),
+                    }) %}
+                {% endif %}
+
                 <li class="flex items-start gap-3 py-3">
 
                     {# The icon carries the kind's name as text for anyone who
                        cannot see it, so the row still says "Flight" rather than
                        leaving the shape to do all the work. #}
-                    <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
+                    <span class="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
                                  rounded-lg bg-sunken text-ink-muted">
                         <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
+
+                        {% if row.cluster.isMerged %}
+                            <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full
+                                         ring-2 ring-surface"
+                                  style="background: conic-gradient({{ slices|join(', ') }})"
+                                  title="{{ row_on }}"></span>
+                            <span class="sr-only">{{ row_on }}</span>
+                        {% endif %}
                     </span>
 
                     <div class="min-w-0 flex-1">

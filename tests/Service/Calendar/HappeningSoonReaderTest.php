@@ -62,6 +62,7 @@ final class HappeningSoonReaderTest extends KernelTestCase
     private User $user;
     private Account $account;
     private Calendar $calendar;
+    private ?Calendar $mirrorCalendar = null;
     private DateTimeImmutable $now;
 
     protected function setUp(): void
@@ -79,6 +80,11 @@ final class HappeningSoonReaderTest extends KernelTestCase
         // around now: a literal 2026 date stops being materialised the year
         // after next, and the suite would fail for a reason nothing in it says.
         $this->now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+        // Reset per test: the transaction below is rolled back, so a calendar
+        // remembered from the previous case is a detached row that no longer
+        // exists.
+        $this->mirrorCalendar = null;
 
         $this->connection->beginTransaction();
         $this->seed();
@@ -292,7 +298,178 @@ final class HappeningSoonReaderTest extends KernelTestCase
         self::assertSame(ExtractionKind::Flight, $soonest->kind);
     }
 
+    // ── One meeting, one row ──────────────────────────────────────────────
+
+    /**
+     * The bug the panel was reported with: a screenshot showing the same meeting
+     * on two consecutive lines.
+     *
+     * A meeting reaches plMail twice by two honest routes at once — extracted
+     * from its invitation onto the account's calendar, mirrored from the
+     * provider onto a Remote one — and both rows are correct, which is why
+     * nothing collapses them in the model. The grid has drawn them as one merged
+     * chip since EventClusterer existed. This panel read occurrences and drew
+     * two lines, which is the worse place for it: a grid at least shows the two
+     * chips sharing one visible hour, while a list of twelve lines simply claims
+     * there are two things.
+     */
+    public function testAMeetingThatReachedPlmailTwiceIsOneRow(): void
+    {
+        $this->meetingOnTwoCalendars('Weekly sync', '+2 days');
+
+        self::assertSame(['Weekly sync'], $this->titles(), 'two rows of one meeting are one thing happening');
+    }
+
+    /**
+     * And it says so. A list that silently merges is indistinguishable from a
+     * list that lost something, so the row carries its cluster and the template
+     * wears the same multicolour dot the merged chip does.
+     */
+    public function testTheCollapsedRowCarriesTheCalendarsItWasMergedFrom(): void
+    {
+        $this->meetingOnTwoCalendars('Weekly sync', '+2 days');
+
+        $rows = $this->reader->read($this->user, $this->now);
+
+        self::assertCount(1, $rows);
+        self::assertTrue($rows[0]->cluster->isMerged);
+        self::assertSame(['Soon fixture', 'Mirror'], $rows[0]->cluster->calendarNames);
+    }
+
+    /**
+     * The provenance has to come off the EXTRACTED copy, not off whichever row
+     * the query happened to return first.
+     *
+     * The mirrored copy carries no kind and no message; the extracted one
+     * carries both. Reading the primary would make the panel's icon and its
+     * "why is this on my calendar?" link appear and disappear with the sort
+     * order, for a meeting that is the same either way.
+     */
+    public function testACollapsedRowKeepsTheIconAndTheMailOfItsExtractedCopy(): void
+    {
+        [$extracted] = $this->meetingOnTwoCalendars('Weekly sync', '+2 days');
+
+        $this->claim($extracted, $this->message('Einladung zum Weekly sync', '-2 days'));
+
+        $rows = $this->reader->read($this->user, $this->now);
+
+        self::assertCount(1, $rows);
+        self::assertSame(ExtractionKind::Meeting, $rows[0]->kind);
+        self::assertSame('Einladung zum Weekly sync', $rows[0]->source?->subject);
+    }
+
+    /**
+     * The cap counts meetings, not rows.
+     *
+     * findUpcoming() caps in SQL and the collapse happens afterwards, so a panel
+     * that asked for its twelve and then merged would show as few as six on a
+     * user with two calendars — the duplicates would eat the window. The reader
+     * reads wide and slices after; this pins the outcome rather than the
+     * arithmetic.
+     */
+    public function testTheCapCountsMeetingsRatherThanRows(): void
+    {
+        $this->meetingOnTwoCalendars('First', '+1 day');
+        $this->meetingOnTwoCalendars('Second', '+2 days');
+        $this->meetingOnTwoCalendars('Third', '+3 days');
+
+        $rows = $this->reader->read($this->user, $this->now, 3);
+
+        self::assertSame(
+            ['First', 'Second', 'Third'],
+            array_map(static fn (HappeningSoonRow $row): string => (string) $row->event->title, $rows),
+        );
+    }
+
+    /**
+     * Copies that no longer agree are two chips on the grid, and they have to be
+     * two rows here for the same reason: the disagreement IS the news. An
+     * update that reached one path and not the other, hidden behind a tidier
+     * panel, is a meeting the user attends at the wrong hour.
+     */
+    public function testCopiesThatDisagreeAboutTheTimeStayTwoRows(): void
+    {
+        [, $mirror] = $this->meetingOnTwoCalendars('Weekly sync', '+2 days');
+
+        $this->writer->write(
+            event:    $mirror,
+            calendar: $mirror->calendar,
+            user:     $this->user,
+            title:    'Weekly sync',
+            startsAt: $this->now->modify('+2 days')->modify('+1 hour'),
+            endsAt:   $this->now->modify('+2 days')->modify('+2 hours'),
+            timeZone: 'UTC',
+        );
+
+        $this->em->flush();
+
+        self::assertSame(['Weekly sync', 'Weekly sync'], $this->titles());
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * One meeting, two rows: the copy an extractor read out of the invitation
+     * onto the account's calendar, and the copy a mirror pulled from the
+     * provider onto a second one. One UID, because that is what a UID is —
+     * `CalendarPuller` writes the remote's verbatim for exactly this reason.
+     *
+     * @return array{CalendarEvent, CalendarEvent} extracted copy first
+     */
+    private function meetingOnTwoCalendars(string $title, string $offset): array
+    {
+        $uid      = uniqid('meeting-', true) . '@organiser.test';
+        $startsAt = $this->now->modify($offset);
+
+        $extracted       = new CalendarEvent();
+        $extracted->uid  = $uid;
+        $this->writer->write(
+            event:    $extracted,
+            calendar: $this->calendar,
+            user:     $this->user,
+            title:    $title,
+            startsAt: $startsAt,
+            endsAt:   $startsAt->modify('+1 hour'),
+            timeZone: 'UTC',
+        );
+        $extracted->kind = ExtractionKind::Meeting;
+
+        $mirror      = new CalendarEvent();
+        $mirror->uid = $uid;
+        $this->writer->write(
+            event:    $mirror,
+            calendar: $this->mirror(),
+            user:     $this->user,
+            title:    $title,
+            startsAt: $startsAt,
+            endsAt:   $startsAt->modify('+1 hour'),
+            timeZone: 'UTC',
+        );
+
+        $this->em->flush();
+
+        return [$extracted, $mirror];
+    }
+
+    /** The second calendar, made once and reused, the way a real account has one. */
+    private function mirror(): Calendar
+    {
+        if (null === $this->mirrorCalendar) {
+            $calendar           = new Calendar();
+            $calendar->usr      = $this->user;
+            $calendar->name     = 'Mirror';
+            $calendar->color    = '#16a34a';
+            $calendar->role     = CalendarRole::Custom;
+            $calendar->timeZone = 'UTC';
+
+            $this->em->persist($calendar);
+            $this->em->flush();
+
+            $this->mirrorCalendar = $calendar;
+        }
+
+        return $this->mirrorCalendar;
+    }
 
     /** @return list<string> */
     private function titles(): array

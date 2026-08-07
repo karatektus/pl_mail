@@ -220,6 +220,50 @@ final class ShareLinkReaderTest extends KernelTestCase
         self::assertSame([], $this->entries());
     }
 
+    /**
+     * A meeting on two of the link's calendars is one block, not two.
+     *
+     * The owner holds it twice by two honest routes — extracted from its
+     * invitation onto the account's calendar, mirrored from the provider onto a
+     * Remote one, under the organiser's UID — and a link covering both published
+     * both. Neither is a leak, and both together are a lie about how busy the
+     * owner is, which is the one thing this page exists to state. It is also two
+     * VEVENTs in the .ics a subscriber's client files as two meetings.
+     */
+    public function testAMeetingOnTwoOfTheLinksCalendarsIsPublishedOnce(): void
+    {
+        $this->meetingOnTwoCoveredCalendars('10:00', '11:00');
+
+        self::assertCount(1, $this->entries(), 'one meeting is one block, however many calendars hold it');
+    }
+
+    /**
+     * Copies that disagree stay two blocks, for the reason the grid draws two
+     * chips: an update that reached one path and not the other is a real
+     * disagreement, and a shared page that hid it would tell the reader the
+     * owner is free at an hour they may not be.
+     */
+    public function testCopiesThatDisagreeAboutTheHourStayTwoBlocks(): void
+    {
+        [, $mirror] = $this->meetingOnTwoCoveredCalendars('10:00', '11:00');
+
+        $zone = new DateTimeZone('Europe/Berlin');
+
+        $this->writer->write(
+            event:    $mirror,
+            calendar: $mirror->calendar,
+            user:     $this->user,
+            title:    self::SECRET_TITLE,
+            startsAt: new DateTimeImmutable('2026-06-01 14:00:00', $zone),
+            endsAt:   new DateTimeImmutable('2026-06-01 15:00:00', $zone),
+            timeZone: 'Europe/Berlin',
+        );
+
+        $this->em->flush();
+
+        self::assertCount(2, $this->entries());
+    }
+
     // ── Resolution ────────────────────────────────────────────────────────────
 
     public function testARevokedLinkResolvesToNothing(): void
@@ -315,12 +359,48 @@ final class ShareLinkReaderTest extends KernelTestCase
         return $entries[0];
     }
 
-    private function eventAt(string $from, string $to, ?Calendar $calendar = null): CalendarEvent
+    /**
+     * One meeting, two rows, one UID, both calendars covered by the link — the
+     * shape CalendarPuller produces when it writes the remote's UID verbatim
+     * beside an extraction that already read the same one out of the invitation.
+     *
+     * @return array{CalendarEvent, CalendarEvent}
+     */
+    private function meetingOnTwoCoveredCalendars(string $from, string $to): array
+    {
+        $mirror            = new Calendar();
+        $mirror->usr       = $this->user;
+        $mirror->name      = 'Mirror';
+        $mirror->role      = CalendarRole::Custom;
+        $mirror->timeZone  = 'Europe/Berlin';
+        $this->em->persist($mirror);
+
+        $this->link->cover([$this->calendar, $mirror]);
+        $this->em->flush();
+
+        $uid = 'shared-meeting@organiser.test';
+
+        return [
+            $this->eventAt($from, $to, uid: $uid),
+            $this->eventAt($from, $to, $mirror, uid: $uid),
+        ];
+    }
+
+    private function eventAt(string $from, string $to, ?Calendar $calendar = null, string $uid = ''): CalendarEvent
     {
         $zone = new DateTimeZone('Europe/Berlin');
 
+        $fresh = new CalendarEvent();
+
+        // Set before write(), which mints one for an event that has none: a copy
+        // carries the MEETING's UID rather than getting one of its own, which is
+        // the whole reason the two rows are recognisable as one thing.
+        if ('' !== $uid) {
+            $fresh->uid = $uid;
+        }
+
         $event = $this->writer->write(
-            event:       new CalendarEvent(),
+            event:       $fresh,
             calendar:    $calendar ?? $this->calendar,
             user:        $this->user,
             title:       self::SECRET_TITLE,

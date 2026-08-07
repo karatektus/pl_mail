@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Twig;
 
 use App\Domain\DTO\Calendar\HappeningSoonRow;
+use App\Domain\DTO\Calendar\OccurrenceCluster;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
@@ -197,7 +198,10 @@ final class HappeningSoonRenderTest extends KernelTestCase
         $occurrence->startsAt = $this->startsAt;
         $occurrence->endsAt   = $this->startsAt->modify('+2 hours');
 
-        $row = HappeningSoonRow::of($occurrence, $source);
+        // A cluster of one, which is what a meeting that reached plMail once
+        // is — the reader hands the template clusters now, and a lone
+        // occurrence is the ordinary case rather than a special one.
+        $row = HappeningSoonRow::of(OccurrenceCluster::of([$occurrence]), $source);
 
         self::assertNotNull($row, 'a dated occurrence must produce a row');
 

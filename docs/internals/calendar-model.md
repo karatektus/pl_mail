@@ -278,6 +278,48 @@ and merging those would draw a live meeting that one path has been told is off.
 and compares the same five fields through the same private signature — two implementations of
 "the same meeting" would agree until one learned about a sixth field.
 
+### Every surface that lists occurrences collapses them
+
+The clusterer is not the grid's. Any surface that turns occurrence rows into a list a person
+reads will otherwise show one meeting twice, and the flatter the surface the worse it reads: a
+grid at least draws its two chips inside one visibly shared hour, while a list of twelve lines
+simply claims there are two things.
+
+| Surface | Reader | How duplication is answered |
+| --- | --- | --- |
+| Day, week, month, agenda, docked pane | `CalendarRangeReader` | Clustered before the day walk, so a cluster spanning midnight is placed once |
+| "Happening Soon" | `HappeningSoonReader` | Clustered; the SQL cap is over-read and the slice taken after the collapse, so twelve rows means twelve meetings |
+| Shared calendar page and its `.ics` feed | `ShareLinkReader` | Clustered before redaction — merging afterwards would compare blocks that redaction made deliberately indistinguishable, and every meeting in an hour would fold into one |
+| Alert sweep | `DueAlertReader` | Folded on user + UID + start + trigger instant. The delivery ledger cannot do it: `uniq_calendar_alert_delivery_event_alert_instance` is keyed on the *event*, which is the thing there are two of |
+| Topbar urgency dot | `UpcomingEventIndicator` | Already safe — it answers with the first occurrence and returns |
+| Booking availability | `BookingAvailabilityReader` | Deliberately left. Busy blocks are subtracted from availability, and subtracting the same interval twice removes the same slot |
+| Calendar `.ics` export | `IcsExporter` + `CalendarEventRepository::iterateForCalendar()` | Already safe — one calendar per document, and `uniq_calendar_event_calendar_uid` makes a UID unique within one |
+| JMAP `CalendarEvent/query` | `CalendarEventQueryRunner` | Deliberately left. A protocol answers with the ids of the rows it holds; collapsing them would hand a client ids it cannot then `get` |
+
+Two rules the table hides. The alert fold is keyed on the **user** as well as the meeting,
+because the sweep is global and a UID is the *organiser's* — two people on one install invited
+to the same meeting hold rows carrying the same UID at the same instant, and folding them would
+silently stop reminding one of them. And it is keyed on the **trigger instant** rather than on
+the alert, because alert keys are minted per row: two copies never share one, and copies
+carrying fifteen minutes and ten produce two reminders, which is right.
+
+### An extracted copy under a UID of its own is a second meeting
+
+The screenshot that opened this — the same meeting on two consecutive "Happening Soon" lines,
+one with the participants icon of an extracted invitation and one with the plain clock of a
+mirrored copy — was **display-only**: two rows under one UID, which is the case above, in a
+panel that had never learned to collapse. Nothing had materialised that should not have.
+
+The neighbouring case is not a duplicate and must not be treated as one. `IcsEventExtractor`
+uses the organiser's UID verbatim; `StructuredDataEventExtractor` hashes one out of the
+fragment it read. A message carrying both is not a problem — the ICS extractor runs first and
+stops the cascade — but two *messages* about one booking, one with schema.org markup and one
+with a real invitation, produce two events with two UIDs and no way to know they are the same
+thing. Those are drawn twice, deliberately: collapsing them would mean matching on title and
+time, which is the weekly-1:1 bug above. What answers them is dismissal
+(`EventDismisser` writes an `EventSuppression` on the dedup key, so re-extraction cannot put it
+back), not a wider merge.
+
 ### A copy shares the meeting's UID
 
 `App\Service\Calendar\EventCopyResolver` turns "which calendars is this on?" into every

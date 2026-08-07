@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Alert;
 
 use App\Domain\DTO\Calendar\DueAlert;
+use App\Entity\Calendar\CalendarEvent;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 
@@ -71,6 +72,42 @@ use DateTimeImmutable;
  * instant cannot mean each of a hundred occurrences, and picking one of them to
  * mean would be inventing an answer RFC 8984 does not give. On a one-off event
  * it is honoured normally, which is the only shape anything actually produces.
+ *
+ * ── One meeting, one reminder ─────────────────────────────────────────────
+ *
+ * A meeting that reached plMail twice — extracted from its invitation onto the
+ * account's calendar, mirrored from the provider onto a Remote one — is two
+ * events under one UID, each carrying its own alarms. Every calendar view has
+ * drawn those as a single chip since EventClusterer existed; the sweep sent two
+ * notifications, at the same second, saying the same thing. The delivery ledger
+ * could not stop it: `uniq_calendar_alert_delivery_event_alert_instance` is
+ * keyed on the EVENT, which is precisely the thing there are two of.
+ *
+ * So the due list is folded on the meeting rather than on the row: same user,
+ * same UID, same start instant, same trigger instant means one alert. The four
+ * are the honest key and none of them can be dropped —
+ *
+ *   The USER, because this sweep is global and a UID is the organiser's. Two
+ *   people on one install invited to the same meeting hold rows with the same
+ *   UID at the same instant, and folding those together would silently stop
+ *   reminding one of them.
+ *
+ *   The UID and the start, because that is EventClusterer's own key and the
+ *   whole point is that this agrees with what the calendar drew. Copies that
+ *   disagree about when they are are drawn as two chips and get two reminders,
+ *   which is the same honesty in both places.
+ *
+ *   The TRIGGER, and not the alert's key. Alert keys are minted per row, so two
+ *   copies of one meeting never share one and folding on it would fold nothing.
+ *   Two copies carrying the SAME offset produce the same instant and collapse;
+ *   copies carrying fifteen minutes and ten produce two, and both are delivered
+ *   — a reminder the user set on one of their calendars is not noise because a
+ *   mirror of the meeting also had one.
+ *
+ * The first survivor wins, and the DueAlert it wins with names one of the two
+ * events. That is not arbitrary in effect: the two agree about everything the
+ * notification says, and the ledger row written against the surviving event is
+ * what makes the fold stable across sweeps.
  */
 final readonly class DueAlertReader
 {
@@ -121,6 +158,7 @@ final readonly class DueAlertReader
             self::BATCH,
         );
 
+        /** @var array<string, DueAlert> $due keyed by the meeting-and-trigger fold */
         $due = [];
 
         foreach ($candidates as $occurrence) {
@@ -153,7 +191,10 @@ final readonly class DueAlertReader
                     continue;
                 }
 
-                $due[] = new DueAlert(
+                // `??=` rather than an assignment: first survivor wins, and the
+                // second copy of one meeting is dropped rather than delivered.
+                // See the class docblock for the key.
+                $due[$this->foldKey($user->id, $event, $occurrence->startsAt, $triggerAt)] ??= new DueAlert(
                     event:        $event,
                     user:         $user,
                     eventId:      $event->id,
@@ -167,8 +208,38 @@ final readonly class DueAlertReader
             }
         }
 
+        $due = array_values($due);
+
         usort($due, static fn (DueAlert $a, DueAlert $b): int => $a->triggerAt <=> $b->triggerAt);
 
         return $due;
+    }
+
+    /**
+     * One meeting, one instant, one reminder — as a string.
+     *
+     * The two timestamps and the user id lead and are digits, so the separator
+     * cannot be read into them: a UID is free-form text and may contain
+     * anything, including the separator, and "same key by coincidence" here
+     * means a reminder that is never sent. The same construction and the same
+     * reason as EventClusterer::keyOf().
+     *
+     * An event with no UID at all — nothing in the application produces one, but
+     * the column allows it — falls back to its own id, so it can only ever fold
+     * with itself.
+     */
+    private function foldKey(
+        int               $userId,
+        CalendarEvent     $event,
+        DateTimeImmutable $startsAt,
+        DateTimeImmutable $triggerAt,
+    ): string {
+        return sprintf(
+            '%d|%d|%d|%s',
+            $userId,
+            $startsAt->getTimestamp(),
+            $triggerAt->getTimestamp(),
+            '' === $event->uid ? 'row:' . (int) $event->id : $event->uid,
+        );
     }
 }

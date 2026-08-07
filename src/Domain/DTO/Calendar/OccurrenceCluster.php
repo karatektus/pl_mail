@@ -36,6 +36,16 @@ use App\Entity\Calendar\CalendarEventOccurrence;
  * because both are read positionally: the chip's conic-gradient needs the
  * colours in a fixed order to hand out equal slices, and the tooltip joins the
  * names in that same order so the two readings of the dot agree.
+ *
+ * extracted() answers the one question $primary cannot. $primary is whichever
+ * member the query happened to return first, and that is enough for every
+ * single-valued question a cluster of agreeing members can be asked — the time,
+ * the title, the event an editor opens on. It is NOT enough for the things only
+ * an extracted row carries: the plane-or-parcel icon, and the message behind
+ * "why is this on my calendar?". A meeting extracted onto the account's calendar
+ * and mirrored onto a Remote one is a cluster whose two members are equal about
+ * everything a chip draws and utterly unequal about provenance, and which of the
+ * two leads is decided by a sort this class does not own.
  */
 final readonly class OccurrenceCluster
 {
@@ -74,5 +84,30 @@ final readonly class OccurrenceCluster
         }
 
         return new self($members[0], $members, $colors, $names, 1 < count($members));
+    }
+
+    /**
+     * The member an extractor put here, or null when nobody did.
+     *
+     * "Extracted" is asked of CalendarEvent rather than re-derived from the
+     * kind, so the answer is the same one isExtracted() gives everywhere else —
+     * the dismiss button, the "found in your email" affordances — and cannot
+     * drift from it the day a kindless extraction source is added.
+     *
+     * First match wins rather than a merge of all of them. A cluster with two
+     * extracted members is a meeting whose invitation was read onto two
+     * calendars, and both members then carry the same kind and the same thread
+     * behind them; there is nothing to choose between and choosing the first is
+     * stable across renders because the caller's ordering is.
+     */
+    public function extracted(): ?CalendarEventOccurrence
+    {
+        foreach ($this->members as $member) {
+            if (true === $member->event?->isExtracted()) {
+                return $member;
+            }
+        }
+
+        return null;
     }
 }
