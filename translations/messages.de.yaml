@@ -1336,6 +1336,33 @@ profile:
         name_last: Nachname
 
 search:
+    empty:
+        or_keyword: oder tippe einfach ein Stichwort.
+        title: Durchsuche deine Mail
+        try: Probiere
+    heading:
+        results: Suchergebnisse für
+    no_results:
+        hint: Probiere andere Stichwörter oder entferne Filter.
+        title: Keine Treffer für „%query%“
+    pill:
+        after: Nach
+        attachment: Anhang
+        before: Vor
+        cc: Cc
+        from: Von
+        has: Hat
+        in: In
+        is: Ist
+        label: Label
+        read: gelesen
+        starred: markiert
+        subject: Betreff
+        to: An
+        unread: ungelesen
+    results:
+        count: '%count% Treffer'
+        count_one: 1 Treffer
     sort:
         label: Sortieren nach
         recent: Neueste zuerst

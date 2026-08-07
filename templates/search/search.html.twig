@@ -1,21 +1,21 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
 {% block title %}
-    {% if q %}{{ q }} — Search{% else %}Search{% endif %} — {{ 'app.name'|trans }}
+    {% if q %}{{ q }} — {{ 'search.title'|trans }}{% else %}{{ 'search.title'|trans }}{% endif %} — {{ 'app.name'|trans }}
 {% endblock %}
 
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-line flex items-center gap-3">
         <h2 class="text-sm font-semibold text-ink-soft flex-1 min-w-0 truncate">
             {% if q %}
-                Search results for <span class="text-accent">{{ q }}</span>
+                {{ 'search.heading.results'|trans }} <span class="text-accent">{{ q }}</span>
             {% else %}
-                Search
+                {{ 'search.title'|trans }}
             {% endif %}
         </h2>
         {% if total > 0 %}
             <span class="text-xs text-ink-faint flex-shrink-0">
-                {{ total }} result{{ total != 1 ? 's' : '' }}
+                {{ total == 1 ? ('search.results.count_one'|trans) : ('search.results.count'|trans({'%count%': total})) }}
             </span>
         {% endif %}
     </div>
@@ -24,40 +24,40 @@
     {% if parsed is not null and not parsed.isEmpty %}
         <div class="flex flex-wrap gap-1.5 px-4 py-2 border-b border-line">
             {% if parsed.from %}
-                {{ _self.pill('From', parsed.from, q) }}
+                {{ _self.pill('search.pill.from'|trans, parsed.from, q) }}
             {% endif %}
             {% if parsed.to %}
-                {{ _self.pill('To', parsed.to, q) }}
+                {{ _self.pill('search.pill.to'|trans, parsed.to, q) }}
             {% endif %}
             {% if parsed.cc %}
-                {{ _self.pill('Cc', parsed.cc, q) }}
+                {{ _self.pill('search.pill.cc'|trans, parsed.cc, q) }}
             {% endif %}
             {% if parsed.subject %}
-                {{ _self.pill('Subject', parsed.subject, q) }}
+                {{ _self.pill('search.pill.subject'|trans, parsed.subject, q) }}
             {% endif %}
             {% if parsed.label %}
-                {{ _self.pill('Label', parsed.label, q) }}
+                {{ _self.pill('search.pill.label'|trans, parsed.label, q) }}
             {% endif %}
             {% if parsed.hasAttachment %}
-                {{ _self.pill('Has', 'attachment', q) }}
+                {{ _self.pill('search.pill.has'|trans, 'search.pill.attachment'|trans, q) }}
             {% endif %}
             {% if parsed.isUnread %}
-                {{ _self.pill('Is', 'unread', q) }}
+                {{ _self.pill('search.pill.is'|trans, 'search.pill.unread'|trans, q) }}
             {% endif %}
             {% if parsed.isRead %}
-                {{ _self.pill('Is', 'read', q) }}
+                {{ _self.pill('search.pill.is'|trans, 'search.pill.read'|trans, q) }}
             {% endif %}
             {% if parsed.isStarred %}
-                {{ _self.pill('Is', 'starred', q) }}
+                {{ _self.pill('search.pill.is'|trans, 'search.pill.starred'|trans, q) }}
             {% endif %}
             {% if parsed.mailboxRole %}
-                {{ _self.pill('In', parsed.mailboxRole, q) }}
+                {{ _self.pill('search.pill.in'|trans, parsed.mailboxRole, q) }}
             {% endif %}
             {% if parsed.after %}
-                {{ _self.pill('After', parsed.after|date('Y-m-d'), q) }}
+                {{ _self.pill('search.pill.after'|trans, parsed.after|date('Y-m-d'), q) }}
             {% endif %}
             {% if parsed.before %}
-                {{ _self.pill('Before', parsed.before|date('Y-m-d'), q) }}
+                {{ _self.pill('search.pill.before'|trans, parsed.before|date('Y-m-d'), q) }}
             {% endif %}
         </div>
     {% endif %}
@@ -78,11 +78,11 @@
             <div class="w-12 h-12 rounded-full bg-sunken flex items-center justify-center mb-4">
                 <i class="fa-solid fa-magnifying-glass text-ink-faint text-lg" aria-hidden="true"></i>
             </div>
-            <p class="text-sm font-medium text-ink-muted">Search your mail</p>
+            <p class="text-sm font-medium text-ink-muted">{{ 'search.empty.title'|trans }}</p>
             <p class="text-xs text-ink-faint mt-1 max-w-xs">
-                Try <code class="bg-sunken px-1 rounded">from:alice</code>,
+                {{ 'search.empty.try'|trans }} <code class="bg-sunken px-1 rounded">from:alice</code>,
                 <code class="bg-sunken px-1 rounded">has:attachment</code>,
-                <code class="bg-sunken px-1 rounded">is:unread</code>, or just type a keyword.
+                <code class="bg-sunken px-1 rounded">is:unread</code> {{ 'search.empty.or_keyword'|trans }}
             </p>
         </li>
     {% elseif threads is empty %}
@@ -91,8 +91,8 @@
             <div class="w-12 h-12 rounded-full bg-sunken flex items-center justify-center mb-4">
                 <i class="fa-solid fa-magnifying-glass text-ink-faint text-lg" aria-hidden="true"></i>
             </div>
-            <p class="text-sm font-medium text-ink-muted">No results for "{{ q }}"</p>
-            <p class="text-xs text-ink-faint mt-1">Try different keywords or remove some filters.</p>
+            <p class="text-sm font-medium text-ink-muted">{{ 'search.no_results.title'|trans({'%query%': q}) }}</p>
+            <p class="text-xs text-ink-faint mt-1">{{ 'search.no_results.hint'|trans }}</p>
         </li>
     {% else %}
         {% for thread in threads %}

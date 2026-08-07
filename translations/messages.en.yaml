@@ -1308,6 +1308,33 @@ profile:
         name_last: Last name
 
 search:
+    empty:
+        or_keyword: or just type a keyword.
+        title: Search your mail
+        try: Try
+    heading:
+        results: Search results for
+    no_results:
+        hint: Try different keywords or remove some filters.
+        title: No results for "%query%"
+    pill:
+        after: After
+        attachment: attachment
+        before: Before
+        cc: Cc
+        from: From
+        has: Has
+        in: In
+        is: Is
+        label: Label
+        read: read
+        starred: starred
+        subject: Subject
+        to: To
+        unread: unread
+    results:
+        count: '%count% results'
+        count_one: 1 result
     sort:
         label: Sort by
         recent: Most recent

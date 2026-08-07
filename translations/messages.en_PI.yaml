@@ -1079,6 +1079,33 @@ profile:
         name_last: Family name
 
 search:
+    empty:
+        or_keyword: or just bellow a keyword.
+        title: Scour yer mail
+        try: Give
+    heading:
+        results: Plunder found for
+    no_results:
+        hint: Try other words, or cut some filters loose.
+        title: Nary a thing for "%query%"
+    pill:
+        after: After
+        attachment: cargo
+        before: Before
+        cc: Cc
+        from: From
+        has: Carries
+        in: In
+        is: Be
+        label: Flag
+        read: read
+        starred: starred
+        subject: Subject
+        to: To
+        unread: unread
+    results:
+        count: '%count% spoils'
+        count_one: 1 spoil
     sort:
         label: Sort by
         recent: Freshest catch
