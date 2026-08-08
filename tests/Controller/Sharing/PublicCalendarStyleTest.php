@@ -16,6 +16,7 @@ use App\Entity\User\User;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\Sharing\PublicLinkToken;
 use DateTimeImmutable;
+use PHPUnit\Framework\Attributes\DataProvider;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -72,6 +73,18 @@ final class PublicCalendarStyleTest extends WebTestCase
     /** Six weeks. The grid's whole point is that this number never changes. */
     private const int MONTH_CELLS = 42;
 
+    /** The four the switcher offers, which is every one the owner has. */
+    private const array VIEWS = ['day', 'week', 'month', 'agenda'];
+
+    /**
+     * A fixed window of three days, Wednesday 12 to Friday 14 August 2026, used
+     * where a rolling window's edges move with the calendar. Its week has four
+     * columns it does not publish on every day of every year, which a rolling
+     * fortnight does not: fourteen days from a Monday is two whole weeks.
+     */
+    private const string FIXED_FROM = '2026-08-12';
+    private const string FIXED_TO   = '2026-08-14';
+
     private EntityManagerInterface $em;
     private Connection $connection;
     private CalendarEventWriter $writer;
@@ -80,6 +93,7 @@ final class PublicCalendarStyleTest extends WebTestCase
     private Calendar $calendar;
     private CalendarShareLink $link;
     private string $shareToken;
+    private string $fixedToken;
     private string $bookingToken;
 
     protected function tearDown(): void
@@ -206,7 +220,7 @@ final class PublicCalendarStyleTest extends WebTestCase
     }
 
     /** And ticking the box has to reach the chip, or the test above proves nothing. */
-    public function testATitleTickedForIsDrawnInTheChipAndInTheDayList(): void
+    public function testATitleTickedForIsDrawnInTheGridAndInTheAgenda(): void
     {
         $client = $this->boot();
         $this->eventTomorrow();
@@ -222,42 +236,232 @@ final class PublicCalendarStyleTest extends WebTestCase
             'the title was revealed but the grid cell did not draw it',
         );
 
-        self::assertGreaterThan(
-            1,
-            substr_count((string) $client->getResponse()->getContent(), self::SECRET_TITLE),
-            'the title reached the grid but not the day list under it',
+        // And in the agenda, which is where the detail is read now that it is a
+        // view rather than a list appended under the grid.
+        $agenda = $client->request('GET', sprintf(
+            '/share/%s/agenda/%s',
+            $this->shareToken,
+            $this->tomorrow()->format('Y-m-d'),
+        ));
+
+        self::assertStringContainsString(
+            self::SECRET_TITLE,
+            $agenda->filter(sprintf('[data-calendar-agenda] [data-day="%s"]', $this->tomorrow()->format('Y-m-d')))->html(),
+            'the title reached the grid but not the agenda',
         );
     }
 
     /**
-     * Paging is bounded to the months the link publishes. A rolling fortnight
+     * The list that used to hang under the month grid is gone, and its property
+     * moved into the agenda rather than being dropped: a covered day with nothing
+     * on it is printed and named there, so "free on the 4th" is a thing the page
+     * says rather than a gap.
+     */
+    public function testTheMonthNoLongerPrintsADayListUnderItself(): void
+    {
+        $client = $this->boot();
+
+        $month = $client->request('GET', '/share/' . $this->shareToken . '/month/' . $this->tomorrow()->format('Y-m-d'));
+
+        self::assertCount(1, $month->filter('[data-calendar-grid="month"]'));
+        self::assertCount(0, $month->filter('[data-calendar-agenda]'), 'the month view still appends an agenda');
+        self::assertStringNotContainsString('Nothing on this day', (string) $client->getResponse()->getContent());
+
+        $agenda = $client->request('GET', '/share/' . $this->shareToken . '/agenda/' . $this->tomorrow()->format('Y-m-d'));
+
+        self::assertCount(1, $agenda->filter('[data-calendar-agenda]'));
+        self::assertStringContainsString(
+            'Nothing on this day',
+            (string) $client->getResponse()->getContent(),
+            'the agenda skipped its empty days, which is what the month grid is for',
+        );
+    }
+
+    /**
+     * Paging is bounded to the pages the link publishes. A rolling fortnight
      * touches one month or two and never more, so there is always at least one
-     * end with no step beyond it.
+     * end with no step beyond it — and the end with none is a disabled span
+     * rather than a missing button, so the row does not change shape as you page.
      */
     public function testMonthPagingCannotLeaveTheWindow(): void
     {
         $client  = $this->boot();
         $crawler = $client->request('GET', '/share/' . $this->shareToken);
 
-        $steps = $crawler->filter('a[href*="month="]');
-
+        // A disabled step is a <span> with no aria-label, so counting the
+        // labelled anchors counts exactly the steps that go somewhere. A rolling
+        // fortnight starts today, so it never reaches back into last month and
+        // reaches forward into next month only when it straddles the boundary.
         self::assertLessThanOrEqual(
             1,
-            $steps->count(),
-            'a fourteen-day window offered more than one month to page into',
+            $crawler->filter('a[aria-label="Previous"], a[aria-label="Next"]')->count(),
+            'a fourteen-day window offered two months to page into',
         );
 
-        // And a month far outside the window is clamped rather than answered,
+        // And a date far outside the window is clamped rather than answered,
         // because a public URL is hand-edited and an empty month it produced
         // would read as "free all that month".
-        $client->request('GET', '/share/' . $this->shareToken . '?month=1999-01');
+        $client->request('GET', '/share/' . $this->shareToken . '/month/1999-01-01');
 
         self::assertResponseIsSuccessful();
         self::assertGreaterThan(
             0,
             $client->getCrawler()->filter('[data-day]:not([data-day-unpublished])')->count(),
-            'a nonsense month answered a page with nothing published on it',
+            'a nonsense date answered a page with nothing published on it',
         );
+    }
+
+    /**
+     * The address shape this page used before it had views is still read, because
+     * the URLs carrying it are in other people's mail.
+     */
+    public function testTheOldMonthQueryStillOpensThatMonth(): void
+    {
+        $client = $this->boot();
+
+        $client->request('GET', '/share/' . $this->shareToken . '?month=' . $this->tomorrow()->format('Y-m'));
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString(
+            $this->tomorrow()->format('F Y'),
+            (string) $client->getResponse()->getContent(),
+        );
+    }
+
+    // ── Four views, and the same refusals in all of them ──────────────────────
+
+    /**
+     * One smoke per view rather than a suite per view: the arithmetic is
+     * SharedCalendarRangeBuilderTest's job, and what a render test is uniquely
+     * able to say is that the page answers at all, offers all four ways out of
+     * itself, and does not acquire a session on the way.
+     *
+     * The switcher is asserted as links because that is the whole design — a
+     * page with no session has nowhere else to keep which view it is on, so every
+     * view is a URL. If these ever became buttons the choice would have to live
+     * somewhere, and there is nowhere.
+     */
+    #[DataProvider('views')]
+    public function testEveryViewRendersWithAWorkingSwitcher(string $view): void
+    {
+        $client = $this->boot();
+        $this->eventTomorrow();
+
+        $crawler = $client->request('GET', sprintf('/share/%s/%s/%s', $this->shareToken, $view, $this->tomorrow()->format('Y-m-d')));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $client->getResponse()->headers->getCookies(), $view . ' started a session');
+
+        foreach (self::VIEWS as $candidate) {
+            self::assertCount(
+                1,
+                $crawler->filter(sprintf(
+                    '[data-calendar-views] a[href="/share/%s/%s/%s"]',
+                    $this->shareToken,
+                    $candidate,
+                    $this->tomorrow()->format('Y-m-d'),
+                )),
+                sprintf('%s view offers no way to reach %s', $view, $candidate),
+            );
+        }
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringNotContainsString('calendar.share.', $body, 'a translation key reached the page');
+        self::assertStringNotContainsString('calendar.view.', $body);
+        self::assertStringNotContainsString('calendar.grid.', $body);
+
+        // The link is busy/free, so the fixture's title may not appear in any of
+        // them. The leak test proves this for the page as it was; a view added
+        // without this would be a view nothing had ever asked the question of.
+        self::assertStringNotContainsString(
+            self::SECRET_TITLE,
+            $body,
+            $view . ' view leaked a title a busy/free link withholds',
+        );
+        self::assertStringContainsString('Busy', $body, $view . ' view drew nothing at all');
+    }
+
+    /**
+     * A step out of the window is a disabled span on every view, and the reader
+     * cannot reach a page the link does not publish by following a link.
+     *
+     * Asserted on the day view because it is the one that steps in the smallest
+     * increments and therefore the one where a missing bound is reachable in a
+     * single click.
+     */
+    #[DataProvider('views')]
+    public function testAStepOutOfTheWindowIsNotOffered(string $view): void
+    {
+        $client = $this->boot();
+
+        // The first day of a rolling window is today, so there is never a
+        // previous page from it.
+        $crawler = $client->request('GET', sprintf(
+            '/share/%s/%s/%s',
+            $this->shareToken,
+            $view,
+            new DateTimeImmutable('today', new DateTimeZone('Europe/Berlin'))->format('Y-m-d'),
+        ));
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(
+            0,
+            $crawler->filter('a[aria-label="Previous"]'),
+            $view . ' offered a step back out of the published window',
+        );
+    }
+
+    /**
+     * The time-grids say "not shared" in the columns the link does not cover,
+     * rather than ruling twenty-four empty hours across them.
+     *
+     * A blank published column and a blank unpublished one look identical, and
+     * the difference between them is the difference between "free" and "I never
+     * said". A fourteen-day rolling window always leaves part of some week out.
+     */
+    public function testAnUnpublishedColumnOfAWeekSaysSoRatherThanLookingFree(): void
+    {
+        $client = $this->boot();
+
+        // The three-day fixed link, whose week therefore has four columns it does
+        // not publish whatever day the suite runs on. The rolling link cannot be
+        // used here: fourteen days from a Monday is two whole weeks, so on
+        // Mondays it has no partly-published week at all.
+        $crawler = $client->request('GET', sprintf(
+            '/share/%s/week/%s',
+            $this->fixedToken,
+            self::FIXED_FROM,
+        ));
+
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(
+            4,
+            $crawler->filter('[data-day][data-day-unpublished]'),
+            'a seven-column week claimed the link covers days it does not',
+        );
+
+        self::assertStringContainsString(
+            'Not shared',
+            (string) $client->getResponse()->getContent(),
+            'an unpublished column was dimmed but never named, so it reads as free',
+        );
+
+        // And the days it DOES publish are not marked, or the mark would mean
+        // nothing.
+        self::assertCount(
+            0,
+            $crawler->filter(sprintf('[data-day="%s"][data-day-unpublished]', self::FIXED_FROM)),
+        );
+    }
+
+    /** @return iterable<array{0: string}> */
+    public static function views(): iterable
+    {
+        foreach (self::VIEWS as $view) {
+            yield $view => [$view];
+        }
     }
 
     // ── The theme is the owner's ──────────────────────────────────────────────
@@ -438,6 +642,45 @@ final class PublicCalendarStyleTest extends WebTestCase
         );
     }
 
+    /**
+     * The time-grid and the agenda were extracted into shells the shared page
+     * embeds too, and the toolbar with them. Nothing else in this suite renders
+     * the authenticated week or agenda, so an extraction that broke either would
+     * have been found by a person rather than by a build.
+     *
+     * The chip is asserted as a button, which is the whole difference between the
+     * two calendars: the owner's chips open an editor and the shared page's are
+     * deliberately not focusable.
+     */
+    #[DataProvider('views')]
+    public function testTheAuthenticatedViewsStillRenderThroughTheShells(string $view): void
+    {
+        $client = $this->boot();
+        $this->eventTomorrow();
+
+        $client->loginUser($this->user);
+
+        $crawler = $client->request('GET', sprintf('/calendar/%s/%s', $view, $this->tomorrow()->format('Y-m-d')));
+
+        self::assertResponseIsSuccessful();
+
+        // Its own toolbar, with a live step at both ends: the owner's calendar
+        // has no window to run out of.
+        self::assertCount(1, $crawler->filter('a[aria-label="Previous"]'), $view . ' lost its previous step');
+        self::assertCount(1, $crawler->filter('a[aria-label="Next"]'));
+        self::assertCount(4, $crawler->filter('[data-calendar-views] a'));
+
+        // And nothing in it is ever "outside the window" — that state belongs to
+        // the shared page alone, and leaking it here would dim a third of a week.
+        self::assertCount(0, $crawler->filter('[data-day-unpublished]'), $view . ' dimmed the owner out of their own day');
+
+        self::assertStringContainsString(
+            self::SECRET_TITLE,
+            (string) $client->getResponse()->getContent(),
+            'the owner cannot see their own event in the ' . $view . ' view',
+        );
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private function rootAttribute(Crawler $crawler, string $attribute): string
@@ -520,6 +763,19 @@ final class PublicCalendarStyleTest extends WebTestCase
         $link->cover([$calendar]);
         $this->em->persist($link);
 
+        $fixedToken = $this->tokens->mint();
+
+        $fixed              = new CalendarShareLink();
+        $fixed->usr         = $user;
+        $fixed->name        = 'Conference days';
+        $fixed->tokenDigest = $this->tokens->digest($fixedToken);
+        $fixed->windowMode  = ShareWindow::Fixed;
+        $fixed->rollingDays = 14;
+        $fixed->startsOn    = new DateTimeImmutable(self::FIXED_FROM);
+        $fixed->endsOn      = new DateTimeImmutable(self::FIXED_TO);
+        $fixed->cover([$calendar]);
+        $this->em->persist($fixed);
+
         $bookingToken = $this->tokens->mint();
 
         // Monday to Friday deliberately, unlike BookingEndpointTest's every-day
@@ -548,6 +804,7 @@ final class PublicCalendarStyleTest extends WebTestCase
         $this->calendar     = $calendar;
         $this->link         = $link;
         $this->shareToken   = $shareToken;
+        $this->fixedToken   = $fixedToken;
         $this->bookingToken = $bookingToken;
 
         return $client;

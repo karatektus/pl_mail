@@ -93,19 +93,34 @@ that *could* carry a title the link did not unlock.
 
 ### What the recipient sees
 
-A month grid, drawn with the same weeks, chips and day markings as your own calendar, and under it a
-list of the days it covers. Times are shown in your zone and labelled as such. There is an **Add to
-your calendar** link that hands out the same window as an `.ics` for their own calendar app to
-subscribe to. A window with nothing in it says *Nothing in this window*, and a covered day with
-nothing on it says *Nothing on this day* rather than being skipped. A single page renders at most
-2000 entries.
+A calendar, with the same four views yours has — **Day, Week, Month** and **Agenda** — and a switcher
+between them, drawn by the same partials your own calendar is drawn by: the same weeks and day
+markings in the month, the same hours and positioned blocks in the week and day, the same date rail in
+the agenda. It opens on the month. Times are shown in your zone and labelled as such. There is an
+**Add to your calendar** link that hands out the same window as an `.ics` for their own calendar app
+to subscribe to. A window with nothing in it says *Nothing in this window*. A single page renders at
+most 2000 entries.
 
-The grid is a calendar month; your link publishes a window. Where the two differ — and for a rolling
-fortnight most of the month is the difference — the days your link does not cover are drawn dimmed
-and named in a legend as **Days outside the shared window**. That distinction is not cosmetic: a
-blank cell that looked like a free one would have the page claiming you are free on days you never
-published. For the same reason the ◀ ▶ steps only reach the months your window actually touches, and
-are drawn greyed out at the ends rather than paging into a month that would look empty.
+Which view is on screen is part of the address — `/share/<address>/week/2026-08-10` — so every view is
+a link somebody can bookmark or send on, and the back button works. That is not a stylistic choice: a
+shared page starts no session, so there is nowhere else for "which view" to live.
+
+The **Agenda** is where the detail is read, and it is what the day-by-day list under the month grid
+used to be. It keeps that list's one distinctive property: every day your window covers is printed,
+including the empty ones, so a day with nothing on it says *Nothing on this day* rather than being
+skipped. Your own agenda does the opposite and skips them, because there density is the point; on a
+shared page "free on the 4th" has to be something the page says rather than a gap the reader has to
+notice.
+
+Your link publishes a window, and no view of it is exactly that window: a month is 42 cells, a week is
+seven columns. Where the two differ — and for a rolling fortnight most of a month is the difference —
+the days your link does not cover are drawn dimmed, named in a legend as **Days outside the shared
+window**, and in the week and day views labelled **Not shared** and drawn without hour lines. That
+distinction is not cosmetic: a blank cell, or an empty column with twenty-four ruled hours in it,
+would have the page claiming you are free on days you never published. For the same reason the ◀ ▶
+steps only reach the pages your window actually publishes, and are drawn greyed out at the ends rather
+than paging into a week or a month that would look empty. A **Today** button appears only when your
+window contains today — a button that did nothing would be worse than no button.
 
 Chips carry no calendar colour, deliberately. A shared page says nothing about your calendars — not
 their names, not their colours, not how many there are — so every chip is drawn in your accent
@@ -119,8 +134,10 @@ one if somebody added a line that tried. An account that never chose gets Paper,
 account starts as. A theme set to *Follow the system* is resolved against the reader's own machine, so
 the page is legible light or dark.
 
-On a phone the grid keeps the shape of a month and drops the labels inside each cell to a mark per
-entry; the list underneath is where the detail is read.
+On a phone the month grid keeps the shape of a month and drops the labels inside each cell to a mark
+per entry; the agenda is where the detail is read, and the Day view is one tap away for a single
+full-width column of hours. A seven-column week is tight on a phone, which is the same limitation your
+own calendar has and has the same answer.
 
 **Revoke** takes a link out of service without deleting the row, so you keep a record of it; a revoked
 link is marked as such in the list. **Delete** removes it entirely — *Anyone still holding its address
