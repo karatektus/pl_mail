@@ -1,90 +1,54 @@
 {#
-The row above the grid: where you are, how to move, and which view.
+The toolbar of the calendar you own.
 
-Every control is a link, because a view is a URL — each one is bookmarkable,
-back works, and the range stays a single indexed query.
+The row itself — the steps, the position label, the four-view switcher — is
+calendar/_toolbar_shell.html.twig, which the public shared-calendar page renders
+through as well. What is left here is this calendar's routing and the one control
+a read-only calendar has no use for: the button that creates an event.
 
-compact is set by the docked pane. It gets the same four views, as icons rather
-than words: the pane is ~380px and "Day Week Month Agenda" spelled out leaves no
-room for the date, but dropping the switcher entirely meant the pane could only
-ever show its agenda — there was no way to reach the month from it at all.
+Every step and every view is a URL because a view is a URL. The shared page's
+steps run out at the ends of its published window and pass null for them; this
+calendar has no ends, so it never does.
 #}
 
 {% set compact = compact|default(false) %}
-{% set frame = frame|default(null) %}
 {% set paneQuery = compact ? '?pane=1' : '' %}
 
 {# Agenda steps a day at a time like day view: it is a rolling list, not a page. #}
 {% set step = view.value == 'month' ? '1 month' : (view.value == 'week' ? '7 days' : '1 day') %}
-{% set prevDate = anchor|date_modify('-' ~ step)|date('Y-m-d') %}
-{% set nextDate = anchor|date_modify('+' ~ step)|date('Y-m-d') %}
 
-{% set viewIcons = {
-    day:    'fa-calendar-day',
-    week:   'fa-calendar-week',
-    month:  'fa-calendar-days',
-    agenda: 'fa-list-ul',
+{% set viewUrls = {} %}
+{% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+    {% set viewUrls = viewUrls|merge({
+        (candidate.value): path('app_calendar_view', {
+            view: candidate.value,
+            date: anchor|date('Y-m-d'),
+        }) ~ paneQuery,
+    }) %}
+{% endfor %}
+
+{% embed 'calendar/_toolbar_shell.html.twig' with {
+    view:      view,
+    anchor:    anchor,
+    rangeFrom: range.from,
+    rangeTo:   range.to,
+    prevUrl:   path('app_calendar_view', {
+                   view: view.value,
+                   date: anchor|date_modify('-' ~ step)|date('Y-m-d'),
+               }) ~ paneQuery,
+    nextUrl:   path('app_calendar_view', {
+                   view: view.value,
+                   date: anchor|date_modify('+' ~ step)|date('Y-m-d'),
+               }) ~ paneQuery,
+    todayUrl:  path('app_calendar_view', {
+                   view: view.value,
+                   date: 'now'|date('Y-m-d'),
+               }) ~ paneQuery,
+    viewUrls:  viewUrls,
+    compact:   compact,
+    frame:     frame|default(null),
 } %}
-
-<div class="flex items-center gap-2 px-3 py-1 border-b border-line shrink-0 min-h-[var(--pane-header-h)]">
-    <div class="flex items-center gap-0.5 shrink-0">
-        <a href="{{ path('app_calendar_view', { view: view.value, date: prevDate }) }}{{ paneQuery }}"
-           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-           aria-label="{{ 'calendar.nav.previous'|trans }}"
-        ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
-
-        <a href="{{ path('app_calendar_view', { view: view.value, date: 'now'|date('Y-m-d') }) }}{{ paneQuery }}"
-           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-           class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-        >{{ 'calendar.today'|trans }}</a>
-
-        <a href="{{ path('app_calendar_view', { view: view.value, date: nextDate }) }}{{ paneQuery }}"
-           {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-           aria-label="{{ 'calendar.nav.next'|trans }}"
-        ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
-    </div>
-
-    {# A week is a range, and saying "1 Aug 2026" over a grid running 27 Jul to
-       2 Aug is just wrong. The year is dropped from the near end when both ends
-       share it, and the month too when the week does not cross one. #}
-    <h2 class="text-sm font-medium text-ink truncate min-w-0">
-        {%- if view.value == 'month' -%}
-            {{ anchor|date('F Y') }}
-        {%- elseif view.value == 'week' -%}
-            {% set weekStart = range.from %}
-            {% set weekEnd = range.to|date_modify('-1 day') %}
-            {{ weekStart|date(weekStart|date('Y') == weekEnd|date('Y')
-                ? (weekStart|date('n') == weekEnd|date('n') ? 'j' : 'j M')
-                : 'j M Y') }}
-            – {{ weekEnd|date('j M Y') }}
-        {%- else -%}
-            {{ anchor|date('j M Y') }}
-        {%- endif -%}
-    </h2>
-
-    <div class="ml-auto flex items-center gap-1 shrink-0">
-        <div class="flex items-center rounded-lg border border-line overflow-hidden">
-            {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
-                {% set label = ('calendar.view.' ~ candidate.value)|trans %}
-                <a href="{{ path('app_calendar_view', { view: candidate.value, date: anchor|date('Y-m-d') }) }}{{ paneQuery }}"
-                   {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-                   aria-current="{{ candidate == view ? 'page' : 'false' }}"
-                   {% if compact %}aria-label="{{ label }}" title="{{ label }}"{% endif %}
-                   class="flex items-center justify-center text-xs transition-colors
-                          {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
-                          {{ candidate == view ? 'bg-accent text-white' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
-                >
-                    {%- if compact -%}
-                        <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>
-                    {%- else -%}
-                        {{ label }}
-                    {%- endif -%}
-                </a>
-            {% endfor %}
-        </div>
-
+    {% block toolbar_actions %}
         <button type="button"
            data-controller="ui--modal"
            data-action="click->ui--modal#open"
@@ -94,5 +58,5 @@ ever show its agenda — there was no way to reach the month from it at all.
                   bg-accent text-white hover:opacity-90 transition-opacity"
            aria-label="{{ 'calendar.event.new'|trans }}"
         ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>
-    </div>
-</div>
+    {% endblock %}
+{% endembed %}

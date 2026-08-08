@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Calendar;
 
+use App\Domain\Interface\TimeGridEntryInterface;
 use DateTimeImmutable;
 
 /**
@@ -30,8 +31,15 @@ use DateTimeImmutable;
  * already received, which is concrete data arriving by the back door. See
  * ShareLinkReader for how it is derived and why it is still stable across
  * requests.
+ *
+ * It is a TimeGridEntryInterface so that the shared week and day views are
+ * positioned by DayGridLayout — the same class, with the same lanes and the
+ * same DST arithmetic, that lays out the owner's own calendar. Implementing it
+ * gives up nothing: the interface can only be asked for two instants and a
+ * boolean, all three of which this object was already publishing, so there is
+ * no field reachable through it that redaction had removed.
  */
-final readonly class SharedOccurrence
+final readonly class SharedOccurrence implements TimeGridEntryInterface
 {
     /**
      * @param list<string> $participants display names or addresses, empty unless
@@ -63,5 +71,29 @@ final readonly class SharedOccurrence
             || null !== $this->location
             || null !== $this->description
             || [] !== $this->participants;
+    }
+
+    // ── What a time-grid needs, and the only thing it can ask for ─────────────
+
+    /**
+     * Narrower than the interface, which allows null for a stored occurrence
+     * whose columns are empty. A redaction is built from an occurrence that
+     * already had both — ShareLinkReader drops one that did not, because an
+     * entry with no times is not a claim on anybody's day — so these two cannot
+     * be null and say so.
+     */
+    public function gridStartsAt(): DateTimeImmutable
+    {
+        return $this->startsAt;
+    }
+
+    public function gridEndsAt(): DateTimeImmutable
+    {
+        return $this->endsAt;
+    }
+
+    public function occupiesWholeDay(): bool
+    {
+        return $this->isAllDay;
     }
 }

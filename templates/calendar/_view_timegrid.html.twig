@@ -1,6 +1,16 @@
 {#
-Day and week as a time-grid: hours down the side, an event drawn where it is
-and as long as it is, and draggable.
+Day and week as a time-grid, for the calendar you own: hours down the side, an
+event drawn where it is and as long as it is, and draggable.
+
+**The grid itself is not here.** The gutter, the columns, the sticky headings,
+the all-day band, the hour lines, the current-time line and the placement of a
+block all live in calendar/_time_grid_shell.html.twig, which the public
+shared-calendar page embeds too — the same arrangement _month_shell already has
+with _view_month. What is left in this file is the only part that is about a
+calendar somebody is signed in to: the drag controller, the chips that open an
+editor, the "new event on this day" affordance, and the form and dialog a move
+commits through. The shell's own header says why it is a shell rather than two
+files that look alike, and what a caller may not put in it.
 
 Reached from the full calendar page and from the docked pane alike: there is one
 calendar here and the pane is a narrower window onto it, not a lesser version of
@@ -9,29 +19,8 @@ it. _grid.html.twig says why the pane no longer gets a list of its own.
 Accepts (all from CalendarController::viewData):
   days    array<Y-m-d, list<OccurrenceCluster>>  — the day walk, for the keys
   range   the reader's answer; `grid` holds the placements, `zone` the clock
-  view    CalendarView, for the links the day headers carry
+  view    CalendarView, for the field the move form posts back
   anchor  the date the view is centred on
-
-**Positions come from the server, as percentages.** range.grid is a DayGrid per
-day: the all-day clusters lifted out, and the timed ones each carrying top,
-height, lane and lanes as fractions of a 24-hour column. Fractions rather than
-pixels so the same numbers stay correct at whatever height the column ends up
-with, and server-side so the grid is right on the first paint rather than
-jumping into place once JavaScript has run — and so a reader with JavaScript off
-gets a readable calendar instead of a pile of blocks at midnight. See
-DayGridLayout for how the lanes are assigned and what DST does to the axis.
-
-**Every time printed here names its zone explicitly.** Twig's date filter
-defaults to the server's zone, and the placements were computed against the
-calendar's — an hour label drawn on one clock over blocks positioned on another
-is the one failure mode of this view that looks completely fine.
-
-**The all-day band is always drawn, even when it is empty.** Showing it only on
-weeks that have one makes the grid jump by a row as you page through, and the
-row is a permanent part of the axis — it is where "this event has no time" is
-expressible at all. It is deliberately not a drop target: dragging a timed event
-into it would mean "make this all-day", which is a change of kind rather than of
-time, and the editor is where kinds are changed.
 
 **Double-clicking empty grid space creates an event there**, at the quarter hour
 under the pointer. A single click deliberately does not, and that is the whole
@@ -42,348 +31,175 @@ what every other calendar uses for this, and needs no gesture arbitration at all
 
 The + button in each day heading stays, and is not redundant: it is the real tab
 stop, and a double-click is not a gesture a keyboard has.
-
-**A known limitation, stated rather than hidden: a seven-day week is tight below
-about 640px.** The columns divide whatever width there is, so on a phone, or in
-a narrow docked pane, each is around fifty pixels and a block says its colour and
-little else. It is not solved here because the only fixes are disproportionate —
-a horizontal scroll means either three scroll containers kept in step by
-JavaScript or rewriting the three grids below as one with sticky rows and a
-sticky gutter. What answers it instead is that neither width is forced on anyone:
-the pane opens on the agenda, Day view is one tap away in the toolbar and is a
-single full-width column, and the pane's own handle widens it as far as the
-window allows. Worth revisiting; not worth guessing at.
 #}
 
-{% set dayKeys = days|keys %}
-{% set grid = range.grid %}
-{% set zone = range.zone %}
-{% set today = 'now'|date('Y-m-d', zone) %}
-{% set nowMinute = 'now'|date('G', zone) * 60 + 'now'|date('i', zone) %}
+{% embed 'calendar/_time_grid_shell.html.twig' with {
+    dayKeys:    days|keys,
+    grid:       range.grid,
+    zone:       range.zone,
+    today:      'now'|date('Y-m-d', range.zone),
+    hourFormat: clock.hour,
+} %}
+    {% block grid_root_attributes %}
+        data-controller="calendar--time-grid"
+        data-action="pointerdown->calendar--time-grid#pointerdown
+                     dblclick->calendar--time-grid#createAt
+                     keydown->calendar--time-grid#keydown"
+        data-calendar--time-grid-snap-value="15"
+        data-calendar--time-grid-new-event-url-value="{{ path('app_calendar_event_new') }}"
+        data-calendar--time-grid-read-only-message-value="{{ 'calendar.grid.read_only'|trans }}"
+        data-calendar--time-grid-pending-message-value="{{ 'calendar.grid.pending'|trans }}"
+        data-calendar--time-grid-reverted-message-value="{{ 'calendar.grid.reverted'|trans }}"
+    {% endblock %}
 
-{# The time gutter, then one equal column per day. minmax(0,1fr) rather than
-   1fr: a bare 1fr floors at the content's min-width, so one long untruncated
-   title would push a seven-day week wider than the pane and produce a
-   horizontal scrollbar over the whole calendar. #}
-{% set columnTemplate = '3.5rem repeat(' ~ dayKeys|length ~ ', minmax(0, 1fr))' %}
+    {% block day_heading_actions %}
+        <button type="button"
+           data-controller="ui--modal"
+           data-action="click->ui--modal#open"
+           data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
+           data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+           aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|date('D j M') }) }}"
+           class="w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint
+                  opacity-0 group-hover/day:opacity-100 focus:opacity-100
+                  hover:bg-hover transition-opacity
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+    {% endblock %}
 
-<div class="h-full min-h-0 flex flex-col"
-     data-controller="calendar--time-grid"
-     data-action="pointerdown->calendar--time-grid#pointerdown
-                  dblclick->calendar--time-grid#createAt
-                  keydown->calendar--time-grid#keydown"
-     data-calendar--time-grid-snap-value="15"
-     data-calendar--time-grid-new-event-url-value="{{ path('app_calendar_event_new') }}"
-     data-calendar--time-grid-read-only-message-value="{{ 'calendar.grid.read_only'|trans }}"
-     data-calendar--time-grid-pending-message-value="{{ 'calendar.grid.pending'|trans }}"
-     data-calendar--time-grid-reverted-message-value="{{ 'calendar.grid.reverted'|trans }}"
->
-    {# ── One scroll container, three grids ─────────────────────────────────
-       The day headings, the all-day band and the hours are all inside the
-       scroller, with the first two stuck to its top rather than sitting above
-       it as siblings.
+    {% block all_day_entry %}
+        {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false } %}
+    {% endblock %}
 
-       That is the fix for a misalignment nobody could see the cause of: as
-       siblings, the two pinned rows were as wide as the pane and the hours were
-       as wide as the pane MINUS the scrollbar, so every day column below sat a
-       scrollbar's width left of its own heading. Reserving the gutter on the
-       other two is not expressible in CSS — `scrollbar-gutter` applies to
-       scroll containers and these are not — so the only honest answer is for
-       all three to be measured by the same box. Sharing one is also what makes
-       a horizontal scroll possible later, which is the open question in the
-       note at the top of this file.
+    {# The identity of what was placed, on the element the drag measures and
+       moves. The shell owns the box's position and refuses to know what is in
+       it; these are the caller's answer to "which meeting is this". #}
+    {% block timed_entry_attributes %}
+        {% set occurrence = entry.primary %}
+        data-calendar--time-grid-target="block"
+        data-event-id="{{ occurrence.event.id }}"
+        data-recurring="{{ occurrence.event.isRecurring ? 'true' : 'false' }}"
+        data-read-only="{{ occurrence.event.calendar.isReadOnly ? 'true' : 'false' }}"
+        {# Wall time on the GRID's clock, which is the clock the drag is
+           measured against and the one the move route reads the answer back
+           in. #}
+        data-starts-at="{{ occurrence.startsAt|date('Y-m-d\\TH:i:s', zone) }}"
+        data-ends-at="{{ occurrence.endsAt|date('Y-m-d\\TH:i:s', zone) }}"
+        data-instance="{{ occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC') }}"
+    {% endblock %}
 
-       The offsets are a fixed 2rem because a sticky element needs a number:
-       `top-0` for the headings, `top-8` for the band under them, and the
-       headings are given `h-8` so the two agree. #}
-    <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
+    {% block timed_entry %}
+        {% set occurrence = entry.primary %}
+        {% set readOnly = occurrence.event.calendar.isReadOnly %}
 
-    {# ── The day headings ──────────────────────────────────────────────── #}
-    <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
-        <div class="border-r border-line" aria-hidden="true"></div>
+        <div class="relative h-full rounded-md overflow-hidden
+                    ring-1 ring-line bg-surface shadow-sm
+                    {{ readOnly ? '' : 'cursor-grab' }}"
+             style="background-color: {{ occurrence.event.calendar.color }}1a">
 
-        {% for dayKey in dayKeys %}
-            {% set isToday = dayKey == today %}
+            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, tall: true } %}
 
-            <div class="group/day flex items-baseline gap-1.5 px-2 border-r border-line
-                        {{ isToday ? 'bg-accent/5' : '' }}"
-                 data-calendar--time-grid-target="heading">
-                <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                    {{ dayKey|date('D', zone) }}
-                </span>
-
-                {% if isToday %}
-                    <span class="w-5 h-5 -my-0.5 flex items-center justify-center rounded-full
-                                 bg-accent text-white text-xs font-semibold tabular-nums">
-                        {{ dayKey|date('j', zone) }}
-                    </span>
-                {% else %}
-                    <span class="text-sm text-ink-muted tabular-nums">{{ dayKey|date('j', zone) }}</span>
-                {% endif %}
-
-                {# One add affordance per day, in the heading rather than 24 of
-                   them down the column: a tab stop per hour per day is 168 of
-                   them in a week, which makes the grid unusable by keyboard. #}
-                <button type="button"
-                   data-controller="ui--modal"
-                   data-action="click->ui--modal#open"
-                   data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
-                   data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-                   aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|date('D j M', zone) }) }}"
-                   class="ml-auto w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint
-                          opacity-0 group-hover/day:opacity-100 focus:opacity-100
-                          hover:bg-hover transition-opacity
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
-            </div>
-        {% endfor %}
-    </div>
-
-    {# ── All day ───────────────────────────────────────────────────────── #}
-    <div class="sticky top-8 z-10 grid border-b border-line bg-surface max-h-24 overflow-y-auto"
-         style="grid-template-columns: {{ columnTemplate }}">
-        <div class="border-r border-line px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint text-right">
-            {{ 'calendar.grid.all_day'|trans }}
+            {% if readOnly %}
+                <i class="fa-solid fa-lock absolute top-1 right-1 text-[9px] text-ink-faint"
+                   title="{{ 'calendar.grid.read_only'|trans }}"
+                   aria-label="{{ 'calendar.grid.read_only'|trans }}"></i>
+            {% else %}
+                {# Mouse only, and aria-hidden on purpose: the keyboard route to
+                   the same change is Alt+Shift with the arrow keys on the block
+                   itself, so a focusable grip here would be a second tab stop
+                   for a thing already reachable. #}
+                <span class="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize
+                             hover:bg-accent/40"
+                      data-calendar--time-grid-target="grip"
+                      aria-hidden="true"></span>
+            {% endif %}
         </div>
+    {% endblock %}
 
-        {% for dayKey in dayKeys %}
-            <div class="border-r border-line p-1 space-y-0.5 min-h-[1.75rem]
-                        {{ dayKey == today ? 'bg-accent/5' : '' }}">
-                {% for cluster in grid[dayKey].allDay %}
-                    {% include 'calendar/_event_chip.html.twig' with { showTime: false } %}
-                {% endfor %}
-            </div>
-        {% endfor %}
-    </div>
+    {% block grid_footer %}
+        {# The double-click's way into the editor.
+           Hidden, and carrying the modal controller itself, because a Stimulus
+           action only reaches controllers mounted on an ancestor and this one
+           lives on #modal-backdrop — the same reason every chip carries its own.
+           The grid writes the URL onto it and clicks it, which is exactly what a
+           user pressing a + button does, so there is one path into the editor
+           rather than two. #}
+        <button type="button" hidden
+                data-calendar--time-grid-target="newTrigger"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-src-value=""
+                data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                tabindex="-1"
+                aria-hidden="true"></button>
 
-    {# ── The hours ─────────────────────────────────────────────────────── #}
-        <div class="grid" style="grid-template-columns: {{ columnTemplate }}"
-             data-calendar--time-grid-target="hours">
+        {# ── What the grid says back ───────────────────────────────────────── #}
 
-            {# The gutter's labels sit ON the hour line rather than inside the
-               row below it, which is why they are nudged up by half their own
-               height — a "10:00" printed at the top of the 10:00 row appears to
-               label the space between 10 and 11.
+        {# One hint, referenced by every block, rather than a title on each: the
+           instructions are the same for all of them and a screen reader should
+           not read them once per event. #}
+        <p id="calendar-grid-hint" class="sr-only">{{ 'calendar.grid.keyboard_hint'|trans }}</p>
 
-               Formatted through `clock.hour` rather than printed as digits, so
-               the axis reads "9 am" for anyone on a twelve-hour clock. The date
-               it is formatted FROM is arbitrary and must be — the label says
-               which hour, not which day — so it is built at midnight UTC and
-               read back in UTC, which is what `false` does here. Handing it the
-               reader's zone instead would shift every label by their offset and
-               produce a gutter starting at 02:00. #}
-            <div class="border-r border-line">
-                {% for hour in 0..23 %}
-                    <div class="relative h-12">
-                        {% if hour > 0 %}
-                            <span class="absolute -top-1.5 right-1.5 text-[10px] tabular-nums text-ink-faint">
-                                {{ ('2000-01-01 %02d:00:00'|format(hour))|date(clock.hour, false) }}
-                            </span>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
+        {# role="status" rather than a toast. This is about the block the user is
+           holding, so it belongs beside it and has to survive being replaced
+           several times a second while nudging — a queue of toasts would not. #}
+        <p data-calendar--time-grid-target="status"
+           role="status"
+           aria-live="polite"
+           class="sr-only"></p>
 
-            {% for dayKey in dayKeys %}
-                {% set isToday = dayKey == today %}
+        {# ── Committing a move ─────────────────────────────────────────────── #}
 
-                <div class="relative border-r border-line {{ isToday ? 'bg-accent/5' : '' }}"
-                     data-calendar--time-grid-target="column"
-                     data-day="{{ dayKey }}">
+        {# A real form submitted by the controller, not a fetch. Turbo then
+           handles the answer exactly as it handles the editor's save — a full
+           navigation to the redirect, which redraws the grid with the new
+           placements. A fetch would need its own re-render path beside the one
+           that already works. #}
+        <form method="post"
+              action="{{ path('app_calendar_event_move') }}"
+              data-turbo-frame="_top"
+              data-calendar--time-grid-target="form"
+              class="hidden">
+            <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_move') }}">
+            <input type="hidden" name="timeZone" value="{{ range.zone }}">
+            <input type="hidden" name="view" value="{{ view.value }}">
+            <input type="hidden" name="returnTo" value="{{ app.request.pathInfo }}">
+            <input type="hidden" name="eventId" data-calendar--time-grid-target="eventIdField">
+            <input type="hidden" name="recurrenceId" data-calendar--time-grid-target="instanceField">
+            <input type="hidden" name="scope" data-calendar--time-grid-target="scopeField">
+            <input type="hidden" name="startsAt" data-calendar--time-grid-target="startsAtField">
+            <input type="hidden" name="endsAt" data-calendar--time-grid-target="endsAtField">
+        </form>
 
-                    {% for hour in 0..23 %}
-                        <div class="h-12 border-b border-line/50" aria-hidden="true"></div>
-                    {% endfor %}
+        {# The same question the editor asks, in the same words, because it is
+           the same question — see EventMover. A <dialog> rather than the app's
+           modal frame: this one is built from data already on the page and needs
+           no fetch, and showModal() puts it in the top layer, which is the one
+           kind of dialog backdrop-filter on an ancestor cannot clip. #}
+        <dialog data-calendar--time-grid-target="scopePrompt"
+                data-action="cancel->calendar--time-grid#cancelPending"
+                class="rounded-pane border border-line bg-surface p-0 text-ink backdrop:bg-black/40">
+            <div class="px-6 py-4 space-y-3 min-w-[18rem]">
+                <p class="text-sm text-ink-muted">{{ 'calendar.event.scope.legend'|trans }}</p>
 
-                    {% if isToday %}
-                        {# Rendered at the minute the page was built and never
-                           moved afterwards. A timer that crept it down the
-                           column would be a repaint a minute forever, on a view
-                           that is re-rendered by every navigation anyway. #}
-                        <div class="absolute left-0 right-0 h-px bg-danger pointer-events-none z-20"
-                             style="top: {{ (nowMinute * 100 / 1440)|round(4) }}%"
-                             aria-hidden="true">
-                            <span class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-danger"></span>
-                        </div>
-                    {% endif %}
-
-                    {# The blocks sit in their own layer over the hour lines, so
-                       the lines stay visible between and behind them. #}
-                    <div class="absolute inset-0">
-                        {% for placed in grid[dayKey].timed %}
-                            {% set cluster = placed.cluster %}
-                            {% set occurrence = cluster.primary %}
-                            {% set event = occurrence.event %}
-                            {% set readOnly = event.calendar.isReadOnly %}
-
-                            {# min-height is the floor a short meeting needs to
-                               be readable. A quarter of an hour is 1/96th of
-                               the column — about twelve pixels at the height
-                               this grid usually gets — and the chip inside
-                               wants twenty-four for one line of "9:00 Standup",
-                               so a fifteen-minute event drew a sliver with its
-                               own label spilling out of it. 1.75rem is the
-                               all-day lane's floor above, deliberately: one
-                               number for "the smallest a chip may be drawn".
-
-                               The floored block is then taller than its
-                               duration and can reach over the one after it.
-                               That is the right trade and not a compromise: the
-                               block's TOP is where the meeting starts and stays
-                               honest, only the padded bottom is a fiction, and
-                               the alternative — reflowing so short events push
-                               their neighbours down — would move a 10:00
-                               meeting off the 10:00 line, which is the one
-                               thing a time grid exists to get right. The
-                               overlap is drawn under the later block, because
-                               they are emitted in start order and the fiction
-                               is what gets covered.
-
-                               Presentational only. The drag reads
-                               data-starts-at and data-ends-at, never the
-                               rendered box, so a floored block resizes from its
-                               real duration. #}
-                            <div class="absolute p-px"
-                                 style="top: {{ (placed.top * 100)|round(4) }}%;
-                                        height: {{ (placed.height * 100)|round(4) }}%;
-                                        min-height: 1.75rem;
-                                        left: {{ (placed.lane * 100 / placed.lanes)|round(4) }}%;
-                                        width: {{ (100 / placed.lanes)|round(4) }}%;"
-                                 data-calendar--time-grid-target="block"
-                                 data-event-id="{{ event.id }}"
-                                 data-recurring="{{ event.isRecurring ? 'true' : 'false' }}"
-                                 data-read-only="{{ readOnly ? 'true' : 'false' }}"
-                                 {# Wall time on the GRID's clock, which is the clock
-                                    the drag is measured against and the one the move
-                                    route reads the answer back in. #}
-                                 data-starts-at="{{ occurrence.startsAt|date('Y-m-d\\TH:i:s', zone) }}"
-                                 data-ends-at="{{ occurrence.endsAt|date('Y-m-d\\TH:i:s', zone) }}"
-                                 data-instance="{{ occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC') }}"
-                            >
-                                <div class="relative h-full rounded-md overflow-hidden
-                                            ring-1 ring-line bg-surface shadow-sm
-                                            {{ readOnly ? '' : 'cursor-grab' }}"
-                                     style="background-color: {{ event.calendar.color }}1a">
-
-                                    {% include 'calendar/_event_chip.html.twig' with { tall: true } %}
-
-                                    {% if placed.continuesBefore %}
-                                        <span class="absolute top-0 inset-x-0 h-0.5 bg-ink-faint/40"
-                                              title="{{ 'calendar.grid.continues_before'|trans }}"></span>
-                                    {% endif %}
-
-                                    {% if readOnly %}
-                                        <i class="fa-solid fa-lock absolute top-1 right-1 text-[9px] text-ink-faint"
-                                           title="{{ 'calendar.grid.read_only'|trans }}"
-                                           aria-label="{{ 'calendar.grid.read_only'|trans }}"></i>
-                                    {% else %}
-                                        {# Mouse only, and aria-hidden on purpose: the
-                                           keyboard route to the same change is
-                                           Alt+Shift with the arrow keys on the block
-                                           itself, so a focusable grip here would be a
-                                           second tab stop for a thing already
-                                           reachable. #}
-                                        <span class="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize
-                                                     hover:bg-accent/40"
-                                              data-calendar--time-grid-target="grip"
-                                              aria-hidden="true"></span>
-                                    {% endif %}
-
-                                    {% if placed.continuesAfter %}
-                                        <span class="absolute bottom-0 inset-x-0 h-0.5 bg-ink-faint/40"
-                                              title="{{ 'calendar.grid.continues_after'|trans }}"></span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
+                <div class="flex flex-col gap-1">
+                    <button type="button"
+                            data-action="click->calendar--time-grid#commitInstance"
+                            class="px-3 py-2 rounded-lg text-sm text-left hover:bg-hover transition-colors">
+                        {{ 'calendar.event.scope.instance'|trans }}
+                    </button>
+                    <button type="button"
+                            data-action="click->calendar--time-grid#commitSeries"
+                            class="px-3 py-2 rounded-lg text-sm text-left hover:bg-hover transition-colors">
+                        {{ 'calendar.event.scope.series'|trans }}
+                    </button>
                 </div>
-            {% endfor %}
-        </div>
-    </div>{# /scroller #}
 
-    {# The double-click's way into the editor.
-       Hidden, and carrying the modal controller itself, because a Stimulus
-       action only reaches controllers mounted on an ancestor and this one lives
-       on #modal-backdrop — the same reason every chip carries its own. The grid
-       writes the URL onto it and clicks it, which is exactly what a user
-       pressing a + button does, so there is one path into the editor rather
-       than two. #}
-    <button type="button" hidden
-            data-calendar--time-grid-target="newTrigger"
-            data-controller="ui--modal"
-            data-action="click->ui--modal#open"
-            data-ui--modal-src-value=""
-            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-            tabindex="-1"
-            aria-hidden="true"></button>
-
-    {# ── What the grid says back ───────────────────────────────────────── #}
-
-    {# One hint, referenced by every block, rather than a title on each: the
-       instructions are the same for all of them and a screen reader should not
-       read them once per event. #}
-    <p id="calendar-grid-hint" class="sr-only">{{ 'calendar.grid.keyboard_hint'|trans }}</p>
-
-    {# role="status" rather than a toast. This is about the block the user is
-       holding, so it belongs beside it and has to survive being replaced
-       several times a second while nudging — a queue of toasts would not. #}
-    <p data-calendar--time-grid-target="status"
-       role="status"
-       aria-live="polite"
-       class="sr-only"></p>
-
-    {# ── Committing a move ─────────────────────────────────────────────── #}
-
-    {# A real form submitted by the controller, not a fetch. Turbo then handles
-       the answer exactly as it handles the editor's save — a full navigation to
-       the redirect, which redraws the grid with the new placements. A fetch
-       would need its own re-render path beside the one that already works. #}
-    <form method="post"
-          action="{{ path('app_calendar_event_move') }}"
-          data-turbo-frame="_top"
-          data-calendar--time-grid-target="form"
-          class="hidden">
-        <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_move') }}">
-        <input type="hidden" name="timeZone" value="{{ zone }}">
-        <input type="hidden" name="view" value="{{ view.value }}">
-        <input type="hidden" name="returnTo" value="{{ app.request.pathInfo }}">
-        <input type="hidden" name="eventId" data-calendar--time-grid-target="eventIdField">
-        <input type="hidden" name="recurrenceId" data-calendar--time-grid-target="instanceField">
-        <input type="hidden" name="scope" data-calendar--time-grid-target="scopeField">
-        <input type="hidden" name="startsAt" data-calendar--time-grid-target="startsAtField">
-        <input type="hidden" name="endsAt" data-calendar--time-grid-target="endsAtField">
-    </form>
-
-    {# The same question the editor asks, in the same words, because it is the
-       same question — see EventMover. A <dialog> rather than the app's modal
-       frame: this one is built from data already on the page and needs no
-       fetch, and showModal() puts it in the top layer, which is the one kind of
-       dialog backdrop-filter on an ancestor cannot clip. #}
-    <dialog data-calendar--time-grid-target="scopePrompt"
-            data-action="cancel->calendar--time-grid#cancelPending"
-            class="rounded-pane border border-line bg-surface p-0 text-ink backdrop:bg-black/40">
-        <div class="px-6 py-4 space-y-3 min-w-[18rem]">
-            <p class="text-sm text-ink-muted">{{ 'calendar.event.scope.legend'|trans }}</p>
-
-            <div class="flex flex-col gap-1">
                 <button type="button"
-                        data-action="click->calendar--time-grid#commitInstance"
-                        class="px-3 py-2 rounded-lg text-sm text-left hover:bg-hover transition-colors">
-                    {{ 'calendar.event.scope.instance'|trans }}
-                </button>
-                <button type="button"
-                        data-action="click->calendar--time-grid#commitSeries"
-                        class="px-3 py-2 rounded-lg text-sm text-left hover:bg-hover transition-colors">
-                    {{ 'calendar.event.scope.series'|trans }}
+                        data-action="click->calendar--time-grid#cancelPending"
+                        class="w-full px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+                    {{ 'calendar.event.cancel'|trans }}
                 </button>
             </div>
-
-            <button type="button"
-                    data-action="click->calendar--time-grid#cancelPending"
-                    class="w-full px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
-                {{ 'calendar.event.cancel'|trans }}
-            </button>
-        </div>
-    </dialog>
-</div>
+        </dialog>
+    {% endblock %}
+{% endembed %}

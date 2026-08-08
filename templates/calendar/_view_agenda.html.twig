@@ -5,63 +5,39 @@ This is the pane's default view, and the reason the pane is useful at all — a
 narrow column beside your mail should answer "what is coming up", not draw a
 grid nobody can read at that width.
 
-Empty days are skipped rather than shown blank: the value here is density, and
-a fortnight of "nothing" between two events is noise. The grids are where an
-empty day still needs to occupy its place.
+**The rail and the row are not here.** They live in
+calendar/_agenda_shell.html.twig, which the public shared-calendar page embeds
+too; what is left in this file is the chips that open an editor and the empty
+state that offers to create one. The shell's header says why, and says why the
+shared page prints its empty days when this one does not.
 #}
 
-{% set dayKeys = days|keys %}
-{# The view's clock — see _view_month for why. #}
-{% set today = 'now'|date('Y-m-d', range.zone) %}
-{% set anyEvents = false %}
+{# The view's clock, not the reader's — see _view_month for why. #}
+{% embed 'calendar/_agenda_shell.html.twig' with {
+    dayKeys: days|keys,
+    days:    days,
+    today:   'now'|date('Y-m-d', range.zone),
+} %}
+    {% block day_entries %}
+        <div class="space-y-0.5">
+            {% for cluster in dayEntries %}
+                {% include 'calendar/_event_chip.html.twig' %}
+            {% endfor %}
+        </div>
+    {% endblock %}
 
-<div class="divide-y divide-line">
-    {% for dayKey in dayKeys %}
-        {% set dayEvents = days[dayKey] %}
-        {% if dayEvents|length > 0 %}
-            {% set anyEvents = true %}
-            {% set isToday = dayKey == today %}
-
-            <div class="flex gap-3 px-3 py-2.5 {{ isToday ? 'bg-accent/5' : '' }}">
-                {# A fixed-width date rail, so the titles line up down the list
-                   rather than starting wherever the weekday name happens to
-                   end. #}
-                <div class="w-11 shrink-0 text-center">
-                    <div class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                        {{ dayKey|date('D') }}
-                    </div>
-                    {% if isToday %}
-                        <div class="mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full
-                                    bg-accent text-white text-sm font-semibold tabular-nums">
-                            {{ dayKey|date('j') }}
-                        </div>
-                    {% else %}
-                        <div class="mt-0.5 text-sm text-ink tabular-nums">{{ dayKey|date('j') }}</div>
-                    {% endif %}
-                    <div class="text-[10px] text-ink-faint">{{ dayKey|date('M') }}</div>
-                </div>
-
-                <div class="min-w-0 flex-1 space-y-0.5 self-center">
-                    {% for cluster in dayEvents %}
-                        {% include 'calendar/_event_chip.html.twig' %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-    {% endfor %}
-</div>
-
-{% if not anyEvents %}
-    <div class="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center text-ink-faint">
-        <i class="fa-regular fa-calendar text-2xl" aria-hidden="true"></i>
-        <p class="text-sm">{{ 'calendar.empty'|trans }}</p>
-        <button type="button"
-           data-controller="ui--modal"
-           data-action="click->ui--modal#open"
-           data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
-           data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-           class="text-sm text-accent hover:underline">
-            {{ 'calendar.event.new'|trans }}
-        </button>
-    </div>
-{% endif %}
+    {% block empty_state %}
+        <div class="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center text-ink-faint">
+            <i class="fa-regular fa-calendar text-2xl" aria-hidden="true"></i>
+            <p class="text-sm">{{ 'calendar.empty'|trans }}</p>
+            <button type="button"
+               data-controller="ui--modal"
+               data-action="click->ui--modal#open"
+               data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
+               data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+               class="text-sm text-accent hover:underline">
+                {{ 'calendar.event.new'|trans }}
+            </button>
+        </div>
+    {% endblock %}
+{% endembed %}
