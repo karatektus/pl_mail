@@ -283,6 +283,41 @@ final class SharedCalendarRangeBuilderTest extends TestCase
         self::assertSame([], $agenda->gridDays()['2026-08-12']);
     }
 
+    /**
+     * A long entry costs a page its own seven columns, not the entry's length.
+     *
+     * The reader hands over every occurrence that OVERLAPS the window, so a
+     * multi-year all-day event is one legitimate entry — and the day-spread above
+     * used to walk it a day at a time from its own start, which for two thousand
+     * such entries is millions of date additions on a public GET. Asserted by
+     * what it draws rather than by counting the arithmetic: the entry is on every
+     * column of the page and on no day outside it.
+     */
+    public function testALongEntryIsSpreadOverThePageAndNoFurther(): void
+    {
+        $entry = new SharedOccurrence(
+            new DateTimeImmutable('2020-01-01 00:00', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2030-01-01 00:00', new DateTimeZone('UTC')),
+            true,
+            'uid@plmail.share',
+        );
+
+        $page = $this->build(
+            $this->window(self::MONDAY, '2026-08-14', ['2026-08-11' => [$entry]]),
+            CalendarView::Week,
+            self::MONDAY,
+        );
+
+        // Five published columns, each carrying it once, and nothing anywhere
+        // else — the weekend the link does not cover has no column to be on.
+        self::assertCount(5, $page->grid);
+
+        foreach ($page->grid as $day) {
+            self::assertCount(1, $day->allDay);
+            self::assertSame([], $day->timed, 'an all-day entry was put on the time axis');
+        }
+    }
+
     public function testWeekAndDayPagingStopAtTheWindowEdges(): void
     {
         $window = $this->window(self::MONDAY, '2026-08-14');

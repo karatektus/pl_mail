@@ -267,9 +267,11 @@ final readonly class SharedCalendarRangeBuilder
             }
         }
 
+        $lastColumn = $to->modify('-1 day')->format('Y-m-d');
+
         foreach ($view->days as $entries) {
             foreach ($entries as $entry) {
-                foreach ($this->touched($entry, $zone) as $date) {
+                foreach ($this->touched($entry, $zone, $from->format('Y-m-d'), $lastColumn) as $date) {
                     if (true === array_key_exists($date, $columns)) {
                         $columns[$date][] = $entry;
                     }
@@ -281,36 +283,64 @@ final readonly class SharedCalendarRangeBuilder
     }
 
     /**
-     * Every local day one entry occupies.
+     * Every local day one entry occupies, within the page being drawn.
      *
      * An all-day entry is FLOATING — a wall date at midnight carrying no zone —
      * so it is read as it is stored. Converting it into the link's zone does not
      * translate it, it moves it, which files it on the day before for any reader
      * west of UTC. Same rule as CalendarRangeReader and as ShareLinkReader's own
-     * day walk.
+     * day walk. It is also why the bounds arrive as date STRINGS: a floating
+     * entry's instants are on a different clock from the page's, and comparing
+     * the two as instants is off by the owner's offset, while comparing the wall
+     * dates is the same comparison the column map is keyed by.
      *
-     * The loop is bounded by the entry's own length, and an entry's length is
-     * bounded by the window the reader queried plus its padding — so a
-     * ten-year event cannot turn one public GET into ten years of arithmetic.
-     * A zero-length entry still occupies the day it starts on, which is what the
-     * `do` shape below guarantees.
+     * **Bounded by the page, not by the entry**, and that is the point of the two
+     * extra arguments. The reader returns every occurrence that OVERLAPS the
+     * window, so a multi-year all-day event is one legitimate entry whose own
+     * length is years — and walking it a day at a time, two thousand entries
+     * over, would turn one public GET into millions of date additions for the
+     * seven columns a week actually has. The cursor is jumped forward to the
+     * first drawn day and the walk stops after the last.
+     *
+     * A zero-length entry still occupies the day it starts on, which is what
+     * comparing against $first below preserves: the entry's own first day is
+     * taken before its end is consulted at all.
      *
      * @return list<string>
      */
-    private function touched(SharedOccurrence $entry, DateTimeZone $zone): array
-    {
+    private function touched(
+        SharedOccurrence $entry,
+        DateTimeZone     $zone,
+        string           $firstColumn,
+        string           $lastColumn,
+    ): array {
         $floating = $entry->isAllDay;
 
         $start = $floating ? $entry->startsAt : $entry->startsAt->setTimezone($zone);
         $end   = $floating ? $entry->endsAt : $entry->endsAt->setTimezone($zone);
 
         $cursor = $start->setTime(0, 0);
-        $dates  = [];
+        $first  = $cursor->format('Y-m-d');
 
-        do {
-            $dates[] = $cursor->format('Y-m-d');
+        if ($first < $firstColumn) {
+            // `modify()` with a bare date sets the date and keeps midnight, and
+            // keeps the cursor's own zone with it — which for a floating entry is
+            // UTC and must stay UTC.
+            $cursor = $cursor->modify($firstColumn);
+        }
+
+        $dates = [];
+
+        while ($cursor->format('Y-m-d') <= $lastColumn) {
+            $date = $cursor->format('Y-m-d');
+
+            if ($date !== $first && $cursor >= $end) {
+                break;
+            }
+
+            $dates[] = $date;
             $cursor  = $cursor->modify('+1 day');
-        } while ($cursor < $end);
+        }
 
         return $dates;
     }
