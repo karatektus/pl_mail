@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller\Sharing;
 
+use App\Domain\Enum\Calendar\CalendarView;
 use App\Service\Appearance\PublicAppearanceResolver;
 use App\Service\Calendar\Sharing\PublicLinkToken;
-use App\Service\Calendar\Sharing\SharedCalendarMonthBuilder;
+use App\Service\Calendar\Sharing\SharedCalendarRangeBuilder;
 use App\Service\Calendar\Sharing\SharedIcsBuilder;
 use App\Service\Calendar\Sharing\ShareLinkReader;
 use App\Service\Calendar\Sharing\ShareLinkWriter;
@@ -83,7 +84,7 @@ final class SharedCalendarController extends AbstractController
         private readonly ShareLinkReader            $reader,
         private readonly ShareLinkWriter            $writer,
         private readonly SharedIcsBuilder           $ics,
-        private readonly SharedCalendarMonthBuilder $months,
+        private readonly SharedCalendarRangeBuilder $ranges,
         private readonly PublicAppearanceResolver   $appearance,
         private readonly ClockFormatResolver        $clocks,
         private readonly EntityManagerInterface     $em,
@@ -91,25 +92,45 @@ final class SharedCalendarController extends AbstractController
     }
 
     /**
-     * The page a recipient opens.
+     * The page a recipient opens, in whichever of the four views they asked for.
      *
      * The reader gets one instant and everything downstream is computed from
-     * it, so the window, the "today" heading, the day walk and the month the
-     * grid opens on cannot disagree about what time it is within one request.
+     * it, so the window, the "today" mark, the day walk and the page the view
+     * opens on cannot disagree about what time it is within one request.
      *
-     * `month` is a display parameter and nothing more. It picks which month of
-     * the published window is on screen; it cannot widen the window, and
-     * SharedCalendarMonthBuilder clamps it to the months the link actually
-     * covers — a reader who could step into an empty December would read it as
-     * "free in December".
+     * ── The view and the date are in the path, and they have to be ─────────
+     *
+     * Exactly as the authenticated calendar carries them, and for one extra
+     * reason that is decisive here: this page has no session to keep a chosen
+     * view in and must not acquire one, so the URL is the only place the choice
+     * can live. Every view is therefore a bookmarkable link, back works, and
+     * there is no JavaScript state to lose.
+     *
+     * Both are display parameters and nothing more. They pick which page of the
+     * published window is on screen; neither can widen the window, and
+     * SharedCalendarRangeBuilder clamps a date to the window's nearest edge —
+     * a reader who could step into an empty December would read it as "free in
+     * December". An unparseable date is ignored rather than refused, for the same
+     * reason: a public URL arrives hand-edited, and a 404 for a mistyped day is
+     * a worse page than the nearest one that exists. A bad TOKEN is still a 404,
+     * which is a different question — see above.
      */
     #[Route(
-        '/{token}',
+        '/{token}/{view}/{date}',
         name: 'show',
-        requirements: ['token' => PublicLinkToken::ROUTE_PATTERN],
+        requirements: [
+            'token' => PublicLinkToken::ROUTE_PATTERN,
+            // Spelled out rather than taken from CalendarView::routePattern():
+            // a route attribute is compiled from constant expressions, which a
+            // method call is not. The same duplication the authenticated
+            // calendar's route carries, for the same reason.
+            'view'  => 'day|week|month|agenda',
+            'date'  => '\d{4}-\d{2}-\d{2}',
+        ],
+        defaults: ['view' => 'month', 'date' => null],
         methods: ['GET'],
     )]
-    public function show(Request $request, string $token): Response
+    public function show(Request $request, string $token, string $view, ?string $date): Response
     {
         $link = $this->reader->resolve($token);
 
@@ -128,21 +149,31 @@ final class SharedCalendarController extends AbstractController
         // than a counter or an address.
         $this->em->flush();
 
-        $view = $this->reader->read($link, $now);
+        $shared = $this->reader->read($link, $now);
 
         return $this->render('sharing/shared_calendar.html.twig', [
-            'view'       => $view,
-            'month'      => $this->months->build($view, $request->query->getString('month') ?: null, $now),
+            // `shared`, not `view`: the shells this page renders through are the
+            // authenticated calendar's, and there `view` is the CalendarView
+            // enum. Two meanings for one name across four templates is how a
+            // switcher ends up highlighting whatever `view.value` happened to
+            // answer.
+            'shared'     => $shared,
+            'range'      => $this->ranges->build($shared, CalendarView::from($view), $this->anchor($request, $date), $now),
             'token'      => $token,
             'icsPath'    => $this->generateUrl('app_shared_calendar_ics', ['token' => $token]),
             'appearance' => $this->appearance->forOwner($link->usr),
-            // Two shapes, the same vocabulary the `clock` global gives the
-            // authenticated app: compact inside a grid cell, where a
-            // meridiem costs a fifth of the width, and the full form in the
-            // day list, where "10:00–11:00" with no am on it is a meeting
-            // somebody misses by twelve hours.
+            // Three shapes, the same vocabulary the `clock` global gives the
+            // authenticated app — and passed explicitly rather than read from
+            // that global, because it resolves the SIGNED-IN user's clock and
+            // reaching for one here is reaching for a session. Compact inside a
+            // grid cell, where a meridiem costs a fifth of the width; the full
+            // form in an agenda row, where "10:00–11:00" with no am on it is a
+            // meeting somebody misses by twelve hours; and the hour form for a
+            // time-grid's gutter, where ":00" printed twenty-four times is
+            // noise.
             'chipTimeFormat' => $this->clocks->resolve(null)->timeCompact(),
             'rowTimeFormat'  => $this->clocks->resolve(null)->time(),
+            'hourFormat'     => $this->clocks->resolve(null)->hour(),
         ]);
     }
 
@@ -182,5 +213,29 @@ final class SharedCalendarController extends AbstractController
                 $this->ics->fileName(),
             ),
         ]);
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The day the page opens on: the one in the path, or the one an older link
+     * asked for by month.
+     *
+     * `?month=YYYY-MM` is what this page used before it had views, and it is
+     * still read because the URLs carrying it are in other people's mail. A month
+     * names a page rather than a day, so the first of it is the day that page
+     * opens on — and the builder normalises a month anchor to that same first day
+     * anyway. Anything unparseable falls through to null and the default, which
+     * is what a hand-edited public URL should get.
+     */
+    private function anchor(Request $request, ?string $date): ?string
+    {
+        if (null !== $date) {
+            return $date;
+        }
+
+        $month = $request->query->getString('month');
+
+        return 1 === preg_match('/^\d{4}-\d{2}$/', $month) ? $month . '-01' : null;
     }
 }

@@ -1,5 +1,6 @@
 {#
-One shared entry, as it appears in a cell of the public month grid.
+One shared entry, as it appears in a cell of the public month grid or a block of
+its week and day grids.
 
 The same object the app's own chip is: a coloured dot, the time, then whatever
 label is left over. It is NOT calendar/_event_chip.html.twig and cannot be —
@@ -24,30 +25,55 @@ SharedCalendarLeakTest reads the whole response body, so it would catch one —
 but it is written here as well, because the next person adding a hover hint
 should be told before the build tells them.
 
-Below `sm` the dot is the whole chip. Seven columns on a phone have room for a
-mark and not for a label, and the day list under the grid is where the detail
-is read — which is the honest version of the argument the old list-only page
-made, kept rather than thrown away.
+── Two shapes, one chip ─────────────────────────────────────────────────────
+
+`tall` is the time-grid's chip and is deliberately a set of classes rather than
+a second markup block, exactly as it is on the authenticated calendar's chip:
+the same dot, the same time, the same label, filling a box that has a height of
+its own instead of sitting on one line. Everything a chip IS stays one thing.
+
+The two differ in one more thing than the app's chip does, and it is the reason
+this note exists. Below `sm` the flat chip is the dot and nothing else: seven
+columns of a month grid on a phone have room for a mark and not for a label, and
+the agenda view is where the detail is read — which is the honest version of the
+argument the old list-only page made, kept rather than thrown away. A tall chip
+keeps its label at every width, because it is not in a 42-cell grid: it is in a
+day column that is the width of the page, or in a week whose narrowness the
+time-grid shell names as a known limitation and answers with the Day view.
 
 Variables:
   entry       SharedOccurrence  already redacted; may carry nothing but times
   zone        string            the owner's zone, which the grid is drawn in
   timeFormat  string            a PHP date() format, from the install's clock
+  tall        bool              optional, fill a positioned time-grid block
 #}
+{% set tall = tall|default(false) %}
+
 <div data-shared-entry
-     class="flex items-center gap-1.5 px-0.5 sm:px-1.5 py-0.5 rounded-md min-w-0
-            {{ entry.isDetailed ? 'bg-accent/10' : 'bg-sunken/60' }}">
+     class="flex gap-1.5 min-w-0
+            {{ entry.isDetailed ? 'bg-accent/10' : 'bg-sunken/60' }}
+            {{ tall
+                ? 'h-full items-start overflow-hidden rounded-md ring-1 ring-line px-1.5 py-0.5'
+                : 'items-center rounded-md px-0.5 sm:px-1.5 py-0.5' }}">
     <span data-shared-entry-mark
-          class="w-1.5 h-1.5 rounded-full shrink-0 {{ entry.isDetailed ? 'bg-accent' : 'bg-ink-faint' }}"
+          class="w-1.5 h-1.5 rounded-full shrink-0 {{ entry.isDetailed ? 'bg-accent' : 'bg-ink-faint' }}
+                 {{ tall ? 'mt-1.5' : '' }}"
           aria-hidden="true"></span>
 
     {% if not entry.isAllDay %}
-        <span class="hidden sm:inline shrink-0 text-[11px] tabular-nums text-ink-faint">
+        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint
+                     {{ tall ? 'leading-5' : 'hidden sm:inline' }}">
             {{ entry.startsAt|date(timeFormat, zone) }}
         </span>
     {% endif %}
 
-    <span class="hidden sm:block min-w-0 flex-1 truncate text-xs text-ink">
+    {# Truncated to one line in a cell, wrapped into the height it has in a
+       block. `truncate` is `overflow:hidden` plus `white-space:nowrap`, so
+       leaving it on a tall chip would waste every line but the first. #}
+    <span class="min-w-0 flex-1 text-xs text-ink
+                 {{ tall
+                    ? 'whitespace-normal break-words line-clamp-3 leading-4'
+                    : 'hidden sm:block truncate' }}">
         {{ entry.title ?? 'calendar.share.busy'|trans }}
     </span>
 </div>

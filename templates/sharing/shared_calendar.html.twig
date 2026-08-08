@@ -1,62 +1,118 @@
 {#
 sharing/shared_calendar.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Somebody's calendar, as much of it as their link reveals — drawn as a calendar.
+Somebody's calendar, as much of it as their link reveals — drawn as a calendar,
+in the same four views the owner has.
 
-**This template cannot leak, and the reason is what it is given.** `month.days`
-and `view.days` hold SharedOccurrence objects, not events: on a busy/free link
-their `title`, `location` and `description` are already null and `participants`
-is already empty, decided once in ShareLinkReader against the link's checkboxes
-AND the event's own privacy. So there is no `if` here that could be forgotten,
-no tooltip that could carry a subject, and no data attribute that could carry
-one into JavaScript. Adding a field to this page means adding it to the DTO
-first, which is where the decision about revealing it has to be made.
+**This template cannot leak, and the reason is what it is given.** `range.days`
+holds SharedOccurrence objects, not events: on a busy/free link their `title`,
+`location` and `description` are already null and `participants` is already
+empty, decided once in ShareLinkReader against the link's checkboxes AND the
+event's own privacy. So there is no `if` here that could be forgotten, no tooltip
+that could carry a subject, and no data attribute that could carry one into
+JavaScript. Adding a field to this page means adding it to the DTO first, which
+is where the decision about revealing it has to be made.
 
-The month grid is a rearrangement of exactly those objects and nothing else —
-see SharedCalendarMonthBuilder, which has no repository and could not fetch more
+Every view below is a rearrangement of exactly those objects and nothing else —
+see SharedCalendarRangeBuilder, which has no repository and could not fetch more
 if it wanted to.
 
 The counterpart rule: nothing below may reach for `app.user`, a session, or a
-CSRF token. See sharing/_layout.html.twig for why.
+CSRF token. See sharing/_layout.html.twig for why. That is also why the chosen
+view is in the URL rather than in client state, and why the clock formats arrive
+as variables instead of through the `clock` global, which resolves the
+signed-in user's preference and therefore asks who is asking.
 
-── A grid AND a list, which is a change of mind, recorded ──────────────────
+── Four views, drawn by the owner's own calendar ────────────────────────────
 
-This page used to be a list of days and nothing else, on the argument that a
-grid needs a viewport, a scroll position and a zone control to be readable and
-that this page is opened once, usually on a phone, by somebody who was asked to
-look at it. That argument was right about phones and wrong about everything
-else: a calendar that arrives as a list does not look like a calendar, which is
-not what the person who sent the link thought they were sending.
+This page was a month grid with a day-by-day list appended under it, which was
+itself a correction of a page that had been a list and nothing else. The list
+was right that a calendar needs detail somewhere and wrong about where: appended
+below a grid it is a second reading of the same fortnight that nobody asked for
+twice, and it left the page as the one calendar in the application with no way to
+look at a week or a day.
 
-So both, from the same objects. The grid is the app's own month — literally, via
-calendar/_month_shell.html.twig — and carries a mark per entry. The list under
-it carries the detail, is the only thing worth reading on a narrow screen, and
-keeps the property the old page was built around: every shared day in the month
-is printed, including the empty ones, so "free on the 4th" is a thing the page
-says rather than a gap the reader has to notice.
+So the list has become the AGENDA — one of four views, reached from a switcher,
+exactly as in the calendar it is a window onto. Nothing was thrown away: the
+property the old list was built around is kept inside that view, where every
+shared day in range is printed including the empty ones, so "free on the 4th" is
+a thing the page says rather than a gap the reader has to notice.
+
+**All four are the application's own partials**, not lookalikes:
+calendar/_toolbar_shell, _month_shell, _time_grid_shell and _agenda_shell, each
+of which the authenticated calendar renders through as well. That is deliberate
+to the point of being the constraint the rest of this file is arranged around —
+two calendars drawn by two sets of templates drift on the first change to either,
+and a public page that looks like a calendar from a different product is exactly
+the complaint the shells exist to answer. What this page fills in are the parts
+that are about a calendar nobody is signed in to: a chip with no editor behind
+it, an agenda row of redacted detail, and the words for a day that is not
+published at all.
+
+A busy/free link gets all four views too. The DTOs make that safe without a
+single branch here: an entry with nothing revealed renders as the localised
+"Busy" wherever a title would go, which is what _entry_chip and _entry_row
+already do.
 
 ── Days outside the window are not free days ───────────────────────────────
 
-A month has 42 cells; a rolling link publishes fourteen days. The cells the link
-does not cover are drawn dimmed, absent from the list, and named in a legend,
-because a blank cell that looked like a free one would make this page claim
-something about its owner's diary that its owner never published. Paging is
-bounded to the months the window actually touches for the same reason.
+A month has 42 cells; a week has seven columns; a rolling link publishes
+fourteen days. The days the link does not cover are drawn dimmed in the grids,
+absent from the agenda, and named in a legend on every view, because a blank cell
+or an empty column that looked free would make this page claim something about
+its owner's diary that its owner never published. In the time-grids they are
+drawn without hour lines and say so in words, because twenty-four ruled empty
+rows are precisely what a reader reads an availability off.
+
+Paging is bounded to the pages the window actually publishes, in both directions
+and on all four views; a step that would leave it is a disabled span rather than
+a missing button, so the row does not change shape as you page.
+
+── "Today", conditionally ──────────────────────────────────────────────────
+
+The authenticated toolbar always offers a "today" button. This page dropped it
+when it was month-only, on the argument that a control which does nothing
+whenever the window does not contain today is a control that lies about what it
+does. That argument is kept and narrowed rather than reversed: the button is
+rendered exactly when today is inside the published window, which is the case
+for every rolling link and for a fixed one that is currently running, and omitted
+when there is nowhere for it to go. It is worth having back because a week and a
+day view can be paged well away from today in a way a single month could not.
+SharedCalendarRange::$today is the whole of the decision.
 
 Variables:
-  view            SharedCalendarView   window, zone, and days keyed Y-m-d
-  month           SharedCalendarMonth  those days as a 42-cell grid, plus the steps
-  token           string               this link's own URL segment, for the paging
+  shared          SharedCalendarView   window, zone, and days keyed Y-m-d. Named
+                                       `shared` because the shells call the
+                                       CalendarView enum `view`
+  range           SharedCalendarRange  this page: which view, its days, its
+                                       placements and where its paging stops
+  token           string               this link's own URL segment, for the links
   icsPath         string               where the same window is downloadable
   appearance      PublicAppearance     the owner's theme
   chipTimeFormat  string               a PHP date() format for a grid cell: compact
-  rowTimeFormat   string               the same clock, spelled in full, for the list
+  rowTimeFormat   string               the same clock, spelled in full, for a row
+  hourFormat      string               and again as an axis label, for the gutter
 #}
 {% extends 'sharing/_layout.html.twig' %}
 
 {% block container_class %}max-w-3xl{% endblock %}
 
 {% block body %}
+    {# Every link on this page names the same view and differs only in its date,
+       or names the same date and differs only in its view. Built once here so
+       the toolbar embed below stays a list of URLs rather than a nest of
+       path() calls. #}
+    {% set viewUrls = {} %}
+    {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+        {% set viewUrls = viewUrls|merge({
+            (candidate.value): path('app_shared_calendar_show', {
+                token: token,
+                view: candidate.value,
+                date: range.anchor|date('Y-m-d'),
+            }),
+        }) %}
+    {% endfor %}
+
     <header class="mb-4">
         <h1 class="text-lg font-semibold text-ink">{{ 'calendar.share.heading'|trans }}</h1>
 
@@ -69,8 +125,8 @@ Variables:
            where it was finally caught. #}
         <p class="mt-1 text-sm text-ink-muted">
             {{ 'calendar.share.window_label'|trans({
-                '%from%': view.from|date('j M Y'),
-                '%to%': view.to|date_modify('-1 day')|date('j M Y'),
+                '%from%': shared.from|date('j M Y'),
+                '%to%': shared.to|date_modify('-1 day')|date('j M Y'),
             }) }}
         </p>
 
@@ -81,10 +137,10 @@ Variables:
                single most reliable way to make somebody miss a meeting. #}
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1 text-xs text-ink-muted">
                 <i class="fa-regular fa-clock text-[10px]" aria-hidden="true"></i>
-                {{ 'calendar.share.zone'|trans({ '%zone%': view.zone }) }}
+                {{ 'calendar.share.zone'|trans({ '%zone%': shared.zone }) }}
             </span>
 
-            {% if view.isBusyFreeOnly %}
+            {% if shared.isBusyFreeOnly %}
                 <span class="inline-flex items-center gap-1.5 rounded-lg bg-sunken px-2.5 py-1 text-xs text-ink-muted">
                     <i class="fa-solid fa-eye-slash text-[10px]" aria-hidden="true"></i>
                     {{ 'calendar.share.busy_free_only'|trans }}
@@ -94,70 +150,148 @@ Variables:
     </header>
 
     <section class="rounded-pane border border-line overflow-hidden bg-surface">
-        {# The toolbar of a read-only calendar: where you are, and the two ways
-           out of it. No view switcher — a link publishes one window and there is
-           no second arrangement of it to offer — and no "today", which would be
-           a control that does nothing whenever the window does not contain it.
-           A step that leaves the window is rendered as a disabled span rather
-           than omitted, so the row does not change shape as you page. #}
-        <div class="flex items-center gap-2 px-3 py-1 border-b border-line min-h-[var(--pane-header-h)]">
-            <div class="flex items-center gap-0.5 shrink-0">
-                {% if month.previous is not null %}
-                    <a href="{{ path('app_shared_calendar_show', { token: token, month: month.previous }) }}"
-                       class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-                       aria-label="{{ 'calendar.nav.previous'|trans }}"
-                    ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
-                {% else %}
-                    <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
-                          aria-hidden="true"
-                    ><i class="fa-solid fa-chevron-left text-xs"></i></span>
-                {% endif %}
+        {# `spanLabel` for the agenda as well as the week: an agenda page here is
+           a bounded slice of the published window rather than the authenticated
+           agenda's endless rolling list, so its two ends are what "where you
+           are" means. #}
+        {% embed 'calendar/_toolbar_shell.html.twig' with {
+            view:      range.view,
+            anchor:    range.anchor,
+            rangeFrom: range.from,
+            rangeTo:   range.to,
+            prevUrl:   range.previous is null ? null : path('app_shared_calendar_show', {
+                           token: token, view: range.view.value, date: range.previous,
+                       }),
+            nextUrl:   range.next is null ? null : path('app_shared_calendar_show', {
+                           token: token, view: range.view.value, date: range.next,
+                       }),
+            todayUrl:  range.today is null ? null : path('app_shared_calendar_show', {
+                           token: token, view: range.view.value, date: range.today,
+                       }),
+            viewUrls:  viewUrls,
+            spanLabel: range.view.value == 'week' or range.view.value == 'agenda',
+        } %}{% endembed %}
 
-                {% if month.next is not null %}
-                    <a href="{{ path('app_shared_calendar_show', { token: token, month: month.next }) }}"
-                       class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-                       aria-label="{{ 'calendar.nav.next'|trans }}"
-                    ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
-                {% else %}
-                    <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
-                          aria-hidden="true"
-                    ><i class="fa-solid fa-chevron-right text-xs"></i></span>
-                {% endif %}
-            </div>
+        {% if range.view.value == 'month' %}
+            {# `auto-rows` rather than the authenticated calendar's `h-full`: that
+               grid lives in a pane with a height of its own to divide up, and this
+               one is in a document that is as tall as it needs to be. A minimum per
+               row is what stops a quiet month collapsing into six thin stripes. #}
+            {% embed 'calendar/_month_shell.html.twig' with {
+                dayKeys: range.dayKeys,
+                days: range.gridDays,
+                anchorMonth: range.anchor|date('n'),
+                today: range.today ?? '',
+                shellOuterClass: 'flex flex-col',
+                shellRowsClass: 'auto-rows-[minmax(3.25rem,auto)] sm:auto-rows-[minmax(5.5rem,auto)]',
+            } %}
+                {% block cell_body %}
+                    <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden">
+                        {% for entry in dayEntries|slice(0, 3) %}
+                            {% include 'sharing/_entry_chip.html.twig' with {
+                                entry: entry,
+                                zone: shared.zone,
+                                timeFormat: chipTimeFormat,
+                            } only %}
+                        {% endfor %}
 
-            <h2 class="text-sm font-medium text-ink truncate min-w-0">{{ month.anchor|date('F Y') }}</h2>
-        </div>
+                        {% if dayEntries|length > 3 %}
+                            {# A count and not a link. The authenticated cell links
+                               to its own day view here; this one would too, except
+                               that a spill-in cell of a month grid can be a day the
+                               window does not publish, and a "3 more" that led to a
+                               dimmed empty day would be worse than a number. The
+                               switcher above reaches the day view for any date the
+                               link covers. #}
+                            <p class="px-0.5 sm:px-1.5 text-[10px] sm:text-[11px] text-ink-faint">
+                                {{ 'calendar.more_count'|trans({ '%count%': dayEntries|length - 3 }) }}
+                            </p>
+                        {% endif %}
+                    </div>
+                {% endblock %}
+            {% endembed %}
 
-        {# `auto-rows` rather than the authenticated calendar's `h-full`: that
-           grid lives in a pane with a height of its own to divide up, and this
-           one is in a document that is as tall as it needs to be. A minimum per
-           row is what stops a quiet month collapsing into six thin stripes. #}
-        {% embed 'calendar/_month_shell.html.twig' with {
-            dayKeys: month.dayKeys,
-            days: month.gridDays,
-            anchorMonth: month.anchor|date('n'),
-            today: 'now'|date('Y-m-d', view.zone),
-            shellOuterClass: 'flex flex-col',
-            shellRowsClass: 'auto-rows-[minmax(3.25rem,auto)] sm:auto-rows-[minmax(5.5rem,auto)]',
-        } %}
-            {% block cell_body %}
-                <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden">
-                    {% for entry in dayEntries|slice(0, 3) %}
+        {% elseif range.view.isTimeGrid %}
+            {# A height, because a document has none to divide up and 24 hours of
+               rows would otherwise run the page to about 1200px of mostly empty
+               grid with the legend and the subscribe link below the fold. The
+               shell scrolls inside it and keeps its headings pinned, which is
+               what it does inside the owner's pane. #}
+            <div class="h-[32rem] sm:h-[36rem]">
+                {% embed 'calendar/_time_grid_shell.html.twig' with {
+                    dayKeys: range.dayKeys,
+                    grid: range.grid,
+                    zone: shared.zone,
+                    today: range.today ?? '',
+                    hourFormat: hourFormat,
+                } %}
+                    {% block all_day_entry %}
                         {% include 'sharing/_entry_chip.html.twig' with {
                             entry: entry,
-                            zone: view.zone,
+                            zone: shared.zone,
                             timeFormat: chipTimeFormat,
                         } only %}
-                    {% endfor %}
+                    {% endblock %}
 
-                    {% if dayEntries|length > 3 %}
-                        <p class="px-0.5 sm:px-1.5 text-[10px] sm:text-[11px] text-ink-faint">
-                            {{ 'calendar.more_count'|trans({ '%count%': dayEntries|length - 3 }) }}
-                        </p>
-                    {% endif %}
-                </div>
-            {% endblock %}
-        {% endembed %}
+                    {# No attributes block filled: a block on this grid has no
+                       event id, no recurrence id and nothing to drag, because a
+                       SharedOccurrence has no path back to the row it came from.
+                       That is the DTO's design, and it is why this page can
+                       render the same grid the owner drags events around in. #}
+                    {% block timed_entry %}
+                        {% include 'sharing/_entry_chip.html.twig' with {
+                            entry: entry,
+                            zone: shared.zone,
+                            timeFormat: chipTimeFormat,
+                            tall: true,
+                        } only %}
+                    {% endblock %}
+
+                    {% block column_unpublished %}
+                        <span class="rounded bg-surface/80 px-1 py-0.5 text-[10px] leading-tight text-ink-faint text-center">
+                            {{ 'calendar.share.not_shared'|trans }}
+                        </span>
+                    {% endblock %}
+                {% endembed %}
+            </div>
+
+        {% else %}
+            {# `showEmptyDays` is the property the page's old day list was built
+               around, kept inside the view that replaced it. See _agenda_shell's
+               header for why the owner's own agenda does the opposite. #}
+            {% embed 'calendar/_agenda_shell.html.twig' with {
+                dayKeys: range.dayKeys,
+                days: range.gridDays,
+                today: range.today ?? '',
+                showEmptyDays: true,
+            } %}
+                {% block day_entries %}
+                    <ul class="divide-y divide-line">
+                        {% for entry in dayEntries %}
+                            {% include 'sharing/_entry_row.html.twig' with {
+                                entry: entry,
+                                zone: shared.zone,
+                                timeFormat: rowTimeFormat,
+                            } only %}
+                        {% endfor %}
+                    </ul>
+                {% endblock %}
+
+                {% block day_empty %}
+                    <p class="text-sm text-ink-faint italic">{{ 'calendar.share.day_free'|trans }}</p>
+                {% endblock %}
+
+                {# Only reachable when the page holds no published day at all,
+                   which the clamping makes very hard to arrive at — kept because
+                   a list with no rows must say something rather than be a blank
+                   panel. #}
+                {% block empty_state %}
+                    <p class="px-4 py-10 text-center text-sm text-ink-faint italic">
+                        {{ 'calendar.share.empty'|trans }}
+                    </p>
+                {% endblock %}
+            {% endembed %}
+        {% endif %}
     </section>
 
     <p class="mt-2 flex items-center gap-1.5 text-[11px] text-ink-faint">
@@ -165,36 +299,13 @@ Variables:
         {{ 'calendar.share.outside_window'|trans }}
     </p>
 
-    {% if view.isEmpty %}
+    {# About the whole window rather than this page: a link with nothing in it
+       anywhere should say so once, on whichever view the reader lands on, rather
+       than leave them paging through a fortnight of empty days to find out. #}
+    {% if shared.isEmpty %}
         <p class="mt-6 rounded-pane border border-line px-4 py-10 text-center text-sm text-ink-faint italic">
             {{ 'calendar.share.empty'|trans }}
         </p>
-    {% else %}
-        <ol class="mt-6 space-y-4">
-            {% for day in month.sharedDays %}
-                <li class="rounded-pane border border-line overflow-hidden bg-surface">
-                    <h3 class="px-4 py-2 text-xs font-semibold text-ink-soft bg-sunken border-b border-line">
-                        {{ day.date|date('l, j F Y') }}
-                    </h3>
-
-                    {% if day.entries is empty %}
-                        <p class="px-4 py-3 text-sm text-ink-faint italic">
-                            {{ 'calendar.share.day_free'|trans }}
-                        </p>
-                    {% else %}
-                        <ul class="divide-y divide-line">
-                            {% for entry in day.entries %}
-                                {% include 'sharing/_entry_row.html.twig' with {
-                                    entry: entry,
-                                    zone: view.zone,
-                                    timeFormat: rowTimeFormat,
-                                } only %}
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ol>
     {% endif %}
 
     <footer class="mt-8 flex items-center justify-between gap-3 text-xs text-ink-faint">
