@@ -109,13 +109,15 @@ final readonly class SharedCalendarRangeBuilder
         }
 
         $today  = $now->setTimezone($zone)->modify('midnight');
-        $anchor = $this->anchor($which, $date, $firstDay, $lastDay, $today);
+        $focus  = $this->focus($date, $firstDay, $lastDay, $today);
+        $anchor = $this->anchor($which, $focus);
 
         [$from, $to] = $which->range($anchor);
 
         return new SharedCalendarRange(
             view:     $which,
             anchor:   $anchor,
+            focus:    $focus->format('Y-m-d'),
             from:     $from,
             to:       $to,
             days:     $this->days($view, $which, $anchor, $from, $to, $firstDay, $lastDay),
@@ -129,17 +131,22 @@ final readonly class SharedCalendarRangeBuilder
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * Which day the page opens on: the one asked for, else today, else the
-     * window's first — each clamped into the window and then normalised to what
-     * its view means by an anchor.
+     * The day the reader is looking at: the one asked for, else today, else the
+     * window's first — clamped into the window, and nothing more.
      *
      * Today first among the fallbacks because a rolling link is nearly always
      * read on the day it is opened, and a page that opened on the window's first
      * day would be right and useless for a link that starts next quarter — which
      * the fallback behind it then answers.
+     *
+     * Kept separate from [anchor] deliberately, because the two answer different
+     * questions and the switcher needs this one: the month page a reader reached
+     * by asking for the 23rd is anchored on the 1st, and its link to day view
+     * must carry the 23rd. Building the switcher from the anchor sent every
+     * month reader to day view of the 1st — and when the 1st fell outside a
+     * rolling window, to a day the reader never asked about at all.
      */
-    private function anchor(
-        CalendarView      $which,
+    private function focus(
         ?string           $date,
         DateTimeImmutable $firstDay,
         DateTimeImmutable $lastDay,
@@ -148,19 +155,25 @@ final readonly class SharedCalendarRangeBuilder
         $requested = $this->parse($date, $firstDay->getTimezone())
             ?? ($today >= $firstDay && $today <= $lastDay ? $today : $firstDay);
 
-        $clamped = $requested < $firstDay ? $firstDay : ($requested > $lastDay ? $lastDay : $requested);
+        return $requested < $firstDay ? $firstDay : ($requested > $lastDay ? $lastDay : $requested);
+    }
 
-        // Normalised so that a step is a step and not a rollover. `+1 month` on
-        // the 31st is 3 March and PHP will do it silently; from the first of the
-        // month it is the month after, every time. A week is anchored on its own
-        // Monday for the same reason — two anchors in the same week must produce
-        // the same page, or the "next" link from a Wednesday would land on the
-        // following Wednesday and draw a week overlapping the one it came from.
+    /**
+     * The focus, normalised to what this view means by an anchor — so that a
+     * step is a step and not a rollover. `+1 month` on the 31st is 3 March and
+     * PHP will do it silently; from the first of the month it is the month
+     * after, every time. A week is anchored on its own Monday for the same
+     * reason — two anchors in the same week must produce the same page, or the
+     * "next" link from a Wednesday would land on the following Wednesday and
+     * draw a week overlapping the one it came from.
+     */
+    private function anchor(CalendarView $which, DateTimeImmutable $focus): DateTimeImmutable
+    {
         return match ($which) {
-            CalendarView::Month        => $clamped->modify('first day of this month'),
-            CalendarView::Week         => $clamped->modify('monday this week'),
+            CalendarView::Month        => $focus->modify('first day of this month'),
+            CalendarView::Week         => $focus->modify('monday this week'),
             CalendarView::Day,
-            CalendarView::Agenda       => $clamped,
+            CalendarView::Agenda       => $focus,
         };
     }
 

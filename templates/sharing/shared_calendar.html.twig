@@ -101,14 +101,20 @@ Variables:
     {# Every link on this page names the same view and differs only in its date,
        or names the same date and differs only in its view. Built once here so
        the toolbar embed below stays a list of URLs rather than a nest of
-       path() calls. #}
+       path() calls.
+
+       `range.focus`, not `range.anchor`: the anchor is normalised to the view —
+       the 1st for a month, Monday for a week — and a switcher built from it
+       sent every month reader to day view of the 1st, which on a rolling
+       window can be a day the link does not even publish. The focus is the
+       date the reader actually asked about, clamped and nothing more. #}
     {% set viewUrls = {} %}
     {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
         {% set viewUrls = viewUrls|merge({
             (candidate.value): path('app_shared_calendar_show', {
                 token: token,
                 view: candidate.value,
-                date: range.anchor|date('Y-m-d'),
+                date: range.focus,
             }),
         }) %}
     {% endfor %}

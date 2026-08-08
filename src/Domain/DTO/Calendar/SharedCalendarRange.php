@@ -54,10 +54,20 @@ final readonly class SharedCalendarRange
      *                                          today, else null — the toolbar
      *                                          renders no "today" button when
      *                                          there is nowhere for it to go
+     * @param string                  $focus    'Y-m-d' the reader is looking at:
+     *                                          clamped into the window but NOT
+     *                                          normalised to what this view means
+     *                                          by an anchor. The switcher's links
+     *                                          carry this, not $anchor — a month
+     *                                          page anchored on the 1st was asked
+     *                                          for by somebody looking at the
+     *                                          23rd, and switching to day view
+     *                                          must open the 23rd, not the 1st
      */
     public function __construct(
         public CalendarView      $view,
         public DateTimeImmutable $anchor,
+        public string            $focus,
         public DateTimeImmutable $from,
         public DateTimeImmutable $to,
         public array             $days,
