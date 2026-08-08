@@ -6,6 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.20 — 2026-08-08
+
+**No schema changes.** Templates, one controller, and the calendar's layout
+plumbing; nothing touches a table.
+
+**A shared calendar is a calendar now.** The public share page grows the same
+four views the owner has — month, week, day and agenda — with a switcher whose
+every view is a plain link, because the page has no session to keep a choice
+in and must not acquire one. The day-by-day list that used to trail under the
+grid is gone; it became the agenda view. Days the link does not publish stay
+visibly "not shared" in every view, paging still stops at the window's edges,
+and busy/free links get all four views with nothing more to leak: the grid's
+layout engine asks entries only for a start, an end and whether they run all
+day, so it structurally cannot place a title anywhere.
+
+**Both calendars now render through the same shells.** The toolbar, time grid
+and agenda were extracted out of the authenticated calendar and both pages
+draw through them — a restyle of one is a restyle of both, and the shared page
+can no longer drift out of looking like plMail.
+
+**Three bugs fell out of building it.** A shared page shown in the owner's
+zone captioned a Berlin August as "July 2026" (the owner's own calendar was
+shielded by middleware the public page rightly lacks); the shared agenda's
+back-step was built from a phrase PHP accepts and does not mean, so stepping
+backwards silently refused; and one long multi-day entry could cost a public
+GET millions of date additions — the spread is now bounded by the page being
+drawn. Switching views also keeps your place now: the switcher carries the day
+you were looking at, not the first of the month it was filed under.
+
 ## v0.0.19 — 2026-08-07
 
 **No schema changes.** Everything below lands in code and templates; nothing
