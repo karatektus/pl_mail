@@ -980,6 +980,7 @@ calendar:
             once: >-
                 Kopiere sie jetzt. Sie wird nirgends gespeichert, also ist dies
                 die einzige Gelegenheit.
+        not_shared: Nicht geteilt
         outside_window: Tage außerhalb des geteilten Zeitraums
         page_title: Geteilter Kalender
         reveals: 'Zeigt %details%'

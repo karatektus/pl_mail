@@ -1,10 +1,17 @@
 {#
-One shared entry, as a line in the day list under the month grid.
+One shared entry, as a line in the shared calendar's agenda.
 
 This is where the detail is actually read — the location, the people, the note —
 because a month cell has room for a title and nothing else, and on a phone not
-even that. The grid says WHEN somebody is busy at a glance; this says what the
-link was ticked to say about it.
+even that. The grids say WHEN somebody is busy at a glance; this says what the
+link was ticked to say about it. It was the row of the day list printed under the
+month grid, and it is now the row of the agenda VIEW: the same job, reached by
+the switcher rather than by scrolling past a calendar.
+
+It carries no horizontal padding of its own, because it sits in the date rail's
+right-hand column in calendar/_agenda_shell.html.twig and that column is already
+inset. Padding here would put the times a second step in from the rail on the
+agenda and nowhere else.
 
 The branch below is on `entry.isDetailed()` rather than on the link's settings,
 and that is the load-bearing part of this file. A private event inside an
@@ -22,7 +29,7 @@ Variables:
   zone        string
   timeFormat  string
 #}
-<li class="flex items-baseline gap-3 px-4 py-2.5">
+<li class="flex items-baseline gap-3 py-1.5">
     <span class="shrink-0 tabular-nums text-xs font-medium text-ink-soft">
         {% if entry.isAllDay %}
             {{ 'calendar.share.all_day'|trans }}

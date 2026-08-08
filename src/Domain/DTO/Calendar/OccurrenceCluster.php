@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Calendar;
 
+use App\Domain\Interface\TimeGridEntryInterface;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEventOccurrence;
+use DateTimeImmutable;
 
 /**
  * The occurrences that draw one chip — one meeting, however many rows hold it.
@@ -47,7 +49,7 @@ use App\Entity\Calendar\CalendarEventOccurrence;
  * everything a chip draws and utterly unequal about provenance, and which of the
  * two leads is decided by a sort this class does not own.
  */
-final readonly class OccurrenceCluster
+final readonly class OccurrenceCluster implements TimeGridEntryInterface
 {
     /**
      * @param list<CalendarEventOccurrence> $members
@@ -84,6 +86,28 @@ final readonly class OccurrenceCluster
         }
 
         return new self($members[0], $members, $colors, $names, 1 < count($members));
+    }
+
+    /**
+     * Where a time-grid draws this, answered from the primary — which is the
+     * whole cluster's answer, because members that disagree about when they are
+     * have already been split apart by EventClusterer. See
+     * TimeGridEntryInterface for why the grid asks through an interface rather
+     * than reaching for the occurrence itself.
+     */
+    public function gridStartsAt(): ?DateTimeImmutable
+    {
+        return $this->primary->startsAt;
+    }
+
+    public function gridEndsAt(): ?DateTimeImmutable
+    {
+        return $this->primary->endsAt;
+    }
+
+    public function occupiesWholeDay(): bool
+    {
+        return true === $this->primary->event?->isAllDay;
     }
 
     /**

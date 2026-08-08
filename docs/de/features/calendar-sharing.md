@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sharing.md sha1:bd20ab63b8bfc9daac8a21995ad685c9669f3331 -->
+<!-- translated-from: features/calendar-sharing.md sha1:2c51faa4be0e13f0c009ee0e65d7f18715ffe626 -->
 
 # Teilen und Buchen
 
@@ -105,20 +105,37 @@ Datenattribut und keine `.ics`, die einen Titel tragen *könnte*, den der Link n
 
 ### Was die empfangende Person sieht
 
-Ein Monatsraster, gezeichnet mit denselben Wochen, Chips und Tagesmarkierungen wie dein eigener
-Kalender, und darunter eine Liste der Tage, die es abdeckt. Die Zeiten werden in deiner Zone gezeigt
-und als solche benannt. Ein Link **Zu deinem Kalender hinzufügen** gibt dasselbe Fenster als `.ics`
-heraus, damit die eigene Kalender-App es abonnieren kann. Ein Fenster, in dem nichts steht, sagt *In
-diesem Zeitraum nichts*, und ein abgedeckter Tag ohne Eintrag sagt *An diesem Tag nichts*, statt
-übersprungen zu werden. Eine einzelne Seite zeichnet höchstens 2000 Einträge.
+Ein Kalender, mit denselben vier Ansichten, die auch dein eigener hat — **Tag, Woche, Monat** und
+**Agenda** — und einem Umschalter dazwischen, gezeichnet von denselben Vorlagen wie dein eigener
+Kalender: dieselben Wochen und Tagesmarkierungen im Monat, dieselben Stunden und platzierten Blöcke in
+Woche und Tag, dieselbe Datumsspalte in der Agenda. Sie öffnet im Monat. Die Zeiten werden in deiner
+Zone gezeigt und als solche benannt. Ein Link **Zu deinem Kalender hinzufügen** gibt dasselbe Fenster
+als `.ics` heraus, damit die eigene Kalender-App es abonnieren kann. Ein Fenster, in dem nichts steht,
+sagt *In diesem Zeitraum nichts*. Eine einzelne Seite zeichnet höchstens 2000 Einträge.
 
-Das Raster ist ein Kalendermonat; dein Link veröffentlicht ein Fenster. Wo die beiden auseinandergehen
-— und bei zwei rollenden Wochen ist das der größte Teil des Monats — werden die Tage, die dein Link
-nicht abdeckt, gedimmt gezeichnet und in einer Legende als **Tage außerhalb des geteilten Zeitraums**
-benannt. Dieser Unterschied ist keine Kosmetik: Eine leere Zelle, die wie ein freier Tag aussähe,
-ließe die Seite behaupten, du seiest an Tagen frei, die du nie veröffentlicht hast. Aus demselben
-Grund reichen die Schritte ◀ ▶ nur bis zu den Monaten, die dein Fenster wirklich berührt, und sind an
-den Enden ausgegraut, statt in einen Monat zu blättern, der leer aussähe.
+Welche Ansicht auf dem Schirm ist, gehört zur Adresse — `/share/<Adresse>/week/2026-08-10` —, also ist
+jede Ansicht ein Link, den man sich merken oder weitergeben kann, und der Zurück-Knopf funktioniert.
+Das ist keine Geschmacksfrage: Eine geteilte Seite startet keine Sitzung, es gibt also keinen anderen
+Ort, an dem „welche Ansicht“ leben könnte.
+
+Die **Agenda** ist der Ort, an dem die Einzelheiten gelesen werden, und sie ist das, was früher die
+Liste der Tage unter dem Monatsraster war. Sie behält deren eine besondere Eigenschaft: Jeder Tag, den
+dein Fenster abdeckt, wird gezeigt, auch die leeren, sodass ein Tag ohne Eintrag *An diesem Tag nichts*
+sagt, statt übersprungen zu werden. Deine eigene Agenda macht das Gegenteil und überspringt sie, weil
+dort die Dichte der Punkt ist; auf einer geteilten Seite muss „am 4. frei“ etwas sein, das die Seite
+sagt, und keine Lücke, die die lesende Person erst bemerken muss.
+
+Dein Link veröffentlicht ein Fenster, und keine Ansicht davon ist genau dieses Fenster: Ein Monat hat
+42 Zellen, eine Woche sieben Spalten. Wo die beiden auseinandergehen — und bei zwei rollenden Wochen
+ist das der größte Teil eines Monats — werden die Tage, die dein Link nicht abdeckt, gedimmt
+gezeichnet, in einer Legende als **Tage außerhalb des geteilten Zeitraums** benannt und in der Wochen-
+und Tagesansicht mit **Nicht geteilt** beschriftet und ohne Stundenlinien gezeichnet. Dieser
+Unterschied ist keine Kosmetik: Eine leere Zelle — oder eine leere Spalte mit vierundzwanzig
+gezeichneten Stunden darin — ließe die Seite behaupten, du seiest an Tagen frei, die du nie
+veröffentlicht hast. Aus demselben Grund reichen die Schritte ◀ ▶ nur bis zu den Seiten, die dein
+Fenster wirklich veröffentlicht, und sind an den Enden ausgegraut, statt in eine Woche oder einen
+Monat zu blättern, die leer aussähen. Ein **Heute**-Knopf erscheint nur, wenn dein Fenster den
+heutigen Tag enthält — ein Knopf, der nichts tut, wäre schlimmer als keiner.
 
 Chips tragen bewusst keine Kalenderfarbe. Eine geteilte Seite sagt nichts über deine Kalender — nicht
 ihre Namen, nicht ihre Farben, nicht wie viele es sind — also wird jeder Chip stattdessen in deiner
@@ -134,8 +151,11 @@ hinzufügte, die es versucht. Ein Konto, das nie gewählt hat, bekommt Papier �
 Konto beginnt. Ein auf *Dem System folgen* gesetztes Thema wird gegen den Rechner der lesenden Person
 aufgelöst, die Seite ist also hell wie dunkel lesbar.
 
-Auf dem Telefon behält das Raster die Form eines Monats und reduziert die Beschriftung in jeder Zelle
-auf eine Marke pro Eintrag; die Liste darunter ist, wo die Einzelheiten gelesen werden.
+Auf dem Telefon behält das Monatsraster die Form eines Monats und reduziert die Beschriftung in jeder
+Zelle auf eine Marke pro Eintrag; die Agenda ist, wo die Einzelheiten gelesen werden, und die
+Tagesansicht ist einen Fingertipp entfernt und zeigt eine einzige Stundenspalte über die volle Breite.
+Eine Woche mit sieben Spalten ist auf dem Telefon eng — dieselbe Einschränkung, die dein eigener
+Kalender hat, mit derselben Antwort.
 
 **Widerrufen** nimmt einen Link außer Betrieb, ohne die Zeile zu löschen, sodass dir der Nachweis
 bleibt; ein widerrufener Link ist in der Liste als solcher gekennzeichnet. **Löschen** entfernt ihn

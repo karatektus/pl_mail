@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Calendar;
 
+use App\Domain\Interface\TimeGridEntryInterface;
+
 /**
  * Where one chip sits on one day of a time-grid, as fractions of that day.
  *
@@ -27,11 +29,19 @@ namespace App\Domain\DTO\Calendar;
  * two an event running 23:00 to 01:00 would be indistinguishable from one that
  * genuinely stops at midnight, on both of the days it touches.
  *
+ * **$entry is an interface, and it was a cluster.** It was widened when the
+ * public shared calendar grew week and day views: those draw SharedOccurrence
+ * objects, which are redactions with no event behind them, and the alternative
+ * to widening was a second lane-assignment written beside this one that would
+ * have drifted from it on the first fix to either. What is placed is now
+ * whatever can answer TimeGridEntryInterface's three questions, and the caller
+ * that handed the entries over is the one that knows what to draw them as.
+ *
  * Deliberately not carrying the day it belongs to: the placements are handed
  * over keyed by day (see DayGrid), and repeating the key inside the value is a
  * second place for it to be wrong.
  */
-final readonly class PlacedCluster
+final readonly class PlacedEntry
 {
     /**
      * @param float $top    0.0 at local midnight, 1.0 at the next one
@@ -40,13 +50,13 @@ final readonly class PlacedCluster
      * @param int   $lanes  how many lanes the overlapping run this belongs to needed
      */
     public function __construct(
-        public OccurrenceCluster $cluster,
-        public float             $top,
-        public float             $height,
-        public int               $lane,
-        public int               $lanes,
-        public bool              $continuesBefore,
-        public bool              $continuesAfter,
+        public TimeGridEntryInterface $entry,
+        public float                  $top,
+        public float                  $height,
+        public int                    $lane,
+        public int                    $lanes,
+        public bool                   $continuesBefore,
+        public bool                   $continuesAfter,
     ) {
     }
 }

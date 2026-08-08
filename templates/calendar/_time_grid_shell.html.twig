@@ -1,0 +1,336 @@
+{#
+calendar/_time_grid_shell.html.twig — what a day or a week LOOKS like, with
+nothing in it.
+
+Extracted from _view_timegrid.html.twig when the public shared-calendar page
+grew week and day views, and for the same reason _month_shell was extracted
+before it: the two calendars draw different things in a column — one opens an
+editor on an event and can be dragged, the other prints a redacted block that
+has no event behind it to open — but the grid itself is the same object in both.
+A time gutter on the reader's clock, one equal column per day, an all-day band
+that is always there, hour lines, the current-time line, and a block positioned
+by fractions of a day.
+
+It is a shell rather than a copy because that list is the visual identity of
+this application's calendar. Copied into a second file it drifts on the first
+change to either, and the public page ends up looking like a calendar from a
+different product — which is exactly the complaint that produced the shared
+month grid.
+
+── Nothing session-shaped may be added below ────────────────────────────────
+
+This file is rendered by a page that must not start a session: sharing/'s pages
+have their own layout precisely because a `csrf_token()` call sets a cookie on a
+URL anybody can fetch. So nothing here may reach for `app.user`, a session, a
+CSRF token or the `clock` global — that last one resolves the *signed-in* user's
+clock, which is why the hour format arrives as $hourFormat instead. Everything
+about editing lives in the caller's blocks, which the sharing side simply does
+not fill.
+
+── Positions come from the server, as percentages ───────────────────────────
+
+$grid is a DayGrid per day: the all-day entries lifted out, and the timed ones
+each carrying top, height, lane and lanes as fractions of a 24-hour column.
+Fractions rather than pixels so the same numbers stay correct at whatever height
+the column ends up with, and server-side so the grid is right on the first paint
+rather than jumping into place once JavaScript has run — and so a reader with
+JavaScript off gets a readable calendar instead of a pile of blocks at midnight.
+See DayGridLayout for how the lanes are assigned and what DST does to the axis.
+
+**An INSTANT printed here names its zone; a wall date must not.** Twig's date
+filter defaults to whatever zone the environment is set to, and the placements
+were computed against the calendar's — an hour label drawn on one clock over
+blocks positioned on another is the one failure mode of this view that looks
+completely fine, which is why `nowMinute` below is read in $zone. The day keys
+are the opposite case and the comment beside them says so: they are wall dates
+as strings, and converting one into $zone re-reads it as an instant and can move
+it onto the day before. The two rules look contradictory and are the same rule —
+format a value in the zone it is already expressed in.
+
+**The all-day band is always drawn, even when it is empty.** Showing it only on
+weeks that have one makes the grid jump by a row as you page through, and the
+row is a permanent part of the axis — it is where "this event has no time" is
+expressible at all.
+
+**A known limitation, stated rather than hidden: a seven-day week is tight below
+about 640px.** The columns divide whatever width there is, so on a phone, or in
+a narrow docked pane, each is around fifty pixels and a block says its colour
+and little else. It is not solved here because the only fixes are
+disproportionate — a horizontal scroll means either three scroll containers kept
+in step by JavaScript or rewriting the three grids below as one with sticky rows
+and a sticky gutter. What answers it instead is that neither width is forced on
+anyone: the pane opens on the agenda, Day view is one tap away in the toolbar
+and is a single full-width column, and the pane's own handle widens it as far as
+the window allows. The shared page has the same escape for the same reason.
+Worth revisiting; not worth guessing at.
+
+── A column the caller is not publishing ────────────────────────────────────
+
+Same contract as _month_shell, in the same words: a $dayKey with no entry in
+$grid is a day the caller is not publishing, which is NOT the same as a day with
+nothing on it. The authenticated calendar always supplies every column it draws,
+so the branch costs it nothing; the shared page uses it to keep "outside the
+window" distinguishable from "free", which is the one thing that page must never
+confuse. Such a column is dimmed, marked `data-day-unpublished`, drawn with no
+hour lines to read an availability off, and given the caller's own words through
+the column_unpublished block.
+
+Embed it, do not include it:
+
+    {% embed 'calendar/_time_grid_shell.html.twig' with { ... } %}
+        {% block timed_entry %}…{% endblock %}
+    {% endembed %}
+
+Variables:
+  dayKeys          list<string>  one per column, Y-m-d, in order
+  grid             map           DayGrid keyed by those; a MISSING key means the
+                                 column is outside the range the caller is
+                                 publishing
+  zone             string        the clock the placements were computed on
+  today            string        Y-m-d in that zone, or '' for a grid that
+                                 should mark no column as today
+  hourFormat       string        a PHP date() format for one gutter label
+  shellOuterClass  string        optional, the frame's own sizing
+
+Blocks. All of them are rendered inside this template, so they read its
+variables — `dayKey`, and inside the two entry blocks `entry` and (for a timed
+one) `placed`:
+  grid_root_attributes    attributes on the outer element: a Stimulus controller
+                          and its actions, for a grid that is interactive
+  day_heading_actions     the right-hand end of a column heading
+  all_day_entry           one entry in the all-day band
+  timed_entry_attributes  attributes on the positioned block — an event id, a
+                          drag target. The style is this file's; anything that
+                          identifies what was placed is the caller's
+  timed_entry             what is drawn inside the positioned block
+  column_unpublished      what an unpublished column says
+  grid_footer             siblings after the scroller: hidden triggers, live
+                          regions, the forms and dialogs a drag commits through
+#}
+
+{% set shellOuterClass = shellOuterClass|default('h-full min-h-0 flex flex-col') %}
+
+{% set nowMinute = 'now'|date('G', zone) * 60 + 'now'|date('i', zone) %}
+
+{# The time gutter, then one equal column per day. minmax(0,1fr) rather than
+   1fr: a bare 1fr floors at the content's min-width, so one long untruncated
+   title would push a seven-day week wider than the pane and produce a
+   horizontal scrollbar over the whole calendar. #}
+{% set columnTemplate = '3.5rem repeat(' ~ dayKeys|length ~ ', minmax(0, 1fr))' %}
+
+<div class="{{ shellOuterClass }}" {% block grid_root_attributes %}{% endblock %}>
+    {# ── One scroll container, three grids ─────────────────────────────────
+       The day headings, the all-day band and the hours are all inside the
+       scroller, with the first two stuck to its top rather than sitting above
+       it as siblings.
+
+       That is the fix for a misalignment nobody could see the cause of: as
+       siblings, the two pinned rows were as wide as the pane and the hours were
+       as wide as the pane MINUS the scrollbar, so every day column below sat a
+       scrollbar's width left of its own heading. Reserving the gutter on the
+       other two is not expressible in CSS — `scrollbar-gutter` applies to
+       scroll containers and these are not — so the only honest answer is for
+       all three to be measured by the same box. Sharing one is also what makes
+       a horizontal scroll possible later, which is the open question in the
+       note at the top of this file.
+
+       The offsets are a fixed 2rem because a sticky element needs a number:
+       `top-0` for the headings, `top-8` for the band under them, and the
+       headings are given `h-8` so the two agree. #}
+    <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
+
+    {# ── The day headings ──────────────────────────────────────────────── #}
+    <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
+        <div class="border-r border-line" aria-hidden="true"></div>
+
+        {% for dayKey in dayKeys %}
+            {% set isOutside = grid[dayKey] is not defined %}
+            {% set isToday = dayKey == today and not isOutside %}
+
+            <div class="group/day flex items-baseline gap-1.5 px-2 border-r border-line
+                        {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
+                 data-calendar--time-grid-target="heading">
+                {# No zone on a day key, deliberately. $dayKey is a wall date as
+                   a string, so Twig parses it in its default zone and printing
+                   it in that same zone is the only reading that cannot move it.
+                   Converting it to $zone instead re-reads midnight-in-the-
+                   default as an instant, which for a calendar west of the
+                   default lands on the day before and numbers the whole header
+                   row wrong. $zone is for instants — see `nowMinute` above,
+                   which is one. #}
+                <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
+                    {{ dayKey|date('D') }}
+                </span>
+
+                {% if isToday %}
+                    <span class="w-5 h-5 -my-0.5 flex items-center justify-center rounded-full
+                                 bg-accent text-white text-xs font-semibold tabular-nums">
+                        {{ dayKey|date('j') }}
+                    </span>
+                {% else %}
+                    <span class="text-sm tabular-nums {{ isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
+                        {{ dayKey|date('j') }}
+                    </span>
+                {% endif %}
+
+                {# One add affordance per day, in the heading rather than 24 of
+                   them down the column: a tab stop per hour per day is 168 of
+                   them in a week, which makes the grid unusable by keyboard.
+                   Suppressed on an unpublished column, which has nothing to add
+                   to — and is never reached at all by a caller with no editor. #}
+                {% if not isOutside %}
+                    <span class="ml-auto">{% block day_heading_actions %}{% endblock %}</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {# ── All day ───────────────────────────────────────────────────────── #}
+    <div class="sticky top-8 z-10 grid border-b border-line bg-surface max-h-24 overflow-y-auto"
+         style="grid-template-columns: {{ columnTemplate }}">
+        <div class="border-r border-line px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint text-right">
+            {{ 'calendar.grid.all_day'|trans }}
+        </div>
+
+        {% for dayKey in dayKeys %}
+            {% set isOutside = grid[dayKey] is not defined %}
+
+            <div class="border-r border-line p-1 space-y-0.5 min-h-[1.75rem]
+                        {{ isOutside
+                            ? 'bg-sunken/20'
+                            : (dayKey == today ? 'bg-accent/5' : '') }}">
+                {% for entry in isOutside ? [] : grid[dayKey].allDay %}
+                    {% block all_day_entry %}{% endblock %}
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {# ── The hours ─────────────────────────────────────────────────────── #}
+        <div class="grid" style="grid-template-columns: {{ columnTemplate }}"
+             data-calendar--time-grid-target="hours">
+
+            {# The gutter's labels sit ON the hour line rather than inside the
+               row below it, which is why they are nudged up by half their own
+               height — a "10:00" printed at the top of the 10:00 row appears to
+               label the space between 10 and 11.
+
+               Formatted through $hourFormat rather than printed as digits, so
+               the axis reads "9 am" for anyone on a twelve-hour clock. The date
+               it is formatted FROM is arbitrary and must be — the label says
+               which hour, not which day — so it is built at midnight UTC and
+               read back in UTC, which is what `false` does here. Handing it the
+               reader's zone instead would shift every label by their offset and
+               produce a gutter starting at 02:00. #}
+            <div class="border-r border-line">
+                {% for hour in 0..23 %}
+                    <div class="relative h-12">
+                        {% if hour > 0 %}
+                            <span class="absolute -top-1.5 right-1.5 text-[10px] tabular-nums text-ink-faint">
+                                {{ ('2000-01-01 %02d:00:00'|format(hour))|date(hourFormat, false) }}
+                            </span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% for dayKey in dayKeys %}
+                {% set isOutside = grid[dayKey] is not defined %}
+                {% set isToday = dayKey == today and not isOutside %}
+
+                <div class="relative border-r border-line
+                            {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
+                     data-day="{{ dayKey }}"
+                     {% if isOutside %}data-day-unpublished{% endif %}
+                     {% if not isOutside %}data-calendar--time-grid-target="column"{% endif %}>
+
+                    {# No hour lines on an unpublished column, and that is not
+                       decoration either: twenty-four ruled empty rows are what
+                       a reader reads an availability off, and this column
+                       publishes none. It gets the caller's words instead,
+                       stuck to the top of the scroller so they are on screen
+                       wherever the reader has scrolled to. #}
+                    {% if isOutside %}
+                        <div class="sticky top-16 flex justify-center px-1 py-2">
+                            {% block column_unpublished %}{% endblock %}
+                        </div>
+                    {% else %}
+                        {% for hour in 0..23 %}
+                            <div class="h-12 border-b border-line/50" aria-hidden="true"></div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if isToday %}
+                        {# Rendered at the minute the page was built and never
+                           moved afterwards. A timer that crept it down the
+                           column would be a repaint a minute forever, on a view
+                           that is re-rendered by every navigation anyway. #}
+                        <div class="absolute left-0 right-0 h-px bg-danger pointer-events-none z-20"
+                             style="top: {{ (nowMinute * 100 / 1440)|round(4) }}%"
+                             aria-hidden="true">
+                            <span class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-danger"></span>
+                        </div>
+                    {% endif %}
+
+                    {# The blocks sit in their own layer over the hour lines, so
+                       the lines stay visible between and behind them. #}
+                    <div class="absolute inset-0">
+                        {% for placed in isOutside ? [] : grid[dayKey].timed %}
+                            {% set entry = placed.entry %}
+
+                            {# min-height is the floor a short meeting needs to
+                               be readable. A quarter of an hour is 1/96th of
+                               the column — about twelve pixels at the height
+                               this grid usually gets — and the chip inside
+                               wants twenty-four for one line of "9:00 Standup",
+                               so a fifteen-minute event drew a sliver with its
+                               own label spilling out of it. 1.75rem is the
+                               all-day lane's floor above, deliberately: one
+                               number for "the smallest a chip may be drawn".
+
+                               The floored block is then taller than its
+                               duration and can reach over the one after it.
+                               That is the right trade and not a compromise: the
+                               block's TOP is where the meeting starts and stays
+                               honest, only the padded bottom is a fiction, and
+                               the alternative — reflowing so short events push
+                               their neighbours down — would move a 10:00
+                               meeting off the 10:00 line, which is the one
+                               thing a time grid exists to get right. The
+                               overlap is drawn under the later block, because
+                               they are emitted in start order and the fiction
+                               is what gets covered.
+
+                               Presentational only. A drag reads the caller's own
+                               data-starts-at and data-ends-at, never the
+                               rendered box, so a floored block resizes from its
+                               real duration. #}
+                            <div class="absolute p-px"
+                                 style="top: {{ (placed.top * 100)|round(4) }}%;
+                                        height: {{ (placed.height * 100)|round(4) }}%;
+                                        min-height: 1.75rem;
+                                        left: {{ (placed.lane * 100 / placed.lanes)|round(4) }}%;
+                                        width: {{ (100 / placed.lanes)|round(4) }}%;"
+                                 {% block timed_entry_attributes %}{% endblock %}
+                            >
+                                {% block timed_entry %}{% endblock %}
+
+                                {% if placed.continuesBefore %}
+                                    <span class="absolute top-0 inset-x-0 h-0.5 bg-ink-faint/40 pointer-events-none"
+                                          title="{{ 'calendar.grid.continues_before'|trans }}"></span>
+                                {% endif %}
+
+                                {% if placed.continuesAfter %}
+                                    <span class="absolute bottom-0 inset-x-0 h-0.5 bg-ink-faint/40 pointer-events-none"
+                                          title="{{ 'calendar.grid.continues_after'|trans }}"></span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>{# /scroller #}
+
+    {% block grid_footer %}{% endblock %}
+</div>

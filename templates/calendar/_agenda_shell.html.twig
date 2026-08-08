@@ -1,0 +1,105 @@
+{#
+calendar/_agenda_shell.html.twig — what an agenda LOOKS like, with nothing in it.
+
+The third of the shells, after _month_shell and _time_grid_shell, and extracted
+for the same reason: a rail of dates down the left with whatever the caller
+draws beside each one. The authenticated calendar puts chips there that open an
+editor; the public shared page puts redacted rows there that have nothing to
+open. The rail — its width, its weekday-over-number-over-month stack, the way
+today is marked, the hairline between days — is the same object in both, and a
+copy of it drifts on the first change to either.
+
+**A fixed-width date rail is the whole visual idea**, so the entries line up
+down the list rather than starting wherever the weekday name happens to end.
+
+── Whether an empty day is printed is the caller's decision ─────────────────
+
+$showEmptyDays is false for the authenticated agenda: the value there is
+density, it is the docked pane's default view, and a fortnight of "nothing"
+between two events is noise — the grids are where an empty day still needs to
+occupy its place.
+
+It is true for the shared calendar, and that is not an inconsistency. A shared
+page is read by somebody deciding whether to ask its owner for an hour, so
+"free on the 4th" has to be a thing the page SAYS rather than a gap the reader
+has to notice and interpret. The property is older than this shell — it is what
+the shared page's day list did before the page had views at all — and it is
+carried here deliberately rather than lost in the move.
+
+── A day the caller is not publishing ───────────────────────────────────────
+
+Same contract as the other two shells: a $dayKey with no entry in $days is a day
+the caller is not publishing, which is NOT the same as a day with nothing on it.
+It is left out of the list entirely — there is no honest way to draw "I am not
+telling you about this day" as a row in a list of days, and the shared page
+names the state in a legend under the list instead.
+
+Embed it, do not include it:
+
+    {% embed 'calendar/_agenda_shell.html.twig' with { ... } %}
+        {% block day_entries %}…{% endblock %}
+    {% endembed %}
+
+Variables:
+  dayKeys        list<string>  the days in range, Y-m-d, in order
+  days           map           keyed by those; a MISSING key means the day is
+                               outside the range the caller is publishing
+  today          string        Y-m-d in the view's own zone, never the reader's
+  showEmptyDays  bool          optional, default false
+
+Blocks, rendered inside the day loop and able to read `dayKey` and `dayEntries`:
+  day_entries  what the day holds
+  day_empty    what a day with nothing on it says; only reachable when
+               showEmptyDays is true
+  empty_state  drawn instead of the whole list when it would have no rows
+#}
+
+{% set showEmptyDays = showEmptyDays|default(false) %}
+
+{# Which days get a row, resolved before the list is opened rather than counted
+   as it is drawn: the empty state is a decision about the WHOLE list, and a
+   template that discovers it was empty after printing the container has already
+   printed a container. #}
+{% set agendaRows = [] %}
+{% for dayKey in dayKeys %}
+    {% if days[dayKey] is defined and (showEmptyDays or days[dayKey]|length > 0) %}
+        {% set agendaRows = agendaRows|merge([dayKey]) %}
+    {% endif %}
+{% endfor %}
+
+{% if agendaRows is empty %}
+    {% block empty_state %}{% endblock %}
+{% else %}
+    <div class="divide-y divide-line" data-calendar-agenda>
+        {% for dayKey in agendaRows %}
+            {% set dayEntries = days[dayKey] %}
+            {% set isToday = dayKey == today %}
+
+            <div class="flex gap-3 px-3 py-2.5 {{ isToday ? 'bg-accent/5' : '' }}"
+                 data-day="{{ dayKey }}">
+                <div class="w-11 shrink-0 text-center">
+                    <div class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
+                        {{ dayKey|date('D') }}
+                    </div>
+                    {% if isToday %}
+                        <div class="mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full
+                                    bg-accent text-white text-sm font-semibold tabular-nums">
+                            {{ dayKey|date('j') }}
+                        </div>
+                    {% else %}
+                        <div class="mt-0.5 text-sm text-ink tabular-nums">{{ dayKey|date('j') }}</div>
+                    {% endif %}
+                    <div class="text-[10px] text-ink-faint">{{ dayKey|date('M') }}</div>
+                </div>
+
+                <div class="min-w-0 flex-1 self-center">
+                    {% if dayEntries|length > 0 %}
+                        {% block day_entries %}{% endblock %}
+                    {% else %}
+                        {% block day_empty %}{% endblock %}
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

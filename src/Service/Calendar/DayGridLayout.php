@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Service\Calendar;
 
 use App\Domain\DTO\Calendar\DayGrid;
-use App\Domain\DTO\Calendar\OccurrenceCluster;
-use App\Domain\DTO\Calendar\PlacedCluster;
+use App\Domain\DTO\Calendar\PlacedEntry;
+use App\Domain\Interface\TimeGridEntryInterface;
 use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Turning a day's clusters into positions on a time-grid.
+ * Turning a day's entries into positions on a time-grid.
  *
  * In PHP rather than in Twig or in the browser, for the same reason
  * CalendarRangeReader groups by day here: it is date arithmetic in a specific
@@ -43,6 +43,16 @@ use DateTimeZone;
  * resize one at 9am — and the widths then stop being readable as "this many
  * things are happening at once", which is the only thing the width is for.
  *
+ * **What is placed is a TimeGridEntryInterface, not an occurrence.** The
+ * authenticated calendar hands over OccurrenceCluster objects and the public
+ * shared page hands over SharedOccurrence objects, and this class cannot tell
+ * the difference because the interface gives it nothing to tell them apart by —
+ * two instants and "does the time axis apply". That is what lets one grid draw
+ * both calendars: the alternative was a second copy of the lane assignment on
+ * the sharing side, which would have drifted from this one on the first fix to
+ * either, and it is drift between those two grids that the whole shell
+ * extraction exists to prevent.
+ *
  * A cluster is placed by its primary's span, which is the whole cluster's:
  * members that disagree about when they are have already been split apart by
  * EventClusterer, so there is no second answer to choose between.
@@ -57,8 +67,8 @@ final readonly class DayGridLayout
     private const int MINUTES_IN_DAY = 1440;
 
     /**
-     * @param array<string, list<OccurrenceCluster>> $days keyed Y-m-d in $zone, as
-     *                                                     CalendarRangeReader groups them
+     * @param array<string, list<TimeGridEntryInterface>> $days keyed Y-m-d in $zone, as
+     *                                                          CalendarRangeReader groups them
      *
      * @return array<string, DayGrid> the same keys, in the same order
      */
@@ -66,8 +76,8 @@ final readonly class DayGridLayout
     {
         $placed = [];
 
-        foreach ($days as $dayKey => $clusters) {
-            $placed[$dayKey] = $this->placeDay($dayKey, $clusters, $zone);
+        foreach ($days as $dayKey => $entries) {
+            $placed[$dayKey] = $this->placeDay($dayKey, $entries, $zone);
         }
 
         return $placed;
@@ -76,9 +86,9 @@ final readonly class DayGridLayout
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * @param list<OccurrenceCluster> $clusters
+     * @param list<TimeGridEntryInterface> $entries
      */
-    private function placeDay(string $dayKey, array $clusters, DateTimeZone $zone): DayGrid
+    private function placeDay(string $dayKey, array $entries, DateTimeZone $zone): DayGrid
     {
         $dayStart = new DateTimeImmutable($dayKey . ' 00:00', $zone);
 
@@ -91,32 +101,32 @@ final readonly class DayGridLayout
         $allDay = [];
         $spans  = [];
 
-        foreach ($clusters as $cluster) {
-            if (true === $cluster->primary->event?->isAllDay) {
-                $allDay[] = $cluster;
+        foreach ($entries as $entry) {
+            if (true === $entry->occupiesWholeDay()) {
+                $allDay[] = $entry;
 
                 continue;
             }
 
-            $spans[] = $this->spanOf($cluster, $dayStart, $dayEnd, $zone);
+            $spans[] = $this->spanOf($entry, $dayStart, $dayEnd, $zone);
         }
 
         return new DayGrid($allDay, $this->assignLanes($spans));
     }
 
     /**
-     * One cluster clipped to one day, as a pair of minute offsets.
+     * One entry clipped to one day, as a pair of minute offsets.
      *
-     * @return array{cluster: OccurrenceCluster, from: int, to: int, before: bool, after: bool}
+     * @return array{entry: TimeGridEntryInterface, from: int, to: int, before: bool, after: bool}
      */
     private function spanOf(
-        OccurrenceCluster $cluster,
-        DateTimeImmutable $dayStart,
-        DateTimeImmutable $dayEnd,
-        DateTimeZone      $zone,
+        TimeGridEntryInterface $entry,
+        DateTimeImmutable      $dayStart,
+        DateTimeImmutable      $dayEnd,
+        DateTimeZone           $zone,
     ): array {
-        $starts = ($cluster->primary->startsAt ?? $dayStart)->setTimezone($zone);
-        $ends   = ($cluster->primary->endsAt ?? $starts)->setTimezone($zone);
+        $starts = ($entry->gridStartsAt() ?? $dayStart)->setTimezone($zone);
+        $ends   = ($entry->gridEndsAt() ?? $starts)->setTimezone($zone);
 
         $before = $starts < $dayStart;
 
@@ -129,14 +139,14 @@ final readonly class DayGridLayout
         $to   = $ends >= $dayEnd ? self::MINUTES_IN_DAY : $this->minuteOf($ends);
 
         return [
-            'cluster' => $cluster,
-            'from'    => $from,
+            'entry' => $entry,
+            'from'  => $from,
             // An end before its start is data to survive, not a condition to
             // raise — a negative height would be a block drawn upwards over the
             // ones above it.
-            'to'      => max($from, $to),
-            'before'  => $before,
-            'after'   => $ends > $dayEnd,
+            'to'     => max($from, $to),
+            'before' => $before,
+            'after'  => $ends > $dayEnd,
         ];
     }
 
@@ -159,9 +169,9 @@ final readonly class DayGridLayout
      * occupant has ended — greedy, which is optimal for interval colouring on a
      * list sorted by start, and is why the sort below is not incidental.
      *
-     * @param list<array{cluster: OccurrenceCluster, from: int, to: int, before: bool, after: bool}> $spans
+     * @param list<array{entry: TimeGridEntryInterface, from: int, to: int, before: bool, after: bool}> $spans
      *
-     * @return list<PlacedCluster>
+     * @return list<PlacedEntry>
      */
     private function assignLanes(array $spans): array
     {
@@ -191,9 +201,9 @@ final readonly class DayGridLayout
     }
 
     /**
-     * @param list<array{cluster: OccurrenceCluster, from: int, to: int, before: bool, after: bool}> $run
+     * @param list<array{entry: TimeGridEntryInterface, from: int, to: int, before: bool, after: bool}> $run
      *
-     * @return list<PlacedCluster>
+     * @return list<PlacedEntry>
      */
     private function layOutRun(array $run): array
     {
@@ -228,8 +238,8 @@ final readonly class DayGridLayout
         $placed = [];
 
         foreach ($run as $index => $span) {
-            $placed[] = new PlacedCluster(
-                cluster:         $span['cluster'],
+            $placed[] = new PlacedEntry(
+                entry:           $span['entry'],
                 top:             $span['from'] / self::MINUTES_IN_DAY,
                 height:          ($span['to'] - $span['from']) / self::MINUTES_IN_DAY,
                 lane:            $lanes[$index],

@@ -18,6 +18,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -93,6 +94,53 @@ final class SharedCalendarLeakTest extends WebTestCase
         // And the page is not simply empty: the busy block has to be there, or
         // this test would pass against a link that showed nothing at all.
         self::assertStringContainsString('Busy', $body);
+    }
+
+    /**
+     * And in each of the four views, because each is a different arrangement of
+     * the page and a leak has to be impossible in all of them.
+     *
+     * Cheap to add and the only thing that would catch the obvious future
+     * mistake: a view added later that reaches past the DTO for something the
+     * month grid never needed. The guarantee is meant to hold by construction —
+     * SharedOccurrence carries no title on a busy/free link — so this asserts
+     * that the construction is still what every view is built on.
+     */
+    #[DataProvider('views')]
+    public function testEveryViewOfABusyFreeLinkLeaksNothing(string $view): void
+    {
+        $client = $this->boot();
+        $this->eventTomorrow();
+
+        $client->request('GET', sprintf(
+            '/share/%s/%s/%s',
+            $this->token,
+            $view,
+            new DateTimeImmutable('tomorrow', new DateTimeZone('Europe/Berlin'))->format('Y-m-d'),
+        ));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $client->getResponse()->headers->getCookies(), $view . ' set a cookie');
+
+        $body = (string) $client->getResponse()->getContent();
+
+        foreach ($this->secrets() as $secret) {
+            self::assertStringNotContainsString(
+                $secret,
+                $body,
+                sprintf('the %s view put %s somewhere in the response', $view, $secret),
+            );
+        }
+
+        self::assertStringContainsString('Busy', $body, $view . ' drew nothing, so it proves nothing');
+    }
+
+    /** @return iterable<array{0: string}> */
+    public static function views(): iterable
+    {
+        foreach (['day', 'week', 'month', 'agenda'] as $view) {
+            yield $view => [$view];
+        }
     }
 
     public function testABusyFreeLinkLeaksNothingConcreteIntoTheIcs(): void

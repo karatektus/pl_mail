@@ -41,8 +41,11 @@ final readonly class SharedCalendarView
      * Whether there is anything at all in the window.
      *
      * Stays a method: it is a question about the whole map rather than one
-     * piece of state, and the page needs it to choose between the day list and
-     * a single "nothing in this window" line.
+     * piece of state. The page asks it about the WHOLE window rather than about
+     * the page on screen — SharedCalendarRange::isEmpty() is that question —
+     * because a link with nothing in it anywhere should say so once, on
+     * whichever view the reader lands on, rather than leave them paging through
+     * a fortnight of empty days to find out.
      */
     public function isEmpty(): bool
     {

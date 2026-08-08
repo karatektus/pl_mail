@@ -1,0 +1,161 @@
+{#
+calendar/_toolbar_shell.html.twig — the row above a calendar: where you are, how
+to move, and which view.
+
+The fourth shell, and the one with the least in it and the most to get wrong.
+Every control is a link, because a view is a URL — each one is bookmarkable, back
+works, and the range stays a single indexed query. That is true of the
+authenticated calendar and it is true of the public shared page, which has no
+session to keep client-side state in even if it wanted one.
+
+**The shell owns the chrome; the caller owns the routing.** This file is handed
+finished URLs rather than a route name and parameters, because the two callers
+generate quite different ones — `app_calendar_view` with a view and a date, and
+`app_shared_calendar_show` with a token in front of them — and a shell that took
+a route name would need to know which parameters that route wanted, which is the
+whole of the difference between them.
+
+**A step with no URL is drawn as a disabled span, not omitted.** The shared page
+publishes a window and its steps run out at the ends of it; drawing nothing there
+would change the shape of the row as the reader pages, and moving the date label
+under their thumb. The authenticated calendar never passes null — its calendar
+has no ends — so the branch costs it nothing, exactly as _month_shell's
+"unpublished cell" branch costs it nothing.
+
+`todayUrl` is nullable for a related reason: a shared window need not contain
+today, and a "today" button that did nothing would be a control that lies about
+what it does. Omitted rather than disabled, because unlike a paging step it is
+not part of a row whose shape must stay put.
+
+compact is set by the docked pane. It gets the same four views, as icons rather
+than words: the pane is ~380px and "Day Week Month Agenda" spelled out leaves no
+room for the date, but dropping the switcher entirely meant the pane could only
+ever show its agenda — there was no way to reach the month from it at all.
+
+Variables:
+  view       CalendarView  which one is current
+  anchor     date          what the label is built from
+  rangeFrom  date          the visible range's first instant, for the week label
+  rangeTo    date          its exclusive end
+  prevUrl    string|null   null draws a disabled span
+  nextUrl    string|null   likewise
+  todayUrl   string|null   null renders no button at all
+  viewUrls   map           view value => URL; a value that is absent is not
+                           offered, which no caller does today and which is the
+                           honest way to offer three of them one day
+  compact    bool          optional, icons instead of words
+  frame      string|null   optional, a Turbo Frame every link targets
+  spanLabel  bool          optional, label the range rather than the anchor.
+                           Defaults to true for week and false for everything
+                           else, which is what each view means by "where you
+                           are": a week IS a range, a month is named by its name,
+                           and a day is a day. The shared calendar's agenda
+                           passes true — it is a bounded page of the published
+                           window rather than the authenticated agenda's rolling
+                           list from a date, so its two ends are the honest label
+
+Blocks:
+  toolbar_actions  the right-hand end, after the switcher
+#}
+
+{% set compact = compact|default(false) %}
+{% set frame = frame|default(null) %}
+{% set spanLabel = spanLabel|default(view.value == 'week') %}
+
+{% set viewIcons = {
+    day:    'fa-calendar-day',
+    week:   'fa-calendar-week',
+    month:  'fa-calendar-days',
+    agenda: 'fa-list-ul',
+} %}
+
+<div class="flex items-center gap-2 px-3 py-1 border-b border-line shrink-0 min-h-[var(--pane-header-h)]">
+    <div class="flex items-center gap-0.5 shrink-0">
+        {% if prevUrl is not null %}
+            <a href="{{ prevUrl }}"
+               {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+               aria-label="{{ 'calendar.nav.previous'|trans }}"
+            ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
+        {% else %}
+            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                  aria-hidden="true"
+            ><i class="fa-solid fa-chevron-left text-xs"></i></span>
+        {% endif %}
+
+        {% if todayUrl is not null %}
+            <a href="{{ todayUrl }}"
+               {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+               class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+            >{{ 'calendar.today'|trans }}</a>
+        {% endif %}
+
+        {% if nextUrl is not null %}
+            <a href="{{ nextUrl }}"
+               {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+               aria-label="{{ 'calendar.nav.next'|trans }}"
+            ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
+        {% else %}
+            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+                  aria-hidden="true"
+            ><i class="fa-solid fa-chevron-right text-xs"></i></span>
+        {% endif %}
+    </div>
+
+    {# A week is a range, and saying "1 Aug 2026" over a grid running 27 Jul to
+       2 Aug is just wrong. The year is dropped from the near end when both ends
+       share it, and the month too when the week does not cross one.
+
+       **`false` on every date filter below, and it is load-bearing.** These
+       three values were built in the calendar's OWN zone — by
+       CalendarRangeReader for the owner's calendar and by
+       SharedCalendarRangeBuilder for a shared one — and `false` is what tells
+       Twig to format them there instead of converting them to its default
+       first. Without it a Berlin calendar's month anchor, which is midnight on
+       the 1st, is re-read as 22:00 on the 31st wherever the default is UTC, and
+       the toolbar over an August grid says July. The authenticated calendar
+       never showed it, because TwigTimezoneSubscriber makes the default the
+       user's own zone and the conversion is then a no-op; a page with no user
+       has no such luck, which is how it was found. #}
+    <h2 class="text-sm font-medium text-ink truncate min-w-0" data-calendar-position>
+        {%- if spanLabel -%}
+            {% set spanStart = rangeFrom %}
+            {% set spanEnd = rangeTo|date_modify('-1 day') %}
+            {{ spanStart|date(spanStart|date('Y', false) == spanEnd|date('Y', false)
+                ? (spanStart|date('n', false) == spanEnd|date('n', false) ? 'j' : 'j M')
+                : 'j M Y', false) }}
+            – {{ spanEnd|date('j M Y', false) }}
+        {%- elseif view.value == 'month' -%}
+            {{ anchor|date('F Y', false) }}
+        {%- else -%}
+            {{ anchor|date('j M Y', false) }}
+        {%- endif -%}
+    </h2>
+
+    <div class="ml-auto flex items-center gap-1 shrink-0">
+        <div class="flex items-center rounded-lg border border-line overflow-hidden" data-calendar-views>
+            {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+                {% if viewUrls[candidate.value] is defined %}
+                    {% set label = ('calendar.view.' ~ candidate.value)|trans %}
+                    <a href="{{ viewUrls[candidate.value] }}"
+                       {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
+                       aria-current="{{ candidate == view ? 'page' : 'false' }}"
+                       {% if compact %}aria-label="{{ label }}" title="{{ label }}"{% endif %}
+                       class="flex items-center justify-center text-xs transition-colors
+                              {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
+                              {{ candidate == view ? 'bg-accent text-white' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
+                    >
+                        {%- if compact -%}
+                            <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>
+                        {%- else -%}
+                            {{ label }}
+                        {%- endif -%}
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% block toolbar_actions %}{% endblock %}
+    </div>
+</div>

@@ -712,6 +712,7 @@ calendar:
             once: >-
                 Copy it now. It be stored nowhere, so this be the only time it can
                 be shown.
+        not_shared: Beyond the stretch
         outside_window: Days beyond the shared stretch
         page_title: Shared log
         reveals: 'Gives away %details%'

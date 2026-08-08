@@ -955,6 +955,7 @@ calendar:
             once: >-
                 Copy it now. It is not stored anywhere, so this is the only time
                 it can be shown.
+        not_shared: Not shared
         outside_window: Days outside the shared window
         page_title: Shared calendar
         reveals: 'Reveals %details%'
