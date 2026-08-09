@@ -48,79 +48,81 @@
                         <div class="flex-1 overflow-y-auto @container">
                             <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
 
-                                <nav class="flex md:flex-col gap-1 flex-wrap">
+                                {# Grouped by what the setting is about, not by when it was
+                                   added — thirteen equal-weight links in one column is a list
+                                   nobody reads, they scan it for a word they already have in
+                                   mind. Four groups, in the order someone new meets them:
+                                   themselves, their mail, their calendar, and finally what
+                                   else can reach the account. Security closes the list rather
+                                   than sitting third: it is the section people arrive at
+                                   deliberately, and it has the two neighbours it belongs with
+                                   — app passwords and integrations are the other two ways in.
+
+                                   Sharing stays next to Calendars rather than moving to that
+                                   last group: a shared link and a booking page are calendar
+                                   features first, and somebody looking for "who can see my
+                                   calendar" starts at the calendar.
+
+                                   A loop rather than thirteen hand-written anchors, because
+                                   the previous copy-paste had already drifted — two sections
+                                   shared one icon and one of them highlighted it a different
+                                   colour when active. #}
+                                {% set navGroups = [
+                                    { label: 'settings.nav.group.personal', items: [
+                                        { section: 'profile',       icon: 'fa-solid fa-user' },
+                                        { section: 'general',       icon: 'fa-solid fa-sliders' },
+                                        { section: 'appearance',    icon: 'fa-solid fa-palette' },
+                                    ] },
+                                    { label: 'settings.nav.group.mail', items: [
+                                        { section: 'accounts',      icon: 'fa-solid fa-at',    label: 'settings.nav.accounts' },
+                                        { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
+                                        { section: 'labels',        icon: 'fa-solid fa-tag' },
+                                        { section: 'filters',       icon: 'fa-solid fa-filter' },
+                                        { section: 'notifications', icon: 'fa-solid fa-bell' },
+                                    ] },
+                                    { label: 'settings.nav.group.calendar', items: [
+                                        { section: 'calendars',     icon: 'fa-regular fa-calendar' },
+                                        { section: 'sharing',       icon: 'fa-solid fa-share-nodes' },
+                                    ] },
+                                    { label: 'settings.nav.group.access', items: [
+                                        { section: 'integrations',  icon: 'fa-solid fa-plug' },
+                                        { section: 'app-passwords', icon: 'fa-solid fa-key',   label: 'settings.nav.app_passwords' },
+                                        { section: 'security',      icon: 'fa-solid fa-shield-halved' },
+                                    ] },
+                                ] %}
+
+                                {# Not a <nav> per group: it is one navigation with four
+                                   labelled parts, and four landmarks would be read out as
+                                   four separate menus. The headings are presentational —
+                                   aria-hidden, with the same word given to the list it
+                                   labels — so a screen reader hears "Mail, list, 5 items"
+                                   once instead of the word twice. #}
+                                <nav class="flex md:flex-col gap-1 flex-wrap md:gap-0">
                                     {% set navActive   = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-raised text-ink' %}
                                     {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
 
-                                    <a href="{{ path('app_settings_index', { section: 'accounts' }) }}"
-                                       class="{{ section == 'accounts' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-at w-4 {{ section == 'accounts' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.accounts'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'profile' }) }}"
-                                       class="{{ section == 'profile' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-user w-4 {{ section == 'profile' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.profile'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'security' }) }}"
-                                       class="{{ section == 'security' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-shield-halved w-4 {{ section == 'security' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.security'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'general' }) }}"
-                                       class="{{ section == 'general' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-sliders w-4 {{ section == 'general' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.general'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'aliases' }) }}"
-                                       class="{{ section == 'aliases' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-palette w-4 {{ section == 'aliases' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.aliases'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'labels' }) }}"
-                                       class="{{ section == 'labels' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-tag w-4 {{ section == 'labels' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.labels'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'calendars' }) }}"
-                                       class="{{ section == 'calendars' ? navActive : navInactive }}">
-                                        <i class="fa-regular fa-calendar w-4 {{ section == 'calendars' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.calendars'|trans }}
-                                    </a>
-                                    {# Next to Calendars rather than to Security, deliberately:
-                                       a shared link and a booking page are calendar features
-                                       first, and somebody looking for "who can see my
-                                       calendar" starts at the calendar. #}
-                                    <a href="{{ path('app_settings_index', { section: 'sharing' }) }}"
-                                       class="{{ section == 'sharing' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-share-nodes w-4 {{ section == 'sharing' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.sharing'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'filters' }) }}"
-                                       class="{{ section == 'filters' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-filter w-4 {{ section == 'filters' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.filters'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'integrations' }) }}"
-                                       class="{{ section == 'integrations' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.integrations'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'notifications' }) }}"
-                                       class="{{ section == 'notifications' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-bell w-4 {{ section == 'notifications' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.notifications'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'app-passwords' }) }}"
-                                       class="{{ section == 'app-passwords' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-key w-4 {{ section == 'app-passwords' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.app_passwords'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_settings_index', { section: 'appearance' }) }}"
-                                       class="{{ section == 'appearance' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-palette w-4 {{ section == 'appearance' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
-                                        {{ 'settings.nav.appearance'|trans }}
-                                    </a>
+                                    {% for group in navGroups %}
+                                        {# Wraps into a row on mobile, where the nav is a
+                                           horizontal strip and a heading per group would cost
+                                           more width than the links it introduces. #}
+                                        <div class="hidden md:block px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint {{ loop.first ? 'pb-1.5' : 'pt-4 pb-1.5' }}"
+                                             aria-hidden="true">
+                                            {{ group.label|trans }}
+                                        </div>
+
+                                        <ul class="contents md:block md:space-y-1" aria-label="{{ group.label|trans }}">
+                                            {% for item in group.items %}
+                                                <li class="contents md:block">
+                                                    <a href="{{ path('app_settings_index', { section: item.section }) }}"
+                                                       class="{{ section == item.section ? navActive : navInactive }}"
+                                                       {{ section == item.section ? 'aria-current="page"' : '' }}>
+                                                        <i class="{{ item.icon }} w-4 {{ section == item.section ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                                        {{ (item.label|default('settings.nav.' ~ item.section))|trans }}
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endfor %}
                                 </nav>
 
                                 {# Single content wrapper — second (and last) grid child.

@@ -1606,6 +1606,11 @@ settings:
         appearance: Look o' the ship
         calendars: Almanacs
         general: General
+        group:
+            access: "Boardin' rights"
+            calendar: "Th' almanac"
+            mail: "Th' post"
+            personal: Yerself
         profile: Yer colours
         filters: Sieves
         integrations: 'Friendly ports'
