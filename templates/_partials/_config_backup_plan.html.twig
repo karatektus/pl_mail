@@ -8,11 +8,20 @@ Shared by the admin page and the first-run restore screen, because the review is
 the substance of an import and two copies of it would be two accounts of the
 same file. The pages around it differ; this does not.
 
-Three lists, and the proportions between them are the point. The first — what
-plMail writes itself — is nearly everything. The second is the residue that
-still needs a person, which on a supported deployment is empty. The third is the
-one thing worth stating and not asking about: APP_ENCRYPTION_KEY, kept on
-purpose.
+The proportions between the lists are the point. What plMail writes itself is
+nearly everything. What still needs a person should, on a supported deployment,
+be nothing at all — and everything below exists to keep that "nothing" honest
+rather than merely small:
+
+  - people this install already had are their own list, because "what did this
+    do to my users" deserves a legible answer and the answer is "nothing";
+  - the chore list drops values already identical to the live ones, and states
+    how many there were in one muted line. A row telling an operator to set
+    something to what it is already set to is not a task, and two of them
+    appeared on every stock restore;
+  - the APP_ENCRYPTION_KEY note is a collapsed disclosure. It matters
+    enormously to the operator who is also restoring the old database and not
+    at all to anyone else, and it was shouting at both.
 
 This used to be two lists in the other proportion, with two dozen environment
 variables printed as lines to paste into .env.local. That was built on a wrong
@@ -90,16 +99,40 @@ somebody comes to press apply twice.
         {% endif %}
     </div>
 
-    {# ── The residue: what still needs a person ───────────────────────── #}
-    {% set instructed = plan.instructedBySection %}
+    {# ── People this install already had ──────────────────────────────── #}
+    {% if plan.keptUsers is not empty %}
+        <div>
+            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.kept_users'|trans }}</h3>
+            <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ 'admin.config_backup.review.kept_users_lead'|trans }}</p>
 
-    {% if instructed is not empty %}
+            <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
+                {% for item in plan.keptUsers %}
+                    <li class="flex items-center gap-3 px-3.5 py-2">
+                        <i class="{{ item.section.icon }} text-xs text-zinc-400 w-4 shrink-0" aria-hidden="true"></i>
+                        <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
+                        <span class="ml-auto shrink-0 text-[11px] text-ink-faint">{{ item.change.transKey|trans }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {# ── The residue: what still needs a person ───────────────────────────
+
+       plan.chores, not plan.instructed: a restored value already identical to
+       the live one is not a task, and printing it in the imperative under
+       "these are yours to do" taught readers that this list can be skipped.
+       The count of those is stated once, muted, below — see
+       ConfigBackupPlan::chores(). #}
+    {% set chores = plan.choresBySection %}
+
+    {% if chores is not empty %}
         <div>
             <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.instructed'|trans }}</h3>
             <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ 'admin.config_backup.review.instructed_lead'|trans }}</p>
 
             <div class="mt-2 space-y-3">
-                {% for sectionValue, items in instructed %}
+                {% for sectionValue, items in chores %}
                     {# Off the first item rather than off the loop key: the key
                        is the enum's backing value and a template that turned it
                        back into a case would be re-implementing from_value. #}
@@ -139,23 +172,47 @@ somebody comes to press apply twice.
         </div>
     {% endif %}
 
-    {# ── Stated, not asked ────────────────────────────────────────────── #}
-    {% if plan.notes is not empty %}
-        <div>
-            <h3 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.review.notes'|trans }}</h3>
+    {# ── Values that already match ─────────────────────────────────────
 
-            <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
-                {% for item in plan.notes %}
-                    <li class="px-3.5 py-2.5">
-                        <span class="font-mono text-xs text-ink-soft break-all">{{ item.key }}</span>
-                        <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ item.disposition.transKey|trans }}</p>
+       One muted line, never rows. The reader's question about these is "is
+       anything hiding in there", and the answer is a number. #}
+    {% if plan.alreadyMatching > 0 %}
+        <p class="text-[11px] text-ink-faint leading-relaxed">
+            <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>
+            {{ 'admin.config_backup.review.already_matching'|trans({'%count%': plan.alreadyMatching}) }}
+        </p>
+    {% endif %}
 
-                        {% if item.instruction %}
-                            <pre class="mt-1.5 overflow-x-auto rounded bg-zinc-500/10 px-2.5 py-1.5 text-[11px] font-mono text-ink-soft select-all whitespace-pre-wrap break-all">{{ item.instruction }}</pre>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
+    {# ── Stated, not asked ────────────────────────────────────────────────
+
+       A native <details>, the same disclosure the settings pages use, because
+       this block is addressed to one reader in a hundred: the operator who is
+       ALSO restoring the old database and therefore needs its old encryption
+       key in their hand. Everyone else was being shown a heading, a sentence
+       and a base64 secret about a thing they will never do.
+
+       Collapsed, not removed. An operator who restores the old database
+       without its old key loses every encrypted row in it, silently and
+       permanently, and there is no second place that tells them so. The
+       summary is written to be recognised by the person it is for and ignored
+       by everybody else. #}
+    {% set keyNote = plan.encryptionKeyNote %}
+
+    {% if keyNote %}
+        <details class="rounded-lg border border-line">
+            <summary class="flex items-center gap-2 px-3.5 py-2 text-xs text-ink-muted cursor-pointer select-none hover:text-ink transition-colors">
+                <i class="fa-solid fa-circle-question text-zinc-400" aria-hidden="true"></i>
+                {{ 'admin.config_backup.review.old_key_summary'|trans }}
+            </summary>
+
+            <div class="border-t border-line px-3.5 py-2.5">
+                <span class="font-mono text-xs text-ink-soft break-all">{{ keyNote.key }}</span>
+                <p class="mt-1 text-[11px] text-ink-faint leading-relaxed">{{ keyNote.disposition.transKey|trans }}</p>
+
+                {% if keyNote.instruction %}
+                    <pre class="mt-1.5 overflow-x-auto rounded bg-zinc-500/10 px-2.5 py-1.5 text-[11px] font-mono text-ink-soft select-all whitespace-pre-wrap break-all">{{ keyNote.instruction }}</pre>
+                {% endif %}
+            </div>
+        </details>
     {% endif %}
 </div>

@@ -95,9 +95,10 @@ admin:
             intro: >-
                 Alle Einstellungen und Zugangsdaten, mit denen diese Installation läuft, in
                 einer passwortverschlüsselten Datei: die Umgebungswerte, die Dateien im
-                Secrets-Volume sowie die Anbieter- und Firebase-Zugangsdaten aus der
-                Datenbank. Keine E-Mails, keine Kalender, keine Benutzerkonten — dafür ist
-                `app:backup` da.
+                Secrets-Volume, die Anbieter- und Firebase-Zugangsdaten aus der Datenbank
+                sowie die Personen — jede mit Passwort, zweitem Faktor, Postfächern und
+                allem anderen, was sie eingerichtet hat. Keine E-Mails, keine
+                Kalendereinträge, keine Kontakte — dafür ist `app:backup` da.
             generate: 'Eins erzeugen'
             generated_copied: 'In die Zwischenablage kopiert — bewahre es an einem Ort auf, der diese Maschine überlebt.'
             generated_shown: 'Dein Browser gibt die Zwischenablage nicht frei, das Passwort steht deshalb oben im Feld — sichere es jetzt.'
@@ -123,6 +124,7 @@ admin:
             password: 'Passwort'
             submit: 'Sicherung prüfen'
         review:
+            already_matching: '%count% weitere stimmen bereits mit dieser Umgebung überein, dabei ist also nichts zu tun.'
             apply: 'Diese Sicherung anwenden'
             applied: 'Was geschrieben wurde'
             confirm_password: 'Passwort, noch einmal'
@@ -135,7 +137,16 @@ admin:
                 nicht abschließen, und jeder sagt warum — etwas anderes zu behaupten wäre
                 eine Lüge, die ein Betreiber erst an dem Tag bemerkt, an dem es darauf
                 ankommt.
+            kept_users: 'Schon vorhanden — unverändert gelassen'
+            kept_users_lead: >-
+                Diese Personen gibt es in dieser Installation bereits, erkannt an der
+                E-Mail-Adresse. An ihnen wurde nichts angerührt: weder Passwort noch
+                zweiter Faktor, weder Postfächer noch sonst etwas, das sie eingerichtet
+                hatten. Eine Sicherung ist die Momentaufnahme eines vergangenen Zeitpunkts,
+                und sie über ein lebendes Konto zu schreiben ist der Weg, auf dem jemand
+                ohne ein Wort irgendwo aus seiner eigenen Mail ausgesperrt wird.
             notes: 'Gut zu wissen'
+            old_key_summary: 'Spielst du auch die alte Datenbank ein? Dann brauchst du ihren alten Verschlüsselungsschlüssel.'
             restart: >-
                 Das meiste davon wird beim Start des Stacks gelesen, deshalb schreibt es
                 plMail in die erzeugten Geheimnisse, und es wirkt ab dem nächsten Neustart.
@@ -152,6 +163,7 @@ admin:
             database: 'Datenbank'
             env: 'Umgebungsvariablen'
             files: 'Dateien im Secrets-Volume'
+            users: 'Personen und alles, was sie eingerichtet haben'
     db:
         active:
             empty: 'Zurzeit keine aktiven Abfragen.'
@@ -1426,20 +1438,26 @@ setup:
         tagline: Hier hat sich noch niemand angemeldet
     restore:
         applied_lead: >-
-            Die Konfiguration steht. Diese Installation hat noch keine Benutzer — lege das
-            Administratorkonto an, um fertig zu werden. Falls oben ein Neustart vermerkt
-            ist, kann er bis danach warten.
+            Die Konfiguration steht. Diese Sicherung enthielt keine Benutzerkonten, deshalb
+            hat diese Installation noch keine — lege das Administratorkonto an, um fertig
+            zu werden. Falls oben ein Neustart vermerkt ist, kann er bis danach warten.
+        applied_lead_users: >-
+            Die Konfiguration und ihre Personen stehen — %count% wiederhergestellt,
+            darunter %admins%. Melde dich mit dem Passwort an, das du schon hattest; daran
+            hat sich nichts geändert.
         back: 'Zurück zum Anlegen des Administrators'
         continue: 'Weiter — Administrator anlegen'
         footnote: >-
-            Eine Konfigurationssicherung enthält Einstellungen und Zugangsdaten, niemals
-            E-Mails und niemals Benutzerkonten.
+            Eine Konfigurationssicherung enthält Einstellungen, Zugangsdaten und die
+            Personen, die sie benutzen — niemals E-Mails, Kalendereinträge oder Kontakte.
         heading: 'Konfigurationssicherung wiederherstellen'
         lead: >-
-            Bring die Einstellungen und Zugangsdaten einer anderen plMail-Instanz hierher,
-            bevor du das erste Konto anlegst. Datei hochladen, Passwort eingeben — den Rest
-            schreibt plMail selbst in diese Installation.
+            Bring die Einstellungen, Zugangsdaten und Konten einer anderen plMail-Instanz
+            hierher, bevor du irgendetwas anlegst. Datei hochladen, Passwort eingeben — den
+            Rest schreibt plMail selbst in diese Installation.
+        nothing_to_do: 'Hier bleibt nichts mehr für dich zu tun.'
         page_title: 'Konfiguration wiederherstellen'
+        sign_in: 'Anmelden'
         submit: 'Sicherung öffnen'
 
 settings:

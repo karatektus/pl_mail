@@ -51,6 +51,26 @@ trait TimestampableTrait
     }
 
     /**
+     * Place a row at the instant it was created on another installation.
+     *
+     * The case initTimestamps() already anticipates — "a caller that needs a
+     * specific instant" — with the one thing that comment does not supply: a
+     * way in. `private(set)` puts the property out of reach of any caller, so
+     * "supply one and keep it" was true only of code inside the entity.
+     *
+     * Restore-only, and it must be called before the entity is persisted:
+     * PrePersist's `??=` then finds it set and leaves it alone. Afterwards it
+     * would be a lie about a row that already exists.
+     *
+     * updatedAt is deliberately not restorable. It answers "when did this last
+     * change", and writing this row into a new database IS a change.
+     */
+    public function restoreCreatedAt(DateTimeImmutable $createdAt): void
+    {
+        $this->createdAt = $createdAt;
+    }
+
+    /**
      * Fires only when Doctrine sees a mapped field actually change, so a flush
      * that changes nothing leaves the column alone. That is deliberate, and a
      * difference from the manual writes this replaced, which stamped the row

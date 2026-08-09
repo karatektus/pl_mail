@@ -44,6 +44,11 @@ use Throwable;
  *   - the three configuration tables, which plMail owns outright, and whose
  *     credentials are re-encrypted with THIS instance's key on the way in —
  *     the whole reason the envelope carries them decrypted. Live on commit;
+ *   - **the users the file carries that this install does not have**, each with
+ *     everything they configured, in the same transaction and with their
+ *     credentials re-encrypted the same way. A user this install *does* have is
+ *     never overwritten — see {@see ConfigBackupUserRestorer}, which owns that
+ *     policy and the reasoning behind it;
  *   - the JWT keypair and anything else under the shared secrets directory,
  *     when this process can actually write it, measured at review time;
  *   - **the environment values, into `var/secrets/generated.env`** — the file
@@ -69,10 +74,13 @@ use Throwable;
  * import that threw here would leave the operator with a committed database and
  * no account of what happened to the rest.
  *
- * **Order: database, then files, then the environment file.** The database is
- * the only transactional part and the only one that can be refused by its own
- * contents (FcmConfig::restore() rejects a mismatched Firebase project), so it
- * goes first and takes everything down with it if it fails. The two file writes
+ * **Order: database and users, then files, then the environment file.** The
+ * database is the only transactional part and the only one that can be refused
+ * by its own contents (FcmConfig::restore() rejects a mismatched Firebase
+ * project), so it goes first and takes everything down with it if it fails. The
+ * users go inside the same transaction and after the provider registrations,
+ * for one reason: a restore that created twelve people and then rolled back the
+ * Firebase key would leave an install nobody could explain. The two file writes
  * are not transactional, and pretending otherwise would only move the failure.
  */
 final readonly class ConfigBackupImporter
@@ -80,10 +88,12 @@ final readonly class ConfigBackupImporter
     public function __construct(
         private ConfigBackupCipher      $cipher,
         private ConfigBackupEnvironment $environment,
-        private ConfigBackupFiles       $files,
-        private ConfigBackupDatabase    $database,
-        private EntityManagerInterface  $entityManager,
-        private LoggerInterface         $logger,
+        private ConfigBackupFiles         $files,
+        private ConfigBackupDatabase      $database,
+        private ConfigBackupUsers         $users,
+        private ConfigBackupUserRestorer  $restorer,
+        private EntityManagerInterface    $entityManager,
+        private LoggerInterface           $logger,
     ) {
     }
 
@@ -129,6 +139,7 @@ final readonly class ConfigBackupImporter
             ...$this->environmentItems($this->section($document, 'env')),
             ...$this->fileItems($this->section($document, 'files')),
             ...$this->databaseItems($this->section($document, 'database')),
+            ...$this->userItems($this->section($document, 'users')),
         ];
 
         return new ConfigBackupPlan($items, $this->instance($document), $this->exportedAt($document));
@@ -157,6 +168,7 @@ final readonly class ConfigBackupImporter
 
         $this->entityManager->wrapInTransaction(function () use ($plan, $document): void {
             $this->applyDatabase($plan, $this->section($document, 'database'));
+            $this->applyUsers($plan, $this->section($document, 'users'));
         });
 
         $items = $this->applyFiles($plan, $this->section($document, 'files'));
@@ -310,6 +322,69 @@ final readonly class ConfigBackupImporter
         return $items;
     }
 
+    /**
+     * One line per person the file carries, and the whole of the skip-existing
+     * policy expressed as two dispositions.
+     *
+     * A user this install does not have is {@see ConfigBackupDisposition::Applied}
+     * and `Absent`: created, live on commit, along with everything under them.
+     * A user it does have is {@see ConfigBackupDisposition::KeptDeliberately} —
+     * not written, and correct not to be. The change beside that one is the
+     * honest comparison rather than a flat "nothing happens": `Unchanged` when
+     * the live person really is what the file holds, and `Differs` when they
+     * are not, which is the case worth seeing. An admin restoring a file onto a
+     * running install wants to know that the backup disagrees with three of
+     * their five users *and that plMail left all five alone*; a review that
+     * said only "kept as they are" would hide the first half.
+     *
+     * A soft-deleted user counts as existing and therefore reads `Differs`:
+     * there is no live export to match against, and the row is genuinely not
+     * what the file describes.
+     *
+     * @param array<string, mixed> $users
+     *
+     * @return list<ConfigBackupPlanItem>
+     */
+    private function userItems(array $users): array
+    {
+        $items = [];
+
+        foreach ($users as $email => $document) {
+            if (false === is_string($email) || '' === $email || false === is_array($document)) {
+                continue;
+            }
+
+            $existingId = $this->restorer->existingId($email);
+
+            if (null === $existingId) {
+                $items[] = new ConfigBackupPlanItem(
+                    ConfigBackupSection::Users,
+                    $email,
+                    ConfigBackupChange::Absent,
+                    ConfigBackupDisposition::Applied,
+                );
+
+                continue;
+            }
+
+            $live = $this->users->liveVersionOf($existingId);
+
+            $items[] = new ConfigBackupPlanItem(
+                ConfigBackupSection::Users,
+                $email,
+                // Null means soft-deleted or unreadable — see
+                // ConfigBackupUsers::liveVersionOf(). Neither is "already
+                // identical", and changeForArray() would call an absent
+                // comparison `Absent`, which beside a user who demonstrably
+                // exists would read as "this install has nobody by that name".
+                null === $live ? ConfigBackupChange::Differs : $this->changeForArray($live, $document),
+                ConfigBackupDisposition::KeptDeliberately,
+            );
+        }
+
+        return $items;
+    }
+
     // ── Private: applying ─────────────────────────────────────────────────────
 
     /**
@@ -342,6 +417,39 @@ final readonly class ConfigBackupImporter
 
             if (ConfigBackupDatabase::INTEGRATION_PROVIDERS === $table && null !== $integration = Provider::tryFrom((string) $key)) {
                 $this->database->restoreIntegrationProvider($integration, $values);
+            }
+        }
+    }
+
+    /**
+     * Create the users the plan marked as creatable, and only those.
+     *
+     * The same discipline as applyDatabase(): the plan decided, this walks it.
+     * An item that came back KeptDeliberately is not re-examined here — if it
+     * were, the review and the import could come to different answers about
+     * whether somebody's password gets replaced, which is the one disagreement
+     * this whole two-step shape exists to make impossible.
+     *
+     * Inside the database transaction, alongside the provider registrations, so
+     * a document that fails halfway leaves neither half a person nor a lone
+     * Firebase key from a restore that did not happen.
+     *
+     * @param array<string, mixed> $users
+     */
+    private function applyUsers(ConfigBackupPlan $plan, array $users): void
+    {
+        foreach ($plan->items as $item) {
+            if (ConfigBackupSection::Users !== $item->section
+                || false === $item->isWritten()
+                || false === $item->change->isMaterial()
+            ) {
+                continue;
+            }
+
+            $document = $users[$item->key] ?? null;
+
+            if (is_array($document)) {
+                $this->restorer->restore($item->key, $document);
             }
         }
     }

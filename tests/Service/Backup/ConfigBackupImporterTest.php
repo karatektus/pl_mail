@@ -27,6 +27,8 @@ use App\Service\Backup\ConfigBackupEnvironment;
 use App\Service\Backup\ConfigBackupExporter;
 use App\Service\Backup\ConfigBackupFiles;
 use App\Service\Backup\ConfigBackupImporter;
+use App\Service\Backup\ConfigBackupUserRestorer;
+use App\Service\Backup\ConfigBackupUsers;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -236,7 +238,13 @@ final class ConfigBackupImporterTest extends KernelTestCase
                 'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
                 'VAPID_PRIVATE_KEY'  => 'a-restored-vapid-private-key',
                 'APP_PUBLIC_URL'     => 'https://mail.example.test',
-                'MAILER_DSN'         => 'smtp://user:pa ss#word@host:587',
+                // MERCURE_PUBLIC_URL rather than MAILER_DSN, which used to
+                // stand here: the two DSNs left the inventory and are refused
+                // as External now, so this one is the remaining name that
+                // compose pins on a stock stack and that a backup still
+                // carries. Nothing is pinned in THIS test's environment, so it
+                // applies cleanly, which is the case being asserted.
+                'MERCURE_PUBLIC_URL' => 'https://mercure.example.test/.well-known/mercure',
             ],
             'files' => [
                 ConfigBackupFiles::JWT_PRIVATE => base64_encode("-----BEGIN PRIVATE KEY-----\nrestored\n"),
@@ -257,7 +265,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
             [
                 'APP_SECRET'         => 'a-restored-app-secret',
                 'MERCURE_JWT_SECRET' => 'a-restored-hub-secret',
-                'MAILER_DSN'         => 'smtp://user:pa ss#word@host:587',
+                'MERCURE_PUBLIC_URL' => 'https://mercure.example.test/.well-known/mercure',
                 'APP_PUBLIC_URL'     => 'https://mail.example.test',
                 'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
                 'VAPID_PRIVATE_KEY'  => 'a-restored-vapid-private-key',
@@ -276,18 +284,24 @@ final class ConfigBackupImporterTest extends KernelTestCase
     {
         $importer = $this->importerWith(processEnvironment: [
             // Pinned in the process environment and absent from the generated
-            // file: exactly what compose.yaml does to MAILER_DSN,
-            // MESSENGER_TRANSPORT_DSN and MERCURE_PUBLIC_URL.
-            'MAILER_DSN' => 'null://null',
+            // file: exactly what compose.yaml does to MERCURE_PUBLIC_URL — and
+            // to the two DSNs, which no longer reach this fate because they are
+            // refused before shadowing is asked about. See below.
+            'MERCURE_PUBLIC_URL' => 'https://mercure.compose.test/.well-known/mercure',
         ]);
 
         $plan = $importer->plan([
             'env' => [
-                'APP_SECRET'         => 'a-restored-app-secret',
-                'MAILER_DSN'         => 'smtp://relay.example.test',
-                'APP_ENCRYPTION_KEY' => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
-                'POSTGRES_PASSWORD'  => 'hunter2',
-                'DATABASE_URL'       => 'postgresql://app:hunter2@old-host:5432/app',
+                'APP_SECRET'              => 'a-restored-app-secret',
+                'MERCURE_PUBLIC_URL'      => 'https://mercure.backup.test/.well-known/mercure',
+                'APP_ENCRYPTION_KEY'      => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
+                'POSTGRES_PASSWORD'       => 'hunter2',
+                'DATABASE_URL'            => 'postgresql://app:hunter2@old-host:5432/app',
+                // Only an OLD backup carries these two; a document written by
+                // this build has neither. They are here because that is exactly
+                // the file this classification exists for.
+                'MAILER_DSN'              => 'smtp://relay.example.test',
+                'MESSENGER_TRANSPORT_DSN' => 'doctrine://default?auto_setup=0',
             ],
             'database' => [
                 ConfigBackupDatabase::MAIL_PROVIDERS => ['google' => ['clientId' => 'an-id']],
@@ -297,9 +311,11 @@ final class ConfigBackupImporterTest extends KernelTestCase
         $expected = [
             [ConfigBackupSection::Database, ConfigBackupDatabase::MAIL_PROVIDERS . '.google', ConfigBackupDisposition::Applied],
             [ConfigBackupSection::Environment, 'APP_SECRET', ConfigBackupDisposition::AppliedOnRestart],
-            [ConfigBackupSection::Environment, 'MAILER_DSN', ConfigBackupDisposition::ShadowedByCompose],
+            [ConfigBackupSection::Environment, 'MERCURE_PUBLIC_URL', ConfigBackupDisposition::ShadowedByCompose],
             [ConfigBackupSection::Environment, 'POSTGRES_PASSWORD', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'DATABASE_URL', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'MAILER_DSN', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'MESSENGER_TRANSPORT_DSN', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY', ConfigBackupDisposition::KeptDeliberately],
         ];
 
@@ -377,18 +393,21 @@ final class ConfigBackupImporterTest extends KernelTestCase
      */
     public function testAShadowedValueIsWrittenAndStillHandedBack(): void
     {
-        $importer = $this->importerWith(processEnvironment: ['MAILER_DSN' => 'null://null']);
+        $pinned   = 'https://mercure.compose.test/.well-known/mercure';
+        $restored = 'https://mercure.backup.test/.well-known/mercure';
 
-        $plan = $importer->apply(['env' => ['MAILER_DSN' => 'smtp://relay.example.test']]);
+        $importer = $this->importerWith(processEnvironment: ['MERCURE_PUBLIC_URL' => $pinned]);
 
-        $item = $this->itemFor($plan, ConfigBackupSection::Environment, 'MAILER_DSN');
+        $plan = $importer->apply(['env' => ['MERCURE_PUBLIC_URL' => $restored]]);
+
+        $item = $this->itemFor($plan, ConfigBackupSection::Environment, 'MERCURE_PUBLIC_URL');
 
         self::assertSame(ConfigBackupDisposition::ShadowedByCompose, $item->disposition);
-        self::assertSame('MAILER_DSN=smtp://relay.example.test', $item->instruction, 'the line to change in compose');
+        self::assertSame('MERCURE_PUBLIC_URL=' . $restored, $item->instruction, 'the line to change in compose');
         self::assertSame([$item], $plan->instructed());
 
         self::assertSame(
-            ['MAILER_DSN' => 'smtp://relay.example.test'],
+            ['MERCURE_PUBLIC_URL' => $restored],
             (new GeneratedSecretsFile($this->secretsPath()))->read(),
             'the value goes in regardless, so removing the pin is the only step left',
         );
@@ -500,7 +519,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
     public function testAnUnwritableSecretsStoreFallsBackToLinesToPaste(): void
     {
         $plan = $this->importerWith(processEnvironment: [], secretsDirectory: '/sys/plmail-nowhere')->apply([
-            'env' => ['APP_SECRET' => 'a-restored-app-secret', 'MAILER_DSN' => 'smtp://user:pa ss#word@host:587'],
+            'env' => ['APP_SECRET' => 'a-restored-app-secret', 'JWT_PASSPHRASE' => 'a pass#phrase with spaces'],
         ]);
 
         self::assertCount(2, $plan->instructed());
@@ -512,10 +531,13 @@ final class ConfigBackupImporterTest extends KernelTestCase
         );
 
         // Quoted, because Symfony's dotenv would read the `#` as a comment and
-        // hand the operator a truncated password with no error anywhere.
+        // hand the operator a truncated passphrase with no error anywhere.
+        // (JWT_PASSPHRASE rather than the MAILER_DSN this used to use: that one
+        // is External now and would be handed back for a different reason,
+        // which would make this assertion pass without testing anything.)
         self::assertSame(
-            'MAILER_DSN="smtp://user:pa ss#word@host:587"',
-            $this->itemFor($plan, ConfigBackupSection::Environment, 'MAILER_DSN')->instruction,
+            'JWT_PASSPHRASE="a pass#phrase with spaces"',
+            $this->itemFor($plan, ConfigBackupSection::Environment, 'JWT_PASSPHRASE')->instruction,
         );
     }
 
@@ -644,6 +666,8 @@ final class ConfigBackupImporterTest extends KernelTestCase
             $this->environmentWith($processEnvironment, $directory),
             $this->filesFor($directory),
             static::getContainer()->get(ConfigBackupDatabase::class),
+            static::getContainer()->get(ConfigBackupUsers::class),
+            static::getContainer()->get(ConfigBackupUserRestorer::class),
             $this->entityManager,
             new NullLogger(),
         );

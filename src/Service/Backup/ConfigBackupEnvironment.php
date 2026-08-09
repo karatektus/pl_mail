@@ -90,8 +90,17 @@ final readonly class ConfigBackupEnvironment
         'MERCURE_JWT_SECRET',
         'MERCURE_PUBLIC_URL',
         'JWT_PASSPHRASE',
-        'MAILER_DSN',
-        'MESSENGER_TRANSPORT_DSN',
+        // MAILER_DSN and MESSENGER_TRANSPORT_DSN are deliberately NOT here
+        // either, and for DATABASE_URL's reason rather than a new one: they are
+        // machine-local deployment choices. plMail's own compose.yaml supplies
+        // a default for both, so every install has one whether or not anybody
+        // chose it, and the target's is the one that matches the containers
+        // actually running beside it - its relay, its queue. Carrying the
+        // source's meant every plan on a stock stack opened with two
+        // "shadowed" rows whose only honest instruction was "change this in the
+        // compose file you already control". An OLD backup that still contains
+        // them imports fine: they are in REFUSED below, classified External and
+        // left alone.
         'APP_PUBLIC_URL',
         'VAPID_SUBJECT',
         'VAPID_PUBLIC_KEY',
@@ -116,7 +125,7 @@ final readonly class ConfigBackupEnvironment
      * to, with the refusal's reason attached — so the planner and the applier
      * cannot come to different answers.
      *
-     * Three names, and each is a fate the deployment forces rather than a
+     * Five names, and each is a fate the deployment forces rather than a
      * caution:
      *
      *   - APP_ENCRYPTION_KEY is {@see ConfigBackupDisposition::KeptDeliberately}
@@ -137,13 +146,30 @@ final readonly class ConfigBackupEnvironment
      *     Written here it would be a DSN pointing at another host's database
      *     with another host's password, and — because it carries a password —
      *     it would suppress the target's own assembly.
+     *   - MAILER_DSN and MESSENGER_TRANSPORT_DSN, which stopped being exported
+     *     for the reasons stated above VARIABLES and are listed here so the
+     *     backups that still carry them are classified rather than acted on.
+     *     External and not ShadowedByCompose, although compose is usually what
+     *     pins them: the two words say different things, and the true one is
+     *     the stronger. Shadowed means "plMail wrote this and something will
+     *     beat it" — which would have plMail putting another install's relay
+     *     into this one's secrets file to sit there waiting for the pin to come
+     *     off. External means "the other half of this lives somewhere plMail is
+     *     only a client of", and for a deployment's own compose file that is
+     *     exactly right.
+     *
+     * Three of the five are named by OLD backups only. A document written by
+     * this build carries none of them, and the entries stay because a backup
+     * outlives the version that wrote it.
      *
      * @var array<string, ConfigBackupDisposition>
      */
     private const array REFUSED = [
-        'APP_ENCRYPTION_KEY' => ConfigBackupDisposition::KeptDeliberately,
-        'POSTGRES_PASSWORD'  => ConfigBackupDisposition::External,
-        'DATABASE_URL'       => ConfigBackupDisposition::External,
+        'APP_ENCRYPTION_KEY'      => ConfigBackupDisposition::KeptDeliberately,
+        'POSTGRES_PASSWORD'       => ConfigBackupDisposition::External,
+        'DATABASE_URL'            => ConfigBackupDisposition::External,
+        'MAILER_DSN'              => ConfigBackupDisposition::External,
+        'MESSENGER_TRANSPORT_DSN' => ConfigBackupDisposition::External,
     ];
 
     public function __construct(
@@ -250,7 +276,12 @@ final readonly class ConfigBackupEnvironment
      * On plMail's own compose.yaml that identifies exactly the three names
      * pinned to non-empty defaults — MAILER_DSN, MESSENGER_TRANSPORT_DSN and
      * MERCURE_PUBLIC_URL — and clears everything passed through as
-     * `${NAME:-}`, which resolves to the empty string and counts as absent.
+     * `${NAME:-}`, which resolves to the empty string and counts as absent. Two
+     * of those three are refused before this is ever asked, so MERCURE_PUBLIC_URL
+     * is the one name a stock stack can still reach ShadowedByCompose by. The
+     * test keeps asserting all three: this method answers a question about the
+     * environment, and it has to keep answering it correctly for names the
+     * inventory no longer carries.
      *
      * **The one case it cannot see**: an operator who pinned a name in compose
      * to the very same string the generated file already holds. The two are

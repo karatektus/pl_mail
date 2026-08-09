@@ -303,6 +303,35 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         return $this;
     }
 
+    /**
+     * Put a second factor back exactly as another installation had it.
+     *
+     * Not expressible as startTotpEnrolment() + confirmTotp(): that pair is the
+     * enrolment *ceremony* — stage a secret, then record that a human proved it
+     * works, now. A restore is not a ceremony and there is no human at it. The
+     * confirmation already happened, on another host, on a date the backup
+     * carries, and stamping it with today's would quietly rewrite when this
+     * account gained its second factor.
+     *
+     * The secret arrives decrypted from inside the backup's envelope and is
+     * re-encrypted by EncryptedStringType on the way to the column, under
+     * whatever APP_ENCRYPTION_KEY is in force here — see
+     * \App\Service\Backup\ConfigBackupUsers, which is why it can travel at all.
+     *
+     * Recovery codes are set through the ordinary property: they are SHA-256
+     * digests already and there is no state to keep in step with them.
+     */
+    public function restoreTwoFactor(?string $secret, ?DateTimeImmutable $confirmedAt): static
+    {
+        $this->totpSecret = $secret;
+        // Never confirmed without a secret: the pair is what
+        // isTotpAuthenticationEnabled() reads, and a confirmation date with
+        // nothing behind it would claim 2FA on an account that has none.
+        $this->totpConfirmedAt = null === $secret ? null : $confirmedAt;
+
+        return $this;
+    }
+
     public static function hashBackupCode(string $code): string
     {
         // Normalised so the grouping dashes the user is shown, and the case
