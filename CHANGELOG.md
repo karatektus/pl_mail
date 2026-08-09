@@ -6,6 +6,41 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.22 — 2026-08-09
+
+**One migration runs, and it is irreversible — but it changes no table.** It
+deletes the per-account "sync only the last X mails" setting from the settings
+bag, because the feature is gone: the cap applied per sync run, not per
+mailbox, so an account that outgrew it between runs lost the *middle* of its
+mail — interior holes, not a window. Removed everywhere: the settings control,
+the caps in both the IMAP and Gmail syncers, and the capability the app read.
+An account that wants its full history re-syncs (`app:reset`) or is re-added;
+previously capped Gmail accounts simply complete their backfill on the next
+sync.
+
+**Dropdowns finally wear the theme.** Every user-facing select is a themed
+widget now — the same one compose's recipient fields always had — because a
+native select's popup obeys the operating system, not the stylesheet, and
+looked pasted-on in every dark theme. The native selects remain underneath as
+the source of truth: forms submit identically, and without JavaScript
+everything degrades to working controls. Includes the five selects the filter
+rule builder creates in JavaScript, which no earlier styling pass could reach.
+
+**Finishing a login twice is not forbidden.** Submitting the two-factor code
+twice — a double click, a second Enter, the browser's "resend?" after Back —
+answered the second attempt with a bare 403 at the exact moment the login had
+succeeded. The resubmit now lands where the first submit went, and the form
+guards itself against double clicks.
+
+**The backup sheds three more machine-local values.** `MERCURE_JWT_SECRET`
+pairs the app with the hub container *beside it* — restoring another
+machine's copy re-keys half of a running pair and kills every live update
+until the whole stack restarts. `APP_SECRET` signs cookies and nothing
+durable — the only thing another machine's copy can do is keep another
+machine's cookies alive on the new install. `TRUSTED_PROXIES` describes the
+machine's own reverse-proxy chain. Old backups carrying any of them import
+fine; the values are classified and left alone.
+
 ## v0.0.21 — 2026-08-09
 
 **No schema changes.** The backup grew a format version, not a table.
