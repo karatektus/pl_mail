@@ -10,6 +10,13 @@
    composable via rgb(var(--x) / <alpha>).
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
+    /* What the BROWSER should render its own UI in. CSS cannot reach inside a
+       native select's popup, a scrollbar or a date picker — color-scheme is
+       the one channel that can, and without it every popup is OS-light over a
+       dark theme. Declared per theme block below, because it has to follow
+       the theme and not the OS. */
+    color-scheme: light;
+
     --rgb-surface:      255 255 255;
     --rgb-border:       255 255 255;
     --rgb-line:           0   0   0;
@@ -72,6 +79,8 @@
 }
 
 .dark {
+    color-scheme: dark;
+
     --rgb-surface:      17  24  39;
     --rgb-border:      255 255 255;
     --rgb-line:        255 255 255;
@@ -112,6 +121,8 @@
    surface. Ink is a soft near-black rather than #000, and the accent is a
    muted clay — a saturated blue on cream reads as a link, not as furniture. */
 [data-theme="paper"] {
+    color-scheme: light;
+
     --rgb-surface:   247 245 239;
     --rgb-ink:        35  34  32;
     --rgb-ink-muted: 107 102  94;
@@ -159,6 +170,8 @@
    enough to carry them — a pale sage, which is what the reference uses for
    40px avatar circles, becomes a washed-out slab nothing can be read on. */
 [data-theme="dark"] {
+    color-scheme: dark;
+
     --rgb-surface:     28  27  26;
     --rgb-ink:        214 209 202;
     --rgb-ink-soft:   186 181 174;
@@ -204,6 +217,8 @@
 }
 
 [data-theme="nord"] {
+    color-scheme: dark;
+
     --rgb-surface:    46  52  64;
     --rgb-ink:       236 239 244;
     --rgb-ink-muted: 216 222 233;
@@ -212,6 +227,8 @@
 }
 
 [data-theme="dusk"] {
+    color-scheme: dark;
+
     --rgb-surface:    30  27  46;
     --rgb-ink:       237 233 254;
     --rgb-ink-muted: 196 181 253;
@@ -220,6 +237,8 @@
 }
 
 [data-theme="solar"] {
+    color-scheme: light;
+
     --rgb-surface:   253 246 227;
     --rgb-ink:        88 110 117;
     --rgb-ink-muted: 101 123 131;
