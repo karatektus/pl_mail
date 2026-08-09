@@ -55,14 +55,14 @@ Variables:
                     <label for="ics-file" class="block text-xs font-medium text-ink-soft">
                         {{ 'calendar.ics.import.file'|trans }}
                     </label>
+                    {# The picker button is styled in app.css, on every file
+                       input at once — see the base layer there. #}
                     <input type="file"
                            id="ics-file"
                            name="file"
                            accept=".ics,text/calendar"
                            required
-                           class="w-full text-sm text-ink file:mr-3 file:h-8 file:px-3 file:rounded-lg
-                                  file:border file:border-field file:bg-field file:text-xs file:font-medium
-                                  file:text-ink-soft hover:file:bg-hover file:cursor-pointer">
+                           class="w-full text-sm">
                     <p class="text-[11px] text-ink-faint leading-snug">
                         {{ 'calendar.ics.import.file_help'|trans({ '%size%': (maxBytes / 1048576)|round }) }}
                     </p>
@@ -74,8 +74,7 @@ Variables:
                     </label>
                     <select id="ics-calendar"
                             name="calendarId"
-                            class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            class="select-field w-full h-9 text-sm">
                         {% for calendar in calendars %}
                             <option value="{{ calendar.id }}" {% if calendar.isDefault %}selected{% endif %}>
                                 {{ calendar.name }}

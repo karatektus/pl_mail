@@ -28,8 +28,7 @@
                     title="{{ tooltip }}"
                     aria-label="{{ 'settings.accounts.sync_limit.title'|trans }}"
                     onchange="this.form.requestSubmit();"
-                    class="h-8 shrink-0 rounded-lg border border-line bg-field px-2 text-xs transition-colors
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                    class="select-field h-8 shrink-0 text-xs
                            {{ limit == 0 ? 'text-ink-faint' : 'text-ink-soft' }}">
                 {% for choice in constant('App\\Entity\\Mail\\Account::SYNC_LIMIT_CHOICES') %}
                     <option value="{{ choice }}" {{ limit == choice ? 'selected' : '' }}>

@@ -22,8 +22,7 @@ Variables:
         <select id="settings-timezone"
                 name="timezone"
                 onchange="this.form.requestSubmit();"
-                class="w-full h-9 rounded-lg border border-line bg-field px-2 text-sm text-ink-soft transition-colors
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                class="select-field w-full h-9 text-sm">
             <option value="" {{ activeTimezone is null ? 'selected' : '' }}>
                 {{ 'settings.timezone.follow_default'|trans({'%timezone%': defaultTimezone}) }}
             </option>
