@@ -36,7 +36,15 @@
                 {# Full page load on submit, for the same reason as the login
                    form: Turbo swaps only the <body>, so the appearance the
                    server renders onto <html> would be ignored. #}
+                {# Once, however many times it is pressed. The second submit
+                   arrives after the first has already completed the login, so
+                   there is no two-factor process left for it to finish — see
+                   App\Security\TwoFactor\CompletedTwoFactorRedirect, which
+                   catches the ones that get sent anyway. #}
                 <form method="post" data-turbo="false"
+                      data-controller="core--submit-once"
+                      data-action="submit->core--submit-once#guard"
+                      data-core--submit-once-busy-label-value="{{ 'two_factor.form.submitting'|trans }}"
                       action="{{ checkPathUrl ? checkPathUrl : path(checkPathRoute) }}">
 
                     <div class="space-y-4">
@@ -85,7 +93,8 @@
 
                     <button
                         type="submit"
-                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface"
+                        data-core--submit-once-target="button"
+                        class="mt-6 w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {{ 'two_factor.form.submit'|trans }}
                     </button>

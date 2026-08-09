@@ -2197,6 +2197,7 @@ two_factor:
             Der sechsstellige Code aus deiner Authenticator-App oder einer deiner
             Wiederherstellungscodes.
         submit: Weiter
+        submitting: Wird geprüft…
         trust_device: Auf diesem Gerät nicht mehr fragen
         trust_device_hint: Für 30 Tage. Du kannst das jederzeit unter Einstellungen → Sicherheit widerrufen.
     page_title: Zwei-Faktor-Authentifizierung
