@@ -1937,6 +1937,11 @@ settings:
         appearance: Darstellung
         calendars: Kalender
         general: Allgemein
+        group:
+            access: Zugriff
+            calendar: Kalender
+            mail: E-Mail
+            personal: Persönlich
         profile: Profil
         filters: Filter
         integrations: Integrationen

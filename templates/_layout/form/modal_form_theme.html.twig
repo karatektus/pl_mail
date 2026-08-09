@@ -134,44 +134,39 @@ a collection row — is one field to the reader and should stay tight.
 
 {# ── Select ──────────────────────────────────────────────────────────────── #}
 {% block choice_widget_collapsed %}
-    {% set attr = attr|merge({
-        class: 'block w-full h-9 rounded-lg border border-field
-            bg-field
-            pl-3 pr-8 text-sm text-ink
-            shadow-sm shadow-zinc-950/5 appearance-none
-            focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
-            transition-colors duration-100
-            cursor-pointer
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ' ~ (attr.class ?? '')
-    }) %}
-    <div class="relative">
-        <select {{ block('widget_attributes') }}>
-            {% if placeholder is not none %}
-                <option value=""{% if not value %} selected{% endif %} disabled>{{ placeholder|trans({}, translation_domain) }}</option>
-            {% endif %}
-            {% if preferred_choices|length > 0 %}
-                {% set options = preferred_choices %}
-                {{ block('choice_widget_options') }}
-                {% if choices|length > 0 and separator is not none %}
-                    <option disabled>{{ separator }}</option>
-                {% endif %}
-            {% endif %}
-            {% set options = choices %}
-            {{ block('choice_widget_options') }}
-        </select>
-        {# Not drawn for an autocomplete field. TomSelect replaces the <select>
-           with its own control and brings its own caret, so this one ended up
-           floating in a box of its own beside it — visible on the account
-           step's provider picker. #}
-        {% if 'symfony--ux-autocomplete' not in (attr['data-controller']|default('')) %}
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-ink-faint">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3.5" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
-                </svg>
-            </div>
+    {# Nothing for an autocomplete field. Tom Select replaces the <select> with
+       a control of its own and copies these classes onto the .ts-wrapper that
+       holds it, where a field's padding would indent the control rather than
+       the text inside it. It needs none of them: .ts-wrapper.single .ts-control
+       draws the same box from the same tokens — see assets/styles/tom-select.css
+       — and this stylesheet already suppresses Tom Select's own caret.
+
+       Everything else gets select-field, the utility the hand-written selects
+       across settings, admin and the calendar now use too, so the form theme
+       and the rest of the app cannot drift apart again. It replaces this class
+       list plus an absolutely positioned SVG in a wrapper div; the chevron is a
+       background image now, which is what let the wrapper go. #}
+    {% if 'symfony--ux-autocomplete' not in (attr['data-controller']|default('')) %}
+        {% set attr = attr|merge({
+            class: 'select-field block w-full h-9 text-sm
+                shadow-sm shadow-zinc-950/5
+                ' ~ (attr.class ?? '')
+        }) %}
+    {% endif %}
+    <select {{ block('widget_attributes') }}>
+        {% if placeholder is not none %}
+            <option value=""{% if not value %} selected{% endif %} disabled>{{ placeholder|trans({}, translation_domain) }}</option>
         {% endif %}
-    </div>
+        {% if preferred_choices|length > 0 %}
+            {% set options = preferred_choices %}
+            {{ block('choice_widget_options') }}
+            {% if choices|length > 0 and separator is not none %}
+                <option disabled>{{ separator }}</option>
+            {% endif %}
+        {% endif %}
+        {% set options = choices %}
+        {{ block('choice_widget_options') }}
+    </select>
 {% endblock %}
 
 {# ── File ────────────────────────────────────────────────────────────────────

@@ -223,8 +223,7 @@ behaviour.
                         ? event.jscalendar.recurrenceRules|first.frequency|default('')
                         : '' %}
                     <select id="event-repeat" name="repeat"
-                            class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
-                                   focus:outline-none focus:ring-2 focus:ring-accent">
+                            class="select-field w-full py-2 text-sm">
                         {% for option in ['none', 'daily', 'weekly', 'monthly', 'yearly'] %}
                             <option value="{{ option }}" {{ currentFrequency == option ? 'selected' : '' }}>
                                 {{ ('calendar.repeat.' ~ option)|trans }}
@@ -307,8 +306,7 @@ behaviour.
                            class="w-20 rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
                                   focus:outline-none focus:ring-2 focus:ring-accent">
                     <select name="alertCustomAction" aria-label="{{ 'calendar.event.alert.custom_action'|trans }}"
-                            class="rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
-                                   focus:outline-none focus:ring-2 focus:ring-accent">
+                            class="select-field py-1 text-sm">
                         {% for action in ['display', 'email'] %}
                             <option value="{{ action }}">
                                 {{ ('calendar.event.alert.action.' ~ action)|trans }}

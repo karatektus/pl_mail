@@ -1901,6 +1901,11 @@ settings:
         appearance: Appearance
         calendars: Calendars
         general: General
+        group:
+            access: Access
+            calendar: Calendar
+            mail: Mail
+            personal: Personal
         profile: Profile
         filters: Filters
         integrations: Integrations

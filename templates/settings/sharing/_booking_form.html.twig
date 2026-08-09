@@ -94,8 +94,7 @@ Variables:
                 </label>
                 <select id="booking-calendar"
                         name="calendarId"
-                        class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        class="select-field w-full h-9 text-sm">
                     {% for calendar in calendars %}
                         <option value="{{ calendar.id }}"
                                 {{ page and page.calendar.id == calendar.id ? 'selected' : '' }}>
@@ -214,8 +213,7 @@ Variables:
                 </label>
                 <select id="booking-zone"
                         name="timeZone"
-                        class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        class="select-field w-full h-9 text-sm">
                     {% for group, zones in timezoneGroups %}
                         <optgroup label="{{ group }}">
                             {% for zone in zones %}

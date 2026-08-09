@@ -19,14 +19,14 @@
             <form method="get" action="{{ path('app_admin_logs') }}"
                   class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
                 <select name="level"
-                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     {% for value, name in levels %}
                         <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
                     {% endfor %}
                 </select>
                 <select name="channel"
-                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
                     {% for ch in channels %}
