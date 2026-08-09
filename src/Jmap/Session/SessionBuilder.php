@@ -32,14 +32,14 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *   User::$accounts: iterable<Account>
  *   Account::$id: ?int
  *   Account::$email: ?string
- *   Account::$syncLimit: int, Account::$backfillTarget: ?int — the sync window
- *   Account::needsBackfill(), Account::supportsSyncLimit(): bool
+ *   Account::$backfillTarget: ?int — how much of the mailbox is in
+ *   Account::needsBackfill(): bool
  * Adjust these if the shape moves and nothing else changes. They are
  * properties, not accessors — this said getId() and getEmail() long after the
  * getters were gone, which is the one way a note like this can be worse than
- * absent: it is here to be trusted without checking. The last four are virtual
- * properties over the `settings` JSONB bag rather than columns, which changes
- * nothing here and everything in a migration.
+ * absent: it is here to be trusted without checking. $backfillTarget is a
+ * virtual property over the `settings` JSONB bag rather than a column, which
+ * changes nothing here and everything in a migration.
  */
 final class SessionBuilder
 {
@@ -131,7 +131,7 @@ final class SessionBuilder
                 Capability::PUSH => $this->pushCapabilities(),
                 Capability::CALENDARS => new \stdClass(),
                 Capability::APPEARANCE => $this->appearanceCapabilities($user),
-                // Empty at the top level on purpose: the sync window is a
+                // Empty at the top level on purpose: backfill progress is a
                 // property of one account, and every value lives in that
                 // account's entry under the same URN.
                 Capability::SYNC => new \stdClass(),
@@ -219,35 +219,31 @@ final class SessionBuilder
     }
 
     /**
-     * The sync window this account is actually holding, so a client can say
-     * *why* a mail the user remembers is not in a search result.
+     * How much of this account the server has actually got hold of, so a client
+     * can say *why* a mail the user remembers is not in a search result.
      *
-     * Without it the two cases are indistinguishable from the phone: mail the
-     * server never fetched and mail the phone has not caught up on look
-     * identical — an empty result — and they want opposite reactions ("raise
-     * the limit in settings" versus "wait"). The numbers are:
+     * The server intends to hold everything — there is no retention setting any
+     * more — so the only honest gap left is a backfill that has not finished
+     * walking the mailbox yet. That is worth publishing on its own: without it,
+     * mail the server has not fetched yet and mail the phone has not caught up
+     * on look identical from the phone (an empty result) and they want opposite
+     * reactions. The numbers are:
      *
-     *  - `syncLimit` — the newest-N cap in force, 0 for no cap. Reported as 0
-     *    on Microsoft accounts whatever the stored setting says, because Graph
-     *    cannot honour it (Account::supportsSyncLimit) and the cap in force is
-     *    the only honest thing to publish. Reporting the stored number would
-     *    have a client explain a gap that is not there.
      *  - `backfillTarget` — how far back a *completed* backfill actually
-     *    reached: 0 for the whole mailbox, null when none has finished yet.
-     *    Distinct from the cap on purpose; the gap between the two is the mail
-     *    that is coming but not here.
-     *  - `backfillPending` — whether that gap is non-empty. Derived from the
-     *    same two values by Account::needsBackfill(), so it cannot disagree
-     *    with the sync engine's own decision to keep walking back. It is NOT
-     *    "a backfill is running this second" — nothing records that, and a
-     *    client would read a running/not-running flag as progress.
+     *    reached: 0 for the whole mailbox, null when none has finished yet. A
+     *    positive number is a stopping point left over from the retired sync
+     *    cap, which is unfinished rather than complete.
+     *  - `backfillPending` — whether anything is still owed. Account::
+     *    needsBackfill() decides it, so it cannot disagree with the sync
+     *    engine's own decision to keep walking back. It is NOT "a backfill is
+     *    running this second" — nothing records that, and a client would read a
+     *    running/not-running flag as progress.
      *
      * @return array<string,mixed>
      */
     private function syncAccountCapabilities(Account $account): array
     {
         return [
-            'syncLimit' => true === $account->supportsSyncLimit() ? $account->syncLimit : 0,
             'backfillTarget' => $account->backfillTarget,
             'backfillPending' => $account->needsBackfill(),
         ];
@@ -258,7 +254,7 @@ final class SessionBuilder
      *
      * Per user, not per account — which is why it sits in the Session's
      * top-level capabilities rather than in accountCapabilities beside the
-     * sync window. A user has one theme and three mailboxes.
+     * backfill numbers. A user has one theme and three mailboxes.
      *
      * The current values are a *hint*, and the compact subset for that reason:
      * the Session's `state` is a hash of the user's account ids, so it does

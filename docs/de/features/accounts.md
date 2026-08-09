@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:1de4244ae6384c6a997411de3179bd913ead41fe -->
+<!-- translated-from: features/accounts.md sha1:88b8b4500baf1b04477417b36b2e95dd58cb1158 -->
 
 # Konten und Aliase
 
@@ -140,25 +140,6 @@ Aktualisierungen, die im Hintergrund laufen.
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
-### Zu synchronisierende Nachrichten
-
-Wie viele der neuesten Nachrichten ein Synchronisierungslauf holen darf: **Alles
-synchronisieren**, oder die neuesten 500, 1000, 2000, 5000, 10000 oder 25000.
-
-Das gibt es für große Postfächer. Sechzigtausend Nachrichten nachzuladen sind Stunden von
-API-Aufrufen, bevor die Oberfläche brauchbar ist, und gelesen werden ohnehin die neuesten paar
-tausend. Ältere Mail wird nicht für später eingereiht — sie wird schlicht noch nicht geholt.
-
-Den Deckel anzuheben oder aufzuheben lässt einen **späteren** Lauf weiter zurückgehen; in dem
-Moment, in dem du die Einstellung änderst, wird nichts geholt. Ihn zu senken löscht nichts. Ihn
-anzuheben hebt zusätzlich die Abklingzeit für das Nachladen auf, damit du nicht eine Stunde
-aussitzen musst, die von einer früheren Auflistung übrig war.
-
-Bei Microsoft-Konten nicht angeboten. Graph zählt einen Ordner über eine Delta-Abfrage auf,
-deren Cursor erst nach der letzten Seite eintrifft, und die Seiten kommen nicht neueste zuerst —
-früh abzubrechen ergäbe also weder einen brauchbaren Cursor noch die neuesten N. Die Einstellung
-wird lieber vorenthalten als stillschweigend ignoriert.
-
 ## Absendeadressen
 
 **Einstellungen → Aliase** listet die Adressen auf, unter denen jedes Konto sendet und
@@ -192,12 +173,10 @@ wird es in deinen Microsoft-Kontoeinstellungen und nicht hier.
 welchem Konto eine neue Nachricht verfasst wird. Es gibt keinen eigenen Knopf „als primär
 festlegen“, und es kommt auch keiner — die Reihenfolge *ist* die Einstellung.
 
-**Den Synchronisierungsdeckel zu senken gibt keinen Platz frei.** Er begrenzt nur künftige
-Läufe. Bereits synchronisierte Mail bleibt; `app:reset` ist das, was von vorn holt.
-
-**Den Deckel anzuheben tut bis zum nächsten Lauf nichts Sichtbares.** In dem Moment, in dem du
-ihn änderst, wird nichts geholt, und bei einem großen Postfach hat der nächste Lauf viel
-aufzuholen.
+**Ein großes Postfach braucht seine Zeit, bis es vollständig da ist.** plMail synchronisiert
+alles, was das Konto hält; es gibt keine Einstellung, die das begrenzt. Die neueste Mail kommt
+zuerst, der Rest folgt über die nächsten Läufe — ein eben hinzugefügtes Konto ist also lange
+brauchbar, bevor es vollständig ist.
 
 **Die Verbindung eines bestehenden Kontos zu testen braucht ein Passwort im Feld.** Ein leeres
 Passwort bedeutet im Bearbeitungsformular „behalte das gespeicherte“, und der Test kann das
@@ -205,8 +184,7 @@ erst auflösen, wenn ihn die Konto-Id erreicht hat — sonst sagt er das, statt 
 testen.
 
 **Ein Konto zu entfernen löscht dessen synchronisierte Mail aus plMail.** Beim Anbieter wird
-nichts entfernt, und das Konto erneut hinzuzufügen synchronisiert es wieder, im Rahmen des
-Fensters, das du dann einstellst.
+nichts entfernt, und das Konto erneut hinzuzufügen synchronisiert es von vorn.
 
 **Auf Googles Zustimmungsseite lässt sich der Kalenderzugriff abwählen, während Mail erlaubt
 wird.** Das Konto verbindet sich, Mail funktioniert, und es erscheinen keine Kalender. Die

@@ -488,7 +488,10 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $account->authType       = 'password';
         $account->isActive       = true;
         $account->isPrimary      = true;
-        $account->setSetting(Account::SETTING_SYNC_LIMIT, 500);
+        // The retired sync cap, written as a raw key: an install upgraded from
+        // a version that still had the setting carries it, and neither export
+        // nor import may trip over it.
+        $account->setSetting('sync.message_limit', 500);
 
         $this->entityManager->persist($account);
 

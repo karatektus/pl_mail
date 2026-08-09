@@ -255,16 +255,11 @@ class Account extends AccountModel
      */
     public const string SETTING_CALENDAR_TARGET = 'calendar.target_id';
 
-    /** Settings-bag key for the newest-N sync cap. */
-    public const string SETTING_SYNC_LIMIT = 'sync.message_limit';
-
-    /** Offered in the UI. 0 means no cap. */
-    public const array SYNC_LIMIT_CHOICES = [0, 500, 1000, 2000, 5000, 10000, 25000];
-
     /**
-     * The cap a backfill has actually walked back to, or absent if none has
-     * ever finished. Distinct from SETTING_SYNC_LIMIT, which is what the user
-     * asked for: the gap between the two is what still needs fetching.
+     * How far back a backfill has actually walked, or absent if none has ever
+     * finished. 0 means it reached the whole mailbox; a positive count is a
+     * stopping point left over from the retired newest-N cap, and the mail
+     * below it is still owed.
      */
     public const string SETTING_BACKFILL_TARGET = 'sync.backfill_target';
 
@@ -330,31 +325,12 @@ class Account extends AccountModel
     }
 
     /**
-     * How many of the newest messages a sync run may pull, or 0 for no cap.
-     *
-     * Backfilling a large mailbox from scratch is the slow case this exists
-     * for: a 60k-message Gmail account is hours of API calls before the UI is
-     * usable, while the newest couple of thousand are what the user actually
-     * reads. Older mail is not queued for later, it is simply not fetched
-     * yet — raising the cap lets a later run walk further back, tracked by
-     * $backfillTarget.
+     * How far back a completed backfill reached: 0 for the whole mailbox, a
+     * positive count for the newest N, null when none has ever finished.
      *
      * Virtual, so there is no column behind it — the value lives in the
      * settings bag, and Doctrine refuses to map a property whose hooks do not
      * touch a backing store.
-     */
-    public int $syncLimit {
-        get => max(0, (int) $this->getSetting(self::SETTING_SYNC_LIMIT, 0));
-        set (int $limit) {
-            $this->setSetting(self::SETTING_SYNC_LIMIT, max(0, $limit));
-        }
-    }
-
-    /**
-     * How far back a completed backfill reached: 0 for the whole mailbox, a
-     * positive count for the newest N, null when none has ever finished.
-     *
-     * Virtual for the same reason as $syncLimit.
      */
     public ?int $backfillTarget {
         get {
@@ -371,7 +347,7 @@ class Account extends AccountModel
     }
 
     /**
-     * Virtual for the same reason as $syncLimit, and stored as a Unix timestamp
+     * Virtual for the same reason as $backfillTarget, and stored as a Unix timestamp
      * because the bag is JSON and a DateTimeImmutable does not survive it.
      */
     public ?DateTimeImmutable $backfillRanAt {
@@ -392,7 +368,7 @@ class Account extends AccountModel
         }
     }
 
-    /** Virtual for the same reason as $syncLimit. */
+    /** Virtual for the same reason as $backfillTarget. */
     public int $backfillAttempts {
         get => max(0, (int) $this->getSetting(self::SETTING_BACKFILL_ATTEMPTS, 0));
         set (int $attempts) {
@@ -403,38 +379,15 @@ class Account extends AccountModel
     /**
      * Whether a backfill still has ground to cover.
      *
-     * True until one has completed, and true again whenever the cap is raised
-     * past what the last completed one reached — that is what makes changing
-     * the setting after the first sync do anything at all.
+     * Only a backfill that reached 0 — the whole mailbox — is finished. Null is
+     * one that has never completed, and a positive count is one that stopped at
+     * the newest N because the retired sync cap said so. Neither is complete,
+     * so both read as still owing: with no cap left to satisfy, 0 is the only
+     * value that can mean "everything is in".
      */
     public function needsBackfill(): bool
     {
-        $completed = $this->backfillTarget;
-
-        if (null === $completed) {
-            return true;
-        }
-
-        // A completed uncapped backfill has the whole mailbox; nothing can
-        // widen that.
-        if (0 === $completed) {
-            return false;
-        }
-
-        $limit = $this->syncLimit;
-
-        return 0 === $limit || $limit > $completed;
-    }
-
-    /**
-     * Microsoft is excluded: Graph enumerates a folder through a delta query
-     * whose deltaLink only arrives after the final page, and the pages are not
-     * newest-first. Stopping early would neither give a usable cursor nor the
-     * newest N, so the setting is not offered rather than silently ignored.
-     */
-    public function supportsSyncLimit(): bool
-    {
-        return false === $this->isMicrosoft();
+        return 0 !== $this->backfillTarget;
     }
 
     /**

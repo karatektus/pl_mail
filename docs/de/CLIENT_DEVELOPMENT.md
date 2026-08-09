@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6ce497819de6637e04e072bf51dbd55448c73364 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:9c48646c1642ff33633366f8005a8818a87919c9 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1137,11 +1137,13 @@ verfügbar ist. Also: **Deine App sollte allein aufgrund von Push nie behaupten,
 neuesten Stand"**, und sollte ein manuelles Aktualisieren anbieten. Ebenso: Hämmere nicht auf
 einen Sync-Endpunkt ein — der Server versucht es ohnehin schon.
 
-Jedes Konto hat ein **Sync-Fenster** (wie weit zurück die Historie geholt wird), je Konto in den
-Einstellungen gesetzt. Mail, die älter ist als das Fenster, liegt *nicht in der Datenbank* und ist
-deshalb **nicht durchsuchbar**. Wenn eine Nutzerin sucht und nichts Altes findet, lautet die
-ehrliche Meldung „die Suche deckt synchronisierte Mail ab; erweitere das Sync-Fenster in den
-Einstellungen" — und nicht „keine Ergebnisse".
+Der Server holt die **gesamte** Historie eines Kontos — es gibt keine Aufbewahrungseinstellung,
+die sich erweitern ließe. Was es gibt, ist ein **Nachladen**, das bei einem großen Postfach dauert:
+Die neueste Mail kommt zuerst, der Rest folgt über spätere Läufe, alte Mail kann also
+*vorübergehend* fehlen. Genau dafür meldet die Konto-Capability
+`urn:plmail:params:jmap:sync` der Session `backfillPending`. Findet eine datierte Suche nichts und
+ist dieses Flag gesetzt, lautet die ehrliche Meldung „ältere Mail trifft noch ein" — und nicht
+„keine Ergebnisse", und niemals „erweitere das Sync-Fenster".
 
 Konversationen werden derzeit über **RFC-Message-IDs** gebildet, nicht über Gmails eigene
 `threadId`. Rechne mit gelegentlichen Abweichungen davon, was die Gmail-Weboberfläche
@@ -1231,7 +1233,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 | `unsupportedFilter` | Ein Fehler in deinem Query-Builder. Protokolliere ihn; zeig keine rohen JMAP-Fehler. |
 | `tooLarge` beim Upload | Nenn die Grenze von 50 MB. |
 | Server nicht erreichbar | „Dein Server ist nicht erreichbar" — mit dem Hostnamen. Die Leute hosten selbst; der Hostname ist für sie wirklich nützlich. |
-| Leere Suchergebnisse | Erwähne das Sync-Fenster, wenn die Anfrage einen Datums- oder `before:`-Anteil hatte. |
+| Leere Suchergebnisse | Hatte die Anfrage einen Datums- oder `before:`-Anteil und ist `backfillPending` gesetzt, sag, dass ältere Mail noch eintrifft. |
 | Keine Konten verbunden | Verlinke tief in die Kontoeinrichtung der Web-Oberfläche; das Anlegen eines Kontos umfasst OAuth-Abläufe, die in einen Browser gehören. |
 
 ### Was du nicht tun solltest

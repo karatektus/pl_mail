@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:26c30111dd6ca95675a31086a02bf21913b27b6b -->
+<!-- translated-from: features/mail.md sha1:bca338fe634d93894ec1a3016364fc97d7e2eeaa -->
 
 # Mail
 
@@ -213,7 +213,7 @@ wo er stand.
 
 - [Mail-Ingest](../internals/mail-ingest.md) — der Weg vom Anbieter in die Datenbank, Zuordnung
   zu Konversationen und Kategorisierung.
-- [Konten und Aliase](accounts.md) — Synchronisierungsfenster, sofortige Zustellung,
+- [Konten und Aliase](accounts.md) — Postfächer verbinden, sofortige Zustellung,
   Absendeadressen.
 - [Filter](filters.md) — Mail beim Eintreffen sortieren, und eine Regel auf vorhandene Mail
   anwenden.
@@ -239,10 +239,10 @@ Konten, also gilt das Löschen es auch — untergeordnete Labels eingeschlossen.
 eines `Mailbox/set` in einem JMAP-Client ist die Operation pro Konto; die Weboberfläche hat
 kein Gegenstück dazu.
 
-**Die Suche findet nichts, was älter ist als dein Synchronisierungsfenster.** Mail, die nicht
-synchronisiert wurde, ist nicht durchsuchbar, so sicher du auch bist, dass es sie gibt.
-Erweitere das Fenster unter **Einstellungen → E-Mail-Konten** und lass den nächsten Lauf weiter
-zurückgehen.
+**Die Suche erfasst nur Mail, die schon angekommen ist.** plMail synchronisiert alles, was ein
+Konto hält, aber ein großes Postfach braucht mehrere Läufe, bis es vollständig herüber ist, und
+was noch nicht da ist, ist nicht durchsuchbar — so sicher du auch bist, dass es das gibt. Das
+braucht Zeit, keine Einstellung.
 
 **Ein zu großer Anhang kann ohne Grund je Datei scheitern.** PHP verwirft den gesamten
 Request-Body, sobald er `post_max_size` überschreitet — es kommt also nichts an, worüber sich
