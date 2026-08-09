@@ -35,6 +35,7 @@ Variables:
   errorKey        string|null       a refusal to render above the fields
 #}
 {% extends '_layout/app.html.twig' %}
+{% import '_partials/_select.html.twig' as select %}
 
 {% block body %}
 <turbo-frame id="modal">
@@ -94,6 +95,7 @@ Variables:
                 </label>
                 <select id="booking-calendar"
                         name="calendarId"
+                        {{ select.enhance() }}
                         class="select-field w-full h-9 text-sm">
                     {% for calendar in calendars %}
                         <option value="{{ calendar.id }}"
@@ -213,6 +215,7 @@ Variables:
                 </label>
                 <select id="booking-zone"
                         name="timeZone"
+                        {{ select.enhance() }}
                         class="select-field w-full h-9 text-sm">
                     {% for group, zones in timezoneGroups %}
                         <optgroup label="{{ group }}">

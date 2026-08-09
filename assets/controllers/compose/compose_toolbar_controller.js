@@ -13,17 +13,20 @@ export default class extends Controller {
         'colorSwatch',
     ];
 
+    // Keyed by the <option>'s value, not its label. The labels used to be the
+    // keys, which meant they could never be translated: "Small" was both what
+    // the German user read and what this map had to be looked up by.
     static FONT_SIZES = {
-        'Small':  '0.8em',
-        'Normal': '1em',
-        'Large':  '1.3em',
-        'Huge':   '1.8em',
+        small:  '0.8em',
+        normal: '1em',
+        large:  '1.3em',
+        huge:   '1.8em',
     };
 
     static FONT_FAMILIES = {
-        'Sans Serif': 'Arial, sans-serif',
-        'Serif':      'Georgia, serif',
-        'Monospace':  '"Courier New", monospace',
+        sans:      'Arial, sans-serif',
+        serif:     'Georgia, serif',
+        monospace: '"Courier New", monospace',
     };
 
     // Saved selection range — populated on editor blur so colour picker

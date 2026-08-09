@@ -1,5 +1,6 @@
 {# templates/compose/_window.html.twig #}
 {% form_theme form '_layout/form/compose_theme.html.twig' %}
+{% import '_partials/_select.html.twig' as select %}
 
 {#
 Renders in two places:
@@ -152,7 +153,11 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
         <div data-compose--compose-target="collapsible"
              class="flex flex-col flex-1 min-h-0">
 
-            {# ── Hidden account select (submitted with form) ───────── #}
+            {# ── Hidden account select (submitted with form) ─────────
+               Deliberately not a Tom Select. It is never shown: the "From"
+               line is a custom menu built from these options, and this is only
+               the value the form posts. A widget here would be one the user
+               cannot see and the screen reader would announce twice. #}
             <select id="{{ form.account.vars.id }}"
                     name="{{ form.account.vars.full_name }}"
                     data-compose--compose-target="accountSelect"
@@ -321,27 +326,41 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                             bg-sunken
                             rounded-full px-2 py-1">
 
+                    {# Bare rather than framed: this is a strip of icon buttons,
+                       and two boxed fields in the middle of it would read as a
+                       different toolbar. Only the popup changes — which is the
+                       point, since the format bar scrolls horizontally on
+                       phones and a native popup was the one thing in it the
+                       theme never reached.
+
+                       The option labels used to be the lookup keys, which is
+                       why they were English in a German UI. The values carry
+                       the key now and the labels are free to be translated. #}
                     <select data-compose--compose-toolbar-target="fontFamily"
                             data-action="change->compose--compose-toolbar#changeFontFamily"
+                            aria-label="{{ 'compose.font_family.label'|trans }}"
+                            {{ select.enhance(bare = true) }}
                             class="shrink-0 bg-transparent border-none outline-none text-xs cursor-pointer px-1 py-0.5 rounded
                                    text-ink-muted
                                    hover:bg-hover transition-colors">
-                        <option>Sans Serif</option>
-                        <option>Serif</option>
-                        <option>Monospace</option>
+                        <option value="sans">{{ 'compose.font_family.sans'|trans }}</option>
+                        <option value="serif">{{ 'compose.font_family.serif'|trans }}</option>
+                        <option value="monospace">{{ 'compose.font_family.monospace'|trans }}</option>
                     </select>
 
                     <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <select data-compose--compose-toolbar-target="fontSize"
                             data-action="change->compose--compose-toolbar#changeFontSize"
+                            aria-label="{{ 'compose.font_size.label'|trans }}"
+                            {{ select.enhance(bare = true) }}
                             class="shrink-0 bg-transparent border-none outline-none text-xs cursor-pointer px-1 py-0.5 rounded
                                    text-ink-muted
                                    hover:bg-hover transition-colors">
-                        <option>Small</option>
-                        <option selected>Normal</option>
-                        <option>Large</option>
-                        <option>Huge</option>
+                        <option value="small">{{ 'compose.font_size.small'|trans }}</option>
+                        <option value="normal" selected>{{ 'compose.font_size.normal'|trans }}</option>
+                        <option value="large">{{ 'compose.font_size.large'|trans }}</option>
+                        <option value="huge">{{ 'compose.font_size.huge'|trans }}</option>
                     </select>
 
                     <div class="w-px h-4 bg-line mx-1 shrink-0"></div>

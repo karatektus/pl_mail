@@ -1,0 +1,27 @@
+{#
+_select.html.twig — the attributes that turn a hand-written <select> into a
+Tom Select (assets/controllers/ui/select_controller.js).
+
+    {% import '_partials/_select.html.twig' as select %}
+    <select name="x" {{ select.enhance() }} class="select-field h-9 text-sm">
+
+Spelled once rather than typed at each call site because the interesting part
+is the string: Tom Select ships its own English ("No results found") and would
+print it into a German UI. It travels as a value so no widget carries a
+hardcoded word.
+
+`bare` keeps the frameless look of an inline toolbar control. `searchAfter`
+overrides the option count above which a filter box appears — see the
+controller for why short lists do not get one.
+
+Forms do not use this: the theme (_layout/form/modal_form_theme.html.twig)
+merges the same attributes into whatever the form type already declared.
+#}
+{% macro enhance(bare = false, searchAfter = null) %}
+    data-controller="ui--select"
+    data-ui--select-i18n-value="{{ {
+        noResults: 'form.select.no_results'|trans,
+    }|json_encode|e('html_attr') }}"
+    {%- if bare %} data-ui--select-bare-value="true"{% endif %}
+    {%- if searchAfter is not null %} data-ui--select-search-after-value="{{ searchAfter }}"{% endif %}
+{% endmacro %}

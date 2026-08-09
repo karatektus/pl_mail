@@ -22,6 +22,7 @@ Variables:
   maxBytes   int         the upload ceiling, so the hint states a real number
 #}
 {% extends '_layout/app.html.twig' %}
+{% import '_partials/_select.html.twig' as select %}
 
 {% block body %}
 <turbo-frame id="modal">
@@ -74,6 +75,7 @@ Variables:
                     </label>
                     <select id="ics-calendar"
                             name="calendarId"
+                            {{ select.enhance() }}
                             class="select-field w-full h-9 text-sm">
                         {% for calendar in calendars %}
                             <option value="{{ calendar.id }}" {% if calendar.isDefault %}selected{% endif %}>

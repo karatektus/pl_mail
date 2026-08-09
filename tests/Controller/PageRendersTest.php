@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Repository\User\UserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Every authenticated page answers 200 for an admin with no mail account.
@@ -53,6 +54,11 @@ final class PageRendersTest extends WebTestCase
         yield 'filters editor' => ['/settings/filters/new'];
         yield 'label editor' => ['/labels/new'];
         yield 'account editor' => ['/account/new'];
+        // Modal fragments with selects in them, which is why they are here:
+        // testEverySelectIsEnhanced below walks this same list.
+        yield 'calendar event editor' => ['/calendar/event/new'];
+        yield 'calendar ics import' => ['/calendar/ics/import'];
+        yield 'booking page editor' => ['/settings/sharing/booking/new'];
         yield 'admin dashboard' => ['/admin'];
         yield 'admin logs' => ['/admin/logs'];
         yield 'admin db' => ['/admin/db'];
@@ -114,5 +120,69 @@ final class PageRendersTest extends WebTestCase
         $client->request('GET', $path);
 
         self::assertSame(200, $client->getResponse()->getStatusCode(), $path);
+    }
+
+    /**
+     * No page renders a select the browser will draw its own popup for.
+     *
+     * The decision is that there are no native selects in the UI: the popup is
+     * the one part of a form control CSS cannot reach, so a themed app with a
+     * native dropdown in it looks half-finished in five of the six themes. Every
+     * select is enhanced by ui--select instead — through the form theme when a
+     * form rendered it, through the _select.html.twig macro when a template did.
+     *
+     * Written as a sweep rather than three spot checks because the failure mode
+     * is a select nobody remembered: the previous pass at this problem styled
+     * `select-field` onto thirteen of them and missed the five the rule editor
+     * builds in JavaScript. A sweep notices the fourteenth.
+     */
+    #[DataProvider('pages')]
+    public function testEverySelectIsEnhanced(string $path): void
+    {
+        $client = static::createClient();
+
+        $user = static::getContainer()->get(UserRepository::class)
+            ->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        if (null === $user) {
+            self::markTestSkipped('run `app:test:seed-user --admin` first');
+        }
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', $path);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $path);
+
+        $bare = array_values(array_filter($crawler->filter('select')->each(
+            static function (Crawler $select): ?string {
+                $controllers = $select->attr('data-controller') ?? '';
+
+                // Compose's address fields. They have a Tom Select of their own,
+                // with contact rows and chips, and are the only multi-selects here.
+                if (null !== $select->attr('multiple')) {
+                    return null;
+                }
+
+                // The provider preset, enhanced by UX Autocomplete rather than
+                // by us because it fetches its choices over the wire.
+                if (str_contains($controllers, 'symfony--ux-autocomplete')) {
+                    return null;
+                }
+
+                // Never shown: the "From" line is a custom menu built from
+                // these options and this is only what the form posts.
+                if (null !== $select->attr('data-compose--compose-target')) {
+                    return null;
+                }
+
+                if (str_contains($controllers, 'ui--select')) {
+                    return null;
+                }
+
+                return $select->attr('name') ?? $select->attr('id') ?? '(anonymous)';
+            },
+        )));
+
+        self::assertSame([], $bare, sprintf('%s renders native select(s): %s', $path, implode(', ', $bare)));
     }
 }

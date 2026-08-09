@@ -11,6 +11,7 @@ nothing here a narrow screen has to give up.
 Variables:
   rule, errors, submitted*, labels, accounts, actionTypes
 #}
+{% import '_partials/_select.html.twig' as select %}
 <turbo-frame id="filter-editor">
     <div class="rounded-pane border border-line overflow-hidden bg-pane-soft">
 
@@ -32,6 +33,11 @@ Variables:
               data-rules--rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
               data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
               data-rules--rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
+              {# selectNoResults is for the widget on the rows below: this
+                 editor builds its selects in JS, so they cannot pick up the
+                 ui--select attributes from the Twig macro the way every other
+                 select in the app does. The string rides along here and
+                 _selectElement() stamps it on. #}
               data-rules--rule-builder-i18n-value="{{ {
                   all: 'settings.filters.op.all'|trans,
                   any: 'settings.filters.op.any'|trans,
@@ -46,6 +52,7 @@ Variables:
                   remove_action: 'settings.filters.remove_action'|trans,
                   yes: 'settings.filters.yes'|trans,
                   no: 'settings.filters.no'|trans,
+                  selectNoResults: 'form.select.no_results'|trans,
                   actionTypes: actionTypes,
                   'join.and': 'settings.filters.join.and'|trans,
                   'join.or': 'settings.filters.join.or'|trans,
@@ -138,6 +145,7 @@ Variables:
                            until something else happened to trigger a preview. #}
                         <select id="rule-account" name="account"
                                 data-action="change->rules--rule-builder#schedulePreview"
+                                {{ select.enhance() }}
                                 class="select-field block w-full h-9 text-sm">
                             <option value="">{{ 'settings.filters.all_accounts'|trans }}</option>
                             {% for account in accounts %}

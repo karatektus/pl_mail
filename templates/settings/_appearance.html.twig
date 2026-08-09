@@ -1,3 +1,4 @@
+{% import '_partials/_select.html.twig' as select %}
 {% set a = appearance() %}
 
 <div class="space-y-8"
@@ -41,8 +42,12 @@
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
         <p class="text-xs text-ink-faint mt-0.5 mb-3">{{ 'settings.appearance.layout.subheading'|trans }}</p>
 
+        {# The per-option data attributes are read off the <option> elements by
+           settings--appearance, which still finds them: the widget renders a
+           copy of the list, it does not consume the original. #}
         <select data-settings--appearance-field="layout"
                 data-action="change->settings--appearance#pickLayout"
+                {{ select.enhance() }}
                 class="select-field w-full sm:w-64 h-9 text-sm">
             {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
                 <option value="{{ layout.value }}"

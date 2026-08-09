@@ -1,18 +1,31 @@
 /*
  * tom-select.css
- * Custom skin for Symfony UX Autocomplete / Tom Select.
- * All default Tom Select CSS bundles are disabled in controllers.json —
- * this is the sole skin.
+ * Custom skin for Tom Select — the app's one and only dropdown.
+ * All default Tom Select CSS bundles are disabled in controllers.json, so this
+ * is the sole skin; nothing here is an override of theirs.
  *
- * Two consumers with different needs, distinguished by Tom Select's own
- * wrapper classes:
- *   .ts-wrapper.multi   — compose To/Cc/Bcc chip fields, frameless, dropdown
- *                         deliberately bleeds into the label gutter
- *   .ts-wrapper.single  — standalone form selects (account provider preset),
- *                         styled to match .form-select
+ * Three consumers, distinguished by Tom Select's own wrapper classes plus one
+ * marker of ours:
+ *   .ts-wrapper.multi   — compose To/Cc/Bcc chip fields (UX Autocomplete),
+ *                         frameless, dropdown deliberately bleeds into the
+ *                         label gutter
+ *   .ts-wrapper.single  — every other select in the app, whether it came from
+ *                         UX Autocomplete or from ui--select; draws the same
+ *                         box as the `select-field` utility so the closed
+ *                         state is indistinguishable from the native control
+ *                         it replaced
+ *   .ts-bare            — inline toolbar controls (compose's font pickers),
+ *                         which never had a frame to begin with
  *
  * Colours resolve through the palette tokens in app.css so the skin follows
- * the active theme rather than hardcoding blue.
+ * the active theme rather than hardcoding blue. There is not one per-theme
+ * rule below, and there must not be: the six themes differ only in what the
+ * tokens resolve to.
+ *
+ * Layer note: this file is unlayered, so it outranks Tailwind's `utilities`
+ * layer. That is what lets it undo `select-field` on the wrapper — see below —
+ * but it also means nothing here may set a property a call site expects to
+ * control (width, height, display on the wrapper, text size).
  */
 
 /* ── Base reset ──────────────────────────────────────────────────────── */
@@ -20,16 +33,46 @@
 .ts-control,
 .ts-dropdown {
     font-family: inherit;
-    font-size: 0.875rem;
     line-height: 1.5;
     box-sizing: border-box;
+}
+
+/* Single selects take their text size from the utility on the call site
+ * (text-xs in the admin filter rows, text-sm in settings), which lands on the
+ * wrapper and inherits down. Compose's chip fields have no such call site. */
+.ts-wrapper.multi,
+.ts-dropdown.multi {
+    font-size: 0.875rem;
 }
 
 /* ── Wrapper ─────────────────────────────────────────────────────────── */
 .ts-wrapper {
     position: relative;
-    flex: 1;
     min-width: 0;
+}
+
+.ts-wrapper.multi {
+    flex: 1;
+}
+
+/* Tom Select copies the original <select>'s class list onto the wrapper, which
+ * for us means `select-field` — a whole field, chevron included, drawn around
+ * the field .ts-control already draws inside it. Undoing it here rather than
+ * stripping the class in JS keeps the class where it belongs: on the <select>,
+ * which is what renders when the script never runs.
+ *
+ * Only the box is undone. Sizing and layout utilities from the same class list
+ * (w-full, h-8, shrink-0, text-xs) are the call site's intent and stay. */
+.ts-wrapper.select-field,
+.ts-wrapper.select-field:hover,
+.ts-wrapper.select-field:focus {
+    appearance: none;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    cursor: auto;
 }
 
 /* Hide the original <select> that Tom Select moves off-screen */
@@ -55,7 +98,9 @@
     display: none !important;
 }
 
-/* Hide the dropdown caret Tom Select appends to the control */
+/* Tom Select's own caret is a CSS border triangle from the stylesheet we do not
+ * load, so there is nothing to hide — but the pseudo-element is still in their
+ * markup contract and a stray one would sit inside the chevron we draw. */
 .ts-wrapper .ts-control::after,
 .ts-wrapper.single .ts-control::after,
 .ts-wrapper.multi .ts-control::after {
@@ -69,7 +114,11 @@
     align-items: center;
     gap: 4px;
     padding: 2px 0;
-    background: transparent !important;
+    /* Longhand, deliberately. `background: transparent !important` here used to
+     * be the shorthand, and an important shorthand resets every background
+     * longhand — including the background-image the single variant draws its
+     * chevron with, whatever the specificity of the rule that sets it. */
+    background-color: transparent !important;
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
@@ -102,28 +151,98 @@
     color: rgb(var(--rgb-ink-faint));
 }
 
-/* ── Control — single select, styled as a normal form field ─────────── */
+/* ── Control — single select, styled as a normal form field ───────────
+ *
+ * Every value here is the one `select-field` uses in app.css, including the
+ * chevron's data URI, because the point of the widget is that opening it
+ * changes what the *popup* looks like and nothing about the closed control.
+ * The two must be kept in step; a difference between them reads as the page
+ * shifting under the user when the script finishes loading.
+ *
+ * --ts-control-h is written by ui--select from the native select's measured
+ * height, so h-8 call sites stay h-8. The fallback matches h-9, the common
+ * case, and is what a select that was hidden when the controller connected
+ * falls back to. */
+.ts-wrapper.single {
+    display: flex;
+    align-items: stretch;
+}
+
 .ts-wrapper.single .ts-control {
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: nowrap;
     align-items: center;
-    min-height: 2.25rem;
-    padding: 0 0.75rem !important;
+    min-height: var(--ts-control-h, 2.25rem);
+    padding: 0 2rem 0 0.75rem !important;
     background-color: rgb(var(--rgb-field) / var(--field-alpha)) !important;
     border: 1px solid rgb(var(--rgb-field-border) / var(--field-border-alpha)) !important;
     border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgb(var(--rgb-shadow) / 0.05) !important;
     cursor: pointer;
     color: rgb(var(--rgb-ink));
+    transition: background-color 100ms, border-color 100ms;
+
+    /* The grey is fixed rather than tokenised for the same reason as in
+     * `select-field`: a data: URI cannot read a custom property, and
+     * --rgb-ink-faint lands between 108 and 170 across all six themes, so one
+     * mid grey is within a few percent of every one of them. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%238b8b93'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 0.875rem 0.875rem;
+}
+
+.ts-wrapper.single:not(.disabled):hover .ts-control {
+    background-color: rgb(var(--rgb-raised) / var(--hover-alpha)) !important;
 }
 
 .ts-wrapper.single .ts-control input {
     cursor: pointer;
 }
 
+/* Two accent rings, not one: `select-field` uses a solid 2px ring on focus and
+ * the widget is open far longer than a native select is, so the softer pair
+ * (tinted border plus a halo) is what keeps a settings pane from shouting. */
 .ts-wrapper.single.focus .ts-control,
 .ts-wrapper.single.dropdown-active .ts-control {
     border-color: rgb(var(--rgb-accent) / 0.6) !important;
     box-shadow: 0 0 0 2px rgb(var(--rgb-accent) / 0.15) !important;
+}
+
+/* ── Control — bare, for inline toolbar controls ─────────────────────── */
+
+/* These call sites style the control itself (px-1 py-0.5 rounded hover:bg-hover)
+ * and Tom Select hands that class list to the wrapper, where the padding would
+ * be added to the control's own rather than replacing it. */
+.ts-wrapper.ts-bare {
+    padding: 0;
+}
+
+.ts-wrapper.single.ts-bare .ts-control {
+    min-height: var(--ts-control-h, 1.5rem);
+    padding: 0.125rem 1.125rem 0.125rem 0.25rem !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0.25rem;
+    color: rgb(var(--rgb-ink-muted));
+    background-position: right 0.125rem center;
+    background-size: 0.75rem 0.75rem;
+}
+
+.ts-wrapper.single.ts-bare:not(.disabled):hover .ts-control {
+    background-color: rgb(var(--rgb-raised) / var(--hover-alpha)) !important;
+}
+
+.ts-wrapper.single.ts-bare.focus .ts-control,
+.ts-wrapper.single.ts-bare.dropdown-active .ts-control {
+    border-color: transparent !important;
+    box-shadow: 0 0 0 2px rgb(var(--rgb-accent) / 0.25) !important;
+}
+
+.ts-wrapper.single.ts-bare .ts-control .item {
+    color: inherit;
 }
 
 /* Multi stays frameless in every state */
@@ -220,6 +339,33 @@
     right: -1rem;
 }
 
+/* Anchored to <body> instead of to the control, because every place ui--select
+ * is used clips: the modal body scrolls, the settings pane scrolls, the
+ * calendar event sheet scrolls, and a panel that is a child of any of them is
+ * cut off at its edge. Tom Select writes left/top/width inline from the
+ * control's rectangle, so the offsets above have to get out of the way.
+ *
+ * z-index sits above the modal layer (z-[70]) and below the tooltip (100) —
+ * a dropdown opened from inside a modal must cover it, and a tooltip must
+ * still cover the dropdown.
+ *
+ * The class is added by the controller rather than inferred from `.single`:
+ * compose's provider-preset field is also `.single` but comes from UX
+ * Autocomplete, which parents its panel the normal way. */
+.ts-dropdown.ts-dropdown-floating {
+    right: auto;
+    top: 0;
+    z-index: 80;
+}
+
+/* The floating panel's height is measured against the room on screen (see
+ * #place in the controller), so it sets its own max-height and the 220px below
+ * would only ever fight it. That number is compose's, where the panel sits
+ * inside a small window and a long contact list has to stay in it. */
+.ts-dropdown.ts-dropdown-floating .ts-dropdown-content {
+    max-height: none;
+}
+
 .ts-dropdown-content {
     max-height: 220px;
     overflow-y: auto;
@@ -259,9 +405,19 @@
     color: rgb(var(--rgb-accent));
 }
 
-.ts-dropdown .option.selected {
+/* "Already a chip on this field" — dimmed because picking it again does
+ * nothing. Only true of the multi fields. */
+.ts-dropdown.multi .option.selected {
     background-color: transparent;
     opacity: 0.45;
+}
+
+/* A single select's selected option is the *current value*, not a spent
+ * choice. Dimming it, as the multi rule does, reads as "unavailable" for the
+ * one row the user is most likely looking for. */
+.ts-dropdown.single .option.selected {
+    color: rgb(var(--rgb-accent));
+    font-weight: 500;
 }
 
 /* ── Option inner layout (contact rows) ──────────────────────────────── */

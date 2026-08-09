@@ -13,15 +13,21 @@ Variables:
   defaultTimezone   string        what null resolves to
   currentTime       string        now, already rendered in the active zone
 #}
+{% import '_partials/_select.html.twig' as select %}
 <div class="px-4 py-3">
     <form method="post" action="{{ path('app_settings_timezone_update') }}" data-turbo="false">
         <input type="hidden" name="_token" value="{{ csrf_token('settings-timezone') }}">
 
         <label for="settings-timezone" class="sr-only">{{ 'settings.timezone.label'|trans }}</label>
 
+        {# The one select in the app with several hundred options: the widget's
+           filter box is the difference between finding Europe/Zagreb and
+           scrolling for it. `onchange` still fires — Tom Select dispatches a
+           real change event on this element. #}
         <select id="settings-timezone"
                 name="timezone"
                 onchange="this.form.requestSubmit();"
+                {{ select.enhance() }}
                 class="select-field w-full h-9 text-sm">
             <option value="" {{ activeTimezone is null ? 'selected' : '' }}>
                 {{ 'settings.timezone.follow_default'|trans({'%timezone%': defaultTimezone}) }}
