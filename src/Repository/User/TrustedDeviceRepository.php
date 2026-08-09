@@ -48,6 +48,31 @@ class TrustedDeviceRepository extends ServiceEntityRepository
     }
 
     /**
+     * The grant this browser already holds, whether or not it is still live.
+     *
+     * findActiveBySecret() answers "may this cookie skip the prompt?", so it
+     * excludes anything expired. This answers a different question — "is the
+     * browser being trusted right now the one this row was minted for?" — and
+     * an expired row is still that browser. Trusting it again should move the
+     * expiry it already has rather than leave a dead sibling behind and insert
+     * a second line in Settings → Security for one laptop.
+     *
+     * Revoked rows are still excluded, and that asymmetry is the point: expiry
+     * is the clock running out, revocation is the user saying no. A revoked
+     * grant that came back because the browser still had the cookie would make
+     * the revoke button a suggestion.
+     */
+    public function findReusableBySecret(string $secret, UserInterface|User $user, string $firewall): ?TrustedDevice
+    {
+        return $this->findOneBy([
+            'tokenHash' => TrustedDevice::hash($secret),
+            'usr'       => $user,
+            'firewall'  => $firewall,
+            'revokedAt' => null,
+        ]);
+    }
+
+    /**
      * QueryBuilder for the same expiry comparison as findActiveBySecret().
      *
      * @return list<TrustedDevice>
