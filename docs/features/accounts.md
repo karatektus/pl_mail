@@ -123,23 +123,6 @@ therefore means thousands of updates, sent in the background.
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
 
-### Messages to sync
-
-How many of the newest messages a sync run may pull: **Sync everything**, or the newest 500, 1000,
-2000, 5000, 10000 or 25000.
-
-This exists for large mailboxes. Backfilling sixty thousand messages is hours of API calls before
-the interface is useful, and the newest few thousand are what actually gets read. Older mail is not
-queued for later — it is simply not fetched yet.
-
-Raising or clearing the cap lets a **later** run walk further back; nothing is fetched at the moment
-you change it. Lowering it deletes nothing. Raising it also clears the backfill cooldown, so you do
-not sit out an hour left over from an earlier listing.
-
-Not offered for Microsoft accounts. Graph enumerates a folder through a delta query whose cursor
-only arrives after the final page, and the pages are not newest-first, so stopping early would give
-neither a usable cursor nor the newest N. The setting is withheld rather than silently ignored.
-
 ## Sending aliases
 
 **Settings → Aliases** lists the addresses each account sends and receives as. **Refresh from
@@ -171,18 +154,16 @@ account settings, not here.
 account a new message is composed from. There is no separate "make primary" button, and none is
 coming — the order is the setting.
 
-**Lowering the sync cap does not free any space.** It bounds future runs only. Mail already synced
-stays; `app:reset` is what re-fetches from scratch.
-
-**Raising the cap does nothing visible until the next run.** Nothing is fetched at the moment you
-change it, and on a large mailbox the next run has a lot of ground to make up.
+**A large mailbox takes a while to arrive in full.** plMail syncs everything the account holds;
+there is no setting that bounds it. The newest mail lands first, and the rest follows over the
+following runs, so an account added minutes ago is usable long before it is complete.
 
 **Testing the connection on an existing account needs a password in the field.** A blank password
 means "keep the stored one" on the edit form, and the tester can only resolve that once the account
 id has reached it — otherwise it says so rather than testing with nothing.
 
 **Removing an account deletes its synced mail from plMail.** Nothing is removed at the provider,
-and re-adding the account re-syncs it, subject to whatever sync window you then set.
+and re-adding the account syncs it again from scratch.
 
 **A Google consent screen lets the user untick calendar access while allowing mail.** The account
 connects, mail works, and no calendars appear. Reconnecting with the box left ticked is the fix.

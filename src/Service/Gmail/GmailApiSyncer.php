@@ -68,15 +68,13 @@ final class GmailApiSyncer
     }
 
     /**
-     * Walk backwards through the mailbox until the sync cap is satisfied.
+     * Walk the whole mailbox until every message has been fetched.
      *
-     * Runs on every sync, not just the first, because the cap is a setting the
-     * user can raise later — and raising it has to mean something. Returns
-     * immediately once a backfill has covered the current cap, so a settled
-     * account pays one cheap check rather than a listing.
-     *
-     * Gmail lists newest-first, so a capped account never pages through the
-     * whole backlog; an uncapped one walks the lot exactly once.
+     * Still runs on every sync rather than only the first, because an initial
+     * sync cut short by a restart, a rate limit or a deploy has to be able to
+     * resume. A settled account — one whose target is 0 — pays one cheap check
+     * rather than a listing, so this is only expensive while there is genuinely
+     * something left to fetch.
      */
     public function backfill(Account $account): void
     {
@@ -94,12 +92,9 @@ final class GmailApiSyncer
             return;
         }
 
-        $limit = $account->syncLimit;
-
         $this->logger->info('GmailApiSyncer: planning backfill', [
             'accountId' => $account->id,
             'account'   => $account->email,
-            'limit'     => 0 === $limit ? 'none' : $limit,
             'completed' => $account->backfillTarget ?? 'never',
         ]);
 
@@ -109,17 +104,18 @@ final class GmailApiSyncer
         // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
         $messageRefs = $this->apiClient->listMessages($account, [
             'maxResults' => self::PAGE_SIZE,
-        ], $limit);
+        ]);
 
         $pending = $this->newGmailIds($account, $messageRefs);
 
         $this->dispatchBatches($account, $pending);
 
-        $this->settleBackfill($account, $limit, count($pending));
+        $this->settleBackfill($account, count($pending));
     }
 
     /**
-     * Decide whether the backfill has reached the cap, and record it if so.
+     * Decide whether the backfill has reached the end of the mailbox, and
+     * record it if so.
      *
      * The obvious signal — a listing that turns up nothing unfetched — is the
      * common one, but it is not guaranteed to arrive. Messages the handler
@@ -132,7 +128,7 @@ final class GmailApiSyncer
      * queue needs to drain, so anything still outstanding is not going to
      * arrive by listing again. It gets logged rather than retried silently.
      */
-    private function settleBackfill(Account $account, int $limit, int $pending): void
+    private function settleBackfill(Account $account, int $pending): void
     {
         $attempts = $account->backfillAttempts + 1;
 
@@ -151,15 +147,14 @@ final class GmailApiSyncer
             ]);
         }
 
-        // Record how far this reached so later runs skip the listing entirely,
-        // until the cap is raised past it.
-        $account->backfillTarget = $limit;
+        // 0 is "the whole mailbox", which is the only stopping point there is
+        // now. Recording it is what lets every later run skip the listing.
+        $account->backfillTarget = 0;
         $account->backfillAttempts = 0;
         $this->em->flush();
 
         $this->logger->info('GmailApiSyncer: backfill complete', [
             'accountId' => $account->id,
-            'target'    => 0 === $limit ? 'none' : $limit,
         ]);
     }
 

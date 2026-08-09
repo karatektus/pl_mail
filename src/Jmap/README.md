@@ -122,7 +122,7 @@ the web composer's autocomplete runs.
 
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
 account; a unified inbox is a client-side concern. It also carries two things
-that have no methods of their own: the per-account **sync window**
+that have no methods of their own: per-account **backfill progress**
 (`urn:plmail:params:jmap:sync`) and the user's **appearance** plus the closed
 vocabularies `Appearance/set` accepts (`urn:plmail:params:jmap:appearance`).
 
@@ -139,7 +139,7 @@ vocabularies `Appearance/set` accepts (`urn:plmail:params:jmap:appearance`).
 | Raw message bytes | `App\Domain\Helper\RawMessageStorage`, `App\Service\Mail\RawMessageResolver` |
 | Label structure sync | `App\Service\Label\LabelStructurePropagator` |
 | Appearance | `App\Entity\Embeddable\Appearance` (the validated embeddable and its clamp constants), `App\Controller\Settings\AppearanceController` (the web pane, background uploads, export/import) |
-| The sync window | `App\Entity\Mail\Account::$syncLimit`, `$backfillTarget`, `needsBackfill()` — virtual properties over the `settings` JSONB bag |
+| Backfill progress | `App\Entity\Mail\Account::$backfillTarget`, `needsBackfill()` — virtual properties over the `settings` JSONB bag |
 | PWA | `public/manifest.webmanifest`, `public/sw.js`, `assets/controllers/web_push_controller.js`, `App\Controller\Settings\WebPushController` |
 | Settings UI | `App\Controller\ApiTokenController`, `Settings\AccountLabelSyncController` |
 
@@ -312,23 +312,24 @@ Get these wrong and things fail quietly rather than loudly.
   numbers, which looks like nothing happened. Explicit knobs in the same patch
   are applied after the preset and win; the seeded ones are reported in
   `updated` like any other change the client did not ask for.
-- **The sync window is published per account and read-only.** The Session's
+- **Backfill progress is published per account and read-only.** The Session's
   `accountCapabilities` carry `urn:plmail:params:jmap:sync` beside the mail
-  capability: `syncLimit` (the newest-N cap in force, 0 for none),
-  `backfillTarget` (how far back a *completed* backfill reached — 0 for the
-  whole mailbox, null when none has finished) and `backfillPending`. It exists
-  so a client can answer "why is a mail I know exists not in search?": from the
-  phone, mail the server never fetched and mail the phone has not caught up on
-  are the same empty result, and they want opposite reactions.
+  capability: `backfillTarget` (how far back a *completed* backfill reached —
+  0 for the whole mailbox, null when none has finished) and `backfillPending`.
+  It exists so a client can answer "why is a mail I know exists not in
+  search?": from the phone, mail the server has not fetched yet and mail the
+  phone has not caught up on are the same empty result, and they want opposite
+  reactions.
 
-  `syncLimit` is reported as **0 on Microsoft accounts whatever is stored**,
-  because Graph cannot honour the cap (`Account::supportsSyncLimit`) and the
-  cap in force is the only honest thing to publish — a stored number would have
-  a client explain a gap that is not there. `backfillPending` is
-  `Account::needsBackfill()`, derived from the same two numbers the sync engine
-  decides on rather than recorded separately, so the two cannot disagree. It is
-  NOT "a backfill is running this second": nothing records that, and a client
-  would read a running flag as progress.
+  There is no retention setting behind this any more — the server intends to
+  hold every message an account has, so the only gap it can honestly report is
+  a backfill that has not finished walking. A **positive** `backfillTarget` is
+  a stopping point left over from the retired newest-N cap, so it reports as
+  unfinished rather than complete. `backfillPending` is
+  `Account::needsBackfill()`, derived from that number rather than recorded
+  separately, so the two cannot disagree. It is NOT "a backfill is running this
+  second": nothing records that, and a client would read a running flag as
+  progress.
 - **The calendar state string is fixed, and that is deliberate.** Mail's token
   works because `MailChangeRecorder` makes the change log complete. An event
   changes from four places — the sync engine, extraction, the web editor and

@@ -186,7 +186,7 @@ was, with the editor reopened where it was.
 
 - [Mail ingest](../internals/mail-ingest.md) — the pipeline from provider to database, threading and
   categorisation.
-- [Accounts and aliases](accounts.md) — sync windows, instant delivery, sending addresses.
+- [Accounts and aliases](accounts.md) — connecting mailboxes, instant delivery, sending addresses.
 - [Filters](filters.md) — sorting mail as it arrives, and applying a rule to mail you already have.
 - [JMAP](../internals/jmap.md) — the same operations as a client sees them.
 
@@ -207,9 +207,9 @@ the conversation straight back. That is a harmless way to say "bring this back n
 delete is too — including nested labels underneath it. A JMAP client's `Mailbox/set` destroy is the
 per-account operation; the web UI has no equivalent.
 
-**Search finds nothing older than your sync window.** Mail that has not been synced is not
-searchable, however certain you are that it exists. Widen the window in
-**Settings → Mail accounts** and let the next run walk further back.
+**Search only covers mail that has arrived.** plMail syncs everything an account holds, but a
+large mailbox takes several runs to come across in full, and mail that is not in yet is not
+searchable however certain you are that it exists. Give it time rather than a setting.
 
 **An oversized attachment can fail with no per-file reason.** PHP discards the whole request body
 when it exceeds `post_max_size`, so nothing arrives to report an error about. plMail answers

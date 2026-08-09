@@ -26,8 +26,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  *
  * The bug behind these tests: whether the backlog had been fetched was
  * inferred from the stored historyId, which is written before the first
- * message is fetched. Raising the cap afterwards did nothing, and an initial
- * sync cut short by a restart was indistinguishable from a finished one.
+ * message is fetched, so an initial sync cut short by a restart was
+ * indistinguishable from a finished one. A recorded target is what replaced
+ * that inference, and 0 — the whole mailbox — is now its only settled value.
  *
  * GmailApiClient is final, so it is built for real against a MockHttpClient
  * rather than doubled — which has the side benefit of exercising the listing
@@ -55,7 +56,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testBackfillListsWhenNoneHasCompleted(): void
     {
-        $account = $this->account(limit: 500);
+        $account = $this->account();
         $this->synced();
 
         $this->expectDispatch(self::once());
@@ -65,21 +66,22 @@ final class GmailApiSyncerBackfillTest extends TestCase
         self::assertCount(1, $this->requests);
     }
 
-    public function testBackfillIsSkippedOnceTheCapIsCovered(): void
+    public function testBackfillIsSkippedOnceTheWholeMailboxIsIn(): void
     {
-        $account = $this->account(limit: 500);
-        $account->backfillTarget = 500;
+        $account = $this->account();
+        $account->backfillTarget = 0;
 
         $this->syncer(['a'])->backfill($account);
 
         self::assertSame([], $this->requests, 'settled account must not list');
     }
 
-    public function testRaisingTheCapListsAgain(): void
+    public function testAnAccountLeftCappedByTheOldLimitListsAgain(): void
     {
-        // The reported symptom, as a test: cap raised from 500 to 5000 after
-        // the first sync, and nothing more ever arrived.
-        $account = $this->account(limit: 5000);
+        // The upgrade path, as a test: a run that settled at 500 because the
+        // retired sync cap said so still owes everything below it, and the
+        // first sync after the removal is what goes and gets it.
+        $account = $this->account();
         $account->backfillTarget = 500;
         $this->synced();
 
@@ -90,19 +92,9 @@ final class GmailApiSyncerBackfillTest extends TestCase
         self::assertCount(1, $this->requests);
     }
 
-    public function testLoweringTheCapDoesNotListAgain(): void
-    {
-        $account = $this->account(limit: 500);
-        $account->backfillTarget = 5000;
-
-        $this->syncer(['a'])->backfill($account);
-
-        self::assertSame([], $this->requests);
-    }
-
     public function testBackfillWaitsOutTheCooldownWhileBatchesDrain(): void
     {
-        $account = $this->account(limit: 5000);
+        $account = $this->account();
         $account->backfillRanAt = new \DateTimeImmutable('-5 minutes');
 
         $this->syncer(['a'])->backfill($account);
@@ -112,7 +104,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testBackfillListsAgainOnceTheCooldownHasPassed(): void
     {
-        $account = $this->account(limit: 5000);
+        $account = $this->account();
         $account->backfillRanAt = new \DateTimeImmutable('-2 hours');
         $this->synced();
 
@@ -124,20 +116,20 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     public function testAListingWithNothingUnfetchedCompletesTheBackfill(): void
     {
-        $account = $this->account(limit: 500);
+        $account = $this->account();
         $this->synced('a', 'b');
 
         $this->expectDispatch(self::never());
 
         $this->syncer(['a', 'b'])->backfill($account);
 
-        self::assertSame(500, $account->backfillTarget);
+        self::assertSame(0, $account->backfillTarget);
         self::assertFalse($account->needsBackfill());
     }
 
     public function testAnUnfinishedBackfillCountsAttemptsInsteadOfCompleting(): void
     {
-        $account = $this->account(limit: 500);
+        $account = $this->account();
         $this->synced();
 
 
@@ -152,21 +144,21 @@ final class GmailApiSyncerBackfillTest extends TestCase
         // Messages the handler declines to store are listed forever and stored
         // never. Without a ceiling this account re-lists its mailbox hourly for
         // as long as it exists.
-        $account = $this->account(limit: 500);
+        $account = $this->account();
         $account->backfillAttempts = 23;
         $this->synced();
 
 
         $this->syncer(['unattributable'])->backfill($account);
 
-        self::assertSame(500, $account->backfillTarget, 'gives up rather than looping');
+        self::assertSame(0, $account->backfillTarget, 'gives up rather than looping');
         self::assertSame(0, $account->backfillAttempts);
         self::assertFalse($account->needsBackfill());
     }
 
     public function testDispatchedBatchesCarryOnlyUnsyncedIds(): void
     {
-        $account = $this->account(limit: 500);
+        $account = $this->account();
         $this->synced('have');
 
         $bus = $this->createMock(MessageBusInterface::class);
@@ -182,16 +174,18 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $this->syncer(['have', 'want'])->backfill($account);
     }
 
-    public function testTheCapStopsPaginationEarly(): void
+    public function testTheListingPagesThroughTheWholeMailbox(): void
     {
-        // Two pages are available; a cap of 1 must not pay for the second.
-        $account = $this->account(limit: 1);
+        // Nothing stops the walk early any more, so both pages are paid for.
+        // This is the cost the retired cap existed to avoid, and now the point:
+        // a mailbox is not synced until its last page has been listed.
+        $account = $this->account();
         $this->synced();
 
 
         $this->syncer(['a', 'b'], pageSize: 1)->backfill($account);
 
-        self::assertCount(1, $this->requests, 'capped listing must stop paging');
+        self::assertCount(2, $this->requests, 'every page must be listed');
     }
 
     // ── Fixture ──────────────────────────────────────────────────────────────
@@ -257,11 +251,10 @@ final class GmailApiSyncerBackfillTest extends TestCase
         return new Envelope(new \stdClass());
     }
 
-    private function account(int $limit): Account
+    private function account(): Account
     {
         $account = new Account();
         $account->usr = new User();
-        $account->syncLimit = $limit;
 
         return $account;
     }

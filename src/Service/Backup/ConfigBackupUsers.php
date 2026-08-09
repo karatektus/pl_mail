@@ -130,15 +130,20 @@ final readonly class ConfigBackupUsers
      * `sync.backfill_ran_at` and `sync.backfill_attempts` are counters about a
      * sync that happened on the other host, and the connection-error key
      * AccountCreator writes is a verdict about a network reachable from there.
-     * What is left is the four choices the user actually made — and one of
-     * them, `calendar.target_id`, is a calendar id that has to be remapped on
-     * the way in.
+     * What is left is the choices the user actually made — and one of them,
+     * `calendar.target_id`, is a calendar id that has to be remapped on the
+     * way in.
+     *
+     * An allowlist rather than a denylist, which is what makes the retired
+     * `sync.message_limit` a non-event: a backup written before the sync cap
+     * was removed still carries the key, and the restorer writes whatever the
+     * file holds into the bag, where nothing now reads it. Dropping it here
+     * stops new backups carrying it without making old ones invalid.
      *
      * @var list<string>
      */
     private const array ACCOUNT_SETTINGS = [
         Account::SETTING_LABEL_SYNC,
-        Account::SETTING_SYNC_LIMIT,
         Account::SETTING_BACKFILL_TARGET,
         Account::SETTING_CALENDAR_TARGET,
     ];

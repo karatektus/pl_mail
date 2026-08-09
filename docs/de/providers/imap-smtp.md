@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:b4f879ff7cebf8fb604297a9d39a979025c8ea9f -->
+<!-- translated-from: providers/imap-smtp.md sha1:9c6e34825ac15a5d17b1754a85fb81a4335d4c27 -->
 
 # IMAP und SMTP
 
@@ -7,8 +7,8 @@ plMail die Serveradressen und ein Passwort, und es verbindet sich. Das ist der W
 kein Gmail- und kein Microsoft-Konto ist — dein eigener Mailserver, das Postfach eines Hosters, GMX,
 Fastmail, ein Kasten am Ende einer Domain, die dir gehört.
 
-Was plMail mit dem Postfach macht, sobald es verbunden ist — das Synchronisationsfenster, Aliase, die
-Optionen pro Konto —, steht in [Konten und Aliase](../features/accounts.md). Auf dieser Seite geht es
+Was plMail mit dem Postfach macht, sobald es verbunden ist — Aliase, die Optionen pro Konto —,
+steht in [Konten und Aliase](../features/accounts.md). Auf dieser Seite geht es
 darum, die Verbindung zum Laufen zu bringen, und um die Handvoll Einstellungen, über die sich
 Anbieter tatsächlich uneins sind.
 

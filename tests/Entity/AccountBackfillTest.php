@@ -11,67 +11,48 @@ use PHPUnit\Framework\TestCase;
  * The rule that decides whether a Gmail sync run walks back through the
  * mailbox again.
  *
- * The bug this pins down: raising the sync cap after the first sync used to do
- * nothing at all. Whether a backfill ran was inferred from the stored
- * historyId, which is written before any message is fetched, so an account was
- * stuck on whatever the first run happened to pull — an interrupted initial
- * sync looked exactly like a finished one.
+ * The bug this originally pinned down: whether a backfill had run was inferred
+ * from the stored historyId, which is written before any message is fetched, so
+ * an account was stuck on whatever the first run happened to pull — an
+ * interrupted initial sync looked exactly like a finished one. The answer is
+ * still a recorded target rather than an inference, which is what these guard.
+ *
+ * Since the newest-N sync cap was removed the target has only one settled
+ * value, 0 for "the whole mailbox". A positive one can only be an account that
+ * was capped before the removal, and it has to keep reading as unfinished —
+ * that is the whole of the upgrade path for those accounts, so it gets a test
+ * of its own rather than being left to the migration.
  */
 final class AccountBackfillTest extends TestCase
 {
     public function testNeedsBackfillWhenNoneHasEverCompleted(): void
     {
-        self::assertTrue($this->account(limit: 5000)->needsBackfill());
+        self::assertTrue((new Account())->needsBackfill());
     }
 
-    public function testDoesNotNeedBackfillOnceTheCapIsCovered(): void
+    public function testACompletedBackfillIsNeverRepeated(): void
     {
-        $account = $this->account(limit: 5000);
-        $account->backfillTarget = 5000;
-
-        self::assertFalse($account->needsBackfill());
-    }
-
-    public function testNeedsBackfillWhenTheCapIsRaised(): void
-    {
-        // The reported symptom: 500 synced, cap raised to 5000, nothing more
-        // ever arrived.
-        $account = $this->account(limit: 5000);
-        $account->backfillTarget = 500;
-
-        self::assertTrue($account->needsBackfill());
-    }
-
-    public function testNeedsBackfillWhenTheCapIsLifted(): void
-    {
-        $account = $this->account(limit: 0);
-        $account->backfillTarget = 5000;
-
-        self::assertTrue($account->needsBackfill());
-    }
-
-    public function testLoweringTheCapDoesNotTriggerAnotherBackfill(): void
-    {
-        // Already holds more than the new cap asks for. Lowering is not a
-        // request to delete anything, so there is simply nothing to do.
-        $account = $this->account(limit: 500);
-        $account->backfillTarget = 5000;
-
-        self::assertFalse($account->needsBackfill());
-    }
-
-    public function testACompletedUncappedBackfillIsNeverRepeated(): void
-    {
-        $account = $this->account(limit: 0);
+        $account = new Account();
         $account->backfillTarget = 0;
 
         self::assertFalse($account->needsBackfill());
     }
 
+    public function testAnAccountLeftCappedByTheOldSyncLimitStillOwesItsOlderMail(): void
+    {
+        // The upgrade case: a run that settled at 500 because the cap said so.
+        // The cap is gone, the mail below 500 is not, and nothing else in the
+        // system remembers that this account was ever short.
+        $account = new Account();
+        $account->backfillTarget = 500;
+
+        self::assertTrue($account->needsBackfill());
+    }
+
     public function testBackfillRanAtSurvivesTheSettingsBagRoundTrip(): void
     {
         $ranAt   = new \DateTimeImmutable('2026-07-28 12:34:56');
-        $account = $this->account(limit: 0);
+        $account = new Account();
         $account->backfillRanAt = $ranAt;
 
         self::assertSame($ranAt->getTimestamp(), $account->backfillRanAt?->getTimestamp());
@@ -79,17 +60,9 @@ final class AccountBackfillTest extends TestCase
 
     public function testBackfillStateIsUnsetOnAFreshAccount(): void
     {
-        $account = $this->account(limit: 0);
+        $account = new Account();
 
         self::assertNull($account->backfillTarget);
         self::assertNull($account->backfillRanAt);
-    }
-
-    private function account(int $limit): Account
-    {
-        $account            = new Account();
-        $account->syncLimit = $limit;
-
-        return $account;
     }
 }

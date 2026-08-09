@@ -52,13 +52,17 @@ final class Capability
     public const string APPEARANCE = 'urn:plmail:params:jmap:appearance';
 
     /**
-     * Vendor extension: the sync window in force on an account, published in
-     * the Session's accountCapabilities and nowhere else — it has no methods.
+     * Vendor extension: how much of an account the server has actually got
+     * hold of, published in the Session's accountCapabilities and nowhere else
+     * — it has no methods.
      *
      * It exists so a client can answer "why is this mail not in search?".
      * Without it the honest answer is unavailable: a search that misses old
-     * mail looks identical whether the server never fetched it or the phone
-     * has not caught up, and the two need opposite responses from the user.
+     * mail looks identical whether the server has not fetched it yet or the
+     * phone has not caught up, and the two need opposite responses from the
+     * user. The URN is unchanged from when this published a retention window
+     * as well: it is the account's sync state either way, and renaming it
+     * would break every client that reads it for no gain.
      */
     public const string SYNC = 'urn:plmail:params:jmap:sync';
 
