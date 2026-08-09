@@ -6,6 +6,47 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.21 — 2026-08-09
+
+**No schema changes.** The backup grew a format version, not a table.
+
+**A config backup knows its own operator now.** Backups carry every user and
+everything they configured: password and app-password hashes, two-factor
+secrets and recovery codes, mail accounts with their IMAP/SMTP credentials
+and OAuth tokens, aliases, integrations, filters, labels, calendars, and
+share and booking links — whose published URLs keep working after the move.
+Everything sensitive travels only inside the encrypted envelope, re-encrypted
+under the target install's key on arrival. Restoring onto a fresh install
+ends at sign-in instead of "create the administrator"; importing onto a live
+install never overwrites an existing user — found means kept, and the review
+says so. Older plMail versions refuse the new format whole rather than
+applying half of it. Mail, calendar entries, sync state and per-browser
+grants stay out, deliberately.
+
+**The restore page stops listing non-tasks.** Values already identical to the
+environment are a footnote, not a chore; `MAILER_DSN` and
+`MESSENGER_TRANSPORT_DSN` left the export entirely, joining `DATABASE_URL` as
+machine-local deployment choices the compose file owns; and the
+old-encryption-key note folds behind one line for the only reader it
+concerns — someone also restoring their old database.
+
+**One browser, one remembered device.** With "remember this device", every
+sign-in quietly added another row to Settings → Security: the 2FA library
+re-registers a trusted browser on each login to extend its lifetime, and the
+database-backed manager read that as "insert a sibling", orphaning the old
+row and its cookie each time. The manager now renews the grant the presented
+cookie actually resolves to — same row, same secret, expiry pushed out.
+Matching is on the cookie alone, never user-agent and address, so two
+identical laptops behind one router stay two rows; revoked grants are never
+resurrected. Existing duplicates age out or clear with "Revoke every
+remembered device".
+
+**Settings looks finished.** The sidebar is grouped — Personal, Mail,
+Calendar, Access — instead of thirteen equal links; file pickers look like
+the buttons they are (Tailwind's preflight had stripped them bare); and every
+native select shares one theme-aware look instead of six accidental ones,
+including three that ignored the accent colour.
+
 ## v0.0.20 — 2026-08-08
 
 **No schema changes.** Templates, one controller, and the calendar's layout
