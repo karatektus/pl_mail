@@ -24,7 +24,7 @@ oppositely — it overwrites the operator's settings and it never overwrites a p
 
 | Where | What is there | Can plMail write it? |
 |---|---|---|
-| **The generated secrets file** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs | **Yes**, and the values take effect at the next container start |
+| **The generated secrets file** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`MERCURE_JWT_SECRET` lives here too but stays out of the backup — it pairs this machine's app with this machine's hub) | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings — everything an admin typed into a form rather than into a file | **Yes**, immediately |
 | **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
@@ -86,7 +86,7 @@ are omitted rather than exported as blanks.
 
 ```
 APP_ENCRYPTION_KEY  APP_SECRET
-MERCURE_JWT_SECRET  MERCURE_PUBLIC_URL  JWT_PASSPHRASE
+MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
 GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
@@ -100,9 +100,13 @@ TRUSTED_PROXIES  APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 carrying them would break the target rather than configure it: `APP_ENV`, `APP_DEBUG`, the
 `APP_DEV_USER_*` fixtures, `APP_CONTAINER_NAME`, `APP_SECRETS_FILE`, `JWT_SECRET_KEY`,
 `JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR`, `MERCURE_URL`, `DATABASE_URL`,
-`POSTGRES_PASSWORD`, `MAILER_DSN` and `MESSENGER_TRANSPORT_DSN`. The JWT keys' *contents* travel;
-the paths they live at belong to whichever install is reading them, and `MERCURE_URL` is the
-in-network address of a sibling container. The last four are the deployment's own infrastructure —
+`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN` and `MERCURE_JWT_SECRET`. The JWT
+keys' *contents* travel; the paths they live at belong to whichever install is reading them, and
+`MERCURE_URL` is the in-network address of a sibling container. `MERCURE_JWT_SECRET` exists to
+make the app and the Mercure hub *beside it* agree — the hub reads it once, at container start, so
+a restored value re-keys one half of a running pair and every live update dies until the whole
+stack restarts; a fresh install mints its own and both halves agree from the first frame. The
+remaining four are the deployment's own infrastructure —
 see [Why the database credentials are not in the backup at all](#why-the-database-credentials-are-not-in-the-backup-at-all)
 and [Why the deployment's own DSNs are not in the backup](#why-the-deployments-own-dsns-are-not-in-the-backup).
 Every one of these is described in the [configuration reference](configuration.md).
