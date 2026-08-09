@@ -234,7 +234,11 @@ final class ConfigBackupImporterTest extends KernelTestCase
         $plan = $importer->apply([
             'env' => [
                 'APP_SECRET'         => 'a-restored-app-secret',
-                'MERCURE_JWT_SECRET' => 'a-restored-hub-secret',
+                // MERCURE_JWT_SECRET used to stand here too. It left the
+                // inventory the way the DSNs did — it pairs the app with the
+                // hub container beside it, and the hub reads it only at
+                // container start — so an old backup carrying it is now the
+                // vocabulary test's business, not this one's.
                 'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
                 'VAPID_PRIVATE_KEY'  => 'a-restored-vapid-private-key',
                 'APP_PUBLIC_URL'     => 'https://mail.example.test',
@@ -253,7 +257,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
         ]);
 
         self::assertSame([], $plan->instructed(), 'a fresh instance must have nothing left to hand back');
-        self::assertCount(8, $plan->written());
+        self::assertCount(7, $plan->written());
         self::assertTrue($plan->needsRestart(), 'these are read at container start, and the page has to say so once');
 
         // And the values are genuinely where the entrypoint will read them,
@@ -264,7 +268,6 @@ final class ConfigBackupImporterTest extends KernelTestCase
         self::assertSame(
             [
                 'APP_SECRET'         => 'a-restored-app-secret',
-                'MERCURE_JWT_SECRET' => 'a-restored-hub-secret',
                 'MERCURE_PUBLIC_URL' => 'https://mercure.example.test/.well-known/mercure',
                 'APP_PUBLIC_URL'     => 'https://mail.example.test',
                 'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
@@ -302,6 +305,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
                 // the file this classification exists for.
                 'MAILER_DSN'              => 'smtp://relay.example.test',
                 'MESSENGER_TRANSPORT_DSN' => 'doctrine://default?auto_setup=0',
+                'MERCURE_JWT_SECRET'      => 'a-restored-hub-secret',
             ],
             'database' => [
                 ConfigBackupDatabase::MAIL_PROVIDERS => ['google' => ['clientId' => 'an-id']],
@@ -316,6 +320,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
             [ConfigBackupSection::Environment, 'DATABASE_URL', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'MAILER_DSN', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'MESSENGER_TRANSPORT_DSN', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'MERCURE_JWT_SECRET', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY', ConfigBackupDisposition::KeptDeliberately],
         ];
 

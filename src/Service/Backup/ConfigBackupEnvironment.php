@@ -87,7 +87,15 @@ final readonly class ConfigBackupEnvironment
         // every plan carry two "external" rows nobody could act on. An OLD
         // backup that still contains them imports fine - unknown env names are
         // classified, not refused - and stays inert.
-        'MERCURE_JWT_SECRET',
+        // MERCURE_JWT_SECRET is deliberately NOT here, and it is the purest
+        // case of the machine-pairing rule yet: it exists to make the app and
+        // the hub CONTAINER BESIDE IT agree, and both sides read it from this
+        // machine's generated.env — the hub once, at container start. Restoring
+        // another install's value re-keys the app under a hub that is still
+        // running on the old one, and every EventSource dies until the whole
+        // stack restarts — which is how this line got written. A fresh target
+        // mints its own at first boot and both sides agree from the first
+        // frame; there is nothing the backup's copy can add but the trap.
         'MERCURE_PUBLIC_URL',
         'JWT_PASSPHRASE',
         // MAILER_DSN and MESSENGER_TRANSPORT_DSN are deliberately NOT here
@@ -125,7 +133,7 @@ final readonly class ConfigBackupEnvironment
      * to, with the refusal's reason attached — so the planner and the applier
      * cannot come to different answers.
      *
-     * Five names, and each is a fate the deployment forces rather than a
+     * Six names, and each is a fate the deployment forces rather than a
      * caution:
      *
      *   - APP_ENCRYPTION_KEY is {@see ConfigBackupDisposition::KeptDeliberately}
@@ -157,8 +165,14 @@ final readonly class ConfigBackupEnvironment
      *     off. External means "the other half of this lives somewhere plMail is
      *     only a client of", and for a deployment's own compose file that is
      *     exactly right.
+     *   - MERCURE_JWT_SECRET, which stopped being exported for the reason
+     *     above VARIABLES: it pairs the app with the hub container beside it,
+     *     and the hub reads it only at container start — a restored value
+     *     re-keys one half of a pair that is already running. External, like
+     *     the DSNs: the other half lives in a sibling container plMail is only
+     *     a client of.
      *
-     * Three of the five are named by OLD backups only. A document written by
+     * Four of the six are named by OLD backups only. A document written by
      * this build carries none of them, and the entries stay because a backup
      * outlives the version that wrote it.
      *
@@ -170,6 +184,7 @@ final readonly class ConfigBackupEnvironment
         'DATABASE_URL'            => ConfigBackupDisposition::External,
         'MAILER_DSN'              => ConfigBackupDisposition::External,
         'MESSENGER_TRANSPORT_DSN' => ConfigBackupDisposition::External,
+        'MERCURE_JWT_SECRET'      => ConfigBackupDisposition::External,
     ];
 
     public function __construct(

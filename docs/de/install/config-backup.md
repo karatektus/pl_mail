@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:e03ce9f675b1d5f2bf0d8fc9c972d35b1c192766 -->
+<!-- translated-from: install/config-backup.md sha1:ab75ddb4d5167f0eea8ae7d9b327df79e6eb5f88 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -29,7 +29,7 @@ Betreibers und sie überschreibt niemals eine Person.
 
 | Wo | Was dort liegt | Kann plMail das schreiben? |
 |---|---|---|
-| **Die Datei mit den erzeugten Geheimnissen** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
+| **Die Datei mit den erzeugten Geheimnissen** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`MERCURE_JWT_SECRET` liegt ebenfalls hier, bleibt aber außerhalb der Sicherung — er paart die App dieser Maschine mit dem Hub dieser Maschine) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
 | **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
 | **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
 | **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
@@ -94,7 +94,7 @@ Leere werden weggelassen statt als Leerstring exportiert.
 
 ```
 APP_ENCRYPTION_KEY  APP_SECRET
-MERCURE_JWT_SECRET  MERCURE_PUBLIC_URL  JWT_PASSPHRASE
+MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
 GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
@@ -108,10 +108,14 @@ TRUSTED_PROXIES  APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 sie mitzunehmen das Ziel eher kaputtmacht als konfiguriert: `APP_ENV`, `APP_DEBUG`, die
 `APP_DEV_USER_*`-Fixtures, `APP_CONTAINER_NAME`, `APP_SECRETS_FILE`, `JWT_SECRET_KEY`,
 `JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR`, `MERCURE_URL`, `DATABASE_URL`,
-`POSTGRES_PASSWORD`, `MAILER_DSN` und `MESSENGER_TRANSPORT_DSN`. Der *Inhalt* der JWT-Schlüssel reist
-mit; die Pfade, unter denen sie liegen, gehören der jeweils lesenden Installation, und `MERCURE_URL`
-ist die netzinterne Adresse eines Nachbarcontainers. Die letzten vier sind die Infrastruktur des
-jeweiligen Betriebs — siehe [Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind](#warum-die-datenbank-zugangsdaten-gar-nicht-erst-in-der-sicherung-sind)
+`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN` und `MERCURE_JWT_SECRET`. Der *Inhalt*
+der JWT-Schlüssel reist mit; die Pfade, unter denen sie liegen, gehören der jeweils lesenden
+Installation, und `MERCURE_URL` ist die netzinterne Adresse eines Nachbarcontainers.
+`MERCURE_JWT_SECRET` existiert, damit App und Mercure-Hub *derselben Maschine* übereinstimmen — der
+Hub liest ihn genau einmal, beim Containerstart. Ein wiederhergestellter Wert tauscht also den
+Schlüssel einer laufenden Paarung zur Hälfte aus, und jedes Live-Update stirbt, bis der ganze Stack
+neu startet; eine frische Installation erzeugt ihren eigenen, und beide Hälften stimmen vom ersten
+Moment an überein. Die übrigen vier sind die Infrastruktur des jeweiligen Betriebs — siehe [Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind](#warum-die-datenbank-zugangsdaten-gar-nicht-erst-in-der-sicherung-sind)
 und [Warum die DSNs des Betriebs nicht in der Sicherung sind](#warum-die-dsns-des-betriebs-nicht-in-der-sicherung-sind).
 Jede davon ist in der [Konfigurationsreferenz](configuration.md) beschrieben.
 
