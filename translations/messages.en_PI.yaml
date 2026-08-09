@@ -1830,6 +1830,7 @@ two_factor:
         code_hint: >-
             The six figures from yer spyglass, or one o' yer spare tokens.
         submit: Carry on
+        submitting: "Checkin' th' countersign…"
         trust_device: Don't hail this ship again
         trust_device_hint: For 30 days. Ye can strike it any time from Riggin' → The ship's lock.
     page_title: The second lock

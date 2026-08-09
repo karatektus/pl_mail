@@ -24,7 +24,7 @@ oppositely — it overwrites the operator's settings and it never overwrites a p
 
 | Where | What is there | Can plMail write it? |
 |---|---|---|
-| **The generated secrets file** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`MERCURE_JWT_SECRET` lives here too but stays out of the backup — it pairs this machine's app with this machine's hub) | **Yes**, and the values take effect at the next container start |
+| **The generated secrets file** | `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`APP_SECRET` and `MERCURE_JWT_SECRET` live here too but stay out of the backup — each machine keeps its own) | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings — everything an admin typed into a form rather than into a file | **Yes**, immediately |
 | **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
@@ -85,7 +85,7 @@ Names only; the values are yours.
 are omitted rather than exported as blanks.
 
 ```
-APP_ENCRYPTION_KEY  APP_SECRET
+APP_ENCRYPTION_KEY
 MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
@@ -93,22 +93,27 @@ GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
 GMAIL_PUBSUB_TOPIC  GMAIL_PUBSUB_VERIFICATION_TOKEN
 MICROSOFT_OAUTH_CLIENT_ID  MICROSOFT_OAUTH_CLIENT_SECRET  MICROSOFT_OAUTH_TENANT
 INTEGRATIONS_ALLOW_HTTP  INTEGRATIONS_ALLOWED_HOSTS
-TRUSTED_PROXIES  APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
+APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 ```
 
 **Deliberately not exported**, because they describe the machine rather than the installation, and
 carrying them would break the target rather than configure it: `APP_ENV`, `APP_DEBUG`, the
 `APP_DEV_USER_*` fixtures, `APP_CONTAINER_NAME`, `APP_SECRETS_FILE`, `JWT_SECRET_KEY`,
 `JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR`, `MERCURE_URL`, `DATABASE_URL`,
-`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN` and `MERCURE_JWT_SECRET`. The JWT
+`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN`, `MERCURE_JWT_SECRET`,
+`TRUSTED_PROXIES` and `APP_SECRET`. The JWT
 keys' *contents* travel; the paths they live at belong to whichever install is reading them, and
 `MERCURE_URL` is the in-network address of a sibling container. `MERCURE_JWT_SECRET` exists to
 make the app and the Mercure hub *beside it* agree — the hub reads it once, at container start, so
 a restored value re-keys one half of a running pair and every live update dies until the whole
-stack restarts; a fresh install mints its own and both halves agree from the first frame. The
-remaining four are the deployment's own infrastructure —
+stack restarts; a fresh install mints its own and both halves agree from the first frame.
+`TRUSTED_PROXIES` names the addresses whose `X-Forwarded-*` headers this install will believe,
+which is a fact about what sits in front of *this* container. The four before those are the
+deployment's own infrastructure —
 see [Why the database credentials are not in the backup at all](#why-the-database-credentials-are-not-in-the-backup-at-all)
 and [Why the deployment's own DSNs are not in the backup](#why-the-deployments-own-dsns-are-not-in-the-backup).
+`APP_SECRET` is the one that left for a reason of its own —
+see [Why APP_SECRET is not in the backup](#why-app_secret-is-not-in-the-backup).
 Every one of these is described in the [configuration reference](configuration.md).
 
 **Files**, addressed by a logical name rather than by a path, so the target puts them where its own
@@ -299,7 +304,7 @@ Six words, and each one is a different fate. The review page tags every line wit
 | **takes effect on next restart** | Written into `var/secrets/generated.env`, or over a file beside it, and read when the stack next starts | One restart notice for the whole plan |
 | **shadowed by compose** | Written — and a non-empty value for the same name in the process environment will win over it at the next start anyway | The line, to change or remove in your compose file (or the `.env` beside it) |
 | **external** | Not written, because the other half of the change lives in a system plMail is only a client of | The line, plus what else has to change |
-| **kept deliberately** | Not written, and that is the correct outcome. `APP_ENCRYPTION_KEY`, and any user this install already has | A note, and the line for the one case that needs it |
+| **kept deliberately** | Not written, and that is the correct outcome. `APP_ENCRYPTION_KEY`, `APP_SECRET`, and any user this install already has | A note, and the line for the one case that needs it |
 | **not writable** | The path refused the write — read-only secrets volume, wrong uid, full disk | The line or the path, as before |
 
 Section by section:
@@ -309,6 +314,7 @@ Section by section:
 | `database` (Firebase, mail OAuth, integrations) | **applied**, re-encrypted with *this* install's `APP_ENCRYPTION_KEY`. plMail owns these rows outright |
 | `files` → `jwt/private.pem`, `jwt/public.pem` | **takes effect on next restart**, where the process can write them. Checked with `is_writable` at review time, not assumed — a read-only secrets mount is a supported deployment. The bytes land at once; lexik parses the key once per process, so the tokens *this* container signs stay signed with the old one until it restarts |
 | `env` → `APP_ENCRYPTION_KEY` | **kept deliberately.** See [About `APP_ENCRYPTION_KEY` specifically](#about-app_encryption_key-specifically) |
+| `env` → `APP_SECRET`, in an old backup | **kept deliberately.** Current backups do not carry it. See [Why `APP_SECRET` is not in the backup](#why-app_secret-is-not-in-the-backup) |
 | `env` → everything else | **takes effect on next restart**, or **shadowed by compose** where something pins the same name |
 | `users` → somebody this install does not have | **applied**, with everything they configured, re-encrypted with *this* install's key |
 | `users` → somebody it does | **kept deliberately.** Nothing about them is touched. See [Users](#users-on-import) |
@@ -374,6 +380,36 @@ An old backup that still contains them imports fine: they are classified **exter
 and if their value happens to equal what this environment already has — which on a stock stack it
 does — they are not even listed. If you do want to carry a relay's configuration between installs,
 it belongs in the compose file you copy across, not in this file.
+
+<a id="why-app_secret-is-not-in-the-backup"></a>
+#### Why `APP_SECRET` is not in the backup
+
+Every other name left the export because it describes the machine. This one left because of what a
+restored copy would *do*.
+
+Take the inventory of what plMail actually derives from `APP_SECRET`. Remember-me uses Symfony's
+signature-based handler, so the sixty-day cookie is signed with it. Sessions and CSRF tokens are
+bound to a session, which does not survive a restore in any case. JMAP's tokens are signed with the
+JWT keypair, whose contents travel separately. URI signing and uuid47 are not used. Nothing on disk
+and nothing in the database is encrypted under it — that is `APP_ENCRYPTION_KEY`'s job, and that
+one does travel.
+
+So restoring it changed exactly one thing: a `REMEMBERME` cookie minted by the *source* install kept
+verifying on the *target*. Both halves of that check are in a v2 backup — the signature covers the
+app secret and the user's password hash, and users now travel — so a browser that was signed in to
+the machine the backup came from was signed in to the machine it was restored onto, without anybody
+deciding that. Two stacks on one host make it concrete, because cookies are not scoped by port:
+`localhost:80` and `localhost:8002` would hand each other's browsers straight through.
+
+The target keeps the secret it generated at first boot. Nothing it protects is older than that
+install, so there is nothing for the backup's copy to unlock but somebody else's cookies. An old
+backup that still carries `APP_SECRET` imports fine — it is classified **kept deliberately**, and its
+value is not handed back as a line to paste, because there is no case in which you want it.
+
+This is not what makes a restore safe on its own. A browser that still holds cookies from whatever
+was on that address before a restore is a browser holding credentials for an installation that no
+longer exists; clearing the site's cookies once after a restore is the reliable way to be sure of
+what you are signed in as.
 
 #### Why the database credentials are not in the backup at all
 

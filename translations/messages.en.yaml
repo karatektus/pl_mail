@@ -2155,6 +2155,7 @@ two_factor:
             The six-digit code from your authenticator app, or one of your
             recovery codes.
         submit: Continue
+        submitting: Checking…
         trust_device: Don't ask on this device again
         trust_device_hint: For 30 days. You can revoke it any time from Settings → Security.
     page_title: Two-factor authentication

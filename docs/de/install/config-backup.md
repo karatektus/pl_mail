@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:ab75ddb4d5167f0eea8ae7d9b327df79e6eb5f88 -->
+<!-- translated-from: install/config-backup.md sha1:0bbd8a8890f142674320983fd6641f1cfd82d9c5 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -29,7 +29,7 @@ Betreibers und sie überschreibt niemals eine Person.
 
 | Wo | Was dort liegt | Kann plMail das schreiben? |
 |---|---|---|
-| **Die Datei mit den erzeugten Geheimnissen** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`MERCURE_JWT_SECRET` liegt ebenfalls hier, bleibt aber außerhalb der Sicherung — er paart die App dieser Maschine mit dem Hub dieser Maschine) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
+| **Die Datei mit den erzeugten Geheimnissen** | `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`APP_SECRET` und `MERCURE_JWT_SECRET` liegen ebenfalls hier, bleiben aber außerhalb der Sicherung — jede Maschine behält ihre eigenen) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
 | **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
 | **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
 | **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
@@ -93,7 +93,7 @@ Nur Namen; die Werte gehören dir.
 Leere werden weggelassen statt als Leerstring exportiert.
 
 ```
-APP_ENCRYPTION_KEY  APP_SECRET
+APP_ENCRYPTION_KEY
 MERCURE_PUBLIC_URL  JWT_PASSPHRASE
 APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
@@ -101,22 +101,27 @@ GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
 GMAIL_PUBSUB_TOPIC  GMAIL_PUBSUB_VERIFICATION_TOKEN
 MICROSOFT_OAUTH_CLIENT_ID  MICROSOFT_OAUTH_CLIENT_SECRET  MICROSOFT_OAUTH_TENANT
 INTEGRATIONS_ALLOW_HTTP  INTEGRATIONS_ALLOWED_HOSTS
-TRUSTED_PROXIES  APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
+APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 ```
 
 **Bewusst nicht exportiert**, weil sie die Maschine beschreiben und nicht die Installation, und weil
 sie mitzunehmen das Ziel eher kaputtmacht als konfiguriert: `APP_ENV`, `APP_DEBUG`, die
 `APP_DEV_USER_*`-Fixtures, `APP_CONTAINER_NAME`, `APP_SECRETS_FILE`, `JWT_SECRET_KEY`,
 `JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR`, `MERCURE_URL`, `DATABASE_URL`,
-`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN` und `MERCURE_JWT_SECRET`. Der *Inhalt*
+`POSTGRES_PASSWORD`, `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN`, `MERCURE_JWT_SECRET`,
+`TRUSTED_PROXIES` und `APP_SECRET`. Der *Inhalt*
 der JWT-Schlüssel reist mit; die Pfade, unter denen sie liegen, gehören der jeweils lesenden
 Installation, und `MERCURE_URL` ist die netzinterne Adresse eines Nachbarcontainers.
 `MERCURE_JWT_SECRET` existiert, damit App und Mercure-Hub *derselben Maschine* übereinstimmen — der
 Hub liest ihn genau einmal, beim Containerstart. Ein wiederhergestellter Wert tauscht also den
 Schlüssel einer laufenden Paarung zur Hälfte aus, und jedes Live-Update stirbt, bis der ganze Stack
 neu startet; eine frische Installation erzeugt ihren eigenen, und beide Hälften stimmen vom ersten
-Moment an überein. Die übrigen vier sind die Infrastruktur des jeweiligen Betriebs — siehe [Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind](#warum-die-datenbank-zugangsdaten-gar-nicht-erst-in-der-sicherung-sind)
+Moment an überein. `TRUSTED_PROXIES` benennt die Adressen, deren `X-Forwarded-*`-Header diese
+Installation glaubt — eine Tatsache darüber, was vor *diesem* Container steht. Die vier davor sind
+die Infrastruktur des jeweiligen Betriebs — siehe [Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind](#warum-die-datenbank-zugangsdaten-gar-nicht-erst-in-der-sicherung-sind)
 und [Warum die DSNs des Betriebs nicht in der Sicherung sind](#warum-die-dsns-des-betriebs-nicht-in-der-sicherung-sind).
+`APP_SECRET` ist der eine, der aus einem eigenen Grund gegangen ist — siehe
+[Warum `APP_SECRET` nicht in der Sicherung ist](#warum-app_secret-nicht-in-der-sicherung-ist).
 Jede davon ist in der [Konfigurationsreferenz](configuration.md) beschrieben.
 
 **Dateien**, adressiert über einen logischen Namen statt über einen Pfad, damit das Ziel sie dorthin
@@ -318,7 +323,7 @@ einem davon.
 | **wirkt nach dem nächsten Neustart** | In `var/secrets/generated.env` geschrieben oder über eine Datei daneben, und beim nächsten Start des Stacks gelesen | Ein Neustarthinweis für die ganze Liste |
 | **von Compose überdeckt** | Geschrieben — und ein nichtleerer Wert desselben Namens in der Prozessumgebung gewinnt beim nächsten Start trotzdem darüber | Die Zeile, zum Ändern oder Entfernen in deiner Compose-Datei (oder der `.env` daneben) |
 | **extern** | Nicht geschrieben, weil die andere Hälfte der Änderung in einem System liegt, dessen Client plMail nur ist | Die Zeile, plus was sonst noch geändert werden muss |
-| **bewusst behalten** | Nicht geschrieben, und das ist das richtige Ergebnis. `APP_ENCRYPTION_KEY` — und jeder Benutzer, den diese Installation schon hat | Ein Hinweis, und die Zeile für den einen Fall, der sie braucht |
+| **bewusst behalten** | Nicht geschrieben, und das ist das richtige Ergebnis. `APP_ENCRYPTION_KEY`, `APP_SECRET` — und jeder Benutzer, den diese Installation schon hat | Ein Hinweis, und die Zeile für den einen Fall, der sie braucht |
 | **nicht schreibbar** | Der Pfad hat den Schreibvorgang verweigert — schreibgeschütztes Secrets-Volume, falsche UID, volle Platte | Die Zeile oder der Pfad, wie bisher |
 
 Abschnitt für Abschnitt:
@@ -328,6 +333,7 @@ Abschnitt für Abschnitt:
 | `database` (Firebase, Mail-OAuth, Integrationen) | **angewendet**, neu verschlüsselt mit dem `APP_ENCRYPTION_KEY` *dieser* Installation. plMail besitzt diese Zeilen vollständig |
 | `files` → `jwt/private.pem`, `jwt/public.pem` | **wirkt nach dem nächsten Neustart**, dort wo der Prozess sie schreiben kann. Zur Prüfzeit mit `is_writable` gemessen, nicht angenommen — ein schreibgeschützt eingebundenes Secrets-Volume ist ein unterstützter Betrieb. Die Bytes landen sofort; lexik liest den Schlüssel einmal pro Prozess, die Tokens *dieses* Containers werden also bis zum Neustart weiter mit dem alten signiert |
 | `env` → `APP_ENCRYPTION_KEY` | **bewusst behalten.** Siehe [Speziell zu `APP_ENCRYPTION_KEY`](#speziell-zu-app_encryption_key) |
+| `env` → `APP_SECRET`, in einer alten Sicherung | **bewusst behalten.** Aktuelle Sicherungen führen ihn nicht mehr. Siehe [Warum `APP_SECRET` nicht in der Sicherung ist](#warum-app_secret-nicht-in-der-sicherung-ist) |
 | `env` → alles Übrige | **wirkt nach dem nächsten Neustart**, oder **von Compose überdeckt**, wo etwas denselben Namen festlegt |
 | `users` → jemand, den diese Installation nicht hat | **angewendet**, mit allem, was die Person eingerichtet hatte, neu verschlüsselt mit dem Schlüssel *dieser* Installation |
 | `users` → jemand, den sie hat | **bewusst behalten.** An der Person wird nichts angerührt. Siehe [Benutzer beim Import](#benutzer-beim-import) |
@@ -400,6 +406,38 @@ eingestuft und in Ruhe gelassen — und stimmt ihr Wert mit dem überein, was di
 (auf einem Standard-Stack ist das so), werden sie nicht einmal aufgeführt. Willst du die
 Konfiguration eines Relays zwischen Installationen mitnehmen, gehört sie in die Compose-Datei, die du
 mitkopierst, und nicht in diese Datei.
+
+<a id="warum-app_secret-nicht-in-der-sicherung-ist"></a>
+#### Warum `APP_SECRET` nicht in der Sicherung ist
+
+Jeder andere Name hat den Export verlassen, weil er die Maschine beschreibt. Dieser hier ist
+gegangen wegen dem, was eine wiederhergestellte Kopie *tut*.
+
+Man nehme die Bestandsaufnahme dessen, was plMail tatsächlich aus `APP_SECRET` ableitet.
+„Angemeldet bleiben“ nutzt Symfonys signaturbasierten Handler, das Sechzig-Tage-Cookie ist also
+damit signiert. Sitzungen und CSRF-Token hängen an einer Sitzung, die eine Wiederherstellung
+ohnehin nicht überlebt. JMAP-Token werden mit dem JWT-Schlüsselpaar signiert, dessen Inhalt separat
+mitreist. URI-Signierung und uuid47 werden nicht verwendet. Nichts auf der Platte und nichts in der
+Datenbank ist damit verschlüsselt — das ist die Aufgabe von `APP_ENCRYPTION_KEY`, und der reist mit.
+
+Ihn wiederherzustellen änderte also genau eines: Ein `REMEMBERME`-Cookie der *Quell*-Installation
+blieb auf dem *Ziel* gültig. Beide Hälften dieser Prüfung stecken in einer v2-Sicherung — die
+Signatur deckt das App-Secret und den Passwort-Hash des Benutzers ab, und Benutzer reisen jetzt mit
+—, also war ein Browser, der bei der Quellmaschine angemeldet war, auch bei der Zielmaschine
+angemeldet, ohne dass das jemand entschieden hätte. Zwei Stacks auf einem Host machen das konkret,
+denn Cookies sind nicht nach Port getrennt: `localhost:80` und `localhost:8002` würden sich
+gegenseitig die Browser durchreichen.
+
+Das Ziel behält das Secret, das es beim ersten Start erzeugt hat. Nichts, was es schützt, ist älter
+als diese Installation, es gibt für die Kopie aus der Sicherung also nichts aufzuschließen außer
+fremden Cookies. Eine alte Sicherung, die `APP_SECRET` noch enthält, importiert problemlos — er wird
+als **bewusst behalten** eingeordnet, und sein Wert wird nicht als Zeile zum Einfügen zurückgegeben,
+weil es keinen Fall gibt, in dem man ihn haben will.
+
+Das allein macht eine Wiederherstellung nicht sicher. Ein Browser, der noch Cookies von dem hält,
+was vorher unter dieser Adresse lief, hält Zugangsdaten für eine Installation, die es nicht mehr
+gibt; die Cookies der Seite nach einer Wiederherstellung einmal zu löschen ist der verlässliche Weg,
+sicher zu sein, als was man angemeldet ist.
 
 #### Warum die Datenbank-Zugangsdaten gar nicht erst in der Sicherung sind
 
