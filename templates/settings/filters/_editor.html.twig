@@ -138,7 +138,7 @@ Variables:
                            until something else happened to trigger a preview. #}
                         <select id="rule-account" name="account"
                                 data-action="change->rules--rule-builder#schedulePreview"
-                                class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                                class="select-field block w-full h-9 text-sm">
                             <option value="">{{ 'settings.filters.all_accounts'|trans }}</option>
                             {% for account in accounts %}
                                 <option value="{{ account.id }}" {{ rule.account and rule.account.id == account.id ? 'selected' : '' }}>

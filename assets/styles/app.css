@@ -678,6 +678,68 @@
         background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 3.5));
     }
 }
+
+/* A native <select> that looks like the rest of the app's fields.
+ *
+ * The browser's own control is the thing that gave it away: its chevron, its
+ * corner radius and its metrics come from the platform, so a settings pane full
+ * of app-styled inputs had one foreign-looking box in the middle of it. There
+ * were six different attempts at fixing that scattered through templates/ — two
+ * borders, three backgrounds, and three that reached for a hardcoded
+ * `ring-indigo-500` and so ignored the accent colour the user picked.
+ *
+ * `appearance: none` removes the platform control and the chevron is drawn back
+ * on as a background image, which is the one part a <select> will let CSS place
+ * — there is no pseudo-element to hang it on. Same path as the form theme's
+ * chevron, so the two match.
+ *
+ * The chevron's grey is fixed rather than tokenised because a data: URI cannot
+ * read a custom property. It costs nothing here: --rgb-ink-faint lands between
+ * 108 and 170 across all six themes, so one mid grey is within a few percent of
+ * every one of them, on light and dark alike.
+ *
+ * Height and text size are deliberately not set. Call sites differ — h-9 in
+ * settings, h-8 in the admin tables — and a utility that fixed them would have
+ * to win an argument with a plain `h-8` in the same layer.
+ */
+@utility select-field {
+    appearance: none;
+    padding-inline: 0.75rem 2rem;
+    border: 1px solid rgb(var(--rgb-field-border) / var(--field-border-alpha));
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-field) / var(--field-alpha));
+    color: rgb(var(--rgb-ink));
+    cursor: pointer;
+    transition: background-color 100ms, border-color 100ms;
+
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%238b8b93'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 0.875rem 0.875rem;
+
+    &:hover {
+        background-color: rgb(var(--rgb-raised) / var(--hover-alpha));
+    }
+
+    &:focus {
+        outline: none;
+        border-color: transparent;
+        box-shadow: 0 0 0 2px rgb(var(--rgb-accent));
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* A list box, not a drop-down: it has no chevron to draw and the padding
+     * reserved for one would just indent every row. */
+    &:is([multiple], [size]) {
+        background-image: none;
+        padding-inline: 0.75rem;
+        cursor: default;
+    }
+}
 @utility badge-danger {
     background-color: rgb(var(--rgb-danger) / var(--danger-soft-alpha));
     color: rgb(var(--rgb-danger));

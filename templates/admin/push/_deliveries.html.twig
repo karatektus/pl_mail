@@ -46,7 +46,7 @@ deliberately not stored.
             <form method="get" action="{{ path('app_admin_push_deliveries') }}"
                   class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
                 <select name="usr"
-                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_users'|trans }}</option>
                     {% for candidate in users %}
@@ -54,7 +54,7 @@ deliberately not stored.
                     {% endfor %}
                 </select>
                 <select name="transport"
-                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_transports'|trans }}</option>
                     {% for case in transports %}
@@ -64,7 +64,7 @@ deliberately not stored.
                     {% endfor %}
                 </select>
                 <select name="outcome"
-                        class="h-8 rounded-lg border border-line bg-field text-xs text-ink-soft px-2"
+                        class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_outcomes'|trans }}</option>
                     {% for case in outcomes %}
