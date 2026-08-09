@@ -5,8 +5,8 @@ addresses and a password, and it connects. This is the path for everything that 
 Microsoft account — your own mail server, a hosting provider's mailbox, GMX, Fastmail, a box at the
 end of a domain you own.
 
-What plMail does with the mailbox once it is connected — the sync window, aliases, per-account
-options — is in [Accounts and aliases](../features/accounts.md). This page is about getting the
+What plMail does with the mailbox once it is connected — aliases, per-account options — is in
+[Accounts and aliases](../features/accounts.md). This page is about getting the
 connection to come up, and about the handful of settings providers genuinely disagree about.
 
 ## Adding a mailbox

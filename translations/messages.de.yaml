@@ -1540,18 +1540,6 @@ settings:
             active: Aktiv
             disabled: Deaktiviert
         subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
-        sync_limit:
-            all: Alles synchronisieren
-            newest: 'Neueste %limit%'
-            off_hint: >-
-                Alle Nachrichten auf dem Server werden synchronisiert. Bei
-                großen Postfächern kann die erste Synchronisierung Stunden
-                dauern.
-            on_hint: >-
-                Es werden nur die neuesten %limit% Nachrichten synchronisiert.
-                Erhöhe den Wert später, dann geht der nächste Sync-Lauf weiter
-                zurück; app:reset holt alles erneut.
-            title: Zu synchronisierende Nachrichten
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'

@@ -1039,10 +1039,12 @@ A scheduled polling sync (every 15 minutes) backs all of them up whenever push i
 **your app should never claim mail is "up to date" on the basis of push alone**, and should offer a
 manual refresh. Equally, don't hammer a sync endpoint — the server is already trying.
 
-Each account has a **sync window** (how far back history is fetched), set per account in settings.
-Mail older than the window is *not in the database*, and therefore **not searchable**. If a user
-searches and finds nothing old, the honest message is "search covers synced mail; widen the sync
-window in settings" — not "no results".
+The server fetches an account's **whole** history — there is no retention setting to widen. What
+there is is a **backfill** that takes a while on a large mailbox: the newest mail lands first and
+the rest follows over later runs, so old mail can be missing *temporarily*. The Session's
+`urn:plmail:params:jmap:sync` account capability reports `backfillPending` for exactly this. If a
+dated search finds nothing and that flag is set, the honest message is "older mail is still
+arriving" — not "no results", and never "widen the sync window".
 
 Threading is currently **RFC Message-ID based**, not Gmail-native `threadId`. Expect occasional
 divergence from what the Gmail web UI groups together.
@@ -1119,7 +1121,7 @@ Ordered roughly by how much users will miss them.
 | `unsupportedFilter` | A bug in your query builder. Log it; don't surface raw JMAP errors. |
 | `tooLarge` on upload | Name the 50 MB limit. |
 | Server unreachable | "Can't reach your server" — with the hostname. Users self-host; the hostname is genuinely useful to them. |
-| Empty search results | Mention the sync window if the query had a date/`before:` component. |
+| Empty search results | If the query had a date/`before:` component and `backfillPending` is set, say older mail is still arriving. |
 | No accounts connected | Deep-link to the web UI's account setup; account creation involves OAuth flows that belong in a browser. |
 
 ### Things not to do

@@ -221,7 +221,6 @@ final class GmailApiSyncerHistoryTest extends TestCase
     {
         $account = new Account();
         $account->usr = new User();
-        $account->syncLimit = 500;
         $account->gmailHistoryId = '12345';
 
         return $account;
