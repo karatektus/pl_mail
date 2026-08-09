@@ -1,6 +1,7 @@
 {# Opening this frame is what marks the log seen server-side, but the ring that
    clears lives on the user menu — outside this frame, and so never re-rendered
    by loading it. This announces the visit; the topbar listens. #}
+{% import '_partials/_select.html.twig' as select %}
 <turbo-frame id="admin-logs" data-controller="admin--log-seen">
 
     {# A container, so the rows below reflow on how wide this pane actually is
@@ -19,6 +20,7 @@
             <form method="get" action="{{ path('app_admin_logs') }}"
                   class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
                 <select name="level"
+                        {{ select.enhance() }}
                         class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     {% for value, name in levels %}
@@ -26,6 +28,7 @@
                     {% endfor %}
                 </select>
                 <select name="channel"
+                        {{ select.enhance() }}
                         class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>

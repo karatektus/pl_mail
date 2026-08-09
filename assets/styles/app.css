@@ -707,6 +707,15 @@
  * borders, three backgrounds, and three that reached for a hardcoded
  * `ring-indigo-500` and so ignored the accent colour the user picked.
  *
+ * It is no longer the whole answer, because it could never reach the popup:
+ * ui--select puts a Tom Select over every single-select in the app. This is
+ * still what renders — before that script has run, and instead of it when the
+ * user has no JavaScript — so the two have to agree, and every value below is
+ * mirrored by `.ts-wrapper.single .ts-control` in assets/styles/tom-select.css.
+ * Change one and change the other, or the control moves when the page finishes
+ * loading. The multiple/size branch at the bottom is the one part with no
+ * counterpart: list boxes are left native on purpose.
+ *
  * `appearance: none` removes the platform control and the chevron is drawn back
  * on as a background image, which is the one part a <select> will let CSS place
  * — there is no pseudo-element to hang it on. Same path as the form theme's

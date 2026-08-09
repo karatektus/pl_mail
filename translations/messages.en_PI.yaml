@@ -774,6 +774,17 @@ compose:
         body: Hitch up a mailbag first, an' ye can write from it straight away.
         cta: Hitch up a mailbag
         heading: No mailbag aboard yet
+    font_family:
+        label: Hand o' writin'
+        monospace: Ledger hand
+        sans: Plain hand
+        serif: Scrivener's hand
+    font_size:
+        huge: Mountainous
+        label: Size o' the lettering
+        large: Grand
+        normal: Fair
+        small: Wee
     attach: Lash on some cargo
     attachment_remove: Heave the cargo overboard
     click_to_cancel: click to belay it
@@ -802,6 +813,8 @@ form:
     file:
         choose: Choose a likeness…
         hint: PNG, JPEG, GIF or WebP
+    select:
+        no_results: Nary a match in these waters
     cancel: Belay that
     submit: Stow it
 

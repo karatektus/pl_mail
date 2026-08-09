@@ -29,6 +29,7 @@ The payload column shows the `@type` and nothing else, because that is all the
 row holds: see the PushDelivery docblock for why a StateChange's contents are
 deliberately not stored.
 #}
+{% import '_partials/_select.html.twig' as select %}
 <turbo-frame id="admin-push-deliveries" class="block">
 
     {# A container, so the rows reflow on this pane's width rather than the
@@ -46,6 +47,7 @@ deliberately not stored.
             <form method="get" action="{{ path('app_admin_push_deliveries') }}"
                   class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
                 <select name="usr"
+                        {{ select.enhance() }}
                         class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_users'|trans }}</option>
@@ -54,6 +56,7 @@ deliberately not stored.
                     {% endfor %}
                 </select>
                 <select name="transport"
+                        {{ select.enhance() }}
                         class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_transports'|trans }}</option>
@@ -64,6 +67,7 @@ deliberately not stored.
                     {% endfor %}
                 </select>
                 <select name="outcome"
+                        {{ select.enhance() }}
                         class="select-field h-8 text-xs"
                         onchange="this.form.requestSubmit();">
                     <option value="">{{ 'admin.push.deliveries.all_outcomes'|trans }}</option>

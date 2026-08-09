@@ -152,6 +152,28 @@ a collection row — is one field to the reader and should stay tight.
                 shadow-sm shadow-zinc-950/5
                 ' ~ (attr.class ?? '')
         }) %}
+
+        {# And then the same select gets a Tom Select on top, for the reason
+           `select-field` could not solve: the popup is the browser's, drawn by
+           the OS, and no stylesheet reaches inside it. The classes above are
+           not wasted — they are what renders before the script runs and what
+           renders if it never does.
+
+           Appended rather than assigned. FirstAdminType's locale field already
+           declares `setup--locale-switch`, and overwriting that would silently
+           kill the reload-in-the-chosen-language behaviour — which is the whole
+           point of that field being first on the page.
+
+           Not for multiple selects: those are list boxes, and the one the app
+           has is compose's address field, which has a Tom Select of its own. #}
+        {% if not multiple %}
+            {% set attr = attr|merge({
+                'data-controller': (attr['data-controller']|default('') ~ ' ui--select')|trim,
+                'data-ui--select-i18n-value': {
+                    noResults: 'form.select.no_results'|trans,
+                }|json_encode,
+            }) %}
+        {% endif %}
     {% endif %}
     <select {{ block('widget_attributes') }}>
         {% if placeholder is not none %}

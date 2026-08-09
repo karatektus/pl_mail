@@ -19,6 +19,7 @@ Variables:
   activeClock   string|null   the user's own choice, null when following
   defaultClock  string        the sample the language resolves to
 #}
+{% import '_partials/_select.html.twig' as select %}
 <div class="px-4 py-3">
     <form method="post" action="{{ path('app_settings_clock_update') }}" data-turbo="false">
         <input type="hidden" name="_token" value="{{ csrf_token('settings-clock') }}">
@@ -28,6 +29,7 @@ Variables:
         <select id="settings-clock"
                 name="clock"
                 onchange="this.form.requestSubmit();"
+                {{ select.enhance() }}
                 class="select-field w-full h-9 text-sm">
             <option value="" {{ activeClock is null ? 'selected' : '' }}>
                 {{ 'settings.clock.follow_language'|trans({'%sample%': defaultClock}) }}

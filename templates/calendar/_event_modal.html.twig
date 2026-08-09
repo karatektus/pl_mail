@@ -91,6 +91,7 @@ meeting" means the meeting. For a new event exactly one box is ticked — where 
 would land — so the common case is still one click away from the old dropdown's
 behaviour.
 #}
+{% import '_partials/_select.html.twig' as select %}
 
 {% set event_title = title|default(event ? event.title : '') %}
 {% set recurrence_id = recurrenceId|default('') %}
@@ -223,6 +224,7 @@ behaviour.
                         ? event.jscalendar.recurrenceRules|first.frequency|default('')
                         : '' %}
                     <select id="event-repeat" name="repeat"
+                            {{ select.enhance() }}
                             class="select-field w-full py-2 text-sm">
                         {% for option in ['none', 'daily', 'weekly', 'monthly', 'yearly'] %}
                             <option value="{{ option }}" {{ currentFrequency == option ? 'selected' : '' }}>
@@ -306,6 +308,7 @@ behaviour.
                            class="w-20 rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
                                   focus:outline-none focus:ring-2 focus:ring-accent">
                     <select name="alertCustomAction" aria-label="{{ 'calendar.event.alert.custom_action'|trans }}"
+                            {{ select.enhance() }}
                             class="select-field py-1 text-sm">
                         {% for action in ['display', 'email'] %}
                             <option value="{{ action }}">

@@ -1029,6 +1029,17 @@ compose:
         body: Add a mailbox first, and you can write from it right away.
         cta: Add a mail account
         heading: No mail account yet
+    font_family:
+        label: Typeface
+        monospace: Monospace
+        sans: Sans serif
+        serif: Serif
+    font_size:
+        huge: Huge
+        label: Text size
+        large: Large
+        normal: Normal
+        small: Small
     attach: Attach files
     attachment_remove: Remove attachment
     click_to_cancel: click to cancel
@@ -1057,6 +1068,8 @@ form:
     file:
         choose: Choose an image…
         hint: PNG, JPEG, GIF or WebP
+    select:
+        no_results: No matches
     cancel: Cancel
     submit: Save
 

@@ -178,8 +178,7 @@ export default class extends Controller {
         const row = document.createElement("div")
         row.className = "flex flex-wrap items-center gap-2"
 
-        const field = document.createElement("select")
-        field.className = this._inputClass() + " w-auto min-w-[8.5rem]"
+        const field = this._selectElement("w-auto min-w-[8.5rem]")
 
         for (const name of Object.keys(FIELDS)) {
             const o = document.createElement("option")
@@ -218,8 +217,7 @@ export default class extends Controller {
         }
 
         if (kind === "bool" || kind === "keyword" || kind === "label") {
-            const select = document.createElement("select")
-            select.className = this._inputClass() + " flex-1 min-w-[9rem]"
+            const select = this._selectElement("flex-1 min-w-[9rem]")
 
             const options =
                 kind === "bool"
@@ -264,8 +262,7 @@ export default class extends Controller {
             const row = document.createElement("div")
             row.className = "flex flex-wrap items-center gap-2"
 
-            const select = document.createElement("select")
-            select.className = this._inputClass() + " w-auto min-w-[10rem]"
+            const select = this._selectElement("w-auto min-w-[10rem]")
 
             for (const type of this.i18nValue.actionTypes) {
                 const o = document.createElement("option")
@@ -294,8 +291,7 @@ export default class extends Controller {
             row.append(select)
 
             if (action.type === "applyLabel" || action.type === "removeLabel") {
-                const label = document.createElement("select")
-                label.className = this._inputClass() + " flex-1 min-w-[9rem]"
+                const label = this._selectElement("flex-1 min-w-[9rem]")
 
                 // System labels are excluded here but not from conditions:
                 // "has label Inbox" is a sensible test, while "apply label
@@ -327,8 +323,7 @@ export default class extends Controller {
                     warn.textContent = this._t("no_integrations")
                     row.append(warn)
                 } else {
-                    const target = document.createElement("select")
-                    target.className = this._inputClass() + " flex-1 min-w-[9rem]"
+                    const target = this._selectElement("flex-1 min-w-[9rem]")
 
                     for (const integration of this.integrationsValue) {
                         const o = document.createElement("option")
@@ -541,6 +536,33 @@ export default class extends Controller {
 
     _inputClass() {
         return "h-8 rounded-lg border border-field bg-field px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+    }
+
+    /**
+     * A <select> that ui--select will pick up.
+     *
+     * Every other select in the app is written in Twig and gets these
+     * attributes from the _select.html.twig macro. This editor builds its rows
+     * imperatively, so it has to stamp them itself — Stimulus watches the DOM,
+     * so an element created here connects as soon as it is appended.
+     *
+     * `select-field` rather than _inputClass(): it is the same box, but it is
+     * also the class the widget's stylesheet knows to undo once it has copied
+     * the list onto its wrapper. Left as _inputClass(), the wrapper would draw
+     * a second border around the control's own.
+     */
+    _selectElement(extraClass = "") {
+        const select = document.createElement("select")
+        select.className = `select-field h-8 text-xs ${extraClass}`.trim()
+        // setAttribute, not dataset: the double dash in the identifier does not
+        // survive the round trip through dataset's camel-casing.
+        select.setAttribute("data-controller", "ui--select")
+        select.setAttribute(
+            "data-ui--select-i18n-value",
+            JSON.stringify({ noResults: this._t("selectNoResults") }),
+        )
+
+        return select
     }
 
     _t(key) {

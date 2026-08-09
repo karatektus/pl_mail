@@ -10,6 +10,7 @@
    NOTE: `class="contents"` on the turbo-frame is load-bearing — same reason as
    _push_control.html.twig: <turbo-frame> is display:block and would otherwise
    break out of the row's flex layout. #}
+{% import '_partials/_select.html.twig' as select %}
 
 <turbo-frame id="account-sync-limit-{{ account.id }}" class="contents">
     {% if account.supportsSyncLimit %}
@@ -25,6 +26,7 @@
             <input type="hidden" name="_token" value="{{ csrf_token('account_sync_limit_' ~ account.id) }}">
 
             <select name="limit"
+                    {{ select.enhance() }}
                     title="{{ tooltip }}"
                     aria-label="{{ 'settings.accounts.sync_limit.title'|trans }}"
                     onchange="this.form.requestSubmit();"

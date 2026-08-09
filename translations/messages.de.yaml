@@ -1056,6 +1056,17 @@ compose:
         body: Richte zuerst ein Postfach ein, dann kannst du sofort davon schreiben.
         cta: Mail-Konto hinzufügen
         heading: Noch kein Mail-Konto
+    font_family:
+        label: Schriftart
+        monospace: Monospace
+        sans: Serifenlos
+        serif: Serif
+    font_size:
+        huge: Sehr gross
+        label: Schriftgrösse
+        large: Gross
+        normal: Normal
+        small: Klein
     attach: Dateien anhängen
     attachment_remove: Anhang entfernen
     click_to_cancel: zum Abbrechen klicken
@@ -1084,6 +1095,8 @@ form:
     file:
         choose: Bild auswählen …
         hint: PNG, JPEG, GIF oder WebP
+    select:
+        no_results: Keine Treffer
     cancel: Abbrechen
     submit: Speichern
 
