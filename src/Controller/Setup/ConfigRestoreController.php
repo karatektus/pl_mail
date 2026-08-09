@@ -9,6 +9,7 @@ use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\Backup\ConfigBackupFailure;
 use App\Domain\Exception\ConfigBackupException;
 use App\Domain\Exception\InvalidFirebaseCredentialsException;
+use App\Repository\User\UserRepository;
 use App\Service\Backup\ConfigBackupImporter;
 use App\Service\Setup\InstallGuard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,10 +48,23 @@ use Symfony\Component\Translation\LocaleSwitcher;
  * redirect, which is the same refusal /install gives and says nothing about
  * what is behind it.
  *
- * **A failure leaves the setup restartable.** Nothing here writes users,
- * nothing marks the install as started, and every refusal renders the same page
- * again with the form on it. The worst case for a wrong password is a page with
- * a red line on it and an install still waiting for its first account.
+ * **A failure leaves the setup restartable.** Every refusal renders this same
+ * page again with the form on it, and a document that fails halfway takes its
+ * whole database half down with it — ConfigBackupImporter runs users and
+ * configuration inside one transaction. The worst case for a wrong password is
+ * a page with a red line on it and an install still waiting for its first
+ * account.
+ *
+ * **A successful restore now usually ends the install.** This used to be true
+ * of nothing here: a config backup carried no people, and the page's last word
+ * was "now go and create the administrator". Since document version 2 it
+ * carries them, so the common case is that the install has its users the
+ * moment the transaction commits — which closes InstallGuard, and with it this
+ * route and /install, from the next request onwards. The page therefore has
+ * two endings and picks between them by asking the guard rather than by
+ * assuming: sign in as somebody the backup restored, or — for a document that
+ * carried no users, or an install whose backup predates version 2 — go and
+ * create the administrator as before.
  */
 final class ConfigRestoreController extends AbstractController
 {
@@ -61,6 +75,7 @@ final class ConfigRestoreController extends AbstractController
         private readonly InstallGuard         $guard,
         private readonly ConfigBackupImporter $importer,
         private readonly LocaleSwitcher       $localeSwitcher,
+        private readonly UserRepository       $users,
     ) {}
 
     #[Route('/install/restore', name: 'app_install_restore', methods: ['GET', 'POST'])]
@@ -161,6 +176,27 @@ final class ConfigRestoreController extends AbstractController
         return '' === $envelope || strlen($envelope) > self::MAX_UPLOAD_BYTES ? null : $envelope;
     }
 
+    /**
+     * Every render goes through here, and the two `users` keys are computed on
+     * every one of them rather than only after an apply — a template variable
+     * that exists on some renders is how a page comes to fail on the branch
+     * nobody looked at.
+     *
+     * **`hasUsers` is asked of the guard, not of the plan.** The plan says what
+     * this document did; the guard says whether /install is still open, which
+     * is the actual question the page's next action turns on. They agree in the
+     * ordinary case and the guard is right in the ones where they do not: a
+     * document carrying nothing but an environment section leaves the install
+     * needing an administrator, and a restore that raced another browser tab
+     * into creating one must not offer to create a second.
+     *
+     * This is safe to ask *after* the apply even though the guard was asserted
+     * before it: assertAvailable() ran at the top of the request, when the
+     * install genuinely had no users, and this is a fresh count taken after the
+     * transaction committed. The route closing behind the request that closed
+     * it is the correct behaviour and is the whole point of the change — the
+     * page it renders is the last one this door will ever show.
+     */
     private function renderPage(
         ?ConfigBackupPlan $plan = null,
         ?string $error = null,
@@ -172,6 +208,8 @@ final class ConfigRestoreController extends AbstractController
             'error'        => $error,
             'errorLiteral' => $errorLiteral,
             'envelope'     => $envelope,
+            'hasUsers'     => false === $this->guard->isAvailable(),
+            'adminEmails'  => $this->users->findAdminEmails(),
         ]);
     }
 

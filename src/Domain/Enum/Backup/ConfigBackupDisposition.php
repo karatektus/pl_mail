@@ -32,7 +32,8 @@ namespace App\Domain\Enum\Backup;
  *   - {@see self::External} — plMail cannot make this true on its own, because
  *     the other half of the change lives in a system it is only a client of.
  *   - {@see self::KeptDeliberately} — not written, and that is the correct
- *     outcome rather than a limitation. APP_ENCRYPTION_KEY, and only it.
+ *     outcome rather than a limitation. APP_ENCRYPTION_KEY, and a user this
+ *     install already has.
  *   - {@see self::NotWritable} — the path refused. Measured, never assumed.
  *
  * There is no `default` anywhere matching on this: a sixth fate has to be given
@@ -69,10 +70,13 @@ enum ConfigBackupDisposition: string
      * already answers for — deliberately, so an operator who manages a secret
      * themselves never has a generated one substituted underneath them. The
      * same rule makes a compose file that pins a name authoritative over
-     * anything restored here. plMail's own `compose.yaml` pins three of the
-     * backed-up names to non-empty defaults (`MAILER_DSN`,
-     * `MESSENGER_TRANSPORT_DSN`, `MERCURE_PUBLIC_URL`); everything else it
-     * passes through as `${NAME:-}`, an empty string, which counts as absent.
+     * anything restored here. plMail's own `compose.yaml` pins three names to
+     * non-empty defaults (`MAILER_DSN`, `MESSENGER_TRANSPORT_DSN`,
+     * `MERCURE_PUBLIC_URL`); everything else it passes through as `${NAME:-}`,
+     * an empty string, which counts as absent. Of those three only
+     * MERCURE_PUBLIC_URL is still exported — the other two are {@see
+     * self::External} now, because a value plMail refuses to write cannot
+     * meaningfully be shadowed.
      */
     case ShadowedByCompose = 'shadowed-by-compose';
 
@@ -86,19 +90,35 @@ enum ConfigBackupDisposition: string
      * created. On a database that already exists, the role keeps the password
      * it was created with, so restoring another one produces a stack whose app
      * cannot authenticate against its own database.
+     *
+     * `MAILER_DSN` and `MESSENGER_TRANSPORT_DSN` reach this the same way, once
+     * removed: they are the operator's compose file's to state, plMail is only
+     * a client of the relay and the queue they name, and no export carries them
+     * any more — the classification exists for the backups that already do.
      */
     case External = 'external';
 
     /**
-     * APP_ENCRYPTION_KEY, and only it: deliberately left as this install has
-     * it, because the import re-encrypts the backup's credentials under the key
-     * in force here.
+     * Two things, and for the same reason: leaving them alone is the answer,
+     * not the compromise.
      *
-     * Writing the backup's key would make every one of those rows — the ones
-     * this very import just wrote — unreadable at the next start, which
-     * `app:secrets:init` would then refuse to start on. Nothing is asked of the
-     * operator; the line is offered only for the one who is also restoring the
-     * old *database*, whose rows are encrypted with it.
+     * **APP_ENCRYPTION_KEY** — deliberately left as this install has it,
+     * because the import re-encrypts the backup's credentials under the key in
+     * force here. Writing the backup's key would make every one of those rows —
+     * the ones this very import just wrote — unreadable at the next start,
+     * which `app:secrets:init` would then refuse to start on. Nothing is asked
+     * of the operator; the line is offered only for the one who is also
+     * restoring the old *database*, whose rows are encrypted with it.
+     *
+     * **A user this install already has**, matched by email. The file's copy of
+     * that person — their password hash, their TOTP secret, their mailbox
+     * credentials — is not written over the live one. An import is a restore of
+     * what a backup holds, and a backup is a photograph of a moment that has
+     * passed: applying a three-month-old one to a live account is how today's
+     * password quietly becomes February's, with the person who changed it
+     * locked out and nothing on any page saying what happened. The user's
+     * configuration is skipped with them, whole — see ConfigBackupUserRestorer
+     * for why it is all-or-nothing rather than a merge.
      */
     case KeptDeliberately = 'kept-deliberately';
 

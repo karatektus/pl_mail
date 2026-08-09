@@ -90,9 +90,10 @@ admin:
             intro: >-
                 Every setting and credential this installation runs on, in one
                 password-encrypted file: the environment values, the files in the secrets
-                volume, and the provider and Firebase credentials from the database. No
-                mail, no calendars and no user accounts — those are what `app:backup` is
-                for.
+                volume, the provider and Firebase credentials from the database, and the
+                people — each with their password, their second factor, their mailboxes
+                and everything else they configured. No mail, no calendar entries and no
+                contacts; those are what `app:backup` is for.
             generate: 'Generate one'
             generated_copied: 'Copied to your clipboard — store it somewhere that outlives this machine.'
             generated_shown: 'Your browser would not share its clipboard, so the password is shown above — store it now.'
@@ -118,6 +119,7 @@ admin:
             password: 'Password'
             submit: 'Review this backup'
         review:
+            already_matching: '%count% more already match this environment, so there is nothing to do about them.'
             apply: 'Apply this backup'
             applied: 'What was written'
             confirm_password: 'Password, once more'
@@ -129,7 +131,16 @@ admin:
                 Everything else is in place. These few cannot be finished from here, and
                 each one says why — saying otherwise would be a lie an operator only
                 discovers on the day it matters.
+            kept_users: 'Already here — kept as they are'
+            kept_users_lead: >-
+                This installation already has these people, matched by email address.
+                Nothing about them was touched: not their password, not their second
+                factor, not their mailboxes or anything else they had set up. A backup is
+                a photograph of a moment that has passed, and writing it over a live
+                account is how somebody is locked out of their own mail without a word
+                anywhere.
             notes: 'Worth knowing'
+            old_key_summary: 'Also restoring the old database? You will need its old encryption key.'
             restart: >-
                 Most of this is read when the stack starts, so plMail writes it into the
                 generated secrets and it takes effect on the next restart. That is one
@@ -146,6 +157,7 @@ admin:
             database: 'Database'
             env: 'Environment variables'
             files: 'Files in the secrets volume'
+            users: 'People and everything they set up'
     db:
         active:
             empty: 'No active queries right now.'
@@ -1396,20 +1408,26 @@ setup:
         tagline: Nobody has signed up yet — let's fix that
     restore:
         applied_lead: >-
-            The configuration is in place. This installation still has no users — create
-            the administrator account to finish. If a restart is noted above, it can wait
-            until after that.
+            The configuration is in place. This backup carried no user accounts, so this
+            installation still has none — create the administrator account to finish. If a
+            restart is noted above, it can wait until after that.
+        applied_lead_users: >-
+            The configuration and its people are in place — %count% restored, %admins%
+            among them. Sign in with the password you already had; nothing about it has
+            changed.
         back: 'Back to creating the administrator'
         continue: 'Continue — create the administrator'
         footnote: >-
-            A configuration backup carries settings and credentials, never mail and never
-            user accounts.
+            A configuration backup carries settings, credentials and the people who use
+            them — never mail, calendar entries or contacts.
         heading: 'Restore a configuration backup'
         lead: >-
-            Bring another plMail's settings and credentials here before you create the
-            first account. Upload the file and type its password — plMail writes the rest
-            into this installation itself.
+            Bring another plMail's settings, credentials and accounts here before you
+            create anything. Upload the file and type its password — plMail writes the
+            rest into this installation itself.
+        nothing_to_do: 'There is nothing left for you to do here.'
         page_title: 'Restore configuration'
+        sign_in: 'Sign in'
         submit: 'Open the backup'
 
 settings:

@@ -98,6 +98,43 @@ class ApiToken
         return ['token' => $token, 'secret' => $secret];
     }
 
+    /**
+     * Rebuild a credential that already exists somewhere else, from its stored
+     * hash rather than from a new secret.
+     *
+     * The counterpart of create(), and deliberately not a variant of it: this
+     * one mints nothing. A config backup carries app passwords as the digests
+     * they are stored as, because the plaintext was shown once at creation and
+     * has not existed since — so a restore either puts the same digest back or
+     * silently signs out every JMAP client the installation had. Reissuing
+     * would be worse than dropping them: the operator would see the same number
+     * of app passwords with the same names, and none of the phones would
+     * connect.
+     *
+     * `revokedAt` travels with the row for the same reason: a revocation is a
+     * decision, and one that came back undone would be a working credential
+     * somebody had deliberately killed.
+     *
+     * @see \App\Service\Backup\ConfigBackupUserRestorer the only caller
+     */
+    public static function restore(
+        User $usr,
+        string $name,
+        string $tokenHash,
+        string $hint,
+        ?DateTimeImmutable $lastUsedAt,
+        ?DateTimeImmutable $revokedAt,
+    ): self {
+        $token = new self($usr, $name);
+
+        $token->tokenHash  = $tokenHash;
+        $token->hint       = $hint;
+        $token->lastUsedAt = $lastUsedAt;
+        $token->revokedAt  = $revokedAt;
+
+        return $token;
+    }
+
     public static function hash(string $secret): string
     {
         return hash('sha256', $secret);

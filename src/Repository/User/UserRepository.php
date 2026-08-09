@@ -227,6 +227,35 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * The email addresses of the undeleted administrators.
+     *
+     * The same substring test countAdmins() explains, returning the addresses
+     * instead of the count, and for a reader who needs both at once: the
+     * screen at the end of a config restore has to say who was restored and
+     * which of them can administer the install. "3 accounts, including
+     * anna@example.org" is an operator's confirmation that the right file went
+     * in; "3 accounts" alone is a number they cannot check.
+     *
+     * Addresses rather than entities, because that is all any caller wants and
+     * hydrating users to read one column each is how a page acquires a query
+     * per person.
+     *
+     * @return list<string>
+     */
+    public function findAdminEmails(): array
+    {
+        $rows = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                'SELECT email FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role ORDER BY email',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchFirstColumn();
+
+        return array_values(array_map(static fn (mixed $email): string => (string) $email, $rows));
+    }
+
+    /**
      * Hand-written for the exclusion: "every undeleted user with this address
      * except this one" needs `id != :id`, which findOneBy() cannot say.
      *

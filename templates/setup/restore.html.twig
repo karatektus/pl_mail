@@ -50,24 +50,69 @@ action and is never hidden.
                 {% endif %}
 
                 {% if plan is not null %}
-                    <div class="mt-6">
-                        {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
-                    </div>
-
                     {% if plan.applied %}
-                        {# The account is the next step and the only one left.
-                           Said plainly, because "restored" reads like "finished"
-                           and this install still has no users. #}
-                        <div class="mt-6 flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
-                            <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
-                            <p class="leading-snug">{{ 'setup.restore.applied_lead'|trans }}</p>
+                        {#
+                        The finish action comes FIRST when there is nothing left
+                        to do, and after the review when there is. An operator
+                        whose restore asked nothing of them should not have to
+                        read a list to find that out — the list is then a
+                        receipt, and a receipt goes under the thing it is a
+                        receipt for. When there ARE chores the order flips: the
+                        button is the last thing, because pressing it is the
+                        last thing.
+
+                        Two endings, chosen by hasUsers rather than by the plan
+                        — see ConfigRestoreController::renderPage(). A restore
+                        that brought people with it has finished the install and
+                        the next step is signing in as one of them; one that did
+                        not still owes this install an administrator, which is
+                        what every restore used to owe it.
+                        #}
+                        {% set finished %}
+                            <div class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                                <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <p class="leading-snug">
+                                    {% if hasUsers %}
+                                        {{ 'setup.restore.applied_lead_users'|trans({
+                                            '%count%': plan.restoredUsers|length,
+                                            '%admins%': adminEmails|join(', '),
+                                        }) }}
+                                    {% else %}
+                                        {{ 'setup.restore.applied_lead'|trans }}
+                                    {% endif %}
+
+                                    {% if not plan.hasChores %}
+                                        {{ 'setup.restore.nothing_to_do'|trans }}
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <a href="{{ hasUsers ? path('app_login') : path('app_install') }}"
+                               id="restore-finish"
+                               class="mt-4 block w-full text-center bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                                {{ (hasUsers ? 'setup.restore.sign_in' : 'setup.restore.continue')|trans }}
+                            </a>
+                        {% endset %}
+
+                        {% if not plan.hasChores %}
+                            <div class="mt-6">{{ finished }}</div>
+                        {% endif %}
+
+                        {# id, not a class: InstallRestoreUsersTest asserts that
+                           the finish action comes before this block when there
+                           is nothing to do, and "before" needs two anchors. #}
+                        <div class="mt-6" id="restore-plan">
+                            {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
                         </div>
 
-                        <a href="{{ path('app_install') }}"
-                           class="mt-6 block w-full text-center bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
-                            {{ 'setup.restore.continue'|trans }}
-                        </a>
+                        {% if plan.hasChores %}
+                            <div class="mt-6">{{ finished }}</div>
+                        {% endif %}
                     {% else %}
+                        <div class="mt-6">
+                            {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
+                        </div>
+
                         <form method="post" action="{{ path('app_install_restore_apply') }}" data-turbo="false" class="mt-6 space-y-3">
                             <input type="hidden" name="_token" value="{{ csrf_token('install_restore_apply') }}">
                             <input type="hidden" name="envelope" value="{{ envelope }}">

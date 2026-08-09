@@ -7,20 +7,27 @@ finding out where a Firebase key went, which Google project the OAuth client bel
 covers the other one: **Admin → Backup**, which puts every setting and credential this installation
 runs on into a single password-encrypted file, and takes one back.
 
-Not one message, contact, calendar or user account is in it. That is deliberate — the file is
-kilobytes, so it fits in a password manager, and restoring it onto a fresh install is a safe thing to
-do rather than a thing you do once and never again.
+Not one message, contact or calendar entry is in it. The **people** are, though — each with their
+password, their second factor, their mailboxes and everything else they configured — because a
+backup that cannot name its own operator is a backup of a server rather than of an installation.
+Until v0.0.20 they were not, and a restore ended by asking you to invent an administrator and
+rebuild every mailbox by hand.
+
+The file is still kilobytes on an ordinary install, so it fits in a password manager, and restoring
+it onto a fresh one is a safe thing to do rather than a thing you do once and never again.
 
 ## Where configuration actually lives
 
-Three places, and knowing which is which is most of understanding what an import does and when it
-takes effect.
+Four, and knowing which is which is most of understanding what an import does and when it takes
+effect. The last two are both the database; they are separate rows because a restore treats them
+oppositely — it overwrites the operator's settings and it never overwrites a person.
 
 | Where | What is there | Can plMail write it? |
 |---|---|---|
 | **The generated secrets file** | `APP_SECRET`, `APP_ENCRYPTION_KEY`, `MERCURE_JWT_SECRET`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings — everything an admin typed into a form rather than into a file | **Yes**, immediately |
+| **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
 
 **This is not the same claim plMail used to make.** Earlier versions listed every environment value
 as something only the operator could set, and printed two dozen lines to paste into `.env.local`.
@@ -47,9 +54,10 @@ an empty string when nobody set one. Both readers apply exactly this rule: the e
 A restored value therefore takes effect at the next start **unless something in the real process
 environment sets the same name to something non-empty** — which is the one case the review still
 warns about, and the whole of what is left of the old instruction wall. On the stock `compose.yaml`
-that is three names, no more: `MAILER_DSN`, `MESSENGER_TRANSPORT_DSN` and `MERCURE_PUBLIC_URL`,
-which are the only backed-up variables it pins to a non-empty default. Everything else it passes
-through as `${NAME:-}`.
+that is now **one** name: `MERCURE_PUBLIC_URL`. It pins three to a non-empty default — the other two
+are `MAILER_DSN` and `MESSENGER_TRANSPORT_DSN` — but those two are no longer exported at all, for
+the reason given under [Why the deployment's own DSNs are not in the backup](#why-the-deployments-own-dsns-are-not-in-the-backup).
+Everything else it passes through as `${NAME:-}`.
 
 `truenas.compose.yaml` is the exception and deliberately so: it is a hand-edited file that sets
 `APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`, `MERCURE_JWT_SECRET` and the rest from YAML
@@ -79,7 +87,7 @@ are omitted rather than exported as blanks.
 ```
 APP_ENCRYPTION_KEY  APP_SECRET
 MERCURE_JWT_SECRET  MERCURE_PUBLIC_URL  JWT_PASSPHRASE
-MAILER_DSN  MESSENGER_TRANSPORT_DSN  APP_PUBLIC_URL
+APP_PUBLIC_URL
 VAPID_SUBJECT  VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY
 GOOGLE_OAUTH_CLIENT_ID  GOOGLE_OAUTH_CLIENT_SECRET
 GMAIL_PUBSUB_TOPIC  GMAIL_PUBSUB_VERIFICATION_TOKEN
@@ -91,10 +99,13 @@ TRUSTED_PROXIES  APP_DEFAULT_TIMEZONE  APP_DB_LOG_LEVEL  DEFAULT_URI
 **Deliberately not exported**, because they describe the machine rather than the installation, and
 carrying them would break the target rather than configure it: `APP_ENV`, `APP_DEBUG`, the
 `APP_DEV_USER_*` fixtures, `APP_CONTAINER_NAME`, `APP_SECRETS_FILE`, `JWT_SECRET_KEY`,
-`JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR` and `MERCURE_URL`. The JWT keys' *contents*
-travel; the paths they live at belong to whichever install is reading them, and `MERCURE_URL` is the
-in-network address of a sibling container. Every one of these is described in the
-[configuration reference](configuration.md).
+`JWT_PUBLIC_KEY`, `APP_STORAGE_DIR`, `APP_SHARE_DIR`, `MERCURE_URL`, `DATABASE_URL`,
+`POSTGRES_PASSWORD`, `MAILER_DSN` and `MESSENGER_TRANSPORT_DSN`. The JWT keys' *contents* travel;
+the paths they live at belong to whichever install is reading them, and `MERCURE_URL` is the
+in-network address of a sibling container. The last four are the deployment's own infrastructure —
+see [Why the database credentials are not in the backup at all](#why-the-database-credentials-are-not-in-the-backup-at-all)
+and [Why the deployment's own DSNs are not in the backup](#why-the-deployments-own-dsns-are-not-in-the-backup).
+Every one of these is described in the [configuration reference](configuration.md).
 
 **Files**, addressed by a logical name rather than by a path, so the target puts them where its own
 configuration says they go:
@@ -115,11 +126,59 @@ integrationProviders  per provider (nextcloud, immich, googleDrive, …): enable
                       base URL, client id, client secret, the settings bag
 ```
 
+<a id="users"></a>
+**Users** — an object keyed by email address, because that is what an import matches on. Per person:
+
+```
+the account          display name, password HASH (never a password — the
+                     plaintext exists nowhere), admin role, locale, timezone,
+                     appearance, interface preferences, onboarding state
+two-factor           the TOTP secret, its confirmation date, and the unused
+                     recovery codes (already SHA-256 digests)
+app passwords        name, hint and hash per credential, with lastUsedAt and
+                     revokedAt. These are what keeps JMAP clients signed in
+mail accounts        IMAP/SMTP host, port and encryption, username, password,
+                     OAuth provider and its access/refresh tokens, plus each
+                     account's aliases
+integrations         per connection: provider, base URL, username, secret or
+                     OAuth tokens, the settings bag
+filters              conditions and actions, with the label, account and
+                     integration ids inside them rewritten on import
+labels               the whole tree: names, roles, colours, parents, order
+calendars            name, colour, time zone, role, and which mail account or
+                     integration each one is a mirror of
+published links      calendar share links and booking pages, by token digest —
+                     carrying it is what keeps a URL you have already sent out
+                     working after the move
+```
+
+**Not carried, per person**, and each for a stated reason: **trusted devices** and **push
+subscriptions**, which are grants to one browser or one phone and, in the trusted device's case, a
+*skipped second factor* — restoring those would weaken the account rather than move it; **label
+bindings**, a label's identity on a provider, which the first sync re-derives; **sync state** —
+cursors, history ids, watch registrations, calendar push channels, backfill counters — which belongs
+to the host that did the syncing; and **avatars and background images**, which are filenames in a
+storage volume this file does not carry. Soft-deleted users are not exported: `deletedAt` is a
+decision, and a restore honours it.
+
+Mail, calendar entries, contacts and logs are not here at all. That boundary has not moved.
+
 **These are exported decrypted.** In the database they sit in `encrypted_string` columns, readable
 only with the `APP_ENCRYPTION_KEY` that wrote them — and the whole point of a config backup is that
 it is opened somewhere else, by an install with a different key. Ciphertext would be dead weight.
 The envelope's password is the protection; the column encryption is a different protection against a
-different threat, and stacking them would produce a file that is safe and useless.
+different threat, and stacking them would produce a file that is safe and useless. That applies to
+the TOTP secrets, mailbox passwords, OAuth tokens and integration secrets in the users section
+exactly as it does to the Firebase key.
+
+Password hashes, recovery codes and app-password hashes travel as they are stored, because they are
+already one-way. They are no less sensitive for it: a hash is an offline guessing target, and this
+file is every one the installation has.
+
+Everything above is inside the encrypted envelope. The only thing readable without the password is
+the envelope's own header — the format name, the version, the KDF parameters, the salt and the
+nonce. There is no plaintext manifest, so nothing about any user is visible in the file until it is
+opened.
 
 Which is why: **the file is every secret this installation has, and the password you type is the only
 thing protecting it.** Treat it exactly as you treat `APP_ENCRYPTION_KEY`.
@@ -164,14 +223,23 @@ mean, and a future plMail can bump either alone:
 ```json
 {
   "format": "plmail-config-backup",
-  "version": 1,
+  "version": 2,
   "exportedAt": "2026-08-06T12:00:00+00:00",
   "instance": "https://mail.example.com",
   "env": { "APP_SECRET": "…" },
   "files": { "jwt/private.pem": "<base64>" },
-  "database": { "fcmConfig": { "serviceAccountJson": "…" } }
+  "database": { "fcmConfig": { "serviceAccountJson": "…" } },
+  "users": { "anna@example.com": { "password": "$2y$…", "accounts": [] } }
 }
 ```
+
+**Document version 2 added `users`; nothing else moved.** A version 1 file — anything exported
+before users were part of the format — has no `users` key at all, and imports exactly as it always
+did: a missing section is read as an empty one. A version 2 file opened by an older plMail is
+refused outright rather than half-restored, which is the right answer, since that build would apply
+the configuration and silently drop every account in the file. The envelope's version is still 1:
+how the bytes are encrypted has not changed, and that is precisely the split the two version numbers
+exist for.
 
 ### Opening one without plMail
 
@@ -227,7 +295,7 @@ Six words, and each one is a different fate. The review page tags every line wit
 | **takes effect on next restart** | Written into `var/secrets/generated.env`, or over a file beside it, and read when the stack next starts | One restart notice for the whole plan |
 | **shadowed by compose** | Written — and a non-empty value for the same name in the process environment will win over it at the next start anyway | The line, to change or remove in your compose file (or the `.env` beside it) |
 | **external** | Not written, because the other half of the change lives in a system plMail is only a client of | The line, plus what else has to change |
-| **kept deliberately** | Not written, and that is the correct outcome. `APP_ENCRYPTION_KEY` only | A note, and the line for the one case that needs it |
+| **kept deliberately** | Not written, and that is the correct outcome. `APP_ENCRYPTION_KEY`, and any user this install already has | A note, and the line for the one case that needs it |
 | **not writable** | The path refused the write — read-only secrets volume, wrong uid, full disk | The line or the path, as before |
 
 Section by section:
@@ -238,6 +306,70 @@ Section by section:
 | `files` → `jwt/private.pem`, `jwt/public.pem` | **takes effect on next restart**, where the process can write them. Checked with `is_writable` at review time, not assumed — a read-only secrets mount is a supported deployment. The bytes land at once; lexik parses the key once per process, so the tokens *this* container signs stay signed with the old one until it restarts |
 | `env` → `APP_ENCRYPTION_KEY` | **kept deliberately.** See [About `APP_ENCRYPTION_KEY` specifically](#about-app_encryption_key-specifically) |
 | `env` → everything else | **takes effect on next restart**, or **shadowed by compose** where something pins the same name |
+| `users` → somebody this install does not have | **applied**, with everything they configured, re-encrypted with *this* install's key |
+| `users` → somebody it does | **kept deliberately.** Nothing about them is touched. See [Users](#users-on-import) |
+
+**Values that already match are not listed as work.** If a restored value is byte-for-byte what this
+environment already has, it is not something for you to do, whoever is nominally responsible for it —
+so it is dropped from *These are yours to do* and counted in one muted line instead. It is still in
+the review's own account of the file, under what plMail writes; what is filtered is the chore list,
+and a chore that is already done is not a chore. If nothing at all is left, the page says so and puts
+the way out first rather than framing an empty list as work.
+
+<a id="users-on-import"></a>
+#### Users: created, or left completely alone
+
+Matched by email address. There are exactly two outcomes and no third.
+
+- **The address is not here** → the person is created, with their password hash, second factor,
+  recovery codes, app passwords, mailboxes, aliases, integrations, filters, labels, calendars and
+  published links. They can sign in immediately with the password they already know, their
+  authenticator app keeps working, and their existing app passwords keep their JMAP clients
+  connected.
+- **The address is here** → nothing happens. Not the password, not the second factor, not the
+  mailboxes, not one setting. The review lists them under *Already here — kept as they are*, and
+  says whether the file agrees with the live account or differs from it.
+
+**Skipping is deliberate and it is all-or-nothing.** A backup is a photograph of a moment that has
+passed. Applying a three-month-old one to a live account would reset today's password to February's,
+revoke every app password made since, and restore a TOTP secret whose owner re-enrolled in March —
+silently, with the person locked out of their own mail and nothing on any page saying why. There is
+no undo, because the plaintext of a password exists nowhere.
+
+Merging would be worse than either extreme, which is why "just the mailboxes they don't have" is not
+offered: the subtree in the file is internally consistent — filters point at labels, calendars at
+integrations, links at calendars — and half of it grafted onto a live user's half is a shape neither
+installation ever had.
+
+A **soft-deleted** user counts as already here. They hold the address against a unique index, and
+`deletedAt` is somebody's decision.
+
+If you genuinely want a user's old configuration back on a running install, delete or rename the live
+account first and import again — or, far better, take the one thing you need out of the decrypted
+document by hand (see [Opening one without plMail](#opening-one-without-plmail)).
+
+**The ids inside a filter are rewritten.** A rule that says "apply label 41" refers to row 41 of the
+*source* database. On import every reference — the account a rule is scoped to, the `hasLabel` and
+`notLabel` conditions, the `labelId` and `integrationId` on the actions, the calendar a booking page
+writes into — is pointed at the row that replaced it. A reference to something the file did not carry
+is dropped rather than guessed at: a filter that tests one thing fewer is a much smaller wrong than
+one that applies somebody else's label.
+
+<a id="why-the-deployments-own-dsns-are-not-in-the-backup"></a>
+#### Why the deployment's own DSNs are not in the backup
+
+`MAILER_DSN` and `MESSENGER_TRANSPORT_DSN` are machine-local deployment choices, the same category
+as `DATABASE_URL` below. plMail's `compose.yaml` supplies a default for both, so every install has
+one whether or not anybody chose it — and the target's is the one that matches the containers
+actually running beside it: its relay, its queue. Carrying the source's meant every plan on a stock
+stack opened with two rows whose only honest instruction was "change this in the compose file you
+already control", which is not a task, and two non-tasks at the top of a list teach a reader that the
+list can be skipped.
+
+An old backup that still contains them imports fine: they are classified **external** and left alone,
+and if their value happens to equal what this environment already has — which on a stock stack it
+does — they are not even listed. If you do want to carry a relay's configuration between installs,
+it belongs in the compose file you copy across, not in this file.
 
 #### Why the database credentials are not in the backup at all
 
@@ -276,13 +408,21 @@ Upload the file and type its password. That is the job.
 2. **Open `/install`.** Below the account form there is *Restore a configuration backup first* —
    upload the file, type the password, review, apply. Everything the backup carries goes into this
    instance's own secrets file and database.
-3. **Create the administrator account.** The restore does not do this: a config backup carries
-   configuration, never people. The page leads back here when it is done.
+3. **Sign in.** If the backup carried users — every backup from v0.0.21 onwards does — the install is
+   finished at the end of step 2, and the page offers a sign-in link and names the administrator it
+   restored. Use the password you already had; it did not change. *If the file predates users, or
+   carried none, the page instead leads back to the account form: create the administrator there, as
+   before.*
 4. **Restart the stack**, once. The instance then comes up as the one the backup was made from.
 
-Steps 2 and 3 are in that order because `/install` closes for good the moment the first account
-exists — and because the setup wizard's two administrator steps ask "is anything configured yet?" to
-decide whether they apply, so a restore done first walks the new administrator straight past them.
+The restore has to be step 2 rather than something you do afterwards, because `/install` and the
+restore page are both open only while the install has no users — and the restore is now usually the
+thing that ends that. Both doors answer 404 from the next request onwards; from then on the page is
+**Admin → Backup**.
+
+It also pays off downstream: the setup wizard's two administrator steps ask "is anything configured
+yet?" to decide whether they apply, so a restored install walks its administrator straight past both
+instead of asking for credentials the file already carried.
 
 Step 4 is needed because the first boot has already happened: the entrypoint minted this instance's
 own secrets and loaded them into the running processes before you ever reached `/install`, and those
@@ -291,11 +431,9 @@ apply; the restart is what puts them in force. It can wait until after the accou
 page says so.
 
 If the review listed anything under *These are yours to do*, that is your remaining work and each
-line says why. On a stock stack it is at most the two or three names `compose.yaml` pins, plus the
-database password.
-
-The restore entry point is guarded by exactly the same thing `/install` is: the installation having
-no users. The moment one exists it answers 404, and from then on the page is **Admin → Backup**.
+line says why. On a stock stack that heading should not appear at all: `MERCURE_PUBLIC_URL` is the
+one name `compose.yaml` still pins that a backup carries, and if the two agree it is counted rather
+than listed. If the page says there is nothing left to do, there is nothing left to do.
 
 ### About `APP_ENCRYPTION_KEY` specifically
 
@@ -318,10 +456,17 @@ refuses to run on.
 
 ## Things that bite
 
-**The backup is not a data backup and does not pretend to be.** No mail, no calendars, no users, no
-attachments. If you restore one onto a fresh host and stop there, you have a correctly configured
-plMail with nothing in it. `app:backup` is the other half; both pages are linked from the index for
-a reason.
+**The backup is not a data backup and does not pretend to be.** No mail, no calendar entries, no
+contacts, no attachments. It does carry the people and everything they configured, so if you restore
+one onto a fresh host and stop there you have a working installation that everybody can sign in to —
+with empty mailboxes, until the first sync pulls their mail down again from the servers whose
+credentials the file restored. `app:backup` is still the other half; both pages are linked from the
+index for a reason.
+
+**Restoring does not touch a user who is already here.** Not their password, not their second
+factor, not one setting. That is the correct behaviour and it is stated in full under
+[Users](#users-on-import) — but it does mean a config backup is not a way to roll one person's
+settings back.
 
 **Lose the password and the file is gone.** There is no recovery, no hint and no reset. Argon2id makes
 guessing expensive; it does not make it possible. Store the password where you store the file, or
@@ -331,15 +476,20 @@ somewhere you will still have in a year.
 ciphertext, so plMail genuinely cannot tell you which it was. If you are certain of the password,
 suspect the transfer that produced the file.
 
-**Restoring onto a *running* install replaces credentials.** The review marks those lines "replaces a
-different value" rather than "not set here yet". Read that column: an import is not a merge, and the
-Firebase key that gets overwritten is the one the devices in people's pockets are registered against.
+**Restoring onto a *running* install replaces credentials — the operator's, not the users'.** The
+review marks those lines "replaces a different value" rather than "not set here yet". Read that
+column: for the environment, the secrets files and the provider registrations an import is not a
+merge, and the Firebase key that gets overwritten is the one the devices in people's pockets are
+registered against. Users are the exception and the only one: an existing account is never written
+over.
 
 **Applying does not restart anything.** The database half takes effect immediately. Everything that
 lives in the secrets volume is on disk at once and *in force* only after a restart — and until you
 restart, the install goes on running on the new machine's generated secrets, which is a working
 state that looks like a finished restore.
 
-**Exporting is not free of consequence.** The file that comes out is a complete, offline, unlimited-
-attempt copy of every secret the installation has. A backup left in a downloads folder is a worse
-exposure than anything this feature protects against.
+**Exporting is not free of consequence, and it got heavier.** The file that comes out is a complete,
+offline, unlimited-attempt copy of every secret the installation has — and that now includes every
+user's password hash, TOTP secret and mailbox password, not only the administrator's. An admin who
+exports one is holding everybody's credentials in a single file. A backup left in a downloads folder
+is a worse exposure than anything this feature protects against.
