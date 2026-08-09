@@ -95,9 +95,10 @@ action and is never hidden.
                             <label for="restore-file" class="block text-xs text-ink-muted">
                                 {{ 'admin.config_backup.import.file'|trans }}
                             </label>
+                            {# The picker button is styled in app.css, on every
+                               file input at once — see the base layer there. #}
                             <input type="file" id="restore-file" name="backup" required accept=".backup,application/octet-stream"
-                                   class="mt-1 w-full text-sm text-ink-soft file:mr-3 file:h-8 file:rounded-lg file:border-0
-                                          file:bg-raised file:px-3 file:text-xs file:text-ink file:cursor-pointer">
+                                   class="mt-1 w-full text-sm">
                         </div>
 
                         <div>
