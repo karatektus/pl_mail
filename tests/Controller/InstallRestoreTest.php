@@ -152,11 +152,15 @@ final class InstallRestoreTest extends WebTestCase
         self::assertStringContainsString('GOOGLE_OAUTH_CLIENT_ID', $reviewBody);
         self::assertStringNotContainsString('GOOGLE_OAUTH_CLIENT_ID=an-id.apps.googleusercontent.com', $reviewBody);
 
-        // APP_SECRET is the residue and is honest about being one: this test
-        // container really does carry it in its process environment, the way a
-        // compose file would, so the entrypoint would override the restored
-        // value at the next start and the page says so with the line to fix.
-        self::assertStringContainsString('APP_SECRET=a-restored-secret', $reviewBody);
+        // APP_SECRET used to be the residue here — pinned in this container's
+        // process environment the way a compose file would pin it, so the page
+        // handed back the line to fix. It no longer travels at all: the target
+        // keeps the secret it generated, because the only thing the backup's
+        // copy could do is keep the source machine's browser cookies verifying
+        // on this one. This fixture is an old backup and still carries it, so
+        // the assertion worth making is the one about the value: it reaches the
+        // operator nowhere, as a line to paste or otherwise.
+        self::assertStringNotContainsString('a-restored-secret', $reviewBody);
 
         $client->submit($review->filter('#restore-apply')->form(['password' => self::PASSWORD]));
 

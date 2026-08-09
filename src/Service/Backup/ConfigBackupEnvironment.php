@@ -79,7 +79,32 @@ final readonly class ConfigBackupEnvironment
      */
     private const array VARIABLES = [
         'APP_ENCRYPTION_KEY',
-        'APP_SECRET',
+        // APP_SECRET is deliberately NOT here, and unlike the names below it
+        // left for what it does rather than for where it lives. Take the
+        // inventory of what this codebase actually derives from kernel.secret:
+        // remember-me is the signature-based handler, so the cookie is signed
+        // with it; sessions and CSRF tokens are bound to a session that does
+        // not survive a restore anyway; JMAP's tokens are signed with the JWT
+        // pems, whose CONTENTS travel separately; URI signing and uuid47 are
+        // not used. Nothing stored on disk or in the database is encrypted
+        // under it — that is APP_ENCRYPTION_KEY's job, and it does travel.
+        //
+        // So restoring it has exactly one observable effect, and it is not a
+        // good one: a REMEMBERME cookie minted by the source install keeps
+        // verifying against the target. Both halves of that check travel in a
+        // v2 backup — the signature is over the app secret and the user's
+        // password hash — so a browser that was signed in to the machine the
+        // backup came from is signed in to the machine it was restored onto,
+        // without anybody deciding that. Two stacks on one host make it
+        // concrete: cookies are not scoped by port, so localhost:80 and
+        // localhost:8002 hand each other's browsers straight through.
+        //
+        // The target's own secret stays. A fresh install mints one at first
+        // boot and nothing it protects is older than that install, so there is
+        // nothing for the backup's copy to unlock but another machine's
+        // cookies. Old backups carrying it are KeptDeliberately below, for
+        // APP_ENCRYPTION_KEY's reason turned around: the value in force here is
+        // the right one.
         // DATABASE_URL and POSTGRES_PASSWORD are deliberately NOT here. They
         // are machine-local infrastructure: generated before any user exists,
         // consumed by initdb once, and never applicable on a restore target,
@@ -122,7 +147,16 @@ final readonly class ConfigBackupEnvironment
         'MICROSOFT_OAUTH_TENANT',
         'INTEGRATIONS_ALLOW_HTTP',
         'INTEGRATIONS_ALLOWED_HOSTS',
-        'TRUSTED_PROXIES',
+        // TRUSTED_PROXIES is deliberately NOT here either, for DATABASE_URL's
+        // reason: it describes what sits in front of this container, which is
+        // the target machine's topology and not the installation's. It names
+        // the addresses whose X-Forwarded-* headers plMail will believe, so
+        // carrying the source's is at best inert — a subnet the target's
+        // reverse proxy is not on, and every request keeps being read at its
+        // real address — and at worst a list of networks this machine was
+        // never told to trust. The operator who put a proxy in front of this
+        // install is the one who knows its address. External below, so old
+        // backups classify and stay inert.
         'APP_DEFAULT_TIMEZONE',
         'APP_DB_LOG_LEVEL',
         'DEFAULT_URI',
@@ -133,7 +167,7 @@ final readonly class ConfigBackupEnvironment
      * to, with the refusal's reason attached — so the planner and the applier
      * cannot come to different answers.
      *
-     * Six names, and each is a fate the deployment forces rather than a
+     * Eight names, and each is a fate the deployment forces rather than a
      * caution:
      *
      *   - APP_ENCRYPTION_KEY is {@see ConfigBackupDisposition::KeptDeliberately}
@@ -171,8 +205,20 @@ final readonly class ConfigBackupEnvironment
      *     re-keys one half of a pair that is already running. External, like
      *     the DSNs: the other half lives in a sibling container plMail is only
      *     a client of.
+     *   - APP_SECRET is the second {@see ConfigBackupDisposition::KeptDeliberately},
+     *     and it is APP_ENCRYPTION_KEY's argument run backwards. That one is
+     *     kept because the import re-encrypts under the key in force here;
+     *     this one is kept because nothing in the target was ever signed with
+     *     the backup's, so the only thing writing it could unlock is a browser
+     *     cookie belonging to the machine the file came from. The reasoning is
+     *     above VARIABLES. Not External — the other half of this does not live
+     *     somewhere else, it lives right here and is already correct.
+     *   - TRUSTED_PROXIES is {@see ConfigBackupDisposition::External} for
+     *     DATABASE_URL's reason: what sits in front of this container is the
+     *     target machine's topology, and the reverse proxy whose headers it
+     *     licenses is somewhere plMail is only downstream of.
      *
-     * Four of the six are named by OLD backups only. A document written by
+     * Six of the eight are named by OLD backups only. A document written by
      * this build carries none of them, and the entries stay because a backup
      * outlives the version that wrote it.
      *
@@ -180,7 +226,9 @@ final readonly class ConfigBackupEnvironment
      */
     private const array REFUSED = [
         'APP_ENCRYPTION_KEY'      => ConfigBackupDisposition::KeptDeliberately,
+        'APP_SECRET'              => ConfigBackupDisposition::KeptDeliberately,
         'POSTGRES_PASSWORD'       => ConfigBackupDisposition::External,
+        'TRUSTED_PROXIES'         => ConfigBackupDisposition::External,
         'DATABASE_URL'            => ConfigBackupDisposition::External,
         'MAILER_DSN'              => ConfigBackupDisposition::External,
         'MESSENGER_TRANSPORT_DSN' => ConfigBackupDisposition::External,

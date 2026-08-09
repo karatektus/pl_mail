@@ -100,13 +100,22 @@ final class ConfigBackupExporterTest extends KernelTestCase
 
         self::assertSame([], array_diff(array_keys($env), $inventory->variables()), 'nothing outside the inventory');
 
-        // The test stack sets these two; if the harness ever stops, this
+        // The test stack sets this one; if the harness ever stops, this
         // assertion is the thing that says so rather than a silently empty file.
-        // (DATABASE_URL used to be the third - it left the inventory when the
-        // database credentials stopped being exported at all.)
-        foreach (['APP_SECRET', 'APP_ENCRYPTION_KEY'] as $expected) {
-            self::assertArrayHasKey($expected, $env, $expected . ' is set in this environment and belongs in the file');
-        }
+        // (DATABASE_URL used to be one of three - it left the inventory when
+        // the database credentials stopped being exported at all, and APP_SECRET
+        // followed it out: the target's own secret stays, so the backup's copy
+        // could only keep another machine's cookies alive.)
+        self::assertArrayHasKey(
+            'APP_ENCRYPTION_KEY',
+            $env,
+            'APP_ENCRYPTION_KEY is set in this environment and belongs in the file',
+        );
+        self::assertArrayNotHasKey(
+            'APP_SECRET',
+            $env,
+            'APP_SECRET is set in this environment and must still not be exported',
+        );
 
         foreach ($env as $name => $value) {
             self::assertNotSame('', $value, $name . ' was exported as an empty string rather than omitted');

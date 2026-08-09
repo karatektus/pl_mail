@@ -233,7 +233,14 @@ final class ConfigBackupImporterTest extends KernelTestCase
 
         $plan = $importer->apply([
             'env' => [
-                'APP_SECRET'         => 'a-restored-app-secret',
+                // APP_SECRET used to stand here, and was the headline name of
+                // the whole section. It left the inventory for a reason none of
+                // the others share: it protects nothing durable on this install
+                // — remember-me is signature-based, sessions and CSRF die with
+                // the session, JMAP signs with the pems — so the one thing
+                // restoring it did was keep the source machine's browser
+                // cookies verifying here. Now KeptDeliberately, which means an
+                // old backup carrying it belongs to the vocabulary test below.
                 // MERCURE_JWT_SECRET used to stand here too. It left the
                 // inventory the way the DSNs did — it pairs the app with the
                 // hub container beside it, and the hub reads it only at
@@ -257,7 +264,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
         ]);
 
         self::assertSame([], $plan->instructed(), 'a fresh instance must have nothing left to hand back');
-        self::assertCount(7, $plan->written());
+        self::assertCount(6, $plan->written());
         self::assertTrue($plan->needsRestart(), 'these are read at container start, and the page has to say so once');
 
         // And the values are genuinely where the entrypoint will read them,
@@ -267,7 +274,6 @@ final class ConfigBackupImporterTest extends KernelTestCase
         // the JSON happened to have.
         self::assertSame(
             [
-                'APP_SECRET'         => 'a-restored-app-secret',
                 'MERCURE_PUBLIC_URL' => 'https://mercure.example.test/.well-known/mercure',
                 'APP_PUBLIC_URL'     => 'https://mail.example.test',
                 'VAPID_PUBLIC_KEY'   => 'a-restored-vapid-public-key',
@@ -295,6 +301,10 @@ final class ConfigBackupImporterTest extends KernelTestCase
 
         $plan = $importer->plan([
             'env' => [
+                // JWT_PASSPHRASE rather than the APP_SECRET this used to use:
+                // that one is KeptDeliberately now and is asserted as such
+                // below, so it can no longer stand for the ordinary case.
+                'JWT_PASSPHRASE'          => 'a-restored-passphrase',
                 'APP_SECRET'              => 'a-restored-app-secret',
                 'MERCURE_PUBLIC_URL'      => 'https://mercure.backup.test/.well-known/mercure',
                 'APP_ENCRYPTION_KEY'      => 'c29tZS1vdGhlci1rZXktdGhpcnR5LXR3by1ieXRlcw==',
@@ -306,6 +316,7 @@ final class ConfigBackupImporterTest extends KernelTestCase
                 'MAILER_DSN'              => 'smtp://relay.example.test',
                 'MESSENGER_TRANSPORT_DSN' => 'doctrine://default?auto_setup=0',
                 'MERCURE_JWT_SECRET'      => 'a-restored-hub-secret',
+                'TRUSTED_PROXIES'         => '10.9.0.0/16',
             ],
             'database' => [
                 ConfigBackupDatabase::MAIL_PROVIDERS => ['google' => ['clientId' => 'an-id']],
@@ -314,14 +325,19 @@ final class ConfigBackupImporterTest extends KernelTestCase
 
         $expected = [
             [ConfigBackupSection::Database, ConfigBackupDatabase::MAIL_PROVIDERS . '.google', ConfigBackupDisposition::Applied],
-            [ConfigBackupSection::Environment, 'APP_SECRET', ConfigBackupDisposition::AppliedOnRestart],
+            [ConfigBackupSection::Environment, 'JWT_PASSPHRASE', ConfigBackupDisposition::AppliedOnRestart],
             [ConfigBackupSection::Environment, 'MERCURE_PUBLIC_URL', ConfigBackupDisposition::ShadowedByCompose],
             [ConfigBackupSection::Environment, 'POSTGRES_PASSWORD', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'DATABASE_URL', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'MAILER_DSN', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'MESSENGER_TRANSPORT_DSN', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'MERCURE_JWT_SECRET', ConfigBackupDisposition::External],
+            [ConfigBackupSection::Environment, 'TRUSTED_PROXIES', ConfigBackupDisposition::External],
             [ConfigBackupSection::Environment, 'APP_ENCRYPTION_KEY', ConfigBackupDisposition::KeptDeliberately],
+            // The second name the target keeps its own of, and the only one
+            // whose reason is about what a restored value would let somebody
+            // ELSE do: a cookie signed on the source machine stays valid here.
+            [ConfigBackupSection::Environment, 'APP_SECRET', ConfigBackupDisposition::KeptDeliberately],
         ];
 
         foreach ($expected as [$section, $key, $disposition]) {
@@ -337,9 +353,12 @@ final class ConfigBackupImporterTest extends KernelTestCase
         self::assertSame(
             ConfigBackupDisposition::NotWritable,
             $this->itemFor(
-                $unwritable->plan(['env' => ['APP_SECRET' => 'a-restored-app-secret']]),
+                // Not APP_SECRET: a refusal is answered before anybody asks
+                // whether the file is writable, so a refused name here would
+                // report KeptDeliberately and prove nothing about the store.
+                $unwritable->plan(['env' => ['JWT_PASSPHRASE' => 'a-restored-passphrase']]),
                 ConfigBackupSection::Environment,
-                'APP_SECRET',
+                'JWT_PASSPHRASE',
             )->disposition,
         );
     }
@@ -524,15 +543,19 @@ final class ConfigBackupImporterTest extends KernelTestCase
     public function testAnUnwritableSecretsStoreFallsBackToLinesToPaste(): void
     {
         $plan = $this->importerWith(processEnvironment: [], secretsDirectory: '/sys/plmail-nowhere')->apply([
-            'env' => ['APP_SECRET' => 'a-restored-app-secret', 'JWT_PASSPHRASE' => 'a pass#phrase with spaces'],
+            'env' => ['VAPID_PRIVATE_KEY' => 'a-restored-vapid-private-key', 'JWT_PASSPHRASE' => 'a pass#phrase with spaces'],
         ]);
 
         self::assertCount(2, $plan->instructed());
         self::assertSame([], $plan->written());
 
+        // VAPID_PRIVATE_KEY rather than the APP_SECRET this used to use: that
+        // one is refused now, and a refusal is decided before the store's
+        // writability is ever asked about, so it would be handed back for the
+        // wrong reason and this test would pass without testing anything.
         self::assertSame(
-            'APP_SECRET=a-restored-app-secret',
-            $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_SECRET')->instruction,
+            'VAPID_PRIVATE_KEY=a-restored-vapid-private-key',
+            $this->itemFor($plan, ConfigBackupSection::Environment, 'VAPID_PRIVATE_KEY')->instruction,
         );
 
         // Quoted, because Symfony's dotenv would read the `#` as a comment and
@@ -554,11 +577,11 @@ final class ConfigBackupImporterTest extends KernelTestCase
      */
     public function testAnUnchangedValueIsNeitherWrittenNorAReasonToRestart(): void
     {
-        (new GeneratedSecretsFile($this->secretsPath()))->setMany(['APP_SECRET' => 'already-this']);
+        (new GeneratedSecretsFile($this->secretsPath()))->setMany(['JWT_PASSPHRASE' => 'already-this']);
 
-        $plan = $this->importerWith(processEnvironment: [])->plan(['env' => ['APP_SECRET' => 'already-this']]);
+        $plan = $this->importerWith(processEnvironment: [])->plan(['env' => ['JWT_PASSPHRASE' => 'already-this']]);
 
-        self::assertSame(ConfigBackupChange::Unchanged, $this->itemFor($plan, ConfigBackupSection::Environment, 'APP_SECRET')->change);
+        self::assertSame(ConfigBackupChange::Unchanged, $this->itemFor($plan, ConfigBackupSection::Environment, 'JWT_PASSPHRASE')->change);
         self::assertFalse($plan->needsRestart());
         self::assertFalse($plan->hasMaterialChanges());
     }
