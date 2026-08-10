@@ -80,8 +80,16 @@ test.describe("calendar settings", () => {
 
         // Provisioned with the user, so it is there before this spec does
         // anything — and it is the default, which is what the badge says.
-        await expect(page.getByText("Personal", { exact: true })).toBeVisible();
-        await expect(page.getByText("Default", { exact: true })).toBeVisible();
+        //
+        // Read inside the list, not anywhere on the page. The settings nav
+        // groups its links under headings now, and one of those headings is
+        // also the word "Personal" — so an unscoped match finds two elements
+        // and fails as ambiguous rather than as absent. The nav heading is
+        // `aria-hidden` and the list is what the assertion was ever about.
+        const list = page.locator("#settings-calendar-list");
+
+        await expect(list.getByText("Personal", { exact: true })).toBeVisible();
+        await expect(list.getByText("Default", { exact: true })).toBeVisible();
     });
 
     test("creates a calendar, then renames it", async ({ page }) => {

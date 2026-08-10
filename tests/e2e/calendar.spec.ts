@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./support/test";
 import { seed } from "./support/config";
+import { choose } from "./support/select";
 
 /**
  * The calendar in both of its shapes.
@@ -31,6 +32,20 @@ const TITLE = `E2E event ${Date.now()}`;
 function chipsOf(page: Page) {
     return page.getByRole("button", { name: new RegExp(TITLE) });
 }
+
+/**
+ * What the repeat picker calls each frequency on screen.
+ *
+ * `choose` picks by the words a person reads rather than by the option's
+ * value, because since v0.0.22 the thing the label names is a themed combobox
+ * and not the `<select>` underneath it — see tests/e2e/support/select.ts. The
+ * cases below still say "daily", which is the word the behaviour is about, so
+ * the translation of that word into the one on screen lives here once.
+ */
+const REPEAT = {
+    none: "Does not repeat",
+    daily: "Every day",
+} as const;
 
 /**
  * Submit the editor and wait until the page under it is the new one.
@@ -153,7 +168,7 @@ test.describe("calendar", () => {
 
         const modal = page.locator("#modal-backdrop");
         await modal.getByLabel("Title").fill(TITLE);
-        await modal.getByLabel("Repeat").selectOption("daily");
+        await choose(modal, "Repeat", REPEAT.daily);
         await modal.getByRole("button", { name: "Save" }).click();
 
         await expect(page).toHaveURL(/\/calendar\/week/);
@@ -273,7 +288,7 @@ test.describe("calendar", () => {
      * where the recurring cases count chips. Its own helper because five cases
      * need the same three steps and none of them is what they are testing.
      */
-    async function createEvent(page: Page, { repeat }: { repeat: string }) {
+    async function createEvent(page: Page, { repeat }: { repeat: keyof typeof REPEAT }) {
         await page.goto("/calendar/agenda");
 
         await page.getByRole("button", { name: "New event", exact: true }).first().click();
@@ -282,7 +297,7 @@ test.describe("calendar", () => {
         await expect(modal.getByLabel("Title")).toHaveValue("");
 
         await modal.getByLabel("Title").fill(TITLE);
-        await modal.getByLabel("Repeat").selectOption(repeat);
+        await choose(modal, "Repeat", REPEAT[repeat]);
         await submit(page, modal, "Save");
 
         await expect(chipsOf(page).first()).toBeVisible();
