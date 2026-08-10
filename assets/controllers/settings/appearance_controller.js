@@ -38,12 +38,11 @@ export default class extends Controller {
 
     pickTheme(event) {
         const theme = event.currentTarget.dataset.theme;
-        const isDark = event.currentTarget.dataset.dark === '1';
 
         this.themeTarget.value = theme;
 
         this.root.dataset.theme = theme;
-        this.root.classList.toggle('dark', isDark);
+        this.root.classList.toggle('dark', this.resolvesDark(event.currentTarget));
 
         this.element.querySelectorAll('[data-theme]').forEach((button) => {
             button.classList.toggle('ring-2', button.dataset.theme === theme);
@@ -54,9 +53,82 @@ export default class extends Controller {
         // come through here rather than from the stylesheet: it is written
         // inline on <html> from the user's setting, so a [data-theme] rule for
         // it would never win.
-        this.applyDefaults(JSON.parse(event.currentTarget.dataset.themeDefaults || '{}'));
+        //
+        // Cleared first, then applied. Switching a theme must not be able to
+        // leave the previous one's inline values on <html>: a key that theme A
+        // seeds and theme B does not would otherwise survive the switch, paint
+        // over B's stylesheet block, and get saved as B's setting on the way
+        // out. Every theme seeds the same keys today — Theme::defaults() is one
+        // expression for all of them, and a test holds it that way — so this
+        // clears nothing in practice. It is here so that the day one of them
+        // grows a key the others lack, the switch still ends where a fresh load
+        // of that theme would.
+        const defaults = JSON.parse(event.currentTarget.dataset.themeDefaults || '{}');
+
+        this.themeDefaultKeys()
+            .filter((key) => Object.hasOwn(defaults, key) === false)
+            .forEach((key) => this.clearDefault(key));
+
+        this.applyDefaults(defaults);
 
         this.queue();
+    }
+
+    /*
+     * Whether this theme paints dark right now.
+     *
+     * `system` has no dark of its own — it is whatever the OS says, which is
+     * the question app.html.twig's no-flash script asks on every load. Asking
+     * it here too is what makes a live switch land where a reload would.
+     * data-dark is Theme::isDark(), and System is not dark by that measure, so
+     * picking System on a dark desktop used to drop the class and paint the
+     * light palette until the next navigation put it back.
+     */
+    resolvesDark(button) {
+        if (button.dataset.theme === 'system') {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+
+        return button.dataset.dark === '1';
+    }
+
+    /** Every key any theme seeds — the set a switch has to account for. */
+    themeDefaultKeys() {
+        const keys = new Set();
+
+        this.element.querySelectorAll('[data-theme-defaults]').forEach((button) => {
+            Object.keys(JSON.parse(button.dataset.themeDefaults || '{}')).forEach((key) => keys.add(key));
+        });
+
+        return [...keys];
+    }
+
+    /*
+     * Drop the inline preview for one seeded key, so the stylesheet's own
+     * value for the theme now on <html> takes over. That is only a safe answer
+     * because every [data-theme] block declares the whole palette: there is no
+     * key whose removal falls through to some other theme's value.
+     */
+    clearDefault(field) {
+        if (field === 'accent') {
+            this.root.style.removeProperty('--rgb-accent');
+            this.root.style.removeProperty('--rgb-accent-ink');
+
+            return;
+        }
+
+        if (field === 'density') {
+            this.root.style.removeProperty('--density-row-y');
+            this.root.style.removeProperty('--density-gap');
+
+            return;
+        }
+
+        const input = this.element.querySelector(`[data-settings--appearance-field="${field}"]`);
+
+        if (input && input.dataset.cssVariable) {
+            this.root.style.removeProperty(input.dataset.cssVariable);
+        }
     }
 
     pickLayout(event) {

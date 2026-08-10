@@ -8,61 +8,109 @@
    unlayered declarations outrank Tailwind's cascade layers.
    Channels are stored as space-separated RGB triplets so alpha stays
    composable via rgb(var(--x) / <alpha>).
+
+   EVERY PALETTE BLOCK BELOW DECLARES EVERY VARIABLE IN THE INVENTORY.
+
+   That is a rule, not a style preference, and
+   tests/Service/Appearance/ThemeVariableCompletenessTest fails the build when
+   a block drifts from it. The reason is switching. A
+   theme is chosen by rewriting `data-theme` on <html>, so the old theme's
+   block simply stops matching — which means anything it defined and the new
+   one does not falls back to whatever :root or .dark happens to say. When
+   nord defined four channels and inherited the other thirty-four, "nord" was
+   not a palette, it was a diff against a light-tuned base: its --rgb-info was
+   the light theme's link blue and its --rgb-ink-soft was a neutral grey
+   darker than its own --rgb-ink-muted. Neither was chosen; both were left
+   over. A block that spells out the whole palette cannot leave anything over,
+   and reading one tells you what the theme looks like without tracing three
+   levels of cascade to find out.
+
+   The knobs at the bottom of :root are deliberately NOT part of the
+   inventory: they belong to the user, not to the theme. AppearanceRenderer
+   writes them inline on <html> from the stored settings, an inline style beats
+   every block here, and a theme that redeclared them would be overruled
+   anyway. --rgb-main and --main-alpha are var() indirections precisely so
+   they keep following the theme's surface without being restated by it.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Light — the base palette, and what `light` and a light `system` paint in.
+   There is no [data-theme="light"] block: :root already is that block. A copy
+   of it under a selector would be a second place to forget. ─────────────── */
 :root {
     /* What the BROWSER should render its own UI in. CSS cannot reach inside a
        native select's popup, a scrollbar or a date picker — color-scheme is
        the one channel that can, and without it every popup is OS-light over a
-       dark theme. Declared per theme block below, because it has to follow
-       the theme and not the OS. */
+       dark theme. Declared per theme block, because it has to follow the theme
+       and not the OS. */
     color-scheme: light;
 
+    /* Surfaces */
     --rgb-surface:      255 255 255;
     --rgb-border:       255 255 255;
     --rgb-line:           0   0   0;
     --rgb-raised:         0   0   0;
+    --rgb-sunken:       243 244 246;   /* gray-100 */
+    --rgb-shadow:         0   0   0;
+
+    /* Ink */
     --rgb-ink:           39  39  42;
+    --rgb-ink-soft:      55  65  81;   /* gray-700 */
     --rgb-ink-muted:    113 113 122;
     --rgb-ink-faint:    161 161 170;
+
+    /* Accent. The stored setting overrules this from an inline style on
+       <html>; the value here is what the theme asks for, and Theme::defaults()
+       seeds the setting with the same colour when the theme is picked. */
     --rgb-accent:        37  99 235;
     --rgb-accent-ink:   255 255 255;
-    --rgb-shadow:         0   0   0;
-    --rgb-ink-soft:      55  65  81;   /* gray-700 */
-    --rgb-sunken:       243 244 246;   /* gray-100 */
+
+    /* Fields */
     --rgb-field:        255 255 255;
-    --rgb-field-border:  212 212 216;
+    --rgb-field-border: 212 212 216;
+
+    /* Status */
     --rgb-danger:       220  38  38;
     --rgb-warning:      217 119   6;
     --rgb-success:       22 163  74;
-    --rgb-inverse:       31  41  55;   /* gray-800 — tooltip bg */
-    --rgb-inverse-ink:  255 255 255;
     --rgb-info:          37  99 235;
 
+    /* Inverse — the tooltip bubble and anything else that flips the page. */
+    --rgb-inverse:       31  41  55;   /* gray-800 */
+    --rgb-inverse-ink:  255 255 255;
 
-    --border-alpha: 0.6;
-    --line-alpha:   0.06;
-    --raised-alpha: 0.04;
-    --hover-alpha:  0.03;
-    --shadow-alpha: 0.05;
-    --sunken-alpha: 1;
-    --field-alpha:  0.6;
+    /* Alphas */
+    --border-alpha:       0.6;
+    --line-alpha:         0.06;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.03;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       1;
+    --field-alpha:        0.6;
     --field-border-alpha: 0.4;
-    --danger-soft-alpha: 0.08;
-    --info-soft-alpha:   0.08;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
 
+    /* Page */
     --app-bg: linear-gradient(to bottom right, #eff6ff, #f1f5f9, #e0e7ff);
-    --scrim-alpha: 0;
-    /* The sheet a message body is rendered on. Deliberately the same warm
-       paper in every theme: an email's HTML was authored against a light
-       background — senders set dark text and assume white behind it — so
-       rendering it on a near-black surface is both harsh to read and a
-       misrepresentation of what was sent. Themes may override it; none
-       currently need to. */
-    --rgb-sheet:     247 245 239;
-    --rgb-sheet-ink:  35  34  32;
 
+    /* The sheet a message body is rendered on — see @utility mail-sheet.
+       Every theme carries its own, and every theme's is light: an email's HTML
+       was authored against a light background, senders set dark text and
+       assume white behind it, so rendering it on a near-black surface is both
+       harsh to read and a misrepresentation of what was sent. Light is the
+       constraint; which light is the theme's own business, and a theme whose
+       sheet is picked from its own palette reads as part of the app rather
+       than as a browser window someone pasted in. */
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  107 102  94;
+    --rgb-sheet-ink-faint:  150 144 134;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
 
-    /* user-tunable — overwritten inline on <html> by AppearanceRenderer */
+    /* ── User knobs — NOT part of the theme inventory ────────────────────
+       Overwritten inline on <html> by AppearanceRenderer. */
     --rgb-main:   var(--rgb-surface);
     --main-alpha: var(--pane-alpha);
     --pane-alpha:    1;
@@ -70,14 +118,18 @@
     --app-radius:    0.75rem;
     --density-row-y: 0.875rem;
     --density-gap:   0.75rem;
+    --scrim-alpha:   0;
 
     /* One height for every pane's header row. The mail toolbar and the
        calendar toolbar sit side by side once the pane is docked, so two
        independently-derived heights are visibly two heights. */
     --pane-header-h: 2.75rem;
-
 }
 
+/* ── The dark base — what a `system` theme paints in when the OS is dark.
+   Also the class Tailwind's `dark:` variant keys off, so it stays on <html>
+   for every dark theme even though each of those now states its own palette
+   in full and inherits nothing from here. ──────────────────────────────── */
 .dark {
     color-scheme: dark;
 
@@ -85,31 +137,52 @@
     --rgb-border:      255 255 255;
     --rgb-line:        255 255 255;
     --rgb-raised:      255 255 255;
+    --rgb-sunken:      255 255 255;
+    --rgb-shadow:        0   0   0;
+
     --rgb-ink:         244 244 245;
+    --rgb-ink-soft:    209 213 219;   /* gray-300 */
     --rgb-ink-muted:   161 161 170;
     --rgb-ink-faint:   113 113 122;
-    --rgb-ink-soft:     209 213 219;   /* gray-300 */
-    --rgb-sunken:       255 255 255;
-    --rgb-field:         39  39  42;
-    --rgb-field-border: 113 113 122;
-    --rgb-danger:       248 113 113;
-    --rgb-warning:      251 191  36;
-    --rgb-success:       74 222 128;
-    --rgb-inverse:      243 244 246;   /* gray-100 */
-    --rgb-inverse-ink:   17  24  39;
 
-    --border-alpha: 0.1;
-    --line-alpha:   0.1;
-    --raised-alpha: 0.06;
-    --hover-alpha:  0.04;
-    --shadow-alpha: 0.3;
-    --sunken-alpha: 0.06;
-    --field-alpha:  0.4;
+    --rgb-accent:       37  99 235;
+    --rgb-accent-ink:  255 255 255;
+
+    --rgb-field:        39  39  42;
+    --rgb-field-border:113 113 122;
+
+    --rgb-danger:      248 113 113;
+    --rgb-warning:     251 191  36;
+    --rgb-success:      74 222 128;
+    /* blue-400, to sit with the 400-weight red, amber and green above. This
+       used to fall through to the light palette's 37 99 235 — a link blue
+       tuned for white, on #111827, while its three siblings had all been
+       lightened for exactly this surface. */
+    --rgb-info:         96 165 250;
+
+    --rgb-inverse:     243 244 246;   /* gray-100 */
+    --rgb-inverse-ink:  17  24  39;
+
+    --border-alpha:       0.1;
+    --line-alpha:         0.1;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.04;
+    --shadow-alpha:       0.3;
+    --sunken-alpha:       0.06;
+    --field-alpha:        0.4;
     --field-border-alpha: 0.3;
-    --danger-soft-alpha: 0.12;
-    --info-soft-alpha:   0.12;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
 
     --app-bg: linear-gradient(to bottom right, #020617, #0f172a, #1e1b4b);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  107 102  94;
+    --rgb-sheet-ink-faint:  150 144 134;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
 }
 
 /* Theme blocks come AFTER .dark so they win at equal specificity. */
@@ -119,28 +192,50 @@
    background and the pane surface are the same cream, so the panes stop
    reading as cards floating over a photo and the list becomes the whole
    surface. Ink is a soft near-black rather than #000, and the accent is a
-   muted clay — a saturated blue on cream reads as a link, not as furniture. */
+   muted clay — a saturated blue on cream reads as a link, not as furniture.
+
+   Everything that separates one thing from another here is the ink colour at
+   a low alpha, including the shadow: a neutral-black drop shadow under a warm
+   cream card is the one grey thing on the screen. */
 [data-theme="paper"] {
     color-scheme: light;
 
     --rgb-surface:   247 245 239;
-    --rgb-ink:        35  34  32;
-    --rgb-ink-muted: 107 102  94;
-    --rgb-ink-faint: 150 144 134;
-    --rgb-ink-soft:   82  78  72;
-    --rgb-accent:    125 107  79;
     --rgb-border:     35  34  32;
     --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
     --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
 
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 107 102  94;
+    --rgb-ink-faint: 150 144 134;
+
+    --rgb-accent:    125 107  79;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
     --rgb-info:       90 106 130;
-    --rgb-inverse:    45  43  40;
+
+    --rgb-inverse:     45  43  40;
     --rgb-inverse-ink: 247 245 239;
 
-    --border-alpha: 0.10;
-    --line-alpha:   0.09;
-    --sunken-alpha: 0.04;
-    --hover-alpha:  0.035;
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
 
     /* A flat colour still has to be written as a gradient: .app-bg paints
        through background-image, and `background-image: #f2efe7` is not a
@@ -148,6 +243,16 @@
        falls back to the browser's white. Same idiom BackgroundResolver uses
        for a solid background. */
     --app-bg: linear-gradient(#f2efe7, #f2efe7);
+
+    /* The theme's own surface, so the reading pane is continuous with the app
+       exactly the way the rest of Paper is. */
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  107 102  94;
+    --rgb-sheet-ink-faint:  150 144 134;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
 }
 
 /* Dark — a dim room, not a black one.
@@ -173,77 +278,232 @@
     color-scheme: dark;
 
     --rgb-surface:     28  27  26;
+    --rgb-border:     255 255 255;
+    --rgb-line:       255 255 255;
+    --rgb-raised:     255 255 255;
+    --rgb-sunken:     255 255 255;
+    --rgb-shadow:       0   0   0;
+
     --rgb-ink:        214 209 202;
     --rgb-ink-soft:   186 181 174;
     --rgb-ink-muted:  142 137 130;
     --rgb-ink-faint:  108 104  98;
+
     --rgb-accent:      58 111  92;
     --rgb-accent-ink: 240 245 242;
-    --rgb-border:     255 255 255;
-    --rgb-line:       255 255 255;
-    --rgb-sunken:     255 255 255;
-    --rgb-inverse:    222 218 211;
-    --rgb-inverse-ink: 28  27  26;
 
-    /* Status colours want more light on a dark surface than the defaults
-       carry, but not so much that they glow — .dark's are tuned for #111827
-       and read as muddy here. */
+    /* Fields lighten the surface instead of darkening it. .dark's field is
+       #27272a, which is the same colour as this surface — the search input
+       lost its edges entirely. */
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    /* Status colours want more light on a dark surface than the light
+       defaults carry, but not so much that they glow — .dark's are tuned for
+       #111827 and read as muddy here. */
     --rgb-danger:  226 128 128;
     --rgb-warning: 219 175  95;
     --rgb-success: 118 192 150;
     --rgb-info:    130 166 204;
 
-    /* Fields lighten the surface instead of darkening it. .dark's field is
-       #27272a, which is now the same colour as the surface itself — the search
-       input lost its edges entirely. */
-    --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
-    --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --rgb-inverse:    222 218 211;
+    --rgb-inverse-ink: 28  27  26;
 
     /* The hairlines do the separating, so they have to be seen. A border at
        .dark's 0.1 disappears against a surface this dark and the panes lose
        their outline entirely. */
-    --border-alpha: 0.12;
-    --line-alpha:   0.09;
-    --raised-alpha: 0.06;
-    --sunken-alpha: 0.07;
-    --hover-alpha:  0.05;
-    --shadow-alpha: 0.45;
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
 
     /* Barely below the surface: enough that a pane has an edge, not so much
        that the list becomes the only lit thing in the window. */
     --app-bg: linear-gradient(#151413, #151413);
+
+    /* The same warm cream the rest of the theme is a negative of. */
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  107 102  94;
+    --rgb-sheet-ink-faint:  150 144 134;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
 }
 
+/* Nord — polar night behind snow storm, with the frost blues doing the
+   pointing. The ink ramp is Nord's own #eceff4 / #e5e9f0 / #d8dee9: it used
+   to borrow the neutral grey base for --rgb-ink-soft, which was both colder
+   than everything around it and DARKER than the --rgb-ink-muted below it, so
+   the two steps ran backwards. */
 [data-theme="nord"] {
     color-scheme: dark;
 
-    --rgb-surface:    46  52  64;
-    --rgb-ink:       236 239 244;
-    --rgb-ink-muted: 216 222 233;
+    --rgb-surface:    46  52  64;   /* nord0  #2e3440 */
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       236 239 244;   /* nord6  #eceff4 */
+    --rgb-ink-soft:  229 233 240;   /* nord5  #e5e9f0 */
+    --rgb-ink-muted: 216 222 233;   /* nord4  #d8dee9 */
     --rgb-ink-faint: 143 158 179;
+
+    --rgb-accent:    136 192 208;   /* frost  #88c0d0 */
+    --rgb-accent-ink: 24  24  27;   /* the frost blue is light enough to need dark ink */
+
+    --rgb-field:        39  39  42;
+    --rgb-field-border:113 113 122;
+
+    --rgb-danger:      248 113 113;
+    --rgb-warning:     251 191  36;
+    --rgb-success:      74 222 128;
+    --rgb-info:        129 161 193;  /* frost  #81a1c1 */
+
+    --rgb-inverse:     243 244 246;
+    --rgb-inverse-ink:  17  24  39;
+
+    --border-alpha:       0.1;
+    --line-alpha:         0.1;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.04;
+    --shadow-alpha:       0.3;
+    --sunken-alpha:       0.06;
+    --field-alpha:        0.4;
+    --field-border-alpha: 0.3;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
     --app-bg: linear-gradient(to bottom right, #2e3440, #3b4252, #434c5e);
+
+    /* Snow storm, inverted onto polar night: the sheet is the theme's own
+       lightest colour rather than a warm cream borrowed from elsewhere. */
+    --rgb-sheet:            236 239 244;
+    --rgb-sheet-ink:         46  52  64;
+    --rgb-sheet-ink-soft:    88  93 104;
+    --rgb-sheet-ink-muted:  111 116 125;
+    --rgb-sheet-ink-faint:  149 153 161;
+    --rgb-sheet-link:        94 129 172;  /* #5e81ac */
+    --rgb-sheet-danger:     191  97 106;  /* #bf616a */
 }
 
+/* Dusk — violet, and violet all the way down. The ink ramp had the same
+   backwards step Nord's did, for the same reason: --rgb-ink-soft was a
+   neutral grey inherited from the dark base while the ink either side of it
+   was tinted. */
 [data-theme="dusk"] {
     color-scheme: dark;
 
     --rgb-surface:    30  27  46;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
     --rgb-ink:       237 233 254;
+    --rgb-ink-soft:  216 210 250;
     --rgb-ink-muted: 196 181 253;
     --rgb-ink-faint: 139 125 191;
+
+    --rgb-accent:    167 139 250;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        39  39  42;
+    --rgb-field-border:113 113 122;
+
+    --rgb-danger:      248 113 113;
+    --rgb-warning:     251 191  36;
+    --rgb-success:      74 222 128;
+    --rgb-info:        165 180 252;
+
+    --rgb-inverse:     243 244 246;
+    --rgb-inverse-ink:  17  24  39;
+
+    --border-alpha:       0.1;
+    --line-alpha:         0.1;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.04;
+    --shadow-alpha:       0.3;
+    --sunken-alpha:       0.06;
+    --field-alpha:        0.4;
+    --field-border-alpha: 0.3;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
     --app-bg: linear-gradient(to bottom right, #14101f, #1e1b2e, #2d1b4e);
+
+    --rgb-sheet:            245 243 255;
+    --rgb-sheet-ink:         30  27  46;
+    --rgb-sheet-ink-soft:    77  75  92;
+    --rgb-sheet-ink-muted:  103 100 117;
+    --rgb-sheet-ink-faint:  146 144 159;
+    --rgb-sheet-link:       109  40 217;
+    --rgb-sheet-danger:     185  28  28;
 }
 
+/* Solarized light. The palette is a fixed sixteen colours chosen against each
+   other, so the ones this used to inherit from the light base stood out as
+   the wrong sixteen: a cool slate --rgb-ink-soft between two warm greys, a
+   #f3f4f6 inset panel on a #fdf6e3 page, and the base link blue where
+   Solarized has a blue of its own. */
 [data-theme="solar"] {
     color-scheme: light;
 
-    --rgb-surface:   253 246 227;
-    --rgb-ink:        88 110 117;
-    --rgb-ink-muted: 101 123 131;
-    --rgb-ink-faint: 147 161 161;
+    --rgb-surface:   253 246 227;   /* base3  #fdf6e3 */
+    --rgb-border:    255 255 255;
+    --rgb-line:        0   0   0;
+    --rgb-raised:      0   0   0;
+    --rgb-sunken:    238 232 213;   /* base2  #eee8d5 */
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:        88 110 117;   /* base01 #586e75 */
+    --rgb-ink-soft:   94 116 124;
+    --rgb-ink-muted: 101 123 131;   /* base00 #657b83 */
+    --rgb-ink-faint: 147 161 161;   /* base1  #93a1a1 */
+
+    --rgb-accent:    181 137   0;   /* yellow #b58900 */
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       38 139 210;   /* blue   #268bd2 */
+
+    --rgb-inverse:     31  41  55;
+    --rgb-inverse-ink: 255 255 255;
+
+    --border-alpha:       0.6;
+    --line-alpha:         0.06;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.03;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       1;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
     --app-bg: linear-gradient(to bottom right, #fdf6e3, #eee8d5, #f5e6c8);
+
+    --rgb-sheet:            253 246 227;   /* base3 */
+    --rgb-sheet-ink:          7  54  66;   /* base02 #073642 */
+    --rgb-sheet-ink-soft:    61  96 101;
+    --rgb-sheet-ink-muted:   91 119 121;
+    --rgb-sheet-ink-faint:  140 158 153;
+    --rgb-sheet-link:        38 139 210;   /* blue #268bd2 */
+    --rgb-sheet-danger:     220  50  47;   /* red  #dc322f */
 }
 
 /* ═══ The calendar switch ═══════════════════════════════════════════════════
@@ -549,28 +809,52 @@
     0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
 }
 
+/*
+   The sheet a message body is rendered on.
+
+   Mail arrives authored for a light background — senders set dark text and
+   assume white behind it — so the whole reading pane switches to light rather
+   than just the body, in every theme. Re-pointing the CHANNELS rather than
+   restyling each descendant is what makes every token-based class inside
+   (text-ink, border-line, hover:bg-hover, bg-sunken …) resolve to a sheet
+   value: every existing utility keeps working and nothing new has to know the
+   sheet exists.
+
+   There were two of these for a fortnight — a white one from the first
+   reading-view pass and the warm-paper redesign that replaced it — and
+   because the white one sat further down the file it won on source order, so
+   the redesign was dead code that read as live. This is the redesign, merged
+   with the one thing the white block had that it did not: the stacking
+   context below.
+
+   The colours are the theme's, not a fixed palette. Light is a constraint the
+   sheet has to meet for the mail's sake; WHICH light is the theme's own
+   business, and every theme states its seven --rgb-sheet-* channels in full.
+   Everything else here is derived from those two ends of the ramp — the
+   hairlines, insets, fields and inverses are all the sheet's ink at a low
+   alpha, which is why they need no channels of their own.
+*/
 @utility mail-sheet {
-    /* Re-points the whole palette, not just the background.
-       Everything inside here — dividers, muted labels, inset blocks, hover
-       states — is written against the theme's tokens, and on a dark theme
-       those are pale-on-dark: a border at white/0.09 is invisible on cream and
-       a bg-sunken of white/0.07 lightens where it should darken. Setting the
-       channels rather than restyling each descendant means every existing
-       utility keeps working and nothing new has to know about the sheet. */
-    --rgb-surface:      247 245 239;
-    --rgb-main:         247 245 239;
-    --rgb-ink:           35  34  32;
-    --rgb-ink-soft:      82  78  72;
-    --rgb-ink-muted:    107 102  94;
-    --rgb-ink-faint:    150 144 134;
-    --rgb-line:          35  34  32;
-    --rgb-border:        35  34  32;
-    --rgb-raised:        35  34  32;
-    --rgb-sunken:        35  34  32;
-    --rgb-field:         35  34  32;
-    --rgb-field-border:  35  34  32;
-    --rgb-inverse:       35  34  32;
-    --rgb-inverse-ink:  247 245 239;
+    --rgb-surface:      var(--rgb-sheet);
+    --rgb-main:         var(--rgb-sheet);
+    --rgb-ink:          var(--rgb-sheet-ink);
+    --rgb-ink-soft:     var(--rgb-sheet-ink-soft);
+    --rgb-ink-muted:    var(--rgb-sheet-ink-muted);
+    --rgb-ink-faint:    var(--rgb-sheet-ink-faint);
+    --rgb-line:         var(--rgb-sheet-ink);
+    --rgb-border:       var(--rgb-sheet-ink);
+    --rgb-raised:       var(--rgb-sheet-ink);
+    --rgb-sunken:       var(--rgb-sheet-ink);
+    --rgb-field:        var(--rgb-sheet-ink);
+    --rgb-field-border: var(--rgb-sheet-ink);
+    --rgb-inverse:      var(--rgb-sheet-ink);
+    --rgb-inverse-ink:  var(--rgb-sheet);
+    --rgb-shadow:       var(--rgb-sheet-ink);
+
+    /* A dark theme's --rgb-danger is lightened for a near-black surface and
+       washes out to nothing on a sheet this light, so the sheet carries its
+       own — the same reason every other channel here is re-pointed. */
+    --rgb-danger:       var(--rgb-sheet-danger);
 
     --main-alpha:         1;
     --line-alpha:         0.09;
@@ -581,13 +865,20 @@
     --field-alpha:        0.03;
     --field-border-alpha: 0.15;
     --shadow-alpha:       0.06;
+    --danger-soft-alpha:  0.08;
+
+    /* Own stacking context: the pane above it is backdrop-filtered, and
+       without isolation Chrome re-samples the app background through the
+       sheet at some viewport sizes, flashing the whole pane dark. */
+    position: relative;
+    isolation: isolate;
 
     background-color: rgb(var(--rgb-surface));
     color: rgb(var(--rgb-ink));
 
     /* Plenty of mail leaves its links to the client, and an accent tuned for
-       the surrounding theme is not necessarily readable on paper. */
-    & a:not([class*="text-"]):not([class*="bg-"]) { color: #1d4ed8; }
+       the surrounding theme is not necessarily readable on the sheet. */
+    & a:not([class*="text-"]):not([class*="bg-"]) { color: rgb(var(--rgb-sheet-link)); }
 }
 
 @utility app-bg {
@@ -608,44 +899,6 @@
     & > * {
         position: relative;
     }
-}
-
-/*
-   The reading pane is a white sheet, like Gmail: mail arrives authored for a
-   light background, so the whole pane switches to light rather than just the
-   body. Re-declaring the channels (not the utilities) is what makes every
-   token-based class inside — text-ink, border-line, hover:bg-hover … —
-   resolve to its light value whatever theme the app is in.
-*/
-@utility mail-sheet {
-    --rgb-surface:      255 255 255;
-    --rgb-line:           0   0   0;
-    --rgb-raised:         0   0   0;
-    --rgb-ink:           32  33  36;
-    --rgb-ink-muted:    113 113 122;
-    --rgb-ink-faint:    128 134 139;
-    --rgb-ink-soft:      55  65  81;
-    --rgb-sunken:       243 244 246;
-    --rgb-field:        255 255 255;
-    --rgb-field-border: 212 212 216;
-    --rgb-danger:       220  38  38;
-    --rgb-shadow:         0   0   0;
-
-    --line-alpha:   0.10;
-    --raised-alpha: 0.04;
-    --hover-alpha:  0.05;
-    --sunken-alpha: 1;
-    --shadow-alpha: 0.08;
-    --danger-soft-alpha: 0.08;
-
-    /* Own stacking context: the pane above it is backdrop-filtered, and
-       without isolation Chrome re-samples the app background through the
-       sheet at some viewport sizes, flashing the whole pane dark. */
-    position: relative;
-    isolation: isolate;
-
-    background-color: rgb(var(--rgb-surface));
-    color: rgb(var(--rgb-ink));
 }
 
 @utility row-y {
