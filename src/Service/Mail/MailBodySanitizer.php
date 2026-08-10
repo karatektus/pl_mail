@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\CharsetHelper;
 use App\Entity\Mail\Message;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
@@ -19,11 +20,13 @@ use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
  *
  * The pipeline mirrors how Gmail renders mail inline in its own DOM rather than
  * in an iframe:
- *   1. Resolve `cid:` references (img src + url() in CSS) to our lazy
+ *   1. Re-tag the document's own charset declaration, which the ingest
+ *      conversion invalidated and both parsers below would otherwise obey.
+ *   2. Resolve `cid:` references (img src + url() in CSS) to our lazy
  *      attachment route.
- *   2. Flatten <style> blocks onto elements as inline styles — the inline
+ *   3. Flatten <style> blocks onto elements as inline styles — the inline
  *      styles become the sole carrier of the email's visual design.
- *   3. Sanitize: drop scripts / forms / iframes / <style> / classes, force
+ *   4. Sanitize: drop scripts / forms / iframes / <style> / classes, force
  *      links to open away from the app, keep the inline styles.
  */
 final readonly class MailBodySanitizer
@@ -52,6 +55,16 @@ final readonly class MailBodySanitizer
             return;
         }
 
+        // First, before anything parses it. bodyHtml is UTF-8 — the MIME layer
+        // saw to that — but the sender's own `<meta charset=iso-8859-1>` came
+        // through the conversion unchanged and now contradicts the bytes.
+        // Symfony's sanitizer parses with Dom\HTMLDocument, which follows the
+        // HTML encoding sniffing algorithm and believes that tag over any
+        // default: "über" came back out as "Ã¼ber". Correcting the declaration
+        // is what the specification asks of anything that transcodes a
+        // document, and it is the same argument as CharsetHelper's bytes over
+        // labels, one layer further down.
+        $html = CharsetHelper::retagHtmlAsUtf8($html);
         $html = $this->resolveCids($html, $message);
         $html = $this->inlineStyles($html);
         $html = $this->buildSanitizer()->sanitize($html);

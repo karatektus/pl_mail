@@ -186,6 +186,61 @@ final class CharsetHelper
         return self::ensureUtf8((string) $converted);
     }
 
+    /** Every `<meta>` tag, which is the only place an HTML parser looks. */
+    private const string HTML_META_TAG = '/<meta\b[^>]*>/i';
+
+    /**
+     * A charset value inside such a tag, in both spellings the pre-scan reads:
+     * `<meta charset=X>` and `<meta http-equiv=Content-Type
+     * content="text/html; charset=X">`. The optional quote is captured so it
+     * can be put back — in the second spelling there is none, because the
+     * quotes belong to the content attribute around it.
+     */
+    private const string HTML_CHARSET_VALUE = '/charset\s*=\s*(["\']?)[A-Za-z0-9_.:+-]+\1/i';
+
+    /**
+     * Correct an HTML document's own charset declaration to the encoding its
+     * bytes are actually in by the time we hold them.
+     *
+     * A stored mail body has already been converted: the MIME layer read the
+     * part's declared charset, toUtf8() had its say about whether to believe
+     * it, and what survives is UTF-8. The `<meta charset=iso-8859-1>` the
+     * sender wrote inside the document did not travel with that conversion,
+     * and is now a statement about bytes that no longer exist.
+     *
+     * It still gets believed. An HTML parser follows the spec's encoding
+     * sniffing algorithm, which pre-scans the first 1024 bytes for exactly
+     * that tag and prefers it over any default — so handing the document
+     * straight to one decodes UTF-8 as latin-1 and turns "über" into "Ã¼ber",
+     * the same damage as a mislabelled MIME part and one layer further down.
+     * Re-tagging is what the HTML specification asks of anything that
+     * transcodes a document, for this precise reason.
+     *
+     * Note how this differs from isUtf8Despite(), which weighs bytes against a
+     * label and refuses the multi-byte cases as too close to call. There is
+     * nothing to weigh here: a valid UTF-8 string is UTF-8, so every
+     * declaration to the contrary is stale rather than merely doubtful, and a
+     * `shift_jis` one is as wrong as a latin-1 one. The guard is only that the
+     * string is valid UTF-8 at all — when it is not, the declaration may be
+     * the last true thing about it and is left alone.
+     */
+    public static function retagHtmlAsUtf8(string $html): string
+    {
+        if (false === mb_check_encoding($html, 'UTF-8')) {
+            return $html;
+        }
+
+        return (string) preg_replace_callback(
+            self::HTML_META_TAG,
+            static fn(array $tag): string => (string) preg_replace(
+                self::HTML_CHARSET_VALUE,
+                'charset=${1}utf-8${1}',
+                $tag[0],
+            ),
+            $html,
+        );
+    }
+
     /**
      * The last thing between a string and a UTF-8 column.
      *

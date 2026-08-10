@@ -140,4 +140,71 @@ final class CharsetHelperTest extends TestCase
         // not useful, but it is storable, which is the only requirement here.
         yield 'undefined cp1252 bytes' => ["ok\x81\x8d", "ok\u{0081}\u{008D}"];
     }
+
+    /**
+     * The declaration a stored HTML body makes about itself.
+     *
+     * By the time a body is stored it is UTF-8 whatever it arrived as, so the
+     * sender's own `<meta charset>` describes bytes that no longer exist — and
+     * an HTML parser pre-scans for exactly that tag and prefers it to any
+     * default. Left alone it renders "über" as "Ã¼ber", one layer below the
+     * mislabelled MIME part that isUtf8Despite() exists for.
+     */
+    #[DataProvider('htmlCharsetDeclarations')]
+    public function testRetagHtmlAsUtf8(string $html, string $expected): void
+    {
+        self::assertSame($expected, CharsetHelper::retagHtmlAsUtf8($html));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function htmlCharsetDeclarations(): iterable
+    {
+        yield 'http-equiv' => [
+            '<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">',
+            '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">',
+        ];
+
+        // The quotes belong to the content attribute, not to the charset
+        // value, so putting one back would break the tag.
+        yield 'http-equiv unquoted' => [
+            '<meta http-equiv=Content-Type content=text/html;charset=ISO-8859-1>',
+            '<meta http-equiv=Content-Type content=text/html;charset=utf-8>',
+        ];
+
+        yield 'short form'        => ['<meta charset="ISO-8859-1">', '<meta charset="utf-8">'];
+        yield 'single quoted'     => ["<meta charset='windows-1252'>", "<meta charset='utf-8'>"];
+        yield 'unquoted'          => ['<meta charset=windows-1252>', '<meta charset=utf-8>'];
+        yield 'spaced'            => ['<meta charset = "latin1">', '<meta charset="utf-8">'];
+
+        // Unlike isUtf8Despite(), which will not weigh a multi-byte label
+        // against bytes, there is nothing to weigh: the string is UTF-8, so a
+        // declaration of anything else is stale rather than arguable.
+        yield 'multi-byte label'  => ['<meta charset="shift_jis">', '<meta charset="utf-8">'];
+
+        yield 'already utf-8'     => ['<meta charset="utf-8">', '<meta charset="utf-8">'];
+
+        // Only a meta tag declares an encoding. The word turns up in ordinary
+        // prose and in links, and rewriting those would corrupt the body to
+        // fix its label.
+        yield 'in a link' => [
+            '<p>see <a href="/x?charset=iso-8859-1">the docs</a></p>',
+            '<p>see <a href="/x?charset=iso-8859-1">the docs</a></p>',
+        ];
+
+        yield 'unrelated meta' => [
+            '<meta name="viewport" content="width=device-width">',
+            '<meta name="viewport" content="width=device-width">',
+        ];
+
+        yield 'no declaration' => ['<p>Grüße</p>', '<p>Grüße</p>'];
+
+        // A body that is not valid UTF-8 has not been through the conversion
+        // this assumes, so its declaration may be the last true thing about it.
+        yield 'invalid utf-8 keeps its label' => [
+            "<meta charset=\"iso-8859-1\"><p>\xFCber</p>",
+            "<meta charset=\"iso-8859-1\"><p>\xFCber</p>",
+        ];
+    }
 }
