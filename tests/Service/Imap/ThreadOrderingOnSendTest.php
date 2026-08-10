@@ -220,6 +220,19 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
         $second = $this->conversation('Angebot', new DateTimeImmutable('2026-08-10 10:00:00'));
 
         $this->reply($second);
+
+        // Over a second boundary, or the two replies tie. sentAt is wall-clock
+        // into a seconds-precision column, and this suite's first CI failure
+        // (v0.0.26) was a runner fast enough to send both replies inside one
+        // second — the order-by tied, the id tiebreaker answered, and the
+        // assertion read the tiebreaker instead of the send order it is about.
+        // Bounded at one second, and honest: the test's subject is two sends at
+        // two instants, so the test makes there be two instants.
+        $sentAt = $second->sentAt ?? new DateTimeImmutable();
+        while ((new DateTimeImmutable())->format('Y-m-d H:i:s') === $sentAt->format('Y-m-d H:i:s')) {
+            usleep(50_000);
+        }
+
         $this->reply($first);
 
         $order = array_map(
