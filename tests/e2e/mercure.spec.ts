@@ -63,12 +63,21 @@ async function publish(baseURL: string, topic: string, data: unknown): Promise<v
 /**
  * Stops or starts the hub container.
  *
- * The compose file is named explicitly because this must never touch the dev
- * stack's hub, which is a different project and may well be serving the
- * developer's own mail while the suite runs.
+ * Through E2E_COMPOSE, which playwright.config.ts resolves once, rather than a
+ * hardcoded `docker compose -f compose.test.yaml`. The compose file still has
+ * to be named — this must never touch the dev stack's hub, which is a
+ * different project and may well be serving the developer's own mail while the
+ * suite runs — but naming it HERE meant the project could not be: run the
+ * stack under `-p something-else` and this stopped the hub of a project that
+ * did not exist, which compose reports as success. The stream then never
+ * dropped and the two recovery tests failed for a reason that was nowhere in
+ * their output.
+ *
+ * stdio is inherited rather than ignored for the same reason: a compose error
+ * here should be readable, not swallowed.
  */
 function hub(action: "stop" | "start"): void {
-    execSync(`docker compose -f compose.test.yaml ${action} mercure`, { stdio: "ignore" });
+    execSync(`${process.env.E2E_COMPOSE} ${action} mercure`, { stdio: "inherit" });
 }
 
 /** Blocks until the hub answers again, so recovery is timed from a known point. */

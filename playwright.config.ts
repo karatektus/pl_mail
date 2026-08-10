@@ -3,10 +3,21 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * plMail end-to-end configuration.
  *
- * Two ways to run:
+ * The suite runs against the compose.test.yaml stack — the app's own FrankenPHP
+ * image, which is what production runs and what CI runs:
  *
- *   npm run test:e2e:docker  — against the compose.test.yaml stack (local default)
- *   npm run test:e2e         — against a PHP built-in server this config starts (CI)
+ *   npm run test:e2e:docker  — brings that stack up, then runs the suite
+ *   npm run test:e2e         — runs the suite against a stack already up
+ *
+ * There is no second serving path any more. This config used to be able to
+ * start a `php -S` dev server for CI, through a router script in
+ * tests/e2e/support/, and every accommodation that server needed — a router to
+ * stop index.php answering asset requests, a copy of the environment into
+ * $_SERVER because the cli-server SAPI does not provide one, a php.ini the
+ * runner had to be given by hand, and finally a restart loop because the thing
+ * segfaulted mid-suite — was an accommodation for a server no user will ever
+ * meet. CI now boots the same stack this file points at, so the suite proves
+ * something about the app as shipped. See .github/workflows/e2e.yml.
  *
  * Every worker owns a dedicated user and signs in once for itself, through a
  * worker-scoped fixture in tests/e2e/support/test.ts. That is why specs import
@@ -15,19 +26,28 @@ import { defineConfig, devices } from "@playwright/test";
  * workers that are logged in as different people.
  */
 
-// Docker mode just supplies defaults for the two variables that already drive
-// everything, so the rest of the config stays single-path.
-if (process.env.E2E_DOCKER) {
-  const port = process.env.TEST_HTTP_PORT ?? "8001";
-  process.env.E2E_BASE_URL ??= `http://127.0.0.1:${port}`;
-  process.env.E2E_CONSOLE ??=
-    "docker compose -f compose.test.yaml exec -T app php bin/console";
-}
+// How to reach the stack, resolved once, here.
+//
+// Some specs have to reach past the browser: seeding fixtures through the
+// console, and — in mercure.spec.ts — stopping the hub to prove the stream
+// comes back. Both go through these, so pointing the suite at a different
+// stack is one variable rather than a hunt through the specs.
+//
+// The `-p` case is why this is shared rather than repeated. compose.test.yaml
+// pins `name: pl_mail_test`, so a hardcoded `docker compose -f
+// compose.test.yaml` is right exactly until somebody runs a second stack under
+// another project name — a worktree, a second port — at which point it talks
+// to the wrong project or to none at all. `stop` against a project that does
+// not exist exits 0, so mercure.spec.ts spent that case silently not stopping
+// the hub and then failing because the stream never dropped, and
+// admin-queue.spec.ts seeded a database the browser was not looking at.
+process.env.E2E_COMPOSE ??= "docker compose -f compose.test.yaml";
+process.env.E2E_CONSOLE ??= `${process.env.E2E_COMPOSE} exec -T app php bin/console`;
 
-/** An app we did not start — so this config must not try to start one. */
-const EXTERNAL_APP = !!process.env.E2E_BASE_URL;
-
-const BASE_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:8000";
+// Same default as compose.test.yaml's port mapping, from the same variable, so
+// the two cannot drift.
+const BASE_URL =
+  process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.TEST_HTTP_PORT ?? "8001"}`;
 // Storage state is per worker now and lives in tests/e2e/support/test.ts —
 // there is no single path for the config to name.
 
@@ -104,65 +124,14 @@ export default defineConfig({
     },
   ],
 
-  // Only when we are expected to boot the app ourselves: pointing E2E_BASE_URL
-  // at a stack somebody else started, and leaving this set anyway, would race a
-  // second server onto the same fixtures.
-  webServer: EXTERNAL_APP
-    ? undefined
-    : {
-        // PHP's own server, NOT `symfony serve`, and this is not a preference.
-        //
-        // The Symfony CLI detects running Docker containers and injects its own
-        // environment into the app it serves — including DATABASE_URL, which it
-        // OVERRIDES even when one is already set. Prove it with:
-        //
-        //   DATABASE_URL=postgresql://app:app@127.0.0.1:5432/app \
-        //     symfony php -r 'echo getenv("DATABASE_URL");'
-        //
-        // On CI the Postgres service is a Docker container, so the workflow set
-        // DATABASE_URL, `symfony serve` replaced it with credentials derived
-        // from that container, and the app could not authenticate anybody. The
-        // per-worker login fixture failed, and 103 tests failed behind it — a
-        // cascade whose only real cause was one environment variable. PHPUnit
-        // passed in the same job, because it never goes through the CLI.
-        //
-        // SYMFONY_SKIP_DOCKER_COMPOSE, SYMFONY_SKIP_DOCKER_SERVICES and
-        // SYMFONY_DOCKER_ENV were all tried and none of them stop it; there is
-        // no --no-docker flag. The built-in server has no detection to disable
-        // and inherits the environment exactly as given, which is the property
-        // that matters here.
-        //
-        // The router is tests/e2e/support/router.php and NOT public/index.php,
-        // which would answer every asset request with a kernel boot and a 404 —
-        // that file explains the rest.
-        //
-        // PHP_CLI_SERVER_WORKERS because that server is single-threaded
-        // otherwise, and a browser opening a page requests dozens of assets at
-        // once.
-        // Redirected, not silenced. This server logs a request line plus an
-        // Accepted and a Closing to stderr for every one of the ~60 requests a
-        // page makes, and Playwright pipes stderr straight into the console:
-        // one non-calendar slice of the suite produced 67,709 of those lines,
-        // which is how a genuine failure gets buried on CI. The file is kept
-        // and uploaded alongside the report, so a PHP fatal that never reached
-        // the kernel — and so never reached a trace — is still readable.
-        // In a restart loop, because this server is a development tool and has
-        // segfaulted once mid-suite on CI (v0.0.25, core dump in the log this
-        // redirects to) — which turned every later spec into
-        // ERR_CONNECTION_REFUSED noise. A crash now costs the requests in
-        // flight, and their retry finds a listening socket again. `exec` is
-        // NOT used, deliberately: the loop must survive the child dying. The
-        // log is appended per run so the line the server died after stays
-        // readable above the restart marker.
-        command:
-          "sh -c 'while :; do php -S 127.0.0.1:8000 -t public tests/e2e/support/router.php 2>>var/log/e2e-server.log; echo \"[e2e] php -S exited ($?), restarting\" >>var/log/e2e-server.log; done'",
-        url: `${BASE_URL}/login`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        env: {
-          APP_ENV: "test",
-          APP_DEBUG: "1",
-          PHP_CLI_SERVER_WORKERS: "4",
-        },
-      },
+  // No `webServer`. The app is the compose stack, and this config never starts
+  // it — `npm run test:e2e:docker` does, and CI does, with the same command.
+  //
+  // Deliberate, and the reason the old one is worth remembering: a server this
+  // config started was a server nothing else in the project used, so it needed
+  // its own front controller, its own copy of the environment, its own php.ini
+  // and eventually its own crash-restart loop, and a green suite said nothing
+  // about the FrankenPHP the app actually ships on. Booting the stack outside
+  // Playwright also means one running app for the whole suite rather than a
+  // second one racing the first onto the same fixtures.
 });

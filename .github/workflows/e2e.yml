@@ -2,11 +2,11 @@ name: E2E
 
 # Releases, and anything proposed for one. NOT every push.
 #
-# This job is the expensive one in the repository — a Postgres service, PHP with
-# eight extensions, a Chromium download, an asset build, PHPStan, PHPUnit and
-# ~200 browser tests — and running it on every commit to a branch nobody is
-# releasing from spends most of the account's capacity proving the same thing
-# repeatedly.
+# This job is the expensive one in the repository — it builds the app's own
+# FrankenPHP image, brings up Postgres, a Mercure hub and the app, downloads a
+# Chromium, and runs PHPStan, PHPUnit and ~250 browser tests — and running it on
+# every commit to a branch nobody is releasing from spends most of the account's
+# capacity proving the same thing repeatedly.
 #
 # The trade, stated so it is a decision rather than a surprise: `main` is no
 # longer verified commit by commit. A regression pushed to main is found when a
@@ -15,6 +15,16 @@ name: E2E
 # anything you are unsure of — or locally, which is faster than either:
 #
 #   npm run test:unit:docker && npm run test:e2e:docker
+#
+# Those two commands are now literally what the job below runs. It used to be a
+# different thing wearing the same name: PHP on the runner, dependencies
+# installed on the runner, and the suite served by `php -S` behind a router
+# script written for the occasion. Everything that server could not do by itself
+# had an accommodation here — a php.ini copied into the scan dir with sudo,
+# PHP_CLI_SERVER_WORKERS, a restart loop around it because it segfaulted
+# mid-suite once — and none of it proved anything about FrankenPHP, which is the
+# only server plMail is ever served by. The stack below is the one in
+# compose.test.yaml, built from this repository's Dockerfile.
 on:
     push:
         tags: ['v*']
@@ -30,93 +40,90 @@ jobs:
         name: Playwright
         runs-on: ubuntu-latest
 
+        # No `env:` block, and no Postgres service container. Both were here to
+        # configure an app this workflow was running itself; the stack now
+        # carries its own database and its own environment, in compose.test.yaml,
+        # where a developer running the suite locally reads the same values. Two
+        # copies of DATABASE_URL that had to agree are one.
+        #
+        # TEST_HTTP_PORT is the single exception, and it is here only to be
+        # explicit: it is compose.test.yaml's own default and playwright.config.ts
+        # falls back to the same number.
         env:
-            APP_ENV: test
-            APP_DEBUG: "1"
-            DATABASE_URL: "postgresql://app:app@127.0.0.1:5432/app?serverVersion=18&charset=utf8"
-            MESSENGER_TRANSPORT_DSN: "in-memory://"
-            MAILER_DSN: "null://null"
-            APP_DEV_USER_EMAIL: "e2e@plmail.test"
-            APP_DEV_USER_PASSWORD: "e2e-password-change-me"
-
-        services:
-            postgres:
-                image: postgres:18
-                env:
-                    POSTGRES_USER: app
-                    POSTGRES_PASSWORD: app
-                    POSTGRES_DB: app
-                ports:
-                    - 5432:5432
-                options: >-
-                    --health-cmd "pg_isready -U app"
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
+            TEST_HTTP_PORT: "8001"
 
         steps:
             - uses: actions/checkout@v4
 
-            - name: Setup PHP extension cache
-              id: php-extension-cache
-              uses: shivammathur/cache-extensions@v1
-              with:
-                  php-version: "8.4"
-                  extensions: ctype, iconv, pcntl, pdo_pgsql, pgsql, intl, sodium, mbstring, xml, curl, zip
-                  key: php-extensions-v1
+            - name: Set up Buildx
+              uses: docker/setup-buildx-action@v3
 
-            - name: Cache PHP extensions
-              uses: actions/cache@v4
-              with:
-                  path: ${{ steps.php-extension-cache.outputs.dir }}
-                  key: ${{ steps.php-extension-cache.outputs.key }}
-                  restore-keys: ${{ steps.php-extension-cache.outputs.key }}
-
-            - name: Setup PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: "8.4"
-                  extensions: ctype, iconv, pcntl, pdo_pgsql, pgsql, intl, sodium, mbstring, xml, curl, zip
-                  coverage: none
-                  tools: composer:v2
-
-            # The same file the Docker image bakes in, rather than a second set
-            # of numbers here. It lifts PHP's stock 2M/8M upload limits to
-            # 25M/60M, and the compose suite attaches a 3MB file — but CI never
-            # builds that image, so without this the test cannot pass.
+            # Built here rather than by `compose up --build`, for the layer
+            # cache alone: the base stage installs a Debian toolchain, the PGDG
+            # client and nine PHP extensions, which is minutes of work that has
+            # nothing to do with the commit under test. docker.yml caches the
+            # prod target this same way.
             #
-            # One destination, because there is now one SAPI: the console steps
-            # below and the server Playwright starts are both CLI. That SAPI
-            # ignores a php.ini in the working directory, so the scan dir is the
-            # only place it will be read from. This used to write a second copy
-            # to the project root as well, for the PHP-FPM process `symfony
-            # serve` forked off — see playwright.config.ts for why that server
-            # is gone.
-            - name: Apply the app's PHP configuration
-              # sudo because the scan dir is root-owned on the runner.
-              run: sudo cp frankenphp/conf.d/10-app.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/"
+            # Its own scope. The dev target diverges from prod at the top of the
+            # tree — xdebug, a different php.ini — so sharing a scope with
+            # docker.yml would have the two evicting each other's layers.
+            #
+            # `load`, and this exact tag: compose.test.yaml names the image
+            # `pl_mail_test-app` explicitly so that it can be built ahead of
+            # time. The `up` below then finds it and does not build anything.
+            - name: Build the test image
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  target: frankenphp_dev
+                  tags: pl_mail_test-app
+                  load: true
+                  cache-from: type=gha,scope=frankenphp_dev-amd64
+                  cache-to: type=gha,mode=max,scope=frankenphp_dev-amd64
 
-            - name: Get Composer cache directory
-              id: composer-cache
-              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-            - name: Cache Composer dependencies
+            # The image deliberately carries no vendor/ — the dev target is
+            # built for a bind mount, and compose.test.yaml mounts the checkout
+            # over /app. So the dependencies have to be installed into the
+            # checkout, and this is a cache of the downloads, not of vendor/
+            # itself: `composer install` still runs and still runs its
+            # post-install scripts, it just stops fetching the same archives
+            # every time.
+            - name: Cache Composer downloads
               uses: actions/cache@v4
               with:
-                  path: ${{ steps.composer-cache.outputs.dir }}
+                  path: ~/.cache/composer
                   key: composer-${{ hashFiles('**/composer.lock') }}
                   restore-keys: composer-
 
+            # In a container, with the project's own PHP, rather than a
+            # setup-php on the runner. That is the whole point of the rework:
+            # there is one PHP in this job and it is the one the app ships with,
+            # so a version or extension the image lacks fails here instead of
+            # passing here and failing in production.
+            #
+            # --no-deps because nothing is up yet and none of this needs the
+            # database. app-init would do the same install if it found no
+            # vendor/ (see compose.test.yaml) — doing it here is only so the
+            # cache above can be attached to it.
             - name: Install PHP dependencies
-              run: composer install --no-interaction --prefer-dist --no-progress
+              run: |
+                  docker compose -f compose.test.yaml run --rm --no-deps \
+                    --volume "$HOME/.cache/composer:/composer-cache" \
+                    --env COMPOSER_CACHE_DIR=/composer-cache \
+                    --entrypoint docker-php-entrypoint \
+                    app composer install --prefer-dist --no-progress --no-interaction
 
-            # No Symfony CLI step. It was installed for one thing — `symfony
-            # serve` — and that binary is the reason 103 browser tests failed:
-            # it sees the Postgres service container, decides it knows better,
-            # and overwrites the DATABASE_URL set above with credentials the app
-            # cannot use. Everything else here is plain `php bin/console`, which
-            # is why the console steps and PHPUnit always passed in the same job
-            # the browser suite was drowning in.
+            # `npm run test:env:up` without the --build it would otherwise do,
+            # because the image is already built and loaded above.
+            #
+            # --wait blocks on the healthcheck in the Dockerfile, which asks the
+            # app's /healthz — not Caddy's admin port — so it goes green only
+            # once PHP can reach Postgres. app-init has run migrations, built the
+            # assets and seeded both fixture users by then; there are no
+            # separate steps for those here because the stack already does them
+            # for every developer.
+            - name: Start the test stack
+              run: docker compose -f compose.test.yaml up -d --wait app
 
             - name: Setup Node
               uses: actions/setup-node@v4
@@ -151,61 +158,49 @@ jobs:
               if: steps.playwright-cache.outputs.cache-hit == 'true'
               run: npx playwright install-deps chromium
 
-            # Tailwind scans the templates, so they belong in the key alongside
-            # the importmap and the sources themselves.
-            - name: Cache frontend build
-              id: frontend-cache
-              uses: actions/cache@v4
-              with:
-                  path: |
-                      public/assets
-                      assets/vendor
-                  key: frontend-${{ runner.os }}-${{ hashFiles('importmap.php', 'package-lock.json', 'assets/**', 'templates/**') }}
-
-            - name: Build frontend assets
-              if: steps.frontend-cache.outputs.cache-hit != 'true'
-              run: |
-                  php bin/console importmap:install
-                  php bin/console tailwind:build
-                  # Compiled rather than served through PHP. Without this every
-                  # asset request falls through to a full Symfony kernel boot —
-                  # /login alone pulls 56 of them, and Playwright gives every
-                  # test a cold cache. It was about 40% of the whole suite.
-                  php bin/console asset-map:compile
-
-            - name: Prepare database
-              run: |
-                  php bin/console doctrine:database:create --if-not-exists --no-interaction
-                  php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
-
-            # The Playwright suite seeds its own per-worker users, so this is
-            # only what PHPUnit needs: the default user, and the admin the
-            # controller tests look for. That admin used to be created by a
-            # browser spec, which meant PHPUnit silently skipped ~50 tests
-            # whenever it ran first — which is exactly the order used here.
-            - name: Seed fixture users
-              run: |
-                  php bin/console app:test:seed-user
-                  php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
-
-            # Needs the compiled test container for phpstan-symfony to resolve
-            # service ids, and a booted kernel for the Doctrine metadata — both
-            # of which the seeding above has already produced.
+            # After the stack is up, not before: phpstan-symfony resolves service
+            # ids out of the compiled test container, and the kernel boots
+            # app-init did while migrating and seeding are what produced it.
+            # `--no-deps` because the stack is already running and this only
+            # needs to join it.
             - name: Run PHPStan
-              run: composer stan
+              run: |
+                  docker compose -f compose.test.yaml run --rm --no-deps \
+                    --entrypoint docker-php-entrypoint app composer stan
 
             # Fast and dependency-free, so it runs before the browser suite:
             # a failure here is far quicker to read than a Playwright trace.
+            #
+            # This is `npm run test:unit:docker`, character for character —
+            # which is the point. PHPUnit used to run bare on the runner in this
+            # job while every developer ran it in a container, so the two could
+            # disagree about anything the image decides: PHP version, extensions,
+            # upload limits.
             - name: Run PHPUnit tests
-              run: composer test
+              run: npm run test:unit:docker
 
+            # And this is `npm run test:e2e:docker` minus the `up`, which has
+            # already happened. playwright.config.ts needs nothing else: it
+            # defaults to 127.0.0.1:$TEST_HTTP_PORT and to a console that goes
+            # through `docker compose exec`.
             - name: Run Playwright tests
               run: npx playwright test
 
-            # The web server's own log goes up with the report. It is kept out
-            # of the console because it is ~400 lines per page load, but it is
-            # the only place a PHP fatal that never reached the kernel is
-            # recorded — a trace cannot show what was never a response.
+            # The web server's own log goes up with the report, and now comes
+            # from the containers rather than a redirect. It is kept out of the
+            # console because it is ~400 lines per page load, but it is the only
+            # place a PHP fatal that never reached the kernel is recorded — a
+            # trace cannot show what was never a response.
+            #
+            # The whole project, not just `app`: when the failure is that the
+            # stack never came up, the line explaining why is in app-init's
+            # migration output or in Postgres', and neither is anywhere else.
+            - name: Collect the stack's log
+              if: ${{ !cancelled() }}
+              run: |
+                  mkdir -p var/log
+                  docker compose -f compose.test.yaml logs --no-color --timestamps > var/log/e2e-server.log
+
             - name: Upload Playwright report
               if: ${{ !cancelled() }}
               uses: actions/upload-artifact@v4
