@@ -6,6 +6,27 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.27 — 2026-08-10
+
+**No migration, and nothing in the app itself — this release moves the test
+suite onto the server the app actually ships on.** CI used to serve the E2E
+suite from PHP's built-in dev server, and everything that server could not do
+had grown an accommodation: a router script written for the occasion, a
+php.ini copied in with sudo, and finally a restart loop because it segfaulted
+mid-suite. All of it is gone. The workflow now builds the repository's own
+FrankenPHP image and runs PHPStan, PHPUnit and the browser suite against the
+compose stack — the same commands, the same server, the same stack a
+developer runs locally, so a green suite finally says something about plMail
+as shipped.
+
+Getting there flushed out three real defects: two specs talked to a
+hard-coded compose project and could seed a database the browser was not
+looking at (one of them had been silently not stopping the Mercure hub it
+believed it stopped); and a fresh checkout could not boot the test stack at
+all, because the init path had lost the entrypoint's dependency bootstrap.
+A test that flaked when a fast runner sent two replies inside the same second
+now makes its own second boundary.
+
 ## v0.0.26 — 2026-08-10
 
 **No migration. Every theme now defines every variable — all 38 of them,
