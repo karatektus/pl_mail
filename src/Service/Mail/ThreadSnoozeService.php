@@ -120,9 +120,10 @@ final class ThreadSnoozeService
                 $message->removeLabel($snoozed);
             }
 
-            // Plain-IMAP: the message physically comes back to INBOX.
+            // Plain-IMAP: the message physically comes back to INBOX, under a
+            // UID INBOX has not issued yet — see Message::relocateTo().
             if (null !== $message->imapUid && null !== $inboxMailbox) {
-                $message->mailbox = $inboxMailbox;
+                $message->relocateTo($inboxMailbox);
             }
 
             $message->removeFlag(MessageFlag::SEEN);

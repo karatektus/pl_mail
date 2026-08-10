@@ -105,9 +105,12 @@ final readonly class ThreadStatusUpdater
                 $message->removeLabel($inboxLabel);
             }
 
-            // Plain-IMAP: the message physically moves to the Archive folder.
+            // Plain-IMAP: the message physically moves to the Archive folder,
+            // and gets a new UID there that only the mover can report. Until
+            // then the row names the destination and no address inside it —
+            // see Message::relocateTo().
             if (null !== $message->imapUid && null !== $archiveMailbox) {
-                $message->mailbox = $archiveMailbox;
+                $message->relocateTo($archiveMailbox);
             }
         }
 
@@ -136,7 +139,7 @@ final readonly class ThreadStatusUpdater
             }
 
             if (null !== $message->imapUid && null !== $trashMailbox) {
-                $message->mailbox = $trashMailbox;
+                $message->relocateTo($trashMailbox);
             }
         }
 

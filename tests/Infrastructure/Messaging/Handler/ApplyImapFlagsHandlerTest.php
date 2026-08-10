@@ -13,6 +13,7 @@ use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -124,6 +125,7 @@ final class ApplyImapFlagsHandlerTest extends TestCase
             $mailboxRepository,
             $this->logger(),
             $connectionFactory,
+            $this->createStub(EntityManagerInterface::class),
         );
     }
 

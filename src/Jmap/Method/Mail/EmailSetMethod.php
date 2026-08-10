@@ -230,7 +230,7 @@ final class EmailSetMethod implements JmapMethod
             }
 
             if (null !== $message->imapUid && null !== $trashMailbox) {
-                $message->mailbox = $trashMailbox;
+                $message->relocateTo($trashMailbox);
             }
 
             $this->threadLabelSynchronizer->sync($message->thread);

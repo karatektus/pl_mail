@@ -157,6 +157,8 @@ final readonly class LabelChangePropagator
         // ── IMAP location handling ────────────────────────────────────────
         /** @var array<string, array<int,int>> $moves  destinationPath → messageId => sourceMailboxId */
         $moves = [];
+        /** @var array<string, array<int,int>> $moveUids  destinationPath → messageId => source UID */
+        $moveUids = [];
         /** @var array<int, Message[]> $archives  accountless bucket for rule 3 */
         $archives = [];
 
@@ -177,19 +179,25 @@ final readonly class LabelChangePropagator
             if (null === $destinationMailbox) {
                 // Rule 3: nothing folder-backed remains — archive.
                 $archives[] = $message;
-                $archives[] = $message;
                 continue;
             }
 
-            $moves[$destinationMailbox->fullPath][$message->id] = $sourceMailbox->id;
+            $moves[$destinationMailbox->fullPath][$message->id]    = $sourceMailbox->id;
+            $moveUids[$destinationMailbox->fullPath][$message->id] = $message->imapUid;
 
-            // Optimistic re-point; UID goes stale until the destination
-            // folder's next sync picks the message up again.
-            $message->mailbox = $destinationMailbox;
+            // Optimistic re-point. The source address goes with it: the UID
+            // this row held belongs to the folder it is leaving, and the
+            // destination will issue its own. See Message::relocateTo().
+            $message->relocateTo($destinationMailbox);
         }
 
         foreach ($moves as $destinationPath => $idMap) {
-            $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, 'move', $destinationPath));
+            $this->bus->dispatch(new ApplyImapFlagsMessage(
+                $idMap,
+                'move',
+                $destinationPath,
+                $moveUids[$destinationPath] ?? [],
+            ));
         }
 
         if (count($archives) > 0) {
@@ -250,21 +258,26 @@ final readonly class LabelChangePropagator
      */
     private function dispatchFlags(iterable $messages, string $action): void
     {
-        $idMap = [];
+        $idMap  = [];
+        $uidMap = [];
 
         foreach ($messages as $message) {
             if (null === $message->imapUid || null === $message->mailbox) {
                 continue;
             }
 
-            $idMap[$message->id] = $message->mailbox->id;
+            $idMap[$message->id]  = $message->mailbox->id;
+            // The address travels with the job. The caller is about to
+            // relocate this row, which clears the UID, so this is the last
+            // moment it can be read at all.
+            $uidMap[$message->id] = $message->imapUid;
         }
 
         if (count($idMap) === 0) {
             return;
         }
 
-        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action));
+        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action, null, $uidMap));
     }
 
     /**
