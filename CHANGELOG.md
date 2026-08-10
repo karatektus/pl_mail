@@ -6,6 +6,34 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.23 — 2026-08-10
+
+**No migration. A reply you send is one message again.** A message sent from
+the web frontend on an IMAP account used to come back from the Sent folder as
+a stranger: the composed row carried no Message-ID, and the MIME was left for
+Symfony to stamp — which mints a fresh id on every serialisation, so the copy
+that went to the recipient and the copy appended to Sent did not even agree
+with each other. The next sync inserted the Sent copy as a second message in
+the same conversation. Sends now mint one Message-ID before anything reads the
+mail, written to the row and the headers alike, and the Sent-folder sync
+reconciles on it — a provider's own auto-saved copy is recognised and dropped
+too. The rows the old path left behind repair themselves: the next sync of the
+Sent folder pairs each ghost with its imported twin and removes it, so
+affected conversations heal without anyone touching them.
+
+**Answering a conversation moves it back to the top.** Thread lists sorted on
+the last message the thread *received*, so your own reply left the
+conversation buried under everything that had arrived since. Sending now
+records the activity the same way an arrival does — forward only, so a
+backdated arrival cannot drag a live conversation down, and draft autosaves
+never reorder anything. The Sent list sorts by your own send dates as a
+consequence rather than by luck.
+
+Two counters that were only ever right by accident of the duplicate are right
+on their own now: a reply draft counts toward its conversation's message
+count, and a sent reply updates the conversation's labels immediately instead
+of waiting for the duplicate to drag the Sent label in.
+
 ## v0.0.22 — 2026-08-09
 
 **One migration runs, and it is irreversible — but it changes no table.** It
