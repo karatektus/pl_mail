@@ -6,6 +6,54 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.25 — 2026-08-10
+
+**No migration. A message that moves is still one message.** Moving mail —
+trash, archive, snooze, a filter filing something away — used to leave the row
+holding its *old* IMAP address, so the destination folder's next sync met the
+real message as a stranger and inserted it again: one ghost per move, which is
+how a mailbox of 35 became 86. Moves now mark the row as relocated and sync
+reconciles it by Message-ID; an external move is told apart from a genuine
+copy by asking the server, and an answer of "could not tell" never merges and
+never deletes. Installs already carrying ghosts heal on their own syncs — each
+duplicate group collapses onto the copies the server actually confirms, and a
+message whose every copy is unconfirmed is left strictly alone. The
+flags-worker no longer warns forever about vanished UIDs, and a
+half-completed move on a server without native MOVE support can no longer be
+retried into a second copy.
+
+**Archive works now.** Archiving removed the Inbox label and added nothing, so
+the Archive view — which lists by the Archive label — was permanently empty.
+Archived mail is now filed under Archive, keeps its other labels, and the
+sidebar's "More" section stays open while you are inside it instead of
+snapping shut on every navigation. Spam also actually exists: the sidebar
+visibility toggle had nothing to show, because there was no Spam view at all —
+there is now, in every locale.
+
+**Trash stays in Trash.** A trashed thread kept its other labels and went on
+listing under them; every list and unread badge now excludes trashed mail
+except the Trash views themselves. Search is deliberately unchanged for now —
+it has its own query builder and an `in:trash` operator that deserve their own
+change.
+
+**The little lies of the UI.** The onboarding integrations row wraps instead
+of forcing the modal to scroll sideways, and provider names no longer break
+mid-word. Dropdown search results mark exactly what was typed, in bold,
+without the phantom trailing space (a flex gap painted beside the highlight) —
+and the search box inside long dropdowns, which the v0.0.22 theming had
+silently removed from every select in the app, is back. Selecting text in a
+modal and releasing the mouse outside no longer dismisses the modal — a
+dismiss now requires the whole gesture, press and release, on the backdrop.
+Switching density no longer rewrites your background setting as a side effect
+(that was the "page breaks until reload"). Two-factor copy now protects your
+"account" rather than your "mailbox", in every locale.
+
+**The calendar E2E specs drive dropdowns the way a person does.** Ten specs
+still fired the retired native-select gesture at the themed combobox and died;
+they now go through a shared helper that operates the widget by its ARIA
+contract — which doubles as a regression tripwire on the accessibility the
+theming promised. A new spec pins that contract directly.
+
 ## v0.0.24 — 2026-08-10
 
 **No migration, and no runtime change at all — this release exists to turn the
