@@ -23,6 +23,7 @@ use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
@@ -403,6 +404,8 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $container->get(LabelRepository::class),
             $container->get(MailChangeRecorder::class),
+            $container->get(MessageThreader::class),
+            $container->get(ThreadLabelSynchronizer::class),
         );
     }
 

@@ -20,6 +20,35 @@ final class MessageIdHelper
     }
 
     /**
+     * A fresh RFC 5322 Message-ID for a message this installation is sending,
+     * in canonical (bracket-less) form.
+     *
+     * Symfony mints one of these too, and that is exactly the problem this
+     * exists to solve: it does it inside getPreparedHeaders(), which works on a
+     * *clone* of the header set, so the id never reaches the Email object.
+     * Serialising the same Email twice — once for the SMTP transport, once for
+     * the IMAP APPEND into Sent — therefore produced two different ids for one
+     * message, and the row we had already stored had no id at all. Minting it
+     * here, up front, is what lets all three copies agree on one identity.
+     *
+     * @param string $sender the From address; its domain is the right-hand side,
+     *                       so ids we emit are attributable to the sending host
+     */
+    public static function mint(string $sender): string
+    {
+        $at     = strrpos($sender, '@');
+        $domain = false === $at ? '' : trim(substr($sender, $at + 1));
+
+        // No usable domain is not an error worth refusing a send over — the
+        // left-hand side is random enough to stay unique on its own.
+        if ('' === $domain) {
+            $domain = 'localhost';
+        }
+
+        return bin2hex(random_bytes(16)) . '@' . $domain;
+    }
+
+    /**
      * Splits a raw In-Reply-To / References header into canonical message-ids.
      *
      * Splits on any whitespace rather than a single space: these headers are

@@ -10,8 +10,6 @@ use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\InlineAttachmentDetector;
@@ -33,10 +31,10 @@ class MessageSyncer
         private readonly EntityManagerInterface  $em,
         private readonly LoggerInterface         $logger,
         private readonly MessageRepository       $messageRepository,
-        private readonly StateManager            $stateManager,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
+        private readonly SentCopyReconciler $sentCopies,
     ) {}
 
     /**
@@ -117,6 +115,13 @@ class MessageSyncer
             }, self::BATCH_SIZE);
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
+
+        // Before the counts below, so they are taken over what is left. Only
+        // does anything on a Sent folder that still holds pairs the old send
+        // path duplicated; on every other sync it is one indexed query that
+        // finds nothing. See SentCopyReconciler::repair().
+        $this->sentCopies->repair($mailbox);
+
         $mailbox->syncedAt = new DateTimeImmutable();
         $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
         $mailbox->totalMessages = $this->messageRepository->countTotalForMailbox($mailbox);
@@ -157,60 +162,23 @@ class MessageSyncer
                 continue;
             }
 
-            // Gmailify history claim: a Gmail-imported copy of this exact message
-            // (same RFC Message-ID, gmailId set, no IMAP location yet) gets linked
-            // to this mailbox/UID instead of inserting a duplicate row. From here
-            // on, IMAP operations (flags, moves) work on it normally.
-            //
-            // Deliberately outside PostIngestPipeline: this row already went
-            // through it on the Gmail side, so re-running would record a second
-            // create for an id JMAP clients hold, and re-apply rules to mail the
-            // user may since have filed by hand.
-            $rfcMessageId = MessageIdHelper::normalise($imapMessage->getMessageId());
+            // A copy of this exact message that this account already holds:
+            // Gmail-imported and waiting for its IMAP twin, or written by our
+            // own composer and waiting for its Sent copy to come back. Either
+            // way it is linked to this mailbox/UID instead of being inserted a
+            // second time, and IMAP operations work on it normally from here.
+            // See SentCopyReconciler, which owns the matching rules and the
+            // reason each of them is scoped the way it is.
+            $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
 
-            if ('' !== $rfcMessageId) {
-                $claimable = $this->messageRepository->findGmailOnlyByMessageId(
-                    $mailbox->account,
-                    $rfcMessageId,
-                );
+            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid)) {
+                $syncedUids[$uid] = true;
 
-                if (null !== $claimable) {
-                    $claimable->mailbox = $mailbox;
-                    $claimable->imapUid = $uid;
-
-                    $mailboxLabel = $mailbox->label;
-
-                    if (null !== $mailboxLabel) {
-                        $claimable->addLabel($mailboxLabel);
-                        $claimable->thread?->addLabel($mailboxLabel);
-
-                        // Claiming a Gmail-imported row for this mailbox adds a
-                        // label, so mailboxIds changed even though no message
-                        // was created.
-                        $this->stateManager->recordUpdated(
-                            (int) $accountId,
-                            JmapObjectType::Email,
-                            (string) $claimable->id,
-                        );
-
-                        $claimedThread = $claimable->thread;
-
-                        if (null !== $claimedThread) {
-                            $this->stateManager->recordThreadsTouched(
-                                (int) $accountId,
-                                [(int) $claimedThread->id],
-                            );
-                        }
-                    }
-
-                    $syncedUids[$uid] = true;
-
-                    if (true === ($uid > $maxUid)) {
-                        $maxUid = $uid;
-                    }
-
-                    continue;
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
                 }
+
+                continue;
             }
 
             try {

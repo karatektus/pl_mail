@@ -6,11 +6,13 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
@@ -34,6 +36,8 @@ class MessageSendService
         private readonly LabelResolver           $labelResolver,
         private readonly LabelRepository         $labelRepository,
         private readonly MailChangeRecorder      $changes,
+        private readonly MessageThreader         $threader,
+        private readonly ThreadLabelSynchronizer $threadLabels,
     ) {
     }
 
@@ -46,6 +50,8 @@ class MessageSendService
         }
 
         $email = $this->buildEmail($message, $account);
+
+        $this->stampMessageId($message, $email);
 
         $sender      = $this->senderRegistry->resolve($account);
         $sendSuccess = $sender->send($email, $account);
@@ -78,6 +84,26 @@ class MessageSendService
 
         // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
         $message->mailbox = $sentLabel->bindingFor($account)?->mailbox;
+
+        // The conversation just moved, and until now nothing said so. Thread
+        // lists all sort on lastMessageAt and only the threader ever wrote it,
+        // so a thread ranked where its last *incoming* message left it: you
+        // answered a mail and the conversation stayed buried under everything
+        // that had arrived since. See MessageThreader::recordActivity().
+        $thread = $message->thread;
+
+        if (null !== $thread) {
+            $this->threader->recordActivity($message, $thread);
+
+            // Swapping Drafts for Sent is a message-level label mutation, and
+            // this is what such a mutation is always followed by — the thread's
+            // labels are the union of its messages'. Missing it, the
+            // conversation kept a Drafts label with no draft in it and never
+            // gained a Sent one, so an answered thread was absent from the Sent
+            // list until the server copy came back and dragged the label along
+            // as a side effect of being a duplicate.
+            $this->threadLabels->sync($thread);
+        }
 
         // The draft->sent transition rewrites three properties JMAP publishes:
         // keywords (the $draft keyword goes away), mailboxIds (EmailMapper
@@ -124,6 +150,48 @@ class MessageSendService
         $this->em->flush();
 
         return true;
+    }
+
+    /**
+     * Give the outgoing mail one Message-ID and put it on the row as well.
+     *
+     * This is the durable identity of the message, and before this nothing had
+     * one. The row was stored with message_id NULL, and the MIME was left for
+     * Symfony to label: Message::getPreparedHeaders() mints an id only into the
+     * clone it returns, so the transport's copy and the `toString()` used for
+     * the Sent APPEND each got a *different* random id. Three stores, three
+     * identities, nothing to reconcile on — so when the Sent copy came back
+     * from the server the syncer had no way to recognise it as the message it
+     * had already stored, and inserted it again. That is the duplicate.
+     *
+     * Set on the headers before either use of $email, so the recipient's copy,
+     * the Sent copy and the row all name the same message — and so a reply to
+     * it references an id we can actually find.
+     *
+     * Kept if the row already has one: a resend of the same row is the same
+     * message, and re-minting would strand the copy already on the server.
+     */
+    private function stampMessageId(Message $message, Email $email): void
+    {
+        $existing = MessageIdHelper::normalise((string) $message->messageId);
+
+        if ('' === $existing) {
+            $existing = MessageIdHelper::mint(
+                (string) ($email->getFrom()[0]->getAddress() ?? ''),
+            );
+
+            $message->messageId = $existing;
+        }
+
+        $headers = $email->getHeaders();
+
+        if (true === $headers->has('Message-ID')) {
+            $headers->remove('Message-ID');
+        }
+
+        // addIdHeader wants the bare id and writes the angle brackets itself,
+        // which is why the column stores the canonical bracket-less form.
+        $headers->addIdHeader('Message-ID', $existing);
     }
 
     private function appendToSentFolder(Email $email, Account $account): void

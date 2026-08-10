@@ -911,25 +911,141 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * A Gmail-imported message on this account with the given RFC Message-ID
-     * that has no IMAP location yet — claimable by the IMAP syncer when the
-     * server-side copy shows up.
+     * A message this account already holds under the given RFC Message-ID that
+     * has no IMAP location yet — claimable by the syncer when the server-side
+     * copy shows up.
      *
-     * QueryBuilder for the join to the owning account through the thread.
+     * Two kinds of row qualify, and they are the same situation twice: a
+     * Gmail-imported copy waiting for its IMAP twin, and a message this
+     * installation composed and sent itself, whose Sent-folder copy is about to
+     * come back. Both already went through the whole ingest pipeline and both
+     * are what JMAP clients, attachments and calendar links point at, so the
+     * server copy has to attach to them rather than land as a second row.
+     *
+     * Deliberately not restricted by gmailId any more. It used to be, and that
+     * is precisely why a web-composed reply came back from Sent as a duplicate:
+     * the row had no gmailId, so nothing recognised it.
+     *
+     * An unsent draft cannot be caught by this. Drafts never get a Message-ID —
+     * MessageSendService mints one at send — so they have nothing to match on.
+     *
+     * QueryBuilder for the ownership test: it spans two associations, since a
+     * row reaches its account through its mailbox or through its thread
+     * depending on where it came from.
      */
-    public function findGmailOnlyByMessageId(Account $account, string $messageId): ?Message
+    public function findUnlocatedByMessageId(Account $account, string $messageId): ?Message
     {
         return $this->createQueryBuilder('message')
-            ->innerJoin('message.thread', 'thread')
+            ->leftJoin('message.mailbox', 'mailbox')
+            ->leftJoin('message.thread', 'thread')
             ->where('message.messageId = :messageId')
-            ->andWhere('message.gmailId IS NOT NULL')
             ->andWhere('message.imapUid IS NULL')
-            ->andWhere('thread.account = :account')
+            ->andWhere('mailbox.account = :account OR thread.account = :account')
             ->setParameter('messageId', $messageId)
             ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * A *server-side* copy already stored in this exact folder under this RFC
+     * Message-ID.
+     *
+     * The guard against a second server-side copy of one sent message: plenty
+     * of providers file their own Sent copy of everything they relay, so our
+     * APPEND and their auto-save both sit in Sent with the same Message-ID and
+     * different UIDs. One message, one row.
+     *
+     * The UID is what makes it server-side, and requiring it is not optional.
+     * A message we sent is filed into the Sent *folder* by the send path itself
+     * while it is still waiting for its server copy — so without this it
+     * matches itself, is reported as already present, and never gets the UID it
+     * came here to be given.
+     *
+     * Folder-scoped on purpose. Across folders the same Message-ID is normal —
+     * a mail you sent to yourself is genuinely in both Sent and INBOX, and this
+     * app models those as separate rows carrying separate labels.
+     */
+    public function findInMailboxByMessageId(Mailbox $mailbox, string $messageId): ?Message
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.messageId = :messageId')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('messageId', $messageId)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Rows in a Sent folder that were written by the send path before it minted
+     * Message-IDs: sent (so not a draft), filed into this folder, but carrying
+     * neither an IMAP UID nor an RFC Message-ID.
+     *
+     * That combination has exactly one producer — MessageSendService as it was
+     * before the identity fix — so this is not content matching, it is naming
+     * the one shape of row the old bug left behind. Anything synced from a
+     * server has a UID; anything composed since has a Message-ID; a draft has
+     * no sentAt.
+     *
+     * @return list<Message>
+     */
+    public function findIdentitylessSentRows(Mailbox $mailbox): array
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NULL')
+            ->andWhere('message.messageId IS NULL')
+            ->andWhere('message.sentAt IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Server-side copies in the same folder that can only be the imported twin
+     * of $ghost: same conversation, same sender, same subject, and actually
+     * synced from the server.
+     *
+     * Thread rather than a time window is the anchor, and that is the point.
+     * The two rows always share a thread — the imported copy was threaded onto
+     * it by References, off the very headers the ghost's own send wrote — and a
+     * thread is an identity the database holds, not a guess. A timestamp
+     * comparison would have had to reconcile a locally-clocked sentAt with a
+     * Date: header parsed out of the appended MIME, which is the sort of match
+     * that works until it silently does not.
+     *
+     * Ordered so a caller pairing several of these consumes them predictably.
+     *
+     * @return list<Message>
+     */
+    public function findImportedTwinsOf(Message $ghost): array
+    {
+        $thread = $ghost->thread;
+
+        if (null === $thread || null === $ghost->mailbox) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('message')
+            ->where('message.thread = :thread')
+            ->andWhere('message.mailbox = :mailbox')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('LOWER(message.fromAddress) = LOWER(:fromAddress)')
+            ->andWhere('message.subject = :subject')
+            ->setParameter('thread', $thread)
+            ->setParameter('mailbox', $ghost->mailbox)
+            ->setParameter('fromAddress', (string) $ghost->fromAddress)
+            ->setParameter('subject', (string) $ghost->subject)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

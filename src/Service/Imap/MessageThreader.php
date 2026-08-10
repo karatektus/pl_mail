@@ -3,6 +3,7 @@
 namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
@@ -306,6 +307,38 @@ final class MessageThreader
             $thread->attachmentCount = $thread->attachmentCount + 1;
         }
 
+        $this->recordActivity($message, $thread);
+    }
+
+    /**
+     * Move the thread's sort key forward to this message, if this message is
+     * newer than anything the thread has seen.
+     *
+     * Every thread list in the app orders on lastMessageAt, so this is what
+     * decides where a conversation sits. Two callers, deliberately: the ingest
+     * path via attachMessageToThread() above, and MessageSendService the moment
+     * a reply leaves. The send half is the newer one — before it, only incoming
+     * mail could move a thread, so answering a conversation left it exactly
+     * where it had been, which is not what any mail client has done for fifteen
+     * years.
+     *
+     * Two rules, and each is a stated edge case:
+     *
+     * Monotonic. Only ever forward, never back. A message that arrives late but
+     * is dated last week — a backfilled folder, a delayed relay, a sender with
+     * a wrong clock — must not drag a live conversation down the list.
+     *
+     * Drafts may seed, never advance. An unsent draft is not activity: writing
+     * half a reply and abandoning it must not reorder the inbox, and neither
+     * must an autosave every few seconds. But a draft that *opens* its own
+     * thread is the only thing that thread has, and leaving lastMessageAt null
+     * there would sort it by nothing at all (Postgres puts NULLs first on a
+     * DESC order, so it would pin itself to the top of every list it appears
+     * in). So a draft may set the key on a thread that has none, and is ignored
+     * on a thread that already has one.
+     */
+    public function recordActivity(Message $message, MessageThread $thread): void
+    {
         // createdAt closes the chain: every Message sets it in its constructor
         // and the column is NOT NULL, so there is always an instant to order by
         // even for a draft that has neither been received nor sent.
@@ -315,18 +348,50 @@ final class MessageThreader
 
         $currentLastMessageAt = $thread->lastMessageAt;
 
-        if (null === $currentLastMessageAt || $occurredAt > $currentLastMessageAt) {
+        if (null === $currentLastMessageAt) {
             $thread->lastMessageAt = $occurredAt;
+            $this->adoptCategory($message, $thread);
 
-            // Most-recent-wins, the same rule the category backfill applies in
-            // SQL. Without this a thread would keep whatever category it was
-            // created with and the inbox tabs — which filter on the thread, not
-            // the message — would only ever move after a backfill run.
-            $category = $message->category;
+            return;
+        }
 
-            if (null !== $category) {
-                $thread->category = $category;
-            }
+        if (true === $this->isUnsentDraft($message)) {
+            return;
+        }
+
+        if ($occurredAt > $currentLastMessageAt) {
+            $thread->lastMessageAt = $occurredAt;
+            $this->adoptCategory($message, $thread);
+        }
+    }
+
+    /**
+     * sentAt as well as the keyword: MessageSendService clears $draft and sets
+     * sentAt in the same breath, but a caller holding a stale entity — or a row
+     * that lost the keyword some other way — must still not count as a draft
+     * while it has never been sent.
+     */
+    private function isUnsentDraft(Message $message): bool
+    {
+        if (null !== $message->sentAt) {
+            return false;
+        }
+
+        return $message->hasFlag(MessageFlag::DRAFT);
+    }
+
+    /**
+     * Most-recent-wins, the same rule the category backfill applies in SQL.
+     * Without this a thread would keep whatever category it was created with
+     * and the inbox tabs — which filter on the thread, not the message — would
+     * only ever move after a backfill run.
+     */
+    private function adoptCategory(Message $message, MessageThread $thread): void
+    {
+        $category = $message->category;
+
+        if (null !== $category) {
+            $thread->category = $category;
         }
     }
 }
