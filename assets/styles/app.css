@@ -100,12 +100,16 @@
        harsh to read and a misrepresentation of what was sent. Light is the
        constraint; which light is the theme's own business, and a theme whose
        sheet is picked from its own palette reads as part of the app rather
-       than as a browser window someone pasted in. */
-    --rgb-sheet:            247 245 239;
-    --rgb-sheet-ink:         35  34  32;
-    --rgb-sheet-ink-soft:    82  78  72;
-    --rgb-sheet-ink-muted:  107 102  94;
-    --rgb-sheet-ink-faint:  150 144 134;
+       than as a browser window someone pasted in.
+
+       For Light that means its own white and its own zinc ink ramp: the warm
+       cream is Paper's palette, and wearing it here made the reading pane
+       look like another theme had bled through. */
+    --rgb-sheet:            255 255 255;
+    --rgb-sheet-ink:         39  39  42;
+    --rgb-sheet-ink-soft:    55  65  81;
+    --rgb-sheet-ink-muted:  113 113 122;
+    --rgb-sheet-ink-faint:  161 161 170;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 
@@ -176,11 +180,13 @@
 
     --app-bg: linear-gradient(to bottom right, #020617, #0f172a, #1e1b4b);
 
-    --rgb-sheet:            247 245 239;
-    --rgb-sheet-ink:         35  34  32;
-    --rgb-sheet-ink-soft:    82  78  72;
-    --rgb-sheet-ink-muted:  107 102  94;
-    --rgb-sheet-ink-faint:  150 144 134;
+    /* The sheet stays light — see :root — but it is THIS theme's light: the
+       slate the gradient above is made of, at its palest, not Paper's cream. */
+    --rgb-sheet:            248 250 252;   /* slate-50 */
+    --rgb-sheet-ink:         15  23  42;   /* slate-900 */
+    --rgb-sheet-ink-soft:    51  65  85;   /* slate-700 */
+    --rgb-sheet-ink-muted:  100 116 139;   /* slate-500 */
+    --rgb-sheet-ink-faint:  148 163 184;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -328,11 +334,12 @@
     --app-bg: linear-gradient(#151413, #151413);
 
     /* The same warm cream the rest of the theme is a negative of. */
-    --rgb-sheet:            247 245 239;
-    --rgb-sheet-ink:         35  34  32;
-    --rgb-sheet-ink-soft:    82  78  72;
-    --rgb-sheet-ink-muted:  107 102  94;
-    --rgb-sheet-ink-faint:  150 144 134;
+    /* This theme's own light — the palest of its slate, not Paper's cream. */
+    --rgb-sheet:            248 250 252;   /* slate-50 */
+    --rgb-sheet-ink:         15  23  42;   /* slate-900 */
+    --rgb-sheet-ink-soft:    51  65  85;   /* slate-700 */
+    --rgb-sheet-ink-muted:  100 116 139;   /* slate-500 */
+    --rgb-sheet-ink-faint:  148 163 184;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
