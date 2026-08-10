@@ -161,6 +161,24 @@ final readonly class DraftPersister
             // them, stripped the Drafts label the threader had just copied
             // over, and the new draft never turned up in the Drafts list.
             $thread->addMessage($message);
+
+            // Recounted from the association, never incremented — the same rule
+            // ComposeController::discard() states, and for the same reason: the
+            // stored counter is what the thread header renders and it drifts.
+            //
+            // It drifted here in one direction only, and invisibly. A reply
+            // draft arrives with its thread already set (ReplyDraftBuilder
+            // copies it off the message being answered), so the threader — the
+            // only thing that maintained messageCount — never saw it, and the
+            // count stayed one short until the Sent copy came back from the
+            // server and was counted as a message of its own. Which is to say
+            // the header only ever looked right because the conversation held a
+            // duplicate; take the duplicate away and the arithmetic that was
+            // wrong all along becomes visible.
+            //
+            // Idempotent, so an autosave of the same draft counts once.
+            $thread->messageCount = $thread->messages->count();
+
             $this->threadLabelSynchronizer->sync($thread);
         }
 
