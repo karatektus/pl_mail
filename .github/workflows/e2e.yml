@@ -55,6 +55,40 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            # Every host path a container is about to write through, created
+            # HERE so that the runner user owns it.
+            #
+            # Docker creates a missing bind-mount source — and any missing
+            # parent of it — itself, as root. That is a rule with a long reach,
+            # and both halves of it broke this job on its first real run:
+            #
+            #   ~/.cache/composer is mounted into the composer container below.
+            #   On a cache miss nothing had created it, so Docker created
+            #   ~/.cache as root too, and `npx playwright install` then died on
+            #   EACCES trying to mkdir a SIBLING of it, ~/.cache/ms-playwright.
+            #   Nothing was wrong with the composer cache; it was the parent.
+            #
+            #   var/ and public/assets/ are where compose.test.yaml mounts its
+            #   named volumes, so Docker creates them in the checkout as the
+            #   mount points — empty, root-owned. `mkdir -p var/log` in the log
+            #   step then failed, which is how a green suite would still have
+            #   lost its artifact.
+            #
+            # Pre-creating is the whole fix, and it is deliberately preferred to
+            # running those containers with `--user $(id -u)`: the image's PHP
+            # tooling expects root (COMPOSER_ALLOW_SUPERUSER, the entrypoint's
+            # setfacl), and root-owned FILES were never the problem — tar reads
+            # mode-644 files it does not own, so the artifact upload and the
+            # cache save are both fine. Only creating a directory inside a
+            # root-owned one ever failed, and a directory that already exists is
+            # never created by Docker.
+            #
+            # vendor/ and assets/vendor/ are left alone on purpose. Containers
+            # write them as root and no runner-user step reads or writes either,
+            # so there is nothing to fix and a chown would only be ceremony.
+            - name: Prepare the paths containers write through
+              run: mkdir -p ~/.cache/composer var/log public/assets
+
             - name: Set up Buildx
               uses: docker/setup-buildx-action@v3
 
