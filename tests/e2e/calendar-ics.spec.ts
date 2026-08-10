@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
 import { consoleCommand } from "./support/config";
+import { choose } from "./support/select";
 
 /**
  * iCalendar as a person handles it: a file in, a file out, an address followed.
@@ -128,7 +129,7 @@ test.describe("calendar files and feeds", () => {
             mimeType: "text/calendar",
             buffer: fixture(),
         });
-        await modal.getByLabel("Add them to").selectOption({ label: CALENDAR });
+        await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
 
         // The toast is the only place the counts are said, and saying them is
@@ -173,7 +174,7 @@ test.describe("calendar files and feeds", () => {
             mimeType: "text/calendar",
             buffer: Buffer.from(body, "utf8"),
         });
-        await modal.getByLabel("Add them to").selectOption({ label: CALENDAR });
+        await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
 
         await expect(page.getByText("0 added, 2 updated, 0 skipped.")).toBeVisible();
@@ -201,7 +202,7 @@ test.describe("calendar files and feeds", () => {
             mimeType: "text/calendar",
             buffer: fixture(),
         });
-        await modal.getByLabel("Add them to").selectOption({ label: CALENDAR });
+        await choose(modal, "Add them to", CALENDAR);
         await modal.getByRole("button", { name: "Import" }).click();
         await expect(page.getByText("2 added, 0 updated, 0 skipped.")).toBeVisible();
 
