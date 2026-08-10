@@ -243,6 +243,13 @@ export default class extends Controller {
 
         const input = document.createElement("input")
         input.className = this._inputClass() + " flex-1 min-w-[9rem]"
+        // Names the condition's value field, so it can be found without asking
+        // for "the text input in this row". The row also contains the search
+        // box Tom Select injects into any select with more than a handful of
+        // options — an unnamed, unlabelled <input type="text"> belonging to the
+        // widget, not to the rule — and a positional query over both picks
+        // whichever the widget happened to render first.
+        input.dataset.ruleValue = ""
         input.type = kind === "number" ? "number" : kind === "date" ? "date" : "text"
         input.value = node.value ?? ""
         input.placeholder = this._t(`placeholder.${kind}`)
