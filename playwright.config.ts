@@ -146,8 +146,16 @@ export default defineConfig({
         // which is how a genuine failure gets buried on CI. The file is kept
         // and uploaded alongside the report, so a PHP fatal that never reached
         // the kernel — and so never reached a trace — is still readable.
+        // In a restart loop, because this server is a development tool and has
+        // segfaulted once mid-suite on CI (v0.0.25, core dump in the log this
+        // redirects to) — which turned every later spec into
+        // ERR_CONNECTION_REFUSED noise. A crash now costs the requests in
+        // flight, and their retry finds a listening socket again. `exec` is
+        // NOT used, deliberately: the loop must survive the child dying. The
+        // log is appended per run so the line the server died after stays
+        // readable above the restart marker.
         command:
-          "php -S 127.0.0.1:8000 -t public tests/e2e/support/router.php 2>var/log/e2e-server.log",
+          "sh -c 'while :; do php -S 127.0.0.1:8000 -t public tests/e2e/support/router.php 2>>var/log/e2e-server.log; echo \"[e2e] php -S exited ($?), restarting\" >>var/log/e2e-server.log; done'",
         url: `${BASE_URL}/login`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
