@@ -1,7 +1,13 @@
-# Local test stack — PHPUnit and the Playwright E2E suite.
+# The test stack — PHPUnit and the Playwright E2E suite.
 #
 #   npm run test:unit:docker
 #   npm run test:e2e:docker
+#
+# Not only local: .github/workflows/e2e.yml boots this same file and runs those
+# same two suites against it, which is the point. CI used to serve the app with
+# `php -S` on the runner and install PHP beside it, so the two environments
+# agreed about nothing except the source tree, and each had failures the other
+# could not reproduce.
 #
 # Deliberately its OWN compose project (see `name:` below) with its OWN Postgres,
 # so it can never reconcile, recreate or restart the dev stack, and can never
@@ -20,6 +26,19 @@ x-test-app: &test-app
   build:
     context: .
     target: frankenphp_dev
+  # Named explicitly rather than left to compose's `<project>-<service>`
+  # default, for two reasons.
+  #
+  # `app` and `app-init` are the same image built from the same target, so the
+  # default naming had compose tagging it twice under two names. And the name
+  # stopped being predictable the moment anyone passed `-p` — a worktree on its
+  # own project got its own tags, which is why the one-off-container recipes in
+  # the handbook could not just name an image.
+  #
+  # Fixed, it is also a build CI can do ahead of time: .github/workflows/e2e.yml
+  # builds this tag with a layer cache and then brings the stack up without
+  # `--build`, which it could not do if the tag depended on the project name.
+  image: pl_mail_test-app
   volumes:
     - ./:/app
     # A dedicated var volume. Never share the dev stack's `app_var`: it is a
@@ -102,6 +121,20 @@ services:
       - -c
       - |
         set -e
+        # The entrypoint this service deliberately skips is also the thing that
+        # installs PHP dependencies into the bind mount (see the long note in
+        # frankenphp/docker-entrypoint.sh). Dropping to docker-php-entrypoint
+        # bought correct ordering around the database and lost that, which was
+        # invisible for as long as everyone running this stack already had a
+        # vendor/ from the dev stack. On a tree that never had one — a fresh
+        # clone, a new worktree, a CI checkout — every bin/console below died on
+        # "Dependencies are missing. Try running composer install." and the
+        # stack never came up at all.
+        #
+        # No lock around it, unlike the entrypoint's version: this service runs
+        # on its own and `app` waits for it to exit, so there is no second
+        # container racing for the same vendor/.
+        [ -f vendor/autoload_runtime.php ] || composer install --prefer-dist --no-progress --no-interaction
         php bin/console doctrine:database:create --if-not-exists
         php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
         php bin/console importmap:install

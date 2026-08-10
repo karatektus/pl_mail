@@ -103,19 +103,37 @@ npm run test:e2e:docker
 | `npm run test:env:reset` | Stop it and delete its volumes — next run rebuilds from scratch |
 | `npm run test:env:logs` | Tail the test app's logs |
 
-The `:docker:` variants matter: `test:e2e:ui` and `test:e2e:headed` do **not** set `E2E_DOCKER`, so
-Playwright starts a server of its own instead of using the stack that is already running, and gives
-you a second app on a different port. That server is PHP's own — `playwright.config.ts` explains at
-length why it is not `symfony serve`, which used to be the answer here and silently overwrote
-`DATABASE_URL` whenever Docker was running. Watching a run on
-WSL needs WSLg (Windows 11) or an X server; without one, use `:trace` and read the recording after.
+Every one of these talks to the compose stack — there is no second way to serve the app any more.
+The `:docker:` variants simply bring the stack up first; `test:e2e`, `test:e2e:ui` and
+`test:e2e:headed` skip that and expect one to be running already, so `npm run test:env:up` once and
+then `npx playwright test` as often as you like is the fast loop. Playwright never starts a server
+itself: it used to be able to start a `php -S` behind a router script, and everything that server
+needed to behave — its own front controller, its own copy of the environment, its own php.ini, a
+restart loop for when it segfaulted — was work spent on a server nobody is ever served by.
+Watching a run on WSL needs WSLg (Windows 11) or an X server; without one, use `:trace` and read the
+recording after.
+
+Running a second stack — a worktree, or a second port — means overriding two variables together:
+
+```bash
+TEST_HTTP_PORT=8006 docker compose -p my_stack -f compose.test.yaml up -d --build --wait app
+E2E_BASE_URL=http://127.0.0.1:8006 \
+  E2E_COMPOSE="docker compose -p my_stack -f compose.test.yaml" \
+  npx playwright test
+```
+
+`E2E_COMPOSE` is the one the specs need: seeding goes through `docker compose exec`, and
+`mercure.spec.ts` stops the hub container to prove the stream recovers. Without it those commands
+address the default project, and `stop` against a project that does not exist reports success.
 
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
 reseed their own fixtures, so tests are independent and re-runnable.
 
-CI runs the same suites without Docker — see
-[.github/workflows/e2e.yml](.github/workflows/e2e.yml) — but **only on a release tag, on a pull
-request, or when you start it by hand.** It is the expensive workflow in this repository, and
+CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
+runs `npm run test:unit:docker` and the Playwright suite against it, so "works locally, fails in CI"
+no longer has a serving path to hide in. See
+[.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release tag, on a pull
+request, or when you start it by hand:** it is the expensive workflow in this repository, and
 running it on every commit to `main` spent most of the account's capacity proving the same thing
 over and over.
 
@@ -169,7 +187,7 @@ for any submission in `[30W-15, 30W+45)`, so the wait was superstition.
 is not part of the regression suite — run it deliberately, against a stack seeded with demo data:
 
 ```bash
-E2E_DOCKER=1 npx playwright test screenshots.spec.ts --project=chromium --workers=1
+npx playwright test screenshots.spec.ts --project=chromium --workers=1
 ```
 
 Never point it at a stack holding real mail.

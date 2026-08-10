@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { execSync } from "node:child_process";
-import { TEST_ADMIN, login, seedUser } from "./support/config";
+import { TEST_ADMIN, consoleCommand, login, seedUser } from "./support/config";
 
 /**
  * The queue panel: what a worker is holding, and the backlog behind it.
@@ -27,13 +26,18 @@ test.beforeAll(() => {
     // The transport is empty on a fresh test database, and an empty panel
     // renders none of what this file is about. Seeded through the console so
     // the rows are real serialised envelopes — see app:test:seed-queue.
-    execSync(
-        (undefined === process.env.E2E_DOCKER
-            ? "php bin/console"
-            : "docker compose -f compose.test.yaml exec -T app php bin/console")
-        + " app:test:seed-queue",
-        { stdio: "inherit", env: { ...process.env, APP_ENV: "test" } },
-    );
+    //
+    // Through consoleCommand, like every other spec, rather than the private
+    // copy of the docker invocation this used to carry. That copy hardcoded
+    // `docker compose -f compose.test.yaml` with no `-p`, so it always talked
+    // to the DEFAULT compose project: point the suite at a stack started under
+    // any other project name — a worktree, a second port, CI — and the seed
+    // either errored with "service app is not running" or, worse, succeeded
+    // against somebody else's database while the browser looked at this one.
+    // Either way the panel was empty and the failure read as "this spec needs
+    // a running worker", which it never did: `delivered_at` is what "a worker
+    // is holding it" means to the transport, and the seed writes it.
+    consoleCommand("app:test:seed-queue");
 });
 
 const QUEUE = 'details[data-admin--admin-panel-key-value="queues"]';
