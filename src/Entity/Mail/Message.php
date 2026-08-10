@@ -316,4 +316,35 @@ class Message extends MessageModel
     {
         return in_array($flag->value, $this->flags, true);
     }
+
+    /**
+     * Put this row in another folder, forgetting the address it had in the old
+     * one.
+     *
+     * Stays a method because the two properties are one fact. A UID is not an
+     * identity, it is half of an address: it means something only together with
+     * the folder that issued it, and IMAP issues a *new* one in the destination
+     * of every move. So the instant the mailbox pointer moves, the old UID stops
+     * describing anything, and the pair has to change together or not at all.
+     *
+     * Setting them apart is the whole trash-duplicate bug. Trashing re-pointed
+     * the mailbox and kept the source UID, so the row claimed an address the
+     * server would not confirm — while the destination's next sync met the real
+     * UID as mail it had never seen and inserted a second row beside it. Every
+     * move left one more ghost, which is why an account with 35 messages on the
+     * server could hold 86 rows: not doubling, accumulating.
+     *
+     * A null UID is the honest state after a move whose result we have not seen
+     * yet, and it is not a lossy one — it is exactly the state
+     * SentCopyReconciler::claim() reconciles, by the Message-ID that survives
+     * the move when the address does not. Pass $uid only when the server has
+     * already said where the message landed.
+     */
+    public function relocateTo(?Mailbox $mailbox, ?int $uid = null): static
+    {
+        $this->mailbox = $mailbox;
+        $this->imapUid = $uid;
+
+        return $this;
+    }
 }

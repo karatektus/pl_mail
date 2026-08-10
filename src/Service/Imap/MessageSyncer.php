@@ -5,6 +5,7 @@ namespace App\Service\Imap;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Entity\Mail\Mailbox;
@@ -35,6 +36,7 @@ class MessageSyncer
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
+        private readonly ImapConnectionFactory $connections,
     ) {}
 
     /**
@@ -103,24 +105,38 @@ class MessageSyncer
             $this->messageRepository->findSyncedUids($mailbox)
         );
 
+        // How a message that appears here is told from a message that is merely
+        // also here: by whether the copy it would have moved from is still on
+        // the server. Opens nothing until something actually asks.
+        $presence = new ImapUidPresence($mailbox->account, $this->connections, $this->logger);
+
         $synced = 0;
 
-        $folder->messages()
-            ->where(self::uidRangeCriteria($uidRange))
-            ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids) {
-                $this->processBatch($batch, $mailboxId, $accountId, $syncedUids);
-                $synced += count($batch);
-                $this->em->clear();
-                $this->logger->info(sprintf('Synced %d messages so far', $synced));
-            }, self::BATCH_SIZE);
+        try {
+            $folder->messages()
+                ->where(self::uidRangeCriteria($uidRange))
+                ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids, $presence) {
+                    $this->processBatch($batch, $mailboxId, $accountId, $syncedUids, $presence);
+                    $synced += count($batch);
+                    $this->em->clear();
+                    $this->logger->info(sprintf('Synced %d messages so far', $synced));
+                }, self::BATCH_SIZE);
 
-        $mailbox = $this->mailboxRepository->find($mailboxId);
+            $mailbox = $this->mailboxRepository->find($mailboxId);
 
-        // Before the counts below, so they are taken over what is left. Only
-        // does anything on a Sent folder that still holds pairs the old send
-        // path duplicated; on every other sync it is one indexed query that
-        // finds nothing. See SentCopyReconciler::repair().
-        $this->sentCopies->repair($mailbox);
+            // Before the counts below, so they are taken over what is left. Only
+            // does anything on a Sent folder that still holds pairs the old send
+            // path duplicated; on every other sync it is one indexed query that
+            // finds nothing. See SentCopyReconciler::repair().
+            $this->sentCopies->repair($mailbox);
+
+            // The same idea one folder wider: rows this account holds twice
+            // because a move left the first one behind. Also one indexed query
+            // that finds nothing on an account that never had the bug.
+            $this->sentCopies->repairRelocated($mailbox, $presence);
+        } finally {
+            $presence->close();
+        }
 
         $mailbox->syncedAt = new DateTimeImmutable();
         $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
@@ -135,10 +151,11 @@ class MessageSyncer
      *                                      single chunked call)
      */
     private function processBatch(
-        iterable $batch,
-        int      $mailboxId,
-        int      $accountId,
-        array    &$syncedUids,
+        iterable         $batch,
+        int              $mailboxId,
+        int              $accountId,
+        array            &$syncedUids,
+        ImapUidPresence  $presence,
     ): void {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
@@ -171,7 +188,7 @@ class MessageSyncer
             // reason each of them is scoped the way it is.
             $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
 
-            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid)) {
+            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence)) {
                 $syncedUids[$uid] = true;
 
                 if (true === ($uid > $maxUid)) {

@@ -1049,6 +1049,100 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Server-side copies of this message that the account holds in some *other*
+     * folder.
+     *
+     * The candidate set for "did this message move here, or is it merely also
+     * here?". Both readings are legitimate on plain IMAP — a mail addressed to
+     * yourself really is in Sent and INBOX at once, and a COPY leaves the
+     * original where it was — so this only gathers the candidates. Deciding
+     * between them needs the server, and that decision lives in
+     * SentCopyReconciler::claim().
+     *
+     * Ordered oldest first so the row that has been carrying the user's flags
+     * and JMAP id the longest is the one offered up for relocation.
+     *
+     * @return list<Message>
+     */
+    public function findLocatedByMessageIdElsewhere(
+        Account $account,
+        string  $messageId,
+        Mailbox $excluding,
+    ): array {
+        return $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.messageId = :messageId')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.mailbox IS NOT NULL')
+            ->andWhere('message.mailbox != :excluding')
+            ->setParameter('account', $account)
+            ->setParameter('messageId', $messageId)
+            ->setParameter('excluding', $excluding)
+            ->orderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Every server-side copy this account holds of one message, in any folder.
+     *
+     * @return list<Message>
+     */
+    public function findLocatedByMessageId(Account $account, string $messageId): array
+    {
+        return $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.messageId = :messageId')
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('message.mailbox IS NOT NULL')
+            ->orderBy('message.id', 'ASC')
+            ->setParameter('account', $account)
+            ->setParameter('messageId', $messageId)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Message-IDs this mailbox holds that the account also holds somewhere else.
+     *
+     * The work list for the self-repair pass: every one of these is either a
+     * message that was moved and left a ghost behind, or a copy that genuinely
+     * exists twice. This cannot tell them apart and does not try — it narrows
+     * millions of rows down to the handful worth asking the server about.
+     *
+     * Grouped in SQL rather than by loading both sides, because on the accounts
+     * that need repairing most the duplicates number in the thousands. Limited
+     * for the same reason: a sync must not turn into an unbounded probing run,
+     * so the backlog drains a slice per pass.
+     *
+     * @return list<string>
+     */
+    public function findMessageIdsAlsoFiledElsewhere(Mailbox $mailbox, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('message')
+            ->select('message.messageId')
+            ->innerJoin(
+                Message::class,
+                'twin',
+                'WITH',
+                'twin.messageId = message.messageId AND twin.account = message.account AND twin.mailbox != message.mailbox',
+            )
+            ->where('message.mailbox = :mailbox')
+            ->andWhere('message.messageId IS NOT NULL')
+            ->andWhere("message.messageId != ''")
+            ->andWhere('message.imapUid IS NOT NULL')
+            ->andWhere('twin.imapUid IS NOT NULL')
+            ->andWhere('twin.mailbox IS NOT NULL')
+            ->groupBy('message.messageId')
+            ->setParameter('mailbox', $mailbox)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn ($id): string => (string) $id, $rows));
+    }
+
+    /**
      * Streamed, so recategorising a large account does not load it into memory
      * — the reason this cannot be findBy().
      *
