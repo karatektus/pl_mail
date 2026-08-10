@@ -89,6 +89,28 @@ final class IcsExtractionTest extends KernelTestCase
     }
 
     /**
+     * RFC 5545 says a calendar is UTF-8, and senders send latin-1 anyway.
+     *
+     * Nothing converts these bytes on the way in: an invite is stored as the
+     * attachment it arrived as, and MessagePart keeps the bare MIME type
+     * without the `charset=` parameter that would say so. Read literally, one
+     * 0xE4 in a SUMMARY is not a mangled title — it is an INSERT Postgres
+     * refuses, and the whole extraction goes with it.
+     */
+    public function testAnInviteInLatinOneStillBecomesAnEvent(): void
+    {
+        $utf8   = $this->ics('beratung@example.test', 'Beratungsgespräch', '20260803T090000Z', '20260803T093000Z');
+        $latin1 = (string) mb_convert_encoding($utf8, 'ISO-8859-1', 'UTF-8');
+
+        self::assertFalse(mb_check_encoding($latin1, 'UTF-8'), 'The fixture has to be the broken case.');
+
+        $event = $this->ingest($latin1);
+
+        self::assertNotNull($event);
+        self::assertSame('Beratungsgespräch', $event->title);
+    }
+
+    /**
      * A person has one diary. Which mailbox the invitation happened to arrive
      * at is a property of the message and not of the meeting, so filing by it
      * split one day across as many calendars as the user had accounts — and did

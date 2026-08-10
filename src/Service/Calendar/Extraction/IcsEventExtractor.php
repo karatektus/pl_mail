@@ -7,6 +7,7 @@ namespace App\Service\Calendar\Extraction;
 use App\Domain\Enum\Calendar\EventSource;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
+use App\Domain\Helper\CharsetHelper;
 use App\Domain\Interface\EventExtractorInterface;
 use App\Entity\Mail\MessagePart;
 use App\Service\Calendar\RecurrenceRuleConverter;
@@ -134,6 +135,15 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
      */
     private function parse(string $ics, ?MessagePart $part): array
     {
+        // Both routes in reach here holding bytes nobody converted: a stored
+        // MessagePart is the attachment exactly as it arrived, and the raw-MIME
+        // fallback cuts a VCALENDAR out of the message without decoding one.
+        // RFC 5545 says UTF-8 and sabre reads it as UTF-8, but senders still
+        // emit latin-1 under a `charset=` parameter MessagePart does not keep —
+        // and a SUMMARY carrying one 0xE4 is not mojibake, it is an INSERT
+        // Postgres rejects, taking the whole extraction with it.
+        $ics = CharsetHelper::ensureUtf8($ics);
+
         try {
             $calendar = Reader::read($ics, Reader::OPTION_FORGIVING);
         } catch (\Throwable $e) {

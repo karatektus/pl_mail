@@ -627,6 +627,50 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose HTML body carries a charset declaration of its own — the
+     * set the safe-html re-tag repair has to walk.
+     *
+     * bodyHtmlSafe is derived, so a row mangled by a declaration the parser
+     * believed is repaired by sanitising it again; bodyHtml itself was never
+     * wrong. Narrowed by the substring rather than the damage because the
+     * damage is not something SQL can recognise, and re-sanitising a row that
+     * was already right produces the same bytes it already has.
+     *
+     * @return list<Message>
+     */
+    public function findWithHtmlCharsetDeclaration(int $afterId, int $limit): array
+    {
+        return $this->htmlCharsetDeclarationQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithHtmlCharsetDeclaration(): int
+    {
+        return (int) $this->htmlCharsetDeclarationQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function htmlCharsetDeclarationQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere("m.bodyHtml <> ''")
+            // LIKE is case-sensitive in Postgres and the tag is written every
+            // way there is, so the comparison is folded rather than the tag
+            // guessed at.
+            ->andWhere("LOWER(m.bodyHtml) LIKE '%charset%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * One account's messages awaiting categorisation — everything when the
      * classifier itself changed, otherwise only the rows that have no category
      * yet.
