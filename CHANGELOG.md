@@ -6,6 +6,39 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.26 — 2026-08-10
+
+**No migration. Every theme now defines every variable — all 38 of them,
+explicitly, in every palette.** Three themes were four-line diffs against a
+light-tuned base, which is how Nord got the light theme's link blue on a
+near-black surface and an ink ramp that ran backwards. The real remnant bug
+was worse than CSS: picking Paper seeded its clay accent onto the account
+itself, where it survived onto every theme chosen afterwards — and picking
+System on a dark desktop painted the app light until the next navigation.
+Both fixed. A parser-backed test now fails the build if a theme ever misses a
+variable, and a browser test switches through every theme without reloading
+and asserts the result is pixel-for-pixel what a fresh load produces.
+
+**The reading pane wears the theme.** Two conflicting definitions of the mail
+sheet had been shipped, and the older plain-white one was silently winning —
+the warm-paper redesign was dead code. Resolved in the redesign's favour, and
+the sheet's seven colour channels now come from the theme: Nord reads mail on
+snow storm, Solarized on its own base, Paper on cream. This is why the thread
+list looked like the odd one out on the light theme — now the whole reading
+surface agrees with wherever it is.
+
+**Search respects the bin.** A deleted conversation no longer turns up in
+search results through its other labels — the same rule the list views
+learned in v0.0.25, applied to search's own SQL. `in:trash` and `in:bin`
+still find it on purpose.
+
+**The default calendar speaks your language.** A user provisioned in German
+gets "Persönlich", not "Personal". Calendars that already exist keep their
+names — they are the user's data, and may have been renamed.
+
+The E2E dev server on CI restarts itself if it crashes, so one segfault can
+no longer disguise itself as forty-five failing tests.
+
 ## v0.0.25 — 2026-08-10
 
 **No migration. A message that moves is still one message.** Moving mail —
