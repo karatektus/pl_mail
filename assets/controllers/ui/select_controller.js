@@ -86,7 +86,7 @@ export default class extends Controller {
 
         const searchable = this.#optionCount() > this.searchAfterValue
 
-        const select = new TomSelect(this.element, {
+        const settings = {
             create: false,
             // Several selects use an empty value as a real choice ("All
             // accounts", "Follow language"). Without this Tom Select drops
@@ -96,9 +96,6 @@ export default class extends Controller {
             // picker has several hundred, and "not in the list" is a worse
             // failure than a long list — a native select showed all of them.
             maxOptions: null,
-            // Nothing to search in a short list, and no input means no caret
-            // and no keyboard trap — arrow keys and Enter still work.
-            controlInput: searchable ? undefined : null,
             // Every consumer of this controller is inside something that clips:
             // the modal body scrolls, the settings pane scrolls, the calendar
             // event sheet scrolls. Anchored to the control, the panel would be
@@ -121,7 +118,23 @@ export default class extends Controller {
             // height is what its position is derived from.
             onType: () => this.#place(),
             onDropdownClose: () => this.#unbindScroll(),
-        })
+        }
+
+        // Only set when there is to be no search box. Deliberately an absent
+        // KEY rather than `controlInput: undefined`: Tom Select merges settings
+        // with Object.assign, which copies an explicit `undefined` straight
+        // over its own default — and that default is the input's HTML. Naming
+        // the key at all, whatever the value, therefore took the search box
+        // away from every select in the app, the 420-entry timezone picker
+        // included. `null` is the documented way to ask for no input; leaving
+        // it out is the only way to ask for the standard one.
+        if (!searchable) {
+            // Nothing to search in a short list, and no input means no caret
+            // and no keyboard trap — arrow keys and Enter still work.
+            settings.controlInput = null
+        }
+
+        const select = new TomSelect(this.element, settings)
 
         if (height > 0) select.wrapper.style.setProperty("--ts-control-h", `${height}px`)
 

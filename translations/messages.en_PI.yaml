@@ -1079,7 +1079,7 @@ onboarding:
             title: About ye
         security:
             lead: The one prize worth lockin' proper. Takes about a minute.
-            title: Guard yer parrot cage
+            title: Guard yer berth
     title: Rig up plMail
 
 profile:
@@ -1679,7 +1679,7 @@ settings:
             revoke_confirm: 'Stop trustin'' %name%? She''ll be hailed next time.'
             this_device: this here ship
         disable:
-            confirm: Yer parrot cage be guarded by yer secret word alone. Carry on?
+            confirm: Yer berth be guarded by yer secret word alone. Carry on?
             heading: Strike the second lock
             hint: This scuttles yer spare tokens and stops trustin' every remembered ship.
             submit: Strike it
@@ -1698,10 +1698,10 @@ settings:
             submit: Aye, that's it
         heading: The second lock
         pitch: >-
-            Yer parrot cage be the prize worth guardin' most: whoever reaches it can
-            call for a new secret word on everythin' else ye own, for that be where
-            them letters land. A second lock means a pinched secret word be not
-            enough on its own.
+            Yer berth be the prize worth guardin' most: whoever reaches it can
+            call for a new secret word on everythin' else ye own, for yer parrot
+            cage be where them letters land. A second lock means a pinched secret
+            word be not enough on its own.
         status:
             off: The second lock be struck
             on: The second lock be set

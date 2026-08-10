@@ -15,8 +15,26 @@ The list is every provider, always. It used to be only the ones still needing
 attention, which combined badly with save-on-switch: the provider you had just
 left acquired a row, stopped counting as outstanding, and disappeared from the
 list you were looking at. A tick marks the ones that are set up.
+
+Wraps onto as many rows as it needs, and does NOT scroll sideways. There are
+eight integration providers now, which is past what fits across a dialog even
+on a desktop, and the row used to overflow: the wizard's body is
+`overflow-y-auto`, and CSS computes the other axis to `auto` as soon as one is
+not `visible`, so the whole modal grew a horizontal scrollbar and the step's
+form slid out from under the buttons. The progress rail above still scrolls
+instead of wrapping, and that is not an inconsistency — it is one line of
+numbered pills whose reflow would move the body mid-wizard, whereas these are a
+tab list that is meant to be read as a block.
+
+`whitespace-nowrap` on the button, not a non-breaking space in the label: the
+names come from Integration\Provider::label() and Account\MailProvider::label(),
+which are brand names deliberately left untranslated, so there is no catalogue
+entry to put a U+00A0 into and "Google Drive" would have to be spelled with an
+invisible character in PHP. The rule is also the one actually wanted — no
+provider name breaks mid-name, whatever it is called — rather than a fix
+applied one name at a time.
 #}
-<div class="flex items-center gap-1.5 mb-5"
+<div class="flex flex-wrap items-center gap-1.5 mb-5"
      role="tablist"
      data-controller="onboarding--form-nav">
 
@@ -30,7 +48,7 @@ list you were looking at. A tick marks the ones that are set up.
             aria-selected="{{ option.value == provider.value ? 'true' : 'false' }}"
             data-value="{{ option.value }}"
             data-action="click->onboarding--form-nav#go"
-            class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer
+            class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer
                    {% if option.value == provider.value %}
                      border-accent bg-accent/10 text-accent
                    {% else %}

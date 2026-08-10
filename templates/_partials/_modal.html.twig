@@ -23,7 +23,15 @@ still while only the results move.
     hidden
     data-ui--modal-dialog
     data-controller="ui--modal"
-    data-action="click->ui--modal#backdropClick ui--modal:close->ui--modal#close"
+    {# Three halves of one gesture, not just the click. A press that starts in
+       a field and ends past the edge of the panel still fires a `click` on the
+       backdrop — it is the common ancestor of the two points — so the click
+       alone cannot tell a dismissal from someone selecting their own text and
+       letting go outside. mousedown arms, mouseup confirms, click acts. #}
+    data-action="mousedown->ui--modal#backdropMousedown
+                 mouseup->ui--modal#backdropMouseup
+                 click->ui--modal#backdropClick
+                 ui--modal:close->ui--modal#close"
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"

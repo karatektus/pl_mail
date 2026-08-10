@@ -1343,7 +1343,7 @@ onboarding:
             title: About you
         security:
             lead: The one account worth locking properly. This takes about a minute.
-            title: Protect your mailbox
+            title: Protect your account
     title: Set up plMail
 
 profile:
@@ -2000,7 +2000,7 @@ settings:
             this_device: this device
         disable:
             confirm: >-
-                Your mailbox will be protected by your password alone. Continue?
+                Your account will be protected by your password alone. Continue?
             heading: Turn off two-factor authentication
             hint: >-
                 This deletes your recovery codes and stops trusting every
@@ -2021,10 +2021,10 @@ settings:
             submit: Confirm
         heading: Two-factor authentication
         pitch: >-
-            Your mailbox is the account worth protecting most: anyone who reaches
-            it can reset the password on everything else you own, because that is
-            where the reset links arrive. A second factor means a stolen password
-            is not enough on its own.
+            Your account is the one worth protecting most: anyone who reaches it
+            can reset the password on everything else you own, because your mail
+            is where the reset links arrive. A second factor means a stolen
+            password is not enough on its own.
         status:
             off: Two-factor authentication is off
             on: Two-factor authentication is on

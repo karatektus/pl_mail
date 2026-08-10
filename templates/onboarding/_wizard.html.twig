@@ -54,8 +54,16 @@ nothing to explain passes no aside_template and the grid collapses to one.
             } only %}
 
             <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+                {# min-w-0 on both children, and it is load-bearing rather than
+                   defensive. A grid item's `min-width` is `auto`, which means
+                   "never narrower than my content", so one long unbreakable
+                   run — a redirect URI, a provider name — pushed the single
+                   mobile column wider than the dialog and the whole modal
+                   scrolled sideways. min-w-0 lets the track be the width it was
+                   given and leaves the truncating to the elements that already
+                   ask for it. #}
                 <div class="grid gap-6 {% if aside_template is defined %}md:grid-cols-[1fr_320px]{% endif %}">
-                    <div id="onboarding-step-{{ step.value }}">
+                    <div class="min-w-0" id="onboarding-step-{{ step.value }}">
                         {% set stepError = statuses[step.value].error %}
                         {% if stepError %}
                             {# Repeated here, not only on the rail: the cross
@@ -88,7 +96,7 @@ nothing to explain passes no aside_template and the grid collapses to one.
                     </div>
 
                     {% if aside_template is defined %}
-                        <aside class="md:order-last rounded-pane bg-sunken p-4 text-sm text-ink-muted leading-relaxed">
+                        <aside class="min-w-0 md:order-last rounded-pane bg-sunken p-4 text-sm text-ink-muted leading-relaxed">
                             {{ include(aside_template) }}
                         </aside>
                     {% endif %}
