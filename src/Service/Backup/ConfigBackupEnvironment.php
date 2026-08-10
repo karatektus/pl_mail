@@ -34,10 +34,13 @@ use Throwable;
  *
  *   1. the real process environment — compose, the shell, `docker run -e`;
  *   2. `var/secrets/generated.env`;
- *   3. `.env.local` and `.env`, which for these names are deliberately empty.
+ *   3. `.env.local` and `.env` — this repository's own shipped defaults.
  *
  * An empty value counts as absent at every level, because compose passes
  * `${APP_SECRET:-}` through as `""` when nobody set one.
+ *
+ * A backup reads the first two levels and never the third. That is a decision
+ * and {@see self::current()} argues it.
  *
  * So a restored value takes effect at the next start **unless** something in
  * the real process environment sets the same name to something non-empty. That
@@ -281,6 +284,32 @@ final readonly class ConfigBackupEnvironment
      * Real environment first, generated file second — the same precedence the
      * entrypoint applies when it loads that file, and the same one
      * PublicUrlSetting::current() states.
+     *
+     * **And deliberately no third level.** Dotenv folds `.env` into `$_SERVER`
+     * before any of this runs, so reading it would look like the more honest
+     * answer to "what is this instance running with" — and it would put this
+     * repository's placeholders into every backup ever taken. Read them: the
+     * shipped `.env` says VAPID_SUBJECT is `mailto:admin@example.com`,
+     * GMAIL_PUBSUB_TOPIC is `projects/your-project-id/topics/gmail-push`,
+     * MERCURE_PUBLIC_URL is `https://localhost/.well-known/mercure`,
+     * DEFAULT_URI is `http://localhost`. A restore would then overwrite the
+     * target's working values with examples — which is the same harm the names
+     * above VARIABLES were removed for, arriving by a different door.
+     *
+     * Nothing an operator configured is lost by stopping at two levels, because
+     * an operator never edits the `.env` in this repository. What they set goes
+     * in the `.env` beside `compose.yaml`, and compose interpolates it into the
+     * container as a real environment variable — level 1. What plMail generates
+     * or setup writes goes to `generated.env` — level 2. Those two levels are
+     * exactly the ones holding a decision somebody made about this
+     * installation; the third holds what the project shipped.
+     *
+     * The consequence worth knowing before reading a test: under PHPUnit,
+     * `.env.test` supplies APP_ENCRYPTION_KEY and that is a level-3 value, so it
+     * is absent from an export unless the harness also puts it in the real
+     * environment — which the docker test stack does with `-e` and the GitHub
+     * runner does not. A test that asserts it present unconditionally is green
+     * on one and red on the other, and was, for five releases.
      */
     public function current(string $name): ?string
     {
