@@ -25,7 +25,34 @@ test.describe("modal backdrop dismissal", () => {
         await page.locator("#sidebar").getByRole("button", { name: "Create label" }).click();
 
         await expect(modal(page)).toBeVisible();
-        await expect(modal(page).locator("#modal input[type='text']")).toBeVisible();
+
+        // Editable, not merely visible. The frame is fetched, and the modal
+        // controller moves focus into it on turbo:frame-load — so under a busy
+        // suite the panel can be on screen while the form behind it is still
+        // arriving, and a drag measured then is measured against a box that is
+        // about to move.
+        await expect(modal(page).getByLabel("Name")).toBeEditable();
+    }
+
+    /**
+     * A point on the backdrop, clear of the panel.
+     *
+     * Derived from the backdrop's own box rather than hard-coded near the
+     * window corner: the corner is where Turbo's progress bar and any toast
+     * live, and a gesture that ends on one of those is not the gesture this
+     * test means to make.
+     */
+    async function pointOutsideThePanel(page: Page): Promise<{ x: number; y: number }> {
+        const backdrop = await modal(page).boundingBox();
+        const panel = await modal(page).locator("[data-ui--modal-panel]").boundingBox();
+
+        expect(backdrop).not.toBeNull();
+        expect(panel).not.toBeNull();
+
+        return {
+            x: backdrop!.x + Math.max(12, (panel!.x - backdrop!.x) / 2),
+            y: backdrop!.y + backdrop!.height / 2,
+        };
     }
 
     /**
@@ -48,11 +75,13 @@ test.describe("modal backdrop dismissal", () => {
         const box = await field.boundingBox();
         expect(box).not.toBeNull();
 
+        const outside = await pointOutsideThePanel(page);
+
         // Press inside the field, drag out over the backdrop, release there.
         await page.mouse.move(box!.x + box!.width - 6, box!.y + box!.height / 2);
         await page.mouse.down();
         await page.mouse.move(box!.x + 6, box!.y + box!.height / 2, { steps: 8 });
-        await page.mouse.move(8, 8, { steps: 12 });
+        await page.mouse.move(outside.x, outside.y, { steps: 12 });
         await page.mouse.up();
 
         await expect(modal(page)).toBeVisible();
@@ -70,7 +99,9 @@ test.describe("modal backdrop dismissal", () => {
         const box = await panel.boundingBox();
         expect(box).not.toBeNull();
 
-        await page.mouse.move(8, 8);
+        const outside = await pointOutsideThePanel(page);
+
+        await page.mouse.move(outside.x, outside.y);
         await page.mouse.down();
         await page.mouse.move(box!.x + box!.width / 2, box!.y + 12, { steps: 12 });
         await page.mouse.up();
@@ -82,7 +113,9 @@ test.describe("modal backdrop dismissal", () => {
     test("closes on a genuine click on the backdrop", async ({ page }) => {
         await openLabelForm(page);
 
-        await page.mouse.move(8, 8);
+        const outside = await pointOutsideThePanel(page);
+
+        await page.mouse.move(outside.x, outside.y);
         await page.mouse.down();
         await page.mouse.up();
 
