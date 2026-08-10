@@ -6,6 +6,21 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.24 — 2026-08-10
+
+**No migration, and no runtime change at all — this release exists to turn the
+release checks back on.** The E2E workflow had been red on every tag since
+v0.0.19: a backup-exporter test hardcoded that `APP_ENCRYPTION_KEY` must appear
+in an exported config, which is true wherever the key is set in the real
+process environment (compose does this) and false on the CI runner, where the
+key exists only in `.env.test` — a layer a backup deliberately does not read,
+because the shipped `.env` defaults are placeholders and restoring
+`mailto:admin@example.com` over a working install is the exact harm the
+exporter is scoped against. The exporter was right; the test now derives its
+expectation from the exporter's own rule and pins both directions, so it can
+never again be green on one harness and red on the other. If this tag's E2E
+run is green, that is the fix proving itself.
+
 ## v0.0.23 — 2026-08-10
 
 **No migration. A reply you send is one message again.** A message sent from
