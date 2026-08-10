@@ -36,6 +36,7 @@ final class PageRendersTest extends WebTestCase
         yield 'drafts' => ['/mail/drafts'];
         yield 'trash' => ['/mail/trash'];
         yield 'archive' => ['/mail/archive'];
+        yield 'spam' => ['/mail/spam'];
         yield 'search' => ['/mail/search?q=test'];
         yield 'settings' => ['/settings'];
         yield 'settings appearance' => ['/settings?section=appearance'];

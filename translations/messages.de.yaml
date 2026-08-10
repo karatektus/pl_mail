@@ -1373,7 +1373,7 @@ onboarding:
             title: Über dich
         security:
             lead: Das eine Konto, das sich richtig abzuschließen lohnt. Dauert etwa eine Minute.
-            title: Postfach schützen
+            title: Konto schützen
     title: plMail einrichten
 
 profile:
@@ -2040,7 +2040,7 @@ settings:
             this_device: dieses Gerät
         disable:
             confirm: >-
-                Dein Postfach ist dann nur noch durch dein Passwort geschützt.
+                Dein Konto ist dann nur noch durch dein Passwort geschützt.
                 Fortfahren?
             heading: Zwei-Faktor-Authentifizierung ausschalten
             hint: >-
@@ -2062,10 +2062,10 @@ settings:
             submit: Bestätigen
         heading: Zwei-Faktor-Authentifizierung
         pitch: >-
-            Dein Postfach ist das Konto, das am meisten Schutz verdient: Wer da
+            Dein Konto ist das, was am meisten Schutz verdient: Wer da
             hineinkommt, kann bei allem anderen das Passwort zurücksetzen — denn
-            dort landen die Links dafür. Ein zweiter Faktor sorgt dafür, dass ein
-            gestohlenes Passwort allein nicht reicht.
+            in deiner Mail landen die Links dafür. Ein zweiter Faktor sorgt
+            dafür, dass ein gestohlenes Passwort allein nicht reicht.
         status:
             off: Zwei-Faktor-Authentifizierung ist aus
             on: Zwei-Faktor-Authentifizierung ist an
@@ -2104,6 +2104,7 @@ sidebar:
         more: Mehr
         sent: Gesendet
         snoozed: Zurückgestellt
+        spam: Spam
         starred: Markiert
         trash: Papierkorb
     toggle: Seitenleiste ein-/ausblenden
@@ -2178,6 +2179,10 @@ toolbar:
         unread: Ungelesene
     select_all: Alle Konversationen auswählen
     select_menu: Weitere Auswahloptionen
+
+spam:
+    empty: Keine Spam-Nachrichten.
+    heading: Spam
 
 trash:
     empty: Keine gelöschten Nachrichten.

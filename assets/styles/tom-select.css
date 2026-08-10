@@ -389,14 +389,46 @@
 }
 
 /* ── Options ─────────────────────────────────────────────────────────── */
+/*
+ * `block`, and deliberately NOT `flex` — this row is what put a space beside
+ * every search match.
+ *
+ * Tom Select highlights by splitting the option's text node in three and
+ * wrapping the middle in <span class="highlight">. Under `display: flex` those
+ * three pieces stop being text and become flex items, so `gap` is inserted
+ * between them: typing "africa/a" drew the mark and then a 10px hole before
+ * "ccra", which reads as the highlight having swallowed a trailing space.
+ * Worse, the flex box also *dropped* real spacing, because an anonymous flex
+ * item containing only white space is not rendered at all — so a two-word
+ * query marked "Server" and "default" with the actual space between them gone
+ * and a gap standing in for it.
+ *
+ * Nothing needed the flex box. The one structured option in the app — the
+ * contact row in ContactAutocompleteField — renders a single
+ * <div class="ts-option-row"> child that is its own flex container with its
+ * own gap, so it lays out identically inside a block parent.
+ */
 .ts-dropdown .option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: block;
     padding: 7px 14px;
     cursor: pointer;
     transition: background-color 80ms;
     color: rgb(var(--rgb-ink-soft));
+}
+
+/*
+ * The matched substring, and the only thing that marks it.
+ *
+ * Tom Select's own skins are all disabled (see the header), so until now this
+ * span carried no style whatsoever and a search told you nothing about *why* a
+ * row had matched. Weight rather than a background: bold sits exactly on the
+ * glyphs the user typed, where a highlight colour needs padding to look
+ * deliberate and padding is what makes a mark look wider than the text in it.
+ */
+.ts-dropdown .highlight {
+    font-weight: 700;
+    color: inherit;
+    background: none;
 }
 
 .ts-dropdown .option.active,

@@ -25,9 +25,14 @@ use Doctrine\ORM\EntityManagerInterface;
  * Each of these is a label mutation first (the database is the source of
  * truth), then propagated to the provider asynchronously by
  * LabelChangePropagator: IMAP as flag/move operations, Gmail as
- * messages.batchModify. Archive is the removal of the Inbox label. Trash is
+ * messages.batchModify. Archive is Archive added and Inbox removed; Trash is
  * Trash added and Inbox removed. For plain-IMAP messages the local mailbox
  * pointer is re-pointed optimistically so the sync layer stays coherent.
+ *
+ * Archive used to be the removal of Inbox alone, on the reasoning that this is
+ * what Gmail does. Gmail can afford it because it has All Mail; plMail's
+ * Archive screen is a role query, so removing Inbox without adding Archive put
+ * the mail nowhere.
  *
  * Every method here ends in a flush, and every one records the change in the
  * JMAP log first. That ordering is the point of the class: a web-UI mutation
@@ -96,11 +101,21 @@ final readonly class ThreadStatusUpdater
         // the correct source folders.
         $this->propagator->archive($messages);
 
-        $archiveMailbox = $this->labelResolver
-            ->systemLabel(LabelRole::Archive, $account)
-            ->bindingFor($account)?->mailbox;
+        $archiveLabel   = $this->labelResolver->systemLabel(LabelRole::Archive, $account);
+        $archiveMailbox = $archiveLabel->bindingFor($account)?->mailbox;
 
         foreach ($messages as $message) {
+            // Archiving used to be "remove Inbox" and nothing else, which read
+            // as Gmail's rule and was not: Gmail keeps the mail in All Mail,
+            // and plMail has no All Mail. What it has is an Archive VIEW, and
+            // that view asks findForRole(Archive) — for a label nothing ever
+            // attached. So archiving put mail in no list at all: gone from the
+            // inbox, absent from Archive, its badge stuck at zero, reachable
+            // only through search or through a custom label it happened to
+            // carry. This is the line that was missing, and it is the same line
+            // trash() has always had.
+            $message->addLabel($archiveLabel);
+
             if (null !== $inboxLabel) {
                 $message->removeLabel($inboxLabel);
             }

@@ -143,11 +143,11 @@ test.describe("README screenshots", () => {
 
         const tree = editor.locator('[data-rules--rule-builder-target="tree"]');
         await tree.locator("select").first().selectOption("from");
-        await tree.locator('input[type="text"]').first().fill("versand@");
+        await tree.locator("input[data-rule-value]").first().fill("versand@");
 
         await editor.getByRole("button", { name: "Add condition" }).first().click();
         await tree.locator("select").nth(1).selectOption("subject");
-        await tree.locator('input[type="text"]').nth(1).fill("order");
+        await tree.locator("input[data-rule-value]").nth(1).fill("order");
 
         await editor.getByRole("button", { name: "Add action" }).click();
 

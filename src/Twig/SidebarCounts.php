@@ -216,8 +216,24 @@ class SidebarCounts implements ResetInterface
      */
     public function hasVisibleArchive(): bool
     {
+        return $this->hasVisibleRole(LabelRole::Archive);
+    }
+
+    /**
+     * Whether a system label is switched visible in the label settings.
+     *
+     * Generalised from hasVisibleArchive() because Spam needed the same
+     * question asked, and the answer was that nothing asked it: the eye toggle
+     * in label settings happily switched Spam on — the toggle route allows
+     * system labels precisely so it can — and no sidebar entry was ever
+     * looking, because the system nav is a hand-written sequence of anchors
+     * rather than a loop and had no Spam arm at all. A user could turn the
+     * setting on and off all day and nothing would appear.
+     */
+    public function hasVisibleRole(LabelRole $role): bool
+    {
         foreach ($this->getVisibleLabels() as $label) {
-            if (LabelRole::Archive === $label->role) {
+            if ($role === $label->role) {
                 return true;
             }
         }

@@ -71,7 +71,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     {
         $offset = ($page - 1) * $perPage;
 
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
@@ -84,9 +84,11 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
-            ->distinct()
-            ->getQuery()
-            ->getResult();
+            ->distinct();
+
+        $this->excludeTrashed($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
@@ -155,7 +157,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     {
         $offset = ($page - 1) * $perPage;
 
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
@@ -166,14 +168,21 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
-            ->distinct()
-            ->getQuery()
-            ->getResult();
+            ->distinct();
+
+        // Every system view except the bin itself. Archive and Sent are the
+        // ones this matters most for: trashing a sent message left it listed
+        // under Sent, because trashing does not take Sent away.
+        if (LabelRole::Trash !== $role) {
+            $this->excludeTrashed($qb);
+        }
+
+        return $qb->getQuery()->getResult();
     }
     /** Same joins as findForRole(). */
     public function countForRole(UserInterface $user, LabelRole $role): int
     {
-        return (int) $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
@@ -181,9 +190,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :role')
             ->setParameter('user', $user)
-            ->setParameter('role', $role)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('role', $role);
+
+        if (LabelRole::Trash !== $role) {
+            $this->excludeTrashed($qb);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
     /**
      * Threads carrying a label, optionally narrowed to one account.
@@ -210,6 +223,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setMaxResults($perPage);
 
         $this->narrowToAccount($qb, $account);
+        $this->excludeTrashedUnlessBin($qb, $label);
 
         return $qb->getQuery()->getResult();
     }
@@ -224,24 +238,63 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('label', $label);
 
         $this->narrowToAccount($qb, $account);
+        $this->excludeTrashedUnlessBin($qb, $label);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
-    /** Everything in one account, whatever it is labelled. */
+    /**
+     * The exclusion, skipped for the bin's own row.
+     *
+     * findForLabel() serves two lists that look unrelated and are not: the
+     * sidebar's custom labels, and the per-account folder rows, which are built
+     * from the labels bound to that account and therefore include its Trash
+     * folder. Excluding trashed threads unconditionally would render that
+     * folder permanently empty.
+     */
+    private function excludeTrashedUnlessBin(QueryBuilder $qb, Label $label): void
+    {
+        if (LabelRole::Trash === $label->role) {
+            return;
+        }
+
+        $this->excludeTrashed($qb);
+    }
+
+    /**
+     * Everything in one account, whatever it is labelled — except what has been
+     * thrown away.
+     *
+     * QueryBuilder rather than findBy() now, and that is the whole reason for
+     * the change: "not in the bin" is a condition on a to-many, which findBy()
+     * cannot state. This is the account row in the sidebar, and it was the
+     * loudest version of the bug — an "everything" list is exactly where a
+     * month of deleted mail piles up.
+     */
     public function findForAccount(Account $account, int $page = 1, int $perPage = 50): array
     {
-        return $this->findBy(
-            ['account' => $account],
-            ['lastMessageAt' => 'DESC'],
-            $perPage,
-            ($page - 1) * $perPage,
-        );
+        $qb = $this->createQueryBuilder('t')
+            ->where('t.account = :account')
+            ->setParameter('account', $account)
+            ->orderBy('t.lastMessageAt', 'DESC')
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        $this->excludeTrashed($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function countForAccount(Account $account): int
     {
-        return $this->count(['account' => $account]);
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.account = :account')
+            ->setParameter('account', $account);
+
+        $this->excludeTrashed($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /** No-op when no account was asked for, so callers need no branch. */
@@ -253,6 +306,41 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $qb->andWhere('t.account = :account')->setParameter('account', $account);
     }
+
+    /**
+     * "…and it is not in the bin."
+     *
+     * Gmail's rule, and the one users expect: a trashed conversation shows in
+     * Trash and nowhere else. plMail could not express that before, because
+     * every list here filters on thread_label and a thread's labels are the
+     * union of its messages' labels (ThreadLabelSynchronizer). Trashing keeps
+     * whatever custom labels a message already carried — ThreadStatusUpdater
+     * removes Inbox and nothing else — so a thread labelled "Receipts" and
+     * then deleted still matched `findForLabel(Receipts)` and sat in the list
+     * looking live. Opening it from there is how someone edits a conversation
+     * they believe they threw away a month ago.
+     *
+     * A NOT IN over a sub-query rather than a second join with a negation: the
+     * label join is to-many, so `l.role <> :trash` would only say "this thread
+     * has SOME label that is not Trash", which every trashed thread also
+     * satisfies. The question is about the thread, so it has to be asked of
+     * the thread.
+     *
+     * Deliberately not applied to the Trash view itself, nor to the per-account
+     * Trash folder row — see the callers, each of which decides. Applying it
+     * everywhere would empty the one list that is supposed to be full.
+     */
+    private function excludeTrashed(QueryBuilder $qb): void
+    {
+        $qb->andWhere(
+            $qb->expr()->notIn(
+                't.id',
+                'SELECT binned.id FROM ' . MessageThread::class . ' binned'
+                    . ' JOIN binned.labels binnedLabel'
+                    . ' WHERE binnedLabel.role = :trashRole',
+            ),
+        )->setParameter('trashRole', LabelRole::Trash);
+    }
     /**
      * QueryBuilder for the join to Account: both the owner and whether the
      * account is still active live there, and neither is a field of the thread.
@@ -261,7 +349,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     {
         $offset = ($page - 1) * $perPage;
 
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
@@ -269,23 +357,27 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
-            ->setMaxResults($perPage)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($perPage);
+
+        $this->excludeTrashed($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     /** Same join as findForStarred(). */
     public function countForStarred(UserInterface $user): int
     {
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('t.starredAt IS NOT NULL')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('user', $user);
+
+        $this->excludeTrashed($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
     /**
      * Grouped SUM per system role — an aggregate over a join, which is two
@@ -295,7 +387,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function countUnreadPerRole(UserInterface $user): array
     {
-        $rows = $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('l.role AS role', 'SUM(t.unreadCount) AS unreadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
@@ -303,9 +395,25 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NOT NULL')
             ->setParameter('user', $user)
-            ->groupBy('l.role')
-            ->getQuery()
-            ->getArrayResult();
+            ->groupBy('l.role');
+
+        // The badge has to agree with the list under it, so a trashed thread
+        // stops counting towards Archive or Sent — but the Trash row is one of
+        // the groups being summed here, and it must keep counting its own.
+        // Hence the OR rather than a plain exclusion.
+        $qb->andWhere(
+            $qb->expr()->orX(
+                'l.role = :trashRole',
+                $qb->expr()->notIn(
+                    't.id',
+                    'SELECT binned.id FROM ' . MessageThread::class . ' binned'
+                        . ' JOIN binned.labels binnedLabel'
+                        . ' WHERE binnedLabel.role = :trashRole',
+                ),
+            ),
+        )->setParameter('trashRole', LabelRole::Trash);
+
+        $rows = $qb->getQuery()->getArrayResult();
 
         $counts = [];
 
@@ -346,6 +454,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             $qb->andWhere('t.account = :account')
                 ->setParameter('account', $account);
         }
+
+        // Custom labels only (role IS NULL above), so there is no bin row to
+        // spare here — a trashed thread simply stops counting.
+        $this->excludeTrashed($qb);
 
         $rows = $qb->getQuery()->getArrayResult();
 

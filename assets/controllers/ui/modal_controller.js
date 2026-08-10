@@ -36,6 +36,9 @@ export default class extends Controller {
         this.element.addEventListener("turbo:submit-end", this._onSubmitEnd);
         this._onKeydown = this._handleKeydown.bind(this)
 
+        // Whether a backdrop dismissal is in progress — see backdropMousedown.
+        this.armed = false
+
         const frame = this._frame
 
         if (frame?.querySelector("[data-ui--modal-loading]")) {
@@ -76,6 +79,10 @@ export default class extends Controller {
 
         // Point the turbo-frame at the form URL and let Turbo do the fetch
         frame.src = triggerSrc
+
+        // A dismissal half-completed against the previous dialog must not carry
+        // into this one.
+        this.armed = false
 
         // Show the modal
         dialog.removeAttribute("hidden")
@@ -118,9 +125,47 @@ export default class extends Controller {
         this.dispatch("closed", { target: document })
     }
 
+    /**
+     * Arms a backdrop dismissal, and only when the gesture STARTS on the
+     * backdrop.
+     *
+     * A click fires on the nearest common ancestor of where the button went
+     * down and where it came up, so selecting text in a field and releasing
+     * past the edge of the dialog produces a click whose target is the
+     * backdrop — indistinguishable, to a click handler, from a click on the
+     * backdrop. That is how a modal disappeared mid-sentence and took what had
+     * been typed with it: the user had done nothing but drag over their own
+     * text.
+     *
+     * mousedown is the half of the gesture that says what was meant. Nothing
+     * here closes anything; it only records that the press began on the
+     * backdrop, and backdropClick() closes only if it did.
+     */
+    backdropMousedown(event) {
+        this.armed = event.target === event.currentTarget
+    }
+
+    /**
+     * The other end of the same gesture: a press that began on the backdrop but
+     * was released over the panel is a drag INTO the dialog, not a dismissal.
+     * The click that follows still reports the backdrop — it is the common
+     * ancestor of the two — so without this the release point would go unread.
+     */
+    backdropMouseup(event) {
+        if (event.target !== event.currentTarget) this.armed = false
+    }
+
     backdropClick(event) {
-        // Only close when clicking the backdrop itself, not its children
-        if (event.target === event.currentTarget) this.close(event)
+        const armed = this.armed
+
+        // Disarmed unconditionally, including on the closing path: a stale
+        // `true` would let the *next* gesture close the dialog without ever
+        // having touched the backdrop.
+        this.armed = false
+
+        // Both halves, not either: the press has to have landed on the
+        // backdrop itself rather than on the panel, and so does the release.
+        if (armed && event.target === event.currentTarget) this.close(event)
     }
 
     // ── Private ─────────────────────────────────────────────────────────────────

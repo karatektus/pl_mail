@@ -212,8 +212,26 @@
         <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.background.heading'|trans }}</h2>
 
         <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
+            {# value="theme", not "preset", and `peer` like every other radio
+               here. Both were wrong, and together they made this tile a trap.
+
+               The controller posts EVERY appearance field on any change, so it
+               is not enough for this input to be read correctly — its value is
+               submitted whenever anything else on the page is touched. Saying
+               "preset" while being the tile that means "no picture" meant that
+               changing the density, or the accent, or the corner radius,
+               quietly rewrote backgroundKind from theme to preset. That is not
+               cosmetic: AppearanceRenderer floors --pane-alpha and --main-alpha
+               at 0.45 for any kind other than Theme, on the reasoning that
+               panel text over a photograph needs an opacity floor — so a user
+               running properly translucent panes had them jump opaque
+               app-wide, having touched nothing but the density.
+
+               And without `peer`, the sibling `peer-checked:ring-2` never
+               matched, so the tile never showed as selected even when it was —
+               which is why the wrong value went unnoticed. #}
             <label class="cursor-pointer">
-                <input type="radio" name="backgroundKind" class="sr-only" value="preset"
+                <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
                        data-settings--appearance-field="backgroundKind"
                        data-action="change->settings--appearance#pickBackground"
                     {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
@@ -221,6 +239,24 @@
                     {{ 'settings.appearance.background.theme'|trans }}
                 </span>
             </label>
+
+            {# The other end of the same group, with no tile of its own: picking
+               a PRESET is picking a preset thumbnail below, and pickBackground()
+               ticks this one on the way past so the kind travels with it. It has
+               to exist in the DOM for that lookup to find it.
+
+               Neither is ticked when the kind is `custom` or `solid` — an
+               uploaded picture has no tile here — and that is deliberate rather
+               than an omission: save() skips unchecked radios, so backgroundKind
+               is simply absent from the payload, and applyArray()'s isset()
+               guard leaves the stored kind alone. An uploaded background
+               therefore survives every later change to density, accent or
+               radius, which is exactly what the old single mislabelled radio
+               failed to do. #}
+            <input type="radio" name="backgroundKind" class="sr-only" value="preset"
+                   data-settings--appearance-field="backgroundKind"
+                   data-action="change->settings--appearance#pickBackground"
+                {{ a.backgroundKind.value == 'preset' ? 'checked' : '' }}>
 
             {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
                 <label class="cursor-pointer">

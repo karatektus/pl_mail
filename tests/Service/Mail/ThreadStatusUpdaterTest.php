@@ -126,18 +126,54 @@ final class ThreadStatusUpdaterTest extends KernelTestCase
 
     // ── archive ──────────────────────────────────────────────────────────────
 
-    /** Archive *is* the removal of the Inbox label. There is nothing else to it. */
-    public function testArchivingRemovesTheInboxLabelFromEveryMessage(): void
+    /**
+     * Archive is two label moves, not one — the same shape as trash.
+     *
+     * It used to be the removal of Inbox alone, which sounds like Gmail and is
+     * not: Gmail keeps archived mail in All Mail, and plMail's Archive screen
+     * asks for a label whose role is Archive. Removing Inbox and adding
+     * nothing therefore filed the conversation nowhere at all.
+     */
+    public function testArchivingAddsArchiveAndRemovesInbox(): void
     {
         $thread = $this->inboxThread(3);
 
         $this->updater->archive($thread->messages->toArray());
 
-        $inbox = $this->role(LabelRole::Inbox);
+        $inbox   = $this->role(LabelRole::Inbox);
+        $archive = $this->role(LabelRole::Archive);
 
         foreach ($thread->messages as $message) {
             self::assertFalse($message->labels->contains($inbox));
+            self::assertTrue($message->labels->contains($archive));
         }
+    }
+
+    /**
+     * The thread is what the Archive screen lists, and its labels are the union
+     * of its messages' — so the label has to survive that derivation, not just
+     * sit on the messages.
+     */
+    public function testTheArchivedThreadCarriesTheArchiveLabel(): void
+    {
+        $thread = $this->inboxThread(2);
+
+        $this->updater->archive($thread->messages->toArray());
+
+        self::assertTrue($thread->labels->contains($this->role(LabelRole::Archive)));
+        self::assertFalse($thread->labels->contains($this->role(LabelRole::Inbox)));
+    }
+
+    /** Archiving is not filing: whatever else it was labelled, it still is. */
+    public function testArchivingKeepsTheCustomLabelsItAlreadyHad(): void
+    {
+        $thread = $this->inboxThread(1);
+        $custom = $this->customLabel();
+
+        $this->updater->applyLabel($thread->messages->toArray(), $custom, true);
+        $this->updater->archive($thread->messages->toArray());
+
+        self::assertTrue($thread->messages->first()->labels->contains($custom));
     }
 
     /**

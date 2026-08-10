@@ -87,6 +87,59 @@ test.describe("mail UI actions", () => {
         // Still gone after a reload (Inbox label removed, DB is source of truth).
         await page.reload();
         await expect(mailRow(page, INBOX_SUBJECTS.archive)).toHaveCount(0);
+
+        // And it has to be SOMEWHERE. Archiving used to remove the Inbox label
+        // and add nothing, while the Archive view asks for a label whose role is
+        // Archive — so the conversation left the inbox and arrived nowhere. This
+        // half of the assertion is the one that was missing.
+        await page.goto("/mail/archive");
+        await expect(
+            page
+                .locator('#message-list li[data-controller="mail--message-row"]')
+                .filter({ hasText: INBOX_SUBJECTS.archive }),
+        ).toBeVisible();
+    });
+
+    /**
+     * Archiving is not filing: Gmail's rule is that the mail keeps its labels
+     * and only leaves the inbox.
+     */
+    test("an archived conversation keeps the labels it had", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = mailRow(page, INBOX_SUBJECTS.archive);
+        await expect(row).toBeVisible();
+
+        await row.hover();
+        await row.getByRole("button", { name: "Archive", exact: true }).click();
+        await expect(row).toHaveCount(0);
+
+        await page.goto("/mail/archive");
+        await expect(
+            page
+                .locator('#message-list li[data-controller="mail--message-row"]')
+                .filter({ hasText: INBOX_SUBJECTS.archive }),
+        ).toBeVisible();
+    });
+
+    /**
+     * The sidebar route into it. The "More" disclosure used to come back shut
+     * on every navigation — the sidebar is not turbo-permanent and re-renders
+     * whole — so choosing Archive from it read as the menu collapsing instead
+     * of doing anything.
+     */
+    test("stays open on More after navigating to Archive", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const more = page.locator("#sidebar details").first();
+        await more.locator("summary").click();
+
+        await page.locator('#sidebar a[href="/mail/archive"]').click();
+        await page.waitForURL(/\/mail\/archive/);
+
+        // The disclosure is open on arrival, with the row you chose still shown.
+        await expect(page.locator("#sidebar details").first()).toHaveAttribute("open", "");
+        await expect(page.locator('#sidebar a[href="/mail/archive"]')).toBeVisible();
     });
 
     test("deletes a conversation and it moves to Trash", async ({ page }) => {

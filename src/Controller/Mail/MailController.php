@@ -242,9 +242,34 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Archive role view — only reachable when the user has switched an
-     * Archive label visible in the label settings.
+     * Spam role view.
+     *
+     * Its sidebar entry is behind the label-settings eye toggle, like Archive's
+     * — but the route is unconditional, exactly as Archive's is. Gating the
+     * ROUTE on a display preference would make a bookmark stop working because
+     * someone tidied their sidebar, and the folder rows under an expanded
+     * account already link to this mail by label id whether the toggle is on
+     * or not.
      */
+    #[Route('/spam', name: 'spam')]
+    public function spam(Request $request): Response
+    {
+        $user    = $this->getUser();
+        $page    = max(1, (int) $request->query->get('page', 1));
+        $threads = $this->threadRepository->findForRole($user, LabelRole::Spam, $page);
+        $total   = $this->threadRepository->countForRole($user, LabelRole::Spam);
+
+        $this->threadRepository->preloadLabels($threads);
+
+        return $this->render('mail/spam.html.twig', [
+            'threads'  => $threads,
+            'page'     => $page,
+            'total'    => $total,
+            'per_page' => 50,
+        ]);
+    }
+
+    /** Archive role view. */
     #[Route('/archive', name: 'archive')]
     public function archive(Request $request): Response
     {

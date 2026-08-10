@@ -30,7 +30,12 @@ test.describe("create label", () => {
         // nothing to swap and the dialog stays on the spinner.
         const modal = page.locator("#modal-backdrop");
         await expect(modal).toBeVisible();
-        await expect(modal.locator("#modal input[type='text']")).toBeVisible();
+        // The Name field specifically, not "a text input in the frame": the
+        // parent-label picker is a Tom Select, and once an install has more
+        // than a handful of labels the widget renders its own search box —
+        // another <input type="text"> inside #modal that belongs to the
+        // dropdown rather than to the form.
+        await expect(modal.locator("#modal").getByLabel("Name")).toBeVisible();
 
         await modal.getByLabel("Name").fill(created);
         await modal.getByRole("button", { name: "Save" }).click();
