@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
@@ -12,6 +13,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -225,6 +227,199 @@ final class MessageThreadRepositoryTest extends KernelTestCase
      *
      * @return list<string>
      */
+    // ── the bin is a place, not a label you also happen to carry ─────────────
+
+    /**
+     * The reported bug, end to end and through the real derivation.
+     *
+     * Trashing takes Inbox away and leaves every custom label alone, and thread
+     * labels are the union of message labels — so the thread genuinely carries
+     * both "Receipts" and Trash. Listing by label alone therefore showed
+     * deleted mail under Receipts, which is where someone finds a conversation
+     * they threw away a month ago and starts replying to it.
+     */
+    public function testATrashedThreadDropsOutOfItsOtherLabelViews(): void
+    {
+        $receipts = $this->seedLabel('Receipts');
+        $trash    = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread  = $this->thread('a receipt', '2026-02-01 09:00');
+        $message = $this->message($thread, '2026-02-01 09:00');
+
+        $message->addLabel($receipts);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(
+            ['a receipt'],
+            $this->subjectsOf($this->repository->findForLabel($receipts)),
+            'precondition: it lists under its label before being trashed',
+        );
+
+        $message->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame([], $this->subjectsOf($this->repository->findForLabel($receipts)));
+        self::assertSame(0, $this->repository->countForLabel($receipts));
+    }
+
+    public function testTheTrashViewStillShowsIt(): void
+    {
+        $receipts = $this->seedLabel('Receipts');
+        $trash    = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread  = $this->thread('a receipt', '2026-02-01 09:00');
+        $message = $this->message($thread, '2026-02-01 09:00');
+
+        $message->addLabel($receipts);
+        $message->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(
+            ['a receipt'],
+            $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Trash)),
+        );
+        self::assertSame(1, $this->repository->countForRole($this->user, LabelRole::Trash));
+    }
+
+    /**
+     * The per-account folder row, which is the trap in this change: those rows
+     * are built from the labels bound to an account and include its Trash
+     * folder, and they go through findForLabel() like any other label. An
+     * unconditional exclusion would render that folder permanently empty.
+     */
+    public function testTheAccountsOwnTrashFolderRowStillLists(): void
+    {
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread  = $this->thread('binned', '2026-02-01 09:00');
+        $message = $this->message($thread, '2026-02-01 09:00');
+
+        $message->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(
+            ['binned'],
+            $this->subjectsOf($this->repository->findForLabel($trash)),
+        );
+    }
+
+    public function testUntrashingPutsItBackUnderItsLabels(): void
+    {
+        $receipts = $this->seedLabel('Receipts');
+        $trash    = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread  = $this->thread('a receipt', '2026-02-01 09:00');
+        $message = $this->message($thread, '2026-02-01 09:00');
+
+        $message->addLabel($receipts);
+        $message->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame([], $this->subjectsOf($this->repository->findForLabel($receipts)));
+
+        $message->removeLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(
+            ['a receipt'],
+            $this->subjectsOf($this->repository->findForLabel($receipts)),
+        );
+        self::assertSame(1, $this->repository->countForLabel($receipts));
+    }
+
+    /** The "everything in this account" row, where deleted mail piled up most. */
+    public function testTheAccountListingHidesTrashedThreads(): void
+    {
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+
+        $this->thread('kept', '2026-03-01 09:00');
+
+        $binned  = $this->thread('binned', '2026-02-01 09:00');
+        $message = $this->message($binned, '2026-02-01 09:00');
+        $message->addLabel($trash);
+        $this->syncThreadLabels($binned);
+
+        self::assertSame(['kept'], $this->subjectsOf($this->repository->findForAccount($this->account)));
+        self::assertSame(1, $this->repository->countForAccount($this->account));
+    }
+
+    public function testTheInboxHidesTrashedThreads(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+
+        $kept           = $this->thread('kept', '2026-03-01 09:00');
+        $kept->category = MessageCategory::Primary;
+        $keptMessage    = $this->message($kept, '2026-03-01 09:00');
+        $keptMessage->addLabel($inbox);
+        $this->syncThreadLabels($kept);
+
+        // Trashing normally removes Inbox, but a provider that leaves both on
+        // must not put the thread back in the inbox either.
+        $binned           = $this->thread('binned', '2026-02-01 09:00');
+        $binned->category = MessageCategory::Primary;
+        $binnedMessage    = $this->message($binned, '2026-02-01 09:00');
+        $binnedMessage->addLabel($inbox);
+        $binnedMessage->addLabel($trash);
+        $this->syncThreadLabels($binned);
+
+        self::assertSame(
+            ['kept'],
+            $this->subjectsOf(
+                $this->repository->findForUnifiedInbox($this->user, MessageCategory::Primary),
+            ),
+        );
+    }
+
+    public function testTheStarredListHidesTrashedThreads(): void
+    {
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+
+        $kept            = $this->thread('kept', '2026-03-01 09:00');
+        $kept->starredAt = new DateTimeImmutable('2026-03-01 09:00');
+
+        $binned            = $this->thread('binned', '2026-02-01 09:00');
+        $binned->starredAt = new DateTimeImmutable('2026-02-01 09:00');
+        $this->em->flush();
+
+        $message = $this->message($binned, '2026-02-01 09:00');
+        $message->addLabel($trash);
+        $this->syncThreadLabels($binned);
+
+        self::assertSame(['kept'], $this->subjectsOf($this->repository->findForStarred($this->user)));
+        self::assertSame(1, $this->repository->countForStarred($this->user));
+    }
+
+    /**
+     * Runs the real derivation rather than writing thread_label by hand: the
+     * whole point of the bug is that the thread's labels are DERIVED from its
+     * messages, so a test that set them directly would be testing a state the
+     * application never produces.
+     */
+    private function syncThreadLabels(MessageThread $thread): void
+    {
+        self::getContainer()->get(ThreadLabelSynchronizer::class)->sync($thread);
+
+        // Flushed but deliberately not cleared: the tests keep hold of the
+        // message and label objects to trash and untrash them, and the queries
+        // under test read the database, which the flush has already caught up.
+        $this->em->flush();
+    }
+
+    private function seedSystemLabel(LabelRole $role): Label
+    {
+        $label            = new Label();
+        $label->usr       = $this->user;
+        $label->name      = ucfirst($role->value);
+        $label->role      = $role;
+        $label->isVisible = true;
+
+        $this->em->persist($label);
+        $this->em->flush();
+
+        return $label;
+    }
+
     private function subjectsOf(array $threads): array
     {
         return array_map(

@@ -5,6 +5,17 @@
 
 {% block title %}{{ "sidebar.nav.archive"|trans }} — {{ "app.name"|trans }}{% endblock %}
 
+{# Named, like Trash and Spam are. Without it the archive was a list of rows
+   with nothing saying which list it was — and since archiving used to file
+   nothing here, an unlabelled empty list was all anyone ever saw. Reuses the
+   nav string rather than minting an `archive.heading`: it is the same word in
+   the same three catalogues. #}
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ "sidebar.nav.archive"|trans }}</h2>
+    </div>
+{% endblock %}
+
 {% block message_list %}
     {% if threads is empty %}
         <li class="px-4 py-8 text-center text-sm text-ink-faint">

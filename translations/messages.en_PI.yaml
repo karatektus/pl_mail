@@ -1740,6 +1740,7 @@ sidebar:
         more: More
         sent: Cast off
         snoozed: Kept below deck
+        spam: Bilge
         starred: Marked with an X
         trash: Davy Jones' locker
     toggle: Raise or lower th' side riggin'
@@ -1813,6 +1814,10 @@ toolbar:
         unread: Unread
     select_all: Pick every yarn
     select_menu: More ways to pick
+
+spam:
+    empty: No bilge aboard.
+    heading: Bilge
 
 trash:
     empty: Naught fed to the fishes.

@@ -2063,6 +2063,7 @@ sidebar:
         more: More
         sent: Sent
         snoozed: Snoozed
+        spam: Spam
         starred: Starred
         trash: Trash
     toggle: Show or hide the sidebar
@@ -2137,6 +2138,10 @@ toolbar:
         unread: Unread
     select_all: Select all conversations
     select_menu: More selection options
+
+spam:
+    empty: No junk mail.
+    heading: Spam
 
 trash:
     empty: No deleted messages.

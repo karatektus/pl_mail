@@ -1,0 +1,35 @@
+{#
+mail/spam.html.twig — the junk folder.
+
+Shaped on trash.html.twig rather than on archive.html.twig, and that is the
+deliberate one: both of those are "mail that is not in your inbox", but a user
+opening Spam is auditing it — looking for the message that should not be here —
+so it gets a heading naming the folder and an empty state that says the folder
+is empty rather than the generic "nothing under this label".
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block list_scope %}spam{% endblock %}
+
+{% block title %}
+    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.spam'|trans }} — {{ 'app.name'|trans }}
+{% endblock %}
+
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'spam.heading'|trans }}</h2>
+    </div>
+{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
+            {{ 'spam.empty'|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

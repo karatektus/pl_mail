@@ -228,8 +228,20 @@ controller instead — the scroll position and which trees are open.
 
            <details> rather than a controller: the open/closed state is
            exactly what the element is for, and it keeps working before any
-           JavaScript has run. #}
-        <details class="rail-hide">
+           JavaScript has run.
+
+           `open` when you are already on one of the pages inside it, and that
+           is a bug fix rather than a nicety. The sidebar is deliberately not
+           data-turbo-permanent, so every navigation re-renders it from
+           scratch and the disclosure came back shut — click More, click
+           Archive, and the menu snapped closed with the row you had just
+           chosen hidden behind it again. It read as "the menu collapsed
+           instead of doing anything". Decided here rather than remembered in
+           localStorage like the label trees, because the honest answer to
+           "should this be open?" is "are you in it?", and the server already
+           knows. #}
+        {% set _moreRoutes = ['app_mail_snoozed', 'app_mail_archive'] %}
+        <details class="rail-hide" {{ app.request.attributes.get('_route') in _moreRoutes ? 'open' : '' }}>
             <summary class="nav-item flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer list-none transition-colors text-ink-muted">
                 <i class="fa-solid fa-chevron-right w-4 text-xs transition-transform" aria-hidden="true"></i>
                 <span>{{ 'sidebar.nav.more'|trans }}</span>
@@ -259,6 +271,28 @@ controller instead — the scroll position and which trees are open.
                 {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
             </a>
         </details>
+
+        {# Behind the same eye toggle in label settings that Archive is behind,
+           and for the same reason: plenty of installs have no junk folder
+           worth a permanent row. It had no row at ALL before — no entry, no
+           route, no translation key — so switching Spam visible in settings
+           did nothing observable anywhere. Sits above Trash because that is
+           where LabelRole::sortOrder() already put it. #}
+        {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
+            <a href="{{ path('app_mail_spam') }}"
+               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.spam'|trans }}"
+            >
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-ban w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.spam'|trans }}</span>
+                </span>
+                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam') }}
+            </a>
+        {% endif %}
+
         <a href="{{ path('app_mail_trash') }}"
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"

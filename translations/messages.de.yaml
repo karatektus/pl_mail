@@ -2104,6 +2104,7 @@ sidebar:
         more: Mehr
         sent: Gesendet
         snoozed: Zurückgestellt
+        spam: Spam
         starred: Markiert
         trash: Papierkorb
     toggle: Seitenleiste ein-/ausblenden
@@ -2178,6 +2179,10 @@ toolbar:
         unread: Ungelesene
     select_all: Alle Konversationen auswählen
     select_menu: Weitere Auswahloptionen
+
+spam:
+    empty: Keine Spam-Nachrichten.
+    heading: Spam
 
 trash:
     empty: Keine gelöschten Nachrichten.
