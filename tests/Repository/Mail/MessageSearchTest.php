@@ -147,6 +147,31 @@ final class MessageSearchTest extends KernelTestCase
         self::assertSame(['Dubious'], $this->search('in:spam'));
     }
 
+    /**
+     * The rule every list view applies since v0.0.25, arriving at search last
+     * because search builds its own SQL: a deleted conversation is not part of
+     * the mailbox somebody is looking through until they say `in:trash`.
+     *
+     * The trashed thread here deliberately carries a second label, because
+     * that is the case a naive `lbl.role <> 'trash'` would get wrong — the
+     * label join exists once per label, so the thread would keep matching
+     * through its "Receipts" row. `label:receipts` finding nothing is the
+     * assertion that actually pins the NOT EXISTS.
+     */
+    public function testTrashIsOnlyFoundWhenAskedFor(): void
+    {
+        $trash    = $this->seedLabel('Trash', LabelRole::Trash);
+        $receipts = $this->seedLabel('Receipts');
+
+        $this->seedMessage(subject: 'Binned invoice', body: 'the quarterly invoice', labels: [$trash, $receipts]);
+        $this->seedMessage(subject: 'Kept invoice', body: 'the quarterly invoice');
+
+        self::assertSame(['Kept invoice'], $this->search('invoice'));
+        self::assertSame([], $this->search('label:receipts'));
+        self::assertSame(['Binned invoice'], $this->search('in:trash'));
+        self::assertSame(['Binned invoice'], $this->search('in:bin'));
+    }
+
     public function testFlagsAndDatesNarrowTheSameWay(): void
     {
         $this->seedMessage(subject: 'Unread old', receivedAt: '2024-03-01', seen: false);

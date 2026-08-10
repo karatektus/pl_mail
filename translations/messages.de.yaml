@@ -630,6 +630,7 @@ app:
     name: Mail
 
 calendar:
+    default_name: Persönlich
     alert:
         mail:
             subject: 'Erinnerung: %title%'

@@ -11,6 +11,7 @@ use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Makes sure a user always has somewhere to put an event.
@@ -36,6 +37,7 @@ final readonly class CalendarProvisioner
         private CalendarRepository     $calendars,
         private EntityManagerInterface $em,
         private UserTimezoneResolver   $timezones,
+        private TranslatorInterface    $translator,
     ) {
     }
 
@@ -59,7 +61,12 @@ final readonly class CalendarProvisioner
 
         $calendar             = new Calendar();
         $calendar->usr        = $user;
-        $calendar->name       = 'Personal';
+        // The name is seed data, not UI: it is written once, in the user's own
+        // locale, and from then on it is theirs to rename. Users provisioned
+        // before this translation keep the English "Personal" for the same
+        // reason — a rename pass over data the user may have edited is not a
+        // translation, it is an overwrite.
+        $calendar->name       = $this->translator->trans('calendar.default_name', [], null, $user->locale);
         $calendar->role       = CalendarRole::Default;
         $calendar->isDefault  = true;
         $calendar->color      = Calendar::COLORS[0];

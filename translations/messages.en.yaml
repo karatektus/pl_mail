@@ -621,6 +621,7 @@ app:
     name: Mail
 
 calendar:
+    default_name: Personal
     alert:
         mail:
             subject: 'Reminder: %title%'

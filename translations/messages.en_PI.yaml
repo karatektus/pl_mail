@@ -367,6 +367,7 @@ app:
     name: Mail
 
 calendar:
+    default_name: Cap'n's own
     alert:
         mail:
             subject: 'A nudge: %title%'

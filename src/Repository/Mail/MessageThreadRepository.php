@@ -716,6 +716,25 @@ class MessageThreadRepository extends ServiceEntityRepository
             $params['labelRole'] = $query->mailboxRole;
         }
 
+        // ── Trash stays in Trash ──────────────────────────────────────────
+        // Search answers the mailbox somebody is looking through, and a
+        // deleted conversation is not part of it until they say `in:trash` —
+        // the same rule every list view applies since v0.0.25, arriving here
+        // last because search builds its own SQL.
+        //
+        // NOT EXISTS rather than a condition on `lbl`: that alias exists once
+        // per label the thread carries, so `lbl.role <> 'trash'` would keep a
+        // deleted thread matching through its OTHER labels — filtering join
+        // rows where the question is about the thread.
+        if (LabelRole::Trash->value !== $query->mailboxRole) {
+            $where[] = 'NOT EXISTS ('
+                . 'SELECT 1 FROM thread_label xtl'
+                . ' JOIN label xlbl ON xlbl.id = xtl.label_id'
+                . ' WHERE xtl.message_thread_id = t.id AND xlbl.role = :trashRole'
+                . ')';
+            $params['trashRole'] = LabelRole::Trash->value;
+        }
+
         $whereClause = implode(' AND ', $where);
 
         if ($countOnly) {
