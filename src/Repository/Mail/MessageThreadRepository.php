@@ -117,6 +117,44 @@ class MessageThreadRepository extends ServiceEntityRepository
      * — count() answers one number, and asking it per category would be one
      * query per tab on every page load.
      */
+    /**
+     * Threads per category regardless of read state, same grouped shape as the
+     * unread count below. This one decides which tabs exist at all: a category
+     * with fifty read promotions still deserves its tab, so visibility cannot
+     * be derived from the unread numbers.
+     *
+     * @return array<string, int>
+     */
+    public function countByCategoryForUnifiedInbox(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS threadCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :inbox')
+            ->groupBy('t.category')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', LabelRole::Inbox)
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $categoryValue = $row['category'];
+
+            if ($categoryValue instanceof MessageCategory) {
+                $categoryValue = $categoryValue->value;
+            }
+
+            $counts[$categoryValue] = (int) $row['threadCount'];
+        }
+
+        return $counts;
+    }
+
     public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
     {
         $rows = $this->createQueryBuilder('t')

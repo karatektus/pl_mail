@@ -9,6 +9,9 @@
 {% endblock %}
 
 {% block inbox_tabs %}
+    {# A lone Primary tab is a heading pretending to be a choice — when no
+       other category has mail, the whole row stays home. #}
+    {% if tabs|length > 1 %}
     <div class="border-b border-line px-1">
         <nav class="flex text-sm">
             {% for tabCase in tabs %}
@@ -28,6 +31,7 @@
             {% endfor %}
         </nav>
     </div>
+    {% endif %}
 {% endblock %}
 
 {% block message_list %}

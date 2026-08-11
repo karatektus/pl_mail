@@ -51,13 +51,26 @@ final class MailController extends AbstractController
         $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
         $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
         $tabCounts  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
+        $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
+
+        // A tab nobody's mail lands in is a door to an empty room — Gmail
+        // itself has quietly retired Forums. Primary always shows, a category
+        // shows while it holds anything at all, and the tab being LOOKED AT
+        // stays even when its last thread just left, so the ground does not
+        // vanish underfoot; it disappears on the next natural navigation.
+        $tabs = array_values(array_filter(
+            MessageCategory::cases(),
+            static fn (MessageCategory $case): bool => MessageCategory::Primary === $case
+                || $case === $tab
+                || ($tabTotals[$case->value] ?? 0) > 0,
+        ));
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/inbox.html.twig', [
             'threads'    => $threads,
             'tab'        => $tab,
-            'tabs'       => MessageCategory::cases(),
+            'tabs'       => $tabs,
             'tabCounts'  => $tabCounts,
             'page'       => $page,
             'total'      => $total,
