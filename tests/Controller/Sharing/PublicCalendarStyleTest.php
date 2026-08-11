@@ -145,7 +145,22 @@ final class PublicCalendarStyleTest extends WebTestCase
         $body = (string) $client->getResponse()->getContent();
 
         self::assertStringNotContainsString('calendar.share.', $body, 'a translation key reached the page');
-        self::assertStringContainsString(new DateTimeImmutable('today')->format('j M Y'), $body);
+
+        // Built with ICU, because the page is rendered with ICU now. Composing
+        // the expectation with format('j M Y') would assert that the date is
+        // arranged the one way PHP arranges it for every language, which is the
+        // defect |intl_date exists to remove — and this page is public, so its
+        // reader's locale is the least predictable in the app.
+        $expected = (new \IntlDateFormatter(
+            'en',
+            \IntlDateFormatter::NONE,
+            \IntlDateFormatter::NONE,
+            new DateTimeImmutable('today')->getTimezone(),
+            \IntlDateFormatter::GREGORIAN,
+            (new \IntlDatePatternGenerator('en'))->getBestPattern('dMMMy'),
+        ))->format(new DateTimeImmutable('today'));
+
+        self::assertStringContainsString((string) $expected, $body);
     }
 
     /**

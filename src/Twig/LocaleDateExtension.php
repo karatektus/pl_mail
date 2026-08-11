@@ -115,10 +115,20 @@ final class LocaleDateExtension extends AbstractExtension
         );
     }
 
-    private function coerce(\DateTimeInterface|string|int $date): \DateTimeInterface
+    /**
+     * Immutable specifically, not merely DateTimeInterface: the interface has
+     * no setTimezone(), and a mutable DateTime would have its zone changed
+     * under whoever passed it in — the template hands us the entity's own
+     * object, and rendering a date must not edit it.
+     */
+    private function coerce(\DateTimeInterface|string|int $date): \DateTimeImmutable
     {
-        if ($date instanceof \DateTimeInterface) {
+        if ($date instanceof \DateTimeImmutable) {
             return $date;
+        }
+
+        if ($date instanceof \DateTime) {
+            return \DateTimeImmutable::createFromMutable($date);
         }
 
         if (is_int($date)) {

@@ -186,22 +186,30 @@ final class MessageSearchTest extends KernelTestCase
      * returns the complement of what was asked for.
      */
     #[DataProvider('hostileQueries')]
-    public function testTsqueryPunctuationIsTextNotSyntax(string $query): void
+    public function testTsqueryPunctuationIsTextNotSyntax(string $query, int $expected): void
     {
         $this->seedMessage(subject: 'Invoice reminder', body: 'Payment for the invoice.');
 
-        self::assertIsArray($this->search($query));
+        self::assertCount($expected, $this->search($query));
     }
 
-    /** @return iterable<string, array{string}> */
+    /**
+     * The counts are the point, not just the absence of an exception: the
+     * punctuation is stripped and the words around it still do their work, and
+     * a query made of nothing BUT punctuation finds nothing rather than
+     * everything — which is what `!` would do if it reached to_tsquery as an
+     * operator.
+     *
+     * @return iterable<string, array{string, int}>
+     */
     public static function hostileQueries(): iterable
     {
-        yield 'bare colon star'  => ['invoice:*'];
-        yield 'unbalanced quote' => ["invoice'"];
-        yield 'boolean operators' => ['invoice & payment'];
-        yield 'negation operator' => ['!invoice'];
-        yield 'unbalanced paren' => ['(invoice'];
-        yield 'nothing but syntax' => ['&|!():*'];
+        yield 'bare colon star'    => ['invoice:*', 1];
+        yield 'unbalanced quote'   => ["invoice'", 1];
+        yield 'boolean operators'  => ['invoice & payment', 1];
+        yield 'negation operator'  => ['!invoice', 1];
+        yield 'unbalanced paren'   => ['(invoice', 1];
+        yield 'nothing but syntax' => ['&|!():*', 0];
     }
 
     public function testLabelMatchesAUserLabelByName(): void
