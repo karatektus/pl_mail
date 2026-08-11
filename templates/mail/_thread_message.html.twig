@@ -62,8 +62,13 @@ Variables:
 >
     {# ── Header row ─────────────────────────────────────────────────────── #}
     <div class="flex items-start gap-3">
-        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 flex items-center justify-center text-white text-sm font-medium shadow-sm">
-            {{ message.fromName|default(message.fromAddress)|slice(0,1)|upper }}
+        {# Same tone the thread list derives for this sender — one person, one
+           colour, wherever they appear. The gradient this replaces was a
+           hardcoded one-off that predated SenderAvatarExtension: every sender
+           wore the same blue, and "<hello@…>" wore a bracket. #}
+        <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-semibold select-none
+                    {{ (message.fromAddress ?: message.fromName)|avatar_tone }}">
+            {{ message.fromName|avatar_initial(message.fromAddress) }}
         </div>
 
         <div
