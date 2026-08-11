@@ -15,6 +15,30 @@ import { test } from "./support/test";
 test.describe("calendar pane demotion", () => {
     const shell = (page: Page) => page.locator("[data-controller~='ui--split']");
 
+    // The pane mode persists SERVER-SIDE on the per-worker user, and that
+    // user is shared with every other spec file this worker runs — today a
+    // leaked `split` narrowed mail.spec's list until its hover actions
+    // vanished. Every test here puts the furniture back.
+    test.afterEach(async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.evaluate(async () => {
+            const shellEl = document.querySelector("[data-controller~='ui--split']") as HTMLElement | null;
+
+            if (null === shellEl) {
+                return;
+            }
+
+            const body = new FormData();
+            body.append("_token", shellEl.getAttribute("data-ui--split-token-value") ?? "");
+            body.append("mode", "mail");
+            await fetch(shellEl.getAttribute("data-ui--split-state-url-value") ?? "", {
+                method: "POST",
+                body,
+                headers: { "X-Requested-With": "fetch" },
+            });
+        });
+    });
+
     /** Cycle the topbar switch until the shell reports the wanted mode. */
     async function enterMode(page: Page, mode: string): Promise<void> {
         for (let presses = 0; presses < 3; presses++) {
