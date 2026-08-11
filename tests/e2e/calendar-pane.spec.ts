@@ -162,6 +162,23 @@ test.describe("calendar pane demotion", () => {
             await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
             await expect(page.locator("turbo-frame#inbox-list-frame")).toBeVisible();
         });
+
+        test("one toggle press covers the mail too, and a mail link still demotes", async ({ page }) => {
+            await page.goto("/mail/inbox");
+
+            // ONE press: mode `split` — which below lg app.css draws as the
+            // calendar with the mail hidden. The user is in a fullscreen
+            // calendar whose mode is not NAMED calendar, which is exactly the
+            // state a mode-name check missed.
+            await page.locator("[data-calendar-toggle]").first().click();
+            await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+
+            await page.getByRole("link", { name: "Starred" }).click();
+
+            await expect(page).toHaveURL(/\/mail\/starred/);
+            await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+            await expect(page.locator("turbo-frame#inbox-list-frame")).toBeVisible();
+        });
     });
 
     test("a click inside the calendar leaves the fullscreen calendar alone", async ({ page }) => {

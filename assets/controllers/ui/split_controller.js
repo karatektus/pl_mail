@@ -101,7 +101,9 @@ export default class extends Controller {
         // pressing the switch. A reload keeps its original referrer, which is
         // why the persist matters: the second arrival reads the stored split
         // and this branch no-ops.
-        if (null === handoff && "calendar" === mode && this._arrivedFromOutsideMail()) {
+        if (null === handoff
+            && ("calendar" === mode || ("split" === mode && this._isNarrow()))
+            && this._arrivedFromOutsideMail()) {
             mode = this._isNarrow() ? "mail" : "split";
             this._persist({ mode });
         }
@@ -136,6 +138,20 @@ export default class extends Controller {
     /** Below lg the pane replaces the mail rather than sitting beside it. */
     _isNarrow() {
         return window.matchMedia("(max-width: 1023px)").matches;
+    }
+
+    /**
+     * Whether the calendar is currently COVERING the mail — which is the
+     * question every demotion path actually asks. `calendar` covers at every
+     * width, and below lg `split` does too: the row cannot hold both panes
+     * there, so app.css draws split as the calendar with the mail hidden
+     * ("Split below lg is Calendar"). A check against the mode NAME alone
+     * missed exactly that state, and one toggle press on a narrow window put
+     * the user in a fullscreen calendar no sidebar click could demote.
+     */
+    _calendarCoversMail() {
+        return "calendar" === this.modeValue
+            || ("split" === this.modeValue && this._isNarrow());
     }
 
     disconnect() {
@@ -189,7 +205,7 @@ export default class extends Controller {
             anchor.dataset.turboFrame = "inbox-list-frame";
         }
 
-        if ("calendar" !== this.modeValue) {
+        if (false === this._calendarCoversMail()) {
             return;
         }
 
@@ -422,7 +438,7 @@ export default class extends Controller {
         // navigation; this catches whatever slipped past it (a link the
         // handler never saw, a programmatic frame visit), because the frame
         // loading is the one event no mail navigation can avoid producing.
-        if ("inbox-list-frame" === frame?.id && "calendar" === this.modeValue) {
+        if ("inbox-list-frame" === frame?.id && this._calendarCoversMail()) {
             this._setMode(this._isNarrow() ? "mail" : "split");
 
             return;
