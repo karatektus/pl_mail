@@ -140,6 +140,7 @@ final readonly class VanishedMessageReconciler
         private MessageRepository      $messages,
         private MailboxRepository      $mailboxes,
         private MessageEraser          $eraser,
+        private ImapFlagReconciler     $flags,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -181,7 +182,7 @@ final readonly class VanishedMessageReconciler
      * MovedMessageReconciliationTest works through, where the test supplies the
      * answer the probe would have given.
      *
-     * @param array{uidValidity: int, uids: array<int,true>} $listing
+     * @param array{uidValidity: int, uids: array<int,true>, flags?: array<int,list<string>>, readAt?: DateTimeImmutable} $listing
      *
      * @return bool whether the listing was believed and acted on
      */
@@ -216,6 +217,19 @@ final readonly class VanishedMessageReconciler
 
         $marked  = $this->messages->markVanished($vanished, $now);
         $cleared = $this->messages->clearVanished($returned);
+
+        // The other half of what this listing said. A message's presence and
+        // its flags came back in one `UID FETCH 1:* (FLAGS)` — see
+        // ImapFolderListing for why they are one command — so they are believed
+        // together or not at all, and every path above that refuses this
+        // listing refuses its flags with it. A listing suspicious enough not to
+        // conclude a deletion from is not one to conclude a read state from
+        // either.
+        $this->flags->reconcile(
+            $mailbox,
+            $listing['flags'] ?? [],
+            $listing['readAt'] ?? $now,
+        );
 
         $mailbox->uidValidity = $listing['uidValidity'];
         $mailbox->sweptAt     = $now;
