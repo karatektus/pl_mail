@@ -148,4 +148,27 @@ class MailboxRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleColumnResult();
     }
+
+    /**
+     * Make a folder's deletion sweep due right now, without lying about what
+     * has been listed.
+     *
+     * The idle supervisor calls this when the server announces an EXPUNGE:
+     * the next sync should sweep immediately rather than on the cadence. The
+     * clock only ever moves BACKWARD — LEAST() — because advancing it would
+     * claim a listing that never happened, and the reaper's coverage rule
+     * trusts these timestamps. NULL stays NULL for the same reason: "never
+     * listed" is a fact, and a fact this method does not get to invent.
+     */
+    public function markSweepDue(int $mailboxId): void
+    {
+        $backdated = new \DateTimeImmutable(
+            '-' . \App\Service\Imap\VanishedMessageReconciler::SWEEP_INTERVAL_MINUTES . ' minutes',
+        );
+
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE mailbox SET swept_at = LEAST(swept_at, :backdated) WHERE id = :id AND swept_at IS NOT NULL',
+            ['backdated' => $backdated->format('Y-m-d H:i:s'), 'id' => $mailboxId],
+        );
+    }
 }

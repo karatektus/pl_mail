@@ -106,7 +106,7 @@ final readonly class VanishedMessageReconciler
      * this clock. It also sets the floor on how quickly a remote deletion shows
      * up locally, which is the trade being made: a quarter of an hour.
      */
-    private const int SWEEP_INTERVAL_MINUTES = 15;
+    public const int SWEEP_INTERVAL_MINUTES = 15;
 
     /**
      * How many vanished rows one reap will ask the server to confirm.

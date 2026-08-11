@@ -193,6 +193,25 @@ class ImapIdleCommand extends Command
                     $io->error(sprintf('[%s] Dispatch failed: %s', date('H:i:s'), $e->getMessage()));
                 }
             }
+
+            // The server announces every deletion to an idling client as an
+            // untagged EXPUNGE — a line this loop used to read and drop.
+            // WHICH message died is a sequence number this deliberately does
+            // not resolve: the deletion sweep is the authority, with the
+            // safety rails, and this only makes it run NOW for this folder
+            // instead of on its cadence. Backdate the sweep clock and
+            // dispatch the same sync EXISTS dispatches — the deletion lands
+            // in seconds instead of within two fifteen-minute cycles.
+            if (true === str_contains($line, 'EXPUNGE')) {
+                $this->beat($mailbox, $account, true);
+                $io->text(sprintf('[%s] Expunge seen — sweeping now.', date('H:i:s')));
+                try {
+                    $this->mailboxRepository->markSweepDue($mailboxId);
+                    $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
+                } catch (\Throwable $e) {
+                    $io->error(sprintf('[%s] Sweep dispatch failed: %s', date('H:i:s'), $e->getMessage()));
+                }
+            }
         }
     }
 
