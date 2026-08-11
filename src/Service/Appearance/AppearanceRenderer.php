@@ -9,6 +9,9 @@ use App\Entity\Embeddable\Appearance;
 
 final readonly class AppearanceRenderer
 {
+    /** WCAG 2.x AA for body text. What accent-ink is held to. */
+    private const float MIN_CONTRAST = 4.5;
+
     public function __construct(private BackgroundResolver $backgroundResolver)
     {
     }
@@ -103,13 +106,74 @@ final readonly class AppearanceRenderer
         );
     }
 
+    /**
+     * The ink to write ON the accent, chosen by measuring rather than assuming.
+     *
+     * The accent is picked by the user from a colour wheel, so no fixed ink can
+     * be right for all of it — and white was effectively the fixed answer: the
+     * old test weighted the raw 0–255 channels and only crossed its 0.6
+     * threshold for very light colours, so a mid-tone pink got white text at
+     * 2.34:1, well under the 4.5:1 WCAG demands of body text.
+     *
+     * Two corrections. First, luminance is computed the way WCAG defines it —
+     * on gamma-EXPANDED channels. sRGB is not linear in intensity, and skipping
+     * the expansion overstates how dark a saturated mid-tone is, which is
+     * exactly the region where the wrong ink gets chosen. Second, there is no
+     * threshold to tune: both candidate inks are scored against the accent and
+     * the better one wins, so the rule states its own intent and cannot drift.
+     *
+     * The dark candidate is normally #18181B, which is what dark text is
+     * everywhere else in the app; a different black for accent chips alone
+     * would read as a mistake. But two inks are not quite enough to promise
+     * 4.5:1: the accents where white and #18181B score equally sit at a
+     * relative luminance near 0.198, and both score 4.24:1 there. That band is
+     * narrow and it is real, so when the house ink cannot clear 4.5:1 the dark
+     * candidate becomes pure black, which lifts the worst case over the line
+     * (4.58:1) for every accent a user can pick. In practice this only engages
+     * for mid-tone accents; everything else still gets the house ink.
+     */
     private static function contrastChannels(string $hex): string
     {
-        [$r, $g, $b] = self::rgb($hex);
+        $accent = self::relativeLuminance(self::rgb($hex));
 
-        $luminance = (0.2126 * $r + 0.7152 * $g + 0.0722 * $b) / 255;
+        $houseInk = [24, 24, 27];
+        $lightInk = [255, 255, 255];
+        $blackInk = [0, 0, 0];
 
-        return $luminance > 0.6 ? '24 24 27' : '255 255 255';
+        $onHouse = self::contrastRatio($accent, self::relativeLuminance($houseInk));
+        $onLight = self::contrastRatio($accent, self::relativeLuminance($lightInk));
+
+        if ($onLight > $onHouse && $onLight > self::contrastRatio($accent, self::relativeLuminance($blackInk))) {
+            return sprintf('%d %d %d', ...$lightInk);
+        }
+
+        $ink = $onHouse >= self::MIN_CONTRAST ? $houseInk : $blackInk;
+
+        return sprintf('%d %d %d', ...$ink);
+    }
+
+    /**
+     * WCAG 2.x relative luminance.
+     *
+     * @param array{0:int,1:int,2:int} $rgb
+     */
+    private static function relativeLuminance(array $rgb): float
+    {
+        $expand = static function (int $channel): float {
+            $c = $channel / 255;
+
+            return $c <= 0.04045 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        };
+
+        return 0.2126 * $expand($rgb[0])
+            + 0.7152 * $expand($rgb[1])
+            + 0.0722 * $expand($rgb[2]);
+    }
+
+    /** WCAG contrast ratio, 1.0 (identical) to 21.0 (black on white). */
+    private static function contrastRatio(float $a, float $b): float
+    {
+        return (max($a, $b) + 0.05) / (min($a, $b) + 0.05);
     }
 
     /** @return array{0:int,1:int,2:int} */

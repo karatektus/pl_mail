@@ -4,7 +4,7 @@ mail/print.html.twig
 Standalone printable view of a single message (opened in a new tab, fires the
 print dialog on load). Only the sanitized body is rendered as markup.
 #}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale|replace({'_': '-'}) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

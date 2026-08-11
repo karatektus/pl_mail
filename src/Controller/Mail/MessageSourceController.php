@@ -18,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * No raw RFC822 blob is stored, so the source view is reconstructed from the
  * persisted header map plus the decoded body.
  */
-#[Route('/mail/message/{id}', name: 'app_mail_message_')]
+#[Route('/mail/message/{id}', name: 'app_mail_message_', requirements: ['id' => '\d+'])]
 #[IsGranted('ROLE_USER')]
 final class MessageSourceController extends AbstractController
 {

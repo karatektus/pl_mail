@@ -1064,6 +1064,16 @@ drafts:
 errors:
     access_denied: You do not have access to this resource.
     not_found: The requested resource could not be found.
+    page:
+        back: Back to your mail
+        not_found:
+            body: The page you asked for is not here. The link may be mistyped, or what it pointed at may have been moved or deleted.
+            heading: Nothing at this address
+            title: Page not found
+        server:
+            body: Something went wrong at our end, not yours. The fault has been logged; trying again in a moment usually works.
+            heading: Something went wrong
+            title: Server error
 
 form:
     file:
@@ -1392,6 +1402,8 @@ search:
         label: Sort by
         recent: Most recent
         relevance: Most relevant
+    title: Search
+    title_query: 'Search: %query%'
 
 sent:
     empty: No sent messages.

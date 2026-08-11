@@ -1,5 +1,16 @@
 <!DOCTYPE html>
-<html class="{{ appearance_class() }}"
+{# `lang` is what tells a screen reader which voice to read the page in, and
+   what a browser offers to translate from. It was absent entirely, so assistive
+   technology fell back to the OS language and read a German UI in an English
+   voice.
+
+   The request locale, not the user's stored preference: they agree for a
+   signed-in user, and for the login page the request locale is the only one
+   there is. Underscores become hyphens because BCP 47 writes en-PI where
+   Symfony writes en_PI, and an invalid tag is ignored the same as a missing
+   one. #}
+<html lang="{{ app.request.locale|replace({'_': '-'}) }}"
+      class="{{ appearance_class() }}"
       data-theme="{{ appearance_theme() }}"
       style="{{ appearance_vars() }}">
 <head>
@@ -7,9 +18,16 @@
     {# Without this the browser assumes a ~980px desktop canvas and scales the
        whole app down. `viewport-fit=cover` lets the gradient run under the
        notch; the safe-area padding in app.css keeps content clear of it.
-       Zoom is pinned so the app behaves like an installed PWA rather than a
-       page — see the 16px form-control rule in app.css, which is what actually
-       stops iOS zooming on focus (it ignores user-scalable).
+
+       Zoom is NOT pinned. `maximum-scale=1, user-scalable=no` used to be here
+       to make the app feel installed rather than page-like; it also took away
+       pinch-zoom, which WCAG 1.4.4 requires and which is the only way some
+       people read anything at all. The reason it was added — iOS zooming when
+       a small form control takes focus — is already handled by the 16px
+       form-control rule in app.css, which is what actually prevents that; iOS
+       ignores user-scalable anyway, so this only ever disabled zoom on Android
+       where nothing was wrong.
+
        `interactive-widget=resizes-content`: Android's default (resizes-visual)
        shrinks only the visual viewport for the keyboard and leaves the layout
        viewport — where fixed elements live — at full height, so the page
@@ -18,7 +36,7 @@
        the keyboard and there is nothing to pan. iOS ignores this keyword; the
        compose controller's visualViewport tracking stays as its fallback. #}
     <meta name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <title>{% block title %}Welcome!{% endblock %}</title>
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it

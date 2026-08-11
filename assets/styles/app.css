@@ -55,8 +55,8 @@
     /* Ink */
     --rgb-ink:           39  39  42;
     --rgb-ink-soft:      55  65  81;   /* gray-700 */
-    --rgb-ink-muted:    113 113 122;
-    --rgb-ink-faint:    161 161 170;
+    --rgb-ink-muted:    95 95 102;
+    --rgb-ink-faint:    116 116 122;
 
     /* Accent. The stored setting overrules this from an inline style on
        <html>; the value here is what the theme asks for, and Theme::defaults()
@@ -108,8 +108,8 @@
     --rgb-sheet:            255 255 255;
     --rgb-sheet-ink:         39  39  42;
     --rgb-sheet-ink-soft:    55  65  81;
-    --rgb-sheet-ink-muted:  113 113 122;
-    --rgb-sheet-ink-faint:  161 161 170;
+    --rgb-sheet-ink-muted:  95 95 102;
+    --rgb-sheet-ink-faint:  116 116 122;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 
@@ -147,7 +147,7 @@
     --rgb-ink:         244 244 245;
     --rgb-ink-soft:    209 213 219;   /* gray-300 */
     --rgb-ink-muted:   161 161 170;
-    --rgb-ink-faint:   113 113 122;
+    --rgb-ink-faint:   129 129 137;
 
     --rgb-accent:       37  99 235;
     --rgb-accent-ink:  255 255 255;
@@ -185,8 +185,8 @@
     --rgb-sheet:            248 250 252;   /* slate-50 */
     --rgb-sheet-ink:         15  23  42;   /* slate-900 */
     --rgb-sheet-ink-soft:    51  65  85;   /* slate-700 */
-    --rgb-sheet-ink-muted:  100 116 139;   /* slate-500 */
-    --rgb-sheet-ink-faint:  148 163 184;   /* slate-400 */
+    --rgb-sheet-ink-muted:  81 94 113;   /* slate-500 */
+    --rgb-sheet-ink-faint:  104 114 129;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -215,8 +215,8 @@
 
     --rgb-ink:        35  34  32;
     --rgb-ink-soft:   82  78  72;
-    --rgb-ink-muted: 107 102  94;
-    --rgb-ink-faint: 150 144 134;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
 
     --rgb-accent:    125 107  79;
     --rgb-accent-ink: 255 255 255;
@@ -255,8 +255,8 @@
     --rgb-sheet:            247 245 239;
     --rgb-sheet-ink:         35  34  32;
     --rgb-sheet-ink-soft:    82  78  72;
-    --rgb-sheet-ink-muted:  107 102  94;
-    --rgb-sheet-ink-faint:  150 144 134;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -292,8 +292,8 @@
 
     --rgb-ink:        214 209 202;
     --rgb-ink-soft:   186 181 174;
-    --rgb-ink-muted:  142 137 130;
-    --rgb-ink-faint:  108 104  98;
+    --rgb-ink-muted:  159 155 149;
+    --rgb-ink-faint:  134 131 126;
 
     --rgb-accent:      58 111  92;
     --rgb-accent-ink: 240 245 242;
@@ -338,8 +338,8 @@
     --rgb-sheet:            248 250 252;   /* slate-50 */
     --rgb-sheet-ink:         15  23  42;   /* slate-900 */
     --rgb-sheet-ink-soft:    51  65  85;   /* slate-700 */
-    --rgb-sheet-ink-muted:  100 116 139;   /* slate-500 */
-    --rgb-sheet-ink-faint:  148 163 184;   /* slate-400 */
+    --rgb-sheet-ink-muted:  81 94 113;   /* slate-500 */
+    --rgb-sheet-ink-faint:  104 114 129;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -395,9 +395,9 @@
        lightest colour rather than a warm cream borrowed from elsewhere. */
     --rgb-sheet:            236 239 244;
     --rgb-sheet-ink:         46  52  64;
-    --rgb-sheet-ink-soft:    88  93 104;
-    --rgb-sheet-ink-muted:  111 116 125;
-    --rgb-sheet-ink-faint:  149 153 161;
+    --rgb-sheet-ink-soft:    66  70  78;
+    --rgb-sheet-ink-muted:  83 87 94;
+    --rgb-sheet-ink-faint:  104 107 113;
     --rgb-sheet-link:        94 129 172;  /* #5e81ac */
     --rgb-sheet-danger:     191  97 106;  /* #bf616a */
 }
@@ -451,8 +451,8 @@
     --rgb-sheet:            245 243 255;
     --rgb-sheet-ink:         30  27  46;
     --rgb-sheet-ink-soft:    77  75  92;
-    --rgb-sheet-ink-muted:  103 100 117;
-    --rgb-sheet-ink-faint:  146 144 159;
+    --rgb-sheet-ink-muted:  91 88 103;
+    --rgb-sheet-ink-faint:  111 109 121;
     --rgb-sheet-link:       109  40 217;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -472,10 +472,15 @@
     --rgb-sunken:    238 232 213;   /* base2  #eee8d5 */
     --rgb-shadow:      0   0   0;
 
-    --rgb-ink:        88 110 117;   /* base01 #586e75 */
-    --rgb-ink-soft:   94 116 124;
-    --rgb-ink-muted: 101 123 131;   /* base00 #657b83 */
-    --rgb-ink-faint: 147 161 161;   /* base1  #93a1a1 */
+    /* Solarized light's own content tones (base01/base00/base1) sit inside a
+       narrow band — roughly 2.5:1 to 5:1 on base3. That band cannot hold four
+       tiers where even the FAINTEST must clear 4.5:1, so the ramp is extended
+       downward past base02 rather than compressed into illegibility. The hue
+       is solarized's; the range is not. */
+    --rgb-ink:        46  57  61;
+    --rgb-ink-soft:   61  75  81;
+    --rgb-ink-muted:  77  93 100;   /* base00 #657b83, darkened */
+    --rgb-ink-faint: 104 114 114;
 
     --rgb-accent:    181 137   0;   /* yellow #b58900 */
     --rgb-accent-ink: 255 255 255;
@@ -507,8 +512,8 @@
     --rgb-sheet:            253 246 227;   /* base3 */
     --rgb-sheet-ink:          7  54  66;   /* base02 #073642 */
     --rgb-sheet-ink-soft:    61  96 101;
-    --rgb-sheet-ink-muted:   91 119 121;
-    --rgb-sheet-ink-faint:  140 158 153;
+    --rgb-sheet-ink-muted:   74 96 98;
+    --rgb-sheet-ink-faint:  102 115 112;
     --rgb-sheet-link:        38 139 210;   /* blue #268bd2 */
     --rgb-sheet-danger:     220  50  47;   /* red  #dc322f */
 }

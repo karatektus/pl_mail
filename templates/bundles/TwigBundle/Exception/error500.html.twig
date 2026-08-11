@@ -1,0 +1,13 @@
+{#
+    The 500 page links to the inbox like the 404 does, which is worth a word:
+    if what broke is the inbox, that link goes straight back into the fault. It
+    stays because the alternative — a dead end — leaves someone whose session is
+    fine after a one-off failure with nowhere to click, and a second attempt is
+    the thing that usually works.
+#}
+{% extends 'bundles/TwigBundle/Exception/error.html.twig' %}
+
+{% set error_code    = 500 %}
+{% set error_title   = 'errors.page.server.title'|trans %}
+{% set error_heading = 'errors.page.server.heading'|trans %}
+{% set error_body    = 'errors.page.server.body'|trans %}

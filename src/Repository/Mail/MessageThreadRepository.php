@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
+use App\Service\Search\FreeTextCompiler;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -18,8 +19,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 class MessageThreadRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FreeTextCompiler $freeText = new FreeTextCompiler(),
+    ) {
         parent::__construct($registry, MessageThread::class);
     }
 
@@ -680,13 +683,56 @@ class MessageThreadRepository extends ServiceEntityRepository
         $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
-        // ── Free-text via tsvector ────────────────────────────────────────
+        // ── Free-text: three passes, OR-ed ────────────────────────────────
+        // websearch_to_tsquery alone answers only the question "does this mail
+        // contain exactly these words", which is not the question anyone types
+        // into a search box. The other two passes are additive — nothing that
+        // matched before stops matching — and each costs something:
+        //
+        //   websearch  index-only, GIN on search_vector. Free.
+        //   prefix     the same GIN index; `:*` makes it a range over the
+        //              lexeme dictionary rather than a point lookup, so it
+        //              reads more index entries but no more heap.
+        //   substring  ILIKE '%needle%'. Sequential without help, which is why
+        //              Version20260811... installs pg_trgm and GIN trigram
+        //              indexes over the four columns it touches. Restricted to
+        //              a single term of 3+ characters — see FreeTextCompiler,
+        //              which is also where the safety of the tsquery text is
+        //              established.
         $rankExpr = '0';
 
         if ($query->freeText !== '') {
-            $where[]            = "m.search_vector @@ websearch_to_tsquery('english', :freeText)";
-            $params['freeText'] = $query->freeText;
-            $rankExpr           = "ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))";
+            $free = $this->freeText->compile($query->freeText);
+
+            $matches            = ["m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
+            $ranks              = ["ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))"];
+            $params['freeText'] = $free->websearch;
+
+            if (null !== $free->prefix) {
+                $matches[]            = "m.search_vector @@ to_tsquery('english', :freePrefix)";
+                $ranks[]              = "ts_rank(m.search_vector, to_tsquery('english', :freePrefix))";
+                $params['freePrefix'] = $free->prefix;
+            }
+
+            if (null !== $free->substring) {
+                // from_name and from_address as well as the body: a search for
+                // part of a sender's domain is the same gesture as a search for
+                // part of a word in the text, and fails the same way without it.
+                $matches[] = '('
+                    . 'm.subject ILIKE :freeLike'
+                    . ' OR m.body_text ILIKE :freeLike'
+                    . ' OR m.from_name ILIKE :freeLike'
+                    . ' OR m.from_address ILIKE :freeLike'
+                    . ')';
+                $params['freeLike'] = $this->freeText->likePattern($free->substring);
+            }
+
+            $where[] = '(' . implode(' OR ', $matches) . ')';
+
+            // A row reached only by the substring pass has no ts_rank to give;
+            // GREATEST over what did match keeps relevance ordering meaningful
+            // instead of letting a NULL sink every such row to the bottom.
+            $rankExpr = 1 === count($ranks) ? $ranks[0] : 'GREATEST(' . implode(', ', $ranks) . ')';
         }
 
         // ── Operator filters ──────────────────────────────────────────────

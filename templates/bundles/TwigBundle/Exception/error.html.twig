@@ -1,0 +1,69 @@
+{#
+    The fallback error page, and the body every specific one extends.
+
+    Symfony picks errorNNN.html.twig if it exists and falls back to this, so a
+    status without its own template still lands somewhere branded rather than on
+    the stock white "Oops! An Error Occurred".
+
+    Standalone rather than `extends '_layout/app.html.twig'`, which was the
+    first attempt and was wrong: the app shell emits `csrf_token('ajax')`, which
+    reaches for the session, and there is no session on an anonymous request.
+    An error template that throws while rendering leaves the visitor on Symfony's
+    bare fallback — so a 404 for a logged-out visitor would have been exactly the
+    case where the branded page did not appear. An error page must not need
+    anything that might itself be what broke: no session, no user, no database,
+    no Mercure, no service worker.
+
+    What it keeps is the appearance: the theme functions read a cookie-backed
+    default and work without a user, so the page is still the user's colours
+    rather than a white sheet.
+#}
+{# Even `app.request` is guarded. An error template can be rendered with no
+   request in scope at all, and a null-property access here would throw inside
+   the handler for the thing that already threw. #}
+{% set error_locale = app.request is not null ? app.request.locale : 'en' %}
+<!DOCTYPE html>
+<html lang="{{ error_locale|replace({'_': '-'}) }}"
+      class="{{ appearance_class() }}"
+      data-theme="{{ appearance_theme() }}"
+      style="{{ appearance_vars() }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{{ error_title|default('errors.page.server.title'|trans) }} — {{ 'app.name'|trans }}</title>
+    {% include '_partials/_favicon.html.twig' %}
+    {{ importmap('app') }}
+</head>
+<body class="app-bg text-ink">
+    <main class="min-h-screen flex items-center justify-center px-4">
+        <div class="w-full max-w-md text-center">
+
+            <div class="flex items-center justify-center gap-2 mb-8">
+                <i class="fa-solid fa-envelope text-accent text-2xl" aria-hidden="true"></i>
+                <span class="text-xl font-semibold text-ink">{{ 'app.name'|trans }}</span>
+            </div>
+
+            {# The status number is a numeral in every locale this ships in, so
+               it is not translated — but it is decorative beside the heading
+               that actually says what happened, and a screen reader is better
+               served by that heading than by hearing "four hundred and four". #}
+            <p class="text-6xl font-semibold text-ink-faint tabular-nums mb-4" aria-hidden="true">
+                {{- error_code|default(status_code|default(500)) -}}
+            </p>
+
+            <h1 class="text-lg font-semibold text-ink mb-2">
+                {{- error_heading|default('errors.page.server.heading'|trans) -}}
+            </h1>
+            <p class="text-sm text-ink-muted mb-8">
+                {{- error_body|default('errors.page.server.body'|trans) -}}
+            </p>
+
+            <a href="{{ path('app_mail_inbox') }}"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-accent-ink text-sm font-medium hover:bg-accent-strong transition-colors">
+                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                {{ 'errors.page.back'|trans }}
+            </a>
+        </div>
+    </main>
+</body>
+</html>

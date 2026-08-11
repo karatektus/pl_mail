@@ -809,6 +809,16 @@ drafts:
 errors:
     access_denied: Ye have no leave to enter here.
     not_found: That be nowhere on the charts.
+    page:
+        back: Back to yer mail
+        not_found:
+            body: The page ye hailed be not here. Happen the link be mistyped, or what it pointed at were moved or scuttled.
+            heading: Naught at these coordinates
+            title: Page be lost at sea
+        server:
+            body: Somethin' went wrong on our deck, not yours. The fault be in the log; another go in a moment most often sails.
+            heading: Somethin' went wrong
+            title: The ship be takin' water
 
 form:
     file:
@@ -1128,6 +1138,8 @@ search:
         label: Sort by
         recent: Freshest catch
         relevance: Closest to the mark
+    title: Scourin'
+    title_query: 'Scourin'' for: %query%'
 
 sent:
     empty: No bottles cast off.

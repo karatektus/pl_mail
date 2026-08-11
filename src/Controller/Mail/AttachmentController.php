@@ -31,7 +31,7 @@ final class AttachmentController extends AbstractController
      * answers 404 and lets the chip keep its icon, rather than sending the
      * full-size original under a preview's name.
      */
-    #[Route('/mail/attachment/{id}/thumbnail', name: 'app_mail_attachment_thumbnail', methods: ['GET'])]
+    #[Route('/mail/attachment/{id}/thumbnail', name: 'app_mail_attachment_thumbnail', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function thumbnail(MessagePart $part): Response
     {
         $this->assertOwned($part);
@@ -54,7 +54,7 @@ final class AttachmentController extends AbstractController
         return $response;
     }
 
-    #[Route('/mail/attachment/{id}', name: 'app_mail_attachment', methods: ['GET'])]
+    #[Route('/mail/attachment/{id}', name: 'app_mail_attachment', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function serve(MessagePart $part, Request $request): Response
     {
         $this->assertOwned($part);

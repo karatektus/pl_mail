@@ -4,7 +4,7 @@ mail/original.html.twig
 Standalone "show original" page (opened in a new tab). Deliberately plain and
 independent of the app layout; the source is printed escaped, never |raw.
 #}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale|replace({'_': '-'}) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

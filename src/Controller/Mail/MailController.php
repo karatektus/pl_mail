@@ -18,6 +18,7 @@ use App\Twig\SidebarCounts;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -35,21 +36,73 @@ final class MailController extends AbstractController
     {
     }
 
+    /** Rows per page, for every list view and the pagination that clamps them. */
+    private const int PER_PAGE = 50;
+
+    /**
+     * The page to render — or a redirect to the last page that exists.
+     *
+     * `?page=999` on a 193-row folder used to render the header "201–193 of
+     * 193" above nothing at all: the lower bound was clamped and the upper one
+     * was not, so the arithmetic ran off the end of the list and said so. The
+     * page number is user input via the URL, and the honest answer to a page
+     * that does not exist is the last one that does.
+     *
+     * A redirect rather than a silent clamp, so the address bar stops claiming
+     * a page the user is not on — otherwise reloading, bookmarking or sharing
+     * the URL all carry the phantom page number along.
+     *
+     * Built from the current path and query rather than from a route name: this
+     * serves ten list actions whose route parameters differ, and the one thing
+     * they share is that only `page` needs changing.
+     */
+    private function pageOrRedirect(Request $request, int $total): int|RedirectResponse
+    {
+        $page     = max(1, (int) $request->query->get('page', 1));
+        $lastPage = max(1, (int) ceil($total / self::PER_PAGE));
+
+        if ($page <= $lastPage) {
+            return $page;
+        }
+
+        $query = $request->query->all();
+
+        // Page 1 is the bare URL. Carrying `?page=1` would make the canonical
+        // first page of every list a different URL depending on how it was
+        // reached.
+        if (1 === $lastPage) {
+            unset($query['page']);
+        } else {
+            $query['page'] = $lastPage;
+        }
+
+        return $this->redirect(
+            $request->getPathInfo() . ([] === $query ? '' : '?' . http_build_query($query)),
+        );
+    }
+
     #[Route('/inbox', name: 'inbox')]
     public function inbox(
         Request $request,
     ): Response {
         $user = $this->getUser();
-        $tab  = MessageCategory::Primary;
-        $page = max(1, (int) $request->query->get('page', 1));
 
-        $tabParam = $request->query->get('tab');
-        if ($tabParam !== null) {
-            $tab = MessageCategory::from($tabParam);
+        // tryFrom, not from: `?tab=` is a URL anyone can edit, and a category
+        // that does not exist is a mistyped or stale link, not a server fault.
+        // ValueError out of an enum here surfaced as a 500 on ?tab=quatsch.
+        // Falling back to Primary shows the inbox, which is what the person
+        // following that link was after.
+        $tab = MessageCategory::tryFrom((string) $request->query->get('tab', ''))
+            ?? MessageCategory::Primary;
+
+        $total = $this->threadRepository->countForUnifiedInbox($user, $tab);
+        $page  = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
         }
 
         $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
-        $total      = $this->threadRepository->countForUnifiedInbox($user, $tab);
         $tabCounts  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
         $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
 
@@ -74,7 +127,7 @@ final class MailController extends AbstractController
             'tabCounts'  => $tabCounts,
             'page'       => $page,
             'total'      => $total,
-            'per_page'   => 50,
+            'per_page'   => self::PER_PAGE,
         ]);
     }
 
@@ -99,7 +152,7 @@ final class MailController extends AbstractController
         return $this->renderLabel($label, $request);
     }
 
-    #[Route('/label/{id}', name: 'label')]
+    #[Route('/label/{id}', name: 'label', requirements: ['id' => '\d+'])]
     public function labelView(Label $label, Request $request): Response
     {
         if ($label->usr !== $this->getUser()) {
@@ -112,9 +165,14 @@ final class MailController extends AbstractController
     private function renderLabel(Label $label, Request $request): Response
     {
         $account = $this->requestedAccount($request);
-        $page    = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForLabel($label, $account, $page);
         $total   = $this->threadRepository->countForLabel($label, $account);
+        $page    = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $threads = $this->threadRepository->findForLabel($label, $account, $page);
 
         $this->threadRepository->preloadLabels($threads);
 
@@ -124,7 +182,7 @@ final class MailController extends AbstractController
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,
-            'per_page' => 50,
+            'per_page' => self::PER_PAGE,
         ]);
     }
 
@@ -160,16 +218,21 @@ final class MailController extends AbstractController
      * Everything in one account — what clicking the account itself in the
      * sidebar now does. Its labels sit underneath for narrowing further.
      */
-    #[Route('/account/{account}', name: 'account')]
+    #[Route('/account/{account}', name: 'account', requirements: ['account' => '\d+'])]
     public function accountView(Account $account, Request $request): Response
     {
         if ($account->usr !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
-        $page    = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForAccount($account, $page);
         $total   = $this->threadRepository->countForAccount($account);
+        $page    = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $threads = $this->threadRepository->findForAccount($account, $page);
 
         $this->threadRepository->preloadLabels($threads);
 
@@ -178,7 +241,7 @@ final class MailController extends AbstractController
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,
-            'per_page' => 50,
+            'per_page' => self::PER_PAGE,
         ]);
     }
 
@@ -186,9 +249,14 @@ final class MailController extends AbstractController
     public function starred(Request $request): Response
     {
         $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForStarred($user, $page);
         $total   = $this->threadRepository->countForStarred($user);
+        $page    = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $threads = $this->threadRepository->findForStarred($user, $page);
 
         $this->threadRepository->preloadLabels($threads);
 
@@ -196,62 +264,26 @@ final class MailController extends AbstractController
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,
-            'per_page' => 50,
+            'per_page' => self::PER_PAGE,
         ]);
     }
 
     #[Route('/sent', name: 'sent')]
     public function sent(Request $request): Response
     {
-        $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Sent, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Sent);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/sent.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderRole($request, LabelRole::Sent, 'mail/sent.html.twig');
     }
 
     #[Route('/drafts', name: 'drafts')]
     public function drafts(Request $request): Response
     {
-        $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Drafts, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Drafts);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/drafts.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderRole($request, LabelRole::Drafts, 'mail/drafts.html.twig');
     }
 
     #[Route('/trash', name: 'trash')]
     public function trash(Request $request): Response
     {
-        $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Trash, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Trash);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/trash.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderRole($request, LabelRole::Trash, 'mail/trash.html.twig');
     }
 
     /**
@@ -267,38 +299,14 @@ final class MailController extends AbstractController
     #[Route('/spam', name: 'spam')]
     public function spam(Request $request): Response
     {
-        $user    = $this->getUser();
-        $page    = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Spam, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Spam);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/spam.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderRole($request, LabelRole::Spam, 'mail/spam.html.twig');
     }
 
     /** Archive role view. */
     #[Route('/archive', name: 'archive')]
     public function archive(Request $request): Response
     {
-        $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Archive, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Archive);
-
-        $this->threadRepository->preloadLabels($threads);
-
-        return $this->render('mail/archive.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => 50,
-        ]);
+        return $this->renderRole($request, LabelRole::Archive, 'mail/archive.html.twig');
     }
 
     /**
@@ -313,22 +321,40 @@ final class MailController extends AbstractController
     #[Route('/snoozed', name: 'snoozed')]
     public function snoozed(Request $request): Response
     {
+        return $this->renderRole($request, LabelRole::Snoozed, 'mail/snoozed.html.twig');
+    }
+
+    /**
+     * The six role views — Sent, Drafts, Trash, Spam, Archive, Snoozed — differ
+     * only in which role they count and which template they hand it to.
+     *
+     * They were six copies of the same eight lines until the page clamp had to
+     * be added to all of them, which is the usual way a fix reaches five of six
+     * places. One body means the next such change lands everywhere or nowhere.
+     */
+    private function renderRole(Request $request, LabelRole $role, string $template): Response
+    {
         $user  = $this->getUser();
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $threads = $this->threadRepository->findForRole($user, LabelRole::Snoozed, $page);
-        $total   = $this->threadRepository->countForRole($user, LabelRole::Snoozed);
+        $total = $this->threadRepository->countForRole($user, $role);
+        $page  = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $threads = $this->threadRepository->findForRole($user, $role, $page);
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render('mail/snoozed.html.twig', [
+        return $this->render($template, [
             'threads'  => $threads,
             'page'     => $page,
             'total'    => $total,
-            'per_page' => 50,
+            'per_page' => self::PER_PAGE,
         ]);
     }
 
-    #[Route('/account/{account}/folders', name: 'account_folders')]
+    #[Route('/account/{account}/folders', name: 'account_folders', requirements: ['account' => '\d+'])]
     public function accountFolders(Account $account): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
@@ -434,7 +460,7 @@ final class MailController extends AbstractController
         return $this->json($payload);
     }
 
-    #[Route('/message/{id}', name: 'message')]
+    #[Route('/message/{id}', name: 'message', requirements: ['id' => '\d+'])]
     public function message(Message $message, Request $request): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
@@ -463,7 +489,13 @@ final class MailController extends AbstractController
     }
 
 
-    #[Route('/thread/{id}', name: 'thread')]
+    /**
+     * `{id}` is constrained to digits so a non-numeric id fails to MATCH the
+     * route and becomes a 404. Without it the id reaches the entity resolver,
+     * which asks Postgres for a MessageThread whose bigint id is 'abc' and gets
+     * back a driver-level type error — a 500 for what is only a bad link.
+     */
+    #[Route('/thread/{id}', name: 'thread', requirements: ['id' => '\d+'])]
     public function thread(MessageThread $thread, Request $request): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');

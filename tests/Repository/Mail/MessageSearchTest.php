@@ -18,6 +18,7 @@ use App\Service\Search\SearchQueryParser;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -119,6 +120,88 @@ final class MessageSearchTest extends KernelTestCase
         $this->seedMessage(subject: 'Other', body: 'Nothing relevant in here.');
 
         self::assertSame(['Notes'], $this->search('meetings'));
+    }
+
+    /**
+     * The table from the bug report, verbatim.
+     *
+     * One mail, five ways of reaching for it, four of which used to come back
+     * empty. Kept as one test over one fixture because that is the shape of the
+     * complaint: the SAME mail, visible on screen, unfindable by every spelling
+     * of what is visibly in it except the one nobody would type.
+     *
+     * The two failures have different causes and different fixes, which is why
+     * both a prefix pass and a substring pass exist:
+     *
+     *   "Testmai"   a prefix of a lexeme. `:*` reaches it.
+     *   "wirhub"    NOT a prefix of anything — the tokenizer emits
+     *               "help.wirhub.de" as one host lexeme, so it is a substring
+     *               of a lexeme, and only ILIKE reaches it.
+     */
+    #[DataProvider('reportedSearches')]
+    public function testTheReportedSearchesAllFindTheMail(string $query): void
+    {
+        $this->seedMessage(
+            subject: 'Testmail Betreff',
+            body: 'Bitte besuche help.wirhub.de fuer mehr Infos',
+        );
+        $this->seedMessage(subject: 'Unrelated', body: 'Nothing in particular.');
+
+        self::assertSame(['Testmail Betreff'], $this->search($query));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function reportedSearches(): iterable
+    {
+        yield 'whole word, which already worked' => ['Testmail'];
+        yield 'prefix of a subject word'         => ['Testmai'];
+        yield 'inside a host token'              => ['wirhub'];
+        yield 'a suffix of a host token'         => ['wirhub.de'];
+        yield 'the host token entire'            => ['help.wirhub.de'];
+    }
+
+    /**
+     * Widening free text must not widen a query that was narrowed on purpose.
+     *
+     * Negation is the one that matters: OR-ing a prefix match onto `-invoice`
+     * hands back precisely the mail the user asked not to see, which is worse
+     * than the bug being fixed here. So websearch syntax turns the extra passes
+     * off rather than fighting them.
+     */
+    public function testDeliberateWebsearchSyntaxIsNotWidened(): void
+    {
+        $this->seedMessage(subject: 'Invoice reminder', body: 'Payment for the invoice.');
+        $this->seedMessage(subject: 'Payment plan', body: 'A plan for payment.');
+
+        self::assertSame(['Payment plan'], $this->search('payment -invoice'));
+        self::assertSame(['Payment plan'], $this->search('"payment plan"'));
+        self::assertCount(2, $this->search('invoice OR plan'));
+    }
+
+    /**
+     * tsquery syntax typed into the box is text, not syntax. Before the prefix
+     * pass there was nothing to escape — websearch_to_tsquery is total over its
+     * input — so this is new surface and worth pinning: any of these reaching
+     * to_tsquery unescaped is a 500, and `!` reaching it is a search that
+     * returns the complement of what was asked for.
+     */
+    #[DataProvider('hostileQueries')]
+    public function testTsqueryPunctuationIsTextNotSyntax(string $query): void
+    {
+        $this->seedMessage(subject: 'Invoice reminder', body: 'Payment for the invoice.');
+
+        self::assertIsArray($this->search($query));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function hostileQueries(): iterable
+    {
+        yield 'bare colon star'  => ['invoice:*'];
+        yield 'unbalanced quote' => ["invoice'"];
+        yield 'boolean operators' => ['invoice & payment'];
+        yield 'negation operator' => ['!invoice'];
+        yield 'unbalanced paren' => ['(invoice'];
+        yield 'nothing but syntax' => ['&|!():*'];
     }
 
     public function testLabelMatchesAUserLabelByName(): void
