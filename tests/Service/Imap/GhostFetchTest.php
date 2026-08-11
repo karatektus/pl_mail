@@ -56,15 +56,21 @@ final class GhostFetchTest extends TestCase
 
     /**
      * The secondary defect: buildMessage() guarded the sender with
-     * `null !== $from`, and an empty address Attribute answers `false`. So the
-     * guard passed, and the code went on to read `->mail` off a boolean.
+     * `null !== $from`, and an empty address Attribute answers `false`, not
+     * null. So the guard passed on a message with no sender at all and the code
+     * went on to read `->mail` off a boolean.
+     *
+     * Asserted as identity rather than as "is false and is not null", which is
+     * the same statement said twice and which a static analyser is right to
+     * call a tautology.
      */
     public function testAnEmptyFromIsFalseRatherThanNull(): void
     {
-        $from = self::header('')->get('from')->first();
-
-        self::assertFalse($from, 'the empty-address sentinel is false');
-        self::assertNotNull($from, 'which is exactly why a null check did not catch it');
+        self::assertSame(
+            false,
+            self::header('')->get('from')->first(),
+            'the empty-address sentinel is false, which is why a null check did not catch it',
+        );
     }
 
     /**

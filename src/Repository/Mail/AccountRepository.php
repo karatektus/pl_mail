@@ -68,7 +68,7 @@ class AccountRepository extends ServiceEntityRepository
      * makes an untouched install agree with settings instead of disagreeing
      * arbitrarily.
      *
-     * @return iterable<Account>
+     * @return list<Account>
      */
     public function findActiveForUserOrdered(UserInterface $user): array
     {
