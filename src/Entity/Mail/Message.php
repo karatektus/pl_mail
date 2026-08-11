@@ -138,6 +138,30 @@ class Message extends MessageModel
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $starredAt = null;
 
+    /**
+     * When a local flag change was made that the provider has not confirmed.
+     *
+     * Null is the resting state and means "the two sides agree, as far as
+     * anybody here knows". A value means a flag mutation happened locally and
+     * an outbound job is queued or in flight to carry it to the server.
+     *
+     * It exists because inbound flag sync reads the server's flags back, and
+     * the server's answer is *stale by construction* for exactly as long as
+     * that job takes: the user marks a message read, the row changes first
+     * because the database is the source of truth, and until the job lands the
+     * server still says unread. An inbound pass that believed it would revert
+     * the user, queue another outbound job to undo the revert, and flap.
+     *
+     * So this is written by LabelChangePropagator — the one place an outbound
+     * flag op is queued, for every provider — and cleared when that op reports
+     * success, or when a pass finds the server already agreeing. Inbound
+     * declines to touch a row while it is set. See ImapFlagReconciler for the
+     * grace window that stops a job lost forever from freezing a row's flags
+     * against the server permanently.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $flagsTouchedAt = null;
+
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $inReplyTo = [];
 

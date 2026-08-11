@@ -212,7 +212,52 @@ class ImapIdleCommand extends Command
                     $io->error(sprintf('[%s] Sweep dispatch failed: %s', date('H:i:s'), $e->getMessage()));
                 }
             }
+
+            // `* 4 FETCH (FLAGS (\Seen))` — what a server sends an idling
+            // client when another client changes a message's flags. Mail read
+            // on a phone announces itself here, and this loop used to drop the
+            // line exactly as it once dropped EXPUNGE.
+            //
+            // WHICH message is a sequence number, and this deliberately does
+            // not resolve it — the same trigger-versus-authority split the
+            // expunge above is built on. The flag pass rides on the folder
+            // listing, so it is the *same clock*: backdating sweptAt makes the
+            // one `UID FETCH 1:* (FLAGS)` run now, and it answers presence and
+            // flags together. A star set elsewhere lands in seconds rather than
+            // within two fifteen-minute cycles.
+            //
+            // FLAGS as well as FETCH, because an untagged FETCH can carry other
+            // data items and only this one is worth a round trip for.
+            if (true === self::announcesFlagChange($line)) {
+                $this->beat($mailbox, $account, true);
+                $io->text(sprintf('[%s] Flag change seen — refreshing now.', date('H:i:s')));
+                try {
+                    $this->mailboxRepository->markSweepDue($mailboxId);
+                    $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
+                } catch (\Throwable $e) {
+                    $io->error(sprintf('[%s] Flag refresh dispatch failed: %s', date('H:i:s'), $e->getMessage()));
+                }
+            }
         }
+    }
+
+    /**
+     * Whether a line the server pushed is announcing that flags changed.
+     *
+     * `* 4 FETCH (FLAGS (\Seen))` is the shape, and both halves are required.
+     * An untagged FETCH can carry other data items, and a line mentioning
+     * FLAGS without being a FETCH — the FLAGS and PERMANENTFLAGS lines every
+     * SELECT answers with — describes what the folder *permits* rather than
+     * what any message now has. Waking a folder listing for either would be a
+     * round trip that learns nothing.
+     *
+     * Static and public so that which lines count is a stated behaviour with a
+     * test on it rather than a condition buried in a socket loop no test can
+     * reach.
+     */
+    public static function announcesFlagChange(string $line): bool
+    {
+        return true === str_contains($line, 'FETCH') && true === str_contains($line, 'FLAGS');
     }
 
     /**

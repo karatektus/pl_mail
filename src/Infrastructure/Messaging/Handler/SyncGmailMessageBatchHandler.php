@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -20,6 +21,7 @@ use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
+use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -46,6 +48,7 @@ final readonly class SyncGmailMessageBatchHandler
         private StateManager           $stateManager,
         private LoggerInterface        $logger,
         private ThreadLabelSynchronizer $threadLabels,
+        private ThreadStatusUpdater     $status,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -64,24 +67,23 @@ final readonly class SyncGmailMessageBatchHandler
         // Used to attribute Gmailify sent AND received messages to the correct account.
         $siblingAccounts = $this->buildSiblingAccountMap($account);
 
-        // Dedup inside the batch too — batches can overlap across runs/retries.
-        // USER-scoped, not account-scoped: Gmailify attribution stores messages
-        // under sibling accounts, so a carrier-scoped lookup would miss them
-        // and re-insert on every retry. Enriched IMAP rows get their gmailId
-        // set, so they are covered here too and enrichment runs exactly once.
-        $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIdsForUser($account->usr)
-        );
-
-        $toFetch = [];
-
-        foreach ($message->gmailIds as $gmailId) {
-            if (true === isset($syncedGmailIds[$gmailId])) {
-                continue;
-            }
-
-            $toFetch[] = $gmailId;
-        }
+        // Everything the planner asked for, including ids already stored.
+        //
+        // This used to drop those, and dropping them silently defeated the one
+        // case that most needs them. GmailApiSyncer sends two sets: new ids,
+        // which it has already filtered against what is stored, and RELABELLED
+        // ids, which are stored by definition and are sent precisely because
+        // something about them changed. Its own comment says they "bypass that
+        // filter and the batch handler recognises them and enriches rather than
+        // inserting" — and then this method re-applied the identical filter and
+        // returned before fetching anything. A label change in Gmail, read
+        // state included, reached this handler and stopped here.
+        //
+        // Idempotency does not depend on this filter and never did: the loop
+        // below looks each id up before building, and enriches when it finds a
+        // row. A redelivered batch therefore costs one re-fetch and updates
+        // instead of inserting, which is what it should always have done.
+        $toFetch = array_values($message->gmailIds);
 
         if (count($toFetch) === 0) {
             return;
@@ -153,7 +155,10 @@ final readonly class SyncGmailMessageBatchHandler
                     $existing = $this->messageRepository->findOneForAccountByMessageId($targetAccount, $rfcMessageId);
 
                     if (null !== $existing) {
-                        $this->enrichExisting($existing, $labelIds, $gmailId, $targetAccount, $account);
+                        // Gmailify: the row is the sibling's own IMAP copy, and
+                        // the IMAP side owns its flags. Enrich the labels, leave
+                        // the read state to the folder listing that can see it.
+                        $this->enrichExisting($existing, $labelIds, $gmailId, $targetAccount, $account, false);
 
                         $enriched++;
                         $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
@@ -177,7 +182,10 @@ final readonly class SyncGmailMessageBatchHandler
                 $known = $this->messageRepository->findOneBy(['gmailId' => $gmailId]);
 
                 if (null !== $known) {
-                    $this->enrichExisting($known, $labelIds, $gmailId, $targetAccount, $account);
+                    // A native Gmail row: Gmail is the authority on its flags,
+                    // and UNREAD/STARRED are in the very labelIds this re-fetch
+                    // was made to re-read.
+                    $this->enrichExisting($known, $labelIds, $gmailId, $targetAccount, $account, true);
 
                     $enriched++;
                     $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
@@ -242,16 +250,29 @@ final readonly class SyncGmailMessageBatchHandler
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * Merge the Gmail copy's knowledge onto an existing IMAP-synced row:
-     * gmailId (covers it under the user-scoped dedup from now on),
-     * gmailLabelIds, and the carrier's labels translated onto the target
-     * account, propagated to the thread. Flags/read state stay untouched —
-     * the IMAP copy owns those.
+     * Merge the Gmail copy's knowledge onto an existing row: gmailId (covers it
+     * under the user-scoped dedup from now on), gmailLabelIds, and the
+     * carrier's labels translated onto the target account, propagated to the
+     * thread.
      *
      * Deliberately outside PostIngestPipeline: the row already went through it
      * on the IMAP side, so re-running would record a second create for an id
      * JMAP clients hold, and re-apply rules to mail the user may since have
      * filed by hand. Enrichment adds Gmail's label knowledge, not new content.
+     *
+     * ## Read state, and who owns it
+     *
+     * $ownsFlags is the whole of the difference. Gmail models read and starred
+     * as the labels UNREAD and STARRED, so they arrive in the very labelIds
+     * this re-fetch exists to re-read — and this method used to drop them on
+     * the floor for every row alike. On a native Gmail account that was the
+     * same gap plain IMAP had: mail read on a phone stayed unread in plMail
+     * forever, because nothing ever re-read the state of a message it already
+     * had. GmailMessageBuilder reads both at ingest and then never again.
+     *
+     * False only for the Gmailify case, where the row is a sibling account's
+     * own IMAP copy. There the IMAP folder listing is the authority on flags
+     * and this carrier is a bystander that happens to see the same mail.
      *
      * @param list<string> $labelIds
      */
@@ -261,6 +282,7 @@ final readonly class SyncGmailMessageBatchHandler
         string  $gmailId,
         Account $target,
         Account $carrier,
+        bool    $ownsFlags,
     ): void {
         if ('' !== $gmailId) {
             $existing->gmailId = $gmailId;
@@ -269,6 +291,20 @@ final readonly class SyncGmailMessageBatchHandler
         $existing->gmailLabelIds = $labelIds;
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
+
+        if (true === $ownsFlags) {
+            // One row at a time because enrichment is one row at a time, and
+            // this is the call that recounts the thread, updates the unread
+            // badge and records the JMAP change — as well as declining to
+            // revert a local change Gmail has not confirmed yet.
+            $this->status->applyRemoteFlags([
+                new RemoteFlagState(
+                    $existing,
+                    false === in_array('UNREAD', $labelIds, true),
+                    true === in_array('STARRED', $labelIds, true),
+                ),
+            ]);
+        }
 
         // Enrichment rewrites the message's labels, i.e. Email.mailboxIds — a
         // change a JMAP client must see. The row already has an id, so this is

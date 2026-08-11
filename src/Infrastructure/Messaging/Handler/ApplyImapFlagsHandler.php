@@ -324,6 +324,16 @@ final class ApplyImapFlagsHandler
             'delete' => $imapMessage->delete(expunge: true),
             default  => $this->logger->warning('ApplyImapFlagsHandler: unknown action', ['action' => $action]),
         };
+
+        // The server has the change now, so the inbound pass may read this row
+        // again. Until this line runs, Message::$flagsTouchedAt is what keeps
+        // ImapFlagReconciler from reading the server's still-old answer and
+        // reverting the user — see the entity property, and note that only the
+        // flag actions clear it. A move is not a flag change, and 'delete' is
+        // on its way to having no row at all.
+        if (true === in_array($action, ['flag', 'unflag', 'seen', 'unseen'], true)) {
+            $msg->flagsTouchedAt = null;
+        }
     }
 
     /**

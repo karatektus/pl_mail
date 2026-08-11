@@ -61,6 +61,8 @@ final readonly class LabelChangePropagator
             $imapAction = 'flag';
         }
 
+        $messages = $this->markFlagsInFlight($messages);
+
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailStarPayload($starred));
         $this->dispatchGraph($messages);
@@ -76,6 +78,8 @@ final readonly class LabelChangePropagator
         if (true === $read) {
             $imapAction = 'seen';
         }
+
+        $messages = $this->markFlagsInFlight($messages);
 
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailReadPayload($read));
@@ -251,6 +255,43 @@ final readonly class LabelChangePropagator
         }
 
         return null;
+    }
+
+    /**
+     * Write down that these messages carry a flag change the provider has not
+     * confirmed yet, and hand back a list the three dispatchers can each walk.
+     *
+     * This is the write half of the echo-race guard, and it belongs here rather
+     * than in the callers because this is the one place an outbound *flag* op
+     * is queued — for every provider at once. ThreadStatusUpdater and the JMAP
+     * EmailPatchApplier both arrive through star()/markRead(), so neither has
+     * to remember to mark anything, and neither can forget.
+     *
+     * Only star() and markRead() call it. A move is not a flag change: the
+     * inbound flag pass reads \Seen and \Flagged, and an archive that is still
+     * in flight is a question about where the row lives, which the deletion
+     * sweep and SentCopyReconciler already answer between them.
+     *
+     * No flush. Every caller mutates the row and flushes afterwards — that
+     * ordering is the whole contract of this class — so this rides along on the
+     * flush the mutation was already going to do.
+     *
+     * @param iterable<Message> $messages
+     *
+     * @return list<Message>
+     */
+    private function markFlagsInFlight(iterable $messages): array
+    {
+        $now  = new \DateTimeImmutable();
+        $list = [];
+
+        foreach ($messages as $message) {
+            $message->flagsTouchedAt = $now;
+
+            $list[] = $message;
+        }
+
+        return $list;
     }
 
     /**

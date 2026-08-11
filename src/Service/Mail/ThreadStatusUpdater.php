@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
@@ -46,6 +47,24 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final readonly class ThreadStatusUpdater
 {
+    /**
+     * How long a local flag change is allowed to stay unconfirmed before the
+     * provider's answer outranks it again.
+     *
+     * The guard has to expire, or it is the same bug in a smaller box: a job
+     * lost for good — a transport wiped, a worker that never returns, an
+     * account whose credentials stopped working — would freeze that row's flags
+     * against the server permanently.
+     *
+     * An hour is generous on purpose. Messenger's retry ladder, a NAS asleep
+     * until morning, a worker restarted mid-deploy: all minutes, none of them
+     * an hour. A change still unconfirmed after one is not in flight, it is
+     * lost, and the row should go back to agreeing with the server. The cost of
+     * being wrong here is one reverted flag; the cost of no bound at all is a
+     * row that never syncs its flags again.
+     */
+    public const int PENDING_GRACE_MINUTES = 60;
+
     public function __construct(
         private EntityManagerInterface  $em,
         private LabelRepository         $labels,
@@ -210,6 +229,167 @@ final readonly class ThreadStatusUpdater
         $this->propagator->markRead($messages, $read);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
+    }
+
+    /**
+     * Take the provider's word for a set of messages' flags.
+     *
+     * The inbound twin of markRead() and star(), and deliberately in the same
+     * class: what \Seen and \Flagged *mean* locally — a seenAt, a starredAt, a
+     * thread star, a thread unread count, a row in the JMAP change log — is one
+     * answer, and having the inbound direction reimplement it somewhere else is
+     * how the two drift until a message is read in one client and unread in the
+     * other's badge.
+     *
+     * The one thing it does not do is call the propagator, and that is the
+     * whole difference. These changes came *from* the server, so sending them
+     * back is at best a wasted round trip and at worst the echo that makes the
+     * two directions argue.
+     *
+     * ## The echo guard lives here
+     *
+     * The user marks a message read. The row changes first, because the
+     * database is the source of truth, and an outbound job is queued. Until
+     * that job lands, the provider's honest answer is still the *old* one — and
+     * believing it would revert the user, which the propagator would see as a
+     * fresh local change and queue a job for, which the next pass would revert
+     * again. A flap, from two directions each correctly reporting what it sees.
+     *
+     * Note what does not fix it: comparing timestamps. The local write happens
+     * *before* the read — that is the shape of the race — so it is the older of
+     * the two, and last-write-wins picks the server every time. What the local
+     * change actually is, is unconfirmed, so that is what Message::$flagsTouchedAt
+     * records: set where the outbound job is queued, cleared where the provider
+     * accepts it. A row carrying one is left alone entirely, rather than merged,
+     * because a message whose \Seen is in flight may have had its \Flagged
+     * changed remotely meanwhile and a flag list cannot tell the two apart.
+     *
+     * The guard is checked here rather than in each provider's reconciler on
+     * purpose: it is one rule, it applies to IMAP, Gmail and Graph alike, and a
+     * guard that every caller has to remember is one a future caller will
+     * forget.
+     *
+     * Counters are recounted from the thread's own messages rather than
+     * adjusted, because a flag pass can change several messages of one thread
+     * at once and in both directions; markRead()'s cheaper arithmetic works
+     * because the user's action covers the whole selection.
+     *
+     * @param list<RemoteFlagState> $states
+     * @param DateTimeImmutable|null $readAt  when the provider was asked. The
+     *        echo guard is measured from here rather than from now, because a
+     *        pass that took a minute to walk a large folder should judge its
+     *        rows against the moment it asked, not the moment it got here.
+     *
+     * @return int how many rows actually changed
+     */
+    public function applyRemoteFlags(array $states, ?DateTimeImmutable $readAt = null): int
+    {
+        $readAt  = $readAt ?? new DateTimeImmutable();
+        $cutoff  = $readAt->modify('-' . self::PENDING_GRACE_MINUTES . ' minutes');
+        $changed = [];
+        $threads = [];
+        $expired = false;
+
+        foreach ($states as $state) {
+            $message = $state->message;
+
+            $pending = $message->flagsTouchedAt;
+
+            if (null !== $pending && $pending > $cutoff) {
+                // A local flag change the provider has not confirmed. Its
+                // answer is stale by construction — it predates the change —
+                // and applying it would revert the user and start a flap. See
+                // the method docblock.
+                continue;
+            }
+
+            if (null !== $pending) {
+                // The guard expired. Whatever was carrying that change is not
+                // coming back, and leaving the mark would make this row skip
+                // inbound flag sync for the rest of its life.
+                $message->flagsTouchedAt = null;
+                $expired                 = true;
+            }
+
+            $wasSeen    = null !== $message->seenAt;
+            $wasFlagged = null !== $message->starredAt;
+
+            $storedFlags = $state->storedFlags();
+
+            // Both sides canonicalised, so that a mirror captured from a server
+            // that writes `Seen` is not read as differing from a listing that
+            // writes `\Seen`. Without it the first pass over a folder would
+            // rewrite every row and log a JMAP change for each — see
+            // MessageFlag::canonicalList().
+            if (
+                $wasSeen === $state->seen
+                && $wasFlagged === $state->flagged
+                && MessageFlag::canonicalList($message->flags) === $storedFlags
+            ) {
+                continue;
+            }
+
+            // The mirror first, so \Answered and \Draft — which the model
+            // carries here and nowhere else — survive the refresh alongside the
+            // two that have columns.
+            $message->flags = $storedFlags;
+
+            if ($wasSeen !== $state->seen) {
+                // Now, not the server's idea of when: IMAP does not record when
+                // a flag was set, so the only honest timestamp is the one at
+                // which plMail learned of it. Null when unread, which is what
+                // every unread query in the codebase asks about.
+                $message->seenAt = true === $state->seen ? new DateTimeImmutable() : null;
+            }
+
+            if ($wasFlagged !== $state->flagged) {
+                $message->starredAt = true === $state->flagged ? new DateTimeImmutable() : null;
+
+                $thread = $message->thread;
+
+                if (null !== $thread) {
+                    // A thread is starred as a whole — the same rule star()
+                    // works to, from the other direction.
+                    $thread->starredAt = $message->starredAt;
+                }
+            }
+
+            $changed[] = $message;
+
+            $thread = $message->thread;
+
+            if (null !== $thread) {
+                $threads[(int) $thread->id] = $thread;
+            }
+        }
+
+        if ([] === $changed) {
+            if (true === $expired) {
+                // Nothing to apply — the server agreed with the row all along —
+                // but an expired guard mark was dropped and that has to reach
+                // the database, or the next pass expires it again forever.
+                $this->em->flush();
+            }
+
+            return 0;
+        }
+
+        foreach ($threads as $thread) {
+            $unread = 0;
+
+            foreach ($thread->messages as $message) {
+                if (null === $message->seenAt) {
+                    ++$unread;
+                }
+            }
+
+            $thread->unreadCount = $unread;
+        }
+
+        $this->recordJmapUpdates($changed);
+        $this->em->flush();
+
+        return count($changed);
     }
 
     /**

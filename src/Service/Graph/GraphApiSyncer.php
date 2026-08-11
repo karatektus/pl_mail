@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
@@ -12,6 +13,8 @@ use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\MessageEraser;
+use App\Service\Mail\ThreadStatusUpdater;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -55,6 +58,7 @@ final class GraphApiSyncer
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
         private readonly MessageEraser          $eraser,
+        private readonly ThreadStatusUpdater    $status,
     ) {}
 
     /**
@@ -235,6 +239,12 @@ final class GraphApiSyncer
         );
 
         $needsFetch = [];
+        $flagStates = [];
+
+        // Before the loop, because the echo guard is measured from the moment
+        // the provider was asked and the delta was already in hand when this
+        // was called.
+        $readAt = new DateTimeImmutable();
 
         foreach ($items as $item) {
             $graphId = (string) ($item['id'] ?? '');
@@ -253,12 +263,75 @@ final class GraphApiSyncer
                 continue;
             }
 
-            // Already synced and still present — the only thing that can have
-            // changed cheaply is where it lives.
+            // Already synced and still present — where it lives, and what state
+            // it is in.
             $this->attachFolderLabel($account, $graphId, (string) ($item['parentFolderId'] ?? $folderId));
+
+            // Read state used to stop here. The comment above this block said
+            // the only cheap thing that could have changed was location, and it
+            // was wrong: a Graph delta entry carries the whole message resource,
+            // isRead and flag included, so a message read in Outlook announced
+            // itself in this very payload and plMail dropped it. Mail read on a
+            // phone stayed unread here, exactly as it did on IMAP, and for the
+            // same reason — nothing ever re-read the state of a row it already
+            // had.
+            $state = $this->flagStateOf($graphId, $item);
+
+            if (null !== $state) {
+                $flagStates[] = $state;
+            }
+        }
+
+        // One call for the batch: it recounts threads and writes the JMAP
+        // change log, and it is where the echo guard keeps an unconfirmed local
+        // change from being reverted by a delta that predates it.
+        if ([] !== $flagStates) {
+            $this->status->applyRemoteFlags($flagStates, $readAt);
         }
 
         return $needsFetch;
+    }
+
+    /**
+     * What one delta entry says about a stored message's flags, or null if it
+     * does not say anything usable.
+     *
+     * Graph has no flag list, so the two booleans it does answer are turned
+     * into one: RemoteFlagState::storedFlags() synthesises the mirror. \Draft
+     * is deliberately not carried here — isDraft is a property of the message
+     * that GraphMessageBuilder sets at ingest and that a delta on a stored
+     * message does not change without the message being rewritten anyway.
+     *
+     * @param array<string,mixed> $item
+     */
+    private function flagStateOf(string $graphId, array $item): ?RemoteFlagState
+    {
+        if (false === array_key_exists('isRead', $item)) {
+            // A delta entry that does not mention read state is not asserting
+            // that the message is unread. Absence is not an answer — the same
+            // rule the IMAP listing works to.
+            return null;
+        }
+
+        $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+
+        if (null === $message) {
+            return null;
+        }
+
+        $flagStatus = $item['flag']['flagStatus'] ?? null;
+
+        return new RemoteFlagState(
+            $message,
+            true === $item['isRead'],
+            null === $flagStatus
+                // Exchange omits `flag` on a message that has never carried
+                // one. That is "not flagged", not "unknown" — unlike isRead,
+                // whose absence would be a delta that simply did not mention
+                // it — so the row's current star is preserved instead.
+                ? null !== $message->starredAt
+                : 'notFlagged' !== (string) $flagStatus,
+        );
     }
 
     private function attachFolderLabel(Account $account, string $graphId, string $folderId): void

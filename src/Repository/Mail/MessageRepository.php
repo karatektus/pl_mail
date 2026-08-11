@@ -765,6 +765,42 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every addressable row this mailbox holds, as UID => Message.
+     *
+     * Hydrated, unlike findLocatedUidsById(), and keyed the other way round,
+     * because the caller's question is the other way round: the flag pass holds
+     * the server's answer keyed by UID and needs the row that answer is about,
+     * in order to change it. There is no bulk-update shortcut available to it —
+     * applying a flag means seenAt, starredAt, the thread's unread count and a
+     * JMAP change-log row, which is ThreadStatusUpdater's job and needs
+     * entities.
+     *
+     * The cost is bounded by the same thing that bounds the sweep: this runs
+     * once per folder per SWEEP_INTERVAL_MINUTES, against the folder's located
+     * rows, and the listing it is compared with is the expensive half.
+     *
+     * @return array<int,Message> imapUid => Message
+     */
+    public function findLocatedByUid(Mailbox $mailbox): array
+    {
+        /** @var list<Message> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getResult();
+
+        $located = [];
+
+        foreach ($rows as $row) {
+            $located[(int) $row->imapUid] = $row;
+        }
+
+        return $located;
+    }
+
+    /**
      * Every address this mailbox holds, as row id => UID.
      *
      * findSyncedUids() answers "have I seen this UID", which is all the
