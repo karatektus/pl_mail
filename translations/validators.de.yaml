@@ -9,5 +9,7 @@ caldav.credential_required: Gib ein App-Passwort ein oder setz den Haken, um das
 caldav.reuse_account_required: Wähle, welches E-Mail-Konto sein Passwort hergeben soll — oder nimm den Haken weg und tippe eines ein.
 caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-Server kennt.
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
+compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
+compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

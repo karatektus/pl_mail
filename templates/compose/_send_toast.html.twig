@@ -2,7 +2,7 @@
     <template>
         {% include '_partials/_toast.html.twig' with {
             type: 'success',
-            message: 'Sending…',
+            message: 'compose.sending'|trans,
             extra: {
                 undo_url: path('app_compose_mail_undo', { id: message.id }),
                 hide_after: 8000

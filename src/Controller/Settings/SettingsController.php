@@ -71,7 +71,16 @@ final class SettingsController extends AbstractController
             $section = 'accounts';
         }
 
-        $manageableAccounts = $this->accountRepository->findForUserOrderedByName($this->getUser());
+        // The user's own arrangement, not the alphabet.
+        //
+        // This list is drag-reorderable, and AccountController::reorder()
+        // re-renders it with findForUserOrdered() — so dragging a row produced
+        // a list in sortOrder that snapped back to alphabetical on the next
+        // load. The order is also what "primary" means (position 0, see
+        // AccountCreator::resequence()), which made the first row and the
+        // primary account two different rows on any install where the two
+        // orderings disagree.
+        $manageableAccounts = $this->accountRepository->findForUserOrdered($this->getUser());
 
         return $this->render('settings/index.html.twig', [
             'section'            => $section,

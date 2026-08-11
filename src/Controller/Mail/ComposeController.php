@@ -3,6 +3,7 @@
 namespace App\Controller\Mail;
 
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -21,6 +22,7 @@ use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\SenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,6 +30,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Label-based compose: the From selector is an Account (unmapped form field),
@@ -73,6 +76,7 @@ class ComposeController extends AbstractController
         private readonly SenderResolver          $senders,
         private readonly MessageEraser           $eraser,
         private readonly LabelChangePropagator   $labelChanges,
+        private readonly TranslatorInterface     $translator,
     )
     {
     }
@@ -224,6 +228,29 @@ class ComposeController extends AbstractController
                 return $this->sendResponse($message, $ctx);
             }
 
+            // Belt and braces behind the Count constraint in ComposeType.
+            //
+            // That rule proves the *selection* is not empty; this proves the
+            // addresses about to go on the wire are addresses. They reach here
+            // from Contact rows, which are only ever created from a validated
+            // address — but a row can also arrive from a sync, an import or a
+            // restore, and none of those are this form. Refusing here means
+            // there is no path through the controller that dispatches a send
+            // to something that is not an address.
+            $unsendable = $this->firstUnsendableAddress($message);
+
+            if (null !== $unsendable) {
+                $form->get('toAddresses')->addError(new FormError(
+                    $this->translator->trans(
+                        'compose.recipient_invalid',
+                        ['{{ address }}' => $unsendable],
+                        'validators',
+                    ),
+                ));
+
+                return $this->renderWindow($form, $message, $ctx);
+            }
+
             $token   = $form->get('account')->getData();
             $account = $this->senders->accountFor($token, $this->getUser())
                 ?? $message->account
@@ -278,9 +305,23 @@ class ComposeController extends AbstractController
             ]);
         }
 
-        return $this->render('compose/_undo_toast.html.twig', [
-            'form' => $form,
+        // Every variable the window needs, and as a turbo-stream.
+        //
+        // This used to be a bare render() of form+message, which meant the
+        // template reached _window.html.twig without `ctx` or
+        // `pickerIntegrations` — and the window reads both. Under
+        // strict_variables that is a 500; without it the integration picker
+        // silently vanished and the frame/url params defaulted to the dock's.
+        //
+        // Either way the undo POST never returned a window, so the toast
+        // faded and the draft was filed with no way back to it — while the
+        // cancel above had already gone through. Cancelling a send has to
+        // *reopen* what was being written, which is the whole point of it.
+        return $this->turboStream('compose/_undo_toast.html.twig', [
+            'form'    => $form,
             'message' => $message,
+            'ctx'     => $ctx,
+            'pickerIntegrations' => $this->pickerIntegrations(),
         ]);
     }
 
@@ -434,6 +475,35 @@ class ComposeController extends AbstractController
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * The first recipient on the message that is not a usable address, or null
+     * when every one of them is.
+     *
+     * Cc and Bcc are checked as well as To: a malformed address anywhere in the
+     * envelope fails the send at the SMTP layer, and failing it here says which
+     * one rather than leaving a bounce to explain it.
+     */
+    private function firstUnsendableAddress(Message $message): ?string
+    {
+        $groups = [
+            $message->toAddresses ?? [],
+            $message->ccAddresses ?? [],
+            $message->bccAddresses ?? [],
+        ];
+
+        foreach ($groups as $addresses) {
+            foreach ($addresses as $entry) {
+                $address = (string) ($entry['address'] ?? '');
+
+                if (false === AddressHelper::isValidEmail($address)) {
+                    return '' === $address ? '—' : $address;
+                }
+            }
+        }
+
+        return null;
+    }
 
     /**
      * The thread whose list row the discard should take with it, or null to
@@ -597,14 +667,26 @@ class ComposeController extends AbstractController
             'form'    => $form,
             'message' => $message,
             'ctx'     => $ctx,
-            // Services this user can pull files out of. Download rather than
-            // Browse is the test that matters: a service you can list but not
-            // fetch from would open a picker that cannot attach anything.
-            'pickerIntegrations' => $this->integrationRepository->findSupportingForUser(
-                $this->getUser(),
-                Capability::Download,
-            ),
+            'pickerIntegrations' => $this->pickerIntegrations(),
         ]);
+    }
+
+    /**
+     * Services this user can pull files out of. Download rather than Browse is
+     * the test that matters: a service you can list but not fetch from would
+     * open a picker that cannot attach anything.
+     *
+     * Its own method because the window is rendered from two places — here and
+     * the undo toast — and the one that forgot it was a 500.
+     *
+     * @return list<\App\Entity\Integration\Integration>
+     */
+    private function pickerIntegrations(): array
+    {
+        return $this->integrationRepository->findSupportingForUser(
+            $this->getUser(),
+            Capability::Download,
+        );
     }
 
     private function turboStream(string $template, array $params): Response
@@ -630,10 +712,23 @@ class ComposeController extends AbstractController
             return $account;
         }
 
-        return $this->accountRepository->findOneBy([
-            'usr' => $this->getUser(),
-            'isActive' => true,
-        ]);
+        // Ordered, because this is the answer to "which account is primary" on
+        // every install where nothing carries the flag — an account created by
+        // anything other than AccountCreator::create() (a seed, an import, a
+        // restore) never gets it. Unordered, findOneBy returned whichever row
+        // the database felt like, so the From default could differ between two
+        // loads of the same window.
+        //
+        // sortOrder is the right tiebreak rather than an arbitrary one: it IS
+        // the user's own arrangement, and isPrimary is derived from position 0
+        // of exactly this ordering (AccountCreator::resequence()).
+        return $this->accountRepository->findOneBy(
+            [
+                'usr'      => $this->getUser(),
+                'isActive' => true,
+            ],
+            ['sortOrder' => 'ASC'],
+        );
     }
 
     /**

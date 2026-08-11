@@ -150,6 +150,49 @@ export default class extends Controller {
         select.dropdown.style.fontSize = fontSize
 
         if (this.bareValue) select.wrapper.classList.add("ts-bare")
+
+        this.#carryAccessibleName(select)
+    }
+
+    /**
+     * Carry the native select's accessible name onto the widget that replaces
+     * it.
+     *
+     * Tom Select builds its own text input and leaves the <select> hidden
+     * behind it. A name declared on the select — `aria-label`, or a <label>
+     * bound by id — therefore names an element the user can no longer reach,
+     * and the control they *can* reach reports as an unnamed combobox. The
+     * compose toolbar's typeface and size pickers were two of those.
+     *
+     * Only ever fills a gap: a widget Tom Select already named (it does wire
+     * `aria-labelledby` up from some label arrangements) is left alone.
+     */
+    #carryAccessibleName(select) {
+        const input = select.control_input
+
+        if (!input || input.hasAttribute("aria-label") || input.hasAttribute("aria-labelledby")) return
+
+        const label = this.element.getAttribute("aria-label")
+
+        if (label) {
+            input.setAttribute("aria-label", label)
+
+            return
+        }
+
+        const labelledBy = this.element.getAttribute("aria-labelledby")
+
+        if (labelledBy) {
+            input.setAttribute("aria-labelledby", labelledBy)
+
+            return
+        }
+
+        const bound = this.element.id
+            ? document.querySelector(`label[for="${CSS.escape(this.element.id)}"]`)
+            : null
+
+        if (bound?.textContent.trim()) input.setAttribute("aria-label", bound.textContent.trim())
     }
 
     #optionCount() {

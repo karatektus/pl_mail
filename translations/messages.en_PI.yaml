@@ -790,21 +790,74 @@ compose:
         large: Grand
         normal: Fair
         small: Wee
+    align:
+        center: Amidships
+        left: Hard to port
+        right: Hard to starboard
+    confirm:
+        no_body: This scroll be blank. Cast it off regardless?
+        no_subject: This scroll bears no heading. Cast it off regardless?
+    list:
+        ordered: Numbered manifest
+        unordered: Bulleted manifest
+    quote:
+        hide: stow the quoted words
+        show: unfurl the quoted words
+    status:
+        pending_many: "%count% more marks afore stowin'"
+        pending_one: one more mark afore stowin'
+        save_failed: Could not stow the scroll
+        saved: Scroll stowed
+        saving: "Stowin'…"
+        uploading: "Haulin' aboard…"
+    add_bcc: Add shadow crew
+    add_cc: Add copied crew
     attach: Lash on some cargo
-    attachment_remove: Heave the cargo overboard
+    attach_failed: Could not lash it on
+    attach_remove_failed: Could not heave the cargo overboard
+    attach_too_large: "%name% be heavier than %limit% MB"
+    bcc: Bcc
+    bold: Stout
+    cc: Cc
     click_to_cancel: click to belay it
     continue_editing: Keep scribblin'
     discard: Burn this scroll
     empty_draft: (blank scroll)
+    encrypt: Seal it in cipher
+    expand: Throw open the hatches
     formatting: Fancy lettering
     forward: Pass it along
+    from: From
+    image: Paste in a likeness
+    indent: Shove it inboard
+    insert_emoji: Daub on a face
+    insert_link: Splice in a link
+    invalid_address: "“%address%” be no proper address"
+    italic: Aslant
+    minimize: Batten down
+    more_options: More riggin'
+    new_message: A Fresh Scroll
     no_recipients: Nobody to send it to
+    outdent: Shove it outboard
     pop_out: Open in its own cabin
+    recipient_required: Name at least one soul afore ye cast off.
+    redo: Do it over again
     reply: Answer
     reply_all: Answer the whole crew
     reply_placeholder: "Answer %name%"
     save_and_close: Stow the scroll and close
+    send: Cast off
+    send_options: Castin'-off orders
     sending: "Castin' off…"
+    signature: Make yer mark
+    subject_label: Head
+    subject_placeholder: Headin'
+    text_color: Ink colour
+    to: To
+    underline: Underscored
+    undo: Belay that
+    body_placeholder: "Scrawl yer message…"
+    attachment_remove: Heave the cargo overboard
 
 drafts:
     empty: No scrolls in the works.
@@ -1805,6 +1858,8 @@ thread_row:
 
 toast:
     dismiss: Away with ye
+    send_cancelled: Castin' off belayed — back to yer scroll.
+    undo: Belay that
     error:
         no_archive_mailbox: There be no hold on this ship.
 

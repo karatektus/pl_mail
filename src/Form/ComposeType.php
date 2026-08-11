@@ -15,6 +15,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Validator\Constraints\Count;
 
 class ComposeType extends AbstractType
 {
@@ -44,8 +45,26 @@ class ComposeType extends AbstractType
                 'attr'         => ['class' => 'compose-from-select'],
             ])
 
+            // The `send` group is only applied by ComposeController::send(), so
+            // a draft may be saved with no recipient at all — which is the
+            // point of a draft — while an actual send may not.
+            //
+            // This is the server's half of the accidental-send guard, and it
+            // has to be the server's: the window can be bypassed, and an
+            // address that never resolved to a Contact arrives here as an
+            // empty selection rather than as a bad string (see
+            // ContactAutocompleteField, which drops what it cannot validate).
+            // "No valid recipient" and "no recipient" are therefore the same
+            // failure by the time the form is bound, and one rule covers both.
             ->add('toAddresses', ContactAutocompleteField::class, [
-                'mapped' => false,
+                'mapped'      => false,
+                'constraints' => [
+                    new Count(
+                        min: 1,
+                        minMessage: 'compose.recipient_required',
+                        groups: ['send'],
+                    ),
+                ],
             ])
 
             ->add('ccAddresses', ContactAutocompleteField::class, [

@@ -28,7 +28,16 @@
                 <div class="min-w-0 flex-1">
                     <p class="flex items-center gap-2 min-w-0">
                         <span class="truncate text-sm font-medium text-ink">{{ account.displayAddress }}</span>
-                        {% if loop.first %}
+                        {# Read the flag, not the position. This badge used to
+                           be `loop.first`, which made it a statement about
+                           whatever order the list happened to arrive in — and
+                           the settings page sorts alphabetically while
+                           `isPrimary` is derived from the user's own
+                           arrangement (AccountCreator::resequence). The two
+                           disagreed whenever the alphabet did, so the account
+                           badged PRIMARY here and the account compose actually
+                           sent from were different accounts. #}
+                        {% if account.isPrimary %}
                             <span class="shrink-0 inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                                 {{ 'settings.accounts.primary'|trans }}
                             </span>
