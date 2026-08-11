@@ -240,10 +240,14 @@ controller instead — the scroll position and which trees are open.
            localStorage like the label trees, because the honest answer to
            "should this be open?" is "are you in it?", and the server already
            knows. #}
-        {% set _moreRoutes = ['app_mail_snoozed', 'app_mail_archive'] %}
-        <details class="rail-hide" {{ app.request.attributes.get('_route') in _moreRoutes ? 'open' : '' }}>
+        {% set _moreRoutes = ['app_mail_snoozed', 'app_mail_archive', 'app_mail_spam', 'app_mail_trash'] %}
+        <details class="rail-hide group/more" {{ app.request.attributes.get('_route') in _moreRoutes ? 'open' : '' }}>
             <summary class="nav-item flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer list-none transition-colors text-ink-muted">
-                <i class="fa-solid fa-chevron-right w-4 text-xs transition-transform" aria-hidden="true"></i>
+                {# transition-transform was here from the start, but nothing ever
+                   set the open-state transform — the chevron had an animation
+                   and no destination. group-open is the same recipe the label
+                   tree uses. #}
+                <i class="fa-solid fa-chevron-right w-4 text-xs transition-transform group-open/more:rotate-90" aria-hidden="true"></i>
                 <span>{{ 'sidebar.nav.more'|trans }}</span>
             </summary>
         {% if sidebarCounts.hasSnoozed %}
@@ -270,7 +274,6 @@ controller instead — the scroll position and which trees are open.
                 </span>
                 {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
             </a>
-        </details>
 
         {# Behind the same eye toggle in label settings that Archive is behind,
            and for the same reason: plenty of installs have no junk folder
@@ -305,6 +308,7 @@ controller instead — the scroll position and which trees are open.
             </span>
             {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
         </a>
+        </details>
 
         {# Labels section #}
         <div class="rail-hide pt-4 pb-1 px-3 flex items-center justify-between">
