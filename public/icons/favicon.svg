@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="plMail">
+    <!--
+        The same mark as icon-512.png and apple-touch-icon.png, drawn rather
+        than resampled: a favicon is rendered at 16px, and an SVG is the only
+        form of it that stays crisp at every size a browser and every pixel
+        ratio a screen might ask for.
+
+        The blue is #2563eb, which is also the theme-color meta and what the
+        PNG icons were exported from — one mark, one colour, three files that
+        agree.
+    -->
+    <rect width="512" height="512" fill="#2563eb"/>
+    <rect x="102" y="148" width="308" height="212" fill="#ffffff"/>
+    <path d="M102 148 L256 288 L410 148" fill="none" stroke="#2563eb" stroke-width="22"/>
+</svg>

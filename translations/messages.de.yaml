@@ -1192,6 +1192,11 @@ label:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
 
+list:
+    sort:
+        newest: Neueste zuerst
+        oldest: Älteste zuerst
+
 login:
     form:
         email: E-Mail-Adresse
@@ -2151,9 +2156,11 @@ thread_row:
     has_attachment: Enthält Anhang
     me: ich
     message_count: "({ count })"
+    no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
     select: Auswählen
     star: Diese Nachricht markieren
+    to: 'An: %recipients%'
     unread: Ungelesen
     unstar: Markierung dieser Nachricht entfernen
 

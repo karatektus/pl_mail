@@ -46,6 +46,19 @@ the conversation it answers.
         and (draft_scope or item.messageCount == 1) %}
     {% set draftId = draft ? draftMessage.id : null %}
 
+    {# In Drafts the who column asked the wrong question. Every draft is from
+       you, so the participant list answered "ich" on every row and the column
+       carried no information at all — the one thing that distinguishes one
+       unsent message from another is who it is FOR. #}
+    {% if draft_scope and draftMessage %}
+        {% set recipients = draftMessage.toAddresses
+            |map(r => r.name ?: r.address)
+            |filter(r => r is not empty) %}
+        {% set sender = recipients|length > 0
+            ? ('thread_row.to'|trans({ '%recipients%': recipients|join(', ') }))
+            : ('thread_row.no_recipient'|trans) %}
+    {% endif %}
+
     {% set hasAttachment = item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
 

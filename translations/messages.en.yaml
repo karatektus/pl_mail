@@ -1165,6 +1165,11 @@ label:
         hidden: Label is now hidden.
         shown: Label is now visible.
 
+list:
+    sort:
+        newest: Newest first
+        oldest: Oldest first
+
 login:
     form:
         email: Email address
@@ -2111,9 +2116,11 @@ thread_row:
     has_attachment: Has attachment
     me: me
     message_count: "({ count })"
+    no_recipient: (no recipient)
     no_subject: (no subject)
     select: Select
     star: Star this message
+    to: 'To: %recipients%'
     unread: Unread
     unstar: Unstar this message
 

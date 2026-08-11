@@ -4,6 +4,7 @@ namespace App\Repository\Mail;
 
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Mail\Account;
@@ -70,7 +71,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * entity, so none of the two joins — nor the DISTINCT they make necessary —
      * is available to it.
      */
-    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -84,12 +85,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('category', $category)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
             ->distinct();
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -194,7 +196,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * reason findForUnifiedInbox() is: the role lives on a Label the thread
      * reaches through a to-many, and the owner on the Account.
      */
-    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50): array
+    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -206,7 +208,6 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('l.role = :role')
             ->setParameter('user', $user)
             ->setParameter('role', $role)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
             ->distinct();
@@ -217,6 +218,8 @@ class MessageThreadRepository extends ServiceEntityRepository
         if (LabelRole::Trash !== $role) {
             $this->excludeTrashed($qb);
         }
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -251,7 +254,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder because the label is a to-many association: findBy() has no
      * way to say "carries this label".
      */
-    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50): array
+    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -259,12 +262,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.labels', 'l')
             ->where('l = :label')
             ->setParameter('label', $label)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage);
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -312,16 +316,17 @@ class MessageThreadRepository extends ServiceEntityRepository
      * loudest version of the bug — an "everything" list is exactly where a
      * month of deleted mail piles up.
      */
-    public function findForAccount(Account $account, int $page = 1, int $perPage = 50): array
+    public function findForAccount(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.account = :account')
             ->setParameter('account', $account)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -386,7 +391,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder for the join to Account: both the owner and whether the
      * account is still active live there, and neither is a field of the thread.
      */
-    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
+    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -396,11 +401,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('a.isActive = true')
             ->andWhere('t.starredAt IS NOT NULL')
             ->setParameter('user', $user)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage);
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }

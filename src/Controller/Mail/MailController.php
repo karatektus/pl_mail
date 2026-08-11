@@ -3,6 +3,7 @@
 namespace App\Controller\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
@@ -38,6 +39,41 @@ final class MailController extends AbstractController
 
     /** Rows per page, for every list view and the pagination that clamps them. */
     private const int PER_PAGE = 50;
+
+    /** Where the chosen list order is remembered between visits. */
+    private const string SORT_SESSION_KEY = 'mail.list_sort';
+
+    /**
+     * Which order to list in: what the URL asks for, else what was asked for
+     * last time, else newest-first.
+     *
+     * Per SESSION and across all list views, rather than per view or per user.
+     * Per view would mean Inbox and Trash disagreeing about a preference the
+     * user expressed once and thinks of as "how I read my mail"; storing it on
+     * the user would make a choice made to scan one backlog permanent, and
+     * survive into the next month on another device. A session is the span over
+     * which "I am reading oldest-first right now" is actually true.
+     *
+     * Writing on read is deliberate: the menu is a set of plain links (see
+     * _sort_menu.html.twig), so following one IS the request that records the
+     * choice. That keeps the whole feature free of JavaScript, at the cost of a
+     * GET with a side effect — acceptable because the effect is a display
+     * preference and the same GET is idempotent in every other respect.
+     */
+    private function listSort(Request $request): ListSortOrder
+    {
+        $session = $request->getSession();
+        $asked   = $request->query->get('sort');
+
+        if (null !== $asked && '' !== $asked) {
+            $sort = ListSortOrder::fromSetting($asked);
+            $session->set(self::SORT_SESSION_KEY, $sort->value);
+
+            return $sort;
+        }
+
+        return ListSortOrder::fromSetting($session->get(self::SORT_SESSION_KEY));
+    }
 
     /**
      * The page to render — or a redirect to the last page that exists.
@@ -102,7 +138,8 @@ final class MailController extends AbstractController
             return $page;
         }
 
-        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page);
+        $sort       = $this->listSort($request);
+        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort);
         $tabCounts  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
         $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
 
@@ -128,6 +165,7 @@ final class MailController extends AbstractController
             'page'       => $page,
             'total'      => $total,
             'per_page'   => self::PER_PAGE,
+            'list_sort'  => $sort,
         ]);
     }
 
@@ -172,17 +210,19 @@ final class MailController extends AbstractController
             return $page;
         }
 
-        $threads = $this->threadRepository->findForLabel($label, $account, $page);
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/label.html.twig', [
-            'label'    => $label,
-            'account'  => $account,
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => self::PER_PAGE,
+            'label'     => $label,
+            'account'   => $account,
+            'threads'   => $threads,
+            'page'      => $page,
+            'total'     => $total,
+            'per_page'  => self::PER_PAGE,
+            'list_sort' => $sort,
         ]);
     }
 
@@ -232,16 +272,18 @@ final class MailController extends AbstractController
             return $page;
         }
 
-        $threads = $this->threadRepository->findForAccount($account, $page);
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForAccount($account, $page, self::PER_PAGE, $sort);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/account.html.twig', [
-            'account'  => $account,
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => self::PER_PAGE,
+            'account'   => $account,
+            'threads'   => $threads,
+            'page'      => $page,
+            'total'     => $total,
+            'per_page'  => self::PER_PAGE,
+            'list_sort' => $sort,
         ]);
     }
 
@@ -256,15 +298,17 @@ final class MailController extends AbstractController
             return $page;
         }
 
-        $threads = $this->threadRepository->findForStarred($user, $page);
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render('mail/starred.html.twig', [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => self::PER_PAGE,
+            'threads'   => $threads,
+            'page'      => $page,
+            'total'     => $total,
+            'per_page'  => self::PER_PAGE,
+            'list_sort' => $sort,
         ]);
     }
 
@@ -342,15 +386,17 @@ final class MailController extends AbstractController
             return $page;
         }
 
-        $threads = $this->threadRepository->findForRole($user, $role, $page);
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort);
 
         $this->threadRepository->preloadLabels($threads);
 
         return $this->render($template, [
-            'threads'  => $threads,
-            'page'     => $page,
-            'total'    => $total,
-            'per_page' => self::PER_PAGE,
+            'threads'   => $threads,
+            'page'      => $page,
+            'total'     => $total,
+            'per_page'  => self::PER_PAGE,
+            'list_sort' => $sort,
         ]);
     }
 
