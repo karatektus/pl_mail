@@ -111,13 +111,22 @@ export default class extends Controller {
             event.preventDefault();
         }
 
-        this._showList();
-
+        // The URL moves back to the list BEFORE the list is shown, because
+        // showing it may have to fetch it and _refreshList asks for wherever the
+        // page currently is. The other way round it would fetch the thread's own
+        // URL — whose list frame is deliberately empty — and fill the list with
+        // the emptiness this is meant to cure.
         if (this._listUrl) {
             history.pushState({ mailPaneOpen: false }, "", this._listUrl);
-        } else {
-            history.back();
+            this._showList();
+
+            return;
         }
+
+        // No remembered list URL: the thread was loaded directly, so there is a
+        // real previous entry and the browser renders it. popstate follows and
+        // shows the list once the URL is the list's.
+        history.back();
     }
 
     async _handlePopState(event) {
@@ -321,6 +330,16 @@ export default class extends Controller {
             if (fresh === null) {
                 console.warn("[mail-pane] no list frame in the response");
 
+                return;
+            }
+
+            // A refresh asks for whatever URL the page is on, and while a
+            // conversation is open that URL is the thread's — whose list frame
+            // is deliberately empty. Copying that over a real list is what
+            // emptied it, and the emptiness was only noticed later, on the way
+            // back. A response that says it holds no list has nothing to swap
+            // in, so it is not swapped in.
+            if ("1" !== (fresh.dataset.listRendered ?? "1")) {
                 return;
             }
 
