@@ -34,6 +34,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The calendar, in its two shapes.
@@ -99,6 +100,7 @@ final class CalendarController extends AbstractController
         private readonly EventCopyResolver      $copies,
         private readonly AlertReader            $alerts,
         private readonly MessageBusInterface    $bus,
+        private readonly TranslatorInterface    $translator,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -151,8 +153,7 @@ final class CalendarController extends AbstractController
         $user = $this->currentUser();
         $zone = $this->time->zoneFor($user);
 
-        $startsAt = $this->time->parseDateTime($request->query->getString('start'), $zone)
-            ?? new DateTimeImmutable('today 09:00', $zone);
+        $startsAt = $this->startFor($request->query->getString('start'), $zone);
 
         $this->ensureCalendars($user);
 
@@ -253,8 +254,52 @@ final class CalendarController extends AbstractController
         $startsAt = $this->time->parseDateTime($request->request->getString('startsAt'), $zone);
         $endsAt   = $this->time->parseDateTime($request->request->getString('endsAt'), $zone);
 
-        if (null === $startsAt || null === $endsAt || $endsAt < $startsAt) {
-            return $this->json(['error' => 'calendar.error.invalid_times'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        // Every refusal below comes back as the editor itself, re-rendered into
+        // the dialog that is still open, rather than as JSON nobody renders.
+        //
+        // That was the whole of the defect: this action answered 422 with
+        // `application/json`, and Turbo reads a form response's body only when
+        // its content type is HTML-ish — FetchResponse#responseHTML resolves to
+        // undefined for anything else, so the failure branch had nothing to
+        // render and did, visibly, nothing. A user typing an end before a start
+        // got a correct 422 from a server that might as well have been unplugged.
+        //
+        // Collected rather than returned one at a time. A form that answers with
+        // the next complaint each time the last one is fixed is a form people
+        // submit four times before it takes.
+        $errors = [];
+
+        // Checked here as well as in the browser, and not only for the sake of
+        // a client with JavaScript off: `?: 'Untitled'` below is what used to
+        // happen to a blank title, so the form's one REQUIRED field was in fact
+        // optional and silently renamed the event.
+        if ('' === trim($request->request->getString('title'))) {
+            $errors['title'] = 'calendar.event.error.title_required';
+        }
+
+        // Returned from rather than collected into the pile below, so that
+        // everything after this point has two real datetimes and can be read
+        // as such — by a person and by the static analyser alike.
+        if (null === $startsAt || null === $endsAt) {
+            // Neither field can be named with any confidence when one of them
+            // did not parse at all, so this one is about the form as a whole.
+            $errors['_'] = 'calendar.error.invalid_times';
+
+            return $this->refused($request, $event, $user, $errors);
+        }
+
+        if ($endsAt < $startsAt) {
+            // Named on `endsAt` on purpose. Both fields are involved, but only
+            // one of them is the one to change: the start is where the user
+            // said the meeting begins, and moving it to rescue the end would
+            // save a different meeting from the one on screen. The end moving
+            // by itself when the START moves is the other half of this, and it
+            // lives in the calendar--event-form controller.
+            $errors['endsAt'] = 'calendar.event.error.end_before_start';
+        }
+
+        if ([] !== $errors) {
+            return $this->refused($request, $event, $user, $errors);
         }
 
         // Snapped rather than trusted. The checkbox is beside two
@@ -284,7 +329,7 @@ final class CalendarController extends AbstractController
         // than performed silently, because a save that redraws the calendar
         // unchanged reads as a save that did not work.
         if ([] === $targets) {
-            return $this->json(['error' => 'calendar.error.no_copies'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->refused($request, $event, $user, ['_' => 'calendar.error.no_copies']);
         }
 
         $isInstanceScope = self::SCOPE_INSTANCE === $request->request->getString('scope');
@@ -298,7 +343,7 @@ final class CalendarController extends AbstractController
         // and silently skipped for the rest, because a tick that did nothing is
         // the kind of nothing people only notice weeks later.
         if (true === $isInstanceScope && true === $this->createsAnything($targets)) {
-            return $this->json(['error' => 'calendar.error.instance_create'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->refused($request, $event, $user, ['_' => 'calendar.error.instance_create']);
         }
 
         // Resolved once, against the event the editor was opened on, and then
@@ -898,6 +943,150 @@ final class CalendarController extends AbstractController
      * the backfill covers old ones, and neither covers a user with no account
      * at all who opens the editor before ever opening the calendar.
      */
+    /**
+     * A save that was refused, put back into the dialog it came from.
+     *
+     * Rendered as a turbo-stream at 422, not as JSON and not as a frame. The
+     * form posts with data-turbo-frame="_top" because its SUCCESS is a redirect
+     * that has to replace the whole page, and a `_top` submission gives Turbo no
+     * frame to put a failure in — so the failure names its own target instead.
+     * Turbo's StreamObserver picks a stream response up from
+     * turbo:before-fetch-response whatever the status code is, which is what
+     * lets one form navigate the page on success and update one frame on
+     * failure. See _event_modal.stream.html.twig.
+     *
+     * **Everything the user typed goes back in**, which is the point of
+     * re-rendering rather than flashing a message: an editor that says "the end
+     * has to come after the start" and then restores the stored end has thrown
+     * away the correction it just asked for. That includes the ticks — a
+     * "nothing was chosen" answer sitting above a list of ticked boxes is a
+     * contradiction, so the boxes come back exactly as they were posted, which
+     * is to say empty.
+     *
+     * Translated here rather than in Twig so the template's `errors` are plain
+     * sentences however they arrived. The client-side controller writes the same
+     * sentences into the same summary from `data-error-message`, and the two
+     * halves agreeing about the shape of the data is what keeps them agreeing
+     * about the words.
+     *
+     * @param array<string,string> $errors field name — `title`, `startsAt`,
+     *                                     `endsAt`, or `_` for the form as a
+     *                                     whole — to translation key
+     */
+    private function refused(Request $request, ?CalendarEvent $event, User $user, array $errors): Response
+    {
+        $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
+        $zone     = $this->time->safeZone($zoneName);
+
+        // Each falls back to something a datetime-local can render, because
+        // "did not parse" is one of the things being refused here and the
+        // dialog still has to come back with two fields in it.
+        $startsAt = $this->time->parseDateTime($request->request->getString('startsAt'), $zone)
+            ?? new DateTimeImmutable('now', $zone);
+        $endsAt = $this->time->parseDateTime($request->request->getString('endsAt'), $zone)
+            ?? $startsAt->modify('+1 hour');
+
+        $this->ensureCalendars($user);
+
+        $posted = array_map(intval(...), array_filter(
+            $request->request->all('calendars'),
+            static fn (mixed $id): bool => is_scalar($id),
+        ));
+
+        // Rebuilt rather than taken from optionsFor(), whose $isChosen is what
+        // the editor OPENS as — the stored state — and not what this user just
+        // ticked. Read-only calendars stay unticked by the same rule the
+        // resolver applies, since a refusal is no reason to start offering one.
+        $copies = array_map(
+            static fn (EventCopy $copy): EventCopy => new EventCopy(
+                $copy->calendar,
+                $copy->event,
+                false === $copy->calendar->isReadOnly
+                    && true === in_array((int) $copy->calendar->id, $posted, true),
+            ),
+            $this->copies->optionsFor($event, $user),
+        );
+
+        return $this->render('calendar/_event_modal.stream.html.twig', [
+            'event'        => $event,
+            'copies'       => $copies,
+            'title'        => $request->request->getString('title'),
+            'startsAt'     => $startsAt,
+            'endsAt'       => $endsAt,
+            'location'     => $request->request->getString('location'),
+            'description'  => $request->request->getString('description'),
+            'isAllDay'     => $request->request->getBoolean('isAllDay'),
+            'repeat'       => $request->request->getString('repeat'),
+            'scope'        => $request->request->getString('scope'),
+            'timeZone'     => $zoneName,
+            // The clock the two fields are printed on. The values above were
+            // read in $zone, so they are printed in it too — see the long note
+            // in _event_modal.html.twig about what happens when those two
+            // disagree.
+            'displayZone'  => $zone->getName(),
+            'recurrenceId' => $request->request->getString('recurrenceId'),
+            'returnTo'     => $request->request->getString('returnTo'),
+            'errors'       => array_map(
+                fn (string $key): string => $this->translator->trans($key),
+                $errors,
+            ),
+        ], new Response(
+            status: Response::HTTP_UNPROCESSABLE_ENTITY,
+            headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
+        ));
+    }
+
+    /**
+     * When a new event starts, given whatever the caller asked for.
+     *
+     * Three cases, told apart by what the caller SAID rather than by what it
+     * parsed to — which is why the raw string is inspected and not only the
+     * DateTimeImmutable it becomes.
+     *
+     * A double-click on the grid names an hour and a minute, and that is
+     * honoured exactly: it is a click on 14:15 and it means 14:15.
+     *
+     * A day heading's + names a DAY and no time. It used to name 09:00 as well,
+     * hard-coded into the template, which is half of why this defect survived
+     * being fixed in the controller alone.
+     *
+     * Nothing at all means today.
+     *
+     * The last two get the NEXT FULL HOUR on the user's own clock, not 09:00. A
+     * calendar that opens at 09:00 all afternoon asks every user past
+     * mid-morning to retype the one field they were most likely to accept, and
+     * the hour ahead is what every other calendar offers. `G` is the hour with
+     * no leading zero, so no octal-looking string reaches the cast.
+     *
+     * Read once into $hour and used twice, so a request that crosses the hour
+     * boundary between the two reads cannot produce an end before its own start.
+     */
+    private function startFor(string $requested, DateTimeZone $zone): DateTimeImmutable
+    {
+        $now  = new DateTimeImmutable('now', $zone);
+        $hour = $now->setTime((int) $now->format('G'), 0)->modify('+1 hour');
+
+        if ('' === $requested) {
+            return $hour;
+        }
+
+        $parsed = $this->time->parseDateTime($requested, $zone);
+
+        if (null === $parsed) {
+            return $hour;
+        }
+
+        // A bare date carries no colon in any spelling this application
+        // produces — `Y-m-d H:i` from the grid, `Y-m-d` from a day heading — so
+        // its absence is the question "did the caller name a time at all?".
+        // Midnight is not what anybody means by "new event on Thursday".
+        if (false === str_contains($requested, ':')) {
+            return $parsed->setTime((int) $hour->format('G'), 0);
+        }
+
+        return $parsed;
+    }
+
     private function ensureCalendars(User $user): void
     {
         if (0 === count($this->calendars->findForUser($user))) {

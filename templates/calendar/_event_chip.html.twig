@@ -63,6 +63,21 @@ identity is threaded through a URL that would outlive the render that made it.
 {% set showTime = showTime|default(true) and not event.isAllDay %}
 {% set tall = tall|default(false) %}
 
+{# Whether the chip prints "18:00–19:00" or just "18:00".
+
+   Off by default and switched on by the agenda alone, which is the one view
+   with room for it and the one that needs it: a grid block already SHOWS its
+   length by being that long, and a month cell is too narrow to spend eleven
+   characters on a time. An agenda row draws no timeline at all, so a start on
+   its own leaves "how long is this?" unanswerable without opening the event.
+
+   Never for an all-day chip, which has no times worth printing — that is
+   already what showTime decides, and this rides on it rather than repeating the
+   condition. The en dash and the absence of spaces around it match the ranges
+   in _invite_card, _proposal_card and sharing/_entry_row; there is one way this
+   application writes a span of time. #}
+{% set showRange = showTime and showRange|default(false) %}
+
 {# The clock this chip's time is printed on, and it is the VIEW's, not the
    reader's default.
  
@@ -79,7 +94,10 @@ identity is threaded through a URL that would outlive the render that made it.
    zone to offer, which is every context outside the calendar grids. #}
 {% set chip_zone = zone|default(range.zone|default(null)) %}
 
-{% set chip_title = event.title ~ (showTime ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone) : '') %}
+{% set chip_title = event.title ~ (showTime
+    ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone)
+        ~ (showRange ? '–' ~ occurrence.endsAt|date(clock.time, chip_zone) : '')
+    : '') %}
 
 {% if cluster.isMerged %}
     {% set chip_title = chip_title ~ ' · ' ~ 'calendar.chip.on_calendars'|trans({
@@ -122,7 +140,10 @@ identity is threaded through a URL that would outlive the render that made it.
 
     {% if showTime %}
         <span class="shrink-0 text-[11px] tabular-nums text-ink-faint {{ tall ? 'leading-5' : '' }}">
-            {{ occurrence.startsAt|date(clock.timeCompact, chip_zone) }}
+            {{- occurrence.startsAt|date(clock.timeCompact, chip_zone) -}}
+            {%- if showRange -%}
+                –{{ occurrence.endsAt|date(clock.timeCompact, chip_zone) }}
+            {%- endif -%}
         </span>
     {% endif %}
 

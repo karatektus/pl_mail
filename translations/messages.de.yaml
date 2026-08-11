@@ -763,10 +763,11 @@ calendar:
         cancel: Abbrechen
         copies:
             help: >-
-                Angehakte Kalender bekommen diesen Termin. Hake einen an, in dem
-                er noch nicht steht, um eine Kopie dort anzulegen; nimm den Haken
-                weg, um diese Kopie unverändert zu lassen — sie unterscheidet
-                sich dann von den anderen und erscheint als eigener Eintrag.
+                Angehakte Kalender bekommen diesen Termin und jede Änderung, die
+                du speicherst. Einen Haken zu entfernen löscht nichts: Dieser
+                Kalender behält die Fassung, die er jetzt hat, und bekommt keine
+                Aktualisierungen mehr — sobald beide sich unterscheiden,
+                erscheint er als eigener Eintrag.
             legend: Kalender
             read_only: Dieser Kalender nimmt keine Änderungen an
         delete: Löschen
@@ -776,6 +777,10 @@ calendar:
             Diesen Termin entfernen und nicht wieder anlegen? Spätere E-Mails zur
             selben Buchung tragen ihn nicht erneut in den Kalender ein.
         ends: Ende
+        error:
+            end_before_start: Das Ende muss nach dem Beginn liegen.
+            summary: Dieser Termin konnte nicht gespeichert werden.
+            title_required: Gib dem Termin einen Titel.
         extracted_note: >-
             Dieser Termin stammt aus einer E-Mail. Wenn du ihn bearbeitest,
             überschreiben spätere Nachrichten zur selben Buchung deine
