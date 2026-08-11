@@ -3,8 +3,14 @@
 
 {% block title %}{{ thread.subject ?: ('thread.no_subject'|trans) }} — {{ 'app.name'|trans }}{% endblock %}
 
+{# A thread has no list behind it — the route knows a conversation, not the
+   folder and page it was opened from — so the frame is left empty and said to
+   be empty. Going back fetches a real list rather than uncovering this one;
+   without the flag it looked like a mailbox that had lost its rows, its tabs
+   and its pagination. #}
 {% block message_list %}{% endblock %}
 {% block inbox_tabs %}{% endblock %}
+{% block list_rendered %}0{% endblock %}
 {% block pane_open %}true{% endblock %}
 {% block list_hidden %}hidden{% endblock %}
 {% block reading_hidden %}{% endblock %}

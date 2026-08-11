@@ -20,6 +20,17 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>{% block title %}Welcome!{% endblock %}</title>
+    {#
+    Which counts key the "(n)" in the title above came from, or empty on a page
+    whose title carries no count.
+
+    The title is rendered once, server-side, while the sidebar badges are
+    patched in place after every sync — so the tab kept saying (4) long after
+    the sidebar had moved to 3. Naming the key here lets the sidebar controller
+    rewrite the title from the same payload it patches the badges with, which
+    makes "the same source" a fact rather than an intention.
+    #}
+    <meta name="title-count-key" content="{% block title_count_key %}{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
        needs the apple-touch-icon specifically — it ignores the manifest icons. #}
@@ -115,7 +126,13 @@
            whole page down with it. #}
         data-core--mercure-url-value="{{ mercure(mercure_topics) }}"
         data-core--mercure-auth-url-value="{{ path('mercure_auth') }}"
-        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced"
+        {# The pane owns the list refresh, so the events that should suspend it
+           are routed here too: a bulk action writes one request per selected
+           row, and a refresh landing mid-run undoes the rows it has already
+           finished. See mail_pane_controller#hold. #}
+        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
+                     mail--list-toolbar:writing->mail--mail-pane#hold
+                     mail--list-toolbar:written->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
     {% endif %}
 >

@@ -307,7 +307,9 @@ final class MailRuleController extends AbstractController
             'submittedConditions' => $request?->request->get('conditions'),
             'submittedActions' => $request?->request->get('actions'),
             'labels' => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
-            'accounts' => $this->accountRepository->findForUserOrderedByName($this->getUser()),
+            // The user's own arrangement, as everywhere else mail accounts are
+            // offered to pick from — see findActiveForUserOrdered().
+            'accounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
             'actionTypes' => RuleActionExecutor::TYPES,
             // Upload-capable only: a rule cannot save an attachment to a
             // service that can only be read from.

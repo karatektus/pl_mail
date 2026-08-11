@@ -1,0 +1,12 @@
+{#
+The message list on its own — no document, no chrome, no sidebar.
+
+Stands in for app.html.twig as _mailbox.html.twig's parent when the poll asks
+for the list alone (see App\Twig\ListFragmentGlobal). Every page that extends
+the mailbox layout therefore answers a refresh with its own list frame and
+nothing else, without any of them knowing this template exists.
+
+Only the frame is emitted, so the response is the fragment the caller swaps in
+rather than a page it has to dismantle first.
+#}
+{% block list_frame %}{% endblock %}

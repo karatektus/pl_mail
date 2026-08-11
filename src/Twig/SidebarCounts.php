@@ -24,6 +24,8 @@ use Symfony\Contracts\Service\ResetInterface;
 class SidebarCounts implements ResetInterface
 {
     private ?array $roleCounts = null;
+    /** @var array<string,int> role value => total, filled on demand */
+    private array $roleTotals = [];
     private ?array $labelCounts = null;
     private ?int $starredCount = null;
     private ?int $snoozedCount = null;
@@ -41,6 +43,7 @@ class SidebarCounts implements ResetInterface
     public function reset(): void
     {
         $this->roleCounts         = null;
+        $this->roleTotals         = [];
         $this->labelCounts        = null;
         $this->starredCount       = null;
         $this->snoozedCount       = null;
@@ -98,6 +101,65 @@ class SidebarCounts implements ResetInterface
         }
 
         return $this->accountLabelCounts[$accountId][(int) $label->id] ?? 0;
+    }
+
+    /**
+     * The roles whose badge counts everything in them rather than the unread
+     * part of it.
+     *
+     * The badges used to mean "unread" everywhere, which reads wrong in exactly
+     * two places. A bin and a drafts folder are not things you work through —
+     * nobody triages Trash — so the unread number there answers a question
+     * nobody asked, while looking identical to the one on Inbox that means
+     * "these want you". It also made the Trash badge disagree with the list
+     * under it: 188 unread against a list that said 193, two different true
+     * answers to what looked like one question.
+     *
+     * So: everywhere else the badge is unread and wears the accent; here it is
+     * the total and is styled neutrally, so the shape of it says which kind of
+     * number it is before the number is read. The total is taken from the same
+     * countForRole() the list header paginates with, so the two now agree by
+     * construction rather than by coincidence.
+     *
+     * @var list<LabelRole>
+     */
+    public const array TOTAL_ROLES = [LabelRole::Trash, LabelRole::Drafts];
+
+    public static function countsTotal(LabelRole $role): bool
+    {
+        return in_array($role, self::TOTAL_ROLES, true);
+    }
+
+    /**
+     * The number the badge for a role should show, whichever kind it is.
+     *
+     * The one place that decides, so the sidebar, the counts endpoint and the
+     * browser title cannot drift apart — which is how the tab came to be stuck
+     * at (4) while the sidebar said 3.
+     */
+    public function forRoleBadge(LabelRole $role): int
+    {
+        return true === self::countsTotal($role)
+            ? $this->totalForRole($role)
+            : $this->forRole($role);
+    }
+
+    /**
+     * Everything filed under a role, unread or not — the list header's number.
+     */
+    public function totalForRole(LabelRole $role): int
+    {
+        $key = $role->value;
+
+        if (false === array_key_exists($key, $this->roleTotals)) {
+            $user = $this->security->getUser();
+
+            $this->roleTotals[$key] = null === $user
+                ? 0
+                : $this->threadRepository->countForRole($user, $role);
+        }
+
+        return $this->roleTotals[$key];
     }
 
     public function forRole(LabelRole $role): int

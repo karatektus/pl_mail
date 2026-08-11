@@ -1846,6 +1846,7 @@ thread:
     no_subject: (no subject)
 
 thread_row:
+    account: 'Hauled aboard %account%'
     actions:
         archive: Stow in the hold
         delete: Feed to the fishes

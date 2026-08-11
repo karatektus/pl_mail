@@ -10,6 +10,9 @@ twig:
         calendar: '@App\Twig\CalendarGlobal'
         onboarding: '@App\Twig\OnboardingGlobal'
         logAlert: '@App\Twig\LogAlertGlobal'
+        # True when the poll is asking for the message list on its own, so the
+        # mailbox layout can answer with the frame instead of the whole page.
+        listFragment: '@App\Twig\ListFragmentGlobal'
         # Twelve- or twenty-four-hour, as `clock.time`, `clock.timeCompact` and
         # `clock.hour`. A global because the templates that print a time are
         # partials included from layouts, with no one controller behind them.

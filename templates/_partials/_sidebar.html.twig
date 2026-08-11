@@ -10,6 +10,21 @@ app_mail_sidebar_counts.
           data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
 
+{#
+The same badge for a number that is a total rather than an unread count —
+Trash and Drafts, see SidebarCounts::TOTAL_ROLES.
+
+Neutral rather than accented, and that is the whole point of it existing: an
+accent badge means "these want you", and 193 items in the bin do not. Wearing
+the same red as the Inbox badge is what made the Trash count read as 188 unread
+messages demanding attention rather than as how much is in there.
+#}
+{% macro total_badge(count, key) %}
+    <span class="rail-hide text-xs font-medium px-1.5 py-0.5 rounded-full bg-hover text-ink-muted{{ count > 0 ? '' : ' hidden' }}"
+          data-ui--sidebar-target="badge"
+          data-count-key="{{ key }}">{{ count }}</span>
+{% endmacro %}
+
 {% macro label_dot(color) %}
     <span class="w-2.5 h-2.5 rounded-full shrink-0
         {{ {
@@ -160,7 +175,7 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox') }}
+            {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox') }}
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
@@ -186,7 +201,7 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.sent'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent), 'role:sent') }}
+            {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent), 'role:sent') }}
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
@@ -199,7 +214,7 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
+            {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
 
         {# Drawer only. On a wide screen the calendar is a panel that slides in
@@ -260,7 +275,7 @@ controller instead — the scroll position and which trees are open.
                     <i class="fa-solid fa-clock w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.snoozed'|trans }}</span>
                 </span>
-                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed') }}
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed') }}
             </a>
         {% endif %}
             <a href="{{ path('app_mail_archive') }}"
@@ -272,7 +287,7 @@ controller instead — the scroll position and which trees are open.
                     <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
                 </span>
-                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
             </a>
 
         {# Behind the same eye toggle in label settings that Archive is behind,
@@ -292,7 +307,7 @@ controller instead — the scroll position and which trees are open.
                     <i class="fa-solid fa-ban w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.spam'|trans }}</span>
                 </span>
-                {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam') }}
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam') }}
             </a>
         {% endif %}
 
@@ -306,7 +321,7 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.trash'|trans }}</span>
             </span>
-            {{ macros.unread_badge(sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
+            {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
         </a>
         </details>
 

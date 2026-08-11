@@ -3,9 +3,12 @@
 {% block list_scope %}drafts{% endblock %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) %}
-    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.drafts'|trans }} — {{ 'app.name'|trans }}
+    {# A total, as for Trash — a drafts folder has no unread to speak of. #}
+    {% set _count = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) %}
+    {{ _count > 0 ? '('~_count~')' }} {{ 'sidebar.nav.drafts'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
+
+{% block title_count_key %}role:drafts{% endblock %}
 
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-line">

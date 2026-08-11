@@ -4,9 +4,12 @@
 {% block list_scope %}inbox{% endblock %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
+    {% set _unread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.inbox'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
+
+{# Keeps the tab in step with the sidebar after a sync — see app.html.twig. #}
+{% block title_count_key %}role:inbox{% endblock %}
 
 {% block inbox_tabs %}
     {# A lone Primary tab is a heading pretending to be a choice — when no

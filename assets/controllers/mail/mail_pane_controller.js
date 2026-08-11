@@ -14,6 +14,21 @@ const SYNC_SCOPES = {
     "\\Archive": "archive",
 };
 
+/**
+ * The floor between two list refreshes.
+ *
+ * A sync run publishes one mailbox.synced per mailbox per account, so a poll
+ * across three accounts arrives as a burst rather than as one event. The old
+ * in-flight guard only stopped two fetches overlapping, which left a burst of
+ * eight producing eight sequential full-page requests — measured at eight
+ * requests per ten seconds of an idle inbox. A burst is one refresh now; the
+ * rest coalesce into a single trailing one.
+ */
+const MIN_REFRESH_MS = 15000;
+
+/** Asks the server for the list frame alone — see App\Twig\ListFragmentGlobal. */
+const FRAGMENT_HEADER = "X-List-Fragment";
+
 export default class extends Controller {
     static targets = ["list", "reading"];
     static values = { open: Boolean , mailBoxId: Number};
@@ -39,6 +54,25 @@ export default class extends Controller {
         };
         document.addEventListener("turbo:frame-load", this._onListSwap);
 
+        // A refresh that came due while the tab was in the background is held
+        // rather than dropped, and taken the moment it is looked at again.
+        this._refreshPending = false;
+        this._lastRefreshAt = 0;
+        this._refreshTimer = null;
+
+        // Depth, not a boolean, for the reason auto_refresh_controller gives:
+        // a bulk action fires one write per selected row and they overlap, so
+        // the first to finish would otherwise resume refreshing while the rest
+        // are still in flight.
+        this._holds = 0;
+
+        this._onVisibility = () => {
+            if (!document.hidden && this._refreshPending) {
+                this._refreshList();
+            }
+        };
+        document.addEventListener("visibilitychange", this._onVisibility);
+
         // Restore correct visual state on direct load / refresh
         if (this.openValue) {
             this._showReading();
@@ -46,9 +80,46 @@ export default class extends Controller {
             this._showList();
         }
     }
+
     disconnect() {
         window.removeEventListener("popstate", this._onPopState);
         document.removeEventListener("turbo:frame-load", this._onListSwap);
+        document.removeEventListener("visibilitychange", this._onVisibility);
+
+        // A trailing refresh outlives this controller otherwise: Turbo replaces
+        // <body> on every visit, so an uncleared timer here is a fetch fired by
+        // a controller that no longer has an element to write to — and one more
+        // of them after every navigation.
+        if (this._refreshTimer !== null) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = null;
+        }
+    }
+
+    /**
+     * A write started in the list — hold the refresh until it lands.
+     *
+     * The list refresh renders from server state, so one *issued* before a
+     * write commits swaps the pre-write markup back in. That is bad enough on
+     * its own; with a bulk action it is worse, because the rows are removed by
+     * turbo-streams and a refresh landing mid-run replaces them with fresh
+     * elements the remaining streams can no longer find. The archived rows then
+     * stay on screen until something else redraws them.
+     *
+     * The same reasoning, and the same fix, as auto_refresh_controller#hold —
+     * which is where this pattern is explained at length.
+     */
+    hold() {
+        this._holds++;
+    }
+
+    /** The write finished. Anything held back happens now. */
+    release() {
+        this._holds = Math.max(0, this._holds - 1);
+
+        if (0 === this._holds && true === this._refreshPending) {
+            this._refreshList({ immediate: true });
+        }
     }
 
     async open(event) {
@@ -72,13 +143,22 @@ export default class extends Controller {
             event.preventDefault();
         }
 
-        this._showList();
-
+        // The URL moves back to the list BEFORE the list is shown, because
+        // showing it may have to fetch it and _refreshList asks for wherever the
+        // page currently is. The other way round it would fetch the thread's own
+        // URL — whose list frame is deliberately empty — and fill the list with
+        // the emptiness this is meant to cure.
         if (this._listUrl) {
             history.pushState({ mailPaneOpen: false }, "", this._listUrl);
-        } else {
-            history.back();
+            this._showList();
+
+            return;
         }
+
+        // No remembered list URL: the thread was loaded directly, so there is a
+        // real previous entry and the browser renders it. popstate follows and
+        // shows the list once the URL is the list's.
+        history.back();
     }
 
     async _handlePopState(event) {
@@ -111,9 +191,51 @@ export default class extends Controller {
         this.readingTarget.classList.remove("hidden");
     }
 
+    /**
+     * Reveal the list — and make sure there is one to reveal.
+     *
+     * A thread page renders the list frame empty on purpose
+     * (templates/mail/thread.html.twig leaves `message_list` and `inbox_tabs`
+     * blank, and the toolbar falls back to a total of zero), because the thread
+     * route has no list to render. Going back from a thread therefore used to
+     * uncover that empty frame — no rows, no tabs, no pagination — and it
+     * stayed that way until the next poll happened to fetch a URL that had a
+     * list in it.
+     *
+     * So the emptiness is asked about rather than assumed: the server marks the
+     * frame with whether it actually rendered a list, and an unrendered one is
+     * filled before it is shown.
+     */
     _showList() {
+        if (this._listNeedsRendering()) {
+            // Whatever is on screen stays there for the moment it takes, rather
+            // than being replaced by a blank pane and then by the list. The
+            // fetch is a fragment now, so that moment is short.
+            this._refreshList({ immediate: true }).finally(() => this._reveal());
+
+            return;
+        }
+
+        this._reveal();
+    }
+
+    _reveal() {
         this.readingTarget.classList.add("hidden");
         this.listTarget.classList.remove("hidden");
+    }
+
+    /**
+     * Whether the frame currently holds a list that was actually rendered.
+     *
+     * `data-list-rendered` is written by the mailbox layout, so this is the
+     * server's own answer rather than a guess from the DOM — an empty folder
+     * legitimately has no rows and must not be confused with a frame that was
+     * never populated.
+     */
+    _listNeedsRendering() {
+        const frame = document.getElementById(LIST_FRAME_ID);
+
+        return frame !== null && frame.dataset.listRendered !== "1";
     }
 
     onMailboxSynced(event) {
@@ -167,12 +289,37 @@ export default class extends Controller {
      *
      * The sidebar keeps its own counts up to date from the same Mercure
      * updates, so nothing outside the frame needs this to redraw it.
+     *
+     * Only the frame comes back now, not the page it lives in. The request
+     * carries X-List-Fragment and the mailbox layout answers with the list
+     * alone — the same content the DOMParser below was extracting from 80 KB of
+     * document and discarding the rest of.
+     *
+     * @param {{immediate?: boolean}} options  `immediate` skips the rate limit,
+     *        for a refresh a person is waiting on rather than one a sync asked
+     *        for — going back to an unrendered list, specifically.
      */
-    async _refreshList() {
+    async _refreshList({ immediate = false } = {}) {
         const frame = document.getElementById(LIST_FRAME_ID);
 
         if (frame === null) {
             console.warn("[mail-pane] no list frame to refresh");
+
+            return;
+        }
+
+        // Nobody is looking. Remembered, not dropped: the visibilitychange
+        // handler takes it the moment the tab is looked at again.
+        if (document.hidden && !immediate) {
+            this._refreshPending = true;
+
+            return;
+        }
+
+        // The user is writing to this list right now. Held rather than dropped,
+        // and taken by release() once the last write lands — see hold().
+        if (this._holds > 0) {
+            this._refreshPending = true;
 
             return;
         }
@@ -183,11 +330,32 @@ export default class extends Controller {
             return;
         }
 
+        // A sync run publishes one event per mailbox per account, so "a sync
+        // happened" arrives as a burst. Take the first and coalesce the rest
+        // into one trailing refresh, instead of serialising the whole burst.
+        const waited = Date.now() - this._lastRefreshAt;
+
+        if (!immediate && waited < MIN_REFRESH_MS) {
+            if (this._refreshTimer === null) {
+                this._refreshTimer = setTimeout(() => {
+                    this._refreshTimer = null;
+                    this._refreshList();
+                }, MIN_REFRESH_MS - waited);
+            }
+
+            return;
+        }
+
         this._refreshing = true;
+        this._refreshPending = false;
+        this._lastRefreshAt = Date.now();
 
         try {
             const response = await fetch(window.location.href, {
-                headers: { "Turbo-Frame": LIST_FRAME_ID, Accept: "text/html" },
+                headers: {
+                    [FRAGMENT_HEADER]: LIST_FRAME_ID,
+                    Accept: "text/html",
+                },
                 credentials: "same-origin",
             });
 
@@ -205,8 +373,22 @@ export default class extends Controller {
                 return;
             }
 
+            // A refresh asks for whatever URL the page is on, and while a
+            // conversation is open that URL is the thread's — whose list frame
+            // is deliberately empty. Copying that over a real list is what
+            // emptied it, and the emptiness was only noticed later, on the way
+            // back. A response that says it holds no list has nothing to swap
+            // in, so it is not swapped in.
+            if ("1" !== (fresh.dataset.listRendered ?? "1")) {
+                return;
+            }
+
             frame.innerHTML = fresh.innerHTML;
-            console.log("[mail-pane] list refreshed");
+
+            // Carried over with the content: the response says whether it
+            // actually rendered a list, and _listNeedsRendering() reads it back
+            // off the live frame on the next Back.
+            frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
         } catch (error) {
             // A failed refresh is not worth surfacing: the next sync event, or
             // the next navigation, redraws it anyway.
