@@ -6,29 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.0.28 — 2026-08-10
 
-### Fixed
+**No migration. German mail still rendered as "Ã¼ber", and the sync was not to
+blame this time.** "Stop believing a charset label the bytes disprove" fixed
+the MIME layer, and it holds: a mislabelled part decodes correctly even inside
+a multipart invite. The damage was one layer lower down. A stored body is
+UTF-8 whatever it arrived as, but the sender's own `<meta charset=iso-8859-1>`
+came through that conversion unchanged — and the parser behind the HTML
+sanitizer follows the specification's encoding sniffing algorithm, which
+prefers that tag to any default. So the rendered copy was decoded as latin-1
+all over again. The declaration is now corrected to match the bytes before
+anything parses the document, which is what the HTML specification asks of
+anything that transcodes one.
 
-- **German mail still rendered as "Ã¼ber", and the sync was not to blame this
-  time.** "Stop believing a charset label the bytes disprove" fixed the MIME
-  layer, and it holds: a mislabelled part decodes correctly even inside a
-  multipart invite. The damage was one layer lower down. A stored body is UTF-8
-  whatever it arrived as, but the sender's own `<meta charset=iso-8859-1>` came
-  through that conversion unchanged — and the parser behind the HTML sanitizer
-  follows the specification's encoding sniffing algorithm, which prefers that
-  tag to any default. So the rendered copy was decoded as latin-1 all over
-  again. The declaration is now corrected to match the bytes before anything
-  parses the document, which is what the HTML specification asks of anything
-  that transcodes one.
-- **Mail already showing mojibake can be repaired in place**, unlike last
-  time: only the rendered copy was ever wrong, so `app:backfill
-  safe-html-charset` re-derives it from the body as stored. No resync, no
-  mail server, and the sender's original copy is left exactly as it is.
-- **A calendar invite written in latin-1 no longer costs its event.** Invites
-  are stored as they arrive and RFC 5545 says UTF-8, so nothing converted
-  them — and one 0xE4 in a SUMMARY was not a mangled title but an INSERT
-  Postgres refused, taking the extraction with it.
+**Mail already showing mojibake can be repaired in place**, unlike last time:
+only the rendered copy was ever wrong, so `app:backfill safe-html-charset`
+re-derives it from the body as stored. No resync, no mail server, and the
+sender's original copy is left exactly as it is. Run it once after updating.
+
+**A calendar invite written in latin-1 no longer costs its event.** Invites
+are stored as they arrive and RFC 5545 says UTF-8, so nothing converted them —
+and one 0xE4 in a SUMMARY was not a mangled title but an INSERT Postgres
+refused, taking the extraction with it.
+
+**Light and Dark read mail on their own light.** v0.0.26 made the reading
+sheet a theme decision and then left Paper's cream in the three blocks without
+a named selector — which is why the light theme's reading pane looked like
+Solar had bled through. Light now reads on its own white and zinc; both dark
+palettes on their palest slate.
 
 ## v0.0.27 — 2026-08-10
 
