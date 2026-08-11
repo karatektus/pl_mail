@@ -252,7 +252,7 @@ controller instead — the scroll position and which trees are open.
             </summary>
         {% if sidebarCounts.hasSnoozed %}
             <a href="{{ path('app_mail_snoozed') }}"
-               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.snoozed'|trans }}">
@@ -264,7 +264,7 @@ controller instead — the scroll position and which trees are open.
             </a>
         {% endif %}
             <a href="{{ path('app_mail_archive') }}"
-               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.archive'|trans }}">
@@ -283,7 +283,7 @@ controller instead — the scroll position and which trees are open.
            where LabelRole::sortOrder() already put it. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
             <a href="{{ path('app_mail_spam') }}"
-               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.spam'|trans }}"
@@ -297,7 +297,7 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         <a href="{{ path('app_mail_trash') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.trash'|trans }}"
