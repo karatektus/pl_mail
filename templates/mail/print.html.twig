@@ -3,11 +3,24 @@ mail/print.html.twig
 ─────────────────────────────────────────────────────────────────────────────
 Standalone printable view of a single message (opened in a new tab, fires the
 print dialog on load). Only the sanitized body is rendered as markup.
-#}<!DOCTYPE html>
+
+NOT iframed, unlike the reading pane — this page IS the message, and a print
+dialog aimed at a page whose content is in a frame paginates the frame's
+scrollbox rather than the mail. The two things the frame was buying are bought
+here another way: the CSP below refuses to execute anything (the print trigger
+carries the one nonce), and there is no application DOM on this page for mail
+CSS to collide with.
+
+Remote images follow the SAME rule as the reading pane — blocked unless the
+sender is on the reader's allowlist. Printing is a read, and a tracking pixel
+does not care which stylesheet fired it.
+#}
+{% set render = message_render(message) %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="{{ render.csp }}">
     {% include '_partials/_favicon.html.twig' %}
     <title>{{ message.subject ?: ('thread.no_subject'|trans) }}</title>
     <style>
@@ -25,6 +38,7 @@ print dialog on load). Only the sanitized body is rendered as markup.
         .body { word-break: break-word; }
         .body img { max-width: 100%; height: auto; }
         .attachments { margin-top: 24px; border-top: 1px solid #e0e0e0; padding-top: 12px; font-size: 12px; color: #5f6368; }
+        .warning { border: 1px solid #b91c1c; color: #b91c1c; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 12px; }
         @media print {
             body { padding: 0; }
             @page { margin: 1.5cm; }
@@ -48,13 +62,29 @@ print dialog on load). Only the sanitized body is rendered as markup.
     </p>
 </div>
 
+{% if render.inSpam or render.mismatch is not null %}
+    <div class="warning">
+        {% if render.inSpam %}{{ 'message.security.spam.title'|trans }} — {{ 'message.security.spam.body'|trans }}{% endif %}
+        {% if render.mismatch is not null %}
+            {{ render.mismatch.kind.translationKey|trans({
+                '%claimed%': render.mismatch.claimed,
+                '%actual%':  render.mismatch.actual,
+            }) }}
+        {% endif %}
+    </div>
+{% endif %}
+
 <div class="body">
-    {% if message.bodyHtmlSafe %}
-        {{ message.bodyHtmlSafe|raw }}
+    {% if render.content.html is not empty %}
+        {{ render.content.html|raw }}
     {% else %}
-        <pre style="white-space: pre-wrap; font: inherit;">{{ message.bodyText }}</pre>
+        <pre style="white-space: pre-wrap; font: inherit;">{{ render.text }}</pre>
     {% endif %}
 </div>
+
+{% if render.content.blocked > 0 %}
+    <p class="attachments">{{ 'message.images.blocked'|trans({'%count%': render.content.blocked}) }}</p>
+{% endif %}
 
 {% if message.hasAttachments %}
     <div class="attachments">
@@ -63,7 +93,7 @@ print dialog on load). Only the sanitized body is rendered as markup.
     </div>
 {% endif %}
 
-<script>window.addEventListener('load', () => window.print());</script>
+<script nonce="{{ render.nonce }}">window.addEventListener('load', () => window.print());</script>
 
 </body>
 </html>

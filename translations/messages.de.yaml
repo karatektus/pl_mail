@@ -1214,6 +1214,7 @@ message:
         unstar: Markierung entfernen
     attachments: Anhänge
     back: Zurück
+    body_frame: Nachrichteninhalt
     details:
         categorised:
             correspondent: 'Sie haben diesem Absender geschrieben'
@@ -1242,11 +1243,25 @@ message:
         to_label: an
         undisclosed: unbekannte Empfänger
     draft: "Entwurf"
+    images:
+        always: 'Bilder von %sender% immer anzeigen'
+        blocked: '{1}1 Bild wurde blockiert, damit dieser Aufruf privat bleibt|]1,Inf[ %count% Bilder wurden blockiert, damit dieser Aufruf privat bleibt'
+        show_once: Bilder anzeigen
+        stop_trusting: Nicht mehr anzeigen
+        trusted: 'Bilder von %sender% werden immer angezeigt'
     original:
         copied: Kopiert
         copy: In die Zwischenablage kopieren
         heading: Originalnachricht
     save_to: 'Speichern in'
+    security:
+        mismatch:
+            brand_in_name: "Der Name lautet „%claimed%“, gesendet wurde die Nachricht aber von %actual%."
+            domain_in_name: "Der Name gibt %claimed% an, gesendet wurde die Nachricht aber von %actual%."
+            title: "Der Absendername passt nicht zur Absenderadresse"
+        spam:
+            body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandeln Sie jede Aufforderung darin wie die eines Fremden."
+            title: Diese Nachricht ist im Spam
 
 mercure:
     status:

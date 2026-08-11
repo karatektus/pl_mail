@@ -931,6 +931,7 @@ message:
         unstar: Rub out the X
     attachments: Cargo
     back: Back
+    body_frame: The bottle's contents
     details:
         categorised:
             correspondent: 'ye have written to this one'
@@ -959,11 +960,25 @@ message:
         to_label: to
         undisclosed: hands unnamed
     draft: "Scroll"
+    images:
+        always: 'Always show the pictures from %sender%'
+        blocked: '{1}1 picture was held back so none may spy yer reading|]1,Inf[ %count% pictures were held back so none may spy yer reading'
+        show_once: Show the pictures
+        stop_trusting: Hold them back again
+        trusted: 'Pictures from %sender% are always shown'
     original:
         copied: Copied
         copy: Copy to the slate
         heading: The original scroll
     save_to: 'Stow to'
+    security:
+        mismatch:
+            brand_in_name: "The name flies “%claimed%”, but this bottle was cast off from %actual%."
+            domain_in_name: "The name claims %claimed%, but this bottle was cast off from %actual%."
+            title: "The sender flies false colours"
+        spam:
+            body: "This bottle was fished from the bilge. Its links and pictures be treacherous — treat aught it asks of ye as a stranger's demand."
+            title: This bottle sits in the bilge
 
 modal:
     close: Batten it down
