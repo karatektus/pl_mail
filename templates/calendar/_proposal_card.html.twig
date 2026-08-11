@@ -69,7 +69,7 @@ Variables:
                 <input type="hidden" name="_token" value="{{ csrf_token('calendar_proposal' ~ proposal.message.id) }}">
 
                 <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-accent text-white">
+                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-accent text-accent-ink">
                     <i class="fa-solid fa-calendar-plus text-[10px]" aria-hidden="true"></i>
                     {{ 'calendar.proposal.action.add'|trans }}
                 </button>

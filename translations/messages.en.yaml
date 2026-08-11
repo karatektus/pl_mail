@@ -2054,7 +2054,8 @@ sidebar:
         heading: Accounts
         loading: Loading…
         none: No accounts yet
-        toggle: Toggle account folders
+        open: 'Open %account%'
+        toggle: 'Show or hide folders in %account%'
     compose: Compose
     labels:
         add: Create label

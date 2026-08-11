@@ -79,7 +79,7 @@
                           data-turbo-confirm="{{ 'admin.maintenance.restart_confirm'|trans }}" class="mt-2">
                         <input type="hidden" name="_token" value="{{ csrf_token('admin_restart_workers') }}">
                         <button type="submit"
-                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
                             <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
                             {{ 'admin.maintenance.restart'|trans }}
                         </button>
@@ -489,7 +489,7 @@
                                     <form method="post" action="{{ path('app_admin_failed_retry', { id: row.id }) }}" data-turbo-frame="_top">
                                         <input type="hidden" name="_token" value="{{ csrf_token('admin_failed_' ~ row.id) }}">
                                         <button type="submit"
-                                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
                                             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
                                             {{ 'admin.failed.retry'|trans }}
                                         </button>

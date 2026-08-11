@@ -98,7 +98,7 @@ export default class extends Controller {
             b.className =
                 "px-2.5 h-7 text-xs font-medium transition-colors cursor-pointer " +
                 (node.operator === op.value
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-accent-ink"
                     : "text-ink-soft hover:bg-hover")
             b.addEventListener("click", () => {
                 this._at(path).operator = op.value

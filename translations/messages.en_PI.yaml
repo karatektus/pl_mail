@@ -1731,7 +1731,8 @@ sidebar:
         heading: Th' crew
         loading: Haulin' aboard…
         none: No crew yet
-        toggle: Open or close the crew's lockers
+        open: 'Board %account%'
+        toggle: 'Open or close the lockers in %account%'
     compose: Scribble
     labels:
         add: Hoist a new flag

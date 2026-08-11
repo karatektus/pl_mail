@@ -33,7 +33,7 @@ full navigation to a step URL renders it unstyled.
             <button type="button"
                     data-action="click->ui--clipboard#copy"
                     class="mt-2 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
-                           bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                           bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
                 <i class="fa-solid fa-copy text-[11px]" aria-hidden="true"></i>
                 <span data-ui--clipboard-target="label">{{ 'settings.security.codes.copy'|trans }}</span>
             </button>
@@ -106,7 +106,7 @@ full navigation to a step URL renders it unstyled.
                             value="1"
                             id="onboarding-2fa-confirm"
                             class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
-                                   bg-accent hover:bg-accent-strong text-white transition-colors cursor-pointer">
+                                   bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
                         {{ 'settings.security.enrol.submit'|trans }}
                     </button>
                 </div>
@@ -128,7 +128,7 @@ full navigation to a step URL renders it unstyled.
     <a href="{{ enrolUrl }}" data-turbo-frame="modal"
        id="onboarding-2fa-open"
        class="inline-flex items-center gap-2 mt-4 px-3 h-9 rounded-lg text-sm font-medium
-              bg-accent hover:bg-accent-strong text-white transition-colors">
+              bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
         <i class="fa-solid fa-shield-halved text-xs" aria-hidden="true"></i>
         {{ 'settings.security.enable'|trans }}
     </a>

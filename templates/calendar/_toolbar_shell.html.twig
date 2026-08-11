@@ -144,7 +144,7 @@ Blocks:
                        {% if compact %}aria-label="{{ label }}" title="{{ label }}"{% endif %}
                        class="flex items-center justify-center text-xs transition-colors
                               {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
-                              {{ candidate == view ? 'bg-accent text-white' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
+                              {{ candidate == view ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
                     >
                         {%- if compact -%}
                             <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>

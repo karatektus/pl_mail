@@ -20,10 +20,15 @@
            not the anchor: on the anchor the pill stops before the chevron and
            cuts the row in half. #}
         <div class="nav-item flex items-center transition-colors text-ink-muted">
+            {# Named explicitly rather than by the address inside it: that span
+               is `truncate`, and a name a screen reader reads as "kontakt@…"
+               because CSS ran out of room is not a name. #}
             <a
                 href="{{ path('app_mail_account', { account: account.id }) }}"
                 data-ui--sidebar-target="link"
                 data-action="{{ _drawerClose }}"
+                aria-label="{{ 'sidebar.accounts.open'|trans({ '%account%': account.displayAddress }) }}"
+                title="{{ account.displayAddress }}"
                 class="flex items-center gap-2 py-2 flex-1 min-w-0"
             >
                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
@@ -33,11 +38,17 @@
                it will go is not visible to a screen reader — nor, since the
                open account moved into the user's settings, to anything else
                that has to know the state before pressing it. The controller
-               keeps it in step. #}
+               keeps it in step.
+
+               The account's address is IN the label. Every account renders one
+               of these, so "Toggle account folders" three times over is three
+               controls a screen-reader user cannot tell apart — the list of
+               buttons on the page reads the same word three times and none of
+               them says which mailbox it opens. #}
             <button
                 type="button"
-                aria-label="{{ 'sidebar.accounts.toggle'|trans }}"
-                title="{{ 'sidebar.accounts.toggle'|trans }}"
+                aria-label="{{ 'sidebar.accounts.toggle'|trans({ '%account%': account.displayAddress }) }}"
+                title="{{ 'sidebar.accounts.toggle'|trans({ '%account%': account.displayAddress }) }}"
                 aria-expanded="{{ expanded ? 'true' : 'false' }}"
                 aria-controls="account-folders-{{ account.id }}"
                 data-settings--account-expand-target="toggle"

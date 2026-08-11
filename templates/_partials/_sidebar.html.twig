@@ -5,7 +5,7 @@ having to re-render the markup. `key` must match a key from
 app_mail_sidebar_counts.
 #}
 {% macro unread_badge(count, key) %}
-    <span class="rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-white{{ count > 0 ? '' : ' hidden' }}"
+    <span class="rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink{{ count > 0 ? '' : ' hidden' }}"
           data-ui--sidebar-target="badge"
           data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
@@ -139,7 +139,7 @@ controller instead — the scroll position and which trees are open.
            data-turbo-frame="compose_dock"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.compose'|trans }}"
-           class="compose-link w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-white text-sm font-medium rounded-lg px-3 py-row transition-colors">
+           class="compose-link w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium rounded-lg px-3 py-row transition-colors">
             <i class="fa-solid fa-plus w-4 h-4" aria-hidden="true"></i>
             <span class="rail-hide">{{ 'sidebar.compose'|trans }}</span>
         </a>

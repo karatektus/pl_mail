@@ -130,7 +130,7 @@ Variables:
                 <div class="flex flex-wrap gap-2">
                     {% for weekday in 1..7 %}
                         <label class="cursor-pointer rounded-lg border border-field bg-field px-2.5 py-1.5 text-xs text-ink-soft
-                                      has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white">
+                                      has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink">
                             <input type="checkbox"
                                    name="weekdays[]"
                                    value="{{ weekday }}"
@@ -242,7 +242,7 @@ Variables:
                            text-ink-soft bg-field border border-field hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
 
             <button type="submit"
-                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-white
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
                            bg-accent hover:bg-accent-strong transition-colors">{{ 'form.submit'|trans }}</button>
         </div>
     </form>

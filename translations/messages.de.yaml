@@ -2094,7 +2094,8 @@ sidebar:
         heading: Konten
         loading: Wird geladen…
         none: Noch keine Konten
-        toggle: Kontoordner ein-/ausklappen
+        open: '%account% öffnen'
+        toggle: 'Ordner in %account% ein-/ausklappen'
     compose: Schreiben
     labels:
         add: Label erstellen
