@@ -1052,6 +1052,10 @@ calendar:
         month: Monat
         week: Woche
 
+clipboard:
+    copied: Kopiert
+    copy_failed: Kopieren fehlgeschlagen
+
 compose:
     no_account:
         body: Richte zuerst ein Postfach ein, dann kannst du sofort davon schreiben.
@@ -1222,6 +1226,8 @@ message:
         category: Kategorie
         bcc: BCC
         cc: CC
+        copy_address: 'Adresse %address% kopieren'
+        copy_headers: Kopfzeilen kopieren
         date: Datum
         from: von
         hide_all_headers: Alle Kopfzeilen ausblenden
@@ -1234,6 +1240,7 @@ message:
         subject: Betreff
         to: "an %name%"
         to_label: an
+        undisclosed: unbekannte Empfänger
     draft: "Entwurf"
     original:
         copied: Kopiert

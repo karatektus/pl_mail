@@ -6,6 +6,34 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**No migration. One optional command repairs old rows: `bin/console app:backfill
+recipients`.** Every message ever synced over IMAP stored an empty recipient
+list. webklex hands To/Cc/Bcc over as an `Attribute`, which implements
+`ArrayAccess` and nothing else, so the `foreach` that read it walked the
+object's (non-existent) public properties, ran zero times and returned nothing
+— no error, no warning, and no recipients. The message header therefore had no
+"to" line, reply-all had nobody to reply to, and no contact was ever harvested
+from a recipient. Gmail and Graph were unaffected; they parse the header and
+the `toRecipients` array directly.
+
+Nothing was lost with it: the headers themselves reach a different column, so
+the backfill re-derives the recipients from the row itself — no mail server, no
+resync, and no reset. It only fills lists that are empty, so a correct capture
+is never overwritten by a poorer re-parse. Until it is run, the message header
+reads the same headers on the fly, so a mailbox looks right either way.
+
+**The message header names the recipients at a glance, and a message with none
+says so.** The header row now reads "to Alice, Bob +2" instead of "Details",
+with the full list still in the expander. A message that genuinely names nobody
+— a bcc delivery, a list that hides its members — states "undisclosed
+recipients" rather than dropping the line, because an absent line reads as a
+bug and a stated absence reads as a fact. The expander gained a copy button per
+address and one for the whole header block. And reply-to, mailed-by and
+signed-by now appear on IMAP mail: webklex spells stored header names with
+underscores, and the panel looked only for the hyphen form.
+
 ## v0.0.30 — 2026-08-12
 
 **One migration adds the columns this release thinks with; nothing is

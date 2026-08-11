@@ -1,22 +1,39 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Copy the text of the "source" target to the clipboard and flash a
- * confirmation on the "label" target.
+ * Copy the text of the "source" target to the clipboard, and say so.
+ *
+ * Targets:
+ *   source  — the element whose textContent is copied. May be hidden, and
+ *             often is: the block a call site owes the clipboard is composed
+ *             in Twig and rendered off-screen (admin logs, mail headers).
+ *   label   — optional; its text becomes confirmText/failedText and goes back.
+ *             Give it `sr-only` when the icon is the visible confirmation and
+ *             the words are for a screen reader.
+ *   icon    — optional; its `idleIcon` class is exchanged for confirmIcon or
+ *             failedIcon and back. For icon-only buttons, which otherwise had
+ *             no confirmation at all — the source highlight below is invisible
+ *             when the source is, and there is no label to swap.
+ *
+ * Values: confirmText, failedText (translate them at the call site — the
+ * defaults here are English), idleIcon/confirmIcon/failedIcon (Font Awesome
+ * glyph classes, style class untouched), resetAfter (ms).
  *
  * navigator.clipboard needs a secure context, which a self-hosted plMail on a
  * plain-HTTP LAN hostname is not — so there is a deprecated-but-working
  * execCommand path behind it rather than a dead button. Selecting the text and
  * calling it done is not enough on its own: a phone has no ctrl+c, and the
- * source may not even be on screen (the admin log view copies composed text
- * from a hidden element).
+ * source may not even be on screen.
  */
 export default class extends Controller {
-    static targets = ["source", "label"];
+    static targets = ["source", "label", "icon"];
 
     static values = {
         confirmText: { type: String, default: "Copied" },
         failedText: { type: String, default: "Copy failed" },
+        idleIcon: { type: String, default: "fa-copy" },
+        confirmIcon: { type: String, default: "fa-check" },
+        failedIcon: { type: String, default: "fa-triangle-exclamation" },
         resetAfter: { type: Number, default: 2000 },
     };
 
@@ -98,17 +115,52 @@ export default class extends Controller {
         selection.addRange(range);
     }
 
+    /**
+     * Says so, on whichever of the two the call site gave us.
+     *
+     * The icon half exists because an icon-only button had no confirmation at
+     * all: the source highlight is invisible when the source is a hidden
+     * element, and there is no label to swap. A copy button in a mail header
+     * sits next to the address it copies, where a word would not fit but a
+     * check mark does.
+     */
     _flash(copied = true) {
-        if (false === this.hasLabelTarget) {
+        clearTimeout(this._timer);
+
+        const restore = [];
+
+        if (true === this.hasLabelTarget) {
+            const original = this.labelTarget.textContent;
+
+            this.labelTarget.textContent = copied ? this.confirmTextValue : this.failedTextValue;
+            restore.push(() => {
+                this.labelTarget.textContent = original;
+            });
+        }
+
+        if (true === this.hasIconTarget) {
+            const swapped = copied ? this.confirmIconValue : this.failedIconValue;
+
+            // Only the glyph class is exchanged: the style (fa-solid), the
+            // size and the colour beside it belong to the button, not to the
+            // state, and rewriting the whole class list would take them too.
+            this.iconTarget.classList.remove(this.idleIconValue);
+            this.iconTarget.classList.add(swapped);
+
+            restore.push(() => {
+                this.iconTarget.classList.remove(swapped);
+                this.iconTarget.classList.add(this.idleIconValue);
+            });
+        }
+
+        if (0 === restore.length) {
             return;
         }
 
-        const original = this.labelTarget.textContent;
-        this.labelTarget.textContent = copied ? this.confirmTextValue : this.failedTextValue;
-
-        clearTimeout(this._timer);
         this._timer = setTimeout(() => {
-            this.labelTarget.textContent = original;
+            for (const undo of restore) {
+                undo();
+            }
         }, this.resetAfterValue);
     }
 

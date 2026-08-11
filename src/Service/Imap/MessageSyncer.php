@@ -18,6 +18,7 @@ use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Webklex\PHPIMAP\Attribute;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Message as ImapMessage;
 use App\Service\Mail\HeaderNormalizer;
@@ -300,9 +301,9 @@ class MessageSyncer
         }
 
         // Recipients
-        $message->toAddresses = $this->formatAddresses($imapMessage->getTo());
-        $message->ccAddresses = $this->formatAddresses($imapMessage->getCc());
-        $message->bccAddresses = $this->formatAddresses($imapMessage->getBcc());
+        $message->toAddresses = self::addressesOf($imapMessage->getTo());
+        $message->ccAddresses = self::addressesOf($imapMessage->getCc());
+        $message->bccAddresses = self::addressesOf($imapMessage->getBcc());
 
         // Dates
         $receivedAt = self::toUtc($imapMessage->getDate()->toDate());
@@ -402,18 +403,57 @@ class MessageSyncer
         return $isInline;
     }
 
-    private function formatAddresses(mixed $attribute): array
+    /**
+     * The addresses behind a `to`/`cc`/`bcc` header attribute.
+     *
+     * webklex hands these over as an Attribute, which implements ArrayAccess
+     * and *only* ArrayAccess — it is not Traversable. `foreach` over one is
+     * therefore not an error and not an iteration either: PHP falls back to
+     * walking the object's public properties, and Attribute has none, so the
+     * loop this replaces ran zero times and returned an empty list for every
+     * message ever synced over IMAP. Nothing failed loudly; to/cc/bcc were
+     * simply always empty, which is why the message header had no "to" line,
+     * reply-all had nobody to reply to, and no contact was ever harvested from
+     * a recipient. ->toArray() is the accessor that actually yields the values.
+     *
+     * Entries whose addr-spec is empty are dropped, matching the Gmail and
+     * Graph builders: a group syntax like `undisclosed-recipients:;` parses to
+     * a name with no address, and a recipient we cannot name is worse than a
+     * list that honestly has none in it.
+     *
+     * Static and public for the same reason toUtc() above is: it is the whole
+     * of a rule that was wrong for the life of the IMAP path, and a test
+     * should be able to hand it a real webklex Attribute without standing up
+     * a syncer and eleven collaborators to do it.
+     *
+     * @return list<array{name: string, address: string}>
+     */
+    public static function addressesOf(mixed $attribute): array
     {
-        if (null === $attribute) {
-            return [];
-        }
+        $values = match (true) {
+            $attribute instanceof Attribute => $attribute->toArray(),
+            is_iterable($attribute)         => $attribute,
+            default                         => [],
+        };
 
         $result = [];
 
-        foreach ($attribute as $address) {
+        foreach ($values as $address) {
+            // Address objects on every real sync; the string form is what a
+            // header webklex could not split into parts leaves behind.
+            [$name, $email] = true === is_object($address)
+                ? [$address->personal ?? '', $address->mail ?? '']
+                : ['', (string) $address];
+
+            $email = AddressHelper::email(true === is_string($email) ? $email : '');
+
+            if ('' === $email) {
+                continue;
+            }
+
             $result[] = [
-                'name'    => AddressHelper::name($address->personal ?? ''),
-                'address' => AddressHelper::email($address->mail ?? ''),
+                'name'    => AddressHelper::name(true === is_string($name) ? $name : ''),
+                'address' => $email,
             ];
         }
 

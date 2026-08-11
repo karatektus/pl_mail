@@ -35,6 +35,19 @@ export default class extends Controller {
         document.addEventListener("click", this._boundClose, { capture: true });
     }
 
+    /**
+     * Anything clicked inside the panel stops there.
+     *
+     * The panel lives inside the message's own click target, so a click that
+     * bubbles collapses the message the reader just opened — taking the panel
+     * with it. Every control in here would otherwise have to remember to stop
+     * for itself, which the copy buttons duly did not, and the symptom is a
+     * button that appears to do nothing because its own container vanished.
+     */
+    stop(event) {
+        event.stopPropagation();
+    }
+
     toggleAll(event) {
         event.stopPropagation();
 

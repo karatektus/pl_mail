@@ -1025,6 +1025,10 @@ calendar:
         month: Month
         week: Week
 
+clipboard:
+    copied: Copied
+    copy_failed: Copy failed
+
 compose:
     no_account:
         body: Add a mailbox first, and you can write from it right away.
@@ -1195,6 +1199,8 @@ message:
         category: category
         bcc: bcc
         cc: cc
+        copy_address: 'Copy address %address%'
+        copy_headers: Copy headers
         date: date
         from: from
         hide_all_headers: Hide all headers
@@ -1207,6 +1213,7 @@ message:
         subject: subject
         to: "to %name%"
         to_label: to
+        undisclosed: undisclosed recipients
     draft: "Draft"
     original:
         copied: Copied

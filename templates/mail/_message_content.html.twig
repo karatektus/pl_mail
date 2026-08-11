@@ -25,13 +25,17 @@
         </h1>
 
         <div class="flex items-start justify-between border-b border-line pb-4 mb-4">
-            <div>
+            <div class="min-w-0">
                 <p class="text-sm font-medium text-ink">
                     {{ message.fromName ?: message.fromAddress }}
                 </p>
                 <p class="text-xs text-ink-faint">
                     {{ message.fromAddress }}
                 </p>
+                {# The same header the thread view shows, for the same reason:
+                   this view named the sender and nobody else, so who the mail
+                   was addressed to was not on the page at all. #}
+                {% include 'mail/_message_details.html.twig' with { message: message } only %}
             </div>
             <p class="text-xs text-ink-faint flex-shrink-0">
                 {{ message.receivedAt ? message.receivedAt|date('M j, Y, ' ~ clock.time) : '' }}

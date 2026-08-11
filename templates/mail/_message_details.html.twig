@@ -1,54 +1,131 @@
 {#
 mail/_message_details.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Gmail-style "to me ▾" trigger plus the details popover for a single message.
+Gmail-style "to Alice, Bob +2 ▾" trigger plus the details popover for a single
+message.
 
 Variables:
   message  Message
 
-Everything is derived from the stored `message.headers` map (original-case
-keys, values are string|string[]), since there is no raw RFC822 blob and no
-replyTo column on the entity.
+The recipient lists come from message_addresses(), not straight off the entity:
+it falls back to the row's own stored headers when the column is empty, which
+is what every message synced over IMAP before MessageSyncer::addressesOf() was
+fixed looks like. See App\Twig\MessageRecipientsExtension.
+
+Everything else is derived from the stored `message.headers` map, since there
+is no raw RFC822 blob and no replyTo column on the entity. Header names are
+canonicalised to the lowercase hyphen spelling on the way in, because the
+paths disagree about how they store them: Gmail and Graph keep the name as it
+arrived (`Reply-To`), webklex lowercases it and turns the hyphen into an
+underscore (`reply_to`). Looking up only the hyphen form meant reply-to,
+mailed-by and signed-by were silently missing from every IMAP message.
 #}
 {% import _self as details %}
 
+{# One address, with a copy button for the addr-spec itself. The clipboard
+   source is the address text as it is rendered, so the insecure-context
+   fallback (which selects the source) highlights exactly what it copied. #}
+{% macro address(entry) %}
+    <span data-controller="ui--clipboard"
+          data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+          data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}"
+          class="inline-flex items-baseline gap-1 max-w-full">
+        <span class="break-words">
+            {%- if entry.name -%}
+                {{ entry.name }} &lt;<span data-ui--clipboard-target="source">{{ entry.address }}</span>&gt;
+            {%- else -%}
+                <span data-ui--clipboard-target="source">{{ entry.address }}</span>
+            {%- endif -%}
+        </span>
+        <button
+            type="button"
+            data-action="click->ui--clipboard#copy"
+            aria-label="{{ 'message.details.copy_address'|trans({ '%address%': entry.address }) }}"
+            class="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded
+                   text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+        >
+            <i data-ui--clipboard-target="icon" class="fa-solid fa-copy text-[10px]" aria-hidden="true"></i>
+            {# Announced, not shown: the check mark is the sighted confirmation
+               and this is the same news for a screen reader. #}
+            <span data-ui--clipboard-target="label" class="sr-only" role="status"></span>
+        </button>
+    </span>
+{% endmacro %}
+
 {% macro addresses(list) %}
+    {%- import _self as m -%}
     {%- for entry in list -%}
-        {%- if entry.name is defined and entry.name -%}
-            {{ entry.name }} &lt;{{ entry.address }}&gt;
-        {%- else -%}
-            {{ entry.address }}
-        {%- endif -%}
-        {{- not loop.last ? ', ' : '' -}}
+        {{ m.address(entry) }}{{ not loop.last ? ', ' : '' }}
     {%- endfor -%}
 {% endmacro %}
 
-{# Case-insensitive header lookup; multi-value headers collapse to one string. #}
 {% set rawHeaders = message.headers ?? {} %}
 {% set h = {} %}
 {% for key, value in rawHeaders %}
-    {% set h = h|merge({ (key|lower): (value is iterable ? value|join("\n") : value) }) %}
+    {% set canonical = key|lower|replace({ '_': '-' }) %}
+    {% if h[canonical] is not defined %}
+        {% set h = h|merge({ (canonical): (value is iterable ? value|join("\n") : value) }) %}
+    {% endif %}
 {% endfor %}
 
-{% set selfEmail   = message.account.email|default(null) %}
-{% set toList      = message.toAddresses ?? [] %}
-{% set ccList      = message.ccAddresses ?? [] %}
-{% set bccList     = message.bccAddresses ?? [] %}
+{% set toList      = message_addresses(message, 'to') %}
+{% set ccList      = message_addresses(message, 'cc') %}
+{% set bccList     = message_addresses(message, 'bcc') %}
+{% set summary     = message_recipient_summary(message) %}
 {% set replyTo     = h['reply-to']|default(null) %}
 {% set returnPath  = h['return-path']|default('') %}
 {% set mailedBy    = '@' in returnPath ? returnPath|split('@')|last|trim('<> ') : null %}
 {% set dkimParts   = (h['dkim-signature']|default(''))|split(';')|map(p => p|trim)|filter(p => p starts with 'd=') %}
 {% set signedBy    = dkimParts is not empty ? (dkimParts|first)|slice(2) : null %}
 
-{# Trigger label: "to me", "to Alice", "to Alice, +2" #}
-{% set firstTo = toList|first %}
-{% set toLabel = '' %}
-{% if firstTo %}
-    {% set toLabel = firstTo.address == selfEmail
-        ? ('message.details.me'|trans)
-        : (firstTo.name|default('') ?: firstTo.address) %}
+{# The at-a-glance line: "to me", "to Alice, Bob +2", or — when the message
+   genuinely names nobody — "to undisclosed recipients". A message with no
+   To: header is an ordinary thing (a bcc delivery, a mailing list that hides
+   its members); a header row that just leaves the line out is not, because
+   an absent line reads as something broken rather than as a fact. #}
+{% set summaryLabel = summary.empty
+    ? 'message.details.undisclosed'|trans
+    : summary.names|join(', ') %}
+
+{% set fromText = message.fromName
+    ? message.fromName ~ ' <' ~ message.fromAddress ~ '>'
+    : message.fromAddress %}
+{% set dateAt = message.receivedAt ?? message.sentAt %}
+{% set messageIdText = message.messageId|default('') %}
+
+{# The technical headers as plain text, in the order the panel shows them.
+   Only the lines the panel actually displays — a copy that carried more than
+   the reader can see is a different document from the one they asked for.
+
+   Assembled with map/join rather than through the address macro on purpose:
+   macro output is already-escaped markup, and concatenating it into a string
+   that is then printed would escape it a second time, so the clipboard would
+   receive `Alice &lt;alice@…&gt;`. #}
+{% set addressText = a => a.name ? a.name ~ ' <' ~ a.address ~ '>' : a.address %}
+{% set headerLines = ['From: ' ~ fromText] %}
+{% if replyTo %}
+    {% set headerLines = headerLines|merge(['Reply-To: ' ~ replyTo]) %}
 {% endif %}
-{% set extraCount = (toList|length + ccList|length) - 1 %}
+{% set headerLines = headerLines|merge([
+    'To: ' ~ (toList is not empty
+        ? toList|map(addressText)|join(', ')
+        : 'message.details.undisclosed'|trans),
+]) %}
+{% if ccList is not empty %}
+    {% set headerLines = headerLines|merge(['Cc: ' ~ ccList|map(addressText)|join(', ')]) %}
+{% endif %}
+{% if bccList is not empty %}
+    {% set headerLines = headerLines|merge(['Bcc: ' ~ bccList|map(addressText)|join(', ')]) %}
+{% endif %}
+{% if dateAt %}
+    {% set headerLines = headerLines|merge(['Date: ' ~ dateAt|date('r')]) %}
+{% endif %}
+{% set headerLines = headerLines|merge([
+    'Subject: ' ~ (message.subject ?: ('thread.no_subject'|trans)),
+]) %}
+{% if messageIdText %}
+    {% set headerLines = headerLines|merge(['Message-ID: ' ~ messageIdText]) %}
+{% endif %}
 
 <div class="relative inline-flex" data-controller="mail--message-details">
     <button
@@ -59,12 +136,9 @@ replyTo column on the entity.
                text-xs text-ink-faint hover:text-ink-soft hover:bg-hover
                transition-colors cursor-pointer"
     >
-        <span class="truncate max-w-[16rem]">
-            {%- if toLabel -%}
-                {{ 'message.details.to'|trans({ '%name%': toLabel }) }}{{ extraCount > 0 ? ', +' ~ extraCount : '' }}
-            {%- else -%}
-                {{ 'message.details.label'|trans }}
-            {%- endif -%}
+        <span class="truncate max-w-[22rem]">
+            {{- 'message.details.to'|trans({ '%name%': summaryLabel }) -}}
+            {{- summary.extra > 0 ? ' +' ~ summary.extra : '' -}}
         </span>
         <i data-mail--message-details-target="caret"
            class="fa-solid fa-caret-down text-[10px] transition-transform duration-150"
@@ -73,6 +147,7 @@ replyTo column on the entity.
 
     <div
         data-mail--message-details-target="panel"
+        data-action="click->mail--message-details#stop"
         class="hidden absolute left-0 top-full mt-1 z-30 w-[28rem] max-w-[85vw]
                rounded-pane bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop
@@ -81,7 +156,7 @@ replyTo column on the entity.
         <dl class="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 px-4 py-3">
             <dt class="text-ink-faint text-right">{{ 'message.details.from'|trans }}</dt>
             <dd class="text-ink-soft break-words">
-                {{ message.fromName ? message.fromName ~ ' <' ~ message.fromAddress ~ '>' : message.fromAddress }}
+                {{ details.address({ name: message.fromName, address: message.fromAddress }) }}
             </dd>
 
             {% if replyTo %}
@@ -89,10 +164,15 @@ replyTo column on the entity.
                 <dd class="text-ink-soft break-words">{{ replyTo }}</dd>
             {% endif %}
 
-            {% if toList is not empty %}
-                <dt class="text-ink-faint text-right">{{ 'message.details.to_label'|trans }}</dt>
-                <dd class="text-ink-soft break-words">{{ details.addresses(toList) }}</dd>
-            {% endif %}
+            {# Always rendered, empty or not — see the summary note above. #}
+            <dt class="text-ink-faint text-right">{{ 'message.details.to_label'|trans }}</dt>
+            <dd class="text-ink-soft break-words">
+                {% if toList is not empty %}
+                    {{ details.addresses(toList) }}
+                {% else %}
+                    <span class="text-ink-faint italic">{{ 'message.details.undisclosed'|trans }}</span>
+                {% endif %}
+            </dd>
 
             {% if ccList is not empty %}
                 <dt class="text-ink-faint text-right">{{ 'message.details.cc'|trans }}</dt>
@@ -106,7 +186,7 @@ replyTo column on the entity.
 
             <dt class="text-ink-faint text-right">{{ 'message.details.date'|trans }}</dt>
             <dd class="text-ink-soft">
-                {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, g:i a') : '—' }}
+                {{ dateAt ? dateAt|date('D, M j, Y, g:i a') : '—' }}
             </dd>
 
             <dt class="text-ink-faint text-right">{{ 'message.details.subject'|trans }}</dt>
@@ -141,6 +221,27 @@ replyTo column on the entity.
                 </dd>
             {% endif %}
         </dl>
+
+        {# Copy the whole block. The source is hidden rather than assembled in
+           JavaScript: the text owed to the clipboard is the panel's own
+           rendering, translations and all, and Twig is where that already
+           exists. #}
+        <div class="border-t border-line"
+             data-controller="ui--clipboard"
+             data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+             data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+            <pre data-ui--clipboard-target="source" class="hidden">{{ headerLines|join("\n") }}</pre>
+            <button
+                type="button"
+                data-action="click->ui--clipboard#copy"
+                class="w-full flex items-center gap-2 px-4 py-2 text-left
+                       text-ink-faint hover:text-ink-soft hover:bg-hover
+                       transition-colors cursor-pointer"
+            >
+                <i data-ui--clipboard-target="icon" class="fa-solid fa-copy w-3.5" aria-hidden="true"></i>
+                <span data-ui--clipboard-target="label">{{ 'message.details.copy_headers'|trans }}</span>
+            </button>
+        </div>
 
         {% if rawHeaders is not empty %}
             <div class="border-t border-line">

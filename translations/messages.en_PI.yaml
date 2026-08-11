@@ -770,6 +770,10 @@ calendar:
         month: Month
         week: Week
 
+clipboard:
+    copied: Pocketed
+    copy_failed: Pocketin' failed
+
 compose:
     no_account:
         body: Hitch up a mailbag first, an' ye can write from it straight away.
@@ -939,6 +943,8 @@ message:
         category: rank
         bcc: bcc
         cc: cc
+        copy_address: 'Pocket the address %address%'
+        copy_headers: Pocket the headers
         date: date
         from: from
         hide_all_headers: Furl all headers
@@ -951,6 +957,7 @@ message:
         subject: subject
         to: "to %name%"
         to_label: to
+        undisclosed: hands unnamed
     draft: "Scroll"
     original:
         copied: Copied
