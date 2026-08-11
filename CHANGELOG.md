@@ -6,6 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.30 — 2026-08-12
+
+**One migration adds the columns this release thinks with; nothing is
+irreversible. Mail read anywhere else is read here too — on every provider.**
+plMail captured an IMAP message's flags once, at ingest, and never looked
+again: read on the phone stayed unread here forever, a star set in another
+client never arrived. The deletion sweep's folder listing now carries flags
+in the same single command, so presence and read-state are learned in one
+pass and cannot disagree with each other. Locally, seen and starred apply
+through the same paths the buttons use — thread counts recounted, JMAP
+clients notified — and a change you just made here is never reverted by a
+server answer that predates it: an unconfirmed local change parks its row
+until the provider acknowledges, which is what stops the flap loop instead of
+merely making it rare.
+
+**The idle connection now reports everything it hears.** It used to react to
+new mail and discard the rest of what the server told it. A deletion
+announced mid-idle sweeps its folder within seconds instead of within two
+fifteen-minute cycles, and a flag change announced mid-idle refreshes the
+same way. The idle connection stays a trigger, never an authority — every
+answer still runs through the sweep's own safety rails.
+
+**Gmail and Graph read-state was broken too, each in its own way.** A Graph
+delta carries isRead and the star and was read only for the folder; both
+apply now, and an absent key preserves rather than resets. Gmail's batch
+handler dropped every already-known id before fetching anything — which had
+quietly stopped the label mirroring for relabelled messages as well; with the
+filter corrected, label changes and read-state flow as v0.0.29 intended.
+
 ## v0.0.29 — 2026-08-12
 
 **Two migrations run on boot: one adds the column the deletion sweep marks
