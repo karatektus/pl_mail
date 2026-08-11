@@ -494,9 +494,10 @@ calendar:
         cancel: Belay that
         copies:
             help: >-
-                Marked almanacs get this reckonin'. Mark one it be not in yet to
-                lay a copy there; unmark one to leave that copy be — it shall
-                then differ from the rest an' sail as its own entry.
+                Marked almanacs get this reckonin' an' every change ye stow to
+                it. Unmarkin' one throws naught overboard: that almanac keeps the
+                copy it holds now an' takes no more news, so it shall sail as its
+                own entry once the two no longer match.
             legend: Almanacs
             read_only: This almanac takes no changes
         delete: Scuttle it
@@ -506,6 +507,10 @@ calendar:
             Cast this one overboard an' keep it there? Later parrots about the
             same booking shall not write it back into the almanac.
         ends: Ends
+        error:
+            end_before_start: The end must come after the start.
+            summary: This reckonin' could not be stowed.
+            title_required: Give this reckonin' a name.
         extracted_note: >-
             This reckonin' was found in a parrot. Amend it and later messages
             about the same booking shall not paint over yer hand.

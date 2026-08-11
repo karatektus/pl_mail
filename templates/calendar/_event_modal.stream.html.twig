@@ -1,0 +1,25 @@
+{#
+A save that was refused, put back into the dialog the user is still looking at.
+
+`update` and not `replace`: the target is the <turbo-frame id="modal"> in
+_partials/_modal.html.twig, which carries the flex classes that make the dialog
+scroll its body and pin its footer. `replace` would swap that element for the
+one _event_modal.html.twig renders — same id, none of the classes — and the
+dialog would lose its layout the first time anybody mistyped a date. `update`
+changes the children only, which is exactly what a normal frame navigation does.
+
+A stream rather than a frame render, because the form posts with
+data-turbo-frame="_top" and a `_top` submission has no frame for Turbo to put a
+failed response in. Turbo's StreamObserver watches turbo:before-fetch-response
+for this content type on EVERY response regardless of status, which is what lets
+one form navigate the whole page on success and update one frame on failure.
+
+The status is 422 and that matters independently: Turbo treats a 2xx form
+response that did not redirect as an error, and the browser must not record this
+as a successful navigation.
+#}
+<turbo-stream action="update" target="modal">
+    <template>
+        {{ include('calendar/_event_editor.html.twig') }}
+    </template>
+</turbo-stream>

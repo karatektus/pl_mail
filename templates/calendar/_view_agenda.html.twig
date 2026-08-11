@@ -21,7 +21,11 @@ shared page prints its empty days when this one does not.
     {% block day_entries %}
         <div class="space-y-0.5">
             {% for cluster in dayEntries %}
-                {% include 'calendar/_event_chip.html.twig' %}
+                {# The one view that prints a range rather than a start.
+                   An agenda row draws no timeline, so "18:00" alone cannot
+                   answer how long the meeting is; a grid block answers that by
+                   being that tall, and a month cell has no width to spare. #}
+                {% include 'calendar/_event_chip.html.twig' with { showRange: true } %}
             {% endfor %}
         </div>
     {% endblock %}

@@ -747,9 +747,10 @@ calendar:
         cancel: Cancel
         copies:
             help: >-
-                Ticked calendars get this event. Tick one it is not on yet to put
-                a copy there; untick one to leave that copy as it is — it will
-                then differ from the others and show up as its own entry.
+                Ticked calendars get this event and every change you save to it.
+                Unticking one does not remove it: that calendar keeps the copy it
+                has now and stops receiving updates, so it will show up as its own
+                entry once the two no longer match.
             legend: Calendars
             read_only: This calendar does not accept changes
         delete: Delete
@@ -759,6 +760,10 @@ calendar:
             Remove this event and stop it coming back? Later emails about the
             same booking will not put it on the calendar again.
         ends: Ends
+        error:
+            end_before_start: The end has to come after the start.
+            summary: This event could not be saved.
+            title_required: Give this event a title.
         extracted_note: >-
             This event was found in an email. Editing it stops later messages
             about the same booking from overwriting your changes.

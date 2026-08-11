@@ -225,11 +225,25 @@ one) `placed`:
             <div class="border-r border-line">
                 {% for hour in 0..23 %}
                     <div class="relative h-12">
-                        {% if hour > 0 %}
-                            <span class="absolute -top-1.5 right-1.5 text-[10px] tabular-nums text-ink-faint">
-                                {{ ('2000-01-01 %02d:00:00'|format(hour))|date(hourFormat, false) }}
-                            </span>
-                        {% endif %}
+                        {# Midnight is labelled like every other hour, and is
+                           positioned differently because it is the only one
+                           whose line is the top edge of the grid.
+
+                           The other twenty-three are nudged up by half their own
+                           height so they sit ON their hour line rather than
+                           inside the row beneath it. Doing that to 00:00 puts
+                           half the text above the scroller's first pixel, where
+                           it is clipped — which is why the label used to be
+                           skipped outright, leaving a gutter that ran 01:00 to
+                           23:00 and an unlabelled first row that every reader
+                           has to count to identify. Anchored just inside its own
+                           row instead, it is the one label that reads as the top
+                           of a row rather than as a line, which is exactly what
+                           midnight is here. #}
+                        <span class="absolute right-1.5 text-[10px] tabular-nums text-ink-faint
+                                     {{ 0 == hour ? 'top-0.5' : '-top-1.5' }}">
+                            {{ ('2000-01-01 %02d:00:00'|format(hour))|date(hourFormat, false) }}
+                        </span>
                     </div>
                 {% endfor %}
             </div>

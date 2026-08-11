@@ -1,0 +1,491 @@
+{#
+The editor's form, without the frame around it.
+
+Split out of _event_modal.html.twig so that a save which fails validation can be
+rendered back into the open dialog. The save posts with data-turbo-frame="_top",
+because its success is a redirect that has to replace the whole page — and a
+`_top` submission gives Turbo no frame to put a failure in. So the 422 comes
+back as a turbo-stream that UPDATES #modal instead (see
+_event_modal.stream.html.twig), and an `update` action replaces the frame's
+CHILDREN. Rendering the <turbo-frame> wrapper into it as well would nest a frame
+inside itself and drop the shell's flex classes; hence two files, with
+_event_modal.html.twig as the wrapper and this as the thing both paths render.
+
+Accepts everything _event_modal.html.twig documents, plus:
+
+  errors    map of field name → already-translated message. The keys the save
+            names are `title`, `startsAt` and `endsAt`; anything under `_` is a
+            statement about the form as a whole and is shown only in the
+            summary. Empty on the way in, filled on the way back.
+
+**Every value below is read from a variable rather than off `event`.** That is
+what makes the error re-render show what the user typed instead of what is
+stored — an editor that answers "the end has to come after the start" and then
+quietly puts the old end back has thrown away the correction it just asked for.
+`is defined` rather than `|default()`, because Twig's default filter also fires
+on an empty string, and clearing the location is a thing a user may mean.
+#}
+{% import '_partials/_select.html.twig' as select %}
+
+{# `is defined` and not `|default()`, which also fires on an empty string — and
+   an empty title is precisely the state this editor has to be able to come back
+   in. With the filter, clearing the title of an existing event and saving put
+   the OLD title back beside the error complaining it was missing. #}
+{% set event_title = title is defined ? title : (event ? event.title : '') %}
+{% set recurrence_id = recurrenceId|default('') %}
+{% set copies = copies|default([]) %}
+{% set errors = errors|default({}) %}
+
+{% set event_location = location is defined ? location : (event ? event.location : '') %}
+{% set event_description = description is defined
+    ? description
+    : (event ? event.jscalendar.description|default('') : '') %}
+{% set event_all_day = isAllDay is defined ? isAllDay : (event and event.isAllDay) %}
+
+{# The choice is offered only when there is one to make: a recurring event, and
+   a chip that said which of its occurrences was clicked. Either missing and
+   this is the editor as it was — every save and every delete means the whole
+   event. #}
+{% set is_instance = event and event.isRecurring and recurrence_id is not empty %}
+
+{# data-turbo-frame="_top" so the response replaces the page rather than
+   this frame. A redirect rendered back into #modal would find no matching
+   frame in it and quietly do nothing, leaving the dialog open over an
+   event that had in fact been saved.
+
+   novalidate is deliberate and is the whole of the H-09 fix. The fields keep
+   their `required` attributes — they are what the constraint IS, and what a
+   form crawler and the server both read — but the browser's own bubble is
+   refused: it carries no text this app wrote, is not localised with the rest of
+   the page, sets no aria-invalid, and vanishes on the next keystroke. The
+   controller below renders the same refusal as inline text tied to the field
+   with aria-describedby, and the server refuses it a second time for anyone
+   without JavaScript. #}
+<form method="post"
+      action="{{ path('app_calendar_event_save') }}"
+      data-turbo-frame="_top"
+      novalidate
+      data-controller="calendar--event-form"
+      data-action="submit->calendar--event-form#validate
+                   change->calendar--event-form#shiftEnd"
+      class="flex flex-col min-h-0 flex-1"
+>
+    <input type="hidden" name="_token" value="{{ csrf_token('calendar_event') }}">
+    <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
+    <input type="hidden" name="eventId" value="{{ event ? event.id : 0 }}">
+    <input type="hidden" name="timeZone" value="{{ timeZone }}">
+    <input type="hidden" name="view" value="{{ app.request.query.get('view', 'week') }}">
+    <input type="hidden" name="recurrenceId" value="{{ recurrence_id }}">
+
+    {# Read only by the delete route, which this same form submits to via
+       `formaction` — see the Delete button. `date` is where the user is put
+       back down afterwards; the save route works out its own from the
+       times that were posted. #}
+    {% if event %}
+        <input type="hidden" name="_deleteToken" value="{{ csrf_token('calendar_event_delete' ~ event.id) }}">
+        <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d', displayZone) }}">
+    {% endif %}
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+
+        {# ── What went wrong, said once, out loud ──────────────────────────
+           role="alert" is an assertive live region, so filling it announces
+           without moving focus. It is the summary half of the pattern: every
+           message appears here whether or not the server could name a field,
+           and the ones that name a field appear again beside it. The controller
+           writes into this same element for the client-side refusals, so a user
+           hears the same sentence whether the check ran in the browser or in
+           PHP.
+
+           Rendered empty and hidden rather than omitted, because a live region
+           has to be in the document BEFORE the text arrives — one inserted
+           already-populated is announced by some screen readers and not by
+           others. #}
+        <div role="alert"
+             data-calendar--event-form-target="summary"
+             class="rounded-lg alert-danger px-3.5 py-3 text-sm text-danger
+                    {{ errors is empty ? 'hidden' : 'flex' }} items-start gap-2.5">
+            <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+            {# What the red panel says to a sighted reader by being red. Outside
+               summaryList on purpose: the controller rebuilds that element's
+               children on every attempt, and this line is not one of them. #}
+            <span class="sr-only">{{ 'calendar.event.error.summary'|trans }}</span>
+            <div class="space-y-0.5" data-calendar--event-form-target="summaryList">
+                {% for message in errors %}
+                    <p class="leading-snug">{{ message }}</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <label for="event-title" class="block text-xs text-ink-muted mb-1">
+                {{ 'calendar.event.title'|trans }}
+            </label>
+            <input id="event-title" name="title" type="text" required autofocus
+                   value="{{ event_title }}"
+                   data-calendar--event-form-target="title"
+                   data-error-message="{{ 'calendar.event.error.title_required'|trans }}"
+                   {% if errors.title is defined %}aria-invalid="true"{% endif %}
+                   aria-describedby="event-title-error"
+                   class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
+                          focus:outline-none focus:ring-2 focus:ring-accent
+                          {{ errors.title is defined ? 'border-danger' : 'border-line' }}">
+            {# Referenced by aria-describedby whether or not it has anything in
+               it: a describedby pointing at nothing is ignored, and pointing it
+               at an element that appears later means the field never has to be
+               re-announced for the description to be found. #}
+            <p id="event-title-error"
+               data-calendar--event-form-target="titleError"
+               class="mt-1 text-[11px] text-danger {{ errors.title is defined ? '' : 'hidden' }}">
+                {{ errors.title|default('') }}
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label for="event-starts" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.starts'|trans }}
+                </label>
+                <input id="event-starts" name="startsAt" type="datetime-local" required
+                       value="{{ startsAt|date('Y-m-d\\TH:i', displayZone) }}"
+                       data-calendar--event-form-target="starts"
+                       {% if errors.startsAt is defined %}aria-invalid="true"{% endif %}
+                       aria-describedby="event-starts-error"
+                       class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
+                              focus:outline-none focus:ring-2 focus:ring-accent
+                              {{ errors.startsAt is defined ? 'border-danger' : 'border-line' }}">
+                <p id="event-starts-error"
+                   data-calendar--event-form-target="startsError"
+                   class="mt-1 text-[11px] text-danger {{ errors.startsAt is defined ? '' : 'hidden' }}">
+                    {{ errors.startsAt|default('') }}
+                </p>
+            </div>
+            <div>
+                <label for="event-ends" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.ends'|trans }}
+                </label>
+                <input id="event-ends" name="endsAt" type="datetime-local" required
+                       value="{{ endsAt|date('Y-m-d\\TH:i', displayZone) }}"
+                       data-calendar--event-form-target="ends"
+                       data-error-message="{{ 'calendar.event.error.end_before_start'|trans }}"
+                       {% if errors.endsAt is defined %}aria-invalid="true"{% endif %}
+                       aria-describedby="event-ends-error"
+                       class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
+                              focus:outline-none focus:ring-2 focus:ring-accent
+                              {{ errors.endsAt is defined ? 'border-danger' : 'border-line' }}">
+                <p id="event-ends-error"
+                   data-calendar--event-form-target="endsError"
+                   class="mt-1 text-[11px] text-danger {{ errors.endsAt is defined ? '' : 'hidden' }}">
+                    {{ errors.endsAt|default('') }}
+                </p>
+            </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm text-ink-muted">
+            <input type="checkbox" name="isAllDay" value="1"
+                   {{ event_all_day ? 'checked' : '' }}
+                   class="rounded border-line text-accent focus:ring-accent">
+            {{ 'calendar.event.all_day'|trans }}
+        </label>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                {# The values are CALENDAR ids, and the field is `calendars[]`
+                   where the old copy list posted event ids under `copies[]`.
+                   Renamed rather than reused on purpose: an editor rendered
+                   before this change and submitted after it would otherwise
+                   have its event ids read as calendar ids, and row 42 read as
+                   calendar 42 puts a copy of the meeting on whatever calendar
+                   that turns out to be. Under the new name the stale post
+                   names nothing and the save refuses it. #}
+                <span class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.copies.legend'|trans }}
+                </span>
+
+                {# Scrolls rather than growing: this is half a row in a modal
+                   that already scrolls, and a user with a dozen mirrored
+                   calendars would otherwise push Save off the bottom. #}
+                <div class="rounded-lg border border-line bg-sunken px-3 py-2 space-y-1
+                            max-h-28 overflow-y-auto">
+                    {% for copy in copies %}
+                        <label class="flex items-center gap-2 text-sm
+                                      {{ copy.calendar.isReadOnly ? 'text-ink-faint' : 'text-ink' }}">
+                            <input type="checkbox" name="calendars[]" value="{{ copy.calendar.id }}"
+                                   {{ copy.calendar.isReadOnly ? 'disabled' : '' }}
+                                   {{ copy.isChosen ? 'checked' : '' }}
+                                   class="rounded border-line text-accent focus:ring-accent">
+
+                            <span class="w-2 h-2 rounded-full shrink-0"
+                                  style="background-color: {{ copy.calendar.color }}"
+                                  aria-hidden="true"></span>
+
+                            <span class="min-w-0 truncate">{{ copy.calendar.name }}</span>
+
+                            {% if copy.calendar.isReadOnly %}
+                                <i class="fa-solid fa-lock text-[9px] shrink-0"
+                                   title="{{ 'calendar.event.copies.read_only'|trans }}"
+                                   aria-label="{{ 'calendar.event.copies.read_only'|trans }}"></i>
+                            {% endif %}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <label for="event-repeat" class="block text-xs text-ink-muted mb-1">
+                    {{ 'calendar.event.repeat'|trans }}
+                </label>
+                {% set currentFrequency = repeat is defined
+                    ? repeat
+                    : (event and event.jscalendar.recurrenceRules is defined
+                        ? event.jscalendar.recurrenceRules|first.frequency|default('')
+                        : '') %}
+                <select id="event-repeat" name="repeat"
+                        {{ select.enhance() }}
+                        class="select-field w-full py-2 text-sm">
+                    {% for option in ['none', 'daily', 'weekly', 'monthly', 'yearly'] %}
+                        <option value="{{ option }}" {{ currentFrequency == option ? 'selected' : '' }}>
+                            {{ ('calendar.repeat.' ~ option)|trans }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {# Under the whole group and the full width of it, not inside the
+           left-hand column.
+
+           The column is half of a two-column grid in a max-w-lg dialog — about
+           150px — and four lines of explanation wrapped into it came out as a
+           grey ribbon nobody read, which is how the old copy stayed
+           contradictory for as long as it did. The sentence explains the
+           CHECKBOXES, and the checkboxes are what it now sits beneath. #}
+        <p class="-mt-2 text-[11px] leading-relaxed text-ink-faint">
+            {{ 'calendar.event.copies.help'|trans }}
+        </p>
+
+        <div>
+            <label for="event-location" class="block text-xs text-ink-muted mb-1">
+                {{ 'calendar.event.location'|trans }}
+            </label>
+            <input id="event-location" name="location" type="text"
+                   value="{{ event_location }}"
+                   class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                          focus:outline-none focus:ring-2 focus:ring-accent">
+        </div>
+
+        <div>
+            <label for="event-description" class="block text-xs text-ink-muted mb-1">
+                {{ 'calendar.event.description'|trans }}
+            </label>
+            <textarea id="event-description" name="description" rows="3"
+                      class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
+                             focus:outline-none focus:ring-2 focus:ring-accent"
+            >{{ event_description }}</textarea>
+        </div>
+
+        {# Alerts.
+
+           A checkbox per alert, and the value posted is the alert's KEY
+           rather than its offset — see AlertReader. That is what lets this
+           plain list carry things the form has no field for: an alarm that
+           arrived from a CalDAV server with an absolute trigger, or one
+           relative to the end of the event, is listed with a server-rendered
+           label and survives a save untouched. Unticking it is how you
+           remove it. It also means a crafted post cannot invent an alert,
+           only tick one off the list this template rendered.
+
+           The six common offsets are always present and always first, so the
+           one-click choices sit in a fixed place however the event was made.
+
+           No JavaScript, deliberately. The obvious alternative — a repeater
+           that adds rows client-side — would have to build the same labels
+           in a second language with a second set of plural rules, and the
+           editor already loses nothing by making "anything else" one number
+           rather than an arbitrary editor. #}
+        <fieldset class="rounded-lg border border-line px-3 py-2">
+            <legend class="px-1 text-xs text-ink-muted">
+                {{ 'calendar.event.alert.legend'|trans }}
+            </legend>
+
+            <div class="grid grid-cols-2 gap-x-3">
+                {% for choice in calendar_alert_choices(event) %}
+                    <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
+                        <input type="checkbox" name="alerts[]" value="{{ choice.key }}"
+                               {{ choice.checked ? 'checked' : '' }}
+                               class="rounded border-line text-accent focus:ring-accent">
+                        {{ choice.label }}
+                    </label>
+                {% endfor %}
+            </div>
+
+            {# The general case. Minutes only: it is the unit every other
+               client asks for, and an hour or a day is already one click
+               above. A value here becomes an alert of its own on save and
+               comes back as a ticked box next time the editor opens, which
+               is why the field is not pre-filled from anything. #}
+            <div class="mt-2 flex items-center gap-2">
+                <label for="event-alert-custom" class="text-xs text-ink-muted">
+                    {{ 'calendar.event.alert.custom'|trans }}
+                </label>
+                <input id="event-alert-custom" name="alertCustomMinutes" type="number"
+                       {# Read off the constant the save path clamps against,
+                          so the browser's bound and the server's cannot
+                          drift into disagreeing about what is accepted. #}
+                       min="1" max="{{ constant('App\\Service\\Calendar\\Alert\\AlertReader::MAX_CUSTOM_MINUTES') }}"
+                       step="1" inputmode="numeric"
+                       class="w-20 rounded-lg border border-line bg-sunken px-2 py-1 text-sm text-ink
+                              focus:outline-none focus:ring-2 focus:ring-accent">
+                <select name="alertCustomAction" aria-label="{{ 'calendar.event.alert.custom_action'|trans }}"
+                        {{ select.enhance() }}
+                        class="select-field py-1 text-sm">
+                    {% for action in ['display', 'email'] %}
+                        <option value="{{ action }}">
+                            {{ ('calendar.event.alert.action.' ~ action)|trans }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Said out loud rather than left to be discovered. An alert
+               belongs to the event, not to one of its occurrences — RFC
+               8984 puts `alerts` on the Event — so the scope radio below
+               does not govern this fieldset, and a save scoped to "This
+               event" writes the times and the title and leaves the alerts
+               exactly as they were. #}
+            {% if is_instance %}
+                <p class="mt-1 text-[11px] text-ink-faint">
+                    {{ 'calendar.event.alert.series_note'|trans }}
+                </p>
+            {% endif %}
+        </fieldset>
+
+        {# Only for a recurring event opened on one of its occurrences.
+           A one-off has exactly one instance, so the choice would be
+           between a thing and itself — and an extra radio on every event
+           is noise on almost all of them. Governs Delete as well as Save,
+           which is why it sits above both rather than beside one. #}
+        {% if is_instance %}
+            <fieldset class="rounded-lg border border-line px-3 py-2">
+                <legend class="px-1 text-xs text-ink-muted">
+                    {{ 'calendar.event.scope.legend'|trans }}
+                </legend>
+
+                {% for choice in ['instance', 'series'] %}
+                    <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
+                        <input type="radio" name="scope" value="{{ choice }}"
+                               {{ (scope is defined ? scope : 'instance') == choice ? 'checked' : '' }}
+                               class="border-line text-accent focus:ring-accent">
+                        {{ ('calendar.event.scope.' ~ choice)|trans }}
+                    </label>
+                {% endfor %}
+
+                {# Said here rather than left to the refusal the save would
+                   otherwise answer with. One occurrence cannot be put on a
+                   calendar the series is not on — there would be no series
+                   for it to be an occurrence of — so the two controls have
+                   one combination that does not exist, and a sentence is
+                   cheaper than discovering it through a 422. #}
+                <p class="mt-1 text-[11px] text-ink-faint">
+                    {{ 'calendar.event.scope.instance_note'|trans }}
+                </p>
+            </fieldset>
+        {% endif %}
+
+        {% if event and event.isExtracted %}
+            <p class="text-xs text-ink-faint flex items-start gap-1.5">
+                <i class="{{ event.kind.icon }} mt-0.5" aria-hidden="true"></i>
+                {{ 'calendar.event.extracted_note'|trans }}
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2 px-6 py-4 border-t border-line shrink-0">
+        {% if event %}
+            {# Inside the edit form, not a form of its own, so the one
+               `scope` radio group above governs the delete too — a radio
+               belongs to exactly one form and cannot be shared between
+               two. `formaction` is what makes that possible without
+               nesting forms, which is invalid HTML: the browser drops the
+               inner one silently, and Delete would submit the edit.
+
+               formnovalidate is now belt to the form's own novalidate brace,
+               and kept for the same reason it was added: the delete does not
+               care that Title is empty. The client-side check below reads it
+               too, so pressing Delete with a blank title deletes rather than
+               arguing about a field the user is discarding. #}
+            <button type="submit"
+                    formnovalidate
+                    formaction="{{ path('app_calendar_event_delete', { id: event.id }) }}"
+                    class="text-sm text-danger hover:underline">
+                {{ 'calendar.event.delete'|trans }}
+            </button>
+
+            {# Offered beside Delete rather than instead of it, because the
+               two answer different questions. Delete says "not any more";
+               this says "this was never an event", which is the only one
+               worth remembering — without it the next backfill re-creates
+               what was just thrown away. Extracted events only: nothing
+               would ever re-create a hand-made one. #}
+            {% if event.isExtracted %}
+                <button type="submit"
+                        form="event-dismiss-form"
+                        class="text-sm text-ink-muted hover:text-ink hover:underline">
+                    {{ 'calendar.event.dismiss'|trans }}
+                </button>
+            {% endif %}
+
+            {# A link and not a button, because downloading changes nothing
+               and a GET is what that is. Outside the form's control
+               entirely: an <a> inside a <form> submits nothing, so this
+               cannot be confused for a save however it is styled.
+
+               data-turbo="false" is load-bearing rather than decoration —
+               Turbo would intercept the navigation and try to swap an .ics
+               into the page, which leaves the modal blank and downloads
+               nothing.
+
+               The whole series comes out, not the occurrence this editor
+               was opened on; see IcsExporter::one() for why exporting one
+               occurrence would produce a file that re-imports as a one-off
+               and quietly loses the repeat. #}
+            <a href="{{ path('app_calendar_ics_event', { id: event.id }) }}"
+               download
+               data-turbo="false"
+               class="text-sm text-ink-muted hover:text-ink hover:underline">
+                {{ 'calendar.ics.export.event'|trans }}
+            </a>
+        {% endif %}
+
+        <button type="button"
+                data-action="click->ui--modal#close"
+                class="ml-auto px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors">
+            {{ 'calendar.event.cancel'|trans }}
+        </button>
+
+        <button type="submit"
+                class="px-4 py-2 rounded-lg text-sm bg-accent text-white hover:opacity-90 transition-opacity">
+            {{ 'calendar.event.save'|trans }}
+        </button>
+    </div>
+</form>
+
+{# The dismiss form stays a form of its own: it is the only one carrying a
+   data-turbo-confirm, and it must not be reachable by pressing Enter in the
+   title field. Nested inside the edit form the browser would drop it
+   silently — hence outside, with the button pointing at it by id. #}
+{% if event %}
+    {% if event.isExtracted %}
+        {# Confirmed, and the confirmation says what is permanent about it:
+           the event goes, and so does any future attempt to re-create it
+           from the same booking. #}
+        <form id="event-dismiss-form" method="post"
+              action="{{ path('app_calendar_event_dismiss', { id: event.id }) }}"
+              data-turbo-frame="_top" class="hidden"
+              data-turbo-confirm="{{ 'calendar.event.dismiss_confirm'|trans }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_dismiss' ~ event.id) }}">
+            <input type="hidden" name="returnTo" value="{{ returnTo|default('') }}">
+            <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d', displayZone) }}">
+        </form>
+    {% endif %}
+{% endif %}

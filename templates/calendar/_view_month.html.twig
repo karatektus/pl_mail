@@ -35,7 +35,7 @@ neither.
         <button type="button"
            data-controller="ui--modal"
            data-action="click->ui--modal#open"
-           data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey ~ ' 09:00' }) }}"
+           data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey }) }}"
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
            aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|date('D j M') }) }}"
            class="w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint

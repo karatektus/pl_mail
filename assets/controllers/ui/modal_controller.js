@@ -24,6 +24,23 @@ import { Controller } from "@hotwired/stimulus"
  */
 let pristineFrame = null
 
+/**
+ * Where the keyboard goes back to when the dialog closes, and the watcher that
+ * puts it into the dialog when its content lands.
+ *
+ * Module-level, for the same reason pristineFrame is and for a sharper one:
+ * open() and close() are frequently not the same instance. Every trigger button
+ * in the page mounts one of these controllers and #modal-backdrop mounts
+ * another, so a dialog opened from a chip is closed by the backdrop's copy —
+ * the X button and the backdrop click both resolve there. Per-instance state
+ * would mean the opener remembered the trigger and the closer, asked to restore
+ * it, had never heard of it.
+ *
+ * There is exactly one dialog, so one slot each is the right cardinality.
+ */
+let returnFocusTo = null
+let pendingFocus = null
+
 export default class extends Controller {
     static values = {
         src:   String,   // URL to load into the turbo-frame
@@ -84,13 +101,17 @@ export default class extends Controller {
         // into this one.
         this.armed = false
 
+        // Where to put the keyboard back when this closes. The trigger is the
+        // right answer and `document.activeElement` is the fallback, because
+        // open() is also called from other controllers with no event at all.
+        returnFocusTo = event?.currentTarget ?? document.activeElement
+
         // Show the modal
         dialog.removeAttribute("hidden")
         document.body.classList.add("overflow-hidden")
         document.addEventListener("keydown", this._onKeydown)
 
-        // Move focus into the dialog after Turbo has rendered the frame
-        frame.addEventListener("turbo:frame-load", () => this._focusFirst(dialog), { once: true })
+        this._focusWhenLoaded(frame)
     }
 
     close(event) {
@@ -104,6 +125,25 @@ export default class extends Controller {
         dialog.setAttribute("hidden", "")
         document.body.classList.remove("overflow-hidden")
         document.removeEventListener("keydown", this._onKeydown)
+
+        // A dialog that opened while this one was still waiting for its content
+        // must not have focus yanked out from under it by the old watcher.
+        pendingFocus?.disconnect()
+        pendingFocus = null
+
+        // Back where it came from. Without this the keyboard is left on <body>
+        // and the next Tab starts at the top of the page — for a user who
+        // pressed Escape on a dialog they opened from a chip halfway down a
+        // month grid, that is the whole grid to walk back down.
+        //
+        // Skipped when the trigger has left the document, which is the ordinary
+        // case after a successful save: the page behind has been replaced, and
+        // focusing a detached node silently focuses nothing.
+        if (returnFocusTo?.isConnected) {
+            returnFocusTo.focus()
+        }
+
+        returnFocusTo = null
 
         // Clear the frame so the next open always fetches fresh — and put the
         // spinner back, because clearing only the src left the CLOSED dialog's
@@ -174,14 +214,123 @@ export default class extends Controller {
     get _dialog() { return document.querySelector("[data-ui--modal-dialog]") }
 
     _handleKeydown(event) {
-        if (event.key === "Escape") this.close(event)
+        if (event.key === "Escape") {
+            this.close(event)
+
+            return
+        }
+
+        if (event.key === "Tab") this._trapTab(event)
     }
 
-    _focusFirst(container) {
-        const el = container.querySelector(
-            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
-        el?.focus()
+    /**
+     * Keep Tab inside the dialog.
+     *
+     * `role="dialog"` and `aria-modal="true"` are already on the backdrop — see
+     * _partials/_modal.html.twig — and on their own they are a promise the page
+     * was not keeping. aria-modal tells a screen reader to ignore everything
+     * outside this element; it does nothing whatever to the tab ring, so the
+     * keyboard walked straight out of the dialog and into a page the same
+     * attribute had just declared invisible. A sighted keyboard user lost the
+     * focus ring behind the backdrop; a screen-reader user tabbed into content
+     * their software refused to read.
+     *
+     * Here rather than in any one dialog, because the gap was here: every modal
+     * in the application loads into this one shell and every one of them had it.
+     *
+     * Both ends are wrapped, and so is the case where focus has escaped
+     * already — a click on the backdrop leaves it on <body>, and Tab from there
+     * would otherwise start at the top of the document.
+     */
+    _trapTab(event) {
+        const dialog = this._dialog
+
+        if (!dialog || dialog.hasAttribute("hidden")) return
+
+        const focusable = this._focusable(dialog)
+
+        if (focusable.length === 0) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+
+        if (!dialog.contains(active)) {
+            event.preventDefault()
+            ;(event.shiftKey ? last : first).focus()
+
+            return
+        }
+
+        if (event.shiftKey && active === first) {
+            event.preventDefault()
+            last.focus()
+        } else if (!event.shiftKey && active === last) {
+            event.preventDefault()
+            first.focus()
+        }
+    }
+
+    /**
+     * Everything in `container` a Tab can land on, in document order.
+     *
+     * Filtered by whether the element is actually rendered, because the shell
+     * keeps markup around that is not currently reachable — a `hidden` form, a
+     * collapsed section — and a trap that wraps onto an invisible element sends
+     * the keyboard somewhere the user cannot see. getClientRects() is the cheap
+     * form of that question and answers empty for anything with display:none,
+     * including a Tailwind `.hidden`.
+     */
+    _focusable(container) {
+        return Array.from(
+            container.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter((el) => el.getClientRects().length > 0)
+    }
+
+    /**
+     * Move focus into the dialog once there is something in it to focus.
+     *
+     * It cannot be done in open(): the frame at that moment still holds the
+     * spinner, which contains nothing focusable, and the real content arrives a
+     * network round trip later.
+     *
+     * A MutationObserver on the frame rather than the `turbo:frame-load` event
+     * this used to listen for. That event was not firing in time here and the
+     * dialog opened with focus still on the trigger button behind it — the
+     * frame is `loading="lazy"`, so its fetch is kicked off by an
+     * IntersectionObserver once the dialog stops being hidden, and the ordering
+     * between that and a listener attached in the same task is not something
+     * the keyboard should depend on. Watching for the content itself asks the
+     * question that actually matters: is there anything in there yet?
+     *
+     * `[autofocus]` wins where the loaded form names one — the event editor
+     * puts it on the title field — and the first focusable is the fallback.
+     */
+    _focusWhenLoaded(frame) {
+        pendingFocus?.disconnect()
+
+        const move = () => {
+            const fallback = this._focusable(frame)[0]
+
+            // Still the spinner. Nothing to focus, nothing to disconnect.
+            if (!fallback) return
+
+            pendingFocus?.disconnect()
+            pendingFocus = null
+
+            const preferred = frame.querySelector("[autofocus]:not([disabled])")
+
+            ;(preferred ?? fallback).focus()
+        }
+
+        pendingFocus = new MutationObserver(move)
+        pendingFocus.observe(frame, { childList: true, subtree: true })
+
+        // Already loaded — a frame reopened without being cleared — in which
+        // case no mutation is coming and the observer would wait forever.
+        move()
     }
 
     /**
