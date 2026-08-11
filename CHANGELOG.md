@@ -6,6 +6,59 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.29 — 2026-08-12
+
+**Two migrations run on boot: one adds the column the deletion sweep marks
+suspicions in, one deletes the retired "labels stay local" setting from the
+settings bag — the second is irreversible and the whole feature it configured
+is gone. And after updating, a reset is the recommended path** (`app:reset`,
+which now clears calendar data too): mail archived in Gmail before this ships,
+label trees never pushed under the old toggle, and stragglers from
+UIDVALIDITY rebuilds all predate the new mirroring and heal by re-syncing
+fresh rather than by machinery.
+
+**The lifecycle mirrors, on every provider, in both directions.** A message
+deleted on the server is deleted here — which none of the three providers
+ever did. IMAP learns it from a periodic full listing per folder, and the
+sweep is built to be wrong safely: absence only marks; erasure additionally
+requires every folder listed since the mark and a final probe answering an
+explicit "not there"; a folder that answers empty after holding thousands is
+treated as a rebuild, not a purge, and suspends reaping account-wide; a
+changed UIDVALIDITY strips addresses and re-matches by Message-ID, never
+wipes. Gmail's feed finally subscribes to deletions; Graph's delta removals
+distinguish a move from a disappearance. All three delete through one shared
+path — replacing two hand-rolled ones that each leaked different files.
+
+**Labels mirror without asking.** The "labels stay local" toggle is gone:
+labels created here are created there (Gmail labels by API, Graph folders by
+API, and IMAP folders by CREATE — with the namespace prefix and separator
+read from the folders the server already has, not from a convention). Labels
+changed there change here, removals included, scoped so one account's feed
+can never touch a sibling account's same-named label. Archiving means the
+same thing everywhere: Gmail's inbox-departure becomes the Archive label
+here and vice versa, Outlook's archive folder resolves by its well-known
+name before anything creates a duplicate beside it. Discarding a draft
+finally discards it on the server too.
+
+**The calendar pane and mail navigation stop fighting.** A mail-bound click
+in split view swaps only the list — the calendar holds perfectly still. A
+fullscreen calendar demotes to split (or to mail where the row cannot hold
+both) on any mail-bound click, wherever it came from: sidebar, drawer,
+another page. "Fullscreen" is judged by what covers the mail, not by what
+the mode is called — one toggle press on a narrow window counts. A reload
+paints the remembered layout server-side with the pane's body embedded in
+the page, so mail and calendar arrive together instead of the calendar
+filling in a beat late.
+
+**Smaller honesties.** The reading pane's sender avatar wears the same
+colour the thread list derives for that sender, instead of one blue gradient
+for everybody. Inbox category tabs exist only while they hold mail — Gmail
+itself has quietly retired Forums — and a lone Primary tab hides the whole
+row. The thread list's refresh button is gone; the topbar's sync button is
+the one that answers. `app:reset` takes calendar data at the same depth it
+takes mail, keeps event suppressions at every depth, and says so honestly in
+its prompts.
+
 ## v0.0.28 — 2026-08-10
 
 **No migration. German mail still rendered as "Ã¼ber", and the sync was not to
