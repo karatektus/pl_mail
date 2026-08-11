@@ -107,6 +107,9 @@ export default class extends Controller {
         }
 
         this._render(this._isNarrow() && mode !== "mail" ? "mail" : mode);
+        // Same reason as in _setMode: a stored width from a bigger window
+        // must not squeeze the mail to a sliver on this one.
+        this._reclamp();
 
         // The bounds are a function of the window; the width is a stored
         // number of pixels. Resize the window and the two stop agreeing — the
@@ -309,6 +312,15 @@ export default class extends Controller {
      */
     _setMode(mode) {
         this._render(mode);
+
+        // Entering split honours the stored width, and the stored width can
+        // be one a BIGGER window chose — up to the maximum. On a window just
+        // above lg that leaves the mail a sliver beside a near-fullscreen
+        // calendar, which reads as the demotion not having happened at all.
+        // The clamp already knows the bounds; entering the mode is as much a
+        // reason to run it as resizing the window ever was.
+        this._reclamp();
+
         this._persist({ mode });
     }
 

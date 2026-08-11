@@ -111,6 +111,42 @@ test.describe("calendar pane demotion", () => {
         }).toPass({ timeout: 10_000 });
     });
 
+    test.describe("just above lg", () => {
+        test.use({ viewport: { width: 1100, height: 800 } });
+
+        test("demoting with a wide stored pane still leaves readable mail", async ({ page }) => {
+            await page.goto("/mail/inbox");
+
+            // A width a 2560px window might have chosen, planted through the
+            // real state endpoint so the demotion meets it the way a user's
+            // stored preference would arrive.
+            await page.evaluate(async () => {
+                const shellEl = document.querySelector("[data-controller~='ui--split']") as HTMLElement;
+                const body = new FormData();
+                body.append("_token", shellEl.dataset["ui-SplitTokenValue"] ?? shellEl.getAttribute("data-ui--split-token-value") ?? "");
+                body.append("width", "900");
+                await fetch(shellEl.getAttribute("data-ui--split-state-url-value") ?? "", {
+                    method: "POST",
+                    body,
+                    headers: { "X-Requested-With": "fetch" },
+                });
+            });
+            await page.reload();
+
+            await enterMode(page, "calendar");
+            await page.getByRole("link", { name: "Starred" }).click();
+
+            await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+
+            // The point: the mail beside the demoted calendar is a usable
+            // column, not a sliver left over from a bigger window's width.
+            const list = page.locator("#message-list");
+            await expect(list).toBeVisible();
+            const width = (await list.boundingBox())?.width ?? 0;
+            expect(width).toBeGreaterThan(250);
+        });
+    });
+
     test.describe("below lg", () => {
         test.use({ viewport: { width: 800, height: 900 } });
 
