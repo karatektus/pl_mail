@@ -265,7 +265,9 @@ final class AccountController extends AbstractController
 
         return $this->render('account/_mutation.stream.html.twig', [
             'toastMessage'       => $toastMessage,
-            'manageableAccounts' => $this->accountRepository->findForUserOrderedByName($this->getUser()),
+            // Same ordering as the page this replaces and as reorder()'s own
+            // stream — three renders of one list that used to disagree.
+            'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
         ]);
     }
 }

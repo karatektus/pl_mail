@@ -10,5 +10,7 @@ caldav.credential_required: Enter an app password, or tick the box to use a mail
 caldav.reuse_account_required: Choose which mail account's password to use, or untick the box and type one.
 caldav.username_required: Enter the username your CalDAV server knows you by.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
+compose.recipient_invalid: "“{{ address }}” is not a valid email address."
+compose.recipient_required: Add at least one recipient before sending.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.

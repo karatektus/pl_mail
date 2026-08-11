@@ -31,6 +31,29 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
 
 <turbo-frame id="{{ frame }}">
     <div data-controller="compose--compose compose--compose-toolbar"
+         {# Every word the controller puts on screen, translated here rather
+            than spelled in JavaScript — same arrangement as ui--select's
+            i18n value. A string baked into the controller is a string that
+            stays English in a German window. #}
+         data-compose--compose-i18n-value="{{ {
+             saving:           'compose.status.saving'|trans,
+             saved:            'compose.status.saved'|trans,
+             saveFailed:       'compose.status.save_failed'|trans,
+             uploading:        'compose.status.uploading'|trans,
+             sending:          'compose.sending'|trans,
+             newMessage:       'compose.new_message'|trans,
+             attachFailed:     'compose.attach_failed'|trans,
+             attachRemoveFailed: 'compose.attach_remove_failed'|trans,
+             pendingOne:       'compose.status.pending_one'|trans,
+             pendingMany:      'compose.status.pending_many'|trans({ '%count%': '%d' }),
+             quoteShow:        'compose.quote.show'|trans,
+             quoteHide:        'compose.quote.hide'|trans,
+             invalidAddress:   'compose.invalid_address'|trans({ '%address%': '%s' }),
+             recipientRequired: 'compose.recipient_required'|trans,
+             confirmNoSubject: 'compose.confirm.no_subject'|trans,
+             confirmNoBody:    'compose.confirm.no_body'|trans,
+             tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
+         }|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeController::MAX_ATTACHMENT_BYTES') }}"
@@ -73,6 +96,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                is the way out — same gesture as the Gmail app, and the same for
                a reply, which is fullscreen below md too. #}
             <button type="button" title="{{ 'compose.save_and_close'|trans }}"
+                    aria-label="{{ 'compose.save_and_close'|trans }}"
                     data-action="compose--compose#saveDraft compose--compose#close"
                     class="md:hidden {{ hc }}">
                 <i class="fa-solid fa-arrow-left text-sm"></i>
@@ -101,7 +125,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             {% else %}
                 <span class="text-sm font-semibold text-ink truncate min-w-0 flex-1 md:flex-none md:max-w-[260px] cursor-pointer"
                       data-compose--compose-target="title"
-                      data-action="click->compose--compose#toggleMinimize">New Message</span>
+                      data-action="click->compose--compose#toggleMinimize">{{ 'compose.new_message'|trans }}</span>
             {% endif %}
             <div class="flex items-center gap-1 shrink-0">
                 <span data-compose--compose-target="saveStatus"
@@ -110,33 +134,37 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                 {# Send is the one action that must never be scrolled away, so
                    below md it lives up here rather than in the bottom bar,
                    which is a horizontal scroller. #}
-                <button type="submit" title="Send"
+                <button type="submit" title="{{ 'compose.send'|trans }}"
+                        aria-label="{{ 'compose.send'|trans }}"
                         data-compose--compose-target="sendBtn"
                         class="md:hidden {{ hc }} text-accent hover:text-accent">
-                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                    <i class="fa-solid fa-paper-plane text-sm" aria-hidden="true"></i>
                 </button>
 
                 {% if inline %}
                     {# Popping out lands in the dock, which below md is the
                        same fullscreen window we are already in. #}
                     <button type="button" title="{{ 'compose.pop_out'|trans }}"
+                            aria-label="{{ 'compose.pop_out'|trans }}"
                             data-action="click->compose--compose#popOut"
                             class="hidden md:flex {{ hc }}">
-                        <i class="fa-solid fa-up-right-from-square text-xs"></i>
+                        <i class="fa-solid fa-up-right-from-square text-xs" aria-hidden="true"></i>
                     </button>
                 {% else %}
                     {# Minimize and expand are dock concepts: below md the
                        window already is the screen. #}
-                    <button type="button" title="Minimize"
+                    <button type="button" title="{{ 'compose.minimize'|trans }}"
+                            aria-label="{{ 'compose.minimize'|trans }}"
                             data-action="click->compose--compose#toggleMinimize"
                             class="hidden md:flex {{ hc }}">
-                        <i data-compose--compose-target="minimizeIcon" class="fa-solid fa-minus text-xs"></i>
+                        <i data-compose--compose-target="minimizeIcon" class="fa-solid fa-minus text-xs" aria-hidden="true"></i>
                     </button>
-                    <button type="button" title="Expand"
+                    <button type="button" title="{{ 'compose.expand'|trans }}"
+                            aria-label="{{ 'compose.expand'|trans }}"
                             data-action="click->compose--compose#toggleExpand"
                             class="hidden md:flex {{ hc }}">
                         <i data-compose--compose-target="expandIcon"
-                           class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
+                           class="fa-solid fa-up-right-and-down-left-from-center text-[10px]" aria-hidden="true"></i>
                     </button>
                 {% endif %}
 
@@ -191,13 +219,16 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             <div class="relative shrink-0">
                 <div class="flex items-center gap-3 px-4 pt-3 pb-1"
                      data-compose--compose-target="fromRow">
-                    <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">From</span>
+                    <span id="{{ form.vars.id }}_from_label"
+                          class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.from'|trans }}</span>
                     <button type="button"
                             data-action="click->compose--compose#toggleFromDropdown"
                             data-compose--compose-target="fromBtn"
+                            aria-haspopup="listbox"
+                            aria-labelledby="{{ form.vars.id }}_from_label {{ form.vars.id }}_from_value"
                             class="flex-1 flex items-center justify-between gap-2 text-sm
                                    text-ink-soft text-left">
-                        <span data-compose--compose-target="fromLabel" class="truncate">
+                        <span data-compose--compose-target="fromLabel" id="{{ form.vars.id }}_from_value" class="truncate">
                             {% for choice in form.account.vars.choices %}
                                 {% if form.account.vars.value == choice.value %}{{ choice.label }}{% endif %}
                             {% endfor %}
@@ -233,9 +264,18 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             </div>
 
             {# ── To ───────────────────────────────────────────────── #}
+            {# A real <label for>, not a <span>: it is what gives the recipient
+               combobox an accessible name. Tom Select hides the <select> and
+               builds its own text input, and copies the name across only when
+               there is a label bound to the select's id — so the label is
+               load-bearing rather than decoration. The controller mirrors it
+               onto the generated input as well, for the same reason a belt
+               goes with braces. #}
             <div data-compose--compose-target="toField"
                  class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">To</span>
+                <label for="{{ form.toAddresses.vars.id }}"
+                       id="{{ form.toAddresses.vars.id }}_label"
+                       class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.to'|trans }}</label>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.toAddresses) }}
                 </div>
@@ -243,22 +283,43 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     <button type="button"
                             data-compose--compose-target="ccBtn"
                             data-action="click->compose--compose#showCc"
+                            {# title, not aria-label: the button already has an
+                               accessible name — the word "Cc" on its face — and
+                               an aria-label would replace it rather than add to
+                               it, leaving the visible label and the spoken one
+                               saying different things (WCAG 2.5.3). #}
+                            title="{{ 'compose.add_cc'|trans }}"
                             class="text-xs text-ink-faint hover:text-accent transition-colors">
-                        Cc
+                        {{ 'compose.cc'|trans }}
                     </button>
                     <button type="button"
                             data-compose--compose-target="bccBtn"
                             data-action="click->compose--compose#showBcc"
+                            title="{{ 'compose.add_bcc'|trans }}"
                             class="text-xs text-ink-faint hover:text-accent transition-colors">
-                        Bcc
+                        {{ 'compose.bcc'|trans }}
                     </button>
                 </div>
+            </div>
+
+            {# Why a send was refused. Rendered from the form rather than from a
+               toast so it sits with the field it is about, and so a refusal
+               that came from the server reads the same as one the window
+               caught itself. #}
+            <div data-compose--compose-target="errors"
+                 class="px-4 {{ form.toAddresses.vars.errors|length > 0 ? 'py-1' : 'hidden' }}"
+                 role="alert" aria-live="polite">
+                <p class="text-xs text-danger">
+                    {%- for error in form.toAddresses.vars.errors %}{{ error.message }}{% endfor -%}
+                </p>
             </div>
 
             {# ── Cc ───────────────────────────────────────────────── #}
             <div data-compose--compose-target="ccField"
                  class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Cc</span>
+                <label for="{{ form.ccAddresses.vars.id }}"
+                       id="{{ form.ccAddresses.vars.id }}_label"
+                       class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.cc'|trans }}</label>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.ccAddresses) }}
                 </div>
@@ -267,7 +328,9 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             {# ── Bcc ──────────────────────────────────────────────── #}
             <div data-compose--compose-target="bccField"
                  class="flex hidden items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Bcc</span>
+                <label for="{{ form.bccAddresses.vars.id }}"
+                       id="{{ form.bccAddresses.vars.id }}_label"
+                       class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.bcc'|trans }}</label>
                 <div class="flex-1 min-w-0">
                     {{ form_widget(form.bccAddresses) }}
                 </div>
@@ -278,13 +341,14 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
 
             {# ── Subject ──────────────────────────────────────────── #}
             <div class="flex items-center gap-3 px-4 py-2 shrink-0">
-                <span class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">Subj</span>
+                <label for="{{ form.subject.vars.id }}"
+                       class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.subject_label'|trans }}</label>
                 <input type="text"
                        id="{{ form.subject.vars.id }}"
                        name="{{ form.subject.vars.full_name }}"
                        data-compose--compose-target="subject"
                        value="{{ form.subject.vars.value ?: '' }}"
-                       placeholder="Subject"
+                       placeholder="{{ 'compose.subject_placeholder'|trans }}"
                        class="flex-1 bg-transparent outline-none text-sm
                               text-ink
                               placeholder:text-ink-faint"/>
@@ -298,7 +362,10 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                      data-compose--compose-toolbar-target="editor"
                      data-compose--compose-target="body"
                      contenteditable="true"
-                     data-placeholder="Write your message…"
+                     role="textbox"
+                     aria-multiline="true"
+                     aria-label="{{ 'compose.body_placeholder'|trans }}"
+                     data-placeholder="{{ 'compose.body_placeholder'|trans }}"
                      class="w-full min-h-[170px] bg-transparent outline-none
                             text-sm leading-relaxed
                             text-ink
@@ -367,59 +434,66 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
 
                     <button type="button" data-compose--compose-toolbar-action data-compose--compose-toolbar-target="boldBtn"
                             data-action="click->compose--compose-toolbar#bold"
+                            title="{{ 'compose.bold'|trans }}" aria-label="{{ 'compose.bold'|trans }}"
                             class="{{ tb }} font-bold text-ink-soft">B</button>
                     <button type="button" data-compose--compose-toolbar-action data-compose--compose-toolbar-target="italicBtn"
                             data-action="click->compose--compose-toolbar#italic"
+                            title="{{ 'compose.italic'|trans }}" aria-label="{{ 'compose.italic'|trans }}"
                             class="{{ tb }} italic text-ink-soft">I</button>
                     <button type="button" data-compose--compose-toolbar-action data-compose--compose-toolbar-target="underlineBtn"
                             data-action="click->compose--compose-toolbar#underline"
+                            title="{{ 'compose.underline'|trans }}" aria-label="{{ 'compose.underline'|trans }}"
                             class="{{ tb }} underline text-ink-soft">U</button>
 
+                    {# The colour input covers the whole control instead of
+                       being a 0×0 box parked beside it. Sized to nothing, with
+                       pointer-events off and tabindex="-1", it was reachable by
+                       neither pointer nor keyboard and never entered the
+                       accessibility tree at all — the "A" was a picture of a
+                       button. Stretched over the label it keeps exactly the
+                       same look, and is now the real, focusable control it
+                       always appeared to be. #}
                     <label class="shrink-0 px-1.5 py-0.5 rounded text-sm flex flex-col items-center leading-none gap-0.5
                                   transition-colors text-ink-soft
-                                  hover:bg-hover cursor-pointer relative">
-                        <span class="font-semibold">A</span>
+                                  hover:bg-hover cursor-pointer relative
+                                  focus-within:ring-2 focus-within:ring-accent">
+                        <span class="font-semibold" aria-hidden="true">A</span>
                         <span data-compose--compose-toolbar-target="colorSwatch"
-                              class="block w-3.5 h-[3px] bg-accent rounded-sm"></span>
+                              class="block w-3.5 h-[3px] bg-accent rounded-sm" aria-hidden="true"></span>
                         <input type="color" data-action="input->compose--compose-toolbar#changeColor"
-                               class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1">
+                               title="{{ 'compose.text_color'|trans }}"
+                               aria-label="{{ 'compose.text_color'|trans }}"
+                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     </label>
 
                     <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
 
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#alignLeft"
-                            class="{{ tb }}" title="Align left">
-                        <i class="fa-solid fa-align-left"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#alignCenter"
-                            class="{{ tb }}" title="Align center">
-                        <i class="fa-solid fa-align-center"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#alignRight"
-                            class="{{ tb }}" title="Align right">
-                        <i class="fa-solid fa-align-right"></i></button>
+                    {% set toolbarButtons = [
+                        { action: 'alignLeft',      icon: 'fa-align-left',   label: 'compose.align.left'      },
+                        { action: 'alignCenter',    icon: 'fa-align-center', label: 'compose.align.center'    },
+                        { action: 'alignRight',     icon: 'fa-align-right',  label: 'compose.align.right'     },
+                        { divider: true },
+                        { action: 'orderedList',    icon: 'fa-list-ol',      label: 'compose.list.ordered'    },
+                        { action: 'unorderedList',  icon: 'fa-list-ul',      label: 'compose.list.unordered'  },
+                        { action: 'outdent',        icon: 'fa-outdent',      label: 'compose.outdent'         },
+                        { action: 'indent',         icon: 'fa-indent',       label: 'compose.indent'          },
+                        { divider: true },
+                        { action: 'undo',           icon: 'fa-rotate-left',  label: 'compose.undo'            },
+                        { action: 'redo',           icon: 'fa-rotate-right', label: 'compose.redo'            },
+                    ] %}
 
-                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
-
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#orderedList"
-                            class="{{ tb }}" title="Numbered list">
-                        <i class="fa-solid fa-list-ol"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#unorderedList"
-                            class="{{ tb }}" title="Bullet list">
-                        <i class="fa-solid fa-list-ul"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#outdent"
-                            class="{{ tb }}" title="Outdent">
-                        <i class="fa-solid fa-outdent"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#indent"
-                            class="{{ tb }}" title="Indent">
-                        <i class="fa-solid fa-indent"></i></button>
-
-                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
-
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#undo"
-                            class="{{ tb }}" title="Undo">
-                        <i class="fa-solid fa-rotate-left"></i></button>
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#redo"
-                            class="{{ tb }}" title="Redo">
-                        <i class="fa-solid fa-rotate-right"></i></button>
+                    {% for item in toolbarButtons %}
+                        {% if item.divider|default(false) %}
+                            <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
+                        {% else %}
+                            <button type="button" data-compose--compose-toolbar-action
+                                    data-action="click->compose--compose-toolbar#{{ item.action }}"
+                                    class="{{ tb }}"
+                                    title="{{ item.label|trans }}"
+                                    aria-label="{{ item.label|trans }}">
+                                <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i></button>
+                        {% endif %}
+                    {% endfor %}
                 </div>
 
                 {# Action bar #}
@@ -430,11 +504,13 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                         <button type="submit"
                                 data-compose--compose-target="sendBtn"
                                 class="text-white text-sm font-semibold px-4 py-1.5 hover:bg-white/10 transition-colors">
-                            Send
+                            {{ 'compose.send'|trans }}
                         </button>
                         <button type="button"
+                                title="{{ 'compose.send_options'|trans }}"
+                                aria-label="{{ 'compose.send_options'|trans }}"
                                 class="text-white border-l border-white/30 px-2.5 py-1.5 hover:bg-white/10 transition-colors text-xs">
-                            <i class="fa-solid fa-chevron-down"></i>
+                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                         </button>
                     </div>
 
@@ -445,23 +521,44 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     <button type="button"
                             data-action="click->compose--compose#toggleFormatBar"
                             data-compose--compose-target="formatToggle"
+                            {# "Aa" on its face is the accessible name; the
+                               title enlarges on it without replacing it. #}
                             title="{{ 'compose.formatting'|trans }}"
                             class="{{ ic }} text-sm font-bold tracking-tighter">Aa</button>
                     <button type="button"
                             data-action="click->compose--compose#openFilePicker"
                             title="{{ 'compose.attach'|trans }}"
-                            class="{{ ic }}"><i class="fa-solid fa-paperclip"></i></button>
+                            aria-label="{{ 'compose.attach'|trans }}"
+                            class="{{ ic }}"><i class="fa-solid fa-paperclip" aria-hidden="true"></i></button>
                     {# No name: never submitted with the form, only read by the
                        controller and POSTed to the attachment endpoint. #}
                     <input type="file" multiple class="hidden"
                            data-compose--compose-target="fileInput"
                            data-action="change->compose--compose#uploadFiles">
-                    <button type="button" data-compose--compose-toolbar-action data-action="click->compose--compose-toolbar#insertLink" class="{{ ic }}"><i class="fa-solid fa-link"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-regular fa-face-smile"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-regular fa-image"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-solid fa-lock"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-solid fa-pen-nib"></i></button>
-                    <button type="button" class="{{ ic }}"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                    <button type="button" data-compose--compose-toolbar-action
+                            data-action="click->compose--compose-toolbar#insertLink"
+                            title="{{ 'compose.insert_link'|trans }}"
+                            aria-label="{{ 'compose.insert_link'|trans }}"
+                            class="{{ ic }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+
+                    {# Named even though they do nothing yet. A control with no
+                       accessible name is unreachable by a screen reader
+                       whether or not it is wired up, and these are the six the
+                       audit found: an unlabelled row of icons is what the
+                       compose toolbar read as. #}
+                    {% set placeholderTools = [
+                        { icon: 'fa-regular fa-face-smile',      label: 'compose.insert_emoji' },
+                        { icon: 'fa-regular fa-image',           label: 'compose.image'        },
+                        { icon: 'fa-solid fa-lock',              label: 'compose.encrypt'      },
+                        { icon: 'fa-solid fa-pen-nib',           label: 'compose.signature'    },
+                        { icon: 'fa-solid fa-ellipsis-vertical', label: 'compose.more_options' },
+                    ] %}
+                    {% for tool in placeholderTools %}
+                        <button type="button"
+                                title="{{ tool.label|trans }}"
+                                aria-label="{{ tool.label|trans }}"
+                                class="{{ ic }}"><i class="{{ tool.icon }}" aria-hidden="true"></i></button>
+                    {% endfor %}
                     </div>
 
                     {# Attach from a connected service. Sized to what the user
@@ -505,8 +602,9 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     <button type="button"
                             data-action="compose--compose#discard"
                             title="{{ 'compose.discard'|trans }}"
+                            aria-label="{{ 'compose.discard'|trans }}"
                             class="{{ ic }} hover:text-danger">
-                        <i class="fa-regular fa-trash-can"></i>
+                        <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>

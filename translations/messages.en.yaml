@@ -1041,21 +1041,74 @@ compose:
         large: Large
         normal: Normal
         small: Small
+    align:
+        center: Align center
+        left: Align left
+        right: Align right
+    confirm:
+        no_body: This message has no text. Send it anyway?
+        no_subject: This message has no subject. Send it anyway?
+    list:
+        ordered: Numbered list
+        unordered: Bullet list
+    quote:
+        hide: hide quoted text
+        show: show quoted text
+    status:
+        pending_many: "%count% more characters to save"
+        pending_one: one more character to save
+        save_failed: Could not save the draft
+        saved: Draft saved
+        saving: "Saving…"
+        uploading: "Uploading…"
+    add_bcc: Add Bcc recipients
+    add_cc: Add Cc recipients
     attach: Attach files
-    attachment_remove: Remove attachment
+    attach_failed: Could not attach
+    attach_remove_failed: Could not remove attachment
+    attach_too_large: "%name% is over %limit% MB"
+    bcc: Bcc
+    bold: Bold
+    cc: Cc
     click_to_cancel: click to cancel
     continue_editing: Continue editing
     discard: Delete draft
     empty_draft: (empty draft)
+    encrypt: Encrypt message
+    expand: Expand
     formatting: Formatting options
     forward: Forward
+    from: From
+    image: Insert image
+    indent: Indent
+    insert_emoji: Insert emoji
+    insert_link: Insert link
+    invalid_address: "“%address%” is not a valid email address"
+    italic: Italic
+    minimize: Minimize
+    more_options: More options
+    new_message: New Message
     no_recipients: No recipients
+    outdent: Outdent
     pop_out: Open in compose window
+    recipient_required: Add at least one recipient before sending.
+    redo: Redo
     reply: Reply
     reply_all: Reply all
     reply_placeholder: "Reply to %name%"
     save_and_close: Save draft and close
+    send: Send
+    send_options: Send options
     sending: "Sending…"
+    signature: Insert signature
+    subject_label: Subj
+    subject_placeholder: Subject
+    text_color: Text colour
+    to: To
+    underline: Underline
+    undo: Undo
+    body_placeholder: "Write your message…"
+    attachment_remove: Remove attachment
 
 drafts:
     empty: No drafts.
@@ -2106,6 +2159,7 @@ thread_row:
 
 toast:
     dismiss: Dismiss
+    send_cancelled: Send cancelled — back to your draft.
     undo: Undo
     error:
         no_archive_mailbox: There is no archive mailbox.

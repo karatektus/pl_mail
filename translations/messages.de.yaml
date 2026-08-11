@@ -1068,21 +1068,74 @@ compose:
         large: Gross
         normal: Normal
         small: Klein
+    align:
+        center: Zentriert ausrichten
+        left: Linksbündig ausrichten
+        right: Rechtsbündig ausrichten
+    confirm:
+        no_body: Diese Nachricht hat keinen Text. Trotzdem senden?
+        no_subject: Diese Nachricht hat keinen Betreff. Trotzdem senden?
+    list:
+        ordered: Nummerierte Liste
+        unordered: Aufzählung
+    quote:
+        hide: zitierten Text ausblenden
+        show: zitierten Text anzeigen
+    status:
+        pending_many: "noch %count% Zeichen bis zum Speichern"
+        pending_one: noch ein Zeichen bis zum Speichern
+        save_failed: Entwurf konnte nicht gespeichert werden
+        saved: Entwurf gespeichert
+        saving: "Wird gespeichert…"
+        uploading: "Wird hochgeladen…"
+    add_bcc: Bcc-Empfänger hinzufügen
+    add_cc: Cc-Empfänger hinzufügen
     attach: Dateien anhängen
-    attachment_remove: Anhang entfernen
+    attach_failed: Anhängen fehlgeschlagen
+    attach_remove_failed: Anhang konnte nicht entfernt werden
+    attach_too_large: "%name% ist grösser als %limit% MB"
+    bcc: Bcc
+    bold: Fett
+    cc: Cc
     click_to_cancel: zum Abbrechen klicken
     continue_editing: Weiter bearbeiten
     discard: Entwurf löschen
     empty_draft: (leerer Entwurf)
+    encrypt: Nachricht verschlüsseln
+    expand: Fenster vergrössern
     formatting: Formatierung
     forward: Weiterleiten
+    from: Von
+    image: Bild einfügen
+    indent: Einzug vergrössern
+    insert_emoji: Emoji einfügen
+    insert_link: Link einfügen
+    invalid_address: "„%address%“ ist keine gültige E-Mail-Adresse"
+    italic: Kursiv
+    minimize: Minimieren
+    more_options: Weitere Optionen
+    new_message: Neue Nachricht
     no_recipients: Keine Empfänger
+    outdent: Einzug verkleinern
     pop_out: In eigenem Fenster öffnen
+    recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
+    redo: Wiederholen
     reply: Antworten
     reply_all: Allen antworten
     reply_placeholder: "An %name% antworten"
     save_and_close: Entwurf speichern und schließen
+    send: Senden
+    send_options: Sendeoptionen
     sending: "Wird gesendet…"
+    signature: Signatur einfügen
+    subject_label: Betr
+    subject_placeholder: Betreff
+    text_color: Textfarbe
+    to: An
+    underline: Unterstrichen
+    undo: Rückgängig
+    body_placeholder: "Schreibe deine Nachricht…"
+    attachment_remove: Anhang entfernen
 
 drafts:
     empty: Keine Entwürfe.
@@ -2146,6 +2199,7 @@ thread_row:
 
 toast:
     dismiss: Schließen
+    send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.
     undo: Rückgängig
     error:
         no_archive_mailbox: Es gibt kein Archiv-Postfach.

@@ -1,11 +1,40 @@
+{#
+compose/_undo_toast.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Cancelling a send from the dock: say so, and put the window back exactly as it
+was — recipients, subject, body and attachments included.
+
+`replace` rather than `append`, and `only` rather than an inherited context:
+
+  • The window's own root element IS <turbo-frame id="compose_dock">, so
+    appending it *into* that frame nested a frame inside itself and left the
+    previous (emptied) one wrapping it. Replacing swaps the frame for the new
+    one, which is what _inline_undo.stream.html.twig does for its frame.
+
+  • Without `only`, the include inherited whatever the caller happened to have
+    and silently did without the rest. `pickerIntegrations` was the one it did
+    without, which under strict_variables made the whole undo a 500 — and the
+    cancel had already been flushed by then, so the send was called off while
+    the window it belonged to never came back.
+
+Variables: form, message, ctx, pickerIntegrations
+#}
 <turbo-stream action="append" target="toast-region">
     <template>
-        {% include '_partials/_toast.html.twig' with { type: 'info', message: 'Send cancelled.' } %}
+        {% include '_partials/_toast.html.twig' with {
+            type: 'info',
+            message: 'toast.send_cancelled'|trans,
+        } only %}
     </template>
 </turbo-stream>
 
-<turbo-stream action="append" target="compose_dock">
+<turbo-stream action="replace" target="{{ ctx.frame }}">
     <template>
-        {% include 'compose/_window.html.twig' with { form: form, message: message } %}
+        {% include 'compose/_window.html.twig' with {
+            form:    form,
+            message: message,
+            ctx:     ctx,
+            pickerIntegrations: pickerIntegrations,
+        } only %}
     </template>
 </turbo-stream>

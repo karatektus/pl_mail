@@ -2,11 +2,25 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
+    /**
+     * An address the window will accept as a chip.
+     *
+     * Deliberately the same shape as the `createFilter` ContactAutocompleteField
+     * hands Tom Select, because they are two enforcements of one rule and a
+     * window that chipped what the field would refuse — or the other way round
+     * — is worse than either rule alone.
+     */
+    static ADDRESS = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
     static values = {
+        // Every user-facing string the controller writes, translated
+        // server-side. Defaults are English so a window rendered without the
+        // attribute still says something, but the template always supplies it.
+        i18n: { type: Object, default: {} },
         draftUrl: String,
         sendUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
@@ -36,9 +50,12 @@ export default class extends Controller {
         this._boundAutosave = this._scheduleAutosave.bind(this);
         this._boundHandleTab = this._handleTab.bind(this);
 
+        this._boundHandleEnter = this._handleEnter.bind(this);
+
         // Bubbles up from the Tom Select textboxes, so it runs after Tom
         // Select's own key handler has had its say — see _handleTab().
         this.element.addEventListener('keydown', this._boundHandleTab);
+        this.element.addEventListener('keydown', this._boundHandleEnter);
 
         // The integration picker lives in the modal frame, which is outside
         // this element entirely, so it reports back on window rather than
@@ -74,6 +91,13 @@ export default class extends Controller {
             this._focusCursorAtTop();
         }
 
+        // Tom Select is built by the autocomplete bundle, which may connect
+        // after this controller does — hence both the immediate pass and the
+        // event.
+        this._boundNameAddressFields = this._nameAddressFields.bind(this);
+        this.element.addEventListener('autocomplete:connect', this._boundNameAddressFields);
+        requestAnimationFrame(this._boundNameAddressFields);
+
         // Inline: the thread's reply buttons step aside while we're open.
         // Cached — by the time disconnect() runs the card is already detached
         // and closest() would find nothing.
@@ -81,9 +105,33 @@ export default class extends Controller {
         this._zone?.classList.add('composing');
     }
 
+    /**
+     * Give each recipient combobox the name its label already carries.
+     *
+     * Tom Select replaces the <select> with a text input of its own making,
+     * and an accessible name does not follow across that swap on its own — so
+     * the To field reported as a bare "combobox" with nothing to say what it
+     * was for. The <label for> in the template is the source of truth; this
+     * copies it onto whatever Tom Select actually built.
+     */
+    _nameAddressFields() {
+        for (const row of this._addressRows()) {
+            const label = row.querySelector('label');
+            const input = row.querySelector('.ts-control input');
+
+            if (null === label || null === input) {
+                continue;
+            }
+
+            input.setAttribute('aria-label', label.textContent.trim());
+        }
+    }
+
     disconnect() {
         clearTimeout(this.#autosaveTimer);
         this.element.removeEventListener('keydown', this._boundHandleTab);
+        this.element.removeEventListener('keydown', this._boundHandleEnter);
+        this.element.removeEventListener('autocomplete:connect', this._boundNameAddressFields);
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
         const form = this.element.querySelector('form');
             form.removeEventListener('input', this._boundAutosave);
@@ -322,6 +370,120 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * Enter must never be a send.
+     *
+     * This is the accidental-send bug, and the mechanism is plain implicit form
+     * submission. A single-line <input> inside a <form> submits that form on
+     * Enter unless something calls preventDefault, and this form's action is
+     * the send URL — so any Enter the address field did not consume sent the
+     * message, with whatever was (or was not) typed.
+     *
+     * Tom Select consumes the key only when it has a use for it: an active
+     * suggestion to commit, or a createItem() that succeeds. Type something
+     * with no `@` — it matches no contact, and createFilter refuses to make a
+     * chip of it — and neither applies, so the keystroke fell through to the
+     * browser and the mail went out to nobody with no subject and no body.
+     * That is why every existing test missed it: they all type real addresses,
+     * which Tom Select always swallows.
+     *
+     * So: Enter is claimed here unconditionally (bar the explicit Ctrl/Cmd
+     * shortcut), and *then* asked what it should have meant. In an address
+     * field that is "commit a chip", and a value that cannot become one is
+     * reported rather than silently dropped.
+     *
+     * Runs on the container so Tom Select's own handler goes first;
+     * defaultPrevented is how we know it already dealt with the key.
+     */
+    _handleEnter(event) {
+        if ('Enter' !== event.key || true === event.isComposing) {
+            return;
+        }
+
+        // The one deliberate keyboard send, Gmail's shortcut. Explicit, so it
+        // is not the footgun the bare key was.
+        if (true === event.ctrlKey || true === event.metaKey) {
+            event.preventDefault();
+            this._requestSend();
+
+            return;
+        }
+
+        // Tom Select committed a chip, or opened its menu — either way it has
+        // already stopped this reaching the form.
+        if (true === event.defaultPrevented) {
+            return;
+        }
+
+        const target = event.target;
+
+        // The body is a contenteditable, where Enter is a newline and there is
+        // no implicit submission to guard against.
+        if (true === target?.isContentEditable) {
+            return;
+        }
+
+        if (false === (target instanceof HTMLInputElement)) {
+            return;
+        }
+
+        // Nothing below this line may fall through to the browser.
+        event.preventDefault();
+
+        const wrapper = target.closest('.ts-wrapper');
+
+        if (null === wrapper || undefined === wrapper) {
+            // Subject, and anything else single-line: Enter moves on rather
+            // than sending. Gmail does the same.
+            this._focusBody();
+
+            return;
+        }
+
+        this._commitTypedAddress(wrapper, target);
+    }
+
+    /**
+     * Turn what is typed in an address field into a chip, or say why not.
+     *
+     * Tom Select is asked to do it rather than being worked around: createItem
+     * applies the same createFilter the field is configured with, so the answer
+     * here and the answer to a blur or a Tab are the same answer.
+     */
+    _commitTypedAddress(wrapper, input) {
+        const typed  = input.value.trim();
+        const select = this._tomSelectFor(wrapper);
+
+        if ('' === typed) {
+            return;
+        }
+
+        if (false === this.constructor.ADDRESS.test(typed)) {
+            this._reportError(this._t('invalidAddress', '"%s" is not a valid email address').replace('%s', typed));
+
+            return;
+        }
+
+        this._clearError();
+
+        if (null === select) {
+            return;
+        }
+
+        select.createItem(typed, false);
+        select.setTextboxValue('');
+        select.focus();
+    }
+
+    /** The Tom Select instance behind a rendered `.ts-wrapper`. */
+    _tomSelectFor(wrapper) {
+        // The bundle hangs the instance off the original <select>, which Tom
+        // Select leaves in the DOM (hidden) next to the wrapper it built.
+        const select = wrapper.parentElement?.querySelector('select');
+
+        return select?.tomselect ?? null;
+    }
+
     /** The To/Cc/Bcc rows, in tab order. */
     _addressRows() {
         return [
@@ -395,7 +557,7 @@ export default class extends Controller {
             toggle.type = 'button';
             toggle.contentEditable = 'false';
             toggle.dataset.quoteToggle = '1';
-            toggle.textContent = '··· (show quoted text)';
+            toggle.textContent = `··· (${this._t('quoteShow', 'show quoted text')})`;
             toggle.style.cssText = [
                 'display: inline-block',
                 'margin-bottom: 0.4em',
@@ -421,8 +583,8 @@ export default class extends Controller {
                 const isHidden = node.style.display === 'none';
                 node.style.display = isHidden ? '' : 'none';
                 toggle.textContent = isHidden
-                    ? '··· (hide quoted text)'
-                    : '··· (show quoted text)';
+                    ? `··· (${this._t('quoteHide', 'hide quoted text')})`
+                    : `··· (${this._t('quoteShow', 'show quoted text')})`;
             });
 
             node.parentNode.insertBefore(wrapper, node);
@@ -847,7 +1009,7 @@ export default class extends Controller {
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
-        this._setStatus('Saving…', 'text-ink-faint');
+        this._setStatus(this._t('saving', 'Saving…'), 'text-ink-faint');
 
         try {
             const response = await fetch(url, {
@@ -875,13 +1037,13 @@ export default class extends Controller {
                         oldForm.action = this.sendUrlValue;
                     }
 
-                    this._setStatus('Draft saved', 'text-success');
+                    this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
                 }
             } else {
                 throw new Error('Server error');
             }
         } catch (_) {
-            this._setStatus('Failed to save', 'text-danger');
+            this._setStatus(this._t('saveFailed', 'Could not save the draft'), 'text-danger');
         }
     }
 
@@ -943,7 +1105,101 @@ export default class extends Controller {
         status.classList.add('text-ink-faint');
         status.textContent = missing <= 0
             ? ''
-            : `${missing} more character${1 === missing ? '' : 's'} to save`;
+            : this._pendingText(missing);
+    }
+
+    /**
+     * The countdown line, in the right plural form.
+     *
+     * Two keys rather than one plural string: the catalogue's pluralisation is
+     * Symfony's, evaluated server-side, and there is no count to evaluate it
+     * against until the user is typing.
+     */
+    _pendingText(missing) {
+        return 1 === missing
+            ? this._t('pendingOne', 'one more character to save')
+            : this._t('pendingMany', '%d more characters to save').replace('%d', String(missing));
+    }
+
+    /** A translated string, falling back to English if the value is absent. */
+    _t(key, fallback) {
+        return this.i18nValue?.[key] ?? fallback;
+    }
+
+    /** Show a refusal next to the address rows. */
+    _reportError(text) {
+        if (false === this.hasErrorsTarget) {
+            this._setStatus(text, 'text-danger');
+
+            return;
+        }
+
+        this.errorsTarget.classList.remove('hidden');
+        this.errorsTarget.querySelector('p').textContent = text;
+    }
+
+    _clearError() {
+        if (true === this.hasErrorsTarget) {
+            this.errorsTarget.classList.add('hidden');
+            this.errorsTarget.querySelector('p').textContent = '';
+        }
+    }
+
+    /** Move the caret into the body — where Enter on a header row leads. */
+    _focusBody() {
+        if (true === this.hasBodyTarget) {
+            this.bodyTarget.focus();
+        }
+    }
+
+    /**
+     * The committed recipients across To, Cc and Bcc.
+     *
+     * Counted per address row rather than by sweeping the window for
+     * `.ts-control .item`: the typeface and size pickers are Tom Selects too
+     * now, and each renders its *selected option* as an `.item`. Swept, an
+     * empty To read as two recipients and the send guard waved it through.
+     */
+    _recipientCount() {
+        return this._addressRows()
+            .reduce((total, row) => total + row.querySelectorAll('.ts-control .item').length, 0);
+    }
+
+    /** Ask the form to submit, going through every guard in _handleSubmit. */
+    _requestSend() {
+        this.element.querySelector('form')?.requestSubmit();
+    }
+
+    /**
+     * The last gate before a message leaves.
+     *
+     * Everything here is a question the user would rather be asked than have
+     * answered for them — and the first one is not a question at all, because
+     * a send with no recipient cannot be what anyone meant. The server refuses
+     * the same three things (ComposeType's `send` group, and
+     * ComposeController::send); this is only the half that can still be
+     * friendly about it.
+     */
+    _guardSend() {
+        if (0 === this._recipientCount()) {
+            this._reportError(this._t('recipientRequired', 'Add at least one recipient before sending.'));
+
+            return false;
+        }
+
+        this._clearError();
+
+        const subject = this.hasSubjectTarget ? this.subjectTarget.value.trim() : '';
+
+        if ('' === subject && false === window.confirm(this._t('confirmNoSubject', 'This message has no subject. Send it anyway?'))) {
+            return false;
+        }
+
+        if (0 === this._typedLength() && false === window.confirm(this._t('confirmNoBody', 'This message has no text. Send it anyway?'))) {
+            return false;
+        }
+
+        return true;
     }
 
     _handleSubmit(event) {
@@ -951,6 +1207,13 @@ export default class extends Controller {
             event.preventDefault();
             return;
         }
+
+        if (false === this._guardSend()) {
+            event.preventDefault();
+
+            return;
+        }
+
         clearTimeout(this.#autosaveTimer);
         this._submitting = true;
 
@@ -965,7 +1228,7 @@ export default class extends Controller {
             // The icon button has no text to replace — keep its markup.
             if ('' !== button.textContent.trim()) {
                 button.dataset.sendLabel ??= button.textContent;
-                button.textContent = 'Sending…';
+                button.textContent = this._t('sending', 'Sending…');
             }
         });
 
@@ -1011,7 +1274,7 @@ export default class extends Controller {
         const id = this._messageId();
 
         if (null === id) {
-            this._setStatus('Could not attach', 'text-danger');
+            this._setStatus(this._t('attachFailed', 'Could not attach'), 'text-danger');
 
             return;
         }
@@ -1050,7 +1313,7 @@ export default class extends Controller {
             this._insertLinks(links);
         }
 
-        this._setStatus('Draft saved', 'text-success');
+        this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
 
         // The links went into the body directly, so the form has not fired an
         // input event — without this the draft would keep the pre-link body
@@ -1104,7 +1367,12 @@ export default class extends Controller {
 
         if (undefined !== tooBig) {
             const limit = Math.round(this.maxAttachmentBytesValue / (1024 * 1024));
-            this._setStatus(`${tooBig.name} is over ${limit} MB`, 'text-danger');
+            this._setStatus(
+                this._t('tooLarge', '%s is over %d MB')
+                    .replace('%s', tooBig.name)
+                    .replace('%d', String(limit)),
+                'text-danger',
+            );
 
             return;
         }
@@ -1114,7 +1382,7 @@ export default class extends Controller {
         const id = this._messageId();
 
         if (null === id) {
-            this._setStatus('Could not attach', 'text-danger');
+            this._setStatus(this._t('attachFailed', 'Could not attach'), 'text-danger');
 
             return;
         }
@@ -1122,7 +1390,7 @@ export default class extends Controller {
         const body = new FormData();
         files.forEach((file) => body.append('files[]', file));
 
-        this._setStatus('Uploading…', 'text-ink-faint');
+        this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
         await this._renderAttachments(
             fetch(`/compose/attachments/${id}`, {
@@ -1130,7 +1398,7 @@ export default class extends Controller {
                 body,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             }),
-            'Could not attach',
+            this._t('attachFailed', 'Could not attach'),
         );
     }
 
@@ -1146,7 +1414,7 @@ export default class extends Controller {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             }),
-            'Could not remove attachment',
+            this._t('attachRemoveFailed', 'Could not remove attachment'),
         );
     }
 
@@ -1172,7 +1440,7 @@ export default class extends Controller {
             this.attachmentsTarget.innerHTML = await response.text();
         }
 
-        this._setStatus('Draft saved', 'text-success');
+        this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
     }
 
     /**
@@ -1209,7 +1477,7 @@ export default class extends Controller {
 
     _updateTitle(value) {
         if (this.hasTitleTarget) {
-            this.titleTarget.textContent = value.trim() || 'New Message';
+            this.titleTarget.textContent = value.trim() || this._t('newMessage', 'New Message');
         }
     }
 

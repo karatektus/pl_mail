@@ -8,5 +8,7 @@ caldav.credential_required: Give a ship's key, or tick the box to use the word s
 caldav.reuse_account_required: Say which parrot account lends its word — or take the tick off an' type one.
 caldav.username_required: Give the name yer CalDAV port knows ye by.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
+compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
+compose.recipient_required: Name at least one soul afore ye cast off.
 setup.install.password_mismatch: Them two secret words don't match, matey.
 setup.install.password_too_short: Use {{ limit }} marks at least. There be no gettin' this one back.
