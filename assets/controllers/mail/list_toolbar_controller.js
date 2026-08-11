@@ -189,6 +189,23 @@ export default class extends Controller {
     async _bulkPost(ids, action, body = {}) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? "";
 
+        // Hold the list refresh for the whole run. Each of these posts makes the
+        // server publish a sync, and a refresh answering one of them mid-run
+        // re-renders the list from a state where the remaining threads have not
+        // been acted on yet — putting rows back that the streams below are about
+        // to remove, as fresh elements the streams can no longer address. The
+        // rows then stay on screen having been archived. See
+        // mail_pane_controller#hold.
+        this.dispatch("writing");
+
+        try {
+            await this._bulkPostInner(ids, action, body, csrf);
+        } finally {
+            this.dispatch("written");
+        }
+    }
+
+    async _bulkPostInner(ids, action, body, csrf) {
         const results = await Promise.all(
             ids.map(async (id) => {
                 const url      = `${STATUS_BASE}/thread/${id}/${action}`;

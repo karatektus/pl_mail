@@ -60,6 +60,12 @@ export default class extends Controller {
         this._lastRefreshAt = 0;
         this._refreshTimer = null;
 
+        // Depth, not a boolean, for the reason auto_refresh_controller gives:
+        // a bulk action fires one write per selected row and they overlap, so
+        // the first to finish would otherwise resume refreshing while the rest
+        // are still in flight.
+        this._holds = 0;
+
         this._onVisibility = () => {
             if (!document.hidden && this._refreshPending) {
                 this._refreshList();
@@ -87,6 +93,32 @@ export default class extends Controller {
         if (this._refreshTimer !== null) {
             clearTimeout(this._refreshTimer);
             this._refreshTimer = null;
+        }
+    }
+
+    /**
+     * A write started in the list — hold the refresh until it lands.
+     *
+     * The list refresh renders from server state, so one *issued* before a
+     * write commits swaps the pre-write markup back in. That is bad enough on
+     * its own; with a bulk action it is worse, because the rows are removed by
+     * turbo-streams and a refresh landing mid-run replaces them with fresh
+     * elements the remaining streams can no longer find. The archived rows then
+     * stay on screen until something else redraws them.
+     *
+     * The same reasoning, and the same fix, as auto_refresh_controller#hold —
+     * which is where this pattern is explained at length.
+     */
+    hold() {
+        this._holds++;
+    }
+
+    /** The write finished. Anything held back happens now. */
+    release() {
+        this._holds = Math.max(0, this._holds - 1);
+
+        if (0 === this._holds && true === this._refreshPending) {
+            this._refreshList({ immediate: true });
         }
     }
 
@@ -279,6 +311,14 @@ export default class extends Controller {
         // Nobody is looking. Remembered, not dropped: the visibilitychange
         // handler takes it the moment the tab is looked at again.
         if (document.hidden && !immediate) {
+            this._refreshPending = true;
+
+            return;
+        }
+
+        // The user is writing to this list right now. Held rather than dropped,
+        // and taken by release() once the last write lands — see hold().
+        if (this._holds > 0) {
             this._refreshPending = true;
 
             return;

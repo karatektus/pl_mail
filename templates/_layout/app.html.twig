@@ -126,7 +126,13 @@
            whole page down with it. #}
         data-core--mercure-url-value="{{ mercure(mercure_topics) }}"
         data-core--mercure-auth-url-value="{{ path('mercure_auth') }}"
-        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced"
+        {# The pane owns the list refresh, so the events that should suspend it
+           are routed here too: a bulk action writes one request per selected
+           row, and a refresh landing mid-run undoes the rows it has already
+           finished. See mail_pane_controller#hold. #}
+        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
+                     mail--list-toolbar:writing->mail--mail-pane#hold
+                     mail--list-toolbar:written->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
     {% endif %}
 >
