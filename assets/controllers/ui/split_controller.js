@@ -90,6 +90,12 @@ export default class extends Controller {
         // changes and they stay in step.
         this._onResize = () => this._reclamp();
         window.addEventListener("resize", this._onResize);
+
+        // Capture phase, because the interesting clicks are on links whose
+        // navigation must proceed untouched — this listener only decides what
+        // is on screen when that navigation lands. See _demoteForMail.
+        this._onMailClick = (event) => this._demoteForMail(event);
+        this.element.addEventListener("click", this._onMailClick, true);
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */
@@ -99,7 +105,48 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("resize", this._onResize);
+        this.element.removeEventListener("click", this._onMailClick, true);
         this._stopListening();
+    }
+
+    /**
+     * A link to mail, followed while the calendar owns the whole row, would
+     * change a list nobody can see — the mail panes are in the DOM behind the
+     * calendar, and a label click used to land there invisibly. So a
+     * mail-bound click demotes the calendar: to `split` when the row affords
+     * both panes, to `mail` alone below lg where split is not a real place.
+     *
+     * "Mail-bound" is any anchor into /mail — the labels, the system views,
+     * search — which is the whole reason the route prefix exists. Compose is
+     * not mail-bound: it opens in its own dock above whatever is showing.
+     *
+     * The navigation itself is never touched. For a full page visit the mode
+     * must survive the unload, which is what the keepalive on _flush is for.
+     */
+    _demoteForMail(event) {
+        if ("calendar" !== this.modeValue) {
+            return;
+        }
+
+        const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+
+        if (null === anchor) {
+            return;
+        }
+
+        let path;
+
+        try {
+            path = new URL(anchor.href, window.location.origin).pathname;
+        } catch {
+            return;
+        }
+
+        if (false === path.startsWith("/mail")) {
+            return;
+        }
+
+        this._setMode(this._isNarrow() ? "mail" : "split");
     }
 
     /**
@@ -470,6 +517,12 @@ export default class extends Controller {
             method: "POST",
             body,
             headers: { "X-Requested-With": "fetch" },
+            // The write must survive a full page visit that starts in the same
+            // tick — a label click demoting the calendar navigates immediately,
+            // and without keepalive the browser cancels this fetch with the
+            // page, so the next render would put the calendar back on top of
+            // the mail the user just asked for.
+            keepalive: true,
         })
             .catch(() => {})
             .finally(() => {
