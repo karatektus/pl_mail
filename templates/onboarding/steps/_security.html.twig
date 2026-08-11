@@ -26,7 +26,10 @@ full navigation to a step URL renders it unstyled.
             <p class="text-xs text-ink-muted">{{ 'settings.security.codes.copy_now_hint'|trans }}</p>
         </div>
 
-        <div data-controller="ui--clipboard" class="px-4 py-3.5">
+        <div data-controller="ui--clipboard"
+             data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+             data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}"
+             class="px-4 py-3.5">
             <code data-ui--clipboard-target="source"
                   class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
 
@@ -75,7 +78,10 @@ full navigation to a step URL renders it unstyled.
                     <summary class="text-[11px] text-accent cursor-pointer hover:underline">
                         {{ 'settings.security.enrol.manual_toggle'|trans }}
                     </summary>
-                    <div class="mt-2" data-controller="ui--clipboard">
+                    <div class="mt-2"
+                         data-controller="ui--clipboard"
+                         data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+                         data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
                         <code data-ui--clipboard-target="source"
                               id="onboarding-2fa-secret"
                               class="block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-xs font-mono text-ink select-all">{{ twoFactorSecret }}</code>
