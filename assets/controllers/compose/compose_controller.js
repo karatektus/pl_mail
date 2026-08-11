@@ -430,9 +430,12 @@ export default class extends Controller {
         // Nothing below this line may fall through to the browser.
         event.preventDefault();
 
-        const wrapper = target.closest('.ts-wrapper');
+        // An address row, specifically — not merely a Tom Select. The typeface
+        // and size pickers are Tom Selects too now, and a filter string typed
+        // into one of those is not an address anybody failed to enter.
+        const row = this._addressRows().find((candidate) => candidate.contains(target));
 
-        if (null === wrapper || undefined === wrapper) {
+        if (undefined === row) {
             // Subject, and anything else single-line: Enter moves on rather
             // than sending. Gmail does the same.
             this._focusBody();
@@ -440,7 +443,7 @@ export default class extends Controller {
             return;
         }
 
-        this._commitTypedAddress(wrapper, target);
+        this._commitTypedAddress(target.closest('.ts-wrapper'), target);
     }
 
     /**
@@ -451,12 +454,13 @@ export default class extends Controller {
      * here and the answer to a blur or a Tab are the same answer.
      */
     _commitTypedAddress(wrapper, input) {
-        const typed  = input.value.trim();
-        const select = this._tomSelectFor(wrapper);
+        const typed = input.value.trim();
 
-        if ('' === typed) {
+        if ('' === typed || null === wrapper) {
             return;
         }
+
+        const select = this._tomSelectFor(wrapper);
 
         if (false === this.constructor.ADDRESS.test(typed)) {
             this._reportError(this._t('invalidAddress', '"%s" is not a valid email address').replace('%s', typed));

@@ -197,6 +197,38 @@ test.describe("compose safety", () => {
         expect(sends).toHaveLength(0);
     });
 
+    /**
+     * Enter on a toolbar control is neither a send nor a failed address.
+     *
+     * The typeface and size pickers are Tom Selects too, so "is this a Tom
+     * Select?" is not the same question as "is this an address field?" — the
+     * Enter handler keys off the address rows, not off `.ts-wrapper`.
+     *
+     * (These two pickers hold three and four options, below ui--select's
+     * search-box threshold, so they render no text input and the handler
+     * declines them a step earlier still. The assertion is on the behaviour
+     * either way: Enter here does nothing at all.)
+     */
+    test("Enter on a formatting control neither sends nor reports an address", async ({ page }) => {
+        const sends = watchSends(page);
+
+        await openCompose(page);
+
+        const typeface = page.locator(`${DOCK} [data-compose--compose-toolbar-target="fontFamily"]`);
+        await expect(typeface).toBeAttached();
+
+        // The widget Tom Select built in its place, which is what has focus.
+        await page
+            .locator(`${DOCK} [data-compose--compose-target="formatBar"] .ts-control`)
+            .first()
+            .press("Enter");
+
+        await expect(page.locator(`${DOCK} [data-compose--compose-target="errors"]`)).toBeHidden();
+
+        await page.waitForTimeout(500);
+        expect(sends).toHaveLength(0);
+    });
+
     // ── K-03 / K-04 ───────────────────────────────────────────────────
 
     /**
