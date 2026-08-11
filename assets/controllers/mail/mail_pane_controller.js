@@ -23,6 +23,22 @@ export default class extends Controller {
         this._onPopState = this._handlePopState.bind(this);
         window.addEventListener("popstate", this._onPopState);
 
+        // The sidebar's mail links navigate the LIST FRAME rather than the
+        // page (so the calendar pane holds perfectly still). This pane sits
+        // outside that frame, so a swap would otherwise leave the previous
+        // message open beside a list it was never part of, with a back-URL
+        // pointing at the label the user just left. A swap shows the new
+        // list and adopts its URL as the place `close` returns to.
+        this._onListSwap = (event) => {
+            if (LIST_FRAME_ID !== event.target.id) {
+                return;
+            }
+
+            this._listUrl = window.location.href;
+            this._showList();
+        };
+        document.addEventListener("turbo:frame-load", this._onListSwap);
+
         // Restore correct visual state on direct load / refresh
         if (this.openValue) {
             this._showReading();
@@ -32,6 +48,7 @@ export default class extends Controller {
     }
     disconnect() {
         window.removeEventListener("popstate", this._onPopState);
+        document.removeEventListener("turbo:frame-load", this._onListSwap);
     }
 
     async open(event) {

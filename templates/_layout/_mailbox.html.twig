@@ -52,7 +52,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
         >
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true, mailFrame: true } %}
         </div>
 
         {# ui--split spans the topbar as well as the panes: the calendar
@@ -67,12 +67,15 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
              data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
              data-ui--split-mode-value="{{ app.user.calendarPaneMode.value }}"
-             {# Rendered as `mail` whatever the preference says, and corrected by the
-                controller on connect if the window is wide enough to hold the
-                remembered position. The attribute drives every layout rule below,
-                and landing on a full-width calendar is not what anyone means by
-                opening plMail on a phone. #}
-             data-calendar-mode="mail"
+             {# The attribute drives every layout rule below, and it is rendered
+                as the STORED mode. It used to be rendered as `mail` and
+                corrected by the controller on connect — which painted every
+                reload as mail first and the remembered view second, a flash on
+                every refresh. The one reader the stored mode can be wrong for
+                is a phone, which cannot hold split or calendar; the controller
+                still demotes there on connect, so the correction flash is
+                confined to the case that actually needs correcting. #}
+             data-calendar-mode="{{ app.user.calendarPaneMode.value }}"
              {# The pane reloads its body through a Turbo Frame, and the view it
                 lands on decides how much room it wants — see
                 CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
@@ -89,7 +92,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
                 <div class="hidden md:flex">
-                    {% include '_partials/_sidebar.html.twig' %}
+                    {% include '_partials/_sidebar.html.twig' with { mailFrame: true } %}
                 </div>
 
                 {# Main content. Targeted by ui--split so the drag can enforce a

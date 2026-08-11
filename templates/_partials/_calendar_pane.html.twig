@@ -78,15 +78,26 @@ than one that does not remember at all.
         class="main-pane flex flex-col overflow-hidden min-w-0
                w-full lg:w-[var(--calendar-pane-width)]"
     >
-        <turbo-frame
-            id="calendar-pane-frame"
-            src="{{ paneOpen ? path('app_calendar_pane') : '' }}"
-            loading="lazy"
-            class="flex flex-col min-h-0 flex-1"
-        >
-            <div class="flex items-center justify-center h-24 text-ink-faint" aria-live="polite">
-                <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
-            </div>
-        </turbo-frame>
+        {# A pane the user will see on first paint is rendered WITH the page —
+           embedding the same controller the frame's src would have fetched —
+           so a reload shows mail and calendar together instead of a spinner
+           that fills in a beat later. The frame element is still the shell
+           (week/view navigation inside it still swaps only the pane); it just
+           starts full instead of lazy. A closed pane keeps the lazy empty
+           frame: its src is set the first time the switch opens it, and
+           nobody pays for a calendar they are not looking at. #}
+        {% if paneOpen %}
+            {{ render(controller('App\\Controller\\Calendar\\CalendarController::pane')) }}
+        {% else %}
+            <turbo-frame
+                id="calendar-pane-frame"
+                loading="lazy"
+                class="flex flex-col min-h-0 flex-1"
+            >
+                <div class="flex items-center justify-center h-24 text-ink-faint" aria-live="polite">
+                    <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
+                </div>
+            </turbo-frame>
+        {% endif %}
     </div>
 </div>

@@ -74,6 +74,10 @@ keeps its accessible name either way.
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
                 {{ macros.label_dot(label.color) }}
                 <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-ui--sidebar-target="link"
                    data-action="{{ drawerClose }}">
@@ -93,6 +97,10 @@ keeps its accessible name either way.
              style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
             <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"
                data-ui--sidebar-target="link"
                data-action="{{ drawerClose }}">
@@ -151,6 +159,10 @@ controller instead — the scroll position and which trees are open.
          data-action="scroll->ui--sidebar#rememberScroll">
 
         <a href="{{ path('app_mail_inbox') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -164,6 +176,10 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -177,6 +193,10 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_sent') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -190,6 +210,10 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -248,6 +272,10 @@ controller instead — the scroll position and which trees are open.
             </summary>
         {% if sidebarCounts.hasSnoozed %}
             <a href="{{ path('app_mail_snoozed') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
                class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -260,6 +288,10 @@ controller instead — the scroll position and which trees are open.
             </a>
         {% endif %}
             <a href="{{ path('app_mail_archive') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
                class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -280,6 +312,10 @@ controller instead — the scroll position and which trees are open.
            where LabelRole::sortOrder() already put it. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
             <a href="{{ path('app_mail_spam') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
                class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -294,6 +330,10 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         <a href="{{ path('app_mail_trash') }}"
+           {# Only where that frame exists — the mailbox layout. The
+              calendar page shares this sidebar and has no list frame;
+              a targeted link there would go nowhere at all. #}
+           {% if mailFrame|default(false) %}data-turbo-frame="inbox-list-frame"{% endif %}
            class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"

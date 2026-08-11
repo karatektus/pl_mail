@@ -80,7 +80,33 @@ export default class extends Controller {
         // applied, and where it is refused on a window too narrow to mean it.
         // No fetch either way: this puts on screen what is already stored, it
         // does not record a choice the user has not made.
-        this._render(this._isNarrow() && this.modeValue !== "mail" ? "mail" : this.modeValue);
+        //
+        // The handoff outranks the server's answer for one navigation: a
+        // mail-bound click demotes the calendar and navigates in the same
+        // tick, and the persist cannot be trusted to beat the page request to
+        // the server — it lost that race in practice, and the calendar came
+        // back on top of the mail that had just been asked for. sessionStorage
+        // is per-tab and read-once, which is exactly the shape of "what I just
+        // chose, until the server has caught up".
+        const handoff = this._takeHandoff();
+        let mode = handoff ?? this.modeValue;
+
+        // The arrival-side half of the same rule. The calendar PAGE shares
+        // the sidebar but has no split controller and no list frame, so a
+        // mail link there is an ordinary full visit and nothing on that side
+        // can stash a handoff. Landing on a mail page from anywhere that is
+        // not mail, with a remembered fullscreen calendar, would cover the
+        // list that was just asked for — so the arrival itself demotes, and
+        // persists, because following a mail link is as much a choice as
+        // pressing the switch. A reload keeps its original referrer, which is
+        // why the persist matters: the second arrival reads the stored split
+        // and this branch no-ops.
+        if (null === handoff && "calendar" === mode && this._arrivedFromOutsideMail()) {
+            mode = this._isNarrow() ? "mail" : "split";
+            this._persist({ mode });
+        }
+
+        this._render(this._isNarrow() && mode !== "mail" ? "mail" : mode);
 
         // The bounds are a function of the window; the width is a stored
         // number of pixels. Resize the window and the two stop agreeing — the
@@ -146,7 +172,87 @@ export default class extends Controller {
             return;
         }
 
-        this._setMode(this._isNarrow() ? "mail" : "split");
+        const mode = this._isNarrow() ? "mail" : "split";
+
+        // The stash is for FULL page visits only, where this controller is
+        // torn down and the next one must not trust the server's stale answer.
+        // A frame-targeted link (the inbox tabs) keeps this very controller
+        // alive — the live render below is already the whole fix there, and a
+        // stash written for it would linger and mis-apply to some later,
+        // unrelated navigation.
+        const frame = anchor.dataset.turboFrame;
+
+        if (undefined === frame || "_top" === frame) {
+            this._stashHandoff(mode);
+        }
+
+        this._setMode(mode);
+    }
+
+    /** One navigation's worth of "what I just chose". */
+    static HANDOFF_KEY = "plmail.calendar-mode.handoff";
+
+    _stashHandoff(mode) {
+        try {
+            window.sessionStorage.setItem(this.constructor.HANDOFF_KEY, mode);
+        } catch {
+            // Storage denied (privacy mode) — the persist race is then the
+            // best we have, which is how it behaved before the stash existed.
+        }
+    }
+
+    /**
+     * Whether this page was reached from same-origin territory outside /mail.
+     *
+     * The primary witness is the departure record nav_origin.js writes on
+     * turbo:before-visit, because document.referrer is frozen at the initial
+     * page load — Turbo Drive visits never update it, which is exactly how
+     * the first version of this check silently never fired. The referrer is
+     * kept only as the fallback for full page loads, where it does work. No
+     * witness at all (bookmark, typed URL) answers false: nothing there asked
+     * for mail specifically, so the remembered mode keeps its word.
+     */
+    _arrivedFromOutsideMail() {
+        if (false === window.location.pathname.startsWith("/mail")) {
+            return false;
+        }
+
+        let origin = null;
+
+        try {
+            origin = window.sessionStorage.getItem("plmail.nav-origin");
+            window.sessionStorage.removeItem("plmail.nav-origin");
+        } catch {
+            // Fall through to the referrer.
+        }
+
+        if (origin) {
+            return false === origin.startsWith("/mail");
+        }
+
+        if (!document.referrer) {
+            return false;
+        }
+
+        try {
+            const referrer = new URL(document.referrer);
+
+            return referrer.origin === window.location.origin
+                && false === referrer.pathname.startsWith("/mail");
+        } catch {
+            return false;
+        }
+    }
+
+    _takeHandoff() {
+        try {
+            const mode = window.sessionStorage.getItem(this.constructor.HANDOFF_KEY);
+            window.sessionStorage.removeItem(this.constructor.HANDOFF_KEY);
+
+            return this.constructor.MODES.includes(mode) ? mode : null;
+        } catch {
+            return null;
+        }
     }
 
     /**
@@ -242,11 +348,15 @@ export default class extends Controller {
         this.wrapperTarget.classList.toggle("lg:flex", showsCalendar);
 
         // The frame is lazy and has no src until the pane is first shown, so
-        // this is what loads the calendar. Turbo takes it from there.
+        // this is what loads the calendar. Turbo takes it from there. A pane
+        // that was OPEN at page load arrives with its body embedded
+        // server-side and no src at all — setting one would refetch what is
+        // already on screen, which is the late-fill the embedding removed —
+        // so "has content" counts as loaded the same as "has src".
         if (showsCalendar) {
             const frame = this.wrapperTarget.querySelector("turbo-frame#calendar-pane-frame");
 
-            if (frame && !frame.getAttribute("src")) {
+            if (frame && !frame.getAttribute("src") && null === frame.querySelector("[data-pane-min-width]")) {
                 frame.setAttribute("src", "/calendar/pane");
             }
         }
