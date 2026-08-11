@@ -50,7 +50,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * ComposeController::discard() has always done, and the sync layer reuses it if
  * the conversation comes back.
  */
-final readonly class MessageEraser
+readonly class MessageEraser
 {
     public function __construct(
         private EntityManagerInterface  $em,

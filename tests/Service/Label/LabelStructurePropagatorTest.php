@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Label;
 
+use App\Domain\Enum\Account\AuthType;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
@@ -77,8 +79,12 @@ final class LabelStructurePropagatorTest extends TestCase
 
         $this->propagator = new LabelStructurePropagator($bus);
 
+        // Gmail, because that is now the whole of the condition. Mirroring used
+        // to be a per-account toggle that defaulted to off; what is left is a
+        // capability, and a provider that can be told about a label is told.
         $this->account = new Account();
-        $this->account->setSetting(Account::SETTING_LABEL_SYNC, true);
+        $this->account->authType      = AuthType::OAuth2->value;
+        $this->account->oauthProvider = MailProvider::Google->value;
     }
 
     public function testARenameCarriesTheNameTheLabelUsedToHave(): void
@@ -128,10 +134,18 @@ final class LabelStructurePropagatorTest extends TestCase
         self::assertNull($this->dispatched[0]->categoryRemoteId);
     }
 
-    /** Nothing is pushed for an account that has not opted in. */
-    public function testAnAccountWithSyncOffHearsNothing(): void
+    /**
+     * Nothing is pushed for a provider that has no notion of a label to push.
+     *
+     * On plain IMAP a label is a physical folder, so creating or deleting one
+     * moves real mail on the server — a different and riskier operation than
+     * anything dispatched from here means, and the one case the removed toggle
+     * was genuinely protecting.
+     */
+    public function testAPlainImapAccountHearsNothing(): void
     {
-        $this->account->setSetting(Account::SETTING_LABEL_SYNC, false);
+        $this->account->authType      = AuthType::Password->value;
+        $this->account->oauthProvider = null;
 
         $this->propagator->renamed($this->boundLabel('Invoices'), 'Invoices');
 

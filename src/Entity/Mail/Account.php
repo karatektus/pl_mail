@@ -241,9 +241,6 @@ class Account extends AccountModel
         return $this;
     }
 
-    /** Settings-bag key for the provider label-sync toggle. */
-    public const string SETTING_LABEL_SYNC = 'labels.sync_to_provider';
-
     /**
      * Which calendar events extracted from this account's mail land on.
      *
@@ -306,22 +303,6 @@ class Account extends AccountModel
     {
         return AuthType::OAuth2->value === $this->authType
             && MailProvider::Google->value === $this->oauthProvider;
-    }
-
-    /**
-     * Whether label create/rename/delete is mirrored to the provider.
-     *
-     * Lives in the free-form settings bag rather than its own column: it is a
-     * user preference with a safe default, not something queried or indexed.
-     * That is also why it stays a method — there is no boolean column here to
-     * expose, only an untyped bag entry that may be missing or hold anything,
-     * and reading it is an interpretation rather than a plain read. Writers go
-     * through setSetting(self::SETTING_LABEL_SYNC, …), which is all a setter
-     * here would have been.
-     */
-    public function isLabelSyncEnabled(): bool
-    {
-        return true === $this->getSetting(self::SETTING_LABEL_SYNC, false);
     }
 
     /**

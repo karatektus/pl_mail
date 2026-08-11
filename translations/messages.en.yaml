@@ -1453,14 +1453,6 @@ settings:
         empty: No accounts yet. Add one to start syncing mail.
         enable: Enable account
         heading: Mail accounts
-        label_sync:
-            off_hint: >-
-                Labels stay local to plMail. Turn this on to mirror new label
-                changes to this provider.
-            on_hint: >-
-                Labels you create, rename or delete are mirrored to this
-                provider. Existing labels are left alone.
-            title: Sync labels to provider
         password_help: Leave blank to keep the current password.
         primary: Primary
         push:

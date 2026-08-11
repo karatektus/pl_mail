@@ -19,13 +19,17 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * caller mutates it first, and propagation is async so a slow or broken
  * provider never fails the user's action.
  *
- * Opt-in per account (Account::labelSyncEnabled). Off by default, because
- * until now plMail never created labels remotely and silently starting to do
- * so would surprise anyone with an established Gmail label set.
+ * Unconditional on every provider that has somewhere to put a label. It was
+ * opt-in per account and off by default, on the reasoning that plMail had never
+ * created labels remotely and starting to would surprise anyone with an
+ * established Gmail label set. What that actually bought was an account whose
+ * organisation existed only in plMail and vanished the moment its owner opened
+ * Gmail — mirroring is what the rest of the sync does in both directions, and
+ * labels were the one thing that quietly did not.
  *
- * IMAP is deliberately excluded: there a "label" is a physical folder, so
- * creating and deleting them means moving mail around on the server. Only
- * Gmail and Microsoft accounts are offered the toggle.
+ * IMAP is still excluded, and that exclusion is the part worth keeping: there a
+ * "label" is a physical folder, so creating and deleting them means moving real
+ * mail around on the server. See isEnabled().
  */
 final readonly class LabelStructurePropagator
 {
@@ -68,7 +72,7 @@ final readonly class LabelStructurePropagator
     /**
      * A label is now one user-level row materialized on N accounts, so a
      * structure change fans out to one job per binding — each account gets its
-     * own remote id and its own labelSyncEnabled check.
+     * own remote id and its own provider check.
      *
      * A label with no bindings has never been used on any account and has
      * nothing to propagate.
@@ -105,9 +109,26 @@ final readonly class LabelStructurePropagator
         }
     }
 
+    /**
+     * Whether this account's provider can be told about a label at all.
+     *
+     * There used to be a second condition here — a per-account toggle, off by
+     * default — and it was the wrong shape for what plMail is. An account whose
+     * labels exist only in plMail is an account whose organisation is lost the
+     * moment the user opens the provider's own client, which is not a mode
+     * worth offering and certainly not one worth defaulting to. Mirroring is
+     * what the rest of the sync does in both directions; labels were the one
+     * thing that quietly did not.
+     *
+     * What remains is a capability rather than a preference. On Gmail a label
+     * is a label and on Exchange it is a folder, both of which this can create;
+     * on plain IMAP a label is a physical folder, so the same operations would
+     * move real mail on the server, which is a different and riskier thing than
+     * anything dispatched from here means.
+     */
     private function isEnabled(Account $account): bool
     {
-        return true === $account->isLabelSyncEnabled();
+        return true === $account->supportsLabelSync();
     }
 
     /**

@@ -67,9 +67,10 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        // Re-checked here, not just at dispatch: the user may have switched the
-        // toggle off while this job sat in the queue.
-        if (false === $account->isLabelSyncEnabled()) {
+        // Re-checked here, not just at dispatch: an account can change provider
+        // shape — or stop being one plMail can push structure to — while this
+        // job sits in the queue.
+        if (false === $account->supportsLabelSync()) {
             return;
         }
 

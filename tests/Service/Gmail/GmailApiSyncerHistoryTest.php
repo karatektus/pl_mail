@@ -10,8 +10,11 @@ use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageRepository;
+use App\Entity\Mail\Message;
+use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\MessageEraser;
 use App\Service\OAuth\OAuthTokenManager;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -148,6 +151,86 @@ final class GmailApiSyncerHistoryTest extends TestCase
         self::assertSame('67890', $account->gmailHistoryId);
     }
 
+    // ── deletions, which the feed used to be filtered out of ─────────────────
+
+    /**
+     * The gap: history.list was asked for `messageAdded` and nothing else, and
+     * a feed filtered down to additions cannot report a deletion. Unlike IMAP
+     * there is no folder to list and compare against, so the history feed is
+     * the only account of what happened — and mail deleted in the Gmail web
+     * interface stayed in plMail permanently.
+     *
+     * `messagesDeleted` means permanently gone rather than trashed: Gmail
+     * models trashing as a TRASH label going on, so the only thing producing
+     * this record is the mail actually ceasing to exist.
+     */
+    public function testAMessageDeletedInGmailIsErasedHere(): void
+    {
+        $account = $this->account();
+        $row     = new Message();
+
+        $erased = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history'   => [['messagesDeleted' => [['message' => ['id' => 'gone-1']]]]],
+                'historyId' => '67890',
+            ]),
+            rows: [$row],
+            erased: $erased,
+        )->syncIncremental($account);
+
+        self::assertSame([$row], $erased, 'the row for a message Gmail destroyed goes with it');
+        self::assertSame('67890', $account->gmailHistoryId);
+    }
+
+    /**
+     * The history feed is per account and plMail files a message against
+     * whichever of the owner's accounts it was addressed to, so an id with no
+     * row here is ordinary rather than a fault.
+     */
+    public function testADeletionForAMessageWeDoNotHoldIsIgnored(): void
+    {
+        $erased = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history'   => [['messagesDeleted' => [['message' => ['id' => 'gone-1']]]]],
+                'historyId' => '67890',
+            ]),
+            rows: [],
+            erased: $erased,
+        )->syncIncremental($this->account());
+
+        self::assertSame([], $erased);
+    }
+
+    /**
+     * A message added and then deleted inside one history window is not
+     * fetched. Gmail replays the window in order and both entries are in it;
+     * asking for a message Google has already destroyed is a round trip that
+     * can only end in a 404.
+     */
+    public function testAMessageAddedAndDeletedInOneWindowIsNeverFetched(): void
+    {
+        $dispatched = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history' => [
+                    ['messagesAdded'   => [['message' => ['id' => 'short-lived']]]],
+                    ['messagesDeleted' => [['message' => ['id' => 'short-lived']]]],
+                ],
+                'historyId' => '67890',
+            ]),
+            rows: [],
+            erased: $ignored,
+            dispatched: $dispatched,
+        )->syncIncremental($this->account());
+
+        self::assertSame([], $dispatched, 'nothing is queued for a message that no longer exists');
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     private function profileWasFetched(): bool
@@ -166,8 +249,19 @@ final class GmailApiSyncerHistoryTest extends TestCase
      * profile and the backlog listing — answers successfully, so the only thing
      * under test is which of the two the failure sends it down.
      */
-    private function syncer(MockResponse $history): GmailApiSyncer
-    {
+    /**
+     * @param list<Message> $rows  what the repository holds for the ids the
+     *                             feed names as deleted
+     *
+     * @param-out list<Message> $erased      whatever was erased
+     * @param-out list<string>  $dispatched  the Gmail ids queued for fetching
+     */
+    private function syncer(
+        MockResponse $history,
+        array        $rows = [],
+        mixed        &$erased = null,
+        mixed        &$dispatched = null,
+    ): GmailApiSyncer {
         $client = new MockHttpClient(function (string $method, string $url) use ($history): ResponseInterface {
             $this->requests[] = $url;
 
@@ -193,9 +287,34 @@ final class GmailApiSyncerHistoryTest extends TestCase
 
         $messageRepository = $this->createStub(MessageRepository::class);
         $messageRepository->method('findSyncedGmailIdsForUser')->willReturn([]);
+        $messageRepository->method('findByGmailIdsForUser')->willReturn($rows);
+
+        $erased     = [];
+        $dispatched = [];
 
         $bus = $this->createStub(MessageBusInterface::class);
-        $bus->method('dispatch')->willReturn(new Envelope(new \stdClass()));
+        $bus->method('dispatch')->willReturnCallback(
+            static function (object $envelope) use (&$dispatched): Envelope {
+                if ($envelope instanceof SyncGmailMessageBatchMessage) {
+                    foreach ($envelope->gmailIds as $gmailId) {
+                        $dispatched[] = $gmailId;
+                    }
+                }
+
+                return new Envelope($envelope);
+            },
+        );
+
+        $eraser = $this->createStub(MessageEraser::class);
+        $eraser->method('eraseAll')->willReturnCallback(
+            static function (iterable $messages) use (&$erased): int {
+                foreach ($messages as $message) {
+                    $erased[] = $message;
+                }
+
+                return count($erased);
+            },
+        );
 
         return new GmailApiSyncer(
             new GmailApiClient($client, $tokenManager),
@@ -203,6 +322,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $bus,
             new NullLogger(),
+            $eraser,
         );
     }
 
