@@ -16,6 +16,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailMessageBuilder;
 use App\Service\HarvestContactsService;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
@@ -44,6 +45,7 @@ final readonly class SyncGmailMessageBatchHandler
         private EntityManagerInterface $em,
         private StateManager           $stateManager,
         private LoggerInterface        $logger,
+        private ThreadLabelSynchronizer $threadLabels,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -160,6 +162,29 @@ final readonly class SyncGmailMessageBatchHandler
                 }
             }
 
+            // ── Already ours: a label change, not a new message ───────────────
+            // The planner used to hand over none of these — newGmailIds() drops
+            // anything already stored, so a message could only arrive here once
+            // and building was the only case. Label changes broke that
+            // assumption: they are reported for messages plMail has had for
+            // months, and the point of re-fetching one is precisely to re-read
+            // labels that have changed underneath it.
+            //
+            // Looking first is also what makes this handler idempotent. A
+            // redelivered batch — a worker restart, a retry after a partial
+            // failure — used to build a second row for every message in it.
+            if ('' !== $gmailId) {
+                $known = $this->messageRepository->findOneBy(['gmailId' => $gmailId]);
+
+                if (null !== $known) {
+                    $this->enrichExisting($known, $labelIds, $gmailId, $targetAccount, $account);
+
+                    $enriched++;
+                    $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
+                    continue;
+                }
+            }
+
             // ── Build entity ──────────────────────────────────────────────────
             // Label resolution runs against the CARRIER account (this Gmail
             // account owns the labelIds), then translates onto the attributed
@@ -257,9 +282,13 @@ final readonly class SyncGmailMessageBatchHandler
         $thread = $existing->thread;
 
         if (null !== $thread) {
-            foreach ($existing->labels as $label) {
-                $thread->addLabel($label);
-            }
+            // Re-derived rather than accumulated. This used to add the
+            // message's labels to the thread and never take any off, which was
+            // consistent with label application only ever adding — now that a
+            // label can genuinely leave a message, a thread that kept the union
+            // of everything its messages had *ever* carried would go on showing
+            // in the inbox after the last of them was archived.
+            $this->threadLabels->sync($thread);
 
             $this->stateManager->recordThreadsTouched((int) $target->id, [(int) $thread->id]);
         }

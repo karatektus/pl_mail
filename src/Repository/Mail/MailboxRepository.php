@@ -53,6 +53,58 @@ class MailboxRepository extends ServiceEntityRepository
     }
 
     /**
+     * The oldest full-listing this account's folders have between them, or null
+     * if any of them has never had one.
+     *
+     * This is the coverage guarantee behind remote deletion. A row that went
+     * missing from one folder may simply be in another, so the only moment its
+     * absence means anything is once *every* folder has been listed since — and
+     * the folder that was listed longest ago is what that comes down to.
+     *
+     * Null is the important answer and is why this returns one rather than
+     * skipping the folders it cannot speak for. A single never-swept folder
+     * means the account has no such moment yet, and nothing may be erased on
+     * the strength of the folders that have been looked in.
+     *
+     * Sync-disabled folders are excluded because nothing ever lists them, so
+     * including them would make the answer permanently null. The cost is stated
+     * where it lands: a message moved by hand into a folder the user has turned
+     * sync off for is, to plMail, a message that left the account.
+     */
+    public function earliestSweepAcross(Account $account): ?\DateTimeImmutable
+    {
+        /** @var list<array{sweptAt: ?\DateTimeImmutable}> $rows */
+        $rows = $this->createQueryBuilder('mailbox')
+            ->select('mailbox.sweptAt')
+            ->where('mailbox.account = :account')
+            ->andWhere('mailbox.isSyncEnabled = :enabled')
+            ->setParameter('account', $account)
+            ->setParameter('enabled', true)
+            ->getQuery()
+            ->getArrayResult();
+
+        if (0 === count($rows)) {
+            return null;
+        }
+
+        $earliest = null;
+
+        foreach ($rows as $row) {
+            $sweptAt = $row['sweptAt'];
+
+            if (null === $sweptAt) {
+                return null;
+            }
+
+            if (null === $earliest || $sweptAt < $earliest) {
+                $earliest = $sweptAt;
+            }
+        }
+
+        return $earliest;
+    }
+
+    /**
      * Mailboxes an IDLE supervisor should hold a connection for.
      *
      * QueryBuilder on two counts: whether the owning account is still active is

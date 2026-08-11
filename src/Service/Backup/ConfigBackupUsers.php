@@ -143,7 +143,6 @@ final readonly class ConfigBackupUsers
      * @var list<string>
      */
     private const array ACCOUNT_SETTINGS = [
-        Account::SETTING_LABEL_SYNC,
         Account::SETTING_BACKFILL_TARGET,
         Account::SETTING_CALENDAR_TARGET,
     ];

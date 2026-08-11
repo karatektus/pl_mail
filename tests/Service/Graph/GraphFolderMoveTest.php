@@ -47,9 +47,11 @@ final class GraphFolderMoveTest extends KernelTestCase
     private Label $trash;
     private Label $receipts;
 
-    private const string DRAFTS_FOLDER = 'AAMkAD-drafts';
-    private const string TRASH_FOLDER  = 'AAMkAD-trash';
-    private const string GRAPH_ID      = 'AAkALgAAmessage';
+    private const string DRAFTS_FOLDER  = 'AAMkAD-drafts';
+    private const string TRASH_FOLDER   = 'AAMkAD-trash';
+    private const string ARCHIVE_FOLDER = 'AAMkAD-archive';
+    private const string INBOX_FOLDER   = 'AAMkAD-inbox';
+    private const string GRAPH_ID       = 'AAkALgAAmessage';
 
     protected function setUp(): void
     {
@@ -118,7 +120,156 @@ final class GraphFolderMoveTest extends KernelTestCase
         self::assertSame(['Receipts', 'Trash'], $this->labelNamesOf($message));
     }
 
+    // ── archive, which on Exchange is an ordinary folder ─────────────────────
+
+    /**
+     * Exchange has a real Archive folder, so archiving there is a folder move
+     * like any other and the exclusive folder-label swap already handles it.
+     * Pinned rather than assumed: the Gmail side needed a rule invented for it,
+     * because Gmail expresses archiving as the *absence* of INBOX and there is
+     * nothing to arrive in its place. The two providers reach the same end
+     * state by different routes, and this is the one that gets there for free.
+     */
+    public function testAMessageMovedToTheArchiveFolderWearsTheArchiveLabel(): void
+    {
+        $archive = $this->seedLabel('Archive', LabelRole::Archive, self::ARCHIVE_FOLDER);
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolder(self::ARCHIVE_FOLDER, $message->graphId);
+
+        self::assertSame(['Archive'], $this->labelNamesOf($message));
+        self::assertTrue($message->hasLabel($archive));
+    }
+
+    /**
+     * And back out of it, for the same reason the Gmail side pins the reverse:
+     * a message that returns to the inbox must not go on claiming to be
+     * archived.
+     */
+    public function testAMessageMovedBackOutOfArchiveStopsWearingTheArchiveLabel(): void
+    {
+        $this->seedLabel('Archive', LabelRole::Archive, self::ARCHIVE_FOLDER);
+        $inbox   = $this->seedLabel('Inbox', LabelRole::Inbox, self::INBOX_FOLDER);
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolder(self::ARCHIVE_FOLDER, $message->graphId);
+        $this->syncFolder(self::INBOX_FOLDER, $message->graphId);
+
+        self::assertSame(['Inbox'], $this->labelNamesOf($message));
+        self::assertTrue($message->hasLabel($inbox));
+    }
+
+    // ── and when it moved out of the mailbox altogether ──────────────────────
+
+    /**
+     * The gap the move fix left behind. `@removed` took the folder's label off
+     * and stopped there, so a message deleted in Outlook lost its label and
+     * kept its row — invisible in every list, still counted in every total, and
+     * collected by nothing.
+     *
+     * An Exchange message is in exactly one folder. A row wearing no folder
+     * label is not in the mailbox, and the row has to go with it.
+     */
+    public function testAMessageRemovedFromItsOnlyFolderIsDeletedHere(): void
+    {
+        $message = $this->seedMessage($this->drafts);
+        $rowId   = (int) $message->id;
+
+        $this->syncFolders([self::DRAFTS_FOLDER => [$this->removedItem($message->graphId)]]);
+
+        self::assertNull(
+            $this->em->find(Message::class, $rowId),
+            'it is in no folder, which for Exchange means it is not there',
+        );
+    }
+
+    /**
+     * And the case that makes the removal ambiguous in the first place: a move
+     * is `@removed` on the source and an ordinary item on the destination, both
+     * inside one run. Pairing them is what stops a move being read as a delete.
+     */
+    public function testAMessageRemovedFromOneFolderAndPresentInAnotherIsMovedNotDeleted(): void
+    {
+        $message = $this->seedMessage($this->drafts);
+        $rowId   = (int) $message->id;
+
+        $this->syncFolders([
+            self::DRAFTS_FOLDER => [$this->removedItem($message->graphId)],
+            self::TRASH_FOLDER  => [['id' => $message->graphId, 'parentFolderId' => self::TRASH_FOLDER]],
+        ]);
+
+        $moved = $this->em->find(Message::class, $rowId);
+
+        self::assertNotNull($moved, 'it arrived somewhere, so it was a move');
+        self::assertSame(['Trash'], $this->labelNamesOf($moved));
+    }
+
+    /**
+     * A removal reported for an id plMail has no row for is not a problem to
+     * report. Graph deltas are per folder and plMail does not necessarily hold
+     * every message a folder has ever had.
+     */
+    public function testARemovalForAMessageWeDoNotHoldIsIgnored(): void
+    {
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolders([self::DRAFTS_FOLDER => [$this->removedItem('AAkALgAAsomeoneelse')]]);
+
+        self::assertNotNull($this->em->find(Message::class, (int) $message->id));
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function removedItem(?string $graphId): array
+    {
+        return ['id' => $graphId, '@removed' => ['reason' => 'deleted']];
+    }
+
+    /**
+     * Run several folders' deltas in one pass, which is what the syncer does
+     * and what makes a removal interpretable at all.
+     *
+     * @param array<string, list<array<string,mixed>>> $byFolder
+     */
+    private function syncFolders(array $byFolder): void
+    {
+        $responses = [];
+
+        foreach ($byFolder as $items) {
+            $responses[] = new MockResponse(
+                json_encode([
+                    'value'            => $items,
+                    '@odata.deltaLink' => 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=new',
+                ], JSON_THROW_ON_ERROR),
+                ['response_headers' => ['content-type' => 'application/json']],
+            );
+        }
+
+        $container = self::getContainer();
+
+        $syncer = new GraphApiSyncer(
+            new GraphApiClient(
+                new MockHttpClient($responses),
+                $container->get('App\Service\OAuth\OAuthTokenManager'),
+            ),
+            $container->get('App\Service\Graph\GraphFolderResolver'),
+            $container->get('App\Service\Graph\GraphLabelPolicy'),
+            $container->get('App\Repository\Mail\MessageRepository'),
+            $this->em,
+            $container->get('App\Jmap\State\StateManager'),
+            $container->get('messenger.default_bus'),
+            new \Psr\Log\NullLogger(),
+            $container->get('App\Service\Mail\MessageEraser'),
+        );
+
+        $syncer->sync($this->account, array_keys($byFolder));
+
+        $this->em->flush();
+    }
+
 
     /**
      * Runs one folder's delta, reporting the given message as present in it.
@@ -155,6 +306,7 @@ final class GraphFolderMoveTest extends KernelTestCase
             $container->get('App\Jmap\State\StateManager'),
             $container->get('messenger.default_bus'),
             new \Psr\Log\NullLogger(),
+            $container->get('App\Service\Mail\MessageEraser'),
         );
 
         $syncer->sync($this->account, [$folderId]);

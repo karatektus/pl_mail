@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -41,6 +42,7 @@ final class GmailApiSyncer
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
+        private readonly MessageEraser          $eraser,
     ) {}
 
     /**
@@ -176,10 +178,23 @@ final class GmailApiSyncer
         }
 
         try {
-            // No labelId filter — track additions across all labels.
-            $result = $this->apiClient->listHistory($account, $startHistoryId, [
-                'historyTypes' => 'messageAdded',
-            ]);
+            // No filter at all, on either axis.
+            //
+            // No labelId, so additions are tracked across every label — that
+            // part was always so. And no historyTypes either, which is the
+            // change: it used to ask for `messageAdded` alone, and a history
+            // feed filtered down to additions is a feed that cannot report a
+            // deletion. Mail the user deleted in the Gmail web interface stayed
+            // in plMail permanently, because nothing else ever looks: unlike
+            // IMAP there is no folder to list and compare, the history feed is
+            // the only account of what happened.
+            //
+            // Omitting the parameter rather than naming four types is
+            // deliberate. history.list takes historyTypes as a repeated enum,
+            // which a query array cannot express without Google reading
+            // `historyTypes[0]=…` as a name it does not know; omitted, the API
+            // returns every type, which is what is wanted anyway.
+            $result = $this->apiClient->listHistory($account, $startHistoryId);
         } catch (GmailApiException $e) {
             // Matched on the status, not the message text. It used to be
             // str_contains($e->getMessage(), '404'), which fires on any failure
@@ -212,7 +227,9 @@ final class GmailApiSyncer
         // that carries no status is by reading its text, which is the bug this
         // replaced. They propagate and the transport retries them.
 
-        $refs = [];
+        $refs      = [];
+        $deleted   = [];
+        $relabelled = [];
 
         foreach ($result['history'] as $record) {
             foreach ($record['messagesAdded'] ?? [] as $added) {
@@ -222,15 +239,111 @@ final class GmailApiSyncer
                     $refs[] = ['id' => $id];
                 }
             }
+
+            foreach ($record['messagesDeleted'] ?? [] as $removed) {
+                $id = (string) ($removed['message']['id'] ?? '');
+
+                if ('' !== $id) {
+                    $deleted[$id] = true;
+                }
+            }
+
+            // A label going on or coming off is how Gmail says a message moved.
+            // There are no folders to compare, so the two are the same event
+            // and both have to be followed — archiving in Gmail is the removal
+            // of INBOX and nothing else, which is why asking only about
+            // additions could never see it.
+            //
+            // The specific ids are deliberately not applied from here. The
+            // record says which labels changed; what plMail needs is the set
+            // the message now has, which is one field of the message itself, so
+            // the id is queued for a re-read and the batch handler applies the
+            // whole set authoritatively. That keeps one place deciding what a
+            // Gmail label set means.
+            foreach (['labelsAdded', 'labelsRemoved'] as $type) {
+                foreach ($record[$type] ?? [] as $change) {
+                    $id = (string) ($change['message']['id'] ?? '');
+
+                    if ('' !== $id) {
+                        $relabelled[$id] = true;
+                    }
+                }
+            }
         }
 
-        $this->dispatchBatches($account, $this->newGmailIds($account, $refs));
+        // Deletions first, and a message that was added and then deleted inside
+        // one history window is not fetched at all. Gmail replays the window in
+        // order and both entries are in it; fetching a message Google has
+        // already destroyed is a wasted round trip that ends in a 404.
+        foreach ($deleted as $gmailId => $ignored) {
+            unset($refs[array_search(['id' => $gmailId], $refs, true)]);
+            unset($relabelled[$gmailId]);
+        }
+
+        $this->eraseDeleted($account, array_keys($deleted));
+
+        // Two sets with different rules, unioned once. New ids are filtered
+        // against what is already stored, because fetching a message plMail
+        // holds would be wasted work. Relabelled ids are the exact opposite
+        // case — they are stored *by definition*, and the whole reason to
+        // re-read one is that something about it has changed — so they bypass
+        // that filter and the batch handler recognises them and enriches
+        // rather than inserting.
+        $wanted = $this->newGmailIds($account, array_values($refs));
+
+        foreach (array_keys($relabelled) as $gmailId) {
+            $wanted[] = $gmailId;
+        }
+
+        $this->dispatchBatches($account, array_values(array_unique($wanted)));
 
         $account->gmailHistoryId = (string) $result['historyId'];
         $this->em->flush();
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Take out the rows for messages Gmail says no longer exist.
+     *
+     * `messagesDeleted` means permanently gone, not trashed: Gmail models
+     * trashing as a TRASH label going on, so the only thing that produces this
+     * record is the mail actually ceasing to exist — emptied out of Trash, or
+     * deleted outright. That makes it proof rather than the evidence an IMAP
+     * folder listing gives, and there is nothing to corroborate it against:
+     * unlike IMAP there is no folder to re-list, so the history feed is the
+     * account of record and second-guessing it would only mean never obeying it.
+     *
+     * What is *not* assumed is that the id is one of ours. Gmail history is per
+     * account and plMail attributes messages across sibling accounts, so an id
+     * with no row is passed over in silence rather than treated as a problem.
+     *
+     * Erased through MessageEraser like every other deletion, so the thread is
+     * recounted, the JMAP destroy is announced to clients holding the id, and
+     * the stored bytes and attachments go with it.
+     *
+     * @param list<string> $gmailIds
+     */
+    private function eraseDeleted(Account $account, array $gmailIds): void
+    {
+        if (0 === count($gmailIds)) {
+            return;
+        }
+
+        $rows = $this->messageRepository->findByGmailIdsForUser($account->usr, $gmailIds);
+
+        if (0 === count($rows)) {
+            return;
+        }
+
+        $erased = $this->eraser->eraseAll($rows);
+
+        $this->logger->info('GmailApiSyncer: messages deleted on the server were removed here', [
+            'accountId' => $account->id,
+            'reported'  => count($gmailIds),
+            'erased'    => $erased,
+        ]);
+    }
 
     /**
      * @param list<array{id?: string}> $refs

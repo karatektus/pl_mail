@@ -58,4 +58,29 @@ readonly class RawMessageStorage
     {
         return is_file($this->getAbsolutePath($relativePath));
     }
+
+    /**
+     * Remove a stored .eml, when the row that named it is going away.
+     *
+     * Guarded the same way AttachmentStorageHelper::delete() is, and for the
+     * same reason: rawPath is a column other code writes provider schemes into,
+     * and a path that is not one of ours must be ignored rather than resolved
+     * against the project root and unlinked.
+     */
+    public function delete(?string $relativePath): void
+    {
+        if (null === $relativePath || false === str_starts_with($relativePath, $this->storageDir.'/raw/')) {
+            return;
+        }
+
+        if (true === str_contains($relativePath, '..')) {
+            return;
+        }
+
+        $path = $this->getAbsolutePath($relativePath);
+
+        if (true === is_file($path)) {
+            unlink($path);
+        }
+    }
 }

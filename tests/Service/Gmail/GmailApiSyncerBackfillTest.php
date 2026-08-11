@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\MessageEraser;
 use App\Service\OAuth\OAuthTokenManager;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -225,6 +226,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->bus,
             new NullLogger(),
+            $this->createStub(MessageEraser::class),
         );
     }
 

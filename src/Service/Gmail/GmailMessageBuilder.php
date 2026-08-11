@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\DTO\Gmail\ExtractedBody;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
@@ -51,6 +52,7 @@ final class GmailMessageBuilder
         private readonly HeaderNormalizer       $headerNormalizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly LoggerInterface        $logger,
+        private readonly GmailLabelPolicy       $labelPolicy,
     )
     {
     }
@@ -466,17 +468,127 @@ final class GmailMessageBuilder
     }
 
     /**
-     * Resolve Gmail labelIds against the carrier account and attach the
-     * translated labels for the target account. Shared by the import path
-     * (new messages) and the enrichment path (existing IMAP rows gaining
-     * their Gmail labels after dedup).
+     * Make the message's labels agree with what Gmail says they are.
+     *
+     * Authoritative, which it was not. This resolved the ids Gmail reported and
+     * added every one of them, and nothing ever came off — so unfiling a
+     * message in Gmail left the label on it here permanently, and since
+     * archiving in Gmail *is* the removal of INBOX, a message archived in the
+     * web interface went on showing in plMail's inbox forever. Additive was the
+     * safe half of a rule whose other half had not been written.
+     *
+     * Authoritative only within the partition Gmail speaks for, though, and
+     * that is what GmailLabelPolicy is for. Snoozed is plMail's own, Archive
+     * has no Gmail counterpart, and a user may keep labels here that exist
+     * nowhere else; a rule that could not tell the difference would answer the
+     * first archive by deleting the user's local filing. So the removal is
+     * confined to labels carrying a gmailLabelId on the carrier account — the
+     * ones this feed is entitled to have an opinion about.
+     *
+     * The carrier is the account whose API produced $labelIds, and it is
+     * deliberately the account the policy is asked about, never $target. Gmail
+     * speaks for its own mailbox: a label that exists on a sibling account and
+     * not on this one is one this feed has said nothing about, and silence is
+     * not a removal.
+     *
+     * Shared by the import path (new messages, where nothing is on the message
+     * yet and the removal pass finds nothing to do) and the enrichment path
+     * (existing rows, where it is the entire point).
      *
      * @param list<string> $labelIds
      */
     public function applyTranslatedLabels(Message $message, array $labelIds, Account $target, Account $carrier): void
     {
-        foreach ($this->labelResolver->resolve($labelIds, $carrier) as $label) {
+        $resolved = $this->labelResolver->resolve($labelIds, $carrier);
+
+        /** @var array<int,true> $keep */
+        $keep = [];
+
+        foreach ($resolved as $label) {
+            $keep[(int) $label->id] = true;
+        }
+
+        $inbox    = $this->localLabelResolver->systemLabel(LabelRole::Inbox, $target);
+        $hadInbox = $message->hasLabel($inbox);
+
+        // Off first, so that a label being moved between messages cannot be
+        // added and then removed by its own pass.
+        foreach ($this->labelPolicy->providerLabels($message, $carrier) as $current) {
+            if (true === isset($keep[(int) $current->id])) {
+                continue;
+            }
+
+            $message->removeLabel($current);
+        }
+
+        foreach ($resolved as $label) {
             $message->addLabel($this->translateLabel($label, $target));
         }
+
+        $this->reconcileArchive($message, $labelIds, $target, $hadInbox, $message->hasLabel($inbox));
+    }
+
+    /**
+     * Give a message archived in Gmail the Archive label, and take it back off
+     * when it returns to the inbox.
+     *
+     * Gmail has no Archive label — archiving there is the removal of INBOX and
+     * nothing else — so the authoritative label application above correctly
+     * takes the message out of the inbox and leaves it wearing nothing that
+     * says where it went. plMail's Archive view is a label, so the message
+     * archived in Gmail simply did not appear in it: out of the inbox, out of
+     * the archive, reachable only through search or its conversation. The two
+     * sides have to agree regardless of which of them did the archiving.
+     *
+     * Written as a *transition* rather than a state, and that is the whole of
+     * its safety. "Has no INBOX" is true of Sent mail, of drafts, of every
+     * message on an account that has never had an inbox label — inferring
+     * Archive from the state would put the label on all of them. What this
+     * responds to is INBOX having been there and now being gone, which is an
+     * event only an archive (or a trash, or a spam move) produces.
+     *
+     * It therefore also does not backfill: messages archived in Gmail before
+     * this shipped never make the transition, because plMail never saw them in
+     * the inbox to begin with. A resync is what puts those right.
+     *
+     * Trash, spam and snoozed are excluded because each is a destination in its
+     * own right and already says where the message went. Archive means "left
+     * the inbox and went nowhere in particular", which is precisely the case
+     * with nothing else to say about it.
+     *
+     * @param list<string> $labelIds
+     */
+    private function reconcileArchive(
+        Message $message,
+        array   $labelIds,
+        Account $target,
+        bool    $hadInbox,
+        bool    $hasInbox,
+    ): void {
+        $archive = $this->localLabelResolver->systemLabel(LabelRole::Archive, $target);
+
+        // Back to the inbox: whatever archived it has been undone, and the
+        // Archive label is the thing that would otherwise survive it.
+        if (false === $hadInbox && true === $hasInbox) {
+            $message->removeLabel($archive);
+
+            return;
+        }
+
+        if (false === $hadInbox || true === $hasInbox) {
+            return;
+        }
+
+        foreach (['TRASH', 'SPAM'] as $elsewhere) {
+            if (true === in_array($elsewhere, $labelIds, true)) {
+                return;
+            }
+        }
+
+        if (true === $message->hasLabel($this->localLabelResolver->systemLabel(LabelRole::Snoozed, $target))) {
+            return;
+        }
+
+        $message->addLabel($archive);
     }
 }

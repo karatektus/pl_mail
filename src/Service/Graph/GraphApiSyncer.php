@@ -11,6 +11,7 @@ use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GraphApiClient;
+use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -53,6 +54,7 @@ final class GraphApiSyncer
         private readonly StateManager           $stateManager,
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
+        private readonly MessageEraser          $eraser,
     ) {}
 
     /**
@@ -62,6 +64,21 @@ final class GraphApiSyncer
     {
         $deltaLinks = $account->graphDeltaLinks;
         $pending    = [];
+
+        // The two halves of "is this message anywhere". A move shows up as
+        // `@removed` on the folder it left and as an ordinary item on the one
+        // it arrived in, so a removal on its own means nothing until every
+        // folder has had its say — which is what this run is doing anyway, one
+        // folder at a time. A deletion is a removal with no arrival to pair it
+        // with.
+        $removed = [];
+        $present = [];
+
+        // And the coverage guard. A folder whose delta failed has not told us
+        // whether it received anything, so this run cannot conclude that a
+        // message is nowhere — exactly the reasoning
+        // MailboxRepository::earliestSweepAcross() applies on the IMAP side.
+        $everyFolderAnswered = true;
 
         foreach ($folderIds as $folderId) {
             $storedLink = $deltaLinks[$folderId] ?? null;
@@ -74,6 +91,8 @@ final class GraphApiSyncer
                     'folderId'  => $folderId,
                     'error'     => $e->getMessage(),
                 ]);
+
+                $everyFolderAnswered = false;
 
                 continue;
             }
@@ -97,8 +116,26 @@ final class GraphApiSyncer
                         'error'     => $e->getMessage(),
                     ]);
 
+                    $everyFolderAnswered = false;
+
                     continue;
                 }
+            }
+
+            foreach ($result['items'] as $item) {
+                $graphId = (string) ($item['id'] ?? '');
+
+                if ('' === $graphId) {
+                    continue;
+                }
+
+                if (true === array_key_exists('@removed', $item)) {
+                    $removed[$graphId] = true;
+
+                    continue;
+                }
+
+                $present[$graphId] = true;
             }
 
             foreach ($this->partition($account, $folderId, $result['items']) as $graphId) {
@@ -111,12 +148,75 @@ final class GraphApiSyncer
         }
 
         $account->graphDeltaLinks = $deltaLinks;
+
+        if (true === $everyFolderAnswered) {
+            $this->eraseVanished($account, array_diff_key($removed, $present));
+        }
+
         $this->em->flush();
 
         $this->dispatchBatches($account, array_keys($pending));
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Remove the rows for messages that left a folder and arrived in none.
+     *
+     * `@removed` was already handled — by taking the folder's label off — and
+     * that was the whole of it, which meant a message deleted in Outlook lost
+     * its label and kept its row. An Exchange message is in exactly one folder,
+     * so a row wearing no folder label at all is not in the mailbox: it was
+     * invisible in every list and still counted in every total, and nothing
+     * ever collected it.
+     *
+     * The pairing this relies on is the one the class docblock already
+     * describes: a move is `@removed` on the source and an ordinary item on the
+     * destination, both inside this run because this run walks every folder. So
+     * a removal with no arrival is a deletion — provided every folder actually
+     * answered, which the caller checks, because a folder whose delta threw has
+     * not said whether it received anything.
+     *
+     * The folder-label check is the second guard and covers the case the ids
+     * cannot: a mailbox without immutable ids reports `@removed` under an id
+     * the destination does not use, so the arrival is real but unrecognisable.
+     * Such a row has been given the destination's label by attachFolderLabel()
+     * and is therefore not label-less, and is left alone.
+     *
+     * @param array<string,true> $graphIds
+     */
+    private function eraseVanished(Account $account, array $graphIds): void
+    {
+        if (0 === count($graphIds)) {
+            return;
+        }
+
+        $erased = 0;
+
+        foreach (array_keys($graphIds) as $graphId) {
+            $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+
+            if (null === $message) {
+                continue;
+            }
+
+            if (0 !== count($this->labelPolicy->folderLabels($message))) {
+                // It is in a folder after all. See above.
+                continue;
+            }
+
+            $this->eraser->erase($message);
+            ++$erased;
+        }
+
+        if ($erased > 0) {
+            $this->logger->info('GraphApiSyncer: messages removed from every folder were deleted here', [
+                'accountId' => $account->id,
+                'reported'  => count($graphIds),
+                'erased'    => $erased,
+            ]);
+        }
+    }
 
     /**
      * Split a folder's delta payload into work that needs a full fetch and work

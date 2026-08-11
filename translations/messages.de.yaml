@@ -1483,15 +1483,6 @@ settings:
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
         enable: Konto aktivieren
         heading: E-Mail-Konten
-        label_sync:
-            off_hint: >-
-                Labels bleiben lokal in plMail. Aktiviere dies, um künftige
-                Label-Änderungen zu diesem Anbieter zu spiegeln.
-            on_hint: >-
-                Labels, die du anlegst, umbenennst oder löschst, werden zu
-                diesem Anbieter gespiegelt. Bestehende Labels bleiben
-                unverändert.
-            title: Labels zum Anbieter synchronisieren
         password_help: Leer lassen, um das aktuelle Passwort zu behalten.
         primary: Primär
         push:

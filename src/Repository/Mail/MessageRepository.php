@@ -765,6 +765,181 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every address this mailbox holds, as row id => UID.
+     *
+     * findSyncedUids() answers "have I seen this UID", which is all the
+     * incremental path needs. The sweep asks the opposite question — which of
+     * my rows is the server no longer offering — and to answer it has to name
+     * the rows, not merely count them.
+     *
+     * @return array<int,int> messageId => imapUid
+     */
+    public function findLocatedUidsById(Mailbox $mailbox): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.imapUid')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getArrayResult();
+
+        $located = [];
+
+        foreach ($rows as $row) {
+            $located[(int) $row['id']] = (int) $row['imapUid'];
+        }
+
+        return $located;
+    }
+
+    /**
+     * Record that these rows were not in their folder's listing.
+     *
+     * A bulk update rather than hydrated entities: a sweep of a large folder
+     * after a bad night can name thousands of rows, and loading a Message per
+     * row to write one nullable column would turn the safety net into the
+     * slowest thing in the poll.
+     *
+     * `vanishedAt IS NULL` in the predicate keeps the *first* absence as the
+     * instant that counts. Refreshing it on every sweep would push the deadline
+     * out forever and nothing would ever be reaped.
+     *
+     * @param list<int> $ids
+     */
+    public function markVanished(array $ids, \DateTimeImmutable $at): int
+    {
+        return $this->updateVanishedAt($ids, $at, onlyUnmarked: true);
+    }
+
+    /**
+     * Take the mark off rows the server has just produced after all.
+     *
+     * @param list<int> $ids
+     */
+    public function clearVanished(array $ids): int
+    {
+        return $this->updateVanishedAt($ids, null, onlyUnmarked: false);
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    private function updateVanishedAt(array $ids, ?\DateTimeImmutable $at, bool $onlyUnmarked): int
+    {
+        if (0 === count($ids)) {
+            return 0;
+        }
+
+        $affected = 0;
+
+        // Chunked because Postgres has a bind-parameter ceiling and a folder
+        // that was rebuilt server-side can put every row it has in this list.
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $qb = $this->getEntityManager()->createQueryBuilder()
+                ->update(Message::class, 'm')
+                ->set('m.vanishedAt', ':at')
+                ->where('m.id IN (:ids)')
+                ->setParameter('at', $at)
+                ->setParameter('ids', $chunk);
+
+            if (true === $onlyUnmarked) {
+                $qb->andWhere('m.vanishedAt IS NULL');
+            } else {
+                $qb->andWhere('m.vanishedAt IS NOT NULL');
+            }
+
+            $affected += (int) $qb->getQuery()->execute();
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Strip every stored UID in this folder, keeping the rows.
+     *
+     * What a UIDVALIDITY change means and the most that may be done about it.
+     * The addresses are void; the mail is not, and the server may still have
+     * all of it. An unlocated row is the shape SentCopyReconciler::claim()
+     * re-matches by Message-ID when the folder is re-read, so this is a
+     * re-match and not a wipe.
+     *
+     * The vanish marks go with them: a row with no address cannot be confirmed
+     * gone by anything, so leaving it marked would only give the reaper
+     * questions it can never answer.
+     */
+    public function unlocateAll(Mailbox $mailbox): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.imapUid', ':nothing')
+            ->set('m.vanishedAt', ':nothing')
+            ->where('m.mailbox = :mailbox')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Rows that went missing before every folder had been looked in.
+     *
+     * The cutoff is the caller's business and is the whole safety of this: it
+     * passes the *earliest* sweep across the account's folders, so a row only
+     * comes back from here once every one of them has been listed since it
+     * vanished and none produced it. See VanishedMessageReconciler::reap().
+     *
+     * Ordered by the instant they vanished so the oldest evidence is acted on
+     * first, and capped, because erasing is the one thing here that cannot be
+     * undone by the next poll.
+     *
+     * @return list<Message>
+     */
+    public function findReapable(Account $account, \DateTimeImmutable $vanishedBefore, int $limit): array
+    {
+        return $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->andWhere('m.vanishedAt IS NOT NULL')
+            ->andWhere('m.vanishedAt < :before')
+            ->setParameter('account', $account)
+            ->setParameter('before', $vanishedBefore)
+            ->orderBy('m.vanishedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The rows behind a set of Gmail ids, scoped to one owner.
+     *
+     * Scoped through the user rather than the account for the same reason
+     * findSyncedGmailIdsForUser() is: plMail attributes a Gmail message to
+     * whichever of the owner's accounts it was actually addressed to, so the
+     * row for an id that arrived on one account's history feed may well hang
+     * off a sibling.
+     *
+     * @param list<string> $gmailIds
+     *
+     * @return list<Message>
+     */
+    public function findByGmailIdsForUser(User $user, array $gmailIds): array
+    {
+        if (0 === count($gmailIds)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId IN (:gmailIds)')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailIds', $gmailIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * QueryBuilder on two counts: the owner is reached through the account
      * association, which findBy() cannot traverse, and only one column comes
      * back.

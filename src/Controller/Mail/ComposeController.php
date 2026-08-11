@@ -12,11 +12,11 @@ use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\MessageRepository;
-use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
-use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\SenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,14 +65,14 @@ class ComposeController extends AbstractController
         private readonly MessageRepository       $messageRepository,
         private readonly AccountRepository       $accountRepository,
         private readonly MessageBusInterface     $bus,
-        private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly IntegrationRepository   $integrationRepository,
         private readonly ReplyDraftBuilder       $replyDrafts,
         private readonly DraftPersister          $drafts,
         private readonly DraftAttachmentService  $attachments,
         private readonly DraftAddressFields      $addressFields,
         private readonly SenderResolver          $senders,
-        private readonly MailChangeRecorder      $changes,
+        private readonly MessageEraser           $eraser,
+        private readonly LabelChangePropagator   $labelChanges,
     )
     {
     }
@@ -400,38 +400,31 @@ class ComposeController extends AbstractController
         $ctx       = $this->composeContext($request);
         $messageId = $message->id;
         $thread    = $message->thread;
-        $account   = $message->account;
 
-        $this->attachments->deleteStoredFiles($message);
-        $this->em->remove($message);
+        // Before the row goes, because propagation reads the address off it.
+        //
+        // A draft synced down from the server used to be deleted here and left
+        // sitting in the provider's Drafts folder — and once the row was gone
+        // nothing could ever collect it, since incremental sync never re-offers
+        // a UID below the high-water mark. The discard button says the draft is
+        // discarded; it has to be discarded everywhere.
+        //
+        // LabelChangePropagator::delete() already knew how to say that to each
+        // provider in its own terms — expunge on IMAP, the TRASH label on
+        // Gmail, a move to Trash on Graph — and had no caller at all. A draft
+        // that only ever existed locally has no address on any of them and
+        // dispatches nothing.
+        $this->labelChanges->delete([$message]);
 
-        // Recount from the association, never from the stored counter — it
-        // drifts, and the thread cascades removes to every message in it.
-        // An emptied thread is left in place: harmless, and the sync layer
-        // reuses it if the conversation comes back.
-        $remaining = 0;
+        // Files, raw bytes, the JMAP destroy, the row, and the thread's
+        // counters and labels — all of it, in the order the pieces depend on
+        // each other. This used to be written out here and again, differently,
+        // in the sync layer; MessageEraser is the one path now.
+        $this->eraser->erase($message);
 
-        if (null !== $thread) {
-            // Off the collection as well as out of the database: sync() reads
-            // the thread's labels off the messages it still holds, and a
-            // deleted draft left in there kept the thread in the Drafts list.
-            $thread->removeMessage($message);
-            $remaining = $thread->messages->count();
-            $thread->messageCount = $remaining;
-        }
-
-        // A genuine destroy, unlike Email/set destroy — that one moves to Trash
-        // and keeps the row, this one takes the id away. Ahead of the flush
-        // because the ids still exist; recording only persists, so the log rows
-        // go out with the removal itself.
-        $this->changes->emailDestroyed((int) $account->id, (string) $messageId, $thread);
+        $remaining = $thread?->messages->count() ?? 0;
 
         $this->em->flush();
-
-        if (null !== $thread) {
-            $this->threadLabelSynchronizer->sync($thread);
-            $this->em->flush();
-        }
 
         return $this->turboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,

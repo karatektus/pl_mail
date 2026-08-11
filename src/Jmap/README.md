@@ -643,9 +643,13 @@ statement that creates the need for it.
   button is the one genuine hard delete in the app — an unsent draft exists
   nowhere else — and it records a real `destroyed`, so the two cases are
   distinguishable to a client.
-- `Mailbox/set` mirrors to Gmail/Microsoft only when the per-account toggle is
-  on (`Account::isLabelSyncEnabled`, off by default). Graph folder *deletion* is
-  refused outright — Graph deletes the messages inside the folder with it.
+- `Mailbox/set` mirrors to Gmail/Microsoft unconditionally
+  (`Account::supportsLabelSync`). There was a per-account toggle, off by
+  default; it is gone, because an account whose labels exist only in plMail
+  loses its organisation the moment the user opens the provider's own client.
+  Plain IMAP is still excluded, since there a label is a physical folder and
+  create/delete would move real mail. Graph folder *deletion* is refused
+  outright — Graph deletes the messages inside the folder with it.
 - `Identity/set` stores a name and address only. replyTo, bcc and signatures are
   rejected rather than silently dropped, since there is nowhere to keep them.
 - `canCalculateChanges` is `false`; there is no `queryChanges`. Clients re-run

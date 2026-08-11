@@ -207,6 +207,65 @@ final class LabelChangePropagatorTest extends KernelTestCase
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** @return list<object> */
+    // ── discarding, which had no caller until drafts needed one ───────────
+
+    /**
+     * delete() has always known how to say "this is gone" to each provider in
+     * its own terms, and until drafts were wired to it nothing called it at
+     * all — so the one action that removes mail from a server was reachable
+     * only in principle.
+     *
+     * On IMAP that means an expunge, which is the whole point: a draft moved to
+     * Trash instead would still be a draft the user discarded and can still
+     * see.
+     */
+    public function testDiscardingAnImapDraftIssuesAnExpunge(): void
+    {
+        $message = $this->imapMessage();
+
+        $this->propagator->delete([$message]);
+
+        $sent = $this->sentOfType(ApplyImapFlagsMessage::class);
+
+        self::assertCount(1, $sent);
+        self::assertSame('delete', $sent[0]->action);
+        self::assertSame(4242, $sent[0]->sourceUidFor((int) $message->id), 'the address travels with the job');
+    }
+
+    /**
+     * Gmail's model, and deliberately not an expunge. A permanent delete needs
+     * the full mail scope, which plMail does not ask for; TRASH is the
+     * Gmail-native equivalent of what the discard button exposes.
+     */
+    public function testDiscardingAGmailDraftTrashesItThere(): void
+    {
+        $message = $this->gmailMessage();
+
+        $this->propagator->delete([$message]);
+
+        $sent = $this->sentOfType(ApplyGmailLabelsMessage::class);
+
+        self::assertCount(1, $sent);
+        self::assertSame(['TRASH'], $sent[0]->add);
+        self::assertSame([], $sent[0]->remove);
+    }
+
+    /**
+     * A draft that never reached any server has no address on one, so nothing
+     * is announced. This is what keeps discarding a half-typed message from
+     * talking to a mail server at all.
+     */
+    public function testDiscardingADraftThatNeverLeftPlMailAnnouncesNothing(): void
+    {
+        $message = $this->imapMessage(uid: null);
+
+        $this->propagator->delete([$message]);
+
+        self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));
+        self::assertCount(0, $this->sentOfType(ApplyGmailLabelsMessage::class));
+        self::assertCount(0, $this->sentOfType(ApplyGraphChangesMessage::class));
+    }
+
     private function sentOfType(string $class): array
     {
         $found = [];

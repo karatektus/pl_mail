@@ -1164,14 +1164,6 @@ settings:
         empty: No crew yet. Sign one on to start haulin' mail aboard.
         enable: Restore the papers
         heading: Th' crew
-        label_sync:
-            off_hint: >-
-                Flags stay aboard plMail alone. Turn this on to run new flag
-                changes up the harbourmaster's mast too.
-            on_hint: >-
-                Flags ye hoist, rename or strike be run up the harbourmaster's
-                mast as well. Old flags be left be.
-            title: Run flags up the harbourmaster's mast
         password_help: Leave it blank to keep the secret word ye have.
         primary: Flagship
         push:
