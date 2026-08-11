@@ -12,9 +12,11 @@ is empty rather than the generic "nothing under this label".
 {% block list_scope %}spam{% endblock %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
+    {% set _unread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.spam'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
+
+{% block title_count_key %}role:spam{% endblock %}
 
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-line">

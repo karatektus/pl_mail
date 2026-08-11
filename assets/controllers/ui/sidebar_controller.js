@@ -19,6 +19,45 @@ const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account
 const SCROLL_KEY = "sidebar_scroll";
 const TREES_KEY  = "sidebar_closed_trees";
 
+/**
+ * One counts request, however many sidebars are listening.
+ *
+ * The sidebar partial is included twice — once for the mobile drawer, once for
+ * the desktop column — so there are always two instances of this controller on
+ * a mail page, both subscribed to the same sync events on `document`. Every
+ * sync therefore fetched the counts twice, and a sync run publishes one event
+ * per mailbox per account, so an idle inbox was measured at thirty-two counts
+ * requests in ten seconds.
+ *
+ * Both problems are the same problem — the fetch belongs to the page, not to
+ * the instance — so it lives here, at module scope, and both instances patch
+ * their badges from the one answer.
+ */
+let inFlight = null;
+let lastFetchAt = 0;
+
+/** The floor between two counts requests. */
+const MIN_COUNTS_MS = 15000;
+
+function fetchCounts(url) {
+    // Already asking: the second caller waits for the first one's answer rather
+    // than starting a second request for the same numbers.
+    if (inFlight !== null) {
+        return inFlight;
+    }
+
+    lastFetchAt = Date.now();
+
+    inFlight = fetch(url, { headers: { Accept: "application/json" } })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null)
+        .finally(() => {
+            inFlight = null;
+        });
+
+    return inFlight;
+}
+
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "tree"];
     static values = { countsUrl: String };
@@ -82,23 +121,29 @@ export default class extends Controller {
         sessionStorage.setItem(SCROLL_KEY, String(this.scrollerTarget.scrollTop));
     }
 
-    async refreshCounts() {
+    async refreshCounts({ immediate = false } = {}) {
         if (!this.hasCountsUrlValue) {
             return;
         }
 
-        let counts;
-        try {
-            const response = await fetch(this.countsUrlValue, {
-                headers: { Accept: "application/json" },
-            });
-            if (!response.ok) {
-                return;
-            }
-            counts = await response.json();
-        } catch {
-            // Offline or the sync raced a navigation — the next sync retries,
-            // and a full page load renders the counts server-side anyway.
+        // Nobody is looking at the badges. The next sync after the tab comes
+        // back redraws them, and a full page load renders them server-side.
+        if (document.hidden && !immediate) {
+            return;
+        }
+
+        // A burst of sync events is one refresh. Skipped rather than queued:
+        // unlike the message list, a missed counts update is corrected by the
+        // next one, and there is always a next one.
+        if (!immediate && inFlight === null && Date.now() - lastFetchAt < MIN_COUNTS_MS) {
+            return;
+        }
+
+        // Offline, or the sync raced a navigation — fetchCounts answers null and
+        // the next sync retries.
+        const counts = await fetchCounts(this.countsUrlValue);
+
+        if (counts === null) {
             return;
         }
 
@@ -111,6 +156,40 @@ export default class extends Controller {
             badge.textContent = count;
             badge.classList.toggle("hidden", count === 0);
         });
+
+        this._updateTitle(counts);
+    }
+
+    /**
+     * Keep the "(n)" in the tab in step with the badges.
+     *
+     * The title is server-rendered once and the badges are patched on every
+     * sync, so the tab sat at (4) while the sidebar had moved on to 3. It now
+     * comes from this same payload — the page names which key its title counts
+     * (see app.html.twig) and nothing here needs to know what a mailbox is.
+     *
+     * The existing prefix is stripped rather than a stored base being kept,
+     * because the rest of the title is localised and page-specific and there is
+     * no reason to have a second copy of it that can go stale.
+     */
+    _updateTitle(counts) {
+        const key = document
+            .querySelector('meta[name="title-count-key"]')
+            ?.content;
+
+        if (!key) {
+            return;
+        }
+
+        const count = counts[key];
+
+        if (count === undefined) {
+            return;
+        }
+
+        const base = document.title.replace(/^\(\d+\)\s*/, "");
+
+        document.title = count > 0 ? `(${count}) ${base}` : base;
     }
 
     _updateActive() {

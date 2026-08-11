@@ -5,6 +5,8 @@
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.starred'|trans }} — {{ 'app.name'|trans }}
 {% endblock %}
 
+{% block title_count_key %}starred{% endblock %}
+
 {% block inbox_tabs %}
     <div class="px-4 py-2.5 border-b border-line">
         <h2 class="text-sm font-semibold text-ink-soft">{{ 'starred.heading'|trans }}</h2>

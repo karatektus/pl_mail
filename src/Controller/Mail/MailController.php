@@ -402,8 +402,12 @@ final class MailController extends AbstractController
 
         $payload = ['starred' => $counts->forStarred()];
 
+        // forRoleBadge(), not forRole(): Trash and Drafts show a total rather
+        // than an unread count, and this endpoint has to say the same thing the
+        // server-rendered badge did or the first sync would silently change the
+        // number under the user. See SidebarCounts::TOTAL_ROLES.
         foreach (LabelRole::cases() as $role) {
-            $payload['role:' . $role->value] = $counts->forRole($role);
+            $payload['role:' . $role->value] = $counts->forRoleBadge($role);
         }
 
         // One key per label now that the sidebar renders labels directly —

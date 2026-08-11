@@ -1,8 +1,14 @@
-{% extends '_layout/app.html.twig' %}
+{# A refresh of the list gets the list, and a visit gets the page. Both render
+   the same `list_frame` block below, so the two answers cannot drift apart —
+   see App\Twig\ListFragmentGlobal for why this is keyed on a header of our own
+   rather than on Turbo's. #}
+{% extends listFragment.wanted ? '_layout/_list_fragment.html.twig' : '_layout/app.html.twig' %}
 
 {# The list/reading pane switch belongs to these pages alone: its targets are
-   further down this file, and it throws on connect wherever they are not. #}
-{% block body_controllers %}{{ parent() }} mail--mail-pane{% endblock %}
+   further down this file, and it throws on connect wherever they are not.
+   Spelled out rather than `parent() ~ mail--mail-pane`, because the parent is
+   conditional above and the fragment layout has no such block to inherit. #}
+{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}
 
 {% set selectedMessage = selectedMessage|default(null) %}
 
@@ -114,25 +120,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                            every row stayed on one line and truncated to nothing. #}
                         class="@container flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
-                        <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents">
-
-                            {# ── Gmail-style toolbar ──────────────────────── #}
-                            {% block inbox_toolbar %}
-                                {% include '_partials/_list_toolbar.html.twig' with {
-                                    page:     page     ?? 1,
-                                    total:    total    ?? 0,
-                                    per_page: per_page ?? 50,
-                                } %}
-                            {% endblock %}
-
-                            {# Optional tabs row (inbox only) #}
-                            {% block inbox_tabs %}{% endblock %}
-
-                            <ul class="flex-1 overflow-y-auto divide-y divide-line">
-                                {% block message_list %}{% endblock %}
-                            </ul>
-
-                        </turbo-frame>
+                        {{ block('list_frame') }}
                     </div>
 
                     {# Reading pane #}
@@ -159,4 +147,39 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
             </div>
         </div>
     </div>
+{% endblock %}
+
+{#
+The list itself, in one place.
+
+Its own block because it is rendered two ways: inside the page above on a
+visit, and alone as the whole response when the poll refreshes it. The page
+templates fill `message_list`, `inbox_tabs` and the toolbar without caring
+which of the two is happening.
+#}
+{% block list_frame %}
+    {# Whether this page actually put a list in the frame. The thread page does
+       not — it has no list to render — and the pane controller reads this to
+       know that going Back has to fetch one rather than uncover an empty
+       frame. See mail_pane_controller#_listNeedsRendering. #}
+    <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents"
+                 data-list-rendered="{% block list_rendered %}1{% endblock %}">
+
+        {# ── Gmail-style toolbar ──────────────────────────────────────────── #}
+        {% block inbox_toolbar %}
+            {% include '_partials/_list_toolbar.html.twig' with {
+                page:     page     ?? 1,
+                total:    total    ?? 0,
+                per_page: per_page ?? 50,
+            } %}
+        {% endblock %}
+
+        {# Optional tabs row (inbox only) #}
+        {% block inbox_tabs %}{% endblock %}
+
+        <ul class="flex-1 overflow-y-auto divide-y divide-line">
+            {% block message_list %}{% endblock %}
+        </ul>
+
+    </turbo-frame>
 {% endblock %}
