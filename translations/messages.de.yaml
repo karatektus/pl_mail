@@ -2129,6 +2129,7 @@ thread:
     no_subject: (kein Betreff)
 
 thread_row:
+    account: 'Empfangen über %account%'
     actions:
         archive: Archivieren
         delete: Löschen

@@ -45,12 +45,47 @@ final class SenderAvatarExtension extends AbstractExtension
         'bg-[#8a6a2f] dark:bg-[#e0c084] text-white dark:text-[#2a1f0c]',
     ];
 
+    /**
+     * The same idea for the account dot on a unified list row, as a background
+     * alone — the dot has nothing written in it, so it needs no text colour,
+     * and reusing the avatar tones would have meant carrying `text-white` onto
+     * an empty 6px circle.
+     *
+     * Saturated where the avatar tones are muted, and deliberately so: this one
+     * is a 6px mark that has to be told apart from two others at a glance,
+     * rather than a 36px circle sitting under a name.
+     *
+     * @var list<string>
+     */
+    private const array DOT_TONES = [
+        'bg-[#c2410c] dark:bg-[#fb923c]',
+        'bg-[#15803d] dark:bg-[#4ade80]',
+        'bg-[#1d4ed8] dark:bg-[#60a5fa]',
+        'bg-[#6d28d9] dark:bg-[#a78bfa]',
+        'bg-[#a16207] dark:bg-[#facc15]',
+        'bg-[#be185d] dark:bg-[#f472b6]',
+        'bg-[#0f766e] dark:bg-[#2dd4bf]',
+        'bg-[#4d7c0f] dark:bg-[#a3e635]',
+    ];
+
     public function getFilters(): array
     {
         return [
             new TwigFilter('avatar_tone', $this->tone(...)),
             new TwigFilter('avatar_initial', $this->initial(...)),
+            new TwigFilter('account_tone', $this->accountTone(...)),
         ];
+    }
+
+    public function accountTone(?string $seed): string
+    {
+        $normalised = mb_strtolower(trim((string) $seed));
+
+        if ('' === $normalised) {
+            return self::DOT_TONES[0];
+        }
+
+        return self::DOT_TONES[crc32($normalised) % count(self::DOT_TONES)];
     }
 
     public function tone(?string $seed): string

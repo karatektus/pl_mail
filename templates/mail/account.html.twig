@@ -22,7 +22,8 @@ label rather than the label across the whole mailbox.
         </li>
     {% else %}
         {% for thread in threads %}
-            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+            {# Every row here is the same account, so the dot would say nothing. #}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: false } %}
         {% endfor %}
     {% endif %}
 {% endblock %}

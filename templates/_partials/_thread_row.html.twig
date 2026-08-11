@@ -19,6 +19,25 @@ the conversation it answers.
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
+{#
+Which account a row belongs to.
+
+The unified lists merge every account, and the same message can genuinely be in
+three of them at once — the same Message-ID delivered to three addresses puts
+three rows in unified Trash, identical in sender, subject and minute, with
+nothing on screen to say why there are three. Not a dedup bug; the rows are
+real. They were just indistinguishable.
+
+Shown only where it answers something: a list spanning accounts, on an install
+that has more than one. A single-account install would get a dot that is the
+same colour on every row forever, and an account-scoped list already says which
+account it is at the top. `unified` defaults to true because most lists are —
+the account view passes false.
+#}
+{% set unified = unified|default(true) %}
+{% set rowAccount = item.account ?? null %}
+{% set showAccountDot = unified and rowAccount is not null and accounts|length > 1 %}
+
 {% if isThread %}
     {% set type = 'thread' %}
     {% set unread = item.unreadCount > 0 %}
@@ -140,6 +159,15 @@ the conversation it answers.
 
             {# Row 1 (stacked) / sender column (wide) #}
             <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
+                {# Which account this arrived on — see the note at the top of
+                   this file. Colour is derived from the address and never
+                   stored, so it is the same dot for the same account on every
+                   device, exactly as the sender avatars are. #}
+                {% if showAccountDot %}
+                    {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
+                    <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full {{ (rowAccount.email ?: rowAccount.username)|account_tone }}"
+                          title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"></span>
+                {% endif %}
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
                     {{ sender }}
                 </span>
