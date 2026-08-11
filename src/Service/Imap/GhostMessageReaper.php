@@ -49,6 +49,22 @@ readonly class GhostMessageReaper
      */
     public function reap(): int
     {
+        // Asked before the real query, and this is the only reason the reaper
+        // can afford to run on every mailbox sync. The full predicate is eight
+        // conditions over the largest table here; this is one probe of a partial
+        // index that is empty on any install that has already been cleaned —
+        // which is every install, after the first run. See
+        // Version20260811160000, and note the literal: a bound parameter cannot
+        // be proven to imply the index's condition, so the index would be built
+        // and then not used.
+        $suspects = $this->em->getConnection()->fetchOne(
+            "SELECT 1 FROM message WHERE received_at < TIMESTAMP '1971-01-01' LIMIT 1",
+        );
+
+        if (false === $suspects) {
+            return 0;
+        }
+
         $ghosts = $this->messages->findEpochGhosts(self::REAP_BATCH);
 
         if ([] === $ghosts) {
