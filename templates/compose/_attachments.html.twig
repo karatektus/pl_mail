@@ -16,7 +16,11 @@ Variables: message
             <span class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
                          bg-sunken border border-line text-ink-soft">
                 <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
+                {# `download` for the same reason as in mail/_attachment_chip:
+                   without it Turbo intercepts the click and throws the file
+                   away, and the link does nothing at all. #}
                 <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                   download="{{ part.filename ?: 'attachment' }}"
                    class="truncate max-w-[11rem] hover:text-accent transition-colors">
                     {{- part.filename ?: 'attachment' -}}
                 </a>

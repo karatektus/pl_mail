@@ -483,7 +483,44 @@ test.describe("compose integration picker", () => {
         await expect(chip).toBeVisible();
 
         await chip.getByRole("button", { name: "Save to" }).click();
+
+        // Not merely un-`hidden`: on screen and pressable. The chip rounded
+        // its corners with `overflow-hidden` on the same element the menu was
+        // positioned against, and the menu opens *below* that box — so it was
+        // clipped away entirely. It had a bounding rect, Playwright called it
+        // visible and clicked it happily, and a human saw nothing at all and
+        // could press nothing. What tells the two apart is hit-testing: the
+        // topmost element at the menu's own centre has to be the menu.
+        const menu = chip.locator('[data-ui--dropdown-target="menu"]');
+        await expect(menu).toBeVisible();
+        await expect
+            .poll(() =>
+                menu.evaluate((el) => {
+                    const box = el.getBoundingClientRect();
+                    const hit = document.elementFromPoint(
+                        Math.round(box.x + box.width / 2),
+                        Math.round(box.y + box.height / 2),
+                    );
+
+                    return null !== hit && el.contains(hit);
+                }),
+            )
+            .toBe(true);
+
+        const posted = page.waitForRequest(
+            (request) =>
+                "POST" === request.method()
+                && /\/integrations\/\d+\/save-attachment\/\d+$/.test(request.url()),
+        );
+
         await chip.getByRole("button", { name: "Home cloud" }).click();
+
+        // The request boundary: the right endpoint, with the CSRF token the
+        // form carries. cloud.example.com is unreachable from the test stack,
+        // so the upload itself cannot be proven here — what can be, and is, is
+        // that the click reaches the server and that the answer reaches the
+        // reader.
+        expect((await posted).postData()).toContain("_token=");
 
         await expect(page.locator("#toast-region")).toContainText(
             /Could not save/i,

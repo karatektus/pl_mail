@@ -16,9 +16,16 @@ Images swap the paperclip for a thumbnail. It is a separate lazy request per
 attachment, so a thread full of photos costs nothing until it is scrolled to,
 and a part that will not decode answers 404 — which is why the <img> removes
 itself on error rather than leaving a broken-image glyph in the chip.
+
+`download` on the link is load-bearing, not decoration. Without it Turbo Drive
+intercepts the click, fetches the URL itself, finds a response that is not
+HTML and drops it: the request goes out, the server answers 200 with the file,
+and the browser saves nothing — a click that did nothing, with nothing in the
+console to say why. Turbo leaves a link carrying `download` to the browser.
 #}
 {% set targets = integrations.forUpload %}
 {% set hasPreview = attachment_has_preview(part) %}
+{% set downloadName = part.filename ?: 'attachment' %}
 
 {% macro face(part, hasPreview) %}
     {% if hasPreview %}
@@ -39,6 +46,7 @@ itself on error rather than leaving a broken-image glyph in the chip.
 {% if targets is empty %}
 
     <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+       download="{{ downloadName }}"
        class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
               bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
         {{ chip.face(part, hasPreview) }}
@@ -46,20 +54,30 @@ itself on error rather than leaving a broken-image glyph in the chip.
 
 {% else %}
 
-    <div class="relative inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden"
-         data-controller="ui--dropdown">
+    {# Two boxes, not one. The rounded corners need `overflow-hidden` to clip
+       the two halves inside the border — but the menu below is positioned
+       past the bottom of that same box, so while the two were one element the
+       menu was clipped away entirely: `hidden` came off, the element had a
+       rect, and it was painted nowhere and hit-tested to whatever was behind
+       it. Clicking "Save to…" opened a menu nobody could see or press, which
+       is what "saving to a provider does nothing" was. Clipping now belongs to
+       the inner box, positioning to the outer one. #}
+    <div class="relative inline-flex" data-controller="ui--dropdown">
 
-        <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-           class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
-            {{ chip.face(part, hasPreview) }}
-        </a>
+        <div class="inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden">
+            <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+               download="{{ downloadName }}"
+               class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
+                {{ chip.face(part, hasPreview) }}
+            </a>
 
-        <button type="button"
-                data-action="click->ui--dropdown#toggle"
-                aria-label="{{ 'message.save_to'|trans }}"
-                class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors">
-            <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
-        </button>
+            <button type="button"
+                    data-action="click->ui--dropdown#toggle"
+                    aria-label="{{ 'message.save_to'|trans }}"
+                    class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors">
+                <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
+            </button>
+        </div>
 
         <div data-ui--dropdown-target="menu" hidden
              class="absolute top-full mt-1 right-0 z-20 min-w-52 popover py-1">

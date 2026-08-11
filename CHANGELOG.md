@@ -34,6 +34,14 @@ address and one for the whole header block. And reply-to, mailed-by and
 signed-by now appear on IMAP mail: webklex spells stored header names with
 underscores, and the panel looked only for the hyphen form.
 
+**Attachments download again, and "Save to…" is a menu you can see.** Two dead
+clicks in the message view, neither of which logged anything. The download link
+was intercepted by Turbo, which fetched the file itself and discarded it
+because it was not HTML — the server answered 200 and the browser saved
+nothing. The save-to menu was clipped out of existence by the `overflow-hidden`
+that rounds the chip's corners: it opened below the box it was positioned
+against, so it was painted nowhere and could not be pressed.
+
 ## v0.0.30 — 2026-08-12
 
 **One migration adds the columns this release thinks with; nothing is
