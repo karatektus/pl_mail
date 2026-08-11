@@ -109,7 +109,10 @@ Variables:
 
         <div class="flex items-center gap-1 flex-shrink-0">
             <span class="text-xs text-ink-faint whitespace-nowrap">
-                {{ message.receivedAt ? message.receivedAt|date('M j, ' ~ clock.time) : '' }}
+                {# Date through the locale, time through the user's 12/24-hour
+                   setting: the two answer different questions and only one of
+                   them is a property of the language. #}
+                {{ message.receivedAt ? message.receivedAt|intl_date('dMMM') ~ ', ' ~ message.receivedAt|date(clock.time) : '' }}
             </span>
 
             {% include 'mail/_message_actions.html.twig' with { message: message } only %}

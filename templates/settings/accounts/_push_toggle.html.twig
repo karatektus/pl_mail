@@ -29,7 +29,7 @@
                             {% if status.expiresAt %}
                                 <span class="block mt-1 text-zinc-400 dark:text-zinc-500">
                                     {{ 'settings.accounts.push.renews'|trans({
-                                        '%date%': status.expiresAt|date('j M Y, H:i')
+                                        '%date%': status.expiresAt|intl_date('dMMMy') ~ ', ' ~ status.expiresAt|date(clock.time)
                                     }) }}
                                 </span>
                             {% endif %}

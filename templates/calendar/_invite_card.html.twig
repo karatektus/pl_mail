@@ -41,9 +41,9 @@ Variables:
                            event is floating — a wall date at midnight, no zone
                            — so converting it to the reader's clock moves it,
                            and west of UTC that prints the day before. #}
-                        {{ event.startsAt|date('D, j M Y', false) }} · {{ 'calendar.event.all_day'|trans }}
+                        {{ event.startsAt|intl_date('EEEdMMMy', false) }} · {{ 'calendar.event.all_day'|trans }}
                     {% else %}
-                        {{ event.startsAt|date('D, j M Y') }} ·
+                        {{ event.startsAt|intl_date('EEEdMMMy') }} ·
                         {{ event.startsAt|date(clock.time) }}–{{ event.endsAt|date(clock.time) }}
                     {% endif %}
                 </p>

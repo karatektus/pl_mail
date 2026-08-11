@@ -232,9 +232,9 @@ the conversation it answers.
                         {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
                             {{ date|date(clock.time) }}
                         {% elseif date|date('Y') == 'now'|date('Y') %}
-                            {{ date|date('M j') }}
+                            {{ date|intl_date('dMMM') }}
                         {% else %}
-                            {{ date|date('M j Y') }}
+                            {{ date|intl_date('dMMMy') }}
                         {% endif %}
                     {% endif %}
                 </span>

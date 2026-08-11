@@ -57,7 +57,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
     <div class="grid grid-cols-7 shrink-0 border-b border-line">
         {% for dayKey in dayKeys|slice(0, 7) %}
             <div class="px-2 py-1.5 text-[10px] uppercase tracking-wide text-ink-faint">
-                {{ dayKey|date('D') }}
+                {{ dayKey|intl_date('EEE') }}
             </div>
         {% endfor %}
     </div>

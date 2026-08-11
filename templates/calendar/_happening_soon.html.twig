@@ -114,7 +114,7 @@ most days, which is the normal case and must not look like a fault.
                                midnight with no zone — so `false` keeps it in
                                its own, and the reader's clock does not move it
                                onto the day before. #}
-                            {{ row.startsAt|date('D, j M', row.event.isAllDay ? false : null) }}
+                            {{ row.startsAt|intl_date('EEEdMMM', row.event.isAllDay ? false : null) }}
                             {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
                         </p>
 

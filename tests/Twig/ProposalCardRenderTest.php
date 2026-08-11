@@ -112,7 +112,10 @@ final class ProposalCardRenderTest extends KernelTestCase
         $html = $this->render();
 
         self::assertStringContainsString('Probearbeit', $html);
-        self::assertStringContainsString('Tue, 4 Aug 2026', $html);
+        // ICU's English, not the hand-built "4 Aug 2026" this used to assert:
+        // the date is rendered through the locale now, and en-US writes the
+        // month first. German writes "Di., 4. Aug. 2026" from the same call.
+        self::assertStringContainsString('Tue, Aug 4, 2026', $html);
         self::assertStringContainsString('2:00 pm', $html);
         self::assertStringContainsString('4:00 pm', $html);
     }

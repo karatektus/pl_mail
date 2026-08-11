@@ -137,7 +137,7 @@
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover"
             aria-label="{{ 'calendar.soon.open'|trans }}"
-            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|date('D, j M', soonest.event.isAllDay ? false : null) }}"
+            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}"
         >
             <i class="{{ soonest.icon }} text-base" aria-hidden="true"></i>
         </button>

@@ -122,14 +122,19 @@ Blocks:
         {%- if spanLabel -%}
             {% set spanStart = rangeFrom %}
             {% set spanEnd = rangeTo|date_modify('-1 day') %}
-            {{ spanStart|date(spanStart|date('Y', false) == spanEnd|date('Y', false)
-                ? (spanStart|date('n', false) == spanEnd|date('n', false) ? 'j' : 'j M')
-                : 'j M Y', false) }}
-            – {{ spanEnd|date('j M Y', false) }}
+            {# The start drops whatever the end already says: within one month
+               it is a bare day number, within one year a day and month. The
+               comparisons stay on PHP's numeric formats because they are
+               arithmetic on the date, not text anybody reads — only the
+               rendered halves go through the locale. #}
+            {{ spanStart|intl_date(spanStart|date('Y', false) == spanEnd|date('Y', false)
+                ? (spanStart|date('n', false) == spanEnd|date('n', false) ? 'd' : 'dMMM')
+                : 'dMMMy', false) }}
+            – {{ spanEnd|intl_date('dMMMy', false) }}
         {%- elseif view.value == 'month' -%}
-            {{ anchor|date('F Y', false) }}
+            {{ anchor|intl_date('yMMMM', false) }}
         {%- else -%}
-            {{ anchor|date('j M Y', false) }}
+            {{ anchor|intl_date('dMMMy', false) }}
         {%- endif -%}
     </h2>
 

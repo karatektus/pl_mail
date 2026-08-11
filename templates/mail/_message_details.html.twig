@@ -106,7 +106,8 @@ replyTo column on the entity.
 
             <dt class="text-ink-faint text-right">{{ 'message.details.date'|trans }}</dt>
             <dd class="text-ink-soft">
-                {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, g:i a') : '—' }}
+                {% set detailsAt = message.receivedAt ?? message.sentAt %}
+                {{ detailsAt ? detailsAt|intl_date('EEEdMMMy') ~ ', ' ~ detailsAt|date(clock.time) : '—' }}
             </dd>
 
             <dt class="text-ink-faint text-right">{{ 'message.details.subject'|trans }}</dt>

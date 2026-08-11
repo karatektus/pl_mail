@@ -79,7 +79,7 @@ Blocks, rendered inside the day loop and able to read `dayKey` and `dayEntries`:
                  data-day="{{ dayKey }}">
                 <div class="w-11 shrink-0 text-center">
                     <div class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                        {{ dayKey|date('D') }}
+                        {{ dayKey|intl_date('EEE', false) }}
                     </div>
                     {% if isToday %}
                         <div class="mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full
@@ -89,7 +89,7 @@ Blocks, rendered inside the day loop and able to read `dayKey` and `dayEntries`:
                     {% else %}
                         <div class="mt-0.5 text-sm text-ink tabular-nums">{{ dayKey|date('j') }}</div>
                     {% endif %}
-                    <div class="text-[10px] text-ink-faint">{{ dayKey|date('M') }}</div>
+                    <div class="text-[10px] text-ink-faint">{{ dayKey|intl_date('MMM', false) }}</div>
                 </div>
 
                 <div class="min-w-0 flex-1 self-center">

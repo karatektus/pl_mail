@@ -34,7 +34,7 @@
                 </p>
             </div>
             <p class="text-xs text-ink-faint flex-shrink-0">
-                {{ message.receivedAt ? message.receivedAt|date('M j, Y, ' ~ clock.time) : '' }}
+                {{ message.receivedAt ? message.receivedAt|intl_date('dMMMy') ~ ', ' ~ message.receivedAt|date(clock.time) : '' }}
             </p>
         </div>
 
