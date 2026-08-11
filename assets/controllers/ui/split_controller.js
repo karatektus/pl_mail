@@ -120,8 +120,14 @@ export default class extends Controller {
         // Capture phase, because the interesting clicks are on links whose
         // navigation must proceed untouched — this listener only decides what
         // is on screen when that navigation lands. See _demoteForMail.
+        //
+        // On DOCUMENT, not this.element: below md the sidebar is the mobile
+        // drawer, which is a SIBLING of this controller's element, so a
+        // listener scoped here never heard a drawer click and small screens
+        // kept their fullscreen calendar. There is one split shell per page,
+        // so a document listener has exactly one owner.
         this._onMailClick = (event) => this._demoteForMail(event);
-        this.element.addEventListener("click", this._onMailClick, true);
+        document.addEventListener("click", this._onMailClick, true);
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */
@@ -131,7 +137,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("resize", this._onResize);
-        this.element.removeEventListener("click", this._onMailClick, true);
+        document.removeEventListener("click", this._onMailClick, true);
         this._stopListening();
     }
 

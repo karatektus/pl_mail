@@ -111,6 +111,23 @@ test.describe("calendar pane demotion", () => {
         }).toPass({ timeout: 10_000 });
     });
 
+    test.describe("below lg", () => {
+        test.use({ viewport: { width: 800, height: 900 } });
+
+        test("a mail link demotes the fullscreen calendar to mail alone", async ({ page }) => {
+            await page.goto("/mail/inbox");
+            await enterMode(page, "calendar");
+
+            await page.getByRole("link", { name: "Starred" }).click();
+
+            await expect(page).toHaveURL(/\/mail\/starred/);
+            // Below lg, split is not a real place — the whole row goes back
+            // to the mail.
+            await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+            await expect(page.locator("turbo-frame#inbox-list-frame")).toBeVisible();
+        });
+    });
+
     test("a click inside the calendar leaves the fullscreen calendar alone", async ({ page }) => {
         await page.goto("/mail/inbox");
         await enterMode(page, "calendar");
