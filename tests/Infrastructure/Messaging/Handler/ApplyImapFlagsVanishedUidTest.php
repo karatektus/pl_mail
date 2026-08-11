@@ -13,6 +13,7 @@ use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
@@ -190,6 +191,7 @@ final class ApplyImapFlagsVanishedUidTest extends TestCase
             $this->logger(),
             $connectionFactory,
             $this->createStub(EntityManagerInterface::class),
+            $this->createStub(ImapFolderProvisioner::class),
         );
     }
 

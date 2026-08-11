@@ -14,6 +14,7 @@ use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -45,6 +46,18 @@ use Webklex\PHPIMAP\Support\MessageCollection;
  */
 final class ApplyImapFlagsOutboundOperationsTest extends TestCase
 {
+    /** @var list<string> what the handler asked the provisioner to create */
+    private array $provisioned = [];
+
+    /** Whether the stand-in provisioner succeeds. False is a refused CREATE. */
+    private bool $provisionable = true;
+
+    protected function setUp(): void
+    {
+        $this->provisioned   = [];
+        $this->provisionable = true;
+    }
+
     // ── flags, in place ──────────────────────────────────────────────────
 
     public function testMarkingReadSetsSeenOnTheServer(): void
@@ -155,18 +168,72 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         self::assertSame('INBOX.Projekte', $present->movedTo);
     }
 
+    // ── the folder the server has not got ────────────────────────────────
+
     /**
-     * With no destination resolvable, nothing is issued at all. Moving mail to
-     * a folder that could not be identified is worse than not moving it.
+     * Archiving on an account whose server has no Archive folder used to
+     * resolve no destination, log "destination not resolvable", and stop — the
+     * message left the inbox locally, the server never heard, and the next sync
+     * put it back. Gmail creates a label when it needs one and Graph creates a
+     * folder; IMAP now creates a folder too.
      */
-    public function testAMoveWithNoResolvableDestinationIssuesNothing(): void
+    public function testArchivingCreatesTheArchiveFolderWhenTheServerHasNotGotOne(): void
     {
         $present = new RecordingImapMessage(uid: 6);
 
         $this->issue($present, 'archive', archiveExists: false);
 
-        self::assertSame(0, $present->moveCalls);
+        self::assertSame(['\\Archive'], $this->provisioned, 'the folder is made rather than the move abandoned');
+        self::assertSame(1, $present->moveCalls);
+        self::assertSame('INBOX.Archive', $present->movedTo, 'and the move goes to the folder that was made');
+    }
+
+    /**
+     * A CREATE the server refuses — no permission, a strange ACL — degrades to
+     * exactly the old behaviour. It must not throw: the caller is a Messenger
+     * handler, and an exception here would have it re-attempt the same rejected
+     * CREATE on a schedule forever.
+     */
+    public function testARefusedFolderCreationLeavesTheMoveUndoneRatherThanCrashing(): void
+    {
+        $present             = new RecordingImapMessage(uid: 6);
+        $this->provisionable = false;
+
+        $this->issue($present, 'archive', archiveExists: false);
+
+        self::assertSame(['\\Archive'], $this->provisioned, 'it was attempted');
+        self::assertSame(0, $present->moveCalls, 'and not moved anywhere on failure');
         self::assertSame([], $present->calls);
+    }
+
+    /**
+     * Nothing is created when the folder is already there. The provisioner is
+     * the last step of resolution, not the first.
+     */
+    public function testAnExistingArchiveFolderIsNotRecreated(): void
+    {
+        $present = new RecordingImapMessage(uid: 6);
+
+        $this->issue($present, 'archive', archiveExists: true);
+
+        self::assertSame([], $this->provisioned);
+        self::assertSame('INBOX.Archive', $present->movedTo);
+    }
+
+    /**
+     * An explicit move names a folder plMail has a row for, which is not the
+     * same as one the server still has — another client can delete a folder at
+     * any time, and moving into one that is not there fails per message with
+     * nothing that says why.
+     */
+    public function testAnExplicitMoveRecreatesADestinationTheServerHasLost(): void
+    {
+        $present = new RecordingImapMessage(uid: 6);
+
+        $this->issue($present, 'move', destinationPath: 'INBOX.Projekte', destinationExists: false);
+
+        self::assertSame(['INBOX.Projekte'], $this->provisioned);
+        self::assertSame('INBOX.Projekte', $present->movedTo);
     }
 
     // ── the write-back ───────────────────────────────────────────────────
@@ -216,6 +283,7 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         bool                 $archiveExists = true,
         ?string              $rowMessageId = null,
         ?string              $rowLandsIn = null,
+        bool                 $destinationExists = true,
     ): Message {
         $account      = new Account();
         $account->usr = new User();
@@ -251,19 +319,21 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         $mailboxRepository->method('find')->willReturn($source);
         $mailboxRepository->method('findOneBy')->willReturnCallback(
             static fn (array $criteria): ?Mailbox => match ($criteria['specialUse'] ?? null) {
-                '\\Trash'   => $trash,
-                '\\Archive' => $archive,
-                default     => null,
+                MailboxSpecialUse::TRASH   => $trash,
+                MailboxSpecialUse::ARCHIVE => $archive,
+                default                    => null,
             },
         );
 
         $client = $this->createStub(Client::class);
-        // Every folder lookup answers with the same holding folder except the
-        // ones resolveDestinationPath() probes by name when there is no
-        // special-use row, which must not invent an Archive that is not there.
+        // Every folder lookup answers with the same holding folder except two:
+        // the names resolveDestinationPath() probes when there is no
+        // special-use row, which must not invent an Archive that is not there,
+        // and an explicit destination the server has lost.
         $client->method('getFolder')->willReturnCallback(
             static fn (string $path): ?Folder => match (true) {
                 false === $archiveExists && in_array($path, ['Archive', 'Archives'], true) => null,
+                false === $destinationExists && $path === $destinationPath => null,
                 default => new RecordingFolder($path, new MessageCollection([$present])),
             },
         );
@@ -272,12 +342,32 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         $connectionFactory = $this->createStub(ImapConnectionFactory::class);
         $connectionFactory->method('connect')->willReturn($client);
 
+        // Records what the handler asked to be created, and answers with the
+        // path a real provisioner would have made. $this->provisioned is what
+        // the assertions read.
+        $provisioner = $this->createStub(ImapFolderProvisioner::class);
+        $provisioner->method('ensureSpecialUse')->willReturnCallback(
+            function (Account $account, Client $client, MailboxSpecialUse $specialUse): ?string {
+                $this->provisioned[] = $specialUse->value;
+
+                return $this->provisionable ? 'INBOX.' . ltrim($specialUse->value, '\\') : null;
+            },
+        );
+        $provisioner->method('ensureExactPath')->willReturnCallback(
+            function (Account $account, Client $client, string $path): ?string {
+                $this->provisioned[] = $path;
+
+                return $this->provisionable ? $path : null;
+            },
+        );
+
         $handler = new ApplyImapFlagsHandler(
             $messageRepository,
             $mailboxRepository,
             new NullLogger(),
             $connectionFactory,
             $this->createStub(EntityManagerInterface::class),
+            $provisioner,
         );
 
         $handler(new ApplyImapFlagsMessage([1 => 10], $action, $destinationPath, [1 => 6]));

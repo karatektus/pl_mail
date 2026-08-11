@@ -174,6 +174,127 @@ final class GmailLabelMirroringTest extends KernelTestCase
         self::assertFalse($message->hasLabel($inbox), 'archived in Gmail is archived here');
     }
 
+    // ── archiving, which Gmail expresses as an absence ───────────────────
+
+    /**
+     * Gmail has no Archive label, so the authoritative removal above correctly
+     * takes the message out of the inbox and leaves it wearing nothing that
+     * says where it went — out of the inbox, out of the archive, reachable only
+     * through search. plMail's Archive view is a label, so the label has to be
+     * put on for the two sides to agree about a message either of them
+     * archived.
+     */
+    public function testArchivingInGmailPutsTheMessageInPlMailsArchive(): void
+    {
+        $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['INBOX']);
+
+        $this->apply($message, []);
+
+        self::assertTrue(
+            $message->hasLabel($this->labels->systemLabel(LabelRole::Archive, $this->account)),
+            'the Archive view has to agree regardless of which side archived it',
+        );
+    }
+
+    /**
+     * And back again. Un-archiving in Gmail is INBOX returning, and the Archive
+     * label is the thing that would otherwise survive it — leaving the message
+     * in both lists at once.
+     */
+    public function testUnarchivingInGmailTakesTheArchiveLabelBackOff(): void
+    {
+        $inbox   = $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $archive = $this->labels->systemLabel(LabelRole::Archive, $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['INBOX']);
+        $this->apply($message, []);
+        self::assertTrue($message->hasLabel($archive));
+
+        $this->apply($message, ['INBOX']);
+
+        self::assertTrue($message->hasLabel($inbox));
+        self::assertFalse($message->hasLabel($archive), 'it is back in the inbox, so it is not archived');
+    }
+
+    /**
+     * Trashing is not archiving. It also removes INBOX, and it already says
+     * where the message went — Archive means "left the inbox and went nowhere
+     * in particular", which is precisely the case with nothing else to say.
+     */
+    public function testTrashingInGmailDoesNotAlsoArchive(): void
+    {
+        $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $this->gmailLabel(LabelRole::Trash, 'TRASH', $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['INBOX']);
+        $this->apply($message, ['TRASH']);
+
+        self::assertFalse(
+            $message->hasLabel($this->labels->systemLabel(LabelRole::Archive, $this->account)),
+            'it went to Trash, which is a destination in its own right',
+        );
+    }
+
+    public function testMarkingSpamInGmailDoesNotAlsoArchive(): void
+    {
+        $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $this->gmailLabel(LabelRole::Spam, 'SPAM', $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['INBOX']);
+        $this->apply($message, ['SPAM']);
+
+        self::assertFalse($message->hasLabel($this->labels->systemLabel(LabelRole::Archive, $this->account)));
+    }
+
+    /**
+     * A snoozed conversation has left the inbox and plMail already knows where
+     * it went. Archiving it as well would show it in the archive while it is
+     * waiting to come back.
+     */
+    public function testASnoozedMessageLeavingTheInboxIsNotArchived(): void
+    {
+        $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['INBOX']);
+
+        $message->addLabel($this->labels->systemLabel(LabelRole::Snoozed, $this->account));
+        $this->em->flush();
+
+        $this->apply($message, []);
+
+        self::assertFalse($message->hasLabel($this->labels->systemLabel(LabelRole::Archive, $this->account)));
+    }
+
+    /**
+     * Written as a transition rather than a state, and this is why. "Has no
+     * INBOX" is true of Sent mail, of drafts, and of every message on an
+     * account that has never had an inbox label — inferring Archive from the
+     * state would put the label on all of them.
+     *
+     * It is also what makes this not backfill: a message archived in Gmail
+     * before this shipped never makes the transition, because plMail never saw
+     * it in the inbox to begin with. A resync is what puts those right.
+     */
+    public function testAMessageThatNeverHadInboxIsNotArchivedRetroactively(): void
+    {
+        $this->gmailLabel(LabelRole::Sent, 'SENT', $this->account);
+        $message = $this->message();
+
+        $this->apply($message, ['SENT']);
+
+        self::assertFalse(
+            $message->hasLabel($this->labels->systemLabel(LabelRole::Archive, $this->account)),
+            'sent mail has no inbox to have left',
+        );
+    }
+
     // ── what Gmail may not touch ─────────────────────────────────────────
 
     /**

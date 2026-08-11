@@ -47,9 +47,11 @@ final class GraphFolderMoveTest extends KernelTestCase
     private Label $trash;
     private Label $receipts;
 
-    private const string DRAFTS_FOLDER = 'AAMkAD-drafts';
-    private const string TRASH_FOLDER  = 'AAMkAD-trash';
-    private const string GRAPH_ID      = 'AAkALgAAmessage';
+    private const string DRAFTS_FOLDER  = 'AAMkAD-drafts';
+    private const string TRASH_FOLDER   = 'AAMkAD-trash';
+    private const string ARCHIVE_FOLDER = 'AAMkAD-archive';
+    private const string INBOX_FOLDER   = 'AAMkAD-inbox';
+    private const string GRAPH_ID       = 'AAkALgAAmessage';
 
     protected function setUp(): void
     {
@@ -116,6 +118,45 @@ final class GraphFolderMoveTest extends KernelTestCase
         $this->syncFolder(self::TRASH_FOLDER, $message->graphId);
 
         self::assertSame(['Receipts', 'Trash'], $this->labelNamesOf($message));
+    }
+
+    // ── archive, which on Exchange is an ordinary folder ─────────────────────
+
+    /**
+     * Exchange has a real Archive folder, so archiving there is a folder move
+     * like any other and the exclusive folder-label swap already handles it.
+     * Pinned rather than assumed: the Gmail side needed a rule invented for it,
+     * because Gmail expresses archiving as the *absence* of INBOX and there is
+     * nothing to arrive in its place. The two providers reach the same end
+     * state by different routes, and this is the one that gets there for free.
+     */
+    public function testAMessageMovedToTheArchiveFolderWearsTheArchiveLabel(): void
+    {
+        $archive = $this->seedLabel('Archive', LabelRole::Archive, self::ARCHIVE_FOLDER);
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolder(self::ARCHIVE_FOLDER, $message->graphId);
+
+        self::assertSame(['Archive'], $this->labelNamesOf($message));
+        self::assertTrue($message->hasLabel($archive));
+    }
+
+    /**
+     * And back out of it, for the same reason the Gmail side pins the reverse:
+     * a message that returns to the inbox must not go on claiming to be
+     * archived.
+     */
+    public function testAMessageMovedBackOutOfArchiveStopsWearingTheArchiveLabel(): void
+    {
+        $this->seedLabel('Archive', LabelRole::Archive, self::ARCHIVE_FOLDER);
+        $inbox   = $this->seedLabel('Inbox', LabelRole::Inbox, self::INBOX_FOLDER);
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolder(self::ARCHIVE_FOLDER, $message->graphId);
+        $this->syncFolder(self::INBOX_FOLDER, $message->graphId);
+
+        self::assertSame(['Inbox'], $this->labelNamesOf($message));
+        self::assertTrue($message->hasLabel($inbox));
     }
 
     // ── and when it moved out of the mailbox altogether ──────────────────────

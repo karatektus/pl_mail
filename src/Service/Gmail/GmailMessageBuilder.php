@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\DTO\Gmail\ExtractedBody;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
@@ -507,6 +508,9 @@ final class GmailMessageBuilder
             $keep[(int) $label->id] = true;
         }
 
+        $inbox    = $this->localLabelResolver->systemLabel(LabelRole::Inbox, $target);
+        $hadInbox = $message->hasLabel($inbox);
+
         // Off first, so that a label being moved between messages cannot be
         // added and then removed by its own pass.
         foreach ($this->labelPolicy->providerLabels($message, $carrier) as $current) {
@@ -520,5 +524,71 @@ final class GmailMessageBuilder
         foreach ($resolved as $label) {
             $message->addLabel($this->translateLabel($label, $target));
         }
+
+        $this->reconcileArchive($message, $labelIds, $target, $hadInbox, $message->hasLabel($inbox));
+    }
+
+    /**
+     * Give a message archived in Gmail the Archive label, and take it back off
+     * when it returns to the inbox.
+     *
+     * Gmail has no Archive label — archiving there is the removal of INBOX and
+     * nothing else — so the authoritative label application above correctly
+     * takes the message out of the inbox and leaves it wearing nothing that
+     * says where it went. plMail's Archive view is a label, so the message
+     * archived in Gmail simply did not appear in it: out of the inbox, out of
+     * the archive, reachable only through search or its conversation. The two
+     * sides have to agree regardless of which of them did the archiving.
+     *
+     * Written as a *transition* rather than a state, and that is the whole of
+     * its safety. "Has no INBOX" is true of Sent mail, of drafts, of every
+     * message on an account that has never had an inbox label — inferring
+     * Archive from the state would put the label on all of them. What this
+     * responds to is INBOX having been there and now being gone, which is an
+     * event only an archive (or a trash, or a spam move) produces.
+     *
+     * It therefore also does not backfill: messages archived in Gmail before
+     * this shipped never make the transition, because plMail never saw them in
+     * the inbox to begin with. A resync is what puts those right.
+     *
+     * Trash, spam and snoozed are excluded because each is a destination in its
+     * own right and already says where the message went. Archive means "left
+     * the inbox and went nowhere in particular", which is precisely the case
+     * with nothing else to say about it.
+     *
+     * @param list<string> $labelIds
+     */
+    private function reconcileArchive(
+        Message $message,
+        array   $labelIds,
+        Account $target,
+        bool    $hadInbox,
+        bool    $hasInbox,
+    ): void {
+        $archive = $this->localLabelResolver->systemLabel(LabelRole::Archive, $target);
+
+        // Back to the inbox: whatever archived it has been undone, and the
+        // Archive label is the thing that would otherwise survive it.
+        if (false === $hadInbox && true === $hasInbox) {
+            $message->removeLabel($archive);
+
+            return;
+        }
+
+        if (false === $hadInbox || true === $hasInbox) {
+            return;
+        }
+
+        foreach (['TRASH', 'SPAM'] as $elsewhere) {
+            if (true === in_array($elsewhere, $labelIds, true)) {
+                return;
+            }
+        }
+
+        if (true === $message->hasLabel($this->localLabelResolver->systemLabel(LabelRole::Snoozed, $target))) {
+            return;
+        }
+
+        $message->addLabel($archive);
     }
 }

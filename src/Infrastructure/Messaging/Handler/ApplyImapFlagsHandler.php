@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
+use App\Service\Imap\ImapFolderProvisioner;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -101,6 +103,7 @@ final class ApplyImapFlagsHandler
         private readonly LoggerInterface        $logger,
         private readonly ImapConnectionFactory  $imapConnectionFactory,
         private readonly EntityManagerInterface $em,
+        private readonly ImapFolderProvisioner  $folders,
     ) {}
 
     public function __invoke(ApplyImapFlagsMessage $message): void
@@ -181,6 +184,15 @@ final class ApplyImapFlagsHandler
 
         if ('archive' === $action || 'trash' === $action) {
             $destinationPath = $this->resolveDestinationPath($client, $account, $action);
+        }
+
+        // An explicit move names a folder plMail has a row for, which is not
+        // the same as one the server still has: another client can delete a
+        // folder at any time, and moving into one that is not there fails per
+        // message with nothing that says why. Making it is cheaper than losing
+        // the move, and it is the same folder the row already describes.
+        if ('move' === $action && null !== $destinationPath) {
+            $destinationPath = $this->ensureDestinationExists($client, $account, $destinationPath);
         }
 
         $needsDestination = in_array($action, self::MOVE_ACTIONS, true);
@@ -452,12 +464,48 @@ final class ApplyImapFlagsHandler
         return false;
     }
 
+    /**
+     * The destination path if the server still has it, or a freshly created
+     * folder at that exact path if it does not.
+     *
+     * The path is used as-is rather than rebuilt, because it came from a
+     * Mailbox row that the server itself described on an earlier LIST — its
+     * namespace and separator are already whatever this server uses, which is
+     * the thing ImapFolderProvisioner otherwise has to work out.
+     */
+    private function ensureDestinationExists(Client $client, Account $account, string $destinationPath): ?string
+    {
+        try {
+            if (null !== $client->getFolder($destinationPath)) {
+                return $destinationPath;
+            }
+        } catch (Throwable) {
+            // Not found, or the server would not say. Either way the create
+            // below settles it, and a CREATE for a folder that does exist is
+            // rejected harmlessly.
+        }
+
+        return $this->folders->ensureExactPath($account, $client, $destinationPath);
+    }
+
+    /**
+     * Where an archive or a trash physically goes on this server.
+     *
+     * The last step is the new one. This used to end by returning null, and the
+     * caller answered that with "destination not resolvable" and did nothing —
+     * so on an account whose server has no Archive folder, archiving left the
+     * message out of the inbox locally and untouched remotely, and the next
+     * sync put it back. Gmail creates a label when it needs one and Graph
+     * creates a folder; IMAP now creates a folder too. See
+     * ImapFolderProvisioner for how the namespace is worked out, which is the
+     * part that cannot be guessed.
+     */
     private function resolveDestinationPath(Client $client, Account $account, string $action): ?string
     {
-        $specialUse = '\\Trash';
+        $specialUse = MailboxSpecialUse::TRASH;
 
         if ('archive' === $action) {
-            $specialUse = '\\Archive';
+            $specialUse = MailboxSpecialUse::ARCHIVE;
         }
 
         $mailbox = $this->mailboxRepository->findOneBy([
@@ -470,11 +518,11 @@ final class ApplyImapFlagsHandler
         }
 
         $nameMap = [
-            '\\Trash'   => ['Trash', 'Deleted', 'Deleted Items', 'Deleted Messages'],
-            '\\Archive' => ['Archive', 'Archives'],
+            MailboxSpecialUse::TRASH->value   => ['Trash', 'Deleted', 'Deleted Items', 'Deleted Messages'],
+            MailboxSpecialUse::ARCHIVE->value => ['Archive', 'Archives'],
         ];
 
-        $candidates = $nameMap[$specialUse] ?? [];
+        $candidates = $nameMap[$specialUse->value] ?? [];
 
         foreach ($candidates as $candidate) {
             try {
@@ -488,6 +536,6 @@ final class ApplyImapFlagsHandler
             }
         }
 
-        return null;
+        return $this->folders->ensureSpecialUse($account, $client, $specialUse);
     }
 }

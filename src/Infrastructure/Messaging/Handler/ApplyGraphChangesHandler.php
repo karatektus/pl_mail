@@ -7,8 +7,10 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Service\Label\LabelResolver;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
@@ -63,7 +65,22 @@ final class ApplyGraphChangesHandler
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface        $logger,
+        private readonly LabelResolver          $labelResolver,
     ) {}
+
+    /**
+     * Exchange's own name for each standard folder, so a mailbox that has one
+     * is bound to it rather than given a second folder beside it. Mirrors
+     * GraphFolderSyncer's map, read the other way round.
+     */
+    private const array WELL_KNOWN_BY_ROLE = [
+        'inbox'   => 'inbox',
+        'sent'    => 'sentitems',
+        'drafts'  => 'drafts',
+        'trash'   => 'deleteditems',
+        'spam'    => 'junkemail',
+        'archive' => 'archive',
+    ];
 
     public function __invoke(ApplyGraphChangesMessage $message): void
     {
@@ -157,6 +174,103 @@ final class ApplyGraphChangesHandler
     }
 
     /**
+     * Which Exchange folder this label is, finding or making one if the account
+     * has never had it.
+     *
+     * This used to be a read of graphFolderId and a warning when it was empty,
+     * which meant archiving on an account whose Archive folder plMail had never
+     * bound did nothing at all: the message left the inbox locally, the server
+     * never heard, and the next delta put it back. A warning nobody reads is
+     * not a behaviour.
+     *
+     * Three steps, cheapest first, and the middle one is the important one.
+     * Exchange has a well-known name for each of its standard folders, so an
+     * account that simply had not been folder-synced yet already *has* an
+     * Archive — asking for it by name is one request and binds the real folder.
+     * Creating one without asking would leave the mailbox with a second folder
+     * called "Archive" beside the one Outlook already shows, which is the
+     * duplicate-folder mistake in the same family as the duplicate rows.
+     *
+     * Creation is the last resort, and it is a real case rather than a
+     * defensive one: GraphFolderSyncer already notes that `archive` is missing
+     * on some mailboxes entirely.
+     *
+     * Either way the id is written back onto the binding, so this is asked once
+     * per account and the next archive is a plain read.
+     */
+    private function ensureRemoteFolder(Label $label, Account $account): ?string
+    {
+        $binding  = $label->bindingFor($account);
+        $folderId = $binding?->graphFolderId;
+
+        if (null !== $folderId && '' !== $folderId) {
+            return $folderId;
+        }
+
+        // Non-null by the time this runs: pushesAsFolder() only answers true
+        // for a role label or one that already carries a graphFolderId, and the
+        // second is what we have just established this is not.
+        $wellKnown = self::WELL_KNOWN_BY_ROLE[$label->role->value] ?? null;
+
+        try {
+            if (null !== $wellKnown) {
+                $found = $this->apiClient->resolveWellKnownFolders($account, [$wellKnown])[$wellKnown] ?? '';
+
+                if ('' !== $found) {
+                    return $this->bindFolder($label, $account, $found);
+                }
+            }
+
+            $created = $this->apiClient->createFolder($account, $this->displayNameFor($label));
+            $newId   = (string) ($created['id'] ?? '');
+
+            if ('' === $newId) {
+                return null;
+            }
+
+            $this->logger->info('ApplyGraphChangesHandler: created the folder this account was missing', [
+                'labelId'   => $label->id,
+                'accountId' => $account->id,
+                'folder'    => $this->displayNameFor($label),
+            ]);
+
+            return $this->bindFolder($label, $account, $newId);
+        } catch (Throwable $e) {
+            $this->rethrowIfTransient($e);
+
+            $this->logger->error('ApplyGraphChangesHandler: could not find or create the destination folder', [
+                'labelId'   => $label->id,
+                'accountId' => $account->id,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function bindFolder(Label $label, Account $account, string $folderId): string
+    {
+        $binding = $this->labelResolver->binding($label, $account);
+
+        $binding->graphFolderId = $folderId;
+        $this->em->flush();
+
+        return $folderId;
+    }
+
+    /**
+     * The leaf, because Exchange folder names are per level rather than paths —
+     * the same rule ApplyLabelStructureHandler creates folders by.
+     */
+    private function displayNameFor(Label $label): string
+    {
+        $full     = (string) $label->fullName;
+        $segments = explode('/', $full);
+
+        return (string) end($segments);
+    }
+
+    /**
      * @param list<Message> $messages
      * @return list<string>  throttled graph ids
      */
@@ -181,14 +295,9 @@ final class ApplyGraphChangesHandler
             return [];
         }
 
-        $folderId = $label->bindingFor($account)?->graphFolderId;
+        $folderId = $this->ensureRemoteFolder($label, $account);
 
-        if (null === $folderId || '' === $folderId) {
-            $this->logger->warning('ApplyGraphChangesHandler: folder label has no graphFolderId on this account', [
-                'labelId'   => $moveToLabel,
-                'accountId' => $account->id,
-            ]);
-
+        if (null === $folderId) {
             return [];
         }
 
