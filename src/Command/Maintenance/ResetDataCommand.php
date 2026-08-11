@@ -24,7 +24,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 #[AsCommand(
     name: 'app:reset',
-    description: 'Truncate all synced message data, optionally including mailbox structure, contacts and monitoring data',
+    description: 'Truncate all synced message and calendar data, optionally including mailbox and calendar structure, contacts and monitoring data',
 )]
 class ResetDataCommand extends Command
 {
@@ -37,7 +37,7 @@ class ResetDataCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('mailboxes', null, InputOption::VALUE_NONE, 'Also delete mailbox structure (folders and labels)')
+            ->addOption('mailboxes', null, InputOption::VALUE_NONE, 'Also delete mailbox and calendar structure (folders, labels and calendars)')
             ->addOption('contacts', null, InputOption::VALUE_NONE, 'Also delete harvested contacts')
             ->addOption('accounts', null, InputOption::VALUE_NONE, 'Also delete the accounts themselves, aliases included (implies --mailboxes)')
             ->addOption('keep-monitoring', null, InputOption::VALUE_NONE, 'Keep monitoring data (aggregated logs and process heartbeats)')
@@ -64,7 +64,7 @@ class ResetDataCommand extends Command
 
         $deleteMailboxes = $deleteAccounts || true === $input->getOption('mailboxes') || (
             $input->isInteractive() && $io->confirm(
-                'Also delete mailbox structure (folders and labels)? If no, only messages and threads will be cleared.',
+                'Also delete mailbox and calendar structure (folders, labels and calendars)? If no, only messages, threads and calendar events will be cleared.',
                 false,
             )
         );
@@ -88,7 +88,7 @@ class ResetDataCommand extends Command
         // Saying so beats leaving the user to work out why their labels and
         // accounts are still there.
         $io->listing([
-            'mailboxes and labels: ' . ($deleteMailboxes ? 'deleted' : 'kept (--mailboxes)'),
+            'mailboxes, labels and calendars: ' . ($deleteMailboxes ? 'deleted' : 'kept (--mailboxes)'),
             'contacts: ' . ($deleteContacts ? 'deleted' : 'kept (--contacts)'),
             'accounts and aliases: ' . ($deleteAccounts ? 'deleted' : 'kept (--accounts)'),
             'monitoring data: ' . ($resetMonitoring ? 'cleared' : 'kept'),

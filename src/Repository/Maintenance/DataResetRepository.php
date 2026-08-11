@@ -126,4 +126,16 @@ final readonly class DataResetRepository
                 synced_at = NULL
             SQL);
     }
+
+    /**
+     * The calendar's cursor, cleared the way the mailbox's is above: the next
+     * sync of a kept mirror fetches everything rather than "everything since".
+     * remote_id is deliberately not touched — it names WHICH provider calendar
+     * this row mirrors, and clearing it would strand the mirror rather than
+     * rewind it.
+     */
+    public function clearCalendarSyncCursors(): void
+    {
+        $this->connection->executeStatement('UPDATE calendar SET sync_token = NULL');
+    }
 }

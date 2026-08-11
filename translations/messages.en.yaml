@@ -2130,7 +2130,6 @@ toolbar:
         next: Older
         of: of
         prev: Newer
-    refresh: Refresh
     select:
         all: All
         none: None

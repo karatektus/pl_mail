@@ -25,7 +25,6 @@ export default class extends Controller {
         "indeterminate",   // the — SVG inside checkboxBtn
         "selectMenu",      // the dropdown
         "selectMenuBtn",
-        "refreshSlot",     // wrapper div around the Refresh button
         "actions",         // wrapper div around bulk-action buttons
         "selectionCount",
     ];
@@ -100,26 +99,6 @@ export default class extends Controller {
         event?.preventDefault();
         this._selectBy((li) => li.dataset.starred === "true");
         this._closeSelectMenu();
-    }
-
-    // ── Refresh ───────────────────────────────────────────────────────────
-
-    refresh() {
-        const frame = document.getElementById("inbox-list-frame");
-        const icon  = this.refreshSlotTarget.querySelector("i");
-
-        if (icon) { icon.classList.add("fa-spin"); }
-
-        if (frame) {
-            frame.addEventListener(
-                "turbo:frame-load",
-                () => { if (icon) { icon.classList.remove("fa-spin"); } },
-                { once: true },
-            );
-            frame.reload();
-        } else {
-            Turbo.visit(window.location.href, { action: "replace" });
-        }
     }
 
     // ── Bulk actions ──────────────────────────────────────────────────────
@@ -257,12 +236,6 @@ export default class extends Controller {
 
         // ── Master checkbox button visual state ──────────────────────────
         this._setCheckboxState(allChecked, someChecked);
-
-        // ── Refresh ↔ Actions slot swap ──────────────────────────────────
-        if (this.hasRefreshSlotTarget) {
-            this.refreshSlotTarget.classList.toggle("hidden", hasSelection);
-            this.refreshSlotTarget.classList.toggle("flex",  !hasSelection);
-        }
 
         if (this.hasActionsTarget) {
             this.actionsTarget.classList.toggle("hidden",  !hasSelection);

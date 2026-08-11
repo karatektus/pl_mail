@@ -78,6 +78,17 @@ final readonly class DataResetter
             'message_thread',
             'jmap_change_log',
             'uploaded_blob',
+            // Synced and derived calendar data resets with the mail it was
+            // synced or extracted alongside. The calendars themselves are
+            // structure and go with --mailboxes below; event_suppression stays
+            // at every depth, because "do not re-extract this" is exactly the
+            // memory a reset-then-resync must not lose.
+            'calendar_booking',
+            'calendar_alert_delivery',
+            'calendar_event_occurrence',
+            'event_source_link',
+            'event_proposal',
+            'calendar_event',
         ];
 
         if (true === $scope->mailboxes) {
@@ -86,6 +97,11 @@ final readonly class DataResetter
             $tables[] = 'label_binding';
             $tables[] = 'label';
             $tables[] = 'mailbox';
+            // The calendar equivalents of the three above: share links and
+            // booking pages FK the calendar rows they decorate.
+            $tables[] = 'calendar_share_link';
+            $tables[] = 'booking_page';
+            $tables[] = 'calendar';
         }
 
         if (true === $scope->contacts) {
@@ -134,6 +150,14 @@ final readonly class DataResetter
             if (false === $scope->mailboxes) {
                 $this->tables->clearMailboxSyncCursors();
                 $cursorsCleared[] = 'mailbox';
+
+                // Calendars are kept at the same depth mailboxes are, and a
+                // kept mirror needs its token dropped for the same reason a
+                // kept mailbox needs its UIDs dropped: the next sync must
+                // fetch everything, not "everything since". remote_id stays —
+                // that is which provider calendar this IS, not how far it got.
+                $this->tables->clearCalendarSyncCursors();
+                $cursorsCleared[] = 'calendar';
             }
         } finally {
             // In a finally block, unlike the code this was extracted from: a

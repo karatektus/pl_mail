@@ -42,6 +42,7 @@ final class DataResetterTest extends KernelTestCase
 
     private int $userId;
     private int $accountId;
+    private int $calendarId;
 
     protected function setUp(): void
     {
@@ -73,14 +74,14 @@ final class DataResetterTest extends KernelTestCase
 
         $this->resetter->reset($scope);
 
-        foreach (['message', 'message_thread', 'mailbox', 'label'] as $table) {
+        foreach (['message', 'message_thread', 'mailbox', 'label', 'calendar_event', 'calendar_event_occurrence', 'calendar'] as $table) {
             self::assertSame(0, $this->countRows($table), $table . ' should have been emptied');
         }
 
         // The accounts are the point: getting these back means re-entering
         // every mailbox password, and the users behind them would lock the
         // operator out of the app they are resetting.
-        foreach (['contact', 'account', 'email_alias', '"user"'] as $table) {
+        foreach (['contact', 'account', 'email_alias', '"user"', 'event_suppression'] as $table) {
             self::assertGreaterThan(0, $this->countRows($table), $table . ' should have survived');
         }
 
@@ -102,6 +103,34 @@ final class DataResetterTest extends KernelTestCase
         // `replica` would silently turn every later write into one that skips
         // its constraints.
         self::assertSame('origin', $this->connection->fetchOne('SHOW session_replication_role'));
+    }
+
+    /**
+     * The shallow rung: events go the way messages do, but the calendars stay
+     * the way mailboxes do -- with their cursor dropped, so the kept mirror's
+     * next sync fetches everything rather than "everything since" a point
+     * whose events no longer exist.
+     */
+    public function testTheSyncedMailRungClearsEventsButKeepsTheCalendar(): void
+    {
+        $scope = ResetStage::SyncedMail->scope();
+
+        self::assertNotNull($scope);
+
+        $this->resetter->reset($scope);
+
+        foreach (['message', 'calendar_event', 'calendar_event_occurrence'] as $table) {
+            self::assertSame(0, $this->countRows($table), $table . ' should have been emptied');
+        }
+
+        foreach (['calendar', 'mailbox', 'label', 'event_suppression'] as $table) {
+            self::assertGreaterThan(0, $this->countRows($table), $table . ' should have survived');
+        }
+
+        self::assertNull(
+            $this->connection->fetchOne('SELECT sync_token FROM calendar WHERE id = ?', [$this->calendarId]),
+            'the kept mirror must forget how far it had synced',
+        );
     }
 
     // ── Fixture ───────────────────────────────────────────────────────────────
@@ -191,6 +220,37 @@ final class DataResetterTest extends KernelTestCase
                 'now'     => $now,
             ],
         );
+
+        // The calendar side of the boundary: a mirror with a cursor, one event
+        // with its occurrence, and a suppression — the one row on this side
+        // that must survive every rung, because it is the user's "do not
+        // re-extract this" and a reset-then-resync is exactly when it earns
+        // its keep.
+        $calendarId = (int) $this->connection->fetchOne(
+            'INSERT INTO calendar (usr_id, account_id, name, sync_token, created_at, updated_at)
+             VALUES (:usr, :account, :name, :token, :now, :now) RETURNING id',
+            ['usr' => $this->userId, 'account' => $this->accountId, 'name' => 'Reset fixture', 'token' => 'cursor-4711', 'now' => $now],
+        );
+
+        $eventId = (int) $this->connection->fetchOne(
+            'INSERT INTO calendar_event (usr_id, calendar_id, uid, starts_at, ends_at, created_at, updated_at)
+             VALUES (:usr, :calendar, :uid, :now, :now, :now, :now) RETURNING id',
+            ['usr' => $this->userId, 'calendar' => $calendarId, 'uid' => 'reset-' . $suffix, 'now' => $now],
+        );
+
+        $this->connection->executeStatement(
+            'INSERT INTO calendar_event_occurrence (usr_id, calendar_id, event_id, recurrence_id, starts_at, ends_at)
+             VALUES (:usr, :calendar, :event, :rid, :now, :now)',
+            ['usr' => $this->userId, 'calendar' => $calendarId, 'event' => $eventId, 'rid' => $now, 'now' => $now],
+        );
+
+        $this->connection->executeStatement(
+            'INSERT INTO event_suppression (usr_id, dedup_key_hash, created_at, updated_at)
+             VALUES (:usr, :hash, :now, :now)',
+            ['usr' => $this->userId, 'hash' => str_pad(substr($suffix, -8), 64, 'a'), 'now' => $now],
+        );
+
+        $this->calendarId = $calendarId;
     }
 
     private function countRows(string $table): int

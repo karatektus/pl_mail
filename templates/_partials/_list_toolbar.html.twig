@@ -176,16 +176,11 @@ The button itself carries `group` and `relative`.
     </div>
 
     {# ════════════════════════════════════════════════════════════════════════
-       Left action slot:
-         • refreshSlot  — visible when nothing is selected
-         • actions      — visible when ≥1 row is selected
-       JS swaps hidden/flex between the two.
+       Left action slot: bulk actions, visible when ≥1 row is selected. There
+       used to be a Refresh button holding this spot in the unselected state —
+       removed, because the topbar's sync button is the one that refreshes and
+       two spinners answering one question always had one of them lying.
        ════════════════════════════════════════════════════════════════════════ #}
-
-    {# Refresh — default visible state #}
-    <div data-mail--list-toolbar-target="refreshSlot" class="flex items-center">
-        {{ m.tbtn('click->mail--list-toolbar#refresh', 'fa-solid fa-rotate-right', 'toolbar.refresh'|trans) }}
-    </div>
 
     {# Bulk actions — hidden until ≥1 selected #}
     <div

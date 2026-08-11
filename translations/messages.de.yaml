@@ -2171,7 +2171,6 @@ toolbar:
         next: Älter
         of: von
         prev: Neuer
-    refresh: Aktualisieren
     select:
         all: Alle
         none: Keine

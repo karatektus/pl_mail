@@ -1806,7 +1806,6 @@ toolbar:
         next: Saltier
         of: of
         prev: Fresher
-    refresh: Refresh
     select:
         all: All hands
         none: None
