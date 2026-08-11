@@ -37,6 +37,7 @@ class MessageSyncer
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
         private readonly ImapConnectionFactory $connections,
+        private readonly VanishedMessageReconciler $vanished,
     ) {}
 
     /**
@@ -81,8 +82,24 @@ class MessageSyncer
 
     public function syncMailbox(Mailbox $mailbox, Client $client): void
     {
-        $mailboxId   = $mailbox->id;
-        $accountId   = $mailbox->account->id;
+        $mailboxId = $mailbox->id;
+        $accountId = $mailbox->account->id;
+
+        $folder = $client->getFolder($mailbox->name);
+
+        if (null === $folder) {
+            $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);
+            return;
+        }
+
+        // Before anything reads lastSeenUid or the stored UIDs, because both can
+        // change here: a folder rebuilt on the server has its high-water mark
+        // reset to zero and every stored UID stripped, and the incremental pass
+        // below has to be planned against that rather than against the state
+        // this method was entered with. On the ordinary poll this is a no-op —
+        // it only lists a folder every SWEEP_INTERVAL_MINUTES.
+        $this->vanished->sweep($mailbox, $client);
+
         $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
 
@@ -91,13 +108,6 @@ class MessageSyncer
             'account'     => $accountId,
             'lastSeenUid' => $lastSeenUid,
         ]);
-
-        $folder = $client->getFolder($mailbox->name);
-
-        if (null === $folder) {
-            $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);
-            return;
-        }
 
         // Load all already-synced UIDs up front so each batch can O(1)-skip them.
         // array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
@@ -134,6 +144,14 @@ class MessageSyncer
             // because a move left the first one behind. Also one indexed query
             // that finds nothing on an account that never had the bug.
             $this->sentCopies->repairRelocated($mailbox, $presence);
+
+            // Last, and account-wide rather than folder-wide, because the
+            // question it settles is "is this message anywhere" and no single
+            // folder can answer it. Does nothing until every folder in the
+            // account has been swept, and nothing then either unless the server
+            // confirms the absence one row at a time. See
+            // VanishedMessageReconciler.
+            $this->vanished->reap($mailbox->account, $presence);
         } finally {
             $presence->close();
         }

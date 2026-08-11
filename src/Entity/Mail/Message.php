@@ -32,6 +32,10 @@ use Doctrine\ORM\Mapping as ORM;
 // the provider-id constraints above are ordered.
 #[ORM\Index(name: 'idx_message_message_id', columns: ['message_id'])]
 #[ORM\Index(name: 'idx_message_provider_thread_key_account', columns: ['provider_thread_key', 'account_id'])]
+// The reaper's only query: rows of one account carrying a vanish mark, oldest
+// first. Without it, every poll of every folder sequentially scans the
+// account's messages to find the handful that went missing.
+#[ORM\Index(name: 'idx_message_vanished', columns: ['account_id', 'vanished_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Message extends MessageModel
@@ -56,6 +60,25 @@ class Message extends MessageModel
 
     #[ORM\Column(nullable: true)]
     public ?int $imapUid = null;
+
+    /**
+     * When a folder listing last failed to find this row where it says it is.
+     *
+     * Not a deletion, and deliberately not one. A UID missing from one listing
+     * is evidence: the message may equally have been moved to a folder this
+     * sync cycle has not reached yet, and the same absence is what both events
+     * look like from the folder being left. So the syncer records the absence,
+     * clears the row's address so SentCopyReconciler::claim() can re-match it
+     * by Message-ID wherever it turns up, and waits.
+     *
+     * What converts it into a deletion is time plus coverage, never the single
+     * listing: VanishedMessageReconciler::reap() removes a row only once every
+     * sync-enabled folder in the account has been listed since this instant and
+     * none of them produced it. Any listing that does produce it gives the row
+     * an address again, and relocateTo() clears this back to null.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $vanishedAt = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $messageId = null;
@@ -344,6 +367,13 @@ class Message extends MessageModel
     {
         $this->mailbox = $mailbox;
         $this->imapUid = $uid;
+
+        // A row that has an address again is not missing. Whatever listing
+        // failed to produce it, this one did, and that is the answer that
+        // counts — see $vanishedAt.
+        if (null !== $uid) {
+            $this->vanishedAt = null;
+        }
 
         return $this;
     }

@@ -93,6 +93,24 @@ class Mailbox
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $syncedAt = null;
 
+    /**
+     * When this folder's full UID set was last read off the server and compared
+     * against the rows claiming to be in it.
+     *
+     * Separate from syncedAt because it happens on a slower clock. syncedAt is
+     * every poll and asks only for UIDs above the high-water mark, which is
+     * what makes incremental sync cheap and is also exactly why it can never
+     * notice a message leaving. The sweep asks for all of them, so it runs on a
+     * cadence instead — see VanishedMessageReconciler::SWEEP_INTERVAL.
+     *
+     * It is also the coverage half of the deletion rule. A row that vanished is
+     * only erased once every folder's sweptAt is later than the instant it
+     * vanished at, which is the difference between "no folder has it" and "the
+     * folders we happen to have looked at do not have it".
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $sweptAt = null;
+
 
 
     /**
