@@ -231,6 +231,86 @@ final class GmailApiSyncerHistoryTest extends TestCase
         self::assertSame([], $dispatched, 'nothing is queued for a message that no longer exists');
     }
 
+    // ── label changes, which are how Gmail says a message moved ──────────────
+
+    /**
+     * Gmail has no folders to compare, so a label going on or coming off is the
+     * whole of what a move is — and archiving is the removal of INBOX and
+     * nothing else. Asking the feed only about additions could never see it.
+     *
+     * The id is queued for a re-read rather than the change being applied from
+     * the record: what plMail needs is the set the message now has, which the
+     * batch handler applies authoritatively in one place.
+     */
+    public function testALabelChangeQueuesTheMessageForAReRead(): void
+    {
+        $dispatched = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history' => [[
+                    'labelsRemoved' => [[
+                        'message'  => ['id' => 'already-here'],
+                        'labelIds' => ['INBOX'],
+                    ]],
+                ]],
+                'historyId' => '67890',
+            ]),
+            synced: ['already-here'],
+            dispatched: $dispatched,
+        )->syncIncremental($this->account());
+
+        self::assertSame(['already-here'], $dispatched);
+    }
+
+    /**
+     * And it has to bypass the new-message filter to get there. A relabelled
+     * message is stored *by definition* — that is what makes it relabellable —
+     * so the filter that keeps plMail from re-fetching mail it already holds
+     * would otherwise drop exactly the ids that need re-reading.
+     */
+    public function testARelabelledMessageIsFetchedEvenThoughItIsAlreadyStored(): void
+    {
+        $dispatched = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history' => [
+                    ['messagesAdded'  => [['message' => ['id' => 'already-here']]]],
+                    ['labelsAdded'    => [['message' => ['id' => 'already-here']]]],
+                ],
+                'historyId' => '67890',
+            ]),
+            synced: ['already-here'],
+            dispatched: $dispatched,
+        )->syncIncremental($this->account());
+
+        self::assertSame(['already-here'], $dispatched, 'queued once, by the label change rather than the addition');
+    }
+
+    /**
+     * A message deleted in the same window is not re-read for its labels
+     * either. It has no labels any more.
+     */
+    public function testARelabelledMessageThatIsAlsoDeletedIsNotFetched(): void
+    {
+        $dispatched = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history' => [
+                    ['labelsAdded'     => [['message' => ['id' => 'doomed']]]],
+                    ['messagesDeleted' => [['message' => ['id' => 'doomed']]]],
+                ],
+                'historyId' => '67890',
+            ]),
+            synced: ['doomed'],
+            dispatched: $dispatched,
+        )->syncIncremental($this->account());
+
+        self::assertSame([], $dispatched);
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     private function profileWasFetched(): bool
@@ -250,8 +330,9 @@ final class GmailApiSyncerHistoryTest extends TestCase
      * under test is which of the two the failure sends it down.
      */
     /**
-     * @param list<Message> $rows  what the repository holds for the ids the
-     *                             feed names as deleted
+     * @param list<Message> $rows    what the repository holds for the ids the
+     *                               feed names as deleted
+     * @param list<string>  $synced  Gmail ids plMail already stores
      *
      * @param-out list<Message> $erased      whatever was erased
      * @param-out list<string>  $dispatched  the Gmail ids queued for fetching
@@ -259,6 +340,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
     private function syncer(
         MockResponse $history,
         array        $rows = [],
+        array        $synced = [],
         mixed        &$erased = null,
         mixed        &$dispatched = null,
     ): GmailApiSyncer {
@@ -286,7 +368,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
         $messageRepository = $this->createStub(MessageRepository::class);
-        $messageRepository->method('findSyncedGmailIdsForUser')->willReturn([]);
+        $messageRepository->method('findSyncedGmailIdsForUser')->willReturn($synced);
         $messageRepository->method('findByGmailIdsForUser')->willReturn($rows);
 
         $erased     = [];

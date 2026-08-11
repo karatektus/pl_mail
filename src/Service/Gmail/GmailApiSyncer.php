@@ -227,8 +227,9 @@ final class GmailApiSyncer
         // that carries no status is by reading its text, which is the bug this
         // replaced. They propagate and the transport retries them.
 
-        $refs    = [];
-        $deleted = [];
+        $refs      = [];
+        $deleted   = [];
+        $relabelled = [];
 
         foreach ($result['history'] as $record) {
             foreach ($record['messagesAdded'] ?? [] as $added) {
@@ -246,6 +247,28 @@ final class GmailApiSyncer
                     $deleted[$id] = true;
                 }
             }
+
+            // A label going on or coming off is how Gmail says a message moved.
+            // There are no folders to compare, so the two are the same event
+            // and both have to be followed — archiving in Gmail is the removal
+            // of INBOX and nothing else, which is why asking only about
+            // additions could never see it.
+            //
+            // The specific ids are deliberately not applied from here. The
+            // record says which labels changed; what plMail needs is the set
+            // the message now has, which is one field of the message itself, so
+            // the id is queued for a re-read and the batch handler applies the
+            // whole set authoritatively. That keeps one place deciding what a
+            // Gmail label set means.
+            foreach (['labelsAdded', 'labelsRemoved'] as $type) {
+                foreach ($record[$type] ?? [] as $change) {
+                    $id = (string) ($change['message']['id'] ?? '');
+
+                    if ('' !== $id) {
+                        $relabelled[$id] = true;
+                    }
+                }
+            }
         }
 
         // Deletions first, and a message that was added and then deleted inside
@@ -254,11 +277,25 @@ final class GmailApiSyncer
         // already destroyed is a wasted round trip that ends in a 404.
         foreach ($deleted as $gmailId => $ignored) {
             unset($refs[array_search(['id' => $gmailId], $refs, true)]);
+            unset($relabelled[$gmailId]);
         }
 
         $this->eraseDeleted($account, array_keys($deleted));
 
-        $this->dispatchBatches($account, $this->newGmailIds($account, array_values($refs)));
+        // Two sets with different rules, unioned once. New ids are filtered
+        // against what is already stored, because fetching a message plMail
+        // holds would be wasted work. Relabelled ids are the exact opposite
+        // case — they are stored *by definition*, and the whole reason to
+        // re-read one is that something about it has changed — so they bypass
+        // that filter and the batch handler recognises them and enriches
+        // rather than inserting.
+        $wanted = $this->newGmailIds($account, array_values($refs));
+
+        foreach (array_keys($relabelled) as $gmailId) {
+            $wanted[] = $gmailId;
+        }
+
+        $this->dispatchBatches($account, array_values(array_unique($wanted)));
 
         $account->gmailHistoryId = (string) $result['historyId'];
         $this->em->flush();

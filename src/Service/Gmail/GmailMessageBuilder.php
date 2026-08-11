@@ -51,6 +51,7 @@ final class GmailMessageBuilder
         private readonly HeaderNormalizer       $headerNormalizer,
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly LoggerInterface        $logger,
+        private readonly GmailLabelPolicy       $labelPolicy,
     )
     {
     }
@@ -466,16 +467,57 @@ final class GmailMessageBuilder
     }
 
     /**
-     * Resolve Gmail labelIds against the carrier account and attach the
-     * translated labels for the target account. Shared by the import path
-     * (new messages) and the enrichment path (existing IMAP rows gaining
-     * their Gmail labels after dedup).
+     * Make the message's labels agree with what Gmail says they are.
+     *
+     * Authoritative, which it was not. This resolved the ids Gmail reported and
+     * added every one of them, and nothing ever came off — so unfiling a
+     * message in Gmail left the label on it here permanently, and since
+     * archiving in Gmail *is* the removal of INBOX, a message archived in the
+     * web interface went on showing in plMail's inbox forever. Additive was the
+     * safe half of a rule whose other half had not been written.
+     *
+     * Authoritative only within the partition Gmail speaks for, though, and
+     * that is what GmailLabelPolicy is for. Snoozed is plMail's own, Archive
+     * has no Gmail counterpart, and a user may keep labels here that exist
+     * nowhere else; a rule that could not tell the difference would answer the
+     * first archive by deleting the user's local filing. So the removal is
+     * confined to labels carrying a gmailLabelId on the carrier account — the
+     * ones this feed is entitled to have an opinion about.
+     *
+     * The carrier is the account whose API produced $labelIds, and it is
+     * deliberately the account the policy is asked about, never $target. Gmail
+     * speaks for its own mailbox: a label that exists on a sibling account and
+     * not on this one is one this feed has said nothing about, and silence is
+     * not a removal.
+     *
+     * Shared by the import path (new messages, where nothing is on the message
+     * yet and the removal pass finds nothing to do) and the enrichment path
+     * (existing rows, where it is the entire point).
      *
      * @param list<string> $labelIds
      */
     public function applyTranslatedLabels(Message $message, array $labelIds, Account $target, Account $carrier): void
     {
-        foreach ($this->labelResolver->resolve($labelIds, $carrier) as $label) {
+        $resolved = $this->labelResolver->resolve($labelIds, $carrier);
+
+        /** @var array<int,true> $keep */
+        $keep = [];
+
+        foreach ($resolved as $label) {
+            $keep[(int) $label->id] = true;
+        }
+
+        // Off first, so that a label being moved between messages cannot be
+        // added and then removed by its own pass.
+        foreach ($this->labelPolicy->providerLabels($message, $carrier) as $current) {
+            if (true === isset($keep[(int) $current->id])) {
+                continue;
+            }
+
+            $message->removeLabel($current);
+        }
+
+        foreach ($resolved as $label) {
             $message->addLabel($this->translateLabel($label, $target));
         }
     }
