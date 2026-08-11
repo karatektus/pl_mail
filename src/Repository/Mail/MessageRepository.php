@@ -947,6 +947,65 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Rows that are not mail: the epoch-dated corpses of a failed fetch.
+     *
+     * An IMAP FETCH that came back empty used to be assembled into a Message
+     * anyway — see MessageSyncer::isUsableFetch(), which now refuses it. The
+     * rows already written by that path are what this finds: no Message-ID, no
+     * sender, no subject, no body, no attachments, and a receivedAt of the
+     * epoch, because webklex's empty Attribute parses through Carbon as
+     * `false` and lands on 1970-01-01.
+     *
+     * Every condition is required, and that is the point. The predicate has to
+     * be unable to match mail a user would miss, and the way to guarantee that
+     * is to demand the whole profile rather than any part of it:
+     *
+     *  - A genuinely subjectless message still carries a Message-ID and a
+     *    sender, so it fails on both counts before the subject is even looked
+     *    at.
+     *  - A message whose Date header was missing is now stored at ingest time,
+     *    never at the epoch, so it cannot drift into range.
+     *  - An empty draft has no receivedAt at all rather than an epoch one,
+     *    which is why the date test demands a real value BELOW the cutoff
+     *    instead of accepting NULL. Drafts are excluded by label as well —
+     *    belt and braces, because a draft is the one thing in the schema that
+     *    is legitimately blank.
+     *
+     * The cutoff is a year wide rather than an exact equality so a row written
+     * through a different timezone still matches; nothing real is dated 1970.
+     *
+     * @return list<Message>
+     */
+    public function findEpochGhosts(int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m');
+
+        return $qb
+            ->where('m.receivedAt IS NOT NULL')
+            ->andWhere('m.receivedAt < :epochCutoff')
+            ->andWhere($qb->expr()->orX('m.messageId IS NULL', "m.messageId = ''"))
+            ->andWhere($qb->expr()->orX('m.fromAddress IS NULL', "m.fromAddress = ''"))
+            ->andWhere($qb->expr()->orX('m.subject IS NULL', "m.subject = ''"))
+            ->andWhere($qb->expr()->orX('m.bodyText IS NULL', "m.bodyText = ''"))
+            ->andWhere($qb->expr()->orX('m.bodyHtml IS NULL', "m.bodyHtml = ''"))
+            ->andWhere($qb->expr()->orX('m.hasAttachments IS NULL', 'm.hasAttachments = false'))
+            ->andWhere(
+                $qb->expr()->notIn(
+                    'm.id',
+                    'SELECT drafted.id FROM ' . Message::class . ' drafted'
+                        . ' JOIN drafted.labels draftedLabel'
+                        . ' WHERE draftedLabel.role = :draftsRole',
+                ),
+            )
+            ->setParameter('epochCutoff', new \DateTimeImmutable('1971-01-01'))
+            ->setParameter('draftsRole', LabelRole::Drafts)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * The rows behind a set of Gmail ids, scoped to one owner.
      *
      * Scoped through the user rather than the account for the same reason

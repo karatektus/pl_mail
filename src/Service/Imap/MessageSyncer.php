@@ -38,6 +38,7 @@ class MessageSyncer
         private readonly SentCopyReconciler $sentCopies,
         private readonly ImapConnectionFactory $connections,
         private readonly VanishedMessageReconciler $vanished,
+        private readonly GhostMessageReaper $ghosts,
     ) {}
 
     /**
@@ -152,6 +153,11 @@ class MessageSyncer
             // confirms the absence one row at a time. See
             // VanishedMessageReconciler.
             $this->vanished->reap($mailbox->account, $presence);
+
+            // Before the counts below, because a ghost is counted as unread and
+            // the badge is where they were noticed in the first place. Runs
+            // after the reconcilers so it never races them for the same row.
+            $this->ghosts->reap();
         } finally {
             $presence->close();
         }
@@ -181,6 +187,10 @@ class MessageSyncer
         // here and are written to disk in pass 2 once the rows have ids.
         $rawBodies = [];
         $maxUid   = 0;
+        // The lowest UID this batch refused to persist. The high-water mark is
+        // held below it so the next sync asks for it again — see the clamp
+        // after the loop.
+        $lowestSkippedUid = null;
 
         // Pass 1 — build + persist Message rows (no threading yet)
         foreach ($batch as $imapMessage) {
@@ -192,6 +202,27 @@ class MessageSyncer
             if (true === isset($syncedUids[$uid])) {
                 if (true === ($uid > $maxUid)) {
                     $maxUid = $uid;
+                }
+
+                continue;
+            }
+
+            // A fetch that told us nothing is not a message. Skipping it here —
+            // before the claim below, which would otherwise be handed an empty
+            // Message-ID to match on — is what stops a ghost row being written.
+            // See isUsableFetch() for what "nothing" means and why.
+            if (false === $this->isUsableFetch($imapMessage)) {
+                $this->logger->warning(
+                    'Skipped an IMAP fetch that carried no message; nothing was persisted',
+                    [
+                        'uid'     => $uid,
+                        'mailbox' => $mailbox->fullPath,
+                        'account' => $accountId,
+                    ],
+                );
+
+                if (null === $lowestSkippedUid || $uid < $lowestSkippedUid) {
+                    $lowestSkippedUid = $uid;
                 }
 
                 continue;
@@ -237,11 +268,24 @@ class MessageSyncer
         // Flush so all new messages have IDs before the threader queries them
         $this->em->flush();
 
+        // A skipped UID must stay inside the next run's range, or "retry next
+        // sync" is not true and a message lost to one bad fetch is lost for
+        // good. Holding the mark below the lowest skipped UID costs a re-fetch
+        // of the UIDs above it — which processBatch then skips in O(1) against
+        // $syncedUids — and never costs the message itself.
+        if (null !== $lowestSkippedUid) {
+            $maxUid = min($maxUid, $lowestSkippedUid - 1);
+        }
+
         // Set before the pipeline runs so its flush carries the write. It has
         // to land even when this batch built nothing — every message may have
         // been seen already, and the range would otherwise be re-fetched
         // forever.
-        if (true === ($maxUid > 0)) {
+        //
+        // Never backwards: the clamp above can push this below where the
+        // mailbox already stands, and lowering the mark would re-deliver mail
+        // that is already here.
+        if (true === ($maxUid > ($mailbox->lastSeenUid ?? 0))) {
             $mailbox->lastSeenUid = $maxUid;
         }
 
@@ -276,6 +320,101 @@ class MessageSyncer
         return rtrim($header->raw, "\r\n") . "\r\n\r\n" . $imapMessage->getRawBody();
     }
 
+    /**
+     * Whether a fetch carried a message at all.
+     *
+     * A FETCH can come back with an empty header block — the connection
+     * hiccuped mid-response, the server answered NIL, the MIME was malformed
+     * enough that the parser produced nothing. None of that throws: webklex
+     * hands back an empty Attribute for every field, and an empty Attribute
+     * answers '' for a string and `false` for an address. buildMessage() would
+     * then happily assemble a Message with no sender, no subject and no body —
+     * and, because Attribute::toDate() runs the empty value through
+     * Carbon::parse(false), a receivedAt of 1970-01-01. That is the ghost:
+     * indistinguishable from mail in the schema, counted as unread because
+     * nothing set seenAt, and visible only as a blank row with a "?" avatar.
+     *
+     * The test is deliberately generous about what counts as a message: any
+     * ONE of a Date, a Message-ID or a From is enough. Real mail always has at
+     * least one — a subjectless message still has a sender, a message with no
+     * Date header still has a Message-ID — so this cannot refuse anything a
+     * user would recognise. It refuses only the case where the fetch said
+     * nothing whatsoever, which is not a message that happens to be empty but
+     * an answer that failed to arrive.
+     */
+    private function isUsableFetch(ImapMessage $imapMessage): bool
+    {
+        $from = $imapMessage->getFrom()->first();
+
+        // `first()` on an empty Attribute is `false`, not null — the same trap
+        // buildMessage() fell into below.
+        $fromAddress = (false !== $from && null !== $from)
+            ? (string) ($from->mail ?? '')
+            : '';
+
+        return self::describesAMessage(
+            (string) MessageIdHelper::normalise((string) $imapMessage->getMessageId()),
+            $fromAddress,
+            $this->hasDateHeader($imapMessage),
+        );
+    }
+
+    /**
+     * The decision itself, over the three values it actually turns on.
+     *
+     * Split out from isUsableFetch() so it can be tested: a webklex Message
+     * cannot be constructed without a live IMAP connection (Message::make()
+     * reaches through setClient() to openFolder()), so a test that wanted to
+     * exercise the predicate through the real object would have to stand up a
+     * server to ask a question about three strings. The adapter above is the
+     * part that reads webklex; this is the part that decides.
+     */
+    public static function describesAMessage(
+        string $messageId,
+        string $fromAddress,
+        bool   $hasDateHeader,
+    ): bool {
+        return '' !== $messageId
+            || '' !== $fromAddress
+            || true === $hasDateHeader;
+    }
+
+    /**
+     * Whether the fetch carried a Date header with a value in it.
+     *
+     * Asked as "does the attribute hold anything" rather than by parsing,
+     * because a present-but-unparseable Date throws out of toDate() and an
+     * absent one silently becomes the epoch. Only the second is a ghost.
+     */
+    private function hasDateHeader(ImapMessage $imapMessage): bool
+    {
+        $date = $imapMessage->getDate();
+
+        if (null === $date) {
+            return false;
+        }
+
+        return [] !== $date->toArray();
+    }
+
+    /**
+     * When the message arrived, or now — never the epoch.
+     *
+     * A message with a sender and a Message-ID but no Date header is real mail
+     * and has to be stored; dating it 1970 would sort it to the bottom of every
+     * list forever and make it look like the ghosts this class now refuses.
+     * Ingest time is the honest approximation, and it is what Gmail's builder
+     * already falls back to.
+     */
+    private function receivedAtOf(ImapMessage $imapMessage): DateTimeImmutable
+    {
+        if (false === $this->hasDateHeader($imapMessage)) {
+            return new DateTimeImmutable();
+        }
+
+        return self::toUtc($imapMessage->getDate()->toDate());
+    }
+
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message();
@@ -292,9 +431,11 @@ class MessageSyncer
         $message->messageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
         $message->subject = $this->decodeMimeHeader((string) $imapMessage->getSubject());
 
-        // From
+        // From. `first()` answers `false` on an empty Attribute, so the old
+        // `null !== $from` let a missing sender through and then read `->mail`
+        // off a boolean.
         $from = $imapMessage->getFrom()->first();
-        if (null !== $from) {
+        if (false !== $from && null !== $from) {
             $message->fromAddress = AddressHelper::email($from->mail ?? '');
             $message->fromName = AddressHelper::name($from->personal ?? '');
         }
@@ -305,7 +446,7 @@ class MessageSyncer
         $message->bccAddresses = $this->formatAddresses($imapMessage->getBcc());
 
         // Dates
-        $receivedAt = self::toUtc($imapMessage->getDate()->toDate());
+        $receivedAt = $this->receivedAtOf($imapMessage);
         $message->sentAt = $receivedAt;
         $message->receivedAt = $receivedAt;
 
