@@ -71,7 +71,10 @@ final class SettingsController extends AbstractController
             $section = 'accounts';
         }
 
-        $manageableAccounts = $this->accountRepository->findForUserOrderedByName($this->getUser());
+        // Ordered the way the user arranged them, not alphabetically: this is
+        // the page that renders the drag handles, and sorting by name here threw
+        // away the order the drag had just written.
+        $manageableAccounts = $this->accountRepository->findForUserOrdered($this->getUser());
 
         return $this->render('settings/index.html.twig', [
             'section'            => $section,

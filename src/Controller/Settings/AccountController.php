@@ -263,9 +263,12 @@ final class AccountController extends AbstractController
     {
         $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
+        // The list this streams back replaces the one on screen, so it has to
+        // come back in the arrangement the user made — re-sorting it by name
+        // here would silently undo a drag on the next toggle or delete.
         return $this->render('account/_mutation.stream.html.twig', [
             'toastMessage'       => $toastMessage,
-            'manageableAccounts' => $this->accountRepository->findForUserOrderedByName($this->getUser()),
+            'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
         ]);
     }
 }

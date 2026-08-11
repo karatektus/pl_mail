@@ -56,6 +56,33 @@ class AccountRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * findForUserOrdered(), restricted to the accounts that are switched on.
+     *
+     * The sidebar's list, and the reason this exists rather than a findBy():
+     * the sidebar used to order by sortOrder alone. sortOrder defaults to 0 and
+     * is only ever rewritten by a drag or a delete, so on an install where
+     * nobody has dragged anything every account sits at 0 and Postgres returns
+     * them in whatever order it likes — which is not the order the settings
+     * page showed, and not a stable order either. The name tiebreak is what
+     * makes an untouched install agree with settings instead of disagreeing
+     * arbitrarily.
+     *
+     * @return iterable<Account>
+     */
+    public function findActiveForUserOrdered(UserInterface $user): array
+    {
+        return $this->createQueryBuilder('account')
+            ->addSelect('LOWER(COALESCE(account.email, account.username)) AS HIDDEN sortName')
+            ->andWhere('account.usr = :usr')
+            ->andWhere('account.isActive = true')
+            ->setParameter('usr', $user)
+            ->orderBy('account.sortOrder', 'ASC')
+            ->addOrderBy('sortName', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function countForUser(UserInterface $user): int
     {
         return $this->count(['usr' => $user]);

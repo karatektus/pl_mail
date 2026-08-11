@@ -23,9 +23,9 @@ readonly class AccountsGlobal implements IteratorAggregate
             return new ArrayIterator([]);
         }
 
-        return new ArrayIterator($this->accounts->findBy(
-            ['usr' => $user, 'isActive' => true],
-            ['sortOrder' => 'ASC'],
-        ));
+        // The same ordering settings uses, because the drag handles there are
+        // meant to arrange this list and an ordering of its own made them a
+        // control over nothing. See findActiveForUserOrdered().
+        return new ArrayIterator($this->accounts->findActiveForUserOrdered($user));
     }
 }
