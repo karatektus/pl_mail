@@ -52,7 +52,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
         >
-            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true, mailFrame: true } %}
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
         </div>
 
         {# ui--split spans the topbar as well as the panes: the calendar
@@ -92,7 +92,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
                 <div class="hidden md:flex">
-                    {% include '_partials/_sidebar.html.twig' with { mailFrame: true } %}
+                    {% include '_partials/_sidebar.html.twig' %}
                 </div>
 
                 {# Main content. Targeted by ui--split so the drag can enforce a

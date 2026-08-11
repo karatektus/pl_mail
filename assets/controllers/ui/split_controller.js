@@ -159,10 +159,6 @@ export default class extends Controller {
      * must survive the unload, which is what the keepalive on _flush is for.
      */
     _demoteForMail(event) {
-        if ("calendar" !== this.modeValue) {
-            return;
-        }
-
         const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
 
         if (null === anchor) {
@@ -181,14 +177,30 @@ export default class extends Controller {
             return;
         }
 
+        // Frame-targeting is assigned HERE, not in the templates, because
+        // only the page knows whether the list frame exists. The label rows
+        // are rendered by a Twig macro (which cannot see an include's
+        // variables) and re-rendered by a Turbo Stream that broadcasts one
+        // body to every open page at once — two renderers that structurally
+        // cannot answer "is there a frame where I am going?". This one line
+        // can, and it makes every mail link behave identically wherever its
+        // markup came from.
+        if (undefined === anchor.dataset.turboFrame && null !== document.getElementById("inbox-list-frame")) {
+            anchor.dataset.turboFrame = "inbox-list-frame";
+        }
+
+        if ("calendar" !== this.modeValue) {
+            return;
+        }
+
         const mode = this._isNarrow() ? "mail" : "split";
 
         // The stash is for FULL page visits only, where this controller is
         // torn down and the next one must not trust the server's stale answer.
-        // A frame-targeted link (the inbox tabs) keeps this very controller
-        // alive — the live render below is already the whole fix there, and a
-        // stash written for it would linger and mis-apply to some later,
-        // unrelated navigation.
+        // A frame-targeted link keeps this very controller alive — the live
+        // render below is already the whole fix there, and a stash written
+        // for it would linger and mis-apply to some later, unrelated
+        // navigation.
         const frame = anchor.dataset.turboFrame;
 
         if (undefined === frame || "_top" === frame) {
@@ -403,6 +415,18 @@ export default class extends Controller {
      */
     paneLoaded(event) {
         const frame = event.target;
+
+        // The LIST frame loading while the calendar owns the row means mail
+        // navigation just happened behind a fullscreen calendar — however it
+        // was triggered. The click handler catches the ordinary cases before
+        // navigation; this catches whatever slipped past it (a link the
+        // handler never saw, a programmatic frame visit), because the frame
+        // loading is the one event no mail navigation can avoid producing.
+        if ("inbox-list-frame" === frame?.id && "calendar" === this.modeValue) {
+            this._setMode(this._isNarrow() ? "mail" : "split");
+
+            return;
+        }
 
         if (frame?.id !== "calendar-pane-frame" || this.modeValue !== "split" || this._isNarrow()) {
             return;
