@@ -178,10 +178,10 @@ Variables:
                        own week heading, so the two read alike. #}
                     {% set weekEnd = week.startsOn|date_modify('+6 days') %}
                     <h2 class="text-sm font-medium text-ink truncate min-w-0">
-                        {{ week.startsOn|date(week.startsOn|date('Y') == weekEnd|date('Y')
-                            ? (week.startsOn|date('n') == weekEnd|date('n') ? 'j' : 'j M')
-                            : 'j M Y') }}
-                        – {{ weekEnd|date('j M Y') }}
+                        {{ week.startsOn|intl_date(week.startsOn|date('Y') == weekEnd|date('Y')
+                            ? (week.startsOn|date('n') == weekEnd|date('n') ? 'd' : 'dMMM')
+                            : 'dMMMy') }}
+                        – {{ weekEnd|intl_date('dMMMy') }}
                     </h2>
                 </div>
 
@@ -213,7 +213,7 @@ Variables:
                                         {{ day.isPast ? 'opacity-50' : '' }}">
                                 <p class="mb-1.5 text-[10px] uppercase tracking-wide
                                           {{ day.isToday ? 'text-accent font-semibold' : 'text-ink-faint' }}">
-                                    {{ day.date|date('D') }}
+                                    {{ day.date|intl_date('EEE') }}
                                     <span class="tabular-nums">{{ day.date|date('j') }}</span>
                                 </p>
 

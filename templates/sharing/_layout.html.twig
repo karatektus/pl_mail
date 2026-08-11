@@ -44,7 +44,7 @@ Variables:
   appearance  PublicAppearance  the owner's theme, or Paper by default
 #}
 <!DOCTYPE html>
-<html lang="{{ app.request.locale }}"
+<html lang="{{ app.request.locale|replace({'_': '-'}) }}"
       class="{{ appearance is defined ? appearance.htmlClass : '' }}"
       data-theme="{{ appearance is defined ? appearance.theme : 'paper' }}"
       style="{{ appearance is defined ? appearance.cssVariables : '' }}">

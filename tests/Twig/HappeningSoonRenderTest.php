@@ -122,7 +122,21 @@ final class HappeningSoonRenderTest extends KernelTestCase
         // late enough in the evening.
         $zone = $this->twig->getExtension(CoreExtension::class)->getTimezone();
 
-        self::assertStringContainsString($this->startsAt->setTimezone($zone)->format('D, j M'), $html);
+        // Built with ICU rather than with PHP's format(), because the row is
+        // rendered with ICU now: `format('D, j M')` is one arrangement of the
+        // fields for every language on earth, which is the bug this replaced.
+        // The expectation has to be "whatever this locale writes", or the test
+        // simply re-asserts the defect in the test file instead.
+        $expected = (new \IntlDateFormatter(
+            'en',
+            \IntlDateFormatter::NONE,
+            \IntlDateFormatter::NONE,
+            $zone,
+            \IntlDateFormatter::GREGORIAN,
+            (new \IntlDatePatternGenerator('en'))->getBestPattern('EEEdMMM'),
+        ))->format($this->startsAt->setTimezone($zone));
+
+        self::assertStringContainsString((string) $expected, $html);
     }
 
     /**

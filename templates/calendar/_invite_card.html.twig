@@ -41,9 +41,9 @@ Variables:
                            event is floating — a wall date at midnight, no zone
                            — so converting it to the reader's clock moves it,
                            and west of UTC that prints the day before. #}
-                        {{ event.startsAt|date('D, j M Y', false) }} · {{ 'calendar.event.all_day'|trans }}
+                        {{ event.startsAt|intl_date('EEEdMMMy', false) }} · {{ 'calendar.event.all_day'|trans }}
                     {% else %}
-                        {{ event.startsAt|date('D, j M Y') }} ·
+                        {{ event.startsAt|intl_date('EEEdMMMy') }} ·
                         {{ event.startsAt|date(clock.time) }}–{{ event.endsAt|date(clock.time) }}
                     {% endif %}
                 </p>
@@ -94,7 +94,7 @@ Variables:
                         <button type="submit"
                                 class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer
                                        {{ answer == status
-                                           ? 'bg-accent text-white'
+                                           ? 'bg-accent text-accent-ink'
                                            : 'border border-line text-ink-muted hover:bg-hover hover:text-ink' }}">
                             <i class="{{ answer.icon }} text-[10px]" aria-hidden="true"></i>
                             {{ answer.action|trans }}

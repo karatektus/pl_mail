@@ -115,13 +115,13 @@ The button itself carries `group` and `relative`.
         >
             {# Checkmark — shown when all selected #}
             <svg data-mail--list-toolbar-target="checkmark"
-                 class="hidden w-2.5 h-2.5 text-white pointer-events-none"
+                 class="hidden w-2.5 h-2.5 text-accent-ink pointer-events-none"
                  viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polyline points="1.5,5 3.8,7.5 8.5,2.5"/>
             </svg>
             {# Dash — shown when some (but not all) selected #}
             <svg data-mail--list-toolbar-target="indeterminate"
-                 class="hidden w-2.5 h-2.5 text-white pointer-events-none"
+                 class="hidden w-2.5 h-2.5 text-accent-ink pointer-events-none"
                  viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.2">
                 <line x1="2" y1="5" x2="8" y2="5"/>
             </svg>
@@ -216,12 +216,26 @@ The button itself carries `group` and `relative`.
     <div class="flex-1"></div>
 
     {# ── Sort order ────────────────────────────────────────────────────────
-       Search only. Every other list has one order and a control offering a
-       choice nobody has would be noise. Sits before the pagination because
-       switching it resets the pagination, and a control that changes the one
-       beside it belongs upstream of it. #}
+       Sits before the pagination because switching it resets the pagination,
+       and a control that changes the one beside it belongs upstream of it.
+
+       Two sources, one control. `sort` is the search page's SearchSortOrder,
+       whose second position is relevance; `list_sort` is a folder's
+       ListSortOrder, whose second position is oldest-first. Relevance has no
+       meaning without a query, so the two enums stay separate and the menu
+       renders whichever it is handed. #}
     {% if sort is defined and sort is not null and total > 0 %}
-        {% include '_partials/_search_sort_menu.html.twig' with { sort: sort } only %}
+        {% include '_partials/_sort_menu.html.twig' with {
+            current: sort,
+            options: enum('App\\Domain\\Enum\\Mail\\SearchSortOrder').cases,
+            route:   'app_mail_search',
+        } only %}
+    {% elseif list_sort is defined and list_sort is not null and total > 0 %}
+        {% include '_partials/_sort_menu.html.twig' with {
+            current: list_sort,
+            options: enum('App\\Domain\\Enum\\Mail\\ListSortOrder').cases,
+            route:   app.request.attributes.get('_route'),
+        } only %}
     {% endif %}
 
     {# ── Pagination ───────────────────────────────────────────────────────── #}

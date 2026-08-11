@@ -1126,6 +1126,16 @@ drafts:
 errors:
     access_denied: You do not have access to this resource.
     not_found: The requested resource could not be found.
+    page:
+        back: Back to your mail
+        not_found:
+            body: The page you asked for is not here. The link may be mistyped, or what it pointed at may have been moved or deleted.
+            heading: Nothing at this address
+            title: Page not found
+        server:
+            body: Something went wrong at our end, not yours. The fault has been logged; trying again in a moment usually works.
+            heading: Something went wrong
+            title: Server error
 
 form:
     file:
@@ -1216,6 +1226,11 @@ label:
     visibility:
         hidden: Label is now hidden.
         shown: Label is now visible.
+
+list:
+    sort:
+        newest: Newest first
+        oldest: Oldest first
 
 login:
     form:
@@ -1472,6 +1487,8 @@ search:
         label: Sort by
         recent: Most recent
         relevance: Most relevant
+    title: Search
+    title_query: 'Search: %query%'
 
 sent:
     empty: No sent messages.
@@ -2122,7 +2139,8 @@ sidebar:
         heading: Accounts
         loading: Loading…
         none: No accounts yet
-        toggle: Toggle account folders
+        open: 'Open %account%'
+        toggle: 'Show or hide folders in %account%'
     compose: Compose
     labels:
         add: Create label
@@ -2179,9 +2197,11 @@ thread_row:
     has_attachment: Has attachment
     me: me
     message_count: "({ count })"
+    no_recipient: (no recipient)
     no_subject: (no subject)
     select: Select
     star: Star this message
+    to: 'To: %recipients%'
     unread: Unread
     unstar: Unstar this message
 

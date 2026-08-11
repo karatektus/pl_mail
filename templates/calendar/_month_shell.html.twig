@@ -57,7 +57,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
     <div class="grid grid-cols-7 shrink-0 border-b border-line">
         {% for dayKey in dayKeys|slice(0, 7) %}
             <div class="px-2 py-1.5 text-[10px] uppercase tracking-wide text-ink-faint">
-                {{ dayKey|date('D') }}
+                {{ dayKey|intl_date('EEE') }}
             </div>
         {% endfor %}
     </div>
@@ -95,7 +95,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
                 <div class="flex items-center justify-between shrink-0 px-0.5">
                     {% if isToday %}
                         <span class="w-5 h-5 flex items-center justify-center rounded-full
-                                     bg-accent text-white text-xs font-semibold tabular-nums">
+                                     bg-accent text-accent-ink text-xs font-semibold tabular-nums">
                             {{ dayKey|date('j') }}
                         </span>
                     {% else %}

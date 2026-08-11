@@ -16,7 +16,7 @@ sender is on the reader's allowlist. Printing is a read, and a tracking pixel
 does not care which stylesheet fired it.
 #}
 {% set render = message_render(message) %}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale|replace({'_': '-'}) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,7 +58,8 @@ does not care which stylesheet fired it.
         {%- for entry in message.toAddresses ?? [] %} {{ entry.address }}{{ not loop.last ? ',' : '' }}{% else %} —{% endfor %}
     </p>
     <p class="muted">
-        {{ (message.receivedAt ?? message.sentAt) ? (message.receivedAt ?? message.sentAt)|date('D, M j, Y, ' ~ clock.time) : '' }}
+        {% set printedAt = message.receivedAt ?? message.sentAt %}
+        {{ printedAt ? printedAt|intl_date('EEEdMMMy') ~ ', ' ~ printedAt|date(clock.time) : '' }}
     </p>
 </div>
 

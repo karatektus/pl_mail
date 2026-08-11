@@ -1153,6 +1153,16 @@ drafts:
 errors:
     access_denied: Du hast keinen Zugriff auf diese Ressource.
     not_found: Die angeforderte Ressource wurde nicht gefunden.
+    page:
+        back: Zurück zu deiner Mail
+        not_found:
+            body: Die aufgerufene Seite gibt es hier nicht. Vielleicht ist der Link vertippt, vielleicht wurde das Ziel verschoben oder gelöscht.
+            heading: Unter dieser Adresse ist nichts
+            title: Seite nicht gefunden
+        server:
+            body: Bei uns ist etwas schiefgelaufen, nicht bei dir. Der Fehler wurde protokolliert; ein neuer Versuch gleich hilft meistens.
+            heading: Da ist etwas schiefgelaufen
+            title: Serverfehler
 
 form:
     file:
@@ -1243,6 +1253,11 @@ label:
     visibility:
         hidden: Label ist jetzt ausgeblendet.
         shown: Label ist jetzt sichtbar.
+
+list:
+    sort:
+        newest: Neueste zuerst
+        oldest: Älteste zuerst
 
 login:
     form:
@@ -1502,6 +1517,8 @@ search:
         label: Sortieren nach
         recent: Neueste zuerst
         relevance: Relevanteste zuerst
+    title: Suche
+    title_query: 'Suche: %query%'
 
 sent:
     empty: Keine gesendeten Nachrichten.
@@ -2162,7 +2179,8 @@ sidebar:
         heading: Konten
         loading: Wird geladen…
         none: Noch keine Konten
-        toggle: Kontoordner ein-/ausklappen
+        open: '%account% öffnen'
+        toggle: 'Ordner in %account% ein-/ausklappen'
     compose: Schreiben
     labels:
         add: Label erstellen
@@ -2219,9 +2237,11 @@ thread_row:
     has_attachment: Enthält Anhang
     me: ich
     message_count: "({ count })"
+    no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
     select: Auswählen
     star: Diese Nachricht markieren
+    to: 'An: %recipients%'
     unread: Ungelesen
     unstar: Markierung dieser Nachricht entfernen
 

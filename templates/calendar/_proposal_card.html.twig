@@ -41,9 +41,9 @@ Variables:
                 <p class="text-xs text-ink-muted mt-0.5">
                     {% if proposal.isAllDay %}
                         {# Floating, like an all-day event — see _invite_card. #}
-                        {{ proposal.startsAt|date('D, j M Y', false) }} · {{ 'calendar.event.all_day'|trans }}
+                        {{ proposal.startsAt|intl_date('EEEdMMMy', false) }} · {{ 'calendar.event.all_day'|trans }}
                     {% else %}
-                        {{ proposal.startsAt|date('D, j M Y') }} ·
+                        {{ proposal.startsAt|intl_date('EEEdMMMy') }} ·
                         {{ proposal.startsAt|date(clock.time) }}–{{ proposal.endsAt|date(clock.time) }}
                     {% endif %}
                 </p>
@@ -69,7 +69,7 @@ Variables:
                 <input type="hidden" name="_token" value="{{ csrf_token('calendar_proposal' ~ proposal.message.id) }}">
 
                 <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-accent text-white">
+                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-accent text-accent-ink">
                     <i class="fa-solid fa-calendar-plus text-[10px]" aria-hidden="true"></i>
                     {{ 'calendar.proposal.action.add'|trans }}
                 </button>

@@ -4,11 +4,13 @@ namespace App\Repository\Mail;
 
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
+use App\Service\Search\FreeTextCompiler;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -18,8 +20,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 class MessageThreadRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FreeTextCompiler $freeText = new FreeTextCompiler(),
+    ) {
         parent::__construct($registry, MessageThread::class);
     }
 
@@ -67,7 +71,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * entity, so none of the two joins — nor the DISTINCT they make necessary —
      * is available to it.
      */
-    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -81,12 +85,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('category', $category)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
             ->distinct();
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -191,7 +196,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * reason findForUnifiedInbox() is: the role lives on a Label the thread
      * reaches through a to-many, and the owner on the Account.
      */
-    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50): array
+    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -203,7 +208,6 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('l.role = :role')
             ->setParameter('user', $user)
             ->setParameter('role', $role)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
             ->distinct();
@@ -214,6 +218,8 @@ class MessageThreadRepository extends ServiceEntityRepository
         if (LabelRole::Trash !== $role) {
             $this->excludeTrashed($qb);
         }
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -248,7 +254,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder because the label is a to-many association: findBy() has no
      * way to say "carries this label".
      */
-    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50): array
+    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -256,12 +262,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->join('t.labels', 'l')
             ->where('l = :label')
             ->setParameter('label', $label)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage);
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -309,16 +316,17 @@ class MessageThreadRepository extends ServiceEntityRepository
      * loudest version of the bug — an "everything" list is exactly where a
      * month of deleted mail piles up.
      */
-    public function findForAccount(Account $account, int $page = 1, int $perPage = 50): array
+    public function findForAccount(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.account = :account')
             ->setParameter('account', $account)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -383,7 +391,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder for the join to Account: both the owner and whether the
      * account is still active live there, and neither is a field of the thread.
      */
-    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50): array
+    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -393,11 +401,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('a.isActive = true')
             ->andWhere('t.starredAt IS NOT NULL')
             ->setParameter('user', $user)
-            ->orderBy('t.lastMessageAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($perPage);
 
         $this->excludeTrashed($qb);
+
+        $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
@@ -680,13 +689,56 @@ class MessageThreadRepository extends ServiceEntityRepository
         $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
-        // ── Free-text via tsvector ────────────────────────────────────────
+        // ── Free-text: three passes, OR-ed ────────────────────────────────
+        // websearch_to_tsquery alone answers only the question "does this mail
+        // contain exactly these words", which is not the question anyone types
+        // into a search box. The other two passes are additive — nothing that
+        // matched before stops matching — and each costs something:
+        //
+        //   websearch  index-only, GIN on search_vector. Free.
+        //   prefix     the same GIN index; `:*` makes it a range over the
+        //              lexeme dictionary rather than a point lookup, so it
+        //              reads more index entries but no more heap.
+        //   substring  ILIKE '%needle%'. Sequential without help, which is why
+        //              Version20260811... installs pg_trgm and GIN trigram
+        //              indexes over the four columns it touches. Restricted to
+        //              a single term of 3+ characters — see FreeTextCompiler,
+        //              which is also where the safety of the tsquery text is
+        //              established.
         $rankExpr = '0';
 
         if ($query->freeText !== '') {
-            $where[]            = "m.search_vector @@ websearch_to_tsquery('english', :freeText)";
-            $params['freeText'] = $query->freeText;
-            $rankExpr           = "ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))";
+            $free = $this->freeText->compile($query->freeText);
+
+            $matches            = ["m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
+            $ranks              = ["ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))"];
+            $params['freeText'] = $free->websearch;
+
+            if (null !== $free->prefix) {
+                $matches[]            = "m.search_vector @@ to_tsquery('english', :freePrefix)";
+                $ranks[]              = "ts_rank(m.search_vector, to_tsquery('english', :freePrefix))";
+                $params['freePrefix'] = $free->prefix;
+            }
+
+            if (null !== $free->substring) {
+                // from_name and from_address as well as the body: a search for
+                // part of a sender's domain is the same gesture as a search for
+                // part of a word in the text, and fails the same way without it.
+                $matches[] = '('
+                    . 'm.subject ILIKE :freeLike'
+                    . ' OR m.body_text ILIKE :freeLike'
+                    . ' OR m.from_name ILIKE :freeLike'
+                    . ' OR m.from_address ILIKE :freeLike'
+                    . ')';
+                $params['freeLike'] = $this->freeText->likePattern($free->substring);
+            }
+
+            $where[] = '(' . implode(' OR ', $matches) . ')';
+
+            // A row reached only by the substring pass has no ts_rank to give;
+            // GREATEST over what did match keeps relevance ordering meaningful
+            // instead of letting a NULL sink every such row to the bottom.
+            $rankExpr = 1 === count($ranks) ? $ranks[0] : 'GREATEST(' . implode(', ', $ranks) . ')';
         }
 
         // ── Operator filters ──────────────────────────────────────────────

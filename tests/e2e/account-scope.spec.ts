@@ -28,8 +28,15 @@ test.describe("account scoping", () => {
      * on a locator that was hidden rather than missing.
      */
     const expandAccount = async (page: import("@playwright/test").Page) => {
+        // Selected by its controller target, not by its label. The label now
+        // names the account it belongs to ("Show or hide folders in a@b.test"),
+        // because every account rendered one and three identical ones is three
+        // controls a screen reader cannot tell apart — so an exact-match
+        // selector on the wording is a selector that breaks whenever the
+        // wording is improved. The target attribute is what makes it this
+        // button.
         const toggle = page
-            .locator('#sidebar button[aria-label="Toggle account folders"]')
+            .locator('#sidebar button[data-settings--account-expand-target="toggle"]')
             .first();
 
         await expect(toggle).toBeVisible();

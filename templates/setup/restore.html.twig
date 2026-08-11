@@ -89,7 +89,7 @@ action and is never hidden.
 
                             <a href="{{ hasUsers ? path('app_login') : path('app_install') }}"
                                id="restore-finish"
-                               class="mt-4 block w-full text-center bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                               class="mt-4 block w-full text-center bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium py-2 rounded-lg transition-colors">
                                 {{ (hasUsers ? 'setup.restore.sign_in' : 'setup.restore.continue')|trans }}
                             </a>
                         {% endset %}
@@ -127,7 +127,7 @@ action and is never hidden.
                             </div>
 
                             <button type="submit" id="restore-apply"
-                                    class="w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                                    class="w-full bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium py-2 rounded-lg transition-colors">
                                 {{ 'admin.config_backup.review.apply'|trans }}
                             </button>
                         </form>
@@ -156,7 +156,7 @@ action and is never hidden.
                         </div>
 
                         <button type="submit" id="restore-submit"
-                                class="w-full bg-accent hover:bg-accent-strong text-white text-sm font-medium py-2 rounded-lg transition-colors">
+                                class="w-full bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium py-2 rounded-lg transition-colors">
                             {{ 'setup.restore.submit'|trans }}
                         </button>
                     </form>

@@ -871,6 +871,16 @@ drafts:
 errors:
     access_denied: Ye have no leave to enter here.
     not_found: That be nowhere on the charts.
+    page:
+        back: Back to yer mail
+        not_found:
+            body: The page ye hailed be not here. Happen the link be mistyped, or what it pointed at were moved or scuttled.
+            heading: Naught at these coordinates
+            title: Page be lost at sea
+        server:
+            body: Somethin' went wrong on our deck, not yours. The fault be in the log; another go in a moment most often sails.
+            heading: Somethin' went wrong
+            title: The ship be takin' water
 
 form:
     file:
@@ -960,6 +970,11 @@ label:
     visibility:
         hidden: That flag be lowered.
         shown: That flag flies again.
+
+list:
+    sort:
+        newest: Freshest catch
+        oldest: Oldest catch
 
 login:
     form:
@@ -1208,6 +1223,8 @@ search:
         label: Sort by
         recent: Freshest catch
         relevance: Closest to the mark
+    title: Scourin'
+    title_query: 'Scourin'' for: %query%'
 
 sent:
     empty: No bottles cast off.
@@ -1799,7 +1816,8 @@ sidebar:
         heading: Th' crew
         loading: Haulin' aboard…
         none: No crew yet
-        toggle: Open or close the crew's lockers
+        open: 'Board %account%'
+        toggle: 'Open or close the lockers in %account%'
     compose: Scribble
     labels:
         add: Hoist a new flag
@@ -1856,9 +1874,11 @@ thread_row:
     has_attachment: Carries cargo
     me: me
     message_count: "({ count })"
+    no_recipient: (bound for nowhere)
     no_subject: (no subject)
     select: Pick it
     star: Mark this bottle with an X
+    to: 'Bound for: %recipients%'
     unread: Unread by any soul
     unstar: Rub out the X
 

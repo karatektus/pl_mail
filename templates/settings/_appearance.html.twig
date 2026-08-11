@@ -28,7 +28,13 @@
                         <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
                         <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
                     </span>
-                    <span class="text-[11px] text-ink-muted">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
+                    {# The theme's name is the only thing that says which tile
+                       is which, so it is primary content, not a caption: it
+                       gets the soft ink (7.5:1 or better in every theme) at
+                       12px rather than muted ink at 11px. It was the lowest
+                       contrast text on the page and it is the text a person
+                       reads most carefully here. #}
+                    <span class="text-xs text-ink-soft">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
                 </button>
             {% endfor %}
         </div>

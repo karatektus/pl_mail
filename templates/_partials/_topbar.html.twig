@@ -137,7 +137,7 @@
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover"
             aria-label="{{ 'calendar.soon.open'|trans }}"
-            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|date('D, j M', soonest.event.isAllDay ? false : null) }}"
+            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}"
         >
             <i class="{{ soonest.icon }} text-base" aria-hidden="true"></i>
         </button>
@@ -268,7 +268,7 @@
             <button id="user-menu-btn"
                     data-admin--log-alert-target="ring"
                     data-action="click->ui--user-menu#toggle"
-                    class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-white text-xs font-semibold transition-all
+                    class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-accent-ink text-xs font-semibold transition-all
                            {% if unseenLogs %}ring-2 ring-offset-1 {{ unseenLogs.tone == 'danger' ? 'ring-red-500' : 'ring-amber-500' }}{% endif %}"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
                     title="{{ unseenLogs

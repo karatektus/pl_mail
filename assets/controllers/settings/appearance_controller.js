@@ -336,11 +336,54 @@ export default class extends Controller {
         return `${r} ${g} ${b}`;
     }
 
+    /**
+     * The ink to write ON the accent, by measurement.
+     *
+     * This is AppearanceRenderer::contrastChannels() in JavaScript, and it has
+     * to stay that — the picker paints the choice live and the server paints it
+     * on the next load, so any disagreement between the two shows up as the
+     * accent's text changing colour on reload. (The e2e theme-switch parity
+     * spec is what catches that.)
+     *
+     * Luminance is computed on gamma-EXPANDED channels, which is what WCAG
+     * defines and what the old weighted-raw-channel test was not; it only
+     * crossed its 0.6 threshold for very light accents, so a mid-tone pink got
+     * white text at 2.34:1 against a 4.5:1 requirement. Both candidate inks are
+     * scored and the better wins, so there is no threshold left to mistune.
+     * #18181B is the app's dark ink everywhere else and stays the dark choice
+     * unless it cannot reach 4.5:1, in which case pure black does — see the PHP
+     * for why that band exists.
+     */
     contrast(hex) {
-        const [r, g, b] = this.channels(hex).split(' ').map(Number);
-        const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        const accent = this.relativeLuminance(this.channels(hex).split(' ').map(Number));
 
-        return luminance > 0.6 ? '24 24 27' : '255 255 255';
+        const house = [24, 24, 27];
+        const light = [255, 255, 255];
+        const black = [0, 0, 0];
+
+        const onHouse = this.contrastRatio(accent, this.relativeLuminance(house));
+        const onLight = this.contrastRatio(accent, this.relativeLuminance(light));
+        const onBlack = this.contrastRatio(accent, this.relativeLuminance(black));
+
+        if (onLight > onHouse && onLight > onBlack) {
+            return light.join(' ');
+        }
+
+        return (onHouse >= 4.5 ? house : black).join(' ');
+    }
+
+    relativeLuminance([r, g, b]) {
+        const expand = (channel) => {
+            const c = channel / 255;
+
+            return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+
+        return 0.2126 * expand(r) + 0.7152 * expand(g) + 0.0722 * expand(b);
+    }
+
+    contrastRatio(a, b) {
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
     }
 
     /* ── Text ─────────────────────────────────────────────────────────────── */

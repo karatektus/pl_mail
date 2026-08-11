@@ -159,12 +159,12 @@ one) `placed`:
                    row wrong. $zone is for instants — see `nowMinute` above,
                    which is one. #}
                 <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                    {{ dayKey|date('D') }}
+                    {{ dayKey|intl_date('EEE', false) }}
                 </span>
 
                 {% if isToday %}
                     <span class="w-5 h-5 -my-0.5 flex items-center justify-center rounded-full
-                                 bg-accent text-white text-xs font-semibold tabular-nums">
+                                 bg-accent text-accent-ink text-xs font-semibold tabular-nums">
                         {{ dayKey|date('j') }}
                     </span>
                 {% else %}

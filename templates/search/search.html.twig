@@ -1,7 +1,12 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
+{#
+    The query goes through a translated pattern rather than being concatenated
+    ahead of the word "Search": the order of the two is a property of the
+    language, not of the page.
+#}
 {% block title %}
-    {% if q %}{{ q }} — {{ 'search.title'|trans }}{% else %}{{ 'search.title'|trans }}{% endif %} — {{ 'app.name'|trans }}
+    {%- if q %}{{ 'search.title_query'|trans({ '%query%': q }) }}{% else %}{{ 'search.title'|trans }}{% endif %} — {{ 'app.name'|trans -}}
 {% endblock %}
 
 {% block inbox_tabs %}

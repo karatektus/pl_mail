@@ -131,8 +131,8 @@ Variables:
            where it was finally caught. #}
         <p class="mt-1 text-sm text-ink-muted">
             {{ 'calendar.share.window_label'|trans({
-                '%from%': shared.from|date('j M Y'),
-                '%to%': shared.to|date_modify('-1 day')|date('j M Y'),
+                '%from%': shared.from|intl_date('dMMMy'),
+                '%to%': shared.to|date_modify('-1 day')|intl_date('dMMMy'),
             }) }}
         </p>
 

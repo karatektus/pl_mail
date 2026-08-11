@@ -186,7 +186,7 @@ mailed-by and signed-by were silently missing from every IMAP message.
 
             <dt class="text-ink-faint text-right">{{ 'message.details.date'|trans }}</dt>
             <dd class="text-ink-soft">
-                {{ dateAt ? dateAt|date('D, M j, Y, g:i a') : '—' }}
+                {{ dateAt ? dateAt|intl_date('EEEdMMMy') ~ ', ' ~ dateAt|date(clock.time) : '—' }}
             </dd>
 
             <dt class="text-ink-faint text-right">{{ 'message.details.subject'|trans }}</dt>

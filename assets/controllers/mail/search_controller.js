@@ -64,11 +64,55 @@ export default class extends Controller {
     connect() {
         this._boundOutside = this._handleOutsideClick.bind(this);
         document.addEventListener("click", this._boundOutside, { capture: true });
+
+        // The box must always say what the results below it were filtered by.
+        // Clicking a folder after a search used to leave the query sitting in
+        // the box above an unfiltered list — the search input survives the
+        // visit, and the folder page has no `q` to overwrite it with, so the
+        // box claimed a filter that was not applied.
+        //
+        // Synced from the URL rather than cleared on navigation, because the
+        // rule is not "clear it when leaving search" — it is "the box shows the
+        // query in the address bar". That is also true going the other way: a
+        // link straight to /mail/search?q=x, a reload, or back into a search
+        // from a folder all fill the box in, and none of them are a case
+        // clearing logic would have covered.
+        this._boundSync = this.#syncToUrl.bind(this);
+        this.#syncToUrl();
+
+        // connect() alone is not enough: the element can survive a Turbo visit,
+        // in which case the controller is never re-connected and only the URL
+        // changed.
+        document.addEventListener("turbo:load", this._boundSync);
+        document.addEventListener("turbo:frame-load", this._boundSync);
     }
 
     disconnect() {
         clearTimeout(this.#debounce);
         document.removeEventListener("click", this._boundOutside, { capture: true });
+        document.removeEventListener("turbo:load", this._boundSync);
+        document.removeEventListener("turbo:frame-load", this._boundSync);
+    }
+
+    /** Make the box agree with `?q=` in the address bar. */
+    #syncToUrl() {
+        if (false === this.hasInputTarget) {
+            return;
+        }
+
+        // Never yank the text out from under someone mid-type. A frame load can
+        // land while the box has focus — the list refreshing underneath is the
+        // ordinary case — and the address bar is not the authority on a query
+        // that has not been submitted yet.
+        if (document.activeElement === this.inputTarget) {
+            return;
+        }
+
+        const query = new URLSearchParams(window.location.search).get("q") ?? "";
+
+        if (this.inputTarget.value !== query) {
+            this.inputTarget.value = query;
+        }
     }
 
     // ── Input events ──────────────────────────────────────────────────────
