@@ -24,7 +24,9 @@
             {{ message.subject ?: ('thread.no_subject'|trans) }}
         </h1>
 
-        <div class="flex items-start justify-between border-b border-line pb-4 mb-4">
+        {# Sticky within this pane's scroller (H-14) — same reasoning as the
+           conversation view: sender and date stay put while the mail moves. #}
+        <div class="flex items-start justify-between border-b border-line pb-4 mb-4 sticky top-0 z-10 bg-surface pt-1 -mt-1">
             <div>
                 <p class="text-sm font-medium text-ink">
                     {{ message.fromName ?: message.fromAddress }}
@@ -38,28 +40,19 @@
             </p>
         </div>
 
-        {% if message.bodyHtmlSafe %}
-            <div class="mail-sheet text-sm overflow-x-auto">
-                {{ message.bodyHtmlSafe|raw }}
-            </div>
-        {% else %}
-            <div class="mail-sheet whitespace-pre-wrap text-sm">
-                {{ message.bodyText }}
+        {# Attachments above the body (H-13) — see _thread_message for why. #}
+        {% if message.hasAttachments %}
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="text-xs font-medium text-ink-faint">{{ 'message.attachments'|trans }}</span>
+                {% for part in message.messageParts %}
+                    {% if not part.isInline %}
+                        {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
+                    {% endif %}
+                {% endfor %}
             </div>
         {% endif %}
 
-        {% if message.hasAttachments %}
-            <div class="mt-6 pt-4 border-t border-line">
-                <p class="text-xs font-medium text-ink-faint mb-2">{{ 'message.attachments'|trans }}</p>
-                <div class="flex flex-wrap gap-2">
-                    {% for part in message.messageParts %}
-                        {% if not part.isInline %}
-                            {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
+        {% include 'mail/_message_body.html.twig' with { message: message } only %}
 
     </div>
 </div>

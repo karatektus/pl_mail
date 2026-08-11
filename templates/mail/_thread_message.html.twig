@@ -61,7 +61,17 @@ Variables:
     data-mail--thread-message-expanded-value="{{ expanded ? 'true' : 'false' }}"
 >
     {# ── Header row ─────────────────────────────────────────────────────── #}
-    <div class="flex items-start gap-3">
+    {# Sticky within the conversation scroller (H-14). Long mail used to carry
+       the sender, the date and every action off the top of the pane, so the
+       answer to "who is this from" was a scroll away from the sentence that
+       raised the question. Each message's header parks at the top and is
+       pushed out by the next one's, which is what a reader expects from a
+       list of things they are moving through.
+
+       bg-surface, not transparent: `.mail-sheet` re-points --rgb-surface at the
+       sheet, so this is the sheet's own colour and the body scrolls *under* it
+       rather than through it. z-10 keeps it over the frame. #}
+    <div class="flex items-start gap-3 sticky top-0 z-10 bg-surface pt-2 -mt-2 pb-2">
         {# Same tone the thread list derives for this sender — one person, one
            colour, wherever they appear. The gradient this replaces was a
            hardcoded one-off that predated SenderAvatarExtension: every sender
@@ -132,6 +142,22 @@ Variables:
 
     {# ── Body — full pane width ─────────────────────────────────────────── #}
     <div data-mail--thread-message-target="body" class="{{ expanded ? '' : 'hidden' }} mt-4">
+        {# Attachments, directly under the header (H-13).
+           They used to render after the full HTML body, which on a long mail
+           put them some 750px below the fold — an attachment nobody scrolled
+           to is an attachment nobody was sent. The chips themselves are
+           untouched; this is the same partial, moved. #}
+        {% if message.hasAttachments %}
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="text-xs font-medium text-ink-faint">{{ 'message.attachments'|trans }}</span>
+                {% for part in message.messageParts %}
+                    {% if not part.isInline %}
+                        {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
         {# An invitation, above the mail that carried it. The lookup is one
            query per CONVERSATION, not per message — InviteReader loads the
            whole thread's links the first time any message in it asks. #}
@@ -150,26 +176,9 @@ Variables:
             {% include 'calendar/_proposal_card.html.twig' with { proposal: proposal } only %}
         {% endif %}
 
-        {% if message.bodyHtmlSafe %}
-            <div class="mail-sheet text-sm overflow-x-auto">
-                {{ message.bodyHtmlSafe|raw }}
-            </div>
-        {% else %}
-            <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ message.bodyText }}</pre>
-        {% endif %}
-
-        {% if message.hasAttachments %}
-            <div class="mt-4 pt-4 border-t border-line">
-                <p class="text-xs font-medium text-ink-faint mb-2">{{ 'message.attachments'|trans }}</p>
-                <div class="flex flex-wrap gap-2">
-                    {% for part in message.messageParts %}
-                        {% if not part.isInline %}
-                            {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
+        {# The body, its warnings and its images bar — all decided in one place.
+           See mail/_message_body.html.twig for why it is framed. #}
+        {% include 'mail/_message_body.html.twig' with { message: message } only %}
     </div>
 </div>
 {% endif %}

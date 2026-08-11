@@ -324,10 +324,16 @@ Credentials in the URL are refused outright, because they would be logged wherev
 and would silently override the ones on the connection.
 
 **It is deliberately not a full DNS-rebinding defence**, and the docblock says so: a hostname
-resolving to a private address at connect time still gets through. Closing that needs pinning
-the resolved IP into the HTTP client, which Symfony's client does not expose. Resolving the
-hostname here would only buy a check an attacker can invalidate between now and the request.
-The allow-list is the honest mitigation, and admins pinning `baseUrl` sidestep the question.
+resolving to a private address at connect time still gets through. The allow-list is the honest
+mitigation, and admins pinning `baseUrl` sidestep the question.
+
+> Correction, and a note for whoever hardens this next. This section used to add that closing
+> the rebinding hole "needs pinning the resolved IP into the HTTP client, which Symfony's client
+> does not expose". That is not true — `HttpClientInterface`'s `resolve` option does exactly
+> that, and `ImageProxyFetcher` (below) uses it. What kept the integration validator from
+> pinning is not the client; it is that the validator only inspects a URL and never makes the
+> request, so it has no request to pin. Moving the check next to the call is the work, and it
+> is work nobody has done yet.
 
 The same shape appears in `App\Service\Calendar\Sync\IcsUrl\IcsUrlNormaliser` for subscribed
 feeds — see [ICS feeds](../providers/ics-feeds.md) for which addresses are refused and why —
@@ -483,6 +489,125 @@ take a published page off the internet by refreshing it.
 forever. There is consequently no CSRF token on the booking form, and
 `App\Controller\Sharing\BookingController` argues why that is the right trade.
 
+## Rendering somebody else's HTML
+
+A message body is markup written by a stranger, and plMail puts it on screen. Three separate
+things had to be true before that is safe, and only one of them was.
+
+### Remote images are blocked, and opting in still does not expose the reader
+
+An `<img src="https://sender.example/open.gif">` in an email is a read receipt. It fires the
+moment the message is opened and tells the sender the time, the reader's IP address, their
+user agent, and — with a per-recipient URL — exactly which recipient it was. A 526×5 "spacer"
+is the usual disguise.
+
+`App\Service\Mail\RemoteContentBlocker` rewrites the body on the way to the template. Absolute
+`http(s)` and protocol-relative `img` sources, and remote `url()` references in inline styles
+— which is where `MailBodySanitizer`'s CSS flattening puts every `<style>` rule — lose their
+reference to a transparent placeholder, and the proxy URL is parked on `data-plmail-src` for
+the un-block. `cid:` inline images were resolved to our own attachment route at ingest and are
+left alone; so are `data:` URIs, which make no request.
+
+**It runs at render time, not at ingest**, for two reasons that are worth keeping: every
+message already in the database was sanitized before this existed, so an ingest-time block
+would protect only future mail; and the answer depends on *who is asking*, because
+"always show images from this sender" is per user (`trusted_image_sender`). A stored form
+cannot carry an answer that varies by reader.
+
+When the reader does opt in, the images load **through `/mail/image-proxy`** rather than
+directly — so an opted-in read leaks no IP either. That is the whole reason there is a proxy
+and not just an unblock.
+
+### The image proxy's rules
+
+`App\Service\Mail\ImageProxyFetcher` is a service that connects wherever a stranger's email
+tells it to, from inside the container network. Its rules, in the order applied:
+
+1. **https only.** An http fetch is a cleartext request our server makes on a schedule the
+   sender chooses.
+2. **Port 443 only.** A URL is otherwise a fine way to ask a server to port-scan its own
+   network; pinning the port removes the class rather than blacklisting the interesting ports.
+3. **Every address the host resolves to must be public**, and the connection is then **pinned**
+   to a checked address through the client's `resolve` option. Checking and letting the client
+   resolve again is the rebinding hole. Refused: RFC1918, loopback, link-local (including
+   169.254.169.254), IPv6 ULA and link-local, `100.64.0.0/10`, and IPv4-mapped IPv6 such as
+   `::ffff:127.0.0.1`. Names are refused before the resolver for `localhost`, `.internal`,
+   `.local`, and any **bare label** — which is how services are named on a container network.
+4. **Redirects are followed by hand**, at most three, each hop re-running rules 1–3.
+   `max_redirects` in the client follows them past every check, and a public host redirecting
+   to the metadata endpoint is the standard exfiltration.
+5. **The response must be an image and must stop at 8 MB.**
+
+Referer and Cookie are never sent, because the request is built from scratch. Every failure
+answers with the same transparent GIF: distinguishing "refused" from "timed out" against an
+internal address is itself the port-scan result rule 2 exists to deny.
+
+The signed URL is **not** the SSRF defence and the docblock says so — anyone with an account
+can mail themselves a link and be handed a valid signature. The signature proves the parameter
+was not typed by hand; the address checks are what constrain where we connect.
+
+This is deliberately **not** `IntegrationUrlValidator`. That one has an allow-list and an
+admin-pinned base URL because a user is naming their own Nextcloud on a LAN; importing its
+escape hatches here would mean an admin allowing a LAN host for Immich had also allowed every
+sender's mail to reach it.
+
+### The body renders in a sandboxed frame
+
+The sanitized body used to be injected into the app's own DOM. The sanitizer held — but "no
+gaps, forever, against every sender" is a claim that has to keep being true, and the cost of
+it being wrong once was a same-origin script with the session cookie.
+
+`templates/mail/_message_body.html.twig` renders it into an `<iframe srcdoc>` with
+`sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts"`. The security comes from
+what is **absent**: no `allow-same-origin` (an opaque origin — no session cookie, no storage,
+no reach into the parent), no `allow-forms`, no `allow-top-navigation`, no `allow-modals`, no
+`allow-downloads`. `allow-scripts` is present because height is a fact only the framed document
+can measure and a frame without `allow-same-origin` cannot be measured from outside; it is paid
+for by the frame's own `<meta>` CSP, which restricts `script-src` to a **per-render nonce** that
+our ~30 lines of height-and-hover reporting carry and no markup arriving in an email can.
+
+The CSP's `img-src` names our own origin and `data:` explicitly — not `'self'`, which in an
+opaque origin matches nothing. So a remote image the blocker somehow missed is refused by the
+browser too: both layers have to fail for a pixel to fire.
+
+**Every warning is drawn outside the frame.** A banner inside the sandbox is a banner mail
+markup can paint for itself, and a "Show images" button a message can forge is worse than no
+button. The same goes for the hovered-link preview: detected inside the frame, where the links
+are, and drawn by the parent, so a message cannot paint a status bar claiming a different
+destination.
+
+The print view (`templates/mail/print.html.twig`) is **not** framed, because a print dialog
+aimed at a page whose content is in a frame paginates the frame's scrollbox. It buys the same
+two properties differently: the same CSP, and no application DOM on the page for mail CSS to
+collide with. It blocks remote images on the same allowlist — printing is a read.
+
+### The phishing heuristic, and exactly what sets it off
+
+`App\Service\Mail\SenderIdentityChecker` — two rules, no scoring, no model, no threshold.
+
+- **Rule 1, DomainInName.** The display name contains something shaped like a hostname whose
+  registrable domain differs from the From address's.
+- **Rule 2, BrandInName.** Runs *only* when the display name carries a legal form as a whole
+  word (GmbH, Inc, Ltd, AG, B.V., …), which is what distinguishes an organisation from a
+  person. Then: words of 4+ letters, minus the legal form and generic corporate vocabulary
+  (Online, Group, Services, Deutschland, …); if at least one survives and **none** occurs in
+  the sender's registrable domain with punctuation stripped, the names disagree.
+
+Neither runs when Authentication-Results shows **DKIM passing for the sender's own registrable
+domain** — a domain that signed the message may put what it likes in its display name.
+
+A display name without a legal form is never judged, which is what keeps "Jane Cooper"
+&lt;jane@gmail.com&gt; quiet. Substring matching is generous on purpose: "PayPal Inc."
+&lt;service@paypal-secure.example&gt; is a **known, tested miss**, because catching it means
+edit-distance scoring against a brand list and every false positive that bought would be spent
+on ordinary mail. A warning that fires on ordinary mail trains the reflex it exists to
+interrupt.
+
+The Spam banner is separate and needs no heuristic at all: the message carries a label whose
+role is Spam. A trusted sender does **not** get images inside Spam — the allowlist records a
+belief about a sender, and a message in Spam is the provider disagreeing about whether this is
+really that sender.
+
 ## Things that bite
 
 **Adding a service to compose without the `app_secrets` volume mints it a second encryption
@@ -519,3 +644,20 @@ coverage.
 **`InstallGuard` is the only thing between `/install` and an anonymous administrator.** The
 route is `PUBLIC_ACCESS` by necessity, and `security.yaml` says in as many words to read that
 class before touching the line.
+
+**`Dom\HTMLDocument::createFromString()` throws on a flag it does not know.** Its allowed set
+is `LIBXML_NOERROR`, `LIBXML_COMPACT`, `LIBXML_HTML_NOIMPLIED`, `Dom\HTML_NO_DEFAULT_NS` —
+passing `LIBXML_NOWARNING` alongside them, which is habit from `DOMDocument`, is a `ValueError`.
+`RemoteContentBlocker` fails closed, so the symptom was every message rendering as plain text:
+perfectly private and completely unreadable. It also needs the `'UTF-8'` override, because the
+sanitized body has no `<meta charset>` — `MailBodySanitizer` drops `<head>`.
+
+**A test that greps for "did the browser contact the sender" must match on the hostname, not
+on the URL.** The proxy carries the sender's URL inside its own query string, so the obvious
+Playwright glob `**://sender.example/**` matches every *correctly proxied* load and reports a
+leak at the exact moment the feature is working. `tests/e2e/rendering-security.spec.ts` uses a
+`(url) => url.hostname === …` predicate and says why.
+
+**Anything that renders `bodyHtmlSafe` must go through `message_render()`.** The Twig function
+exists so no template has to ask a security question, because the failure mode of forgetting is
+silent: the mail renders perfectly and the tracking pixels fire.

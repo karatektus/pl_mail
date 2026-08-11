@@ -54,6 +54,9 @@ services:
     App\Service\Mail\AttachmentThumbnailer:
         arguments:
             $projectDir: '%kernel.project_dir%'
+    App\Service\Mail\ImageProxyFetcher:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
     App\Service\OAuth\OAuthProviderFactory:
         arguments:
             $googleClientId: '%env(GOOGLE_OAUTH_CLIENT_ID)%'

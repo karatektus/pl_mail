@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\Message;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
@@ -30,6 +31,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 class ThreadStatusController extends AbstractController
 {
+    use RendersTurboStreams;
+
     public function __construct(
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
@@ -204,10 +207,4 @@ class ThreadStatusController extends AbstractController
         }
     }
 
-    private function renderTurboStream(string $template, array $params = []): Response
-    {
-        return $this->render($template, $params, new Response(
-            headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
-        ));
-    }
 }

@@ -1183,6 +1183,7 @@ message:
         unstar: Remove star
     attachments: Attachments
     back: Back
+    body_frame: Message content
     details:
         categorised:
             correspondent: 'you have written to this sender'
@@ -1208,11 +1209,25 @@ message:
         to: "to %name%"
         to_label: to
     draft: "Draft"
+    images:
+        always: 'Always show images from %sender%'
+        blocked: '{1}1 image was blocked to keep this read private|]1,Inf[ %count% images were blocked to keep this read private'
+        show_once: Show images
+        stop_trusting: Stop showing
+        trusted: 'Images are always shown for %sender%'
     original:
         copied: Copied
         copy: Copy to clipboard
         heading: Original message
     save_to: 'Save to'
+    security:
+        mismatch:
+            brand_in_name: "The name says “%claimed%”, but the message was sent from %actual%."
+            domain_in_name: "The name claims %claimed%, but the message was sent from %actual%."
+            title: "The sender's name does not match its address"
+        spam:
+            body: "This message was filed as spam. Its links and images are risky — treat anything it asks of you as a stranger's request."
+            title: This message is in Spam
 
 mercure:
     status:

@@ -1,0 +1,259 @@
+{#
+mail/_message_body.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One message body, and everything that has to be true around it.
+
+Included from the conversation view, the single-message pane and the trust
+Turbo Stream — so it owns the id those three agree on.
+
+WHY THE BODY IS IN AN IFRAME
+────────────────────────────
+It used to be injected straight into the app's own DOM. MailBodySanitizer held
+— nothing got through it — but "the sanitizer has no gaps" is a claim that has
+to keep being true forever, against every sender, and the cost of it being
+wrong once was a same-origin script with the session cookie. In here a gap is
+worth nothing: no allow-same-origin means an opaque origin, which has no access
+to our cookies, our storage or this document. The second thing it buys is
+smaller but hits every day — a sender's `td { padding: 0 }` can no longer
+reach the application's own layout.
+
+WHAT IS DELIBERATELY *OUTSIDE* THE FRAME
+────────────────────────────────────────
+Every warning, and the images bar. A banner rendered inside the sandbox is a
+banner mail markup can draw for itself, and a "Show images" button the message
+can forge is worse than no button at all. The trust boundary and the visual
+boundary are the same line.
+
+Variables:
+  message  Message
+#}
+{% set render = message_render(message) %}
+
+<div id="message_body_{{ message.id }}" class="mail-message-body">
+
+    {# ── Warnings ───────────────────────────────────────────────────────── #}
+    {% if render.inSpam %}
+        <div class="flex items-start gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 mb-3"
+             data-testid="spam-warning">
+            <i class="fa-solid fa-triangle-exclamation text-danger mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+            <div class="min-w-0">
+                <p class="text-sm font-semibold text-danger">{{ 'message.security.spam.title'|trans }}</p>
+                <p class="text-xs text-ink-muted">{{ 'message.security.spam.body'|trans }}</p>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if render.mismatch is not null %}
+        <div class="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 mb-3"
+             data-testid="sender-mismatch-warning">
+            <i class="fa-solid fa-user-shield text-warning mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+            <div class="min-w-0">
+                <p class="text-sm font-semibold text-ink">{{ 'message.security.mismatch.title'|trans }}</p>
+                {# Shows its working: the claim, and the address it came from.
+                   A reader can disagree with a fact; they can only obey a verdict. #}
+                <p class="text-xs text-ink-muted break-words">
+                    {{ render.mismatch.kind.translationKey|trans({
+                        '%claimed%': render.mismatch.claimed,
+                        '%actual%':  render.mismatch.actual,
+                    }) }}
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
+    {# ── The reading frame ──────────────────────────────────────────────── #}
+    {% if render.content.html is not empty %}
+
+        {% set frameDocument %}<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ render.csp }}">
+{# Every link in a mail body opens away from the app. MailBodySanitizer already
+   forces target="_blank" per link; this covers anything it did not author. #}
+<base target="_blank">
+<style>
+    /* The mail sheet, carried across the document boundary.
+       CSS custom properties do not inherit into a frame, and an opaque-origin
+       frame cannot be reached from outside to be styled — so these are the
+       fallbacks that paint immediately, and the parent controller posts the
+       live theme values over the top as soon as it can read them. Every theme's
+       sheet is light (see app.css), so a light default is never far wrong and
+       there is no flash of the wrong colours. */
+    :root { color-scheme: light; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        background: #fff;
+        color: #27272a;
+        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        word-break: break-word;
+        overflow-x: auto;
+    }
+    a { color: #1d4ed8; }
+    /* Senders assume a viewport. Without this a 700px table adds a horizontal
+       scrollbar to a pane that used to just show it. */
+    img { max-width: 100%; height: auto; }
+    /* A blocked image keeps its box so the layout holds, and says so. */
+    img[data-plmail-blocked] {
+        min-width: 12px; min-height: 12px;
+        background: repeating-linear-gradient(135deg, #f4f4f5 0 6px, #e4e4e7 6px 12px);
+        outline: 1px dashed #a1a1aa;
+        outline-offset: -1px;
+    }
+</style>
+</head><body>
+{{ render.content.html|raw }}
+<script nonce="{{ render.nonce }}">
+(function () {
+    "use strict";
+    // This script is the ONLY script that can run in here. `script-src
+    // 'nonce-…'` in the CSP above means markup arriving in an email cannot
+    // execute even if it somehow survived the sanitizer — it has no nonce, and
+    // it cannot read this one, because reading it would require running.
+    var send = function (message) { parent.postMessage(message, "*"); };
+
+    var lastHeight = 0;
+    var reportHeight = function () {
+        var height = Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight
+        );
+        if (height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
+    };
+
+    window.addEventListener("load", reportHeight);
+    document.addEventListener("DOMContentLoaded", reportHeight);
+    // Images settle after layout, and a mail is mostly images.
+    window.addEventListener("resize", reportHeight);
+    if (window.ResizeObserver) { new ResizeObserver(reportHeight).observe(document.documentElement); }
+
+    // Link preview. Detected in here because this is where the links are;
+    // DRAWN by the parent, because a status bar the message could paint over
+    // is a status bar that can lie about where a link goes.
+    document.addEventListener("mouseover", function (event) {
+        var anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+        if (anchor) { send({ plmail: "link", href: anchor.href }); }
+    });
+    document.addEventListener("mouseout", function (event) {
+        var anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+        if (anchor) { send({ plmail: "link", href: null }); }
+    });
+
+    window.addEventListener("message", function (event) {
+        // The parent is the only window that can reach us.
+        if (event.source !== parent || !event.data || typeof event.data !== "object") { return; }
+
+        if (event.data.plmail === "show-images") {
+            document.querySelectorAll("img[data-plmail-src]").forEach(function (img) {
+                // The stored value is already a proxy URL on our own origin —
+                // built server-side. There is no path from here back to the
+                // sender's host, whatever this code does.
+                img.src = img.getAttribute("data-plmail-src");
+                img.removeAttribute("data-plmail-src");
+                img.removeAttribute("data-plmail-blocked");
+            });
+            document.querySelectorAll("[data-plmail-style]").forEach(function (element) {
+                element.setAttribute("style", element.getAttribute("data-plmail-style"));
+                element.removeAttribute("data-plmail-style");
+                element.removeAttribute("data-plmail-blocked");
+            });
+            reportHeight();
+        }
+
+        if (event.data.plmail === "theme" && event.data.vars) {
+            var vars = event.data.vars;
+            document.body.style.background = vars.sheet || "";
+            document.body.style.color = vars.ink || "";
+            var rule = document.createElement("style");
+            rule.textContent = "a{color:" + (vars.link || "#1d4ed8").replace(/[^a-zA-Z0-9(),.%# ]/g, "") + "}";
+            document.head.appendChild(rule);
+        }
+    });
+
+    reportHeight();
+})();
+</script>
+</body></html>{% endset %}
+
+        <div
+            data-controller="mail--message-frame"
+            data-mail--message-frame-min-height-value="80"
+            class="relative"
+        >
+            <iframe
+                data-mail--message-frame-target="frame"
+                title="{{ 'message.body_frame'|trans }}"
+                sandbox="{{ render.sandbox }}"
+                referrerpolicy="no-referrer"
+                loading="lazy"
+                class="w-full block border-0 bg-transparent"
+                style="height: 80px;"
+                srcdoc="{{ frameDocument|e('html') }}"
+            ></iframe>
+
+            {# The link preview. In the parent, pinned to the frame's corner —
+               it reads as part of the frame and cannot be drawn by the mail. #}
+            <div
+                data-mail--message-frame-target="status"
+                class="hidden absolute bottom-0 left-0 max-w-full truncate rounded-tr-md bg-ink/85 text-inverse-ink px-2 py-1 text-[11px] font-mono pointer-events-none z-10"
+                data-testid="link-preview"
+            ></div>
+        </div>
+    {% elseif render.text %}
+        {# No HTML body: plain text needs no sandbox, because there is no markup
+           to sandbox. Twig escapes it, so it is text all the way down. #}
+        <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ render.text }}</pre>
+    {% endif %}
+
+    {# ── The images bar ─────────────────────────────────────────────────── #}
+    {% if render.offersImages %}
+        <div
+            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 rounded-lg border border-line bg-raised px-3 py-2"
+            data-testid="images-bar"
+            data-controller="mail--remote-images"
+        >
+            <i class="fa-regular fa-image text-ink-faint text-xs" aria-hidden="true"></i>
+            <span class="text-xs text-ink-muted flex-1 min-w-0">
+                {{ 'message.images.blocked'|trans({'%count%': render.content.blocked}) }}
+            </span>
+
+            <button
+                type="button"
+                data-action="click->mail--remote-images#show"
+                data-testid="show-images"
+                class="text-xs font-medium text-link hover:underline"
+            >{{ 'message.images.show_once'|trans }}</button>
+
+            {# Only offered where it can be honoured. A message in Spam does not
+               load images on an allowlist (see MessageRenderer), so offering to
+               add one here would be a button that visibly does nothing. #}
+            {% if not render.inSpam %}
+                <form
+                    method="post"
+                    action="{{ path('app_mail_images_trust', {'id': message.id}) }}"
+                    data-turbo="true"
+                >
+                    <button
+                        type="submit"
+                        data-testid="always-show-images"
+                        class="text-xs font-medium text-link hover:underline"
+                    >{{ 'message.images.always'|trans({'%sender%': message.fromAddress}) }}</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if render.senderTrusted and render.content.allowed > 0 %}
+        <div class="flex items-center gap-2 mt-3 text-xs text-ink-faint" data-testid="images-trusted">
+            <i class="fa-solid fa-check text-[10px]" aria-hidden="true"></i>
+            <span class="flex-1 min-w-0 truncate">
+                {{ 'message.images.trusted'|trans({'%sender%': message.fromAddress}) }}
+            </span>
+            <form method="post" action="{{ path('app_mail_images_distrust', {'id': message.id}) }}" data-turbo="true">
+                <button type="submit" class="font-medium text-link hover:underline">
+                    {{ 'message.images.stop_trusting'|trans }}
+                </button>
+            </form>
+        </div>
+    {% endif %}
+
+</div>

@@ -1,0 +1,15 @@
+{#
+mail/_message_body.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Swaps one message body for its re-decided self after the reader trusted — or
+stopped trusting — the sender.
+
+A replace rather than an update: the images bar, the warnings and the frame are
+all downstream of the same decision, and re-rendering the whole partial is what
+guarantees they cannot disagree with each other.
+#}
+<turbo-stream action="replace" target="message_body_{{ message.id }}">
+    <template>
+        {% include 'mail/_message_body.html.twig' with { message: message } only %}
+    </template>
+</turbo-stream>
