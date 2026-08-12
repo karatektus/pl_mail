@@ -288,6 +288,107 @@ test.describe("mobile compose window", () => {
         expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
     });
 
+    /**
+     * EVERY popover the toolbar can open, measured against the viewport at two
+     * phone widths.
+     *
+     * The last round shipped an emoji panel that was off screen on a phone
+     * while this file passed, because the spec asserted the panel EXISTED.
+     * Existence is not usability: a panel whose left edge is at -140 is
+     * visible to `toBeVisible()`, present to `toHaveCount(1)`, and useless to
+     * the person holding the phone. So these assert geometry — the box is
+     * inside the viewport on both axes — and they do it at 320px as well as
+     * 393px, because the narrow end is where a fixed `w-64` stops fitting.
+     *
+     * The reason any of it works: none of these are anchored to their button.
+     * Every control that opens one lives in `.compose-scroll-x`, whose
+     * `overflow-x: auto` computes `overflow-y: auto` as well — so a menu
+     * anchored to a button in there is both mispositioned (the strip scrolls)
+     * and clipped (it opens upwards out of a 36px box). The more-options menu
+     * was clipped away entirely until this spec went looking.
+     */
+    test.describe("popovers stay on screen", () => {
+        const cases: { name: string; open: (page: Page) => Promise<void>; panel: string }[] = [
+            {
+                name: "the emoji picker",
+                panel: `${composeWindow} .emoji-panel`,
+                open: async (page) => {
+                    await page.locator(composeWindow)
+                        .getByRole("button", { name: "Insert emoji" }).click();
+                },
+            },
+            {
+                name: "the link popover",
+                panel: '[data-compose--compose-toolbar-target="linkPopover"]',
+                open: async (page) => {
+                    await page.locator('[data-compose--compose-toolbar-target="editor"]').click();
+                    await page.locator(composeWindow)
+                        .getByRole("button", { name: "Insert link" }).click();
+                },
+            },
+            {
+                name: "the more-options menu",
+                // By what is inside it, not by position: the window holds
+                // several dropdown menus and the send-options one is hidden at
+                // this width, so `.first()` would silently measure that.
+                panel: '[data-ui--dropdown-target="menu"]:has([data-compose--compose-target="plainToggle"])',
+                open: async (page) => {
+                    await page.locator(composeWindow)
+                        .getByRole("button", { name: "More options" }).click();
+                },
+            },
+            {
+                name: "the plain-text warning",
+                panel: '[data-compose--compose-target="plainWarning"]',
+                open: async (page) => {
+                    const editor = page.locator('[data-compose--compose-toolbar-target="editor"]');
+
+                    await editor.click();
+                    await page.keyboard.type("emphasis");
+                    await page.keyboard.press("ControlOrMeta+a");
+                    await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
+                    await page.locator(composeWindow).getByRole("button", { name: "Bold" }).click();
+
+                    await page.locator(composeWindow)
+                        .getByRole("button", { name: "More options" }).click();
+                    await page.getByRole("button", { name: /Plain text mode/i }).click();
+                },
+            },
+        ];
+
+        for (const width of [393, 320]) {
+            for (const { name, open, panel } of cases) {
+                test(`${name} at ${width}px`, async ({ page }) => {
+                    await page.setViewportSize({ width, height: 851 });
+                    await openCompose(page);
+
+                    // Push the icon row to its far end first. A panel anchored
+                    // to a button in there would now open past the right edge,
+                    // which is exactly the bug being guarded against.
+                    const strip = page.locator(`${composeWindow} .compose-scroll-x`).last();
+                    await strip.hover();
+                    await page.mouse.wheel(400, 0);
+
+                    await open(page);
+
+                    const target = page.locator(panel).first();
+                    await expect(target).toBeVisible();
+
+                    const box = (await target.boundingBox())!;
+
+                    expect(box.x).toBeGreaterThanOrEqual(0);
+                    expect(box.x + box.width).toBeLessThanOrEqual(width + 0.5);
+                    expect(box.y).toBeGreaterThanOrEqual(0);
+                    expect(box.y + box.height).toBeLessThanOrEqual(851 + 0.5);
+                    // And wide enough to be worth opening — a 0px-tall clipped
+                    // box also satisfies "inside the viewport".
+                    expect(box.width).toBeGreaterThan(120);
+                    expect(box.height).toBeGreaterThan(40);
+                });
+            }
+        }
+    });
+
     test("returns to the mailbox from the back arrow", async ({ page }) => {
         await openCompose(page);
 

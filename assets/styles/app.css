@@ -1479,15 +1479,46 @@
    of being a white rectangle in a dark window. */
 emoji-picker {
     --emoji-font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+
+    /* THE CHANNELS SPENT THROUGH THEIR ALPHAS, which is the only correct way
+       to read them, and the "weird black borders" in the report were what
+       happens otherwise: --rgb-line is `0 0 0` in every light theme and
+       `255 255 255` in every dark one, because it carries a hue and leaves the
+       weight to --line-alpha (0.06–0.1). Written as rgb(var(--rgb-line)) with
+       no alpha it resolved to PURE BLACK — around the panel, around the search
+       field, and between the category tabs — in exactly the themes where a
+       hairline was meant. The pairs below are the same ones --color-line,
+       --color-hover and --color-sunken are built from, so the picker's edges
+       are now drawn with the values every other edge in the app uses. */
     --background: rgb(var(--rgb-surface));
-    --border-color: rgb(var(--rgb-line));
-    --input-border-color: rgb(var(--rgb-line));
+    --border-color: rgb(var(--rgb-line) / var(--line-alpha));
+    --input-border-color: rgb(var(--rgb-line) / var(--line-alpha));
     --input-font-color: rgb(var(--rgb-ink));
     --input-placeholder-color: rgb(var(--rgb-ink-faint));
+    --category-font-color: rgb(var(--rgb-ink-muted));
     --indicator-color: rgb(var(--rgb-accent));
     --button-active-background: rgb(var(--rgb-raised) / var(--raised-alpha));
-    --button-hover-background: rgb(var(--rgb-raised) / var(--raised-alpha));
+    --button-hover-background: rgb(var(--rgb-raised) / var(--hover-alpha));
+    --custom-emoji-background: rgb(var(--rgb-sunken) / var(--sunken-alpha));
     --outline-color: rgb(var(--rgb-accent));
+    --border-radius: var(--app-radius);
+
+    /* The second half of the same bug, and the half CSS variables could not
+       fix. emoji-picker-element declares `color-scheme` on its own :host from
+       `prefers-color-scheme` — the OPERATING SYSTEM's setting, which this app
+       does not use for anything: the theme comes from the user's account and
+       :root declares color-scheme per theme block to match. On a dark desktop
+       running the app in a light theme the picker therefore asked the browser
+       for dark UA widgets, and got a black search field and a black scrollbar
+       inside a white panel.
+
+       `inherit` hands it back to the theme. Declarations from the document
+       tree beat a shadow tree's :host for the same element, so this wins
+       without !important — and because it inherits rather than naming a
+       scheme, the runtime theme switch (which rewrites data-theme on <html>
+       and re-resolves :root) carries the picker with it. */
+    color-scheme: inherit;
+
     display: block;
     width: 100%;
     max-height: min(24rem, 50vh);
@@ -1505,6 +1536,15 @@ emoji-picker {
     .emoji-panel {
         max-width: none;
     }
+
+    /* Room for the panel AND the toolbar under it on a short phone. `bottom-20`
+       puts its foot at 5rem; 50vh of an 851px viewport is 425px, which together
+       overflow the top of a 667px iPhone SE. Measured against the viewport
+       rather than assumed — compose-mobile.spec.ts asserts the box is inside
+       it at 393px and at 320px. */
+    emoji-picker {
+        max-height: min(20rem, calc(100dvh - 12rem));
+    }
 }
 
 /* The body being written. Only emoji code points resolve here; every other
@@ -1512,4 +1552,22 @@ emoji-picker {
    editor's own typeface. */
 [data-compose--compose-toolbar-target="editor"] {
     font-family: 'Noto Color Emoji', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* A link in the body has to LOOK like one.
+   Tailwind's preflight resets `a` to `color: inherit; text-decoration: inherit`,
+   which is right for an app whose every anchor is already a styled button or a
+   list row — and wrong for the one surface where anchors are user content. A
+   link inserted into the editor was indistinguishable from the words around
+   it: nothing said it was there, so nothing invited the click that now opens
+   the link popover.
+
+   Accent rather than a browser blue, so it matches the theme, and the same
+   colour the popover writes the address in. The caret stays a text caret: this
+   is a document being written, and a pointer cursor over part of a sentence
+   would say the click does something other than put the cursor there. */
+[data-compose--compose-toolbar-target="editor"] a[href] {
+    color: rgb(var(--rgb-accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }

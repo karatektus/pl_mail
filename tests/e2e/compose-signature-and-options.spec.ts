@@ -19,6 +19,7 @@ const DOCK = "#compose_dock";
 const EDITOR = '[data-compose--compose-toolbar-target="editor"]';
 const HIDDEN = '[data-compose--compose-toolbar-target="hiddenInput"]';
 const PLAIN = '[data-compose--compose-target="plainBody"]';
+const WARNING = '[data-compose--compose-target="plainWarning"]';
 const SIGNATURE = "[data-pl-signature]";
 
 test.beforeAll(() => {
@@ -120,12 +121,14 @@ test.describe("compose more options", () => {
         await editor.click();
         await page.keyboard.type("Words with no markup.");
 
-        // The confirm is the warning about losing formatting — accepted here,
-        // because losing it is exactly what the test is asking for.
-        page.once("dialog", (dialog) => void dialog.accept());
-
         await page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..").click();
         await page.getByRole("button", { name: /Plain text mode/i }).click();
+
+        // The warning about losing formatting — accepted here, because losing
+        // it is exactly what this test is asking for. A popover now rather
+        // than a `window.confirm()`, which is why there is no dialog listener.
+        await expect(page.locator(`${DOCK} ${WARNING}`)).toBeVisible();
+        await page.locator(DOCK).getByRole("button", { name: "Continue" }).click();
 
         await expect(plain).toBeVisible();
         await expect(editor).toBeHidden();
@@ -157,9 +160,13 @@ test.describe("compose more options", () => {
 
         const menu = page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..");
 
-        page.once("dialog", (dialog) => void dialog.accept());
         await menu.click();
         await page.getByRole("button", { name: /Plain text mode/i }).click();
+
+        // There IS formatting to lose here, so the warning stands in the way —
+        // and accepting it is what the rest of this test needs.
+        await expect(page.locator(`${DOCK} ${WARNING}`)).toBeVisible();
+        await page.locator(DOCK).getByRole("button", { name: "Continue" }).click();
 
         await menu.click();
         await page.getByRole("button", { name: /Plain text mode/i }).click();
@@ -168,6 +175,65 @@ test.describe("compose more options", () => {
         expect(await page.locator(`${DOCK} ${HIDDEN}`).inputValue()).toMatch(
             /<(b|strong)>/i,
         );
+    });
+
+    /**
+     * The warning is an in-app popover now, not `window.confirm()`. Which
+     * means it has to be refusable — the browser's dialog was, and a warning
+     * that only has a Continue is not a warning.
+     */
+    test("declining the plain-text warning leaves the formatting alone", async ({
+        page,
+    }) => {
+        await openCompose(page);
+
+        const editor = page.locator(`${DOCK} ${EDITOR}`);
+
+        await editor.click();
+        await page.keyboard.type("emphasis");
+        await page.keyboard.press("ControlOrMeta+a");
+        await page
+            .locator(`${DOCK} [data-compose--compose-toolbar-target="boldBtn"]`)
+            .click();
+
+        await page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..").click();
+        await page.getByRole("button", { name: /Plain text mode/i }).click();
+
+        const warning = page.locator(`${DOCK} ${WARNING}`);
+        await expect(warning).toBeVisible();
+
+        // No browser dialog was ever raised: nothing here would have answered
+        // one, so a lingering confirm() would hang this test rather than pass it.
+        await page.locator(DOCK).getByRole("button", { name: "Keep formatting" }).click();
+
+        await expect(warning).toBeHidden();
+        await expect(editor).toBeVisible();
+        await expect(page.locator(`${DOCK} ${PLAIN}`)).toBeHidden();
+        expect(await page.locator(`${DOCK} ${HIDDEN}`).inputValue()).toMatch(
+            /<(b|strong)>/i,
+        );
+    });
+
+    test("Escape declines the plain-text warning too", async ({ page }) => {
+        await openCompose(page);
+
+        const editor = page.locator(`${DOCK} ${EDITOR}`);
+
+        await editor.click();
+        await page.keyboard.type("emphasis");
+        await page.keyboard.press("ControlOrMeta+a");
+        await page
+            .locator(`${DOCK} [data-compose--compose-toolbar-target="boldBtn"]`)
+            .click();
+
+        await page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..").click();
+        await page.getByRole("button", { name: /Plain text mode/i }).click();
+        await expect(page.locator(`${DOCK} ${WARNING}`)).toBeVisible();
+
+        await page.keyboard.press("Escape");
+
+        await expect(page.locator(`${DOCK} ${WARNING}`)).toBeHidden();
+        await expect(page.locator(`${DOCK} ${PLAIN}`)).toBeHidden();
     });
 
     test("priority and read receipt are real form controls", async ({ page }) => {

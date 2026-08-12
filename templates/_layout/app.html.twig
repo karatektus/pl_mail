@@ -19,6 +19,19 @@
          value of the kernel actually serving the request — false in prod, true
          in dev — so the bootstrap can correct the baked-in one. #}
       data-app-debug="{{ app.debug ? 'true' : 'false' }}"
+      {# The user's twelve-or-twenty-four-hour choice, for the JavaScript that
+         prints a time. Twig has `clock.time` and reads the setting directly;
+         `Intl.DateTimeFormat` in the browser has no idea it exists and follows
+         the *locale's* default instead — which is how the send-later presets
+         came to say "8:00 AM" to someone who had asked for a 24-hour clock.
+
+         On <html> rather than threaded through each controller as a Stimulus
+         value because it is wanted in three unrelated places already (the
+         send-later menu, the snooze menu, and anything that formats a time
+         next) and none of them share a template. Same argument as ClockGlobal
+         being a Twig global rather than a controller variable. Read through
+         `prefersHour12()` in assets/clock_format.js. #}
+      data-clock-hour12="{{ clock.is12Hour ? 'true' : 'false' }}"
       style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">

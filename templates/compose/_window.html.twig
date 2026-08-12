@@ -55,7 +55,16 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
-             confirmPlainText: 'compose.confirm.plain_text'|trans,
+         }|json_encode|e('html_attr') }}"
+         {# The toolbar controller's own vocabulary. Same arrangement and same
+            reason as compose--compose's above: the link popover writes words
+            onto the screen from JavaScript, and a string baked into the
+            controller is a string that stays English in a German window. #}
+         data-compose--compose-toolbar-i18n-value="{{ {
+             linkAdd:     'compose.link.add'|trans,
+             linkEdit:    'compose.link.edit'|trans,
+             linkInvalid: 'compose.link.invalid'|trans,
+             linkUnsafe:  'compose.link.unsafe'|trans,
          }|json_encode|e('html_attr') }}"
          {# Every From option's signature, keyed by the same "accountId|address"
             token the hidden account <select> carries. Handed over in one go so
@@ -417,7 +426,67 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             </div>
 
             {# ── Toolbar ──────────────────────────────────────────── #}
-            <div class="px-2 md:px-3 pb-2 md:pb-3 pt-1 shrink-0">
+            {# `relative` so the two popovers below can anchor to THIS block
+               rather than to a button. Both the format bar and the icon row
+               scroll sideways on a phone (.compose-scroll-x), and anything
+               anchored to a control inside one of them opens wherever that
+               control happens to have been scrolled to — which is how the emoji
+               panel came to open past the right edge of the screen. This
+               wrapper spans the window and never scrolls, so a popover pinned
+               to it is on screen by construction at every width. #}
+            <div class="relative px-2 md:px-3 pb-2 md:pb-3 pt-1 shrink-0">
+
+                {# ── Link popover ─────────────────────────────────────
+                   Shared with the settings signature editor, which runs the
+                   same toolbar controller and had the same `prompt()`. The
+                   positioning is passed in because it is the one thing the two
+                   hosts disagree about: here it is anchored to the toolbar
+                   BLOCK, which spans the window and never scrolls — the link
+                   button itself lives in a sideways scroller and would drag
+                   the popover off the screen with it. #}
+                {{ include('compose/_link_popover.html.twig', {
+                    id:    form.vars.id,
+                    class: 'absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80',
+                }, with_context = false) }}
+
+                {# ── Plain-text warning ───────────────────────────────
+                   Was `window.confirm()`. The rule it enforces has not changed
+                   — it only appears when there is formatting that flattening
+                   would actually destroy, and the switch stays reversible for
+                   as long as the draft has not been saved in plain mode (see
+                   _setPlainText) — but a native dialog is the one thing in this
+                   window the theme never reached, and on a phone it is a
+                   system sheet over an app that was mid-sentence. #}
+                <div data-compose--compose-target="plainWarning" hidden
+                     role="alertdialog"
+                     aria-labelledby="{{ form.vars.id }}_plain_warning_title"
+                     aria-describedby="{{ form.vars.id }}_plain_warning_body"
+                     class="absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80
+                            z-40 popover p-3 text-sm">
+                    <p id="{{ form.vars.id }}_plain_warning_title"
+                       class="text-sm font-semibold text-ink">
+                        {{ 'compose.plain_warning.title'|trans }}
+                    </p>
+                    <p id="{{ form.vars.id }}_plain_warning_body"
+                       class="mt-1 text-xs text-ink-muted">
+                        {{ 'compose.confirm.plain_text'|trans }}
+                    </p>
+                    <div class="mt-2.5 flex items-center gap-2">
+                        <button type="button"
+                                data-compose--compose-target="plainWarningConfirm"
+                                data-action="click->compose--compose#confirmPlainText"
+                                class="rounded-full bg-accent text-white text-sm font-semibold
+                                       px-3 py-1.5 hover:bg-white/10 transition-colors">
+                            {{ 'compose.plain_warning.continue'|trans }}
+                        </button>
+                        <button type="button"
+                                data-action="click->compose--compose#cancelPlainText"
+                                class="rounded-full px-3 py-1.5 text-sm text-ink-muted
+                                       hover:bg-hover hover:text-ink transition-colors">
+                            {{ 'compose.plain_warning.cancel'|trans }}
+                        </button>
+                    </div>
+                </div>
 
                 {# One line that scrolls sideways below md — wrapping it would
                    eat three rows of a phone screen. The controller hides it
@@ -730,8 +799,18 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     <input type="file" multiple class="hidden"
                            data-compose--compose-target="fileInput"
                            data-action="change->compose--compose#uploadFiles">
+                    {# `data-compose--compose-toolbar-action` is load-bearing
+                       here, not decoration: it is what the controller hangs a
+                       mousedown preventDefault on, and that is the only reason
+                       the editor keeps the user's selection while this button
+                       is pressed. Without it the selection collapses before
+                       the popover has had a chance to read it, and the text
+                       field prefills empty. #}
                     <button type="button" data-compose--compose-toolbar-action
+                            data-compose--compose-toolbar-target="linkBtn"
                             data-action="click->compose--compose-toolbar#insertLink"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
                             title="{{ 'compose.insert_link'|trans }}"
                             aria-label="{{ 'compose.insert_link'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
@@ -873,9 +952,29 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                                 aria-label="{{ 'compose.more_options'|trans }}"
                                 class="{{ ic }}"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
 
+                        {# Below md this menu is pinned to the VIEWPORT rather
+                           than to its button, exactly as the emoji panel is and
+                           for exactly the same reason — except that here it was
+                           not merely mispositioned, it was unreachable. The
+                           button sits in `.compose-scroll-x`, whose
+                           `overflow-x: auto` computes `overflow-y: auto` as
+                           well, so a menu opening UPWARDS out of a 36px strip
+                           was clipped to nothing: on a phone the three controls
+                           in here (plain text, priority, read receipt) could be
+                           tapped open and never seen. A fixed element is not
+                           clipped by an overflow ancestor — its containing
+                           block is .compose-window, which below md is the
+                           screen — which is the whole trick.
+
+                           `bottom-20` clears the action bar; `w-auto` releases
+                           the `w-64` so left-2/right-2 can set the width.
+                           compose-mobile.spec.ts measures the box against the
+                           viewport at 393px and at 320px. #}
                         <div data-ui--dropdown-target="menu" hidden
-                             class="absolute bottom-full mb-1 left-0 md:right-auto z-20
-                                    w-64 max-w-[calc(100vw-2rem)] popover py-1">
+                             class="absolute bottom-full mb-1 left-0 md:right-auto z-30
+                                    w-64 max-w-[calc(100vw-2rem)] popover py-1
+                                    max-md:fixed max-md:inset-auto max-md:left-2 max-md:right-2
+                                    max-md:bottom-20 max-md:w-auto max-md:max-w-none">
 
                             {# Plain text. A toggle, not a submit: what it
                                 changes is which surface the body lives in, and
@@ -950,8 +1049,14 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                                     data-action="click->ui--dropdown#toggle"
                                     title="{{ 'integration.picker.attach_from_service'|trans }}"
                                     class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
+                            {# Pinned to the viewport below md, same as the more-
+                               options menu above and for the same reason: this
+                               button is in the sideways scroller too, and a
+                               menu opening upwards out of it is clipped away. #}
                             <div data-ui--dropdown-target="menu" hidden
-                                 class="absolute bottom-full mb-1 right-0 md:left-0 md:right-auto z-20 min-w-48 popover py-1">
+                                 class="absolute bottom-full mb-1 right-0 md:left-0 md:right-auto z-30 min-w-48 popover py-1
+                                        max-md:fixed max-md:inset-auto max-md:left-2 max-md:right-2
+                                        max-md:bottom-20 max-md:min-w-0">
                                 {% for integration in pickerIntegrations %}
                                     <button type="button"
                                             data-controller="ui--modal"

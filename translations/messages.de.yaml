@@ -1181,12 +1181,32 @@ compose:
     insert_link: Link einfügen
     invalid_address: "„%address%“ ist keine gültige E-Mail-Adresse"
     italic: Kursiv
+    link:
+        add: Link einfügen
+        apply: Übernehmen
+        cancel: Abbrechen
+        change: Ändern
+        dialog: Link
+        edit: Link bearbeiten
+        heading: Link
+        invalid: Bitte eine Webadresse eingeben.
+        open: Öffnen
+        remove: Link entfernen
+        text_label: Anzuzeigender Text
+        text_placeholder: Die Wörter, die den Link tragen
+        unsafe: Nur Web-, Mail- und Telefonadressen lassen sich verlinken.
+        url_label: Webadresse
+        url_placeholder: "beispiel.de"
     minimize: Minimieren
     more_options: Weitere Optionen
     new_message: Neue Nachricht
     no_recipients: Keine Empfänger
     outdent: Einzug verkleinern
     plain_text: Nur-Text-Modus
+    plain_warning:
+        cancel: Formatierung behalten
+        continue: Fortfahren
+        title: Formatierung entfernen?
     pop_out: In eigenem Fenster öffnen
     read_receipt: Lesebestätigung anfordern
     recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.

@@ -27,6 +27,8 @@
  * PHP's.
  */
 
+import { prefersHour12 } from "./clock_format.js";
+
 /** "Morning", for every preset that lands on a future day. */
 const MORNING_HOUR = 8;
 
@@ -192,10 +194,16 @@ export function scheduleOptions(timeZone, now = new Date()) {
  * time. Building the Date in UTC and formatting in UTC is how you get Intl to
  * do the weekday and the 12/24-hour choice without also doing an offset.
  *
+ * `hour12` is passed EXPLICITLY. Leaving it out is what made this the one
+ * clock in the app that ignored the user's setting; the default now comes from
+ * their choice, and only falls back to the locale's when there is no choice on
+ * the page to read.
+ *
  * @param {string} at wall clock, "YYYY-MM-DDTHH:MM"
  * @param {string} locale
+ * @param {boolean} [hour12] overrides the document-level preference
  */
-export function formatWallClock(at, locale) {
+export function formatWallClock(at, locale, hour12 = prefersHour12()) {
     const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(at);
 
     if (null === match) {
@@ -207,6 +215,10 @@ export function formatWallClock(at, locale) {
     return new Intl.DateTimeFormat(locale || undefined, {
         timeZone: "UTC",
         weekday: "short",
+        // `hourCycle` is not set alongside it on purpose: the two conflict, and
+        // hour12 alone lets the locale keep its own idea of whether 24-hour
+        // means h23 or h24.
+        hour12: hour12,
         hour: "2-digit",
         minute: "2-digit",
     }).format(new Date(Date.UTC(year, month - 1, day, hour, minute)));
