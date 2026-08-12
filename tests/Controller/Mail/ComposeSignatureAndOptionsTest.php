@@ -32,6 +32,10 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *  - the encrypt button has to be disabled AND named, because a live-looking
  *    lock icon on an unencrypted message is the one lie a mail client cannot
  *    tell.
+ *
+ * The settings panel that WRITES the signature moved to its own section and is
+ * covered by SignatureSectionTest. This file is the compose window's side of
+ * the same setting.
  */
 final class ComposeSignatureAndOptionsTest extends WebTestCase
 {
@@ -260,86 +264,6 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         self::assertNull($this->em->find(Message::class, $draft->id)->bodyText);
     }
 
-    // ── the settings panel ───────────────────────────────────────────────────
-
-    public function testSavingAnAccountSignatureSanitisesIt(): void
-    {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $account = $this->account($user, 'settings@joder.dev');
-
-        $this->em->flush();
-
-        $url = '/account/' . $account->id . '/compose-defaults/signature';
-
-        $client->request('POST', $url, [
-            '_token'    => $this->csrf($client, $url),
-            'signature' => '<p>Ada</p><script>alert(1)</script>',
-        ]);
-
-        // A plain POST, so the controller's redirect fallback answers rather
-        // than the Turbo Stream — the panel works without JavaScript too.
-        self::assertResponseRedirects('/settings');
-
-        $stored = (string) $this->reload($account)->getSetting(Account::SETTING_SIGNATURE);
-
-        self::assertStringNotContainsString('script', $stored);
-        self::assertStringContainsString('Ada', $stored);
-    }
-
-    /**
-     * The three-state alias control. Storing an empty signature and inheriting
-     * are DIFFERENT, and the key's presence is what says which.
-     */
-    public function testAnAliasCanSignWithNothingOrInheritAndTheTwoAreDistinct(): void
-    {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $account = $this->account($user, 'aliases@joder.dev');
-        $alias   = $this->alias($account, 'other@joder.dev');
-
-        $account->setSetting(Account::SETTING_SIGNATURE, '<p>Account wide</p>');
-        $this->em->flush();
-
-        $key = Account::signatureAliasSetting((int) $alias->id);
-        $url = '/account/' . $account->id . '/compose-defaults/' . $alias->id . '/signature';
-
-        // Say nothing, deliberately: the key is stored, empty.
-        $token = $this->csrf($client, $url);
-
-        $client->request('POST', $url, [
-            '_token'    => $token,
-            'signature' => '',
-        ]);
-
-        self::assertResponseRedirects('/settings');
-        self::assertSame('', $this->reload($account)->getSetting($key));
-
-        // ...and inherit removes it again, which is not the same value.
-        $client->request('POST', $url, [
-            '_token'  => $token,
-            'inherit' => '1',
-        ]);
-
-        self::assertResponseRedirects('/settings');
-        self::assertNull($this->reload($account)->getSetting($key));
-    }
-
-    public function testSavingASignatureWithoutACsrfTokenIsRefused(): void
-    {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $account = $this->account($user, 'nocsrf@joder.dev');
-
-        $this->em->flush();
-
-        $client->request('POST', '/account/' . $account->id . '/compose-defaults/signature', [
-            'signature' => '<p>Nope</p>',
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /**
@@ -356,33 +280,6 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
             'toAddresses' => ['rike@example.test'],
             'subject'     => 'Options',
         ]]);
-    }
-
-    /**
-     * The token off the rendered panel, not one minted out of band.
-     *
-     * A token asked of the manager directly has no session behind it in a
-     * functional test, and reading the real one also proves the panel actually
-     * draws the control being posted to.
-     */
-    private function csrf(KernelBrowser $client, string $formAction): string
-    {
-        $crawler = $client->request('GET', '/settings?section=aliases');
-
-        self::assertResponseIsSuccessful();
-
-        $form = $crawler->filter(sprintf('form[action="%s"]', $formAction));
-
-        self::assertGreaterThan(0, $form->count(), sprintf('the panel renders a form posting to %s', $formAction));
-
-        return (string) $form->filter('input[name="_token"]')->attr('value');
-    }
-
-    private function reload(Account $account): Account
-    {
-        $this->em->clear();
-
-        return $this->em->find(Account::class, $account->id);
     }
 
     private function lastDraft(Account $account): Message

@@ -4,20 +4,16 @@ settings/_compose_defaults.html.twig
 Per-alias compose defaults, one block per account.
 
 Structured for a second setting to drop in: each alias row is a
-`.settings-alias-row` holding a list of controls, and adding one meant adding a
-control to that list and a route to ComposeDefaultsController. The signature is
-that second setting, and nothing about the account loop had to change.
+`.settings-alias-row` holding a list of controls. The signature was that second
+setting and it has since moved out to its own section — a paragraph with an
+editor does not belong stacked under a dropdown, and four editors is not a
+settings panel. See settings/_signature.html.twig.
 
 Every <select> submits itself: these are single-value preferences with no
 partner field, and a Save button next to a three-item dropdown is a second
 click to confirm a choice the user already expressed. The forms still carry
 their own CSRF token and still work without JavaScript, where they fall back to
 a redirect (see ComposeDefaultsController::streamResponse).
-
-The signature is the exception and keeps its Save button: it is free text, not
-a choice, and a field that saved on every keystroke would store half a
-sentence — and a signature is HTML the server sanitises, so each save is a real
-round trip rather than a value being echoed back.
 
 Variables:
   manageableAccounts  list<Account>
@@ -63,32 +59,16 @@ Variables:
                     </select>
                 </form>
 
-                {# ── The account-wide signature ─────────────────────────── #}
-                <div class="py-1">
-                    <p class="text-sm text-ink">{{ 'settings.compose_defaults.signature.label'|trans }}</p>
-                    <p class="text-xs text-ink-faint">{{ 'settings.compose_defaults.signature.hint'|trans }}</p>
-
-                    {% include 'settings/_signature_editor.html.twig' with {
-                        id:        'account-' ~ account.id,
-                        action:    path('app_compose_defaults_signature_default', { id: account.id }),
-                        token:     csrf_token('compose-defaults-signature' ~ account.id),
-                        signature: account.getSetting('compose.signature')|default(''),
-                        inherit:   null,
-                        label:     'settings.compose_defaults.signature.label'|trans,
-                    } only %}
-                </div>
-
                 {# ── Per-alias overrides ────────────────────────────────── #}
                 {% if account.aliases|length %}
                     <ul class="mt-2 space-y-1">
                         {% for alias in account.aliases %}
                             {% set aliasMode = account.getSetting('compose.read_receipt.alias.' ~ alias.id) %}
 
-                            {# Two rows now, not one: the receipt select still
-                               sits beside the address, and the signature —
-                               which is a paragraph, not a choice — goes
-                               underneath it at full width. The row keeps its
-                               `.settings-alias-row` hook either way. #}
+                            {# One line per address again, now that the
+                               signature has its own section: the select sits
+                               beside the address it is captioned by. The row
+                               keeps its `.settings-alias-row` hook. #}
                             <li class="settings-alias-row py-1">
                               <div class="flex items-center justify-between gap-3">
                                 <span class="min-w-0 flex-1 truncate text-sm text-ink-muted">{{ alias.address }}</span>
@@ -124,22 +104,6 @@ Variables:
                                     </select>
                                 </form>
                               </div>
-
-                              {# The alias signature. `is null` is the whole
-                                 three-state distinction on screen: no key means
-                                 inherit (box ticked), a stored '' means this
-                                 address signs with nothing (box clear, editor
-                                 empty). #}
-                              {% set aliasSignature = account.getSetting('compose.signature.alias.' ~ alias.id) %}
-
-                              {% include 'settings/_signature_editor.html.twig' with {
-                                  id:        'alias-' ~ alias.id,
-                                  action:    path('app_compose_defaults_signature_alias', { id: account.id, aliasId: alias.id }),
-                                  token:     csrf_token('compose-defaults-signature-alias' ~ alias.id),
-                                  signature: aliasSignature|default(''),
-                                  inherit:   aliasSignature is null,
-                                  label:     'settings.compose_defaults.signature.for_alias'|trans({'%alias%': alias.address}),
-                              } only %}
                             </li>
                         {% endfor %}
                     </ul>

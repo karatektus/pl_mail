@@ -1513,13 +1513,6 @@ settings:
                 ask: 'Ask me each time'
                 never: 'Never send word'
         saved: 'Set down.'
-        signature:
-            for_alias: 'Yer mark fer %alias%'
-            hint: 'Set at the foot o'' every new scroll, above the quoted words.'
-            inherit: 'Use the ship''s own mark'
-            label: 'Yer mark'
-            placeholder: 'No mark yet'
-            save: 'Set down yer mark'
         subheading: 'What each o'' yer names does by default, sendin'' and receivin''.'
     filters:
         account: Account
@@ -1819,6 +1812,7 @@ settings:
         labels: Flags
         notifications: Word from the crow's nest
         security: The ship's lock
+        signature: Yer marks
     notifications:
         heading: Word from the crow's nest
         ios_hint: >-
@@ -1912,6 +1906,26 @@ settings:
         subheading: >-
             Berths that show part o yer log to someone wi no account, an notices
             that let em board an hour o it.
+    signature:
+        for_alias: 'Yer mark fer %alias%'
+        heading: Yer marks
+        hint: 'Set at the foot o'' every new scroll, above the quoted words.'
+        label: 'Yer mark'
+        overriding: 'That name carries a mark o'' its own now — carve it below.'
+        per_address:
+            count: 'Names carryin'' a mark o'' their own: %number%'
+            disclosure: 'Carry a different mark on some o'' yer names'
+            inherits: 'Carries the ship''s own mark.'
+            override: 'Carry a different one'
+            override_for: 'Give %alias% a mark o'' its own'
+            revert: 'Use the ship''s own mark'
+            revert_for: 'Back to the ship''s own mark fer %alias%'
+            signs_with_nothing: 'Bare — this name sails unmarked.'
+        placeholder: 'No mark yet'
+        reverted: 'Back to the ship''s own mark.'
+        save: 'Set down yer mark'
+        saved: 'Set down.'
+        subheading: 'What be carved at the foot o'' the scrolls ye write.'
     timezone:
         heading: Ship's bells
         subheading: The clock yer times be told by. Naught be rewrit — the same moment, read off yer own glass.
