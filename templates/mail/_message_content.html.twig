@@ -41,7 +41,9 @@
                 {% include 'mail/_message_details.html.twig' with { message: message } only %}
             </div>
             <p class="text-xs text-ink-faint flex-shrink-0">
-                {{ message.receivedAt ? message.receivedAt|intl_date('dMMMy') ~ ', ' ~ message.receivedAt|date(clock.time) : '' }}
+                {# Sent mail shows its sentAt: it has no receivedAt to show. #}
+                {% set shownAt = message.receivedAt ?? message.sentAt %}
+                {{ shownAt ? shownAt|intl_date('dMMMy') ~ ', ' ~ shownAt|date(clock.time) : '' }}
             </p>
         </div>
 

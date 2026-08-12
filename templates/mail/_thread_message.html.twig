@@ -121,8 +121,11 @@ Variables:
             <span class="text-xs text-ink-faint whitespace-nowrap">
                 {# Date through the locale, time through the user's 12/24-hour
                    setting: the two answer different questions and only one of
-                   them is a property of the language. #}
-                {{ message.receivedAt ? message.receivedAt|intl_date('dMMM') ~ ', ' ~ message.receivedAt|date(clock.time) : '' }}
+                   them is a property of the language. Sent mail has no
+                   receivedAt — it was never received — so it shows its sentAt
+                   and stops being the one message in a thread with no date. #}
+                {% set shownAt = message.receivedAt ?? message.sentAt %}
+                {{ shownAt ? shownAt|intl_date('dMMM') ~ ', ' ~ shownAt|date(clock.time) : '' }}
             </span>
 
             {% include 'mail/_message_actions.html.twig' with { message: message } only %}
