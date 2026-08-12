@@ -131,17 +131,16 @@ the account view passes false.
     tabindex="-1"
     ></a>
 
-    {# Which account this row arrived on: a small L-bracket in the row's
-       lower-left corner — a left and a bottom stroke meeting at the corner. A
-       round dot beside the sender read as an unread marker, the very thing the
-       list already signals with weight and the trailing dot; the account moved
-       out of the content entirely into a corner mark, which is identity
-       vocabulary, not status. The strokes are the account's own derived
-       colour (as a border), the same everywhere it appears; only in a unified
-       list on a multi-account install. #}
+    {# Which account this row arrived on: a small triangle tucked into the row's
+       lower-left corner. A round dot beside the sender read as an unread
+       marker — the very thing the list already signals with weight and the
+       trailing dot — so the account moved out of the content entirely into a
+       corner wedge, which is identity vocabulary, not status. The triangle is
+       the account's own derived colour, clipped to the lower-left corner; the
+       same everywhere it appears, only in a unified multi-account list. #}
     {% if showAccountDot %}
         {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
-        <span class="pointer-events-none absolute bottom-0 left-0 h-3.5 w-3.5 border-l-2 border-b-2 {{ rowAccount.sortOrder|account_border }}"
+        <span class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.sortOrder|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
               title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
               aria-hidden="true"></span>
     {% endif %}
