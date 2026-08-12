@@ -99,8 +99,15 @@ class MessageThreadRepository extends ServiceEntityRepository
     /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
     public function countForUnifiedInbox(UserInterface $user, MessageCategory $category): int
     {
+        // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
+        // and ->distinct() would put the DISTINCT on the aggregate rather than
+        // on the rows being aggregated. A thread carrying two labels of the
+        // inbox role would then be counted twice while findForUnifiedInbox()
+        // -- which dedupes properly -- returns it once, and the paginator would
+        // offer a page that does not exist. countForRole() below has always
+        // spelled it this way.
         return $this->createQueryBuilder('t')
-            ->select('COUNT(t.id)')
+            ->select('COUNT(DISTINCT t.id)')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
@@ -110,7 +117,6 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('category', $category)
-            ->distinct()
             ->getQuery()
             ->getSingleScalarResult();
     }
