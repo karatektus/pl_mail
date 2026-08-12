@@ -55,6 +55,7 @@ final readonly class MessageRenderer
 
     public function __construct(
         private RemoteContentBlocker         $blocker,
+        private QuoteCollapser               $quoteCollapser,
         private SenderIdentityChecker        $identityChecker,
         private TrustedImageSenderRepository $trustedSenders,
         private Security                     $security,
@@ -91,8 +92,20 @@ final readonly class MessageRenderer
         $allow = (true === $trusted || true === $forceImages) && false === $inSpam;
         $nonce = bin2hex(random_bytes(16));
 
+        // The blocker settles what the body may load; the collapser then folds
+        // its trailing reply-history behind a "Show quoted text" toggle. Both
+        // are pure display transformations over the same safe HTML — the image
+        // counts the blocker measured are about images, so wrapping a quote
+        // leaves them untouched.
+        $blocked = $this->blocker->rewrite($message->bodyHtmlSafe, $allow);
+        $content = new RemoteContent(
+            $this->quoteCollapser->collapse($blocked->html),
+            $blocked->blocked,
+            $blocked->allowed,
+        );
+
         return new MessageRender(
-            content:       $this->blocker->rewrite($message->bodyHtmlSafe, $allow),
+            content:       $content,
             imagesAllowed: $allow,
             senderTrusted: $trusted,
             inSpam:        $inSpam,

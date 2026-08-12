@@ -67,6 +67,14 @@ final class SeedRenderingCommand extends Command
     public const string SUBJECT_PHISH     = 'E2E Phish Invoice';
     public const string SUBJECT_LONG      = 'E2E Long Body';
     public const string SUBJECT_FETCHABLE = 'E2E Fetchable Image';
+    public const string SUBJECT_QUOTED    = 'E2E Quoted Reply';
+
+    /**
+     * Markers the collapse-quoted-text spec keys off: the sender's new line must
+     * be visible, the quoted history must start hidden behind the toggle.
+     */
+    public const string QUOTED_NEW    = 'This is my brand-new reply text.';
+    public const string QUOTED_BURIED = 'This is the original quoted history that starts hidden.';
 
     /**
      * The one remote reference in these fixtures that points at a host the proxy
@@ -133,7 +141,7 @@ final class SeedRenderingCommand extends Command
 
         $account = $this->account($user);
 
-        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE] as $subject) {
+        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE, self::SUBJECT_QUOTED] as $subject) {
             $this->removePreviousSeed($account, $subject);
         }
 
@@ -190,6 +198,17 @@ final class SeedRenderingCommand extends Command
             when:     $now->modify('-3 minutes'),
         );
 
+        $quoted = $this->seedMessage(
+            account:  $account,
+            user:     $user,
+            label:    $inbox,
+            subject:  self::SUBJECT_QUOTED,
+            fromName: 'E2E Quoter',
+            fromAddr: 'quoter@e2e.test',
+            html:     $this->quotedReplyBody(),
+            when:     $now->modify('-4 minutes'),
+        );
+
         $this->entityManager->flush();
 
         $this->attach($long);
@@ -197,7 +216,7 @@ final class SeedRenderingCommand extends Command
         $accountId = (int) $account->id;
         $threadIds = [];
 
-        foreach ([$remote, $phish, $long, $fetchable] as $message) {
+        foreach ([$remote, $phish, $long, $fetchable, $quoted] as $message) {
             $this->stateManager->recordCreated($accountId, JmapObjectType::Email, (string) $message->id);
 
             if (null !== $message->thread) {
@@ -208,7 +227,7 @@ final class SeedRenderingCommand extends Command
         $this->stateManager->recordThreadsTouched($accountId, $threadIds);
         $this->entityManager->flush();
 
-        $io->success('Seeded 4 rendering-security threads.');
+        $io->success('Seeded 5 rendering-security threads.');
 
         return Command::SUCCESS;
     }
@@ -287,6 +306,25 @@ final class SeedRenderingCommand extends Command
         }
 
         return '<div>' . $paragraphs . '</div>';
+    }
+
+    /**
+     * A Gmail-shaped reply: the sender's new line, then an attribution line and
+     * a blockquote of the message being answered. Already in post-sanitize form
+     * (no class/id) since these fixtures write straight to bodyHtmlSafe — which
+     * is exactly what QuoteCollapser sees at render time, and what it must fold
+     * behind the "Show quoted text" toggle.
+     */
+    private function quotedReplyBody(): string
+    {
+        return sprintf(
+            '<div dir="ltr">%s</div>'
+            . '<div><div dir="ltr">On Mon, Aug 11, 2026 at 9:14 AM Jane Roe &lt;jane@e2e.test&gt; wrote:</div>'
+            . '<blockquote style="border-left:1px solid #ccc;padding-left:1ex;margin:0">'
+            . '<div dir="ltr">%s</div></blockquote></div>',
+            self::QUOTED_NEW,
+            self::QUOTED_BURIED,
+        );
     }
 
     private function seedMessage(
