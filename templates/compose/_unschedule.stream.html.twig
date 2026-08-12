@@ -1,0 +1,47 @@
+{#
+compose/_unschedule.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Answer to POST /compose/unschedule/{id}: the row that was clicked, redrawn
+without its hold, plus a toast saying so.
+
+`replace` on the row's own id, exactly as thread/status/_star.stream.html.twig
+does — the list rows are patched one at a time and never reloaded whole, and
+the row carries its own Stimulus controller, so replacing the <li> re-connects
+it rather than leaving a dead badge behind.
+
+The include is NOT `only`: _thread_row.html.twig reads `accounts` (the account
+wedge is drawn only on a multi-account install) off the globals, the same way
+the star and read streams reach it.
+
+Variables: row (MessageThread|Message), type ('thread'|'message'),
+           draft_scope (bool), cancelled (bool — false when the mail had
+           already gone out, in which case nothing was written)
+#}
+<turbo-stream action="replace" target="thread_{{ row.id }}">
+    <template>
+        {% if 'thread' == type %}
+            {% include '_partials/_thread_row.html.twig' with {
+                thread:      row,
+                draft_scope: draft_scope,
+            } %}
+        {% else %}
+            {% include '_partials/_thread_row.html.twig' with {
+                message:     row,
+                draft_scope: draft_scope,
+            } %}
+        {% endif %}
+    </template>
+</turbo-stream>
+
+{# Silent on a message that had already gone: the row redraws itself into the
+   truth, and "cancelled" would be the one thing that did not happen. #}
+{% if cancelled %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with {
+                type:    'info',
+                message: 'toast.schedule_cancelled'|trans,
+            } only %}
+        </template>
+    </turbo-stream>
+{% endif %}

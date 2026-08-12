@@ -1138,7 +1138,8 @@ compose:
         monday_morning: Montagmorgen
         scheduled_for: Geplanter Versand
         timezone_hint: Alle Zeiten in %zone%.
-        toast: Versand geplant für %when%
+        toast: Geplant für %when%
+        toast_cancel: Versand abbrechen
         tomorrow_afternoon: Morgen Nachmittag
         tomorrow_morning: Morgen früh
         when: '%date%, %time%'
@@ -2340,6 +2341,7 @@ thread_row:
     account: 'Empfangen über %account%'
     actions:
         archive: Archivieren
+        cancel_schedule: Geplanten Versand abbrechen
         delete: Löschen
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
@@ -2360,6 +2362,7 @@ thread_row:
 
 toast:
     dismiss: Schließen
+    schedule_cancelled: Geplanter Versand abgebrochen.
     send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.
     undo: Rückgängig
     error:

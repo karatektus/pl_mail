@@ -43,7 +43,11 @@ reporting on.
                 class="text-accent underline underline-offset-2 font-semibold
                        hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap"
             >
-                {{ 'toast.undo'|trans }}
+                {# "Undo" is right for a send already on its way; for a hold set
+                   for Monday it is the wrong verb — there is nothing to undo
+                   yet, only something to call off. Callers that mean the other
+                   thing pass their own key. #}
+                {{ (extra.undo_label ?? 'toast.undo')|trans }}
             </button>
         {% endif %}
 

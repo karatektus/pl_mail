@@ -423,27 +423,7 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($message);
 
-        // Deliberately not recorded: `cancelled` is a flag SendMessageHandler
-        // reads and clears, and EmailMapper publishes nothing derived from it.
-        // The message is still the same unsent draft it was a moment ago, so
-        // waking every client for it would be a push about nothing changing.
-        $message->cancelled = true;
-
-        // The hold goes too, and this half is not private traffic. While
-        // submissionSendAt stands with sentAt null, EmailSubmissionGetMethod
-        // reports the submission as `pending` and every JMAP client shows a
-        // schedule — for mail the handler has just been told to drop. Leaving
-        // it would have made cancelling a scheduled send invisible everywhere
-        // except the browser that did it, and permanent: nothing else ever
-        // clears that column for a message that never leaves.
-        //
-        // Only while it has not left. On a sent message the column is the
-        // record of when it was due, and EmailSubmission/get falls back to it;
-        // erasing that would be rewriting history to undo something that
-        // already happened.
-        if (null === $message->sentAt) {
-            $message->submissionSendAt = null;
-        }
+        $this->callOffSend($message);
 
         $this->em->flush();
 
@@ -488,6 +468,84 @@ class ComposeController extends AbstractController
             'ctx'     => $ctx,
             'pickerIntegrations' => $this->pickerIntegrations(),
         ]);
+    }
+
+    /**
+     * Call a scheduled send off from the list row, without opening anything.
+     *
+     * Same act as undo(), different surface — and the difference is the whole
+     * point of it. undo() answers with the composer reopened, because it exists
+     * to catch a send you regretted while the ten seconds were still running
+     * and you were still looking at what you wrote. A hold set on Friday is
+     * called off on Monday from a list of forty rows, where reopening the
+     * window would be an interruption, not a rescue. So this one answers with
+     * the row it was clicked on, redrawn.
+     *
+     * `type` and `draft_scope` come back with the request because the row is
+     * the same partial rendered three ways: a thread row in a list, a bare
+     * message row, and the Drafts variant that names the recipient rather than
+     * the participants. Redrawing it from the message alone would swap one for
+     * another under the pointer.
+     */
+    #[Route('/unschedule/{id}', name: 'mail_unschedule', methods: ['POST'])]
+    public function unschedule(Request $request, Message $message): Response
+    {
+        $this->assertOwnership($message);
+
+        // Already gone. Nothing is written — not even `cancelled`, which on a
+        // message SendMessageHandler has finished with means nothing and reads
+        // like a lie — and submissionSendAt stays, because on a sent message it
+        // is the record of when the mail was due. The row is redrawn either
+        // way: whatever the user saw when they clicked was already stale.
+        $sent = null !== $message->sentAt;
+
+        if (false === $sent) {
+            $this->callOffSend($message);
+            $this->em->flush();
+        }
+
+        $thread = $message->thread;
+        $type   = 'message' === $request->query->get('type') || null === $thread
+            ? 'message'
+            : 'thread';
+
+        return $this->renderTurboStream('compose/_unschedule.stream.html.twig', [
+            'row'         => 'thread' === $type ? $thread : $message,
+            'type'        => $type,
+            'draft_scope' => $request->query->getBoolean('draft_scope'),
+            'cancelled'   => false === $sent,
+        ]);
+    }
+
+    /**
+     * Lower the flag SendMessageHandler reads, and take the hold off.
+     *
+     * `cancelled` is deliberately not recorded as a JMAP change: it is a flag
+     * the handler reads and clears, and EmailMapper publishes nothing derived
+     * from it. The message is still the same unsent draft it was a moment ago,
+     * so waking every client for it would be a push about nothing changing.
+     *
+     * The hold is not private traffic, though. While submissionSendAt stands
+     * with sentAt null, EmailSubmissionGetMethod reports the submission as
+     * `pending` and every JMAP client shows a schedule — for mail the handler
+     * has just been told to drop. Leaving it would have made cancelling a
+     * scheduled send invisible everywhere except the browser that did it, and
+     * permanent: nothing else ever clears that column for a message that never
+     * leaves.
+     *
+     * Only while it has not left. On a sent message the column is the record of
+     * when it was due, and EmailSubmission/get falls back to it; erasing that
+     * would be rewriting history to undo something that already happened.
+     *
+     * Does not flush — the callers batch it with whatever else they write.
+     */
+    private function callOffSend(Message $message): void
+    {
+        $message->cancelled = true;
+
+        if (null === $message->sentAt) {
+            $message->submissionSendAt = null;
+        }
     }
 
     /**

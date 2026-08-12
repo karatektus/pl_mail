@@ -68,6 +68,29 @@ export default class extends Controller {
         await this.#post(snoozeUrl, { until });
     }
 
+    /**
+     * Call off a scheduled send from the row.
+     *
+     * The row is an <li> with an absolutely-positioned overlay <a> across it —
+     * so this stops the event the way every other row action does, and the
+     * button sits above the anchor rather than inside a nested form. The answer
+     * is a Turbo Stream that replaces this very row, which is why nothing here
+     * touches the badge itself: the server decides what the row now says.
+     *
+     * `preventDefault` as well as `stopPropagation`, unlike its neighbours: in
+     * the Drafts list the whole row is a link, and a click that reaches the
+     * document's default action opens the composer over the toast that just
+     * said the hold was lifted.
+     */
+    async cancelSchedule(event) {
+        const { cancelScheduleUrl } = event.params;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        await this.#post(cancelScheduleUrl);
+    }
+
     async markRead(event) {
         const { read, readUrl } = event.params;
 

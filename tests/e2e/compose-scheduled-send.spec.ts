@@ -94,7 +94,7 @@ test.describe("scheduled send", () => {
         // The toast names the time rather than just confirming something
         // happened — a schedule you cannot read back is a schedule you have to
         // take on trust.
-        const toast = page.locator("#toast-region").getByText(/Send scheduled for/);
+        const toast = page.locator("#toast-region").getByText(/Scheduled for/);
         await expect(toast).toBeVisible({ timeout: 10_000 });
 
         // The window closes; nothing has been sent.
@@ -111,6 +111,10 @@ test.describe("scheduled send", () => {
         await expect(row).toBeVisible();
         await expect(row.locator("[data-scheduled-badge]")).toBeVisible();
         await expect(row.locator("[data-scheduled-badge]")).toContainText("Scheduled");
+
+        // Wide, the badge does not cost the preview its line — only the
+        // stacked row trades one for the other.
+        await expect(row.getByText("Scheduled body text")).toBeVisible();
     });
 
     test("reopening a scheduled draft offers to call it off", async ({ page }) => {
@@ -121,7 +125,7 @@ test.describe("scheduled send", () => {
 
         const options = await openSendOptions(page);
         await options.getByText("Tomorrow morning").click();
-        await expect(page.locator("#toast-region").getByText(/Send scheduled for/)).toBeVisible({
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({
             timeout: 10_000,
         });
 
@@ -161,6 +165,105 @@ test.describe("scheduled send", () => {
         await expect(after.locator("[data-scheduled-badge]")).toHaveCount(0);
     });
 
+    /**
+     * The toast is the positive feedback the whole of this wave is about, and
+     * the way back out is on it: the same undo endpoint the ten-second send
+     * guard uses, labelled for a hold rather than for a send already flying.
+     */
+    test("the toast itself can call the hold off, and reopens the draft", async ({ page }) => {
+        const subject = "Scheduled then undone from the toast";
+
+        await openCompose(page);
+        await fillDock(page, subject);
+
+        const options = await openSendOptions(page);
+        await options.getByText("Tomorrow morning").click();
+
+        const toast = page.locator("#toast-region").getByText(/Scheduled for/);
+        await expect(toast).toBeVisible({ timeout: 10_000 });
+
+        // Not "Undo": there is nothing under way to undo yet.
+        await page
+            .locator("#toast-region")
+            .getByRole("button", { name: "Cancel send" })
+            .click();
+
+        // The composer comes back with what was written still in it…
+        await expect(page.locator(`${DOCK} [data-compose--compose-target="subject"]`)).toHaveValue(
+            subject,
+            { timeout: 10_000 },
+        );
+
+        // …and the hold is off the row.
+        await page.goto("/mail/drafts");
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: subject })
+            .first();
+
+        await expect(row).toBeVisible();
+        await expect(row.locator("[data-scheduled-badge]")).toHaveCount(0);
+    });
+
+    /**
+     * And the same call-off from the row, which is where a hold set on Friday
+     * is actually found again on Monday.
+     *
+     * The row is an <li> under an absolutely-positioned overlay <a>, so the two
+     * things worth driving a browser for are that the click reaches the button
+     * at all and that it does NOT also open the composer — and that the row
+     * updates where it stands, without the page going anywhere.
+     */
+    test("the hold can be called off from the Drafts row, in place", async ({ page }) => {
+        const subject = "Scheduled then cancelled from the row";
+
+        await openCompose(page);
+        await fillDock(page, subject);
+
+        const options = await openSendOptions(page);
+        await options.getByText("Tomorrow morning").click();
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({
+            timeout: 10_000,
+        });
+
+        await page.goto("/mail/drafts");
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: subject })
+            .first();
+
+        const badge = row.locator("[data-scheduled-badge]");
+        await expect(badge).toBeVisible();
+
+        // Pin the URL: if the overlay anchor takes the click, this navigates.
+        const before = page.url();
+
+        await row.locator("[data-cancel-schedule]").click();
+
+        await expect(page.locator("#toast-region").getByText(/Scheduled send cancelled/)).toBeVisible({
+            timeout: 10_000,
+        });
+
+        // Redrawn where it stood — same row, no badge, no navigation, and the
+        // composer was never opened over it.
+        await expect(row).toBeVisible();
+        await expect(row.locator("[data-scheduled-badge]")).toHaveCount(0);
+        expect(page.url()).toBe(before);
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0);
+
+        // And it stayed cancelled server-side, not just on screen.
+        await page.reload();
+        await expect(
+            page
+                .locator('#message-list li[data-controller="mail--message-row"]')
+                .filter({ hasText: subject })
+                .first()
+                .locator("[data-scheduled-badge]"),
+        ).toHaveCount(0);
+    });
+
     test("pick date & time reveals a native input, and refuses a time already gone", async ({
         page,
     }) => {
@@ -187,7 +290,7 @@ test.describe("scheduled send", () => {
         // Refused in place, with the window still open and nothing scheduled.
         await expect(options.getByText(/already passed/)).toBeVisible();
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
-        await expect(page.locator("#toast-region").getByText(/Send scheduled for/)).toHaveCount(0);
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toHaveCount(0);
     });
 });
 
@@ -266,5 +369,89 @@ test.describe("scheduled send on a phone", () => {
         });
 
         expect(fits, JSON.stringify(fits)).toMatchObject({ fits: true });
+    });
+
+    /**
+     * The badge and its cancel button on a phone, which is the one surface a
+     * scheduled draft is guaranteed to have: the send pill is desktop-only, so
+     * on a phone the Drafts row is the ONLY place a hold can be seen or called
+     * off at all.
+     *
+     * Measured, not merely located. The last round shipped a panel that was off
+     * screen at this width while the spec passed, because the spec asserted
+     * existence. So: the whole pill inside the viewport, the button big enough
+     * to hit, and the row not pushed into a sideways scroll by it.
+     */
+    test("the scheduled badge and its cancel button fit, and work, at 393px", async ({ page }) => {
+        const subject = "Scheduled, seen on a phone";
+
+        // Set the hold at desktop width — the pill is not rendered below md.
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await openCompose(page);
+        await fillDock(page, subject);
+
+        const options = await openSendOptions(page);
+        await options.getByText("Tomorrow morning").click();
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({
+            timeout: 10_000,
+        });
+
+        await page.setViewportSize(PHONE);
+        await page.goto("/mail/drafts");
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: subject })
+            .first();
+
+        const badge = row.locator("[data-scheduled-badge]");
+        const cancel = row.locator("[data-cancel-schedule]");
+
+        await expect(badge).toBeVisible();
+        await expect(cancel).toBeVisible();
+
+        const badgeBox = await badge.boundingBox();
+        const cancelBox = await cancel.boundingBox();
+
+        expect(badgeBox, "the badge has a box at all").not.toBeNull();
+        expect(cancelBox, "so does the cancel button").not.toBeNull();
+
+        expect(badgeBox!.x, JSON.stringify(badgeBox)).toBeGreaterThanOrEqual(-0.5);
+        expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(PHONE.width + 0.5);
+        expect(cancelBox!.x + cancelBox!.width).toBeLessThanOrEqual(PHONE.width + 0.5);
+
+        // Big enough to hit with a thumb. Not the 44px ideal — this is a chip
+        // inside a list row — but it must not be a 6px hairline.
+        expect(cancelBox!.width).toBeGreaterThanOrEqual(16);
+        expect(cancelBox!.height).toBeGreaterThanOrEqual(14);
+
+        // The row must not have grown a sideways scroll to hold it.
+        const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - window.innerWidth,
+        );
+        expect(overflow, "the page scrolls sideways").toBeLessThanOrEqual(1);
+
+        await page.screenshot({ path: "test-results/drafts-scheduled-phone-light.png" });
+
+        // The theme is an attribute on <html>, not the OS preference —
+        // emulateMedia({ colorScheme }) renders the light theme back, which is
+        // how the first version of this shot came out identical to the one
+        // above. The badge is bg-info/10 on text-info, and "10% of the info
+        // colour" is exactly the kind of tint that survives one theme and
+        // disappears in the other.
+        await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+        await expect(badge).toBeVisible();
+        await page.screenshot({ path: "test-results/drafts-scheduled-phone-dark.png" });
+
+        // And it is not decoration: the tap calls the hold off, on the phone
+        // where it is the only way to.
+        await page.goto("/mail/drafts");
+        await cancel.click();
+
+        await expect(
+            page.locator("#toast-region").getByText(/Scheduled send cancelled/),
+        ).toBeVisible({ timeout: 10_000 });
+        await expect(row.locator("[data-scheduled-badge]")).toHaveCount(0);
     });
 });
