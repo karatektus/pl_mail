@@ -9,6 +9,7 @@ use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
+use App\Service\Mail\SignatureProvider;
 
 /**
  * The addresses an account may send as, and what a client's identityId means.
@@ -32,6 +33,11 @@ use App\Entity\Mail\EmailAlias;
  */
 final class IdentityResolver
 {
+    public function __construct(
+        private readonly SignatureProvider $signatures,
+    ) {
+    }
+
     /**
      * Every identity of this account, in the order Identity/get lists them
      * (Primary first, because sendableAliases sorts it that way).
@@ -103,14 +109,21 @@ final class IdentityResolver
      */
     private function fromAlias(Account $account, EmailAlias $alias): array
     {
+        // The same lookup the composer does, and deliberately so: a phone and
+        // the browser must sign a mail from this address identically, and the
+        // per-alias override falling back to the account signature is the
+        // whole of that rule. textSignature is derived rather than stored —
+        // there is one signature, in HTML, and two renderings of it.
+        $signature = $this->signatures->htmlFor($account, $alias->address);
+
         return [
             'id' => (string) $alias->id,
             'name' => $alias->displayName ?? $account->name ?? '',
             'email' => $alias->address,
             'replyTo' => null,
             'bcc' => null,
-            'textSignature' => '',
-            'htmlSignature' => '',
+            'textSignature' => $this->signatures->toText($signature),
+            'htmlSignature' => $signature ?? '',
             // Only aliases the user added by hand are theirs to remove. Ones
             // discovered from the provider come back on the next sync, and the
             // primary address is what the account sends as.
@@ -124,14 +137,16 @@ final class IdentityResolver
      */
     private function fallbackIdentity(Account $account): array
     {
+        $signature = $this->signatures->htmlFor($account, $account->email);
+
         return [
             'id' => (string) $account->id,
             'name' => $account->name ?? '',
             'email' => (string) $account->email,
             'replyTo' => null,
             'bcc' => null,
-            'textSignature' => '',
-            'htmlSignature' => '',
+            'textSignature' => $this->signatures->toText($signature),
+            'htmlSignature' => $signature ?? '',
             'mayDelete' => false,
         ];
     }

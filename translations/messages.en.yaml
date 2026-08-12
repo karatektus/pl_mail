@@ -1057,6 +1057,7 @@ compose:
     confirm:
         no_body: This message has no text. Send it anyway?
         no_subject: This message has no subject. Send it anyway?
+        plain_text: Switching to plain text removes all formatting from this message. Continue?
     # Every label inside the emoji picker. The component ships its own English
     # strings and takes a replacement object; this is that object, so the
     # picker is as translated as the window around it.
@@ -1092,6 +1093,14 @@ compose:
     list:
         ordered: Numbered list
         unordered: Bullet list
+    priority:
+        high: High
+        label: Priority
+        low: Low
+        # Distinct from Normal on purpose: an untouched message says nothing
+        # about its urgency and carries no priority headers at all.
+        none: No priority
+        normal: Normal
     quote:
         hide: hide quoted text
         show: show quoted text
@@ -1140,6 +1149,9 @@ compose:
     discard: Delete draft
     empty_draft: (empty draft)
     encrypt: Encrypt message
+    # The whole of what the disabled encrypt button says for itself. It has to
+    # be a complete sentence: it is the only explanation anyone gets.
+    encrypt_unavailable: Encryption is not available yet.
     expand: Expand
     formatting: Formatting options
     forward: Forward
@@ -1156,7 +1168,9 @@ compose:
     new_message: New Message
     no_recipients: No recipients
     outdent: Outdent
+    plain_text: Plain text mode
     pop_out: Open in compose window
+    read_receipt: Request read receipt
     recipient_required: Add at least one recipient before sending.
     redo: Redo
     reply: Reply
@@ -1167,6 +1181,7 @@ compose:
     send_options: Send options
     sending: "Sending…"
     signature: Insert signature
+    signature_none: No signature set for this address
     subject_label: Subj
     subject_placeholder: Subject
     text_color: Text colour
@@ -1796,6 +1811,13 @@ settings:
                 ask: 'Ask each time'
                 never: 'Never send'
         saved: 'Saved.'
+        signature:
+            for_alias: 'Signature for %alias%'
+            hint: 'Added to the bottom of every new message, above the quoted reply.'
+            inherit: 'Use the account signature'
+            label: 'Signature'
+            placeholder: 'No signature'
+            save: 'Save signature'
         subheading: 'What each of your addresses does by default when it sends and receives.'
     filters:
         account: Account

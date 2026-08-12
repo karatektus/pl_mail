@@ -26,6 +26,11 @@ use App\Entity\Mail\Message;
  */
 final class ReplyDraftBuilder
 {
+    public function __construct(
+        private readonly SignatureProvider $signatures,
+    ) {
+    }
+
     /**
      * @param bool $replyAll copy in everyone the original was addressed to,
      *                       minus the sender's own addresses
@@ -121,10 +126,43 @@ final class ReplyDraftBuilder
         $draft                 = new Message();
         $draft->account        = $account;
         $draft->subject        = $this->prefixSubject($prefix, $original->subject);
-        $draft->bodyHtml       = $this->quote($original, $mode);
+        $draft->bodyHtml       = $this->signature($account) . $this->quote($original, $mode);
         $draft->hasAttachments = false;
 
         return $draft;
+    }
+
+    /**
+     * The sender's signature, ABOVE the quoted original.
+     *
+     * Above rather than below, because below the quote it is not a sign-off on
+     * this reply — it is a footnote under someone else's mail, and on a long
+     * thread it ends up several screens away from anything the sender wrote.
+     *
+     * With its own empty paragraph in front, which is load-bearing rather than
+     * spacing: the composer puts the caret in the body's FIRST editable node,
+     * so a body starting with the signature block starts with the caret inside
+     * the signature — and the first thing typed becomes part of it, then
+     * disappears the next time the sender is changed and the block is
+     * replaced. The paragraph is the writing space; the signature follows it;
+     * the quote follows that. Exactly the arrangement every other mail client
+     * uses.
+     *
+     * The account's own display address rather than a chosen alias, because
+     * nothing has been chosen yet — the window opens on the token
+     * SenderResolver::token() builds, which is that address. Picking a
+     * different From afterwards swaps the block, which is what the
+     * `data-pl-signature` marker on it is for.
+     */
+    private function signature(?Account $account): string
+    {
+        if (null === $account) {
+            return '';
+        }
+
+        $block = $this->signatures->blockFor($account, $account->displayAddress);
+
+        return '' === $block ? '' : '<p><br></p>' . $block;
     }
 
     /**

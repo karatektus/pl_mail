@@ -54,7 +54,15 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
              confirmNoBody:    'compose.confirm.no_body'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
+             noSignature:      'compose.signature_none'|trans,
+             confirmPlainText: 'compose.confirm.plain_text'|trans,
          }|json_encode|e('html_attr') }}"
+         {# Every From option's signature, keyed by the same "accountId|address"
+            token the hidden account <select> carries. Handed over in one go so
+            that switching From is a DOM swap and not a fetch: the From menu is
+            a keystroke-level interaction and a network round trip inside it is
+            a spinner where a signature should be. See signature_map(). #}
+         data-compose--compose-signatures-value="{{ signature_map()|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeController::MAX_ATTACHMENT_BYTES') }}"
@@ -359,6 +367,32 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             </div>
 
             <div class="flex-1 min-h-[180px] px-4 py-3">
+                {# ── The plain-text surface ─────────────────────────────
+                   A draft is in plain-text mode when it has text and no HTML
+                   — which is not a flag anywhere, it is simply what such a
+                   message IS, so the mode survives a reload with no column to
+                   store it in. MessageSendService::buildEmail() branches on
+                   exactly the same pair, so what the window shows and what
+                   goes on the wire cannot disagree.
+
+                   `disabled` in rich mode so the field is not submitted at
+                   all: mapped, an absent bodyText binds null and
+                   DraftPersister derives the text part from the HTML as it
+                   always has. Submitted, it IS the message. #}
+                {% set plainText = (form.bodyHtml.vars.value|default('')|trim is empty)
+                                   and (form.bodyText.vars.value|default('')|trim is not empty) %}
+
+                <textarea id="{{ form.bodyText.vars.id }}"
+                          name="{{ form.bodyText.vars.full_name }}"
+                          data-compose--compose-target="plainBody"
+                          aria-label="{{ 'compose.body_placeholder'|trans }}"
+                          placeholder="{{ 'compose.body_placeholder'|trans }}"
+                          {% if not plainText %}disabled hidden{% endif %}
+                          class="w-full min-h-[170px] bg-transparent outline-none resize-none
+                                 text-sm leading-relaxed font-mono
+                                 text-ink placeholder:text-ink-faint
+                                 {{ plainText ? '' : 'hidden' }}">{{ form.bodyText.vars.value }}</textarea>
+
                 <div id="{{ form.bodyHtml.vars.id }}_editor"
                      data-compose--compose-toolbar-target="editor"
                      data-compose--compose-target="body"
@@ -369,7 +403,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                      data-placeholder="{{ 'compose.body_placeholder'|trans }}"
                      class="w-full min-h-[170px] bg-transparent outline-none
                             text-sm leading-relaxed
-                            text-ink
+                            text-ink {{ plainText ? 'hidden' : '' }}
                             empty:before:content-[attr(data-placeholder)]
                             empty:before:text-ink-faint
                             empty:before:pointer-events-none">{{ form.bodyHtml.vars.value|raw ?: '' }}</div>
@@ -775,22 +809,125 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                            data-compose--compose-target="imageInput"
                            data-action="change->compose--compose#uploadInlineImage">
 
-                    {# Named even though they do nothing yet. A control with no
-                       accessible name is unreachable by a screen reader
-                       whether or not it is wired up, and these are the ones the
-                       audit found: an unlabelled row of icons is what the
-                       compose toolbar read as. #}
-                    {% set placeholderTools = [
-                        { icon: 'fa-solid fa-lock',              label: 'compose.encrypt'      },
-                        { icon: 'fa-solid fa-pen-nib',           label: 'compose.signature'    },
-                        { icon: 'fa-solid fa-ellipsis-vertical', label: 'compose.more_options' },
-                    ] %}
-                    {% for tool in placeholderTools %}
+                    {# ── Encrypt ───────────────────────────────────────
+                       DISABLED, and honestly so. There is no encryption in
+                       plMail yet — no ext-openssl requirement, no certificate
+                       storage, no key custody — and the seam it will hook into
+                       (MessageSendService::buildEmail) is one line in a service
+                       nothing here touches. A button that looked live and did
+                       nothing would tell the user their mail was encrypted when
+                       it was not, which is the one lie a mail client must never
+                       tell. So it stays visible and named, greyed, and says why
+                       when you hover it.
+
+                       `title` on the wrapper rather than the button: a disabled
+                       button does not fire the events a tooltip needs in most
+                       browsers, so the title has to live on something that is
+                       not disabled. aria-describedby points the screen reader
+                       at the same sentence. #}
+                    <span class="inline-flex shrink-0"
+                          title="{{ 'compose.encrypt_unavailable'|trans }}">
+                        <button type="button" disabled
+                                aria-describedby="{{ form.vars.id }}_encrypt_why"
+                                title="{{ 'compose.encrypt'|trans }}"
+                                aria-label="{{ 'compose.encrypt'|trans }}"
+                                class="{{ ic }} opacity-40 cursor-not-allowed hover:bg-transparent hover:text-ink-muted">
+                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                        </button>
+                        <span id="{{ form.vars.id }}_encrypt_why" class="sr-only">
+                            {{ 'compose.encrypt_unavailable'|trans }}
+                        </span>
+                    </span>
+
+                    {# ── Signature ─────────────────────────────────────
+                       Inserts the signature of whoever is currently in From. If
+                       the body already holds a [data-pl-signature] block it is
+                       replaced in place rather than a second one appended —
+                       which is the same operation the From switch performs, and
+                       deliberately the same code. #}
+                    <button type="button" data-compose--compose-toolbar-action
+                            data-action="click->compose--compose#insertSignature"
+                            title="{{ 'compose.signature'|trans }}"
+                            aria-label="{{ 'compose.signature'|trans }}"
+                            class="{{ ic }}"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i></button>
+
+                    {# ── More options ──────────────────────────────────
+                       Same dropdown shape as the integration picker below and
+                       the schedule menu above: a relative wrapper, a `menu`
+                       target that starts hidden, `bottom-full` so it opens
+                       upwards out of a window already at the bottom of the
+                       screen, and `left-0` below md because this button sits in
+                       a strip that scrolls sideways.
+
+                       The two form fields inside it are REAL widgets, not
+                       decoration. ComposeType maps both onto the Message and
+                       the window renders with `render_rest: false`, so until
+                       they are drawn here every autosave binds priority to null
+                       and readReceiptRequested to false — that is, the menu
+                       being rendered is what makes the fields exist at all.
+                       They ride the existing draft/send POSTs; no new route. #}
+                    <div class="relative" data-controller="ui--dropdown">
                         <button type="button"
-                                title="{{ tool.label|trans }}"
-                                aria-label="{{ tool.label|trans }}"
-                                class="{{ ic }}"><i class="{{ tool.icon }}" aria-hidden="true"></i></button>
-                    {% endfor %}
+                                data-action="click->ui--dropdown#toggle"
+                                title="{{ 'compose.more_options'|trans }}"
+                                aria-label="{{ 'compose.more_options'|trans }}"
+                                class="{{ ic }}"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
+
+                        <div data-ui--dropdown-target="menu" hidden
+                             class="absolute bottom-full mb-1 left-0 md:right-auto z-20
+                                    w-64 max-w-[calc(100vw-2rem)] popover py-1">
+
+                            {# Plain text. A toggle, not a submit: what it
+                                changes is which surface the body lives in, and
+                                the autosave that follows carries the result. #}
+                            <button type="button"
+                                    data-compose--compose-target="plainToggle"
+                                    data-action="click->compose--compose#togglePlainText click->ui--dropdown#close"
+                                    aria-pressed="{{ plainText ? 'true' : 'false' }}"
+                                    class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                           hover:bg-hover hover:text-ink transition-colors text-left">
+                                <i class="fa-solid fa-check w-4 text-center {{ plainText ? '' : 'invisible' }}"
+                                   data-compose--compose-target="plainCheck" aria-hidden="true"></i>
+                                <span>{{ 'compose.plain_text'|trans }}</span>
+                            </button>
+
+                            <div class="my-1 border-t border-line"></div>
+
+                            <div class="px-3 py-2">
+                                <label for="{{ form.priority.vars.id }}"
+                                       class="block text-[10px] font-semibold uppercase tracking-wide text-ink-faint mb-1">
+                                    {{ 'compose.priority.label'|trans }}
+                                </label>
+                                <select id="{{ form.priority.vars.id }}"
+                                        name="{{ form.priority.vars.full_name }}"
+                                        class="w-full h-9 rounded-lg border border-line bg-surface text-sm px-2 text-ink">
+                                    {# The empty option is "no opinion", which
+                                       emits no headers at all — see
+                                       MessagePriority's docblock on why that is
+                                       not the same as Normal. #}
+                                    <option value="" {{ form.priority.vars.value ? '' : 'selected' }}>
+                                        {{ 'compose.priority.none'|trans }}
+                                    </option>
+                                    {% for level in ['high', 'normal', 'low'] %}
+                                        <option value="{{ level }}" {{ form.priority.vars.value == level ? 'selected' : '' }}>
+                                            {{ ('compose.priority.' ~ level)|trans }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <label class="flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                          hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                                <input type="checkbox"
+                                       id="{{ form.readReceiptRequested.vars.id }}"
+                                       name="{{ form.readReceiptRequested.vars.full_name }}"
+                                       value="1"
+                                       {{ form.readReceiptRequested.vars.checked ? 'checked' : '' }}
+                                       class="rounded border-line">
+                                <span>{{ 'compose.read_receipt'|trans }}</span>
+                            </label>
+                        </div>
+                    </div>
                     </div>
 
                     {# Attach from a connected service. Sized to what the user

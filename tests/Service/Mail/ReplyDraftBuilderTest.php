@@ -8,9 +8,13 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\ReplyDraftBuilder;
+use App\Service\Mail\SignatureProvider;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * What a reply *is*, pinned away from the controller it used to live in.
@@ -26,7 +30,16 @@ final class ReplyDraftBuilderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->builder = new ReplyDraftBuilder();
+        // The real sanitiser, over a stub router: it is only reached when a
+        // signature is WRITTEN, and nothing here writes one — the builder only
+        // reads the settings bag. The URL generator behind it exists solely
+        // for the cid resolution a fragment never does.
+        $this->builder = new ReplyDraftBuilder(new SignatureProvider(
+            new MailBodySanitizer(
+                self::createStub(UrlGeneratorInterface::class),
+                new NullLogger(),
+            ),
+        ));
     }
 
     // ── addressing ───────────────────────────────────────────────────────────
@@ -243,6 +256,59 @@ final class ReplyDraftBuilderTest extends TestCase
         $message->ccAddresses = [['name' => '', 'address' => 'cc@example.test']];
 
         return $message;
+    }
+
+    // ── signature ────────────────────────────────────────────────────────────
+
+    /**
+     * A signed account signs its replies, ABOVE the quote.
+     *
+     * The ordering is the assertion, not the presence: below the quoted
+     * original a signature is a footnote under someone else's mail, and on a
+     * long thread it ends up several screens from anything the sender wrote.
+     */
+    public function testAReplyIsSignedAboveTheQuotedOriginal(): void
+    {
+        $account = $this->signedAccount('<p>— Paul</p>');
+
+        $html = (string) $this->builder->reply($this->original(), $account)->bodyHtml;
+
+        self::assertStringContainsString('data-pl-signature', $html);
+        self::assertLessThan(
+            (int) strpos($html, 'data-quoted'),
+            (int) strpos($html, 'data-pl-signature'),
+            'The signature must come before the quoted original, not after it.',
+        );
+    }
+
+    public function testAForwardIsSignedAboveTheForwardedMessage(): void
+    {
+        $original          = $this->original();
+        $original->account = $this->signedAccount('<p>— Paul</p>');
+
+        $html = (string) $this->builder->forward($original)->bodyHtml;
+
+        self::assertStringContainsString('data-pl-signature', $html);
+        self::assertLessThan(
+            (int) strpos($html, 'data-quoted'),
+            (int) strpos($html, 'data-pl-signature'),
+        );
+    }
+
+    public function testAnUnsignedAccountAddsNoSignatureBlockAtAll(): void
+    {
+        self::assertStringNotContainsString(
+            'data-pl-signature',
+            (string) $this->builder->reply($this->original(), $this->account())->bodyHtml,
+        );
+    }
+
+    private function signedAccount(string $signature): Account
+    {
+        $account = $this->account();
+        $account->setSetting(Account::SETTING_SIGNATURE, $signature);
+
+        return $account;
     }
 
     /** @param list<string> $owned */

@@ -73,6 +73,35 @@ final readonly class MailBodySanitizer
     }
 
     /**
+     * The same sanitiser, over a fragment that belongs to no Message.
+     *
+     * Exists for the signature: it is HTML the user composes in a
+     * contenteditable and the server then injects into every message they
+     * send, so it is untrusted input twice over — once when it is written
+     * (paste carries whatever the clipboard held) and once when it is read
+     * back out of jsonb, which anything with database access can have edited.
+     * Running it through the same allow-list as inbound mail means a signature
+     * cannot carry a script, a form or an iframe into the composer.
+     *
+     * No cid resolution and no CSS inlining: a fragment has no message to
+     * resolve `cid:` against, and the editor already writes inline styles.
+     *
+     * Note that the allow-list drops `class` and every `data-` attribute, so a
+     * sanitised signature can never carry the `data-pl-signature` marker or a
+     * `data-cid` of its own — the wrapper is added around the result, and
+     * InlineImageRewriter therefore never sees an image inside a signature as
+     * one of its own.
+     */
+    public function sanitizeFragment(?string $html): string
+    {
+        if (null === $html || '' === trim($html)) {
+            return '';
+        }
+
+        return trim($this->buildSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)));
+    }
+
+    /**
      * Rewrite every `cid:` reference — img src and url(...) inside CSS — to the
      * lazy attachment route. Absolute-PATH (not URL) so no request/host context
      * is needed inside the worker.

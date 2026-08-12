@@ -96,6 +96,21 @@ class ComposeType extends AbstractType
                 ],
             ])
 
+            // The plain-text surface, and only that: in rich mode the window
+            // disables this control so it is not submitted at all, which binds
+            // it to null and lets DraftPersister derive the text part from the
+            // HTML as it always has. In plain-text mode the HTML body is
+            // submitted empty and THIS is the message — see DraftPersister::save().
+            //
+            // Mapped onto Message::$bodyText, a column that already exists, so
+            // plain-text mode needs no migration and survives a reload: a draft
+            // with text and no HTML reopens as a plain-text draft because that
+            // is precisely what it is.
+            ->add('bodyText', TextareaType::class, [
+                'label'    => false,
+                'required' => false,
+            ])
+
             // ── The more-options menu's two settings ──────────────────────
             //
             // Mapped, so they land on the Message the form is bound to and

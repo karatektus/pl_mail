@@ -802,6 +802,7 @@ compose:
     confirm:
         no_body: This scroll be blank. Cast it off regardless?
         no_subject: This scroll bears no heading. Cast it off regardless?
+        plain_text: "Strikin' to plain text scrubs every flourish from this scroll. Carry on?"
     emoji:
         activities: Sport and mischief
         animals_nature: Beasts and the wilds
@@ -834,6 +835,12 @@ compose:
     list:
         ordered: Numbered manifest
         unordered: Bulleted manifest
+    priority:
+        high: "Hoist th' red flag"
+        label: Urgency
+        low: "No great hurry"
+        none: "No word on it"
+        normal: "Ordinary sailin'"
     quote:
         hide: stow the quoted words
         show: unfurl the quoted words
@@ -880,6 +887,7 @@ compose:
     discard: Burn this scroll
     empty_draft: (blank scroll)
     encrypt: Seal it in cipher
+    encrypt_unavailable: "No cipher aboard yet — this seal be locked."
     expand: Throw open the hatches
     formatting: Fancy lettering
     forward: Pass it along
@@ -896,7 +904,9 @@ compose:
     new_message: A Fresh Scroll
     no_recipients: Nobody to send it to
     outdent: Shove it outboard
+    plain_text: "Plain hand, no flourishes"
     pop_out: Open in its own cabin
+    read_receipt: "Beg word it were read"
     recipient_required: Name at least one soul afore ye cast off.
     redo: Do it over again
     reply: Answer
@@ -907,6 +917,7 @@ compose:
     send_options: Castin'-off orders
     sending: "Castin' off…"
     signature: Make yer mark
+    signature_none: "This name bears no mark yet"
     subject_label: Head
     subject_placeholder: Headin'
     text_color: Ink colour
@@ -1501,6 +1512,13 @@ settings:
                 ask: 'Ask me each time'
                 never: 'Never send word'
         saved: 'Set down.'
+        signature:
+            for_alias: 'Yer mark fer %alias%'
+            hint: 'Set at the foot o'' every new scroll, above the quoted words.'
+            inherit: 'Use the ship''s own mark'
+            label: 'Yer mark'
+            placeholder: 'No mark yet'
+            save: 'Set down yer mark'
         subheading: 'What each o'' yer names does by default, sendin'' and receivin''.'
     filters:
         account: Account

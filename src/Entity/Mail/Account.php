@@ -296,6 +296,37 @@ class Account extends AccountModel
         return 'compose.read_receipt.alias.' . $aliasId;
     }
 
+    /**
+     * The HTML signature this account signs with, for any address that has no
+     * signature of its own.
+     *
+     * Absent means no signature at all. The stored value is sanitised HTML —
+     * SignatureProvider is the only writer and MailBodySanitizer::sanitizeFragment()
+     * is what it writes through, because this string is injected verbatim into
+     * every outgoing message and the settings panel that fills it is a
+     * contenteditable, which is to say user input with a paste buffer attached.
+     */
+    public const string SETTING_SIGNATURE = 'compose.signature';
+
+    /**
+     * The per-alias signature override, keyed by alias id.
+     *
+     * Same shape and same reasoning as readReceiptAliasSetting() above — per
+     * alias because one mailbox holding a work address and a personal one
+     * wants two different sign-offs, and in the jsonb bag rather than in a
+     * column on EmailAlias because neither needs a migration to exist.
+     *
+     * The key's PRESENCE is the state, not its value. An absent key means this
+     * alias has no opinion and inherits the account signature; a key holding
+     * the empty string means this alias deliberately signs with nothing. Those
+     * are different answers and writers must use unsetSetting() for the first
+     * rather than storing null — see unsetSetting() below.
+     */
+    public static function signatureAliasSetting(int $aliasId): string
+    {
+        return 'compose.signature.alias.' . $aliasId;
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

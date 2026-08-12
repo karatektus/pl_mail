@@ -25,6 +25,7 @@ use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\ScheduledSendResolver;
 use App\Service\Mail\SenderResolver;
+use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -86,6 +87,7 @@ class ComposeController extends AbstractController
         private readonly TranslatorInterface     $translator,
         private readonly ScheduledSendResolver   $schedules,
         private readonly InlineImageRewriter     $inlineImages,
+        private readonly SignatureProvider       $signatures,
     )
     {
     }
@@ -108,6 +110,21 @@ class ComposeController extends AbstractController
 
             $message = new Message();
             $message->account = $account;
+
+            // A blank message still starts signed. Seeded here rather than in
+            // the browser so the body the editor opens with is the body an
+            // autosave would store — a signature added client-side after
+            // render is one the "has the user typed anything yet" guard
+            // (minChars) would have to be taught to ignore.
+            //
+            // With an empty paragraph ABOVE it, and that paragraph is not
+            // decoration: a body consisting only of the signature block has
+            // nowhere to write, so the caret lands INSIDE the signature and
+            // the first thing typed becomes part of it — and is then thrown
+            // away by the next From switch, which replaces the block. Same
+            // `<p><br></p>` ReplyDraftBuilder puts above a quote, for the same
+            // reason.
+            $message->bodyHtml = $this->signatureSeed($account);
 
         } else {
             $this->assertOwnership($message);
@@ -907,6 +924,21 @@ class ComposeController extends AbstractController
             $this->getUser(),
             Capability::Download,
         );
+    }
+
+    /**
+     * The body a brand-new message opens with: somewhere to write, then the
+     * signature.
+     *
+     * Empty when the sender signs with nothing — a lone `<p><br></p>` would be
+     * a body that is not empty, and the editor's placeholder ("Write your
+     * message…") only shows for a genuinely empty one.
+     */
+    private function signatureSeed(Account $account): string
+    {
+        $signature = $this->signatures->blockFor($account, $account->displayAddress);
+
+        return '' === $signature ? '' : '<p><br></p>' . $signature;
     }
 
     private function defaultAccount(): ?Account

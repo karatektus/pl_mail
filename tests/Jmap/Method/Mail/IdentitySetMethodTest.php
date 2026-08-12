@@ -15,13 +15,18 @@ use App\Tests\Jmap\JmapTestCase;
 /**
  * "Identity/set" — the addresses a client may send from.
  *
- * An Identity is a plMail EmailAlias, and RFC 8621's Identity object is much
- * larger than an alias: replyTo, bcc, a text signature and an HTML signature.
- * plMail stores none of those, and the decision here is to REFUSE them rather
- * than accept and drop them. That is the interesting behaviour and most of
- * what follows pins it: a client told it saved a signature, which then sends
- * mail without one, has no way to discover the difference — and the person
- * finding out is the recipient.
+ * An Identity is a plMail EmailAlias, and RFC 8621's Identity object is larger
+ * than an alias: replyTo, bcc, a text signature and an HTML signature.
+ *
+ * Signatures ARE stored now — in the same setting the composer and the settings
+ * panel read, so a signature written on a phone is what the browser signs with.
+ * The round trip through Identity/get is pinned below, as is the sanitising:
+ * this is HTML arriving over an API and going into every outgoing message.
+ *
+ * replyTo and bcc are still REFUSED rather than accepted and dropped, and that
+ * refusal is most of what follows: a client told it saved a per-identity Bcc,
+ * which then sends mail without it, has no way to discover the difference —
+ * and the person finding out is whoever was supposed to be copied.
  *
  * The destroy rules are the other half. An alias the provider discovered is
  * not the client's to remove — it returns on the next sync, so honouring the
@@ -72,8 +77,109 @@ final class IdentitySetMethodTest extends JmapTestCase
     {
         yield 'replyTo' => ['replyTo'];
         yield 'bcc' => ['bcc'];
-        yield 'textSignature' => ['textSignature'];
-        yield 'htmlSignature' => ['htmlSignature'];
+    }
+
+    // ── signatures ────────────────────────────────────────────────────────
+
+    /**
+     * The round trip that makes the mobile client and the browser agree: what
+     * Identity/set stored is what Identity/get publishes.
+     */
+    public function testASignatureSetOnCreateComesBackFromIdentityGet(): void
+    {
+        $result = $this->handle([
+            'create' => ['i1' => [
+                'email'         => 'signed@example.test',
+                'htmlSignature' => '<p>Ada Lovelace</p>',
+            ]],
+        ]);
+
+        $identity = $this->identityById(((array) $result['created'])['i1']['id']);
+
+        self::assertSame('<p>Ada Lovelace</p>', $identity['htmlSignature']);
+        self::assertSame('Ada Lovelace', $identity['textSignature']);
+    }
+
+    public function testASignatureSetOnUpdateComesBackFromIdentityGet(): void
+    {
+        $alias = $this->alias('signed@example.test');
+
+        $this->handle(['update' => [(string) $alias->id => ['htmlSignature' => '<p>Ada</p>']]]);
+
+        self::assertSame('<p>Ada</p>', $this->identityById((string) $alias->id)['htmlSignature']);
+    }
+
+    /**
+     * HTML arriving over an API, on its way into every message this address
+     * sends. It goes through the same allow-list as inbound mail.
+     */
+    public function testASignatureIsSanitisedBeforeItIsStored(): void
+    {
+        $alias = $this->alias('signed@example.test');
+
+        $this->handle(['update' => [(string) $alias->id => [
+            'htmlSignature' => '<p>Ada</p><script>alert(1)</script>',
+        ]]]);
+
+        $stored = $this->identityById((string) $alias->id)['htmlSignature'];
+
+        self::assertStringNotContainsString('script', $stored);
+        self::assertStringContainsString('Ada', $stored);
+    }
+
+    /**
+     * A plain-text signature is text, not markup — a client that sends
+     * "<b>Ada</b>" in textSignature means those nine characters.
+     */
+    public function testATextSignatureIsEscapedRatherThanParsed(): void
+    {
+        $alias = $this->alias('signed@example.test');
+
+        $this->handle(['update' => [(string) $alias->id => ['textSignature' => "<b>Ada</b>\nAcme"]]]);
+
+        $identity = $this->identityById((string) $alias->id);
+
+        self::assertStringContainsString('&lt;b&gt;', $identity['htmlSignature']);
+        self::assertSame("<b>Ada</b>\nAcme", $identity['textSignature']);
+    }
+
+    /**
+     * An explicitly empty signature is an ANSWER — this address signs with
+     * nothing — and must survive as one rather than falling back to the
+     * account signature. That is the same presence-versus-value distinction
+     * the settings panel's "use the account signature" box expresses.
+     */
+    public function testAnEmptySignatureMeansThisAddressSignsWithNothing(): void
+    {
+        $alias = $this->alias('unsigned@example.test');
+
+        $this->account->setSetting(\App\Entity\Mail\Account::SETTING_SIGNATURE, '<p>Account wide</p>');
+        $this->em->flush();
+
+        self::assertSame(
+            '<p>Account wide</p>',
+            $this->identityById((string) $alias->id)['htmlSignature'],
+            'with no key of its own the alias inherits',
+        );
+
+        $this->handle(['update' => [(string) $alias->id => ['htmlSignature' => '']]]);
+
+        self::assertSame('', $this->identityById((string) $alias->id)['htmlSignature']);
+    }
+
+    /**
+     * A patch that says nothing about the signature leaves it alone. RFC 8620
+     * updates are patches, and renaming an identity is not a statement about
+     * how it signs.
+     */
+    public function testAPatchThatDoesNotMentionTheSignatureLeavesItAlone(): void
+    {
+        $alias = $this->alias('signed@example.test');
+
+        $this->handle(['update' => [(string) $alias->id => ['htmlSignature' => '<p>Ada</p>']]]);
+        $this->handle(['update' => [(string) $alias->id => ['name' => 'Renamed']]]);
+
+        self::assertSame('<p>Ada</p>', $this->identityById((string) $alias->id)['htmlSignature']);
     }
 
     /**
