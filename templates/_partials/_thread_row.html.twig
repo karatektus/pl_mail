@@ -107,6 +107,10 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        when it was due, not a schedule. #}
     {% set scheduledAt = (draftMessage and draftMessage.sentAt is null)
         ? draftMessage.submissionSendAt : null %}
+    {# Which message the hold is on. Not draftId: that one is null unless the
+       ROW opens the draft (a conversation carrying an unsent reply opens the
+       thread), and the hold belongs to the draft either way. #}
+    {% set scheduledId = scheduledAt is not null ? draftMessage.id : null %}
 
     {% set hasAttachment = item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
@@ -130,6 +134,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set draftId = item.id %}
     {% set scheduledAt = (item.isDraft and item.sentAt is null)
         ? item.submissionSendAt : null %}
+    {% set scheduledId = scheduledAt is not null ? item.id : null %}
 
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
@@ -301,22 +306,85 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                            it is spelled out here so the two halves of one
                            timestamp cannot be read as coming from two clocks. #}
                         {% if scheduledAt is not null %}
-                            <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                            {# Badge and cancel are one pill, not a badge with a
+                               button parked next to it: the × means nothing on
+                               its own, and reading it as "cancel THAT" depends
+                               on it sharing the shape of the thing it undoes. #}
+                            <span class="shrink-0 inline-flex items-center rounded-full
                                          text-[11px] font-medium bg-info/10 text-info whitespace-nowrap"
                                   data-scheduled-badge>
-                                <i class="fa-regular fa-clock" aria-hidden="true"></i>
-                                {{ 'thread_row.scheduled'|trans({
-                                    '%when%': 'compose.schedule.when'|trans({
-                                        '%date%': scheduledAt|intl_date('dMMM', clock.timezone),
-                                        '%time%': scheduledAt|date(clock.time, clock.timezone),
-                                    }),
-                                }) }}
+                                <span class="inline-flex items-center gap-1 pl-2 pr-1 py-0.5">
+                                    <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                                    {{ 'thread_row.scheduled'|trans({
+                                        '%when%': 'compose.schedule.when'|trans({
+                                            '%date%': scheduledAt|intl_date('dMMM', clock.timezone),
+                                            '%time%': scheduledAt|date(clock.time, clock.timezone),
+                                        }),
+                                    }) }}
+                                </span>
+
+                                {# Calling the hold off from the row itself.
+                                   Cancelling used to be one click further —
+                                   open the draft, open the send menu — which
+                                   is a long way to go to stop something you
+                                   can already see.
+
+                                   It lives ON TOP of the row's overlay anchor,
+                                   the same way the star and the hover actions
+                                   do, and by the same two means: `z-10` (this
+                                   is a flex item, so z-index applies without a
+                                   position) lifts it over the `z-0` anchor, so
+                                   the anchor is never the click target; and
+                                   mail--message-row#cancelSchedule stops the
+                                   event before the row's own open handler sees
+                                   it. No nested <form> — the post is a fetch
+                                   answered with a Turbo Stream that redraws
+                                   this row, exactly like archive and trash.
+
+                                   Not hover-revealed, unlike those two: this
+                                   is the only affordance for it and half the
+                                   list has no hover at all. #}
+                                <button type="button"
+                                        data-action="click->mail--message-row#cancelSchedule"
+                                        data-mail--message-row-cancel-schedule-url-param="{{ path('app_compose_mail_unschedule', {
+                                            id:          scheduledId,
+                                            type:        type,
+                                            draft_scope: draft_scope ? 1 : 0,
+                                        }) }}"
+                                        data-cancel-schedule
+                                        title="{{ 'thread_row.actions.cancel_schedule'|trans }}"
+                                        aria-label="{{ 'thread_row.actions.cancel_schedule'|trans }}"
+                                        {# `py-1` rather than stretching to the
+                                           label: align-self on an inline-flex
+                                           child gave an 11px tap target on a
+                                           phone, which the mobile spec now
+                                           measures rather than assumes. #}
+                                        class="relative z-10 pointer-events-auto cursor-pointer
+                                               flex items-center py-1 pl-1 pr-2 rounded-r-full
+                                               text-info/80 hover:text-danger hover:bg-danger/10 transition-colors">
+                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                </button>
                             </span>
                         {% endif %}
                         <span class="@xl:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                         </span>
-                        <span class="truncate text-ink-faint">{{ snippet }}</span>
+                        {# A stacked row has one line for the preview, and a
+                           scheduled draft has already spent most of it saying
+                           when it goes — what is left of the snippet at 393px
+                           is two characters and an ellipsis, which is noise
+                           where the badge is information. Wide, both fit and
+                           both are shown. #}
+                        {# `@xl:inline-block`, not `@xl:block`, and this is the
+                           second time this file has paid for it: Tailwind emits
+                           `.hidden` AFTER `.block`, so `hidden @xl:block` is
+                           hidden at every width — the container variant does
+                           not outrank it. `.inline-block` is emitted after
+                           `.hidden` and wins, and a flex item blockifies it
+                           anyway, so `truncate` still truncates. The pairing
+                           further down this file (`hidden @xl:flex`) works for
+                           the same reason in the other direction. #}
+                        <span class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
                     </span>
                 </div>
 

@@ -41,6 +41,7 @@ Variables: message, ctx, sendAt (DateTimeImmutable, UTC), thread, cancelUrl
             message: 'compose.schedule.toast'|trans({ '%when%': when }),
             extra: {
                 undo_url: cancelUrl,
+                undo_label: 'compose.schedule.toast_cancel',
                 hide_after: 8000,
             },
         } only %}

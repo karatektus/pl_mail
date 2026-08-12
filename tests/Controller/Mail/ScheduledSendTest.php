@@ -155,6 +155,159 @@ final class ScheduledSendTest extends WebTestCase
         self::assertNull($reloaded->sentAt);
     }
 
+    /**
+     * The toast is the whole of the positive feedback, so it has to be read in
+     * the user's own clock — not the container's, and not 24-hour because that
+     * is what a server writes.
+     *
+     * 09:00 in Sydney is 23:00 the previous day in UTC, so a toast rendered
+     * against the wrong zone gets both the hour and the DAY wrong; a toast
+     * rendered against the wrong format prints "9:00" where the user has asked
+     * for "9:00 am" everywhere else in the app.
+     */
+    public function testTheToastNamesTheTimeInTheUsersZoneAndClock(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'toast@joder.dev');
+
+        $user->timezone = self::USER_ZONE;
+        $user->setSetting(User::SETTING_CLOCK, '12');
+        $this->em->flush();
+
+        $zone = new DateTimeZone(self::USER_ZONE);
+        $day  = (new DateTimeImmutable('+3 days', $zone));
+
+        $this->schedule($client, $account, $day->format('Y-m-d') . 'T09:00');
+
+        self::assertResponseIsSuccessful();
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('Scheduled for', $body);
+        self::assertStringContainsString(
+            '9:00 am',
+            $body,
+            'the chosen clock format, not the server default',
+        );
+        self::assertStringContainsString(
+            $day->format('j'),
+            $body,
+            'and the day it is 09:00 on in Sydney, not the one it is in UTC',
+        );
+
+        // The window goes with it — a schedule that leaves the composer open
+        // looks like nothing happened.
+        self::assertStringContainsString('target="compose_dock"', $body);
+
+        // And the toast carries the way back out, labelled for a hold rather
+        // than for a send already on its way.
+        self::assertStringContainsString('Cancel send', $body);
+    }
+
+    /**
+     * Calling the hold off from the list row: the same clearing as undo(), but
+     * the answer is the row rather than a reopened composer.
+     */
+    public function testUnschedulingFromTheRowClearsTheHoldAndRedrawsTheRow(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'rowcancel@joder.dev');
+
+        $user->timezone = self::USER_ZONE;
+        $this->em->flush();
+
+        $wall = (new DateTimeImmutable('+2 days', new DateTimeZone(self::USER_ZONE)))->format('Y-m-d') . 'T09:00';
+
+        $this->schedule($client, $account, $wall);
+
+        $message  = $this->lastDraft($account);
+        $threadId = $message->thread->id;
+
+        self::assertNotNull($message->submissionSendAt);
+
+        $client->request('POST', '/compose/unschedule/' . $message->id . '?type=thread&draft_scope=1');
+
+        self::assertResponseIsSuccessful();
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString(
+            'target="thread_' . $threadId . '"',
+            $body,
+            'the row is patched where it stands, not reloaded around it',
+        );
+        self::assertStringNotContainsString(
+            'data-scheduled-badge',
+            $body,
+            'and comes back without the badge',
+        );
+        self::assertStringContainsString('Scheduled send cancelled', $body);
+
+        // Nothing about the composer: this was clicked from a list.
+        self::assertStringNotContainsString('compose-window', $body);
+
+        $this->em->clear();
+        $reloaded = $this->em->find(Message::class, $message->id);
+
+        self::assertNull($reloaded->submissionSendAt, 'no schedule left to show anywhere');
+        self::assertTrue($reloaded->cancelled, 'and the handler will drop the envelope');
+        self::assertNull($reloaded->sentAt);
+    }
+
+    /**
+     * A row whose mail already went out while the list sat open.
+     *
+     * The click cannot un-send it, and must not pretend to: submissionSendAt is
+     * by then the record of when the mail was due — EmailSubmission/get falls
+     * back to it — and `cancelled` on a handled message is a lie the next
+     * re-submission would trip over. The row is redrawn either way, because
+     * what the user was looking at was already stale.
+     */
+    public function testUnschedulingAMessageThatHasAlreadyGoneChangesNothing(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'toolate@joder.dev');
+
+        $this->em->flush();
+
+        $wall = (new DateTimeImmutable('+2 days'))->format('Y-m-d') . 'T09:00';
+
+        $this->schedule($client, $account, $wall);
+
+        $message = $this->lastDraft($account);
+        $due     = $message->submissionSendAt;
+
+        self::assertNotNull($due);
+
+        // The hold came due while the list sat open.
+        $message->sentAt    = new DateTimeImmutable('now');
+        $message->cancelled = false;
+        $this->em->flush();
+
+        $client->request('POST', '/compose/unschedule/' . $message->id . '?type=thread&draft_scope=1');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString(
+            'Scheduled send cancelled',
+            (string) $client->getResponse()->getContent(),
+            'nothing was cancelled, so nothing claims to have been',
+        );
+
+        $this->em->clear();
+        $reloaded = $this->em->find(Message::class, $message->id);
+
+        self::assertNotNull($reloaded->sentAt, 'still sent');
+        self::assertFalse($reloaded->cancelled, 'and not retroactively called off');
+        self::assertSame(
+            $due->getTimestamp(),
+            $reloaded->submissionSendAt?->getTimestamp(),
+            'the record of when it was due survives',
+        );
+    }
+
     /** A time already gone is refused, and nothing is dispatched for it. */
     public function testATimeInThePastIsRefused(): void
     {

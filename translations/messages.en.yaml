@@ -1116,7 +1116,11 @@ compose:
         monday_morning: Monday morning
         scheduled_for: Scheduled to send
         timezone_hint: Times are in %zone%.
-        toast: Send scheduled for %when%
+        toast: Scheduled for %when%
+        # The toast's own action label. `cancel` is the menu's, where there is
+        # room to say which send is meant; in a toast beside the sentence that
+        # just named it, the long form pushes the message onto four lines.
+        toast_cancel: Cancel send
         tomorrow_afternoon: Tomorrow afternoon
         tomorrow_morning: Tomorrow morning
         when: '%date%, %time%'
@@ -2309,6 +2313,7 @@ thread_row:
     account: 'Received on %account%'
     actions:
         archive: Archive
+        cancel_schedule: Cancel scheduled send
         delete: Delete
         mark_read: Mark as read
         mark_unread: Mark as unread
@@ -2332,6 +2337,7 @@ thread_row:
 
 toast:
     dismiss: Dismiss
+    schedule_cancelled: Scheduled send cancelled.
     send_cancelled: Send cancelled — back to your draft.
     undo: Undo
     error:

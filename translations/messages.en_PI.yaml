@@ -857,6 +857,7 @@ compose:
         scheduled_for: Due to cast off
         timezone_hint: "All hours be reckoned in %zone%."
         toast: "Castin' off %when%"
+        toast_cancel: Belay it
         tomorrow_afternoon: "On th' morrow, afternoon"
         tomorrow_morning: "On th' morrow at first light"
         when: '%date%, %time%'
@@ -1977,6 +1978,7 @@ thread_row:
     account: 'Hauled aboard %account%'
     actions:
         archive: Stow in the hold
+        cancel_schedule: Belay the castin' off
         delete: Feed to the fishes
         mark_read: Mark as read
         mark_unread: Mark as unread
@@ -1997,6 +1999,7 @@ thread_row:
 
 toast:
     dismiss: Away with ye
+    schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.
     undo: Belay that
     error:

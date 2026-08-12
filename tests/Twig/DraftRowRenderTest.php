@@ -127,6 +127,45 @@ final class DraftRowRenderTest extends KernelTestCase
         self::assertStringContainsString('Sep', $html);
     }
 
+    /**
+     * And carries the way out of it, on the row.
+     *
+     * Cancelling used to mean opening the draft and then opening the send menu.
+     * The button has to be a plain button posting to the unschedule route — the
+     * row is an <li> under an absolutely-positioned overlay <a>, and a nested
+     * <form> in this shared partial is exactly what the previous attempt would
+     * not risk. `z-10` is what puts it over that anchor; without it the click
+     * lands on the link and opens the composer instead.
+     */
+    public function testAScheduledDraftRowCanCallTheHoldOffWhereItStands(): void
+    {
+        $thread = $this->seedDraft(
+            [['name' => 'Rike Kaltbach', 'address' => 'rike@example.test']],
+            new DateTimeImmutable('2026-09-14T06:30:00', new \DateTimeZone('UTC')),
+        );
+
+        $html    = $this->render($thread);
+        $draftId = $thread->messages->first()->id;
+
+        self::assertStringContainsString('data-cancel-schedule', $html);
+        self::assertStringContainsString(
+            'data-mail--message-row-cancel-schedule-url-param="/compose/unschedule/' . $draftId,
+            $html,
+            'pointed at the draft that carries the hold',
+        );
+        self::assertStringContainsString(
+            'draft_scope=1',
+            $html,
+            'and told which shape of row to send back',
+        );
+        self::assertStringContainsString('click->mail--message-row#cancelSchedule', $html);
+        self::assertStringContainsString('Cancel scheduled send', $html);
+
+        // No form anywhere in the row: the post is a fetch answered with a
+        // stream, like every other row action.
+        self::assertStringNotContainsString('<form', $html);
+    }
+
     /** An ordinary draft carries no badge at all. */
     public function testAnUnscheduledDraftIsNotBadged(): void
     {
@@ -135,6 +174,7 @@ final class DraftRowRenderTest extends KernelTestCase
         ]));
 
         self::assertStringNotContainsString('data-scheduled-badge', $html);
+        self::assertStringNotContainsString('data-cancel-schedule', $html);
     }
 
     /** @param list<array{name: string, address: string}>|null $to */
