@@ -76,6 +76,7 @@
                                     { label: 'settings.nav.group.mail', items: [
                                         { section: 'accounts',      icon: 'fa-solid fa-at',    label: 'settings.nav.accounts' },
                                         { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
+                                        { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'notifications', icon: 'fa-solid fa-bell' },
@@ -214,7 +215,10 @@
 
                                         {# Per-alias compose defaults, under the alias list
                                            because every control in it is captioned by an
-                                           address from the list above. #}
+                                           address from the list above. Signatures used to
+                                           be in here too and are their own section now —
+                                           they needed the room, and people looked for them
+                                           by name. #}
                                         <section class="mt-8">
                                             <div class="mb-4 px-4 @2xl:px-0">
                                                 <h2 class="text-sm font-semibold text-ink">{{ 'settings.compose_defaults.heading'|trans }}</h2>
@@ -224,6 +228,21 @@
                                             <div class="rounded-pane border border-line overflow-hidden">
                                                 <div id="settings-compose-defaults">
                                                     {% include 'settings/_compose_defaults.html.twig' with {
+                                                        manageableAccounts: manageableAccounts,
+                                                    } %}
+                                                </div>
+                                            </div>
+                                        </section>
+                                    {% elseif section == 'signature' %}
+                                        <section>
+                                            <div class="mb-4 px-4 @2xl:px-0">
+                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.signature.heading'|trans }}</h2>
+                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.signature.subheading'|trans }}</p>
+                                            </div>
+
+                                            <div class="rounded-pane border border-line overflow-hidden">
+                                                <div id="settings-signature">
+                                                    {% include 'settings/_signature.html.twig' with {
                                                         manageableAccounts: manageableAccounts,
                                                     } %}
                                                 </div>

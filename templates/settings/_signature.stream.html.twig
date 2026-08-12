@@ -1,0 +1,15 @@
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
+    </template>
+</turbo-stream>
+
+{# The whole panel, not the one row that changed — see
+   SignatureController::streamResponse() for why. #}
+<turbo-stream action="replace" target="settings-signature">
+    <template>
+        <div id="settings-signature">
+            {% include 'settings/_signature.html.twig' with { manageableAccounts: manageableAccounts } %}
+        </div>
+    </template>
+</turbo-stream>

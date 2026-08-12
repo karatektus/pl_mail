@@ -1839,13 +1839,6 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
-        signature:
-            for_alias: 'Signatur für %alias%'
-            hint: 'Steht am Ende jeder neuen Nachricht, oberhalb des zitierten Textes.'
-            inherit: 'Signatur des Kontos verwenden'
-            label: 'Signatur'
-            placeholder: 'Keine Signatur'
-            save: 'Signatur speichern'
         subheading: 'Was jede Ihrer Adressen beim Senden und Empfangen standardmäßig tut.'
     filters:
         account: Account
@@ -2147,6 +2140,7 @@ settings:
         labels: Labels
         notifications: Benachrichtigungen
         security: Sicherheit
+        signature: Signaturen
     notifications:
         devices:
             empty: >-
@@ -2274,6 +2268,26 @@ settings:
         subheading: >-
             Links, die jemandem ohne Konto einen Teil deines Kalenders zeigen,
             und Seiten, auf denen er eine Stunde davon buchen kann.
+    signature:
+        for_alias: 'Signatur für %alias%'
+        heading: Signaturen
+        hint: 'Steht am Ende jeder neuen Nachricht, oberhalb des zitierten Textes.'
+        label: Signatur
+        overriding: 'Diese Adresse hat jetzt eine eigene Signatur — unten bearbeiten.'
+        per_address:
+            count: 'Adressen mit eigener Signatur: %number%'
+            disclosure: 'Für einzelne Adressen eine andere Signatur verwenden'
+            inherits: 'Verwendet die Signatur des Kontos.'
+            override: 'Eigene verwenden'
+            override_for: '%alias% eine eigene Signatur geben'
+            revert: 'Signatur des Kontos verwenden'
+            revert_for: 'Für %alias% wieder die Signatur des Kontos verwenden'
+            signs_with_nothing: 'Leer — diese Adresse sendet ohne Signatur.'
+        placeholder: 'Keine Signatur'
+        reverted: 'Wieder die Signatur des Kontos.'
+        save: 'Signatur speichern'
+        saved: 'Gespeichert.'
+        subheading: 'Was am Ende der Nachrichten steht, die Sie schreiben.'
     timezone:
         heading: Zeitzone
         subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.

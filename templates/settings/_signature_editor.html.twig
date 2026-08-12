@@ -12,19 +12,28 @@ code path (document.execCommand behind _exec()). The controller needs only its
 `editor` and `hiddenInput` targets to work; everything else it looks for is
 optional.
 
+NO DISABLED STATE. This partial is only ever included for an address that has
+a signature of its own; an address that inherits gets a one-line row instead
+(see _signature.html.twig). The previous version rendered a greyed-out editor
+for an inheriting alias and got the greying wrong on first render — the
+markup set `data-signature-disabled`, which nothing in the stylesheet ever
+matched, and only the checkbox's change handler added the `opacity-50` that
+did the greying. So the field looked live until you toggled the box. There is
+no state to get wrong now: no editor, no bug.
+
 Whatever this posts is sanitised server-side before storage — see
-ComposeDefaultsController::setSignature(). The editor is a convenience, never
-a guarantee.
+SignatureController. The editor is a convenience, never a guarantee.
 
 Variables:
   id         string   unique suffix for element ids
   action     string   route to post to
   token      string   CSRF token value
   signature  string   the stored HTML (may be empty)
-  inherit    bool|null  null = no inherit control (the account-level field)
   label      string   accessible name for the editor
+  autofocus  bool     put the caret in the editor on load (the alias editor
+                      revealed by "use a different signature" does)
 #}
-{% set inherit = inherit|default(null) %}
+{% set autofocus = autofocus|default(false) %}
 
 <form method="post" action="{{ action }}" data-turbo-stream
       data-controller="compose--compose-toolbar"
@@ -36,22 +45,7 @@ Variables:
     <input type="hidden" name="signature" value="{{ signature|e('html_attr') }}"
            data-compose--compose-toolbar-target="hiddenInput">
 
-    {% if inherit is not null %}
-        {# The three-state control, in one checkbox: ticked posts `inherit` and
-           the server REMOVES the key, so the account signature reaches this
-           address again. Unticked stores whatever is in the editor — including
-           nothing, which is how an address signs with nothing on an account
-           that has a signature. #}
-        <label class="flex items-center gap-2 text-xs text-ink-muted mb-1.5 cursor-pointer">
-            <input type="checkbox" name="inherit" value="1" {{ inherit ? 'checked' : '' }}
-                   data-action="change->compose--compose-toolbar#toggleDisabled"
-                   class="rounded border-line">
-            {{ 'settings.compose_defaults.signature.inherit'|trans }}
-        </label>
-    {% endif %}
-
-    <div class="rounded-lg border border-line bg-surface overflow-hidden"
-         {% if inherit %}data-signature-disabled{% endif %}>
+    <div class="rounded-lg border border-line bg-surface overflow-hidden">
         <div class="flex items-center gap-0.5 border-b border-line bg-sunken px-1.5 py-1">
             {% set sb = "shrink-0 px-1.5 py-0.5 rounded text-sm text-ink-muted hover:bg-hover transition-colors" %}
             <button type="button" data-compose--compose-toolbar-action
@@ -79,11 +73,12 @@ Variables:
 
         <div id="signature-editor-{{ id }}"
              data-compose--compose-toolbar-target="editor"
-             contenteditable="{{ inherit ? 'false' : 'true' }}"
+             contenteditable="true"
+             {{ autofocus ? 'autofocus' : '' }}
              role="textbox"
              aria-multiline="true"
              aria-label="{{ label }}"
-             data-placeholder="{{ 'settings.compose_defaults.signature.placeholder'|trans }}"
+             data-placeholder="{{ 'settings.signature.placeholder'|trans }}"
              class="min-h-[64px] px-3 py-2 text-sm text-ink outline-none
                     empty:before:content-[attr(data-placeholder)]
                     empty:before:text-ink-faint
@@ -94,7 +89,7 @@ Variables:
         <button type="submit"
                 class="rounded-full bg-accent text-white text-xs font-semibold px-3 py-1.5
                        hover:bg-white/10 transition-colors">
-            {{ 'settings.compose_defaults.signature.save'|trans }}
+            {{ 'settings.signature.save'|trans }}
         </button>
     </div>
 </form>

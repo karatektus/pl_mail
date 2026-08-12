@@ -33,10 +33,12 @@ async function openCompose(page: Page): Promise<void> {
 
 /** Give the first account a signature through the settings panel. */
 async function setAccountSignature(page: Page, text: string): Promise<void> {
-    await page.goto("/settings?section=aliases");
+    await page.goto("/settings?section=signature");
 
+    // The account editor, which is the only one on the page until an address
+    // is given a signature of its own.
     const form = page
-        .locator('form[action$="/compose-defaults/signature"]')
+        .locator('form[action$="/signature"]')
         .first();
 
     const editor = form.locator('[contenteditable="true"]');

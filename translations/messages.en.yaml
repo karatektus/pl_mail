@@ -1811,13 +1811,6 @@ settings:
                 ask: 'Ask each time'
                 never: 'Never send'
         saved: 'Saved.'
-        signature:
-            for_alias: 'Signature for %alias%'
-            hint: 'Added to the bottom of every new message, above the quoted reply.'
-            inherit: 'Use the account signature'
-            label: 'Signature'
-            placeholder: 'No signature'
-            save: 'Save signature'
         subheading: 'What each of your addresses does by default when it sends and receives.'
     filters:
         account: Account
@@ -2122,6 +2115,7 @@ settings:
         labels: Labels
         notifications: Notifications
         security: Security
+        signature: Signatures
     notifications:
         devices:
             empty: >-
@@ -2243,6 +2237,26 @@ settings:
         subheading: >-
             Links that show part of your calendar to someone without an account,
             and pages that let them book an hour of it.
+    signature:
+        for_alias: 'Signature for %alias%'
+        heading: Signatures
+        hint: 'Added to the bottom of every new message, above the quoted reply.'
+        label: Signature
+        overriding: 'That address has its own signature now — edit it below.'
+        per_address:
+            count: 'Addresses with a signature of their own: %number%'
+            disclosure: 'Use a different signature for some addresses'
+            inherits: 'Uses the account signature.'
+            override: 'Use a different one'
+            override_for: 'Give %alias% a signature of its own'
+            revert: 'Use the account signature'
+            revert_for: 'Go back to the account signature for %alias%'
+            signs_with_nothing: 'Empty, so this address signs with nothing.'
+        placeholder: 'No signature'
+        reverted: 'Back to the account signature.'
+        save: 'Save signature'
+        saved: 'Saved.'
+        subheading: 'What is added to the bottom of the messages you write.'
     timezone:
         heading: Time zone
         subheading: The clock times and dates are shown in. Nothing is rewritten — the same instant is simply read on your own clock.

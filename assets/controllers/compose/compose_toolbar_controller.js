@@ -317,22 +317,13 @@ export default class extends Controller {
         this.editorTarget.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    /**
-     * Grey the editor out while its "inherit" switch is on.
-     *
-     * Only the settings signature field uses this: ticking inherit means the
-     * stored value is about to be REMOVED, so leaving the box typeable would
-     * invite the user to write a signature the submit then throws away.
-     */
-    toggleDisabled(event) {
-        const inherit = true === event.target.checked;
-
-        if (this.hasEditorTarget) {
-            this.editorTarget.setAttribute('contenteditable', inherit ? 'false' : 'true');
-            this.editorTarget.closest('[data-signature-disabled], .rounded-lg')
-                ?.classList.toggle('opacity-50', inherit);
-        }
-    }
+    // toggleDisabled() lived here: it greyed the settings signature editor out
+    // while an "inherit" checkbox was ticked. It was the only thing that ever
+    // applied the greying — the markup's `data-signature-disabled` hook matched
+    // no rule in the stylesheet — so an inheriting alias rendered a live-looking
+    // editor until you toggled the box, which is exactly what users reported.
+    // The settings panel no longer renders an editor for an inheriting address
+    // at all, so there is nothing left to disable.
 
     insertLink() {
         this._saveRange();

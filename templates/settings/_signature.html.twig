@@ -1,0 +1,176 @@
+{#
+settings/_signature.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The Signatures section: one editor per account, and per-address overrides
+folded away behind a disclosure.
+
+WHY IT LOOKS LIKE THIS
+──────────────────────
+The first version put a full editor on the account AND on every alias, all of
+them open at once. An account with three aliases was four stacked editors —
+about a screen and a half of settings for the overwhelmingly common wish,
+which is "one signature, everywhere". So:
+
+  • The account editor is the section. It is the only thing above the fold.
+  • Everything per-address lives inside a <details>, which starts CLOSED when
+    no address has an override — you do not pay in vertical space for a
+    feature you have not asked for — and OPEN when one does, because
+    configuration you already made must never be hidden from you.
+  • An address that inherits is ONE LINE: the address, and a button. Not a
+    card, not a greyed-out editor. There is no editor in the markup at all
+    for it, which is also why the old "the field looks live until you toggle
+    the checkbox" bug cannot come back: nothing is rendered, so nothing can
+    be rendered in the wrong state.
+
+THE THREE STATES, ON SCREEN
+───────────────────────────
+`getSetting(...) is null` is the whole distinction, and each state has its own
+row shape rather than its own checkbox position:
+
+  key absent      → "Uses the account signature" + [Use a different signature]
+  key present ''  → an editor, empty, + [Use the account signature]
+  key present HTML→ an editor with it,  + [Use the account signature]
+
+Both buttons are plain form posts to SignatureController, so the state after
+the click is whatever the server says it is. The previous design asked a
+checkbox to mean the difference and then had to keep the editor's appearance
+in step with it in JavaScript; this one has no client state to keep in step.
+
+Variables:
+  manageableAccounts  list<Account>
+#}
+{% if manageableAccounts is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+        {{ 'settings.accounts.empty'|trans }}
+    </p>
+{% else %}
+    <div class="divide-y divide-line">
+        {% for account in manageableAccounts %}
+            {# Which aliases have an opinion of their own. Counted before the
+               loop because it decides whether the disclosure starts open. #}
+            {% set overridden = [] %}
+            {% for alias in account.aliases %}
+                {% if account.getSetting('compose.signature.alias.' ~ alias.id) is not null %}
+                    {% set overridden = overridden|merge([alias.id]) %}
+                {% endif %}
+            {% endfor %}
+
+            <div class="px-4 py-3.5">
+                <p class="text-xs font-semibold text-ink-faint uppercase tracking-wider truncate mb-2">
+                    {{ account.displayAddress }}
+                </p>
+
+                {# ── The account signature: the whole section, for most people ── #}
+                <p class="text-sm text-ink">{{ 'settings.signature.label'|trans }}</p>
+                <p class="text-xs text-ink-faint">{{ 'settings.signature.hint'|trans }}</p>
+
+                {% include 'settings/_signature_editor.html.twig' with {
+                    id:        'account-' ~ account.id,
+                    action:    path('app_signature_default', { id: account.id }),
+                    token:     csrf_token('settings-signature' ~ account.id),
+                    signature: account.getSetting('compose.signature')|default(''),
+                    label:     'settings.signature.label'|trans,
+                } only %}
+
+                {# ── Per-address overrides, folded away ───────────────────── #}
+                {% if account.aliases|length %}
+                    <details class="mt-3 group" {{ overridden|length ? 'open' : '' }}>
+                        <summary class="flex items-center gap-2 cursor-pointer list-none
+                                        text-xs text-ink-muted hover:text-ink transition-colors
+                                        py-1 -mx-1 px-1 rounded">
+                            <i class="fa-solid fa-chevron-right w-3 text-ink-faint transition-transform
+                                      group-open:rotate-90" aria-hidden="true"></i>
+                            <span>{{ 'settings.signature.per_address.disclosure'|trans }}</span>
+                            {% if overridden|length %}
+                                {# A bare number, with the sentence in an sr-only
+                                   span: the badge sits next to the disclosure it
+                                   counts, so sighted readers have the noun
+                                   already and a screen reader would otherwise
+                                   hear "3". #}
+                                <span class="ml-auto shrink-0 rounded-full bg-raised px-2 py-0.5 text-[11px] text-ink-muted">
+                                    {{ overridden|length }}
+                                    <span class="sr-only">
+                                        {{ 'settings.signature.per_address.count'|trans({'%number%': overridden|length}) }}
+                                    </span>
+                                </span>
+                            {% endif %}
+                        </summary>
+
+                        <ul class="mt-1.5 divide-y divide-line/60">
+                            {% for alias in account.aliases %}
+                                {% set aliasSignature = account.getSetting('compose.signature.alias.' ~ alias.id) %}
+
+                                <li class="settings-alias-row py-1.5"
+                                    data-signature-alias="{{ alias.id }}"
+                                    data-signature-state="{{ aliasSignature is null ? 'inherits' : 'overrides' }}">
+
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="min-w-0 flex-1 truncate text-sm text-ink-muted">
+                                            {{ alias.address }}
+                                        </span>
+
+                                        {# One button either way, and it always
+                                           posts the state it names — so the row
+                                           cannot disagree with what a click will
+                                           do. #}
+                                        <form method="post"
+                                              action="{{ path('app_signature_alias', { id: account.id, aliasId: alias.id }) }}"
+                                              data-turbo-stream
+                                              class="shrink-0">
+                                            <input type="hidden" name="_token"
+                                                   value="{{ csrf_token('settings-signature-alias' ~ alias.id) }}">
+
+                                            {% if aliasSignature is null %}
+                                                <input type="hidden" name="override" value="1">
+                                                <button type="submit"
+                                                        class="rounded-full border border-line px-2.5 py-1 text-xs
+                                                               text-ink-muted hover:bg-hover transition-colors">
+                                                    {{ 'settings.signature.per_address.override'|trans }}
+                                                    <span class="sr-only">
+                                                        {{ 'settings.signature.per_address.override_for'|trans({'%alias%': alias.address}) }}
+                                                    </span>
+                                                </button>
+                                            {% else %}
+                                                <input type="hidden" name="inherit" value="1">
+                                                <button type="submit"
+                                                        class="rounded-full border border-line px-2.5 py-1 text-xs
+                                                               text-ink-muted hover:bg-hover transition-colors">
+                                                    {{ 'settings.signature.per_address.revert'|trans }}
+                                                    <span class="sr-only">
+                                                        {{ 'settings.signature.per_address.revert_for'|trans({'%alias%': alias.address}) }}
+                                                    </span>
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                    </div>
+
+                                    {% if aliasSignature is null %}
+                                        {# The inheriting row ends here. One line,
+                                           no editor, nothing disabled. #}
+                                        <p class="text-xs text-ink-faint mt-0.5">
+                                            {{ 'settings.signature.per_address.inherits'|trans }}
+                                        </p>
+                                    {% else %}
+                                        {% include 'settings/_signature_editor.html.twig' with {
+                                            id:        'alias-' ~ alias.id,
+                                            action:    path('app_signature_alias', { id: account.id, aliasId: alias.id }),
+                                            token:     csrf_token('settings-signature-alias' ~ alias.id),
+                                            signature: aliasSignature,
+                                            label:     'settings.signature.for_alias'|trans({'%alias%': alias.address}),
+                                        } only %}
+
+                                        {% if aliasSignature is empty %}
+                                            <p class="text-xs text-ink-faint mt-1">
+                                                {{ 'settings.signature.per_address.signs_with_nothing'|trans }}
+                                            </p>
+                                        {% endif %}
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
