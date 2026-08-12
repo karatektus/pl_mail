@@ -1,21 +1,22 @@
 name: Build and push Docker image
 
 on:
-    # Release tags only. This used to also build on every push to main and on
-    # every pull request, and both were paid for twice:
+    # Two things build here, and the cost difference between them lives in the
+    # matrix (see the `setup` job), not in this trigger:
     #
-    #  - A release is push-main-then-tag seconds apart, so the main-push build
-    #    was thrown away by the tag build that followed it — two full two-arch
-    #    builds to publish one image.
-    #  - A pull request already builds this exact image in e2e.yml (it is what
-    #    the browser suite runs against), so a second build here proved the
-    #    Dockerfile compiles a second time and pushed nothing.
+    #  - A push to `main` refreshes the `main` tag, which the dev-tip
+    #    deployment follows. This builds amd64 ONLY — one job — because that
+    #    deployment is amd64 and the arm64 image is a release artifact nobody
+    #    pulls from `main`.
+    #  - A `v*` tag builds the published release: amd64 + arm64, merged into one
+    #    manifest, tagged with the version, `0.0`, and `latest`.
     #
-    # Building only on `v*` removes both duplicates. The `main`-following image
-    # tag stops moving between releases as a consequence — deployments pull a
-    # version or `latest`, both of which a tag still publishes. Use
+    # Pull requests are deliberately absent: e2e.yml already builds this exact
+    # image to run the browser suite against, so a second build here would only
+    # prove the Dockerfile compiles twice and push nothing. Use
     # workflow_dispatch to build an untagged commit by hand.
     push:
+        branches: [main]
         tags: ['v*']
     workflow_dispatch:
 
@@ -24,25 +25,40 @@ env:
     IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+    # The platform matrix is chosen per event, so a `main` push does not pay for
+    # the arm64 build every time: a release tag builds both architectures, and
+    # anything else (a `main` push, a manual dispatch) builds amd64 alone. This
+    # job is a few seconds of shell — cheaper than the arm64 build it saves.
+    setup:
+        runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.platforms.outputs.matrix }}
+        steps:
+            - name: Choose platforms for this event
+              id: platforms
+              shell: bash
+              run: |
+                  if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+                      echo 'matrix={"include":[{"platform":"linux/amd64","arch":"amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","arch":"arm64","runner":"ubuntu-24.04-arm"}]}' >> "$GITHUB_OUTPUT"
+                  else
+                      echo 'matrix={"include":[{"platform":"linux/amd64","arch":"amd64","runner":"ubuntu-latest"}]}' >> "$GITHUB_OUTPUT"
+                  fi
+
     # One job per architecture, each on a runner of that architecture. The prod
     # stage runs composer install, dump-autoload, tailwind:build --minify and
     # asset-map:compile — all CPU-bound PHP, which is why this is a matrix of
     # native runners rather than a single job cross-building under QEMU.
     #
     # Neither job pushes a tag. Both push an untagged digest, and `merge` below
-    # assembles them into the one manifest list the tags point at.
+    # assembles them into the one manifest list the tags point at — which works
+    # for a single digest too, so an amd64-only `main` build still produces a
+    # proper manifest for the `main` tag.
     build:
+        needs: setup
         runs-on: ${{ matrix.runner }}
         strategy:
             fail-fast: false
-            matrix:
-                include:
-                    - platform: linux/amd64
-                      arch: amd64
-                      runner: ubuntu-latest
-                    - platform: linux/arm64
-                      arch: arm64
-                      runner: ubuntu-24.04-arm
+            matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
         permissions:
             contents: read
             packages: write
