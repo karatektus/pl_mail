@@ -81,12 +81,6 @@ parameters:
 			path: src/Controller/Mail/MailController.php
 
 		-
-			message: '#^Property App\\Controller\\Mail\\MailController\:\:\$messageRepository is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Controller/Mail/MailController.php
-
-		-
 			message: '#^Instantiating DateTimeImmutable with in 1 day produces an error\: The timezone could not be found in the database$#'
 			identifier: new.dateTimeImmutable
 			count: 1
