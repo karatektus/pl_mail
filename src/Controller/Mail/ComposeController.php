@@ -302,6 +302,13 @@ class ComposeController extends AbstractController
                 'message'      => $message,
                 'ctx'          => $ctx,
                 'threadEntity' => $message->thread,
+                // The reopened editor is a full compose window, and the window
+                // reads pickerIntegrations. The dock undo already learned this
+                // (see below); the inline path renders the same window with
+                // `only`, so without it the cancel flushed and then 500'd on
+                // the reopen — the same silent draft-with-no-way-back the dock
+                // undo used to leave, one frame over.
+                'pickerIntegrations' => $this->pickerIntegrations(),
             ]);
         }
 

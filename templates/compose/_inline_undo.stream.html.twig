@@ -4,7 +4,8 @@ compose/_inline_undo.stream.html.twig
 Cancelling an inline send: take the message back out of the conversation and
 re-open the draft in the inline editor with its text intact.
 
-Variables: form, message, ctx (the compose context), threadEntity (MessageThread|null)
+Variables: form, message, ctx (the compose context), threadEntity (MessageThread|null),
+           pickerIntegrations (the reopened window reads it, and the include is `only`)
 #}
 <turbo-stream action="remove" target="thread_message_{{ message.id }}">
 </turbo-stream>
@@ -35,6 +36,7 @@ Variables: form, message, ctx (the compose context), threadEntity (MessageThread
             form:    form,
             message: message,
             ctx:     ctx|merge({ thread: threadEntity is not null ? threadEntity.id : null }),
+            pickerIntegrations: pickerIntegrations,
         } only %}
     </template>
 </turbo-stream>

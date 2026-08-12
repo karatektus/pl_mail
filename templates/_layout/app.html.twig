@@ -162,12 +162,22 @@
     {% if app.user %}
         {% include 'onboarding/_boot.html.twig' %}
     {% endif %}
-    {# `z-50` on the frame, not just on the window inside it: a fixed element
-       creates a stacking context, so the window's own z-index only ever
-       ordered it against its siblings here. Left at `auto` the whole dock
-       painted below the topbar (z-20) and the mobile drawer (z-40) — which
-       the fullscreen compose window below md has to cover. #}
-    <turbo-frame id="compose_dock" class="fixed bottom-4 right-6 z-50 flex items-end gap-3"></turbo-frame>
+    {# The dock's placement lives on this wrapper, never on the turbo-frame it
+       holds. The undo stream reopens the window with `action="replace"` on the
+       frame element itself, so any class on the frame is thrown away with the
+       element it replaces — and because the frame is the ONE the Compose button
+       and every draft row navigate into, a classless frame left behind put the
+       reopened window, and every dock window opened after it, in normal flow
+       below the fold until a full page reload restored this markup. Positioning
+       the stable wrapper means the frame can be swapped freely and the dock
+       stays where it belongs.
+
+       `z-50` here because a fixed element creates a stacking context: left at
+       `auto` the whole dock painted below the topbar (z-20) and the mobile
+       drawer (z-40), which the fullscreen compose window below md has to cover. #}
+    <div class="fixed bottom-4 right-6 z-50 flex items-end gap-3">
+        <turbo-frame id="compose_dock"></turbo-frame>
+    </div>
     <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
 </body>
 </html>
