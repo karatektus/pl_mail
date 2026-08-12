@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -38,6 +38,10 @@ export default class extends Controller {
         // Mirrors ComposeController::MAX_ATTACHMENT_BYTES so an oversized file
         // is refused here rather than after the whole upload.
         maxAttachmentBytes: { type: Number, default: 25 * 1024 * 1024 },
+        // Every From option's signature block, keyed by the same
+        // "accountId|address" token the hidden account <select> carries — so
+        // switching From swaps the signature without asking the server.
+        signatures: { type: Object, default: {} },
     }
 
     #autosaveTimer = null
@@ -109,6 +113,24 @@ export default class extends Controller {
         this._boundNameAddressFields = this._nameAddressFields.bind(this);
         this.element.addEventListener('autocomplete:connect', this._boundNameAddressFields);
         requestAnimationFrame(this._boundNameAddressFields);
+
+        // A draft that arrives with text and no HTML is already a plain-text
+        // message (the template works that out), so the format controls have to
+        // start hidden — otherwise a bar of buttons that do nothing sits over a
+        // textarea.
+        if (true === this._isPlainText()) {
+            this._setFormatBar(false);
+
+            if (this.hasFormatToggleTarget) {
+                this.formatToggleTarget.classList.add('hidden');
+            }
+
+            const hidden = this.element.querySelector('[data-compose--compose-toolbar-target="hiddenInput"]');
+
+            if (hidden) {
+                hidden.disabled = true;
+            }
+        }
 
         // Inline: the thread's reply buttons step aside while we're open.
         // Cached — by the time disconnect() runs the card is already detached
@@ -817,7 +839,254 @@ export default class extends Controller {
             b.classList.toggle('text-accent', selected);
         });
 
+        // The signature follows the address, and ONLY the signature: the swap
+        // is scoped to the [data-pl-signature] block, so a paragraph already
+        // typed above it is untouched. Changing From must never cost someone
+        // what they have written.
+        this._swapSignature(value);
+
         this._closeFromDropdown();
+    }
+
+    // ── Signature ─────────────────────────────────────────────────────
+    //
+    // One block, marked with `data-pl-signature`, living in the body above the
+    // quote. Everything here is the same operation seen from three angles:
+    // there is at most one signature block, and writing a signature means
+    // replacing that block's contents or creating it where the caret is.
+
+    /**
+     * The signature the current From selection signs with, as HTML, or '' when
+     * that address signs with nothing.
+     */
+    _signatureFor(token) {
+        const map = this.hasSignaturesValue ? this.signaturesValue : {};
+
+        return map?.[token] ?? '';
+    }
+
+    _currentSignature() {
+        return this._signatureFor(
+            this.hasAccountSelectTarget ? this.accountSelectTarget.value : '',
+        );
+    }
+
+    /** The signature block currently in the body, if there is one. */
+    _signatureBlock() {
+        return this.hasBodyTarget
+            ? this.bodyTarget.querySelector('[data-pl-signature]')
+            : null;
+    }
+
+    /**
+     * Toolbar button: put the signature in the body.
+     *
+     * Replaces the block in place when one is already there rather than
+     * appending a second — clicking twice is a thing people do, and two
+     * sign-offs is not what either click asked for.
+     */
+    insertSignature() {
+        if (false === this.hasBodyTarget) { return; }
+
+        const html = this._currentSignature();
+
+        if ('' === html) {
+            this._setStatus(this._t('noSignature', 'No signature set for this address'), 'text-ink-faint');
+
+            return;
+        }
+
+        const existing = this._signatureBlock();
+
+        if (existing) {
+            existing.outerHTML = html;
+            this._afterBodyEdit();
+
+            return;
+        }
+
+        // No block yet: build one and hand it to the toolbar, which knows
+        // where the caret was before this button stole the focus.
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+
+        const node = wrapper.firstElementChild;
+
+        if (!node) { return; }
+
+        const toolbar = this._toolbar();
+
+        if (toolbar) {
+            toolbar._insertAtCaret(node);
+
+            return;
+        }
+
+        this.bodyTarget.appendChild(node);
+        this._afterBodyEdit();
+    }
+
+    /**
+     * Swap the signature block for the newly selected identity's, and change
+     * nothing else.
+     *
+     * The fiddly case is a body that has no block at all — a draft written
+     * before the sender had a signature, or one the user deleted the block out
+     * of. Nothing is inserted then: an absent signature is a decision, and
+     * changing From is not the moment to overrule it.
+     */
+    _swapSignature(token) {
+        const existing = this._signatureBlock();
+
+        if (!existing) { return; }
+
+        const html = this._signatureFor(token);
+
+        if ('' === html) {
+            existing.remove();
+        } else {
+            existing.outerHTML = html;
+        }
+
+        this._afterBodyEdit();
+    }
+
+    /** The toolbar controller sharing this window's element, if it is up. */
+    _toolbar() {
+        return this.application?.getControllerForElementAndIdentifier(
+            this.element,
+            'compose--compose-toolbar',
+        ) ?? null;
+    }
+
+    /**
+     * Mirror a scripted body change into the hidden input and wake the
+     * autosave. Nothing the DOM is changed by script fires `input` on its own,
+     * so without this the change is on screen and gone again on reload.
+     */
+    _afterBodyEdit() {
+        this._toolbar()?._syncHiddenInput();
+
+        if (this.hasBodyTarget) {
+            this.bodyTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    // ── Plain text mode ───────────────────────────────────────────────
+
+    _isPlainText() {
+        return this.hasPlainBodyTarget && false === this.plainBodyTarget.disabled;
+    }
+
+    /**
+     * Switch the body between the rich editor and a plain textarea.
+     *
+     * WHAT HAPPENS TO FORMATTING. Going to plain text flattens the HTML, and
+     * that is not reversible by re-parsing text — so it is warned about first
+     * (a confirm the user can decline) and it is undone by REMEMBERING: the
+     * HTML is kept, untouched, in the hidden bodyHtml input and in the editor
+     * that is merely hidden, so switching back restores exactly what was there.
+     * The cost of that choice is that the round trip is only free until the
+     * draft is saved in plain mode — the save stores an empty bodyHtml, and
+     * reopening the draft later genuinely has no HTML left to come back to.
+     * Which is honest: at that point the message really is a plain-text
+     * message, and pretending otherwise would be the lie.
+     *
+     * The mode itself is not stored anywhere. A message with text and no HTML
+     * IS a plain-text message — that is the same pair MessageSendService reads
+     * — so the window re-derives the mode on render and needs no column.
+     */
+    togglePlainText() {
+        if (false === this.hasPlainBodyTarget || false === this.hasBodyTarget) {
+            return;
+        }
+
+        this._setPlainText(false === this._isPlainText());
+    }
+
+    _setPlainText(plain) {
+        const textarea = this.plainBodyTarget;
+        const editor   = this.bodyTarget;
+
+        if (true === plain) {
+            const text = this._bodyAsText(editor);
+
+            // Only warn when there is something to lose. An empty body, or one
+            // that is already nothing but text, converts silently.
+            if (editor.innerHTML.trim() !== text.replace(/\n/g, '') && text.trim().length > 0) {
+                if (false === window.confirm(this._t(
+                    'confirmPlainText',
+                    'Switching to plain text removes all formatting from this message. Continue?',
+                ))) {
+                    return;
+                }
+            }
+
+            textarea.value = text;
+        } else {
+            // Coming back: the editor still holds the HTML it always did, so
+            // there is nothing to restore unless the user typed into the
+            // textarea in the meantime — in which case that text wins, because
+            // it is the newer writing.
+            if (textarea.value !== this._bodyAsText(editor)) {
+                editor.innerHTML = this._textAsHtml(textarea.value);
+            }
+        }
+
+        textarea.disabled = false === plain;
+        textarea.hidden   = false === plain;
+        textarea.classList.toggle('hidden', false === plain);
+        editor.classList.toggle('hidden', true === plain);
+
+        // The HTML body has to go on the wire empty for the send path to emit
+        // text only — that branch is `if ($message->bodyHtml)` in
+        // MessageSendService::buildEmail(). The editor keeps its content; only
+        // what is submitted changes.
+        const hidden = this.element.querySelector('[data-compose--compose-toolbar-target="hiddenInput"]');
+
+        if (hidden) {
+            hidden.disabled = true === plain;
+        }
+
+        // Formatting controls have nothing to act on in plain text. Only the
+        // closing is done here: whether the bar is open in rich mode is the
+        // user's own choice (the "Aa" button), and on a phone it starts closed.
+        if (true === plain) {
+            this._setFormatBar(false);
+        }
+
+        if (this.hasFormatToggleTarget) {
+            this.formatToggleTarget.classList.toggle('hidden', true === plain);
+        }
+
+        if (this.hasPlainToggleTarget) {
+            this.plainToggleTarget.setAttribute('aria-pressed', true === plain ? 'true' : 'false');
+        }
+
+        if (this.hasPlainCheckTarget) {
+            this.plainCheckTarget.classList.toggle('invisible', false === plain);
+        }
+
+        (true === plain ? textarea : editor).focus();
+        this._scheduleAutosave();
+    }
+
+    /** The editor's content as text, block boundaries becoming newlines. */
+    _bodyAsText(editor) {
+        const clone = editor.cloneNode(true);
+
+        clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+        clone.querySelectorAll('p, div, li, tr').forEach((block) => block.append('\n'));
+
+        return clone.textContent.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    /** Text back into the editor, escaped — never as markup. */
+    _textAsHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+
+        return div.innerHTML.replace(/\n/g, '<br>');
     }
 
     _closeFromDropdown() {
@@ -1097,6 +1366,12 @@ export default class extends Controller {
 
     /** Characters the user has actually written, quote excluded. */
     _typedLength() {
+        // Plain-text mode: the textarea IS the body, and none of the markup
+        // this method strips below can exist in it.
+        if (true === this._isPlainText()) {
+            return this.plainBodyTarget.value.trim().length;
+        }
+
         if (false === this.hasBodyTarget) {
             return 0;
         }
@@ -1105,8 +1380,14 @@ export default class extends Controller {
 
         // The last two selectors cover drafts written before buildQuotedHtml
         // marked the quote with data-quoted.
+        //
+        // [data-pl-signature] is here for the same reason the quote is: it is
+        // not the user's writing. A new window opens with the signature already
+        // in the body, and counting it would put every fresh draft over
+        // minChars — so opening the composer and closing it again would leave
+        // an autosaved draft containing nothing but a sign-off.
         clone.querySelectorAll(
-            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+            '[data-quote-wrapped], [data-quoted], [data-pl-signature], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
         ).forEach((node) => node.remove());
 
         return clone.textContent.trim().length;

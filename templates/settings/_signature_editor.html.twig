@@ -1,0 +1,100 @@
+{#
+settings/_signature_editor.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One signature field: a contenteditable with a small format bar, wrapped in a
+form that posts its HTML.
+
+A contenteditable rather than a textarea of raw HTML, and specifically one
+driven by `compose--compose-toolbar` — the SAME controller the compose window's
+editor uses. Two reasons: the user sees what the recipient will see instead of
+angle brackets, and bold here is bold there, because it is literally the same
+code path (document.execCommand behind _exec()). The controller needs only its
+`editor` and `hiddenInput` targets to work; everything else it looks for is
+optional.
+
+Whatever this posts is sanitised server-side before storage — see
+ComposeDefaultsController::setSignature(). The editor is a convenience, never
+a guarantee.
+
+Variables:
+  id         string   unique suffix for element ids
+  action     string   route to post to
+  token      string   CSRF token value
+  signature  string   the stored HTML (may be empty)
+  inherit    bool|null  null = no inherit control (the account-level field)
+  label      string   accessible name for the editor
+#}
+{% set inherit = inherit|default(null) %}
+
+<form method="post" action="{{ action }}" data-turbo-stream
+      data-controller="compose--compose-toolbar"
+      class="mt-1">
+    <input type="hidden" name="_token" value="{{ token }}">
+
+    {# What is actually submitted. The contenteditable below is mirrored into
+       it on every input by the toolbar controller's _syncHiddenInput(). #}
+    <input type="hidden" name="signature" value="{{ signature|e('html_attr') }}"
+           data-compose--compose-toolbar-target="hiddenInput">
+
+    {% if inherit is not null %}
+        {# The three-state control, in one checkbox: ticked posts `inherit` and
+           the server REMOVES the key, so the account signature reaches this
+           address again. Unticked stores whatever is in the editor — including
+           nothing, which is how an address signs with nothing on an account
+           that has a signature. #}
+        <label class="flex items-center gap-2 text-xs text-ink-muted mb-1.5 cursor-pointer">
+            <input type="checkbox" name="inherit" value="1" {{ inherit ? 'checked' : '' }}
+                   data-action="change->compose--compose-toolbar#toggleDisabled"
+                   class="rounded border-line">
+            {{ 'settings.compose_defaults.signature.inherit'|trans }}
+        </label>
+    {% endif %}
+
+    <div class="rounded-lg border border-line bg-surface overflow-hidden"
+         {% if inherit %}data-signature-disabled{% endif %}>
+        <div class="flex items-center gap-0.5 border-b border-line bg-sunken px-1.5 py-1">
+            {% set sb = "shrink-0 px-1.5 py-0.5 rounded text-sm text-ink-muted hover:bg-hover transition-colors" %}
+            <button type="button" data-compose--compose-toolbar-action
+                    data-action="click->compose--compose-toolbar#bold"
+                    title="{{ 'compose.bold'|trans }}" aria-label="{{ 'compose.bold'|trans }}"
+                    class="{{ sb }} font-bold">B</button>
+            <button type="button" data-compose--compose-toolbar-action
+                    data-action="click->compose--compose-toolbar#italic"
+                    title="{{ 'compose.italic'|trans }}" aria-label="{{ 'compose.italic'|trans }}"
+                    class="{{ sb }} italic">I</button>
+            <button type="button" data-compose--compose-toolbar-action
+                    data-action="click->compose--compose-toolbar#underline"
+                    title="{{ 'compose.underline'|trans }}" aria-label="{{ 'compose.underline'|trans }}"
+                    class="{{ sb }} underline">U</button>
+            <div class="w-px h-4 bg-line mx-1"></div>
+            <button type="button" data-compose--compose-toolbar-action
+                    data-action="click->compose--compose-toolbar#unorderedList"
+                    title="{{ 'compose.list.unordered'|trans }}" aria-label="{{ 'compose.list.unordered'|trans }}"
+                    class="{{ sb }}"><i class="fa-solid fa-list-ul" aria-hidden="true"></i></button>
+            <button type="button" data-compose--compose-toolbar-action
+                    data-action="click->compose--compose-toolbar#insertLink"
+                    title="{{ 'compose.insert_link'|trans }}" aria-label="{{ 'compose.insert_link'|trans }}"
+                    class="{{ sb }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+        </div>
+
+        <div id="signature-editor-{{ id }}"
+             data-compose--compose-toolbar-target="editor"
+             contenteditable="{{ inherit ? 'false' : 'true' }}"
+             role="textbox"
+             aria-multiline="true"
+             aria-label="{{ label }}"
+             data-placeholder="{{ 'settings.compose_defaults.signature.placeholder'|trans }}"
+             class="min-h-[64px] px-3 py-2 text-sm text-ink outline-none
+                    empty:before:content-[attr(data-placeholder)]
+                    empty:before:text-ink-faint
+                    empty:before:pointer-events-none">{{ signature|raw }}</div>
+    </div>
+
+    <div class="flex justify-end mt-1.5">
+        <button type="submit"
+                class="rounded-full bg-accent text-white text-xs font-semibold px-3 py-1.5
+                       hover:bg-white/10 transition-colors">
+            {{ 'settings.compose_defaults.signature.save'|trans }}
+        </button>
+    </div>
+</form>

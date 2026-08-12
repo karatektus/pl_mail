@@ -1084,6 +1084,7 @@ compose:
     confirm:
         no_body: Diese Nachricht hat keinen Text. Trotzdem senden?
         no_subject: Diese Nachricht hat keinen Betreff. Trotzdem senden?
+        plain_text: Der Wechsel zu Nur-Text entfernt jede Formatierung aus dieser Nachricht. Fortfahren?
     emoji:
         activities: Aktivitäten
         animals_nature: Tiere und Natur
@@ -1116,6 +1117,12 @@ compose:
     list:
         ordered: Nummerierte Liste
         unordered: Aufzählung
+    priority:
+        high: Hoch
+        label: Priorität
+        low: Niedrig
+        none: Keine Priorität
+        normal: Normal
     quote:
         hide: zitierten Text ausblenden
         show: zitierten Text anzeigen
@@ -1162,6 +1169,7 @@ compose:
     discard: Entwurf löschen
     empty_draft: (leerer Entwurf)
     encrypt: Nachricht verschlüsseln
+    encrypt_unavailable: Verschlüsselung ist noch nicht verfügbar.
     expand: Fenster vergrössern
     formatting: Formatierung
     forward: Weiterleiten
@@ -1178,7 +1186,9 @@ compose:
     new_message: Neue Nachricht
     no_recipients: Keine Empfänger
     outdent: Einzug verkleinern
+    plain_text: Nur-Text-Modus
     pop_out: In eigenem Fenster öffnen
+    read_receipt: Lesebestätigung anfordern
     recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
     redo: Wiederholen
     reply: Antworten
@@ -1189,6 +1199,7 @@ compose:
     send_options: Sendeoptionen
     sending: "Wird gesendet…"
     signature: Signatur einfügen
+    signature_none: Für diese Adresse ist keine Signatur hinterlegt
     subject_label: Betr
     subject_placeholder: Betreff
     text_color: Textfarbe
@@ -1828,6 +1839,13 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
+        signature:
+            for_alias: 'Signatur für %alias%'
+            hint: 'Steht am Ende jeder neuen Nachricht, oberhalb des zitierten Textes.'
+            inherit: 'Signatur des Kontos verwenden'
+            label: 'Signatur'
+            placeholder: 'Keine Signatur'
+            save: 'Signatur speichern'
         subheading: 'Was jede Ihrer Adressen beim Senden und Empfangen standardmäßig tut.'
     filters:
         account: Account

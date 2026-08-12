@@ -69,7 +69,20 @@ final readonly class DraftPersister
 
         $this->markAsDraft($message, $account, $sender);
 
-        $message->bodyText = $this->plainTextBody($message->bodyHtml);
+        // Derived from the HTML — unless there IS no HTML, which is what the
+        // composer's plain-text mode posts. In that mode the window submits an
+        // empty bodyHtml and the text the user actually typed as bodyText, and
+        // that text IS the message: there is nothing to derive it from and
+        // overwriting it with null (which is what plainTextBody() answers for
+        // an empty body) would send an empty mail.
+        //
+        // Rich mode is unaffected — bodyText is a mapped field there too, so a
+        // submit with the plain-text surface switched off binds it to null and
+        // this line fills it in again. Emptying the editor completely still
+        // clears the text rather than leaving the last version of it behind.
+        if (null !== $message->bodyHtml && '' !== trim($message->bodyHtml)) {
+            $message->bodyText = $this->plainTextBody($message->bodyHtml);
+        }
 
         $created = $this->storeAndThread($message, $account);
 

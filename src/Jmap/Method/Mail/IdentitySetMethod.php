@@ -15,6 +15,7 @@ use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\EmailAliasRepository;
+use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -25,9 +26,15 @@ use Doctrine\ORM\EntityManagerInterface;
  * removed, and provider-discovered aliases are not the client's to delete —
  * they come back on the next sync.
  *
- * Signatures, replyTo and bcc are rejected rather than accepted-and-dropped.
- * plMail has nowhere to store them, and a client that thinks it saved a
- * signature would silently send mail without one.
+ * Signatures ARE stored — in the same per-alias setting the composer and the
+ * settings panel read, so a signature written on a phone is the signature the
+ * browser signs with and the other way round. `htmlSignature` is the value;
+ * `textSignature` is accepted as a convenience for clients that only offer a
+ * plain-text field, and is escaped into HTML when it arrives without one.
+ *
+ * replyTo and bcc are still rejected rather than accepted-and-dropped: plMail
+ * has nowhere to store them, and a client that thinks it saved a per-identity
+ * Bcc would silently send mail without it.
  */
 final class IdentitySetMethod implements JmapMethod
 {
@@ -36,6 +43,7 @@ final class IdentitySetMethod implements JmapMethod
         private readonly EmailAliasRepository $aliasRepository,
         private readonly StateManager $stateManager,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SignatureProvider $signatures,
     ) {
     }
 
@@ -111,7 +119,7 @@ final class IdentitySetMethod implements JmapMethod
 
             try {
                 $address = $this->requireAddress($properties['email'] ?? null);
-                $this->rejectUnsupported($properties, ['email', 'name']);
+                $this->rejectUnsupported($properties, ['email', 'name', 'htmlSignature', 'textSignature']);
 
                 if (null !== $this->aliasRepository->findOneByAccountAndAddress($account, $address)) {
                     throw new MethodException('invalidProperties', sprintf('"%s" is already an identity on this account.', $address));
@@ -131,8 +139,11 @@ final class IdentitySetMethod implements JmapMethod
 
             $account->addAlias($alias);
             $this->entityManager->persist($alias);
-            // The id is needed for the response and for "#creationId".
+            // The id is needed for the response and for "#creationId" — and
+            // for the signature, whose settings key IS the alias id.
             $this->entityManager->flush();
+
+            $this->applySignature($account, $alias, $properties);
 
             $this->stateManager->recordCreated($account->id, JmapObjectType::Identity, (string) $alias->id);
             $context->recordCreatedId($creationId, (string) $alias->id);
@@ -181,7 +192,7 @@ final class IdentitySetMethod implements JmapMethod
             try {
                 // "email" is create-only in the spec: changing it would mean
                 // silently repointing an identity at a different mailbox.
-                $this->rejectUnsupported($patch, ['name']);
+                $this->rejectUnsupported($patch, ['name', 'htmlSignature', 'textSignature']);
             } catch (MethodException $exception) {
                 $notUpdated[$id] = $exception->toError();
                 continue;
@@ -190,6 +201,8 @@ final class IdentitySetMethod implements JmapMethod
             if (true === array_key_exists('name', $patch)) {
                 $alias->displayName = $this->nameOrNull($patch['name']) ?? '';
             }
+
+            $this->applySignature($account, $alias, $patch);
 
             $this->stateManager->recordUpdated($account->id, JmapObjectType::Identity, (string) $alias->id);
             $updated[$id] = null;
@@ -249,6 +262,68 @@ final class IdentitySetMethod implements JmapMethod
         }
     }
 
+    /**
+     * Store the signature a patch or a create carries, if it carries one.
+     *
+     * Absence of both keys means "leave it alone" — this is a patch, and a
+     * client renaming an identity has said nothing about its signature. An
+     * explicitly empty htmlSignature is a different statement and IS stored:
+     * it means this address signs with nothing, which on an account that has a
+     * signature is not the same as inheriting it. That is exactly the
+     * presence-versus-value distinction Account::signatureAliasSetting()
+     * documents, reached here from the other client.
+     *
+     * SANITISED, like every other way a signature can be written. This one is
+     * the least trusted of the lot: it arrives over the API from whatever a
+     * client chose to send.
+     *
+     * @param array<string,mixed> $properties
+     */
+    private function applySignature(Account $account, EmailAlias $alias, array $properties): void
+    {
+        $hasHtml = array_key_exists('htmlSignature', $properties);
+        $hasText = array_key_exists('textSignature', $properties);
+
+        if (false === $hasHtml && false === $hasText) {
+            return;
+        }
+
+        // htmlSignature wins when both are given: it is the richer of the two
+        // renderings of one value, and a client sending both is sending the
+        // text form for readers that cannot show HTML.
+        if (true === $hasHtml) {
+            $html = $properties['htmlSignature'];
+
+            if (false === is_string($html) && null !== $html) {
+                throw new MethodException('invalidProperties', '"htmlSignature" must be a string.');
+            }
+
+            $account->setSetting(
+                Account::signatureAliasSetting((int) $alias->id),
+                $this->signatures->sanitize(null === $html ? '' : $html),
+            );
+
+            return;
+        }
+
+        $text = $properties['textSignature'];
+
+        if (false === is_string($text) && null !== $text) {
+            throw new MethodException('invalidProperties', '"textSignature" must be a string.');
+        }
+
+        // Escaped, never parsed: a plain-text signature that happened to
+        // contain "<b>" is a signature containing those five characters.
+        $html = '' === trim((string) $text)
+            ? ''
+            : nl2br(htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+
+        $account->setSetting(
+            Account::signatureAliasSetting((int) $alias->id),
+            $this->signatures->sanitize($html),
+        );
+    }
+
     private function requireAddress(mixed $email): string
     {
         if (false === is_string($email)) {
@@ -276,7 +351,7 @@ final class IdentitySetMethod implements JmapMethod
             }
 
             throw new MethodException('invalidProperties', sprintf(
-                'Property "%s" is not supported; plMail stores no signature, replyTo or bcc for an identity.',
+                'Property "%s" is not supported; plMail stores no replyTo or bcc for an identity.',
                 $property,
             ));
         }
