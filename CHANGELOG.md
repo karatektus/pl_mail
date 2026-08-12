@@ -6,6 +6,27 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.32 — 2026-08-12
+
+**No migration. Two fixes from a live instance.**
+
+**A conversation reads in the order it happened.** A reply this account sent
+has a send time but no arrival time, and a thread ordered its messages on
+arrival alone — so every reply sank to the bottom of its own thread, below
+mail that came in after it, and the reply box quoted the wrong "latest"
+message. The thread now orders by when each message actually happened —
+received by arrival, sent by send, a draft by when it was written — computed
+in the query rather than stored in a column beside the three dates that
+already hold it.
+
+**The message body no longer collapses on a hard load.** Opened by clicking, a
+long message rendered at its full height; opened by F5 or a deep link, its
+frame shrank to a sliver with the whole message scrolling inside it. The
+sandboxed frame measures and reports its own height the instant it is parsed,
+but the app's script is deferred, so on a full load the report arrived before
+anything was listening and was lost — and the frame never repeated itself. The
+frame is now asked for its height once the page is ready to hear it.
+
 ## v0.0.31 — 2026-08-12
 
 **One migration, and it is not reversible-sensitive — it installs `pg_trgm`
