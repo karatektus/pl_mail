@@ -6,10 +6,73 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.0.31 — 2026-08-12
 
-**No migration. One optional command repairs old rows: `bin/console app:backfill
-recipients`.** Every message ever synced over IMAP stored an empty recipient
+**One migration, and it is not reversible-sensitive — it installs `pg_trgm`
+and adds trigram indexes so search can match inside a word; the trigram index
+on the message body approaches the size of the body column, and every sync now
+maintains it, which is the price of substring search. No reset is needed. Most
+of this release answers a 40-item external audit of the running app, and the
+single largest change moves every rendered email into a sandboxed iframe.**
+An optional `bin/console app:backfill recipients` repairs one class of old row
+(below); everything else takes effect as-is.
+
+**Mail is read on our terms now.** The HTML body renders inside a sandboxed,
+opaque-origin iframe with its own restrictive CSP, so a future sanitiser gap is
+no longer XSS in the app's own origin with your session cookie, and email CSS
+can no longer collide with the app's. Remote images are blocked until you ask
+for them, and when you do they load through a signed, SSRF-hardened proxy —
+the sender never sees your IP, and a tracking pixel never fires on open. A
+message sitting in Spam wears a warning, and a sender whose display name
+impersonates a domain it does not own is called out. (Two bugs met on the way:
+the proxy sat behind the login wall the sandbox can't send a cookie through, so
+no proxied image ever loaded; and the fetcher passed one option the HTTP client
+refuses, so it threw on every fetch. Both fixed, with a test that finally checks
+an image renders *inside* the frame.)
+
+**Compose can't send by accident.** Enter in the recipient field makes a chip;
+it no longer submits the message — a stray Enter used to send a half-written
+mail to whatever text was in the box. Addresses are validated at the chip and
+at the server, an empty subject or body prompts first, and Undo reopens the
+compose window where the send came from with everything you typed intact,
+instead of filing a silent draft. Compose also defaults to your primary account
+and is fully German.
+
+**The ghosts are gone and the tab stopped hammering the server.** Seven
+contentless "Jan 1 1970" messages in Spam were unparseable IMAP fetches the
+syncer persisted anyway; it now refuses them and reaps the ones already stored.
+Idle polling dropped from four requests a second to at most two every ten, and
+none at all while the tab is hidden. Counters agree with their lists, a unified
+list marks each row with the account it came from, and stepping back out of a
+thread no longer flashes an empty list.
+
+**Search finds part of a word.** `wirhub` matches `help.wirhub.de`, and
+`Testmai` matches `Testmail` — prefix and substring, on top of the full-text
+match that was there. The search box clears when you change folder, a page past
+the end clamps to the last one, and a bad `?tab=` or a non-numeric id answers
+404 rather than 500, on a branded error page.
+
+**German mail reads as German.** Dates, weekday and month names now render in
+the reader's locale, `<html lang>` is set, mobile zoom is no longer blocked, and
+button/link accessible names are filled in. Contrast is fixed structurally:
+button and badge ink is derived from the accent's own luminance, so a light
+accent gets dark text instead of unreadable white.
+
+**The calendar dialog says when it refuses.** Saving an event whose end is
+before its start showed nothing — the server's 422 had no visible outcome; it
+now renders the error inline and announced. The 00:00 row is labelled, the
+event dialog traps focus, the agenda shows time ranges, the start time defaults
+to the next full hour, and the checkbox help text no longer contradicts itself.
+
+**Smaller things.** The sidebar's "More" section holds Snoozed, Archive, Spam
+and Trash, its chevron turns, and its rows step in. The reading pane's sender
+avatar wears the same colour the list gives that sender. A message's account is
+a small corner mark on its row rather than a dot that read as unread. And the
+message frame stopped popping a "Message content" tooltip on every hover.
+
+**No migration for this next part. One optional command repairs old rows:
+`bin/console app:backfill recipients`.** Every message ever synced over IMAP
+stored an empty recipient
 list. webklex hands To/Cc/Bcc over as an `Attribute`, which implements
 `ArrayAccess` and nothing else, so the `foreach` that read it walked the
 object's (non-existent) public properties, ran zero times and returned nothing
