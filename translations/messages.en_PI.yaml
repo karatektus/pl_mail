@@ -900,12 +900,32 @@ compose:
     insert_link: Splice in a link
     invalid_address: "“%address%” be no proper address"
     italic: Aslant
+    link:
+        add: Splice in a link
+        apply: Make it so
+        cancel: Belay that
+        change: Recut it
+        dialog: Link
+        edit: Recut this link
+        heading: Link
+        invalid: Name a port on the web.
+        open: Set sail for it
+        remove: Cut the line
+        text_label: Words to show
+        text_placeholder: The words that carry the line
+        unsafe: "Only web, post an' telephone berths may be linked."
+        url_label: Web berth
+        url_placeholder: "example.com"
     minimize: Batten down
     more_options: More riggin'
     new_message: A Fresh Scroll
     no_recipients: Nobody to send it to
     outdent: Shove it outboard
     plain_text: "Plain hand, no flourishes"
+    plain_warning:
+        cancel: "Keep the flourishes"
+        continue: "Aye, carry on"
+        title: "Strip the flourishes?"
     pop_out: Open in its own cabin
     read_receipt: "Beg word it were read"
     recipient_required: Name at least one soul afore ye cast off.

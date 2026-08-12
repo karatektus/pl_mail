@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { snoozeOptions } from "../../snooze_options.js";
+import { prefersHour12 } from "../../clock_format.js";
 
 /**
  * Fills a snooze menu with concrete wake times.
@@ -62,10 +63,16 @@ export default class extends Controller {
     /**
      * "Sat 08:00" — weekday and time, no date. The label above it already says
      * which day in words; this is the confirmation, not the primary reading.
+     *
+     * `hour12` explicitly, for the same reason formatWallClock() passes it: an
+     * hour asked for without it follows the LOCALE's default rather than the
+     * user's clock setting, so this menu printed "8:00 AM" at someone who had
+     * chosen a 24-hour clock everywhere else in the app.
      */
     #format(date) {
         return date.toLocaleString(document.documentElement.lang || undefined, {
             weekday: "short",
+            hour12: prefersHour12(),
             hour: "2-digit",
             minute: "2-digit",
         });

@@ -1,0 +1,138 @@
+{#
+compose/_link_popover.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The insert-link popover, for any surface driven by `compose--compose-toolbar`.
+
+What it replaces is `prompt('Enter URL:')` — one unthemed field, no way to say
+what the link should READ as, and a bare "example.com" going in as a relative
+link to a path inside the app.
+
+ONE element with two faces rather than two popovers. They are the same object
+at two moments — "what is this link" and "what should this link be" — and
+Change is a switch between them rather than a different window. The controller
+drives both; it is also what holds the saved selection the URL is applied to,
+which is why focusing a field in here does not lose the user's place. See the
+note on #savedRange in compose_toolbar_controller.js.
+
+A partial rather than markup in the compose window, because the settings
+signature editor runs the SAME controller and had the same link button — and
+therefore had the same prompt. One popover, two hosts, no second copy to
+forget when one of them changes.
+
+The POSITIONING is the caller's, passed in as `class`: the compose window
+anchors it above a toolbar block that spans the window and never scrolls (the
+button itself lives in a sideways scroller and would drag the popover off
+screen with it); the signature editor anchors it under its own small bar.
+
+Variables:
+  id     string  unique suffix for the two field ids
+  class  string  positioning and width classes for the popover box
+#}
+<div data-compose--compose-toolbar-target="linkPopover" hidden
+     role="dialog"
+     aria-label="{{ 'compose.link.dialog'|trans }}"
+     data-action="keydown->compose--compose-toolbar#linkKeydown"
+     class="{{ class|default('absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80') }}
+            z-40 popover p-3 text-sm">
+
+    {# ── Editing face ──────────────────────────────────────────── #}
+    <div data-compose--compose-toolbar-target="linkEdit" class="space-y-2">
+        <p data-compose--compose-toolbar-target="linkHeading"
+           class="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'compose.link.add'|trans }}
+        </p>
+
+        <div>
+            <label for="link-url-{{ id }}" class="block text-[11px] text-ink-faint mb-0.5">
+                {{ 'compose.link.url_label'|trans }}
+            </label>
+            {# `text`, not `url`: a bare "example.com" is what people type and
+               is exactly what the controller normalises to https://example.com.
+               type=url would have the browser refuse it before we saw it. #}
+            <input type="text" inputmode="url"
+                   id="link-url-{{ id }}"
+                   data-compose--compose-toolbar-target="linkUrl"
+                   autocomplete="off" spellcheck="false"
+                   placeholder="{{ 'compose.link.url_placeholder'|trans }}"
+                   class="w-full rounded-lg border border-line bg-surface px-2 py-1.5
+                          text-sm text-ink placeholder:text-ink-faint outline-none
+                          focus:ring-2 focus:ring-accent">
+        </div>
+
+        <div>
+            <label for="link-text-{{ id }}" class="block text-[11px] text-ink-faint mb-0.5">
+                {{ 'compose.link.text_label'|trans }}
+            </label>
+            <input type="text"
+                   id="link-text-{{ id }}"
+                   data-compose--compose-toolbar-target="linkText"
+                   autocomplete="off"
+                   placeholder="{{ 'compose.link.text_placeholder'|trans }}"
+                   class="w-full rounded-lg border border-line bg-surface px-2 py-1.5
+                          text-sm text-ink placeholder:text-ink-faint outline-none
+                          focus:ring-2 focus:ring-accent">
+        </div>
+
+        <p data-compose--compose-toolbar-target="linkError" hidden
+           role="alert" class="text-xs text-danger"></p>
+
+        <div class="flex items-center gap-2 pt-0.5">
+            <button type="button"
+                    data-action="click->compose--compose-toolbar#applyLink"
+                    class="rounded-full bg-accent text-white text-sm font-semibold
+                           px-3 py-1.5 hover:bg-white/10 transition-colors">
+                {{ 'compose.link.apply'|trans }}
+            </button>
+            <button type="button"
+                    data-action="click->compose--compose-toolbar#closeLink"
+                    class="rounded-full px-3 py-1.5 text-sm text-ink-muted
+                           hover:bg-hover hover:text-ink transition-colors">
+                {{ 'compose.link.cancel'|trans }}
+            </button>
+            {# Only while an existing link is being edited — there is nothing
+               to unlink otherwise. #}
+            <button type="button" hidden
+                    data-compose--compose-toolbar-target="linkUnlink"
+                    data-action="click->compose--compose-toolbar#removeLink"
+                    class="ml-auto text-xs text-danger hover:underline">
+                {{ 'compose.link.remove'|trans }}
+            </button>
+        </div>
+    </div>
+
+    {# ── Viewing face ──────────────────────────────────────────────
+       A click in a contenteditable only places a caret, so a link the user
+       just wrote is otherwise unreachable without sending the message first.
+       This is the Gmail affordance: the address, and the three things you can
+       do to it. #}
+    <div data-compose--compose-toolbar-target="linkView" hidden class="space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'compose.link.heading'|trans }}
+        </p>
+        {# A real anchor, so the browser's own "copy link address" and
+           middle-click work on it. #}
+        <a data-compose--compose-toolbar-target="linkHref"
+           href="#" target="_blank" rel="noopener noreferrer"
+           class="block truncate text-sm text-accent hover:underline"></a>
+        <div class="flex items-center gap-1">
+            <button type="button"
+                    data-action="click->compose--compose-toolbar#openLink"
+                    class="px-2 py-1 rounded text-sm text-ink-muted hover:bg-hover
+                           hover:text-ink transition-colors">
+                {{ 'compose.link.open'|trans }}
+            </button>
+            <button type="button"
+                    data-action="click->compose--compose-toolbar#changeLink"
+                    class="px-2 py-1 rounded text-sm text-ink-muted hover:bg-hover
+                           hover:text-ink transition-colors">
+                {{ 'compose.link.change'|trans }}
+            </button>
+            <button type="button"
+                    data-action="click->compose--compose-toolbar#removeLink"
+                    class="px-2 py-1 rounded text-sm text-danger hover:bg-hover
+                           transition-colors">
+                {{ 'compose.link.remove'|trans }}
+            </button>
+        </div>
+    </div>
+</div>

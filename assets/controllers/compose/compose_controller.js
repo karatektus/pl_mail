@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -178,6 +178,7 @@ export default class extends Controller {
             form.removeEventListener('input', this._boundAutosave);
             form.removeEventListener('submit', this._boundHandleSubmit);
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
+        this._closePlainWarning();
         this._mq?.removeEventListener('change', this._boundBreakpoint);
         this._unwatchViewport();
         document.body.style.overflow = '';
@@ -1001,7 +1002,92 @@ export default class extends Controller {
             return;
         }
 
-        this._setPlainText(false === this._isPlainText());
+        const plain = false === this._isPlainText();
+
+        // Going plain, with formatting that flattening would destroy: ask
+        // first. The question is a popover over the editor rather than
+        // `window.confirm()` — same rule, same reversibility, but a dialog the
+        // app drew rather than one the browser did, which on a phone is a
+        // system sheet dropped over a half-written message.
+        if (true === plain && true === this._plainTextLosesFormatting()) {
+            this._openPlainWarning();
+
+            return;
+        }
+
+        this._setPlainText(plain);
+    }
+
+    /**
+     * Is there formatting here that going plain would throw away?
+     *
+     * Unchanged from when this guarded the `confirm()`: an empty body, or one
+     * that is already nothing but text, converts silently. Lifted out only so
+     * that the question and the answer are no longer inside the function that
+     * performs the switch.
+     */
+    _plainTextLosesFormatting() {
+        const text = this._bodyAsText(this.bodyTarget);
+
+        return this.bodyTarget.innerHTML.trim() !== text.replace(/\n/g, '')
+            && text.trim().length > 0;
+    }
+
+    _openPlainWarning() {
+        if (false === this.hasPlainWarningTarget) {
+            // No popover in this window (the settings signature editor renders
+            // the toolbar without one): fall back to switching, which is what
+            // declining could only ever postpone.
+            this._setPlainText(true);
+
+            return;
+        }
+
+        this.plainWarningTarget.hidden = false;
+
+        this._boundPlainWarningOutside ??= (event) => {
+            if (false === this.plainWarningTarget.contains(event.target)) {
+                this.cancelPlainText();
+            }
+        };
+        this._boundPlainWarningEscape ??= (event) => {
+            if ('Escape' === event.key) {
+                event.stopPropagation();
+                this.cancelPlainText();
+            }
+        };
+
+        document.addEventListener('click', this._boundPlainWarningOutside, { capture: true });
+        document.addEventListener('keydown', this._boundPlainWarningEscape);
+
+        // Focus lands on Continue so the dialog is operable from the keyboard
+        // at all; Escape and Cancel are both a decline, which is the safe
+        // default this guard exists to protect.
+        if (this.hasPlainWarningConfirmTarget) {
+            this.plainWarningConfirmTarget.focus();
+        }
+    }
+
+    _closePlainWarning() {
+        if (false === this.hasPlainWarningTarget) {
+            return;
+        }
+
+        this.plainWarningTarget.hidden = true;
+
+        document.removeEventListener('click', this._boundPlainWarningOutside, { capture: true });
+        document.removeEventListener('keydown', this._boundPlainWarningEscape);
+    }
+
+    /** "Continue" — the switch the warning was standing in front of. */
+    confirmPlainText() {
+        this._closePlainWarning();
+        this._setPlainText(true);
+    }
+
+    /** "Cancel", Escape, or a click outside. The body is left exactly as it was. */
+    cancelPlainText() {
+        this._closePlainWarning();
     }
 
     _setPlainText(plain) {
@@ -1009,20 +1095,7 @@ export default class extends Controller {
         const editor   = this.bodyTarget;
 
         if (true === plain) {
-            const text = this._bodyAsText(editor);
-
-            // Only warn when there is something to lose. An empty body, or one
-            // that is already nothing but text, converts silently.
-            if (editor.innerHTML.trim() !== text.replace(/\n/g, '') && text.trim().length > 0) {
-                if (false === window.confirm(this._t(
-                    'confirmPlainText',
-                    'Switching to plain text removes all formatting from this message. Continue?',
-                ))) {
-                    return;
-                }
-            }
-
-            textarea.value = text;
+            textarea.value = this._bodyAsText(editor);
         } else {
             // Coming back: the editor still holds the HTML it always did, so
             // there is nothing to restore unless the user typed into the

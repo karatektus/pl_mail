@@ -1167,12 +1167,37 @@ compose:
     insert_link: Insert link
     invalid_address: "“%address%” is not a valid email address"
     italic: Italic
+    # The insert-link popover, both of its faces. Nothing here is spelled in
+    # JavaScript: the controller reads the four strings it writes at runtime
+    # out of a data-…-i18n-value object Twig fills from these keys.
+    link:
+        add: Insert link
+        apply: Apply
+        cancel: Cancel
+        change: Change
+        dialog: Link
+        edit: Edit link
+        heading: Link
+        invalid: Enter a web address.
+        open: Open
+        remove: Remove link
+        text_label: Text to display
+        text_placeholder: The words that carry the link
+        unsafe: Only web, mail and telephone addresses can be linked.
+        url_label: Web address
+        url_placeholder: "example.com"
     minimize: Minimize
     more_options: More options
     new_message: New Message
     no_recipients: No recipients
     outdent: Outdent
     plain_text: Plain text mode
+    # The warning that used to be a browser confirm(). The question itself is
+    # still compose.confirm.plain_text — only the frame around it is new.
+    plain_warning:
+        cancel: Keep formatting
+        continue: Continue
+        title: Remove formatting?
     pop_out: Open in compose window
     read_receipt: Request read receipt
     recipient_required: Add at least one recipient before sending.

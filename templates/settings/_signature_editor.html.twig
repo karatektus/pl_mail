@@ -37,7 +37,20 @@ Variables:
 
 <form method="post" action="{{ action }}" data-turbo-stream
       data-controller="compose--compose-toolbar"
-      class="mt-1">
+      {# The four strings the toolbar controller writes from JavaScript. Not
+         optional decoration: without it the link popover's heading and its two
+         refusals fall back to their English defaults, which is the one thing
+         this app does not do. #}
+      data-compose--compose-toolbar-i18n-value="{{ {
+          linkAdd:     'compose.link.add'|trans,
+          linkEdit:    'compose.link.edit'|trans,
+          linkInvalid: 'compose.link.invalid'|trans,
+          linkUnsafe:  'compose.link.unsafe'|trans,
+      }|json_encode|e('html_attr') }}"
+      {# `relative` for the link popover at the foot of this form. It anchors
+         here rather than inside the editor box, which is `overflow-hidden` and
+         would clip it to nothing. #}
+      class="relative mt-1">
     <input type="hidden" name="_token" value="{{ token }}">
 
     {# What is actually submitted. The contenteditable below is mirrored into
@@ -84,6 +97,16 @@ Variables:
                     empty:before:text-ink-faint
                     empty:before:pointer-events-none">{{ signature|raw }}</div>
     </div>
+
+    {# Same popover as the compose window's, same controller behind it — this
+       editor's link button used to raise the same `prompt()` and would have
+       been the one place left doing so. Opens downwards from the toolbar: this
+       field sits in the middle of a settings page with room below it, unlike
+       the compose window which is already at the foot of the screen. #}
+    {{ include('compose/_link_popover.html.twig', {
+        id:    'signature-' ~ id,
+        class: 'absolute left-0 top-10 w-80 max-w-[calc(100%-1rem)]',
+    }, with_context = false) }}
 
     <div class="flex justify-end mt-1.5">
         <button type="submit"
