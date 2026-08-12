@@ -53,6 +53,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
              confirmNoSubject: 'compose.confirm.no_subject'|trans,
              confirmNoBody:    'compose.confirm.no_body'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
+             imageFailed:      'compose.image_insert_failed'|trans,
          }|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
@@ -541,14 +542,85 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                             aria-label="{{ 'compose.insert_link'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
 
+                    {# ── Emoji ─────────────────────────────────────────
+                       Same dropdown shape as the integration picker below,
+                       so Escape and outside-click come free. The panel opens
+                       upwards and is pinned to the left edge of the window on
+                       a phone: the button itself lives in a strip that scrolls
+                       sideways, and a menu anchored to it would open off the
+                       screen. #}
+                    <div class="relative"
+                         data-controller="ui--dropdown compose--emoji-picker"
+                         data-action="ui--dropdown:opened->compose--emoji-picker#build"
+                         data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
+                         data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale starts with 'de' ? 'de' : 'en') ~ '/data.json') }}"
+                         data-compose--emoji-picker-i18n-value="{{ {
+                             categoriesLabel:         'compose.emoji.categories'|trans,
+                             emojiUnsupportedMessage: 'compose.emoji.unsupported'|trans,
+                             favoritesLabel:          'compose.emoji.favorites'|trans,
+                             loadingMessage:          'compose.emoji.loading'|trans,
+                             networkErrorMessage:     'compose.emoji.network_error'|trans,
+                             regionLabel:             'compose.emoji.region'|trans,
+                             searchDescription:       'compose.emoji.search_description'|trans,
+                             searchLabel:             'compose.emoji.search'|trans,
+                             searchResultsLabel:      'compose.emoji.search_results'|trans,
+                             skinToneDescription:     'compose.emoji.skin_tone_description'|trans,
+                             skinToneLabel:           'compose.emoji.skin_tone'|trans,
+                             skinTonesLabel:          'compose.emoji.skin_tones'|trans,
+                             skinTones: [
+                                 'compose.emoji.tone_default'|trans,
+                                 'compose.emoji.tone_light'|trans,
+                                 'compose.emoji.tone_medium_light'|trans,
+                                 'compose.emoji.tone_medium'|trans,
+                                 'compose.emoji.tone_medium_dark'|trans,
+                                 'compose.emoji.tone_dark'|trans,
+                             ],
+                             categories: {
+                                 'custom':          'compose.emoji.custom'|trans,
+                                 'smileys-emotion': 'compose.emoji.smileys_emotion'|trans,
+                                 'people-body':     'compose.emoji.people_body'|trans,
+                                 'animals-nature':  'compose.emoji.animals_nature'|trans,
+                                 'food-drink':      'compose.emoji.food_drink'|trans,
+                                 'travel-places':   'compose.emoji.travel_places'|trans,
+                                 'activities':      'compose.emoji.activities'|trans,
+                                 'objects':         'compose.emoji.objects'|trans,
+                                 'symbols':         'compose.emoji.symbols'|trans,
+                                 'flags':           'compose.emoji.flags'|trans,
+                             },
+                         }|json_encode|e('html_attr') }}">
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->ui--dropdown#toggle"
+                                title="{{ 'compose.insert_emoji'|trans }}"
+                                aria-label="{{ 'compose.insert_emoji'|trans }}"
+                                class="{{ ic }}"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>
+                        <div data-ui--dropdown-target="menu" hidden
+                             data-compose--emoji-picker-target="panel"
+                             class="emoji-panel fixed left-2 right-2 bottom-20
+                                    md:absolute md:inset-auto md:bottom-full md:left-0 md:right-auto
+                                    md:mb-1 z-30 popover overflow-hidden"></div>
+                    </div>
+
+                    {# ── Inline image ──────────────────────────────────
+                       Its own picker rather than the paperclip's: an image in
+                       the body and a file beside it are different things to
+                       the recipient, and only the first is restricted to
+                       image/*. Paste and drag-drop reach the same endpoint —
+                       see _handleBodyPaste in the controller. #}
+                    <button type="button" data-compose--compose-toolbar-action
+                            data-action="click->compose--compose#openImagePicker"
+                            title="{{ 'compose.image'|trans }}"
+                            aria-label="{{ 'compose.image'|trans }}"
+                            class="{{ ic }}"><i class="fa-regular fa-image" aria-hidden="true"></i></button>
+                    <input type="file" accept="image/*" multiple class="hidden"
+                           data-compose--compose-target="imageInput"
+                           data-action="change->compose--compose#uploadInlineImage">
+
                     {# Named even though they do nothing yet. A control with no
                        accessible name is unreachable by a screen reader
-                       whether or not it is wired up, and these are the six the
+                       whether or not it is wired up, and these are the ones the
                        audit found: an unlabelled row of icons is what the
                        compose toolbar read as. #}
                     {% set placeholderTools = [
-                        { icon: 'fa-regular fa-face-smile',      label: 'compose.insert_emoji' },
-                        { icon: 'fa-regular fa-image',           label: 'compose.image'        },
                         { icon: 'fa-solid fa-lock',              label: 'compose.encrypt'      },
                         { icon: 'fa-solid fa-pen-nib',           label: 'compose.signature'    },
                         { icon: 'fa-solid fa-ellipsis-vertical', label: 'compose.more_options' },

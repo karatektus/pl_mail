@@ -9,6 +9,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The files hanging off a draft: what may be attached, where the bytes go, and
@@ -38,6 +39,7 @@ final readonly class DraftAttachmentService
         private EntityManagerInterface  $entityManager,
         private AttachmentStorageHelper $storage,
         private MailChangeRecorder      $changes,
+        private TranslatorInterface     $translator,
     ) {
     }
 
@@ -93,6 +95,69 @@ final readonly class DraftAttachmentService
         $this->entityManager->flush();
 
         return null;
+    }
+
+    /**
+     * Store an image as part of the body rather than as an attachment.
+     *
+     * Same bytes, same bucket, same ceiling as attach() — what differs is what
+     * the part claims to be: an inline disposition, a content id for the body
+     * to reference it by, and isInline, which is what keeps syncFlag() from
+     * putting a paperclip on a mail whose only "attachment" is a picture the
+     * reader can already see.
+     *
+     * The content id is minted here rather than by the caller because it is
+     * the part's identity on the wire: MessageSendService::buildEmail() embeds
+     * the file under it, and InlineImageRewriter rewrites the body's <img> to
+     * match. Two halves of one reference, so one place decides it.
+     *
+     * @return MessagePart|string the stored part, or the reason it was refused
+     */
+    public function attachInline(Message $message, UploadedFile $file): MessagePart|string
+    {
+        $error = $this->refusal($file);
+
+        if (null !== $error) {
+            return $error;
+        }
+
+        // Guessed from the bytes, never from the client's header: this decides
+        // whether the upload is allowed at all, and a text/html file announcing
+        // itself as image/png must not become part of a mail body.
+        $contentType = $file->getMimeType() ?? 'application/octet-stream';
+
+        if (false === str_starts_with($contentType, 'image/')) {
+            return $this->translator->trans('compose.upload.images_only');
+        }
+
+        $storagePath = $this->storage->store(
+            (int) $message->account->id,
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
+            (string) $file->getClientOriginalName(),
+            (string) file_get_contents($file->getPathname()),
+        );
+
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = $contentType;
+        $part->filename    = basename((string) $file->getClientOriginalName());
+        $part->disposition = 'inline';
+        $part->size        = $file->getSize();
+        $part->storagePath = $storagePath;
+        $part->isInline    = true;
+        $part->contentId   = bin2hex(random_bytes(12)) . '@plmail';
+
+        $message->addMessagePart($part);
+        $this->entityManager->persist($part);
+
+        // Derived, not assumed: an inline part leaves the flag exactly where
+        // the draft's real attachments left it.
+        $this->syncFlag($message);
+        $this->announce($message);
+        $this->entityManager->flush();
+
+        return $part;
     }
 
     /** Detach one file and delete its bytes. */
@@ -162,19 +227,26 @@ final readonly class DraftAttachmentService
 
     /**
      * Why this upload cannot be attached, or null when it can.
+     *
+     * Translated here rather than at the controller, because the reason is the
+     * whole of the answer: the compose window prints this string as-is on its
+     * status line. It used to be spelled in English in this method, which made
+     * a refused upload the one thing a German window said in English.
      */
     private function refusal(UploadedFile $file): ?string
     {
         if (UPLOAD_ERR_INI_SIZE === $file->getError() || UPLOAD_ERR_FORM_SIZE === $file->getError()) {
-            return 'File too large';
+            return $this->translator->trans('compose.upload.too_large');
         }
 
         if (false === $file->isValid()) {
-            return 'Upload failed';
+            return $this->translator->trans('compose.upload.failed');
         }
 
         if ($file->getSize() > self::MAX_BYTES) {
-            return sprintf('File too large (max %d MB)', intdiv(self::MAX_BYTES, 1024 * 1024));
+            return $this->translator->trans('compose.upload.over_limit', [
+                '%limit%' => intdiv(self::MAX_BYTES, 1024 * 1024),
+            ]);
         }
 
         return null;

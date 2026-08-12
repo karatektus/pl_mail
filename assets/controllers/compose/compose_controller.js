@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -89,6 +89,18 @@ export default class extends Controller {
         if (this.hasBodyTarget) {
             this._collapseQuotedContent();
             this._focusCursorAtTop();
+
+            // Pasted and dropped images become real parts instead of data:
+            // URIs — see _handleBodyPaste(). Listeners rather than
+            // data-action because both have to be able to preventDefault
+            // before the browser inserts its own version.
+            this._boundBodyPaste    = this._handleBodyPaste.bind(this);
+            this._boundBodyDrop     = this._handleBodyDrop.bind(this);
+            this._boundBodyDragOver = this._allowBodyDrop.bind(this);
+
+            this.bodyTarget.addEventListener('paste',    this._boundBodyPaste);
+            this.bodyTarget.addEventListener('drop',     this._boundBodyDrop);
+            this.bodyTarget.addEventListener('dragover', this._boundBodyDragOver);
         }
 
         // Tom Select is built by the autocomplete bundle, which may connect
@@ -132,6 +144,13 @@ export default class extends Controller {
         this.element.removeEventListener('keydown', this._boundHandleTab);
         this.element.removeEventListener('keydown', this._boundHandleEnter);
         this.element.removeEventListener('autocomplete:connect', this._boundNameAddressFields);
+
+        if (this.hasBodyTarget && undefined !== this._boundBodyPaste) {
+            this.bodyTarget.removeEventListener('paste',    this._boundBodyPaste);
+            this.bodyTarget.removeEventListener('drop',     this._boundBodyDrop);
+            this.bodyTarget.removeEventListener('dragover', this._boundBodyDragOver);
+        }
+
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
         const form = this.element.querySelector('form');
             form.removeEventListener('input', this._boundAutosave);
@@ -1460,6 +1479,169 @@ export default class extends Controller {
         const detail = (await response.text()).trim();
 
         return '' === detail ? fallback : detail;
+    }
+
+    // ── Inline images ─────────────────────────────────────────────────
+
+    openImagePicker() {
+        if (true === this.hasImageInputTarget) {
+            this.imageInputTarget.click();
+        }
+    }
+
+    /** The hidden image input's own change event. */
+    async uploadInlineImage(event) {
+        const input = event.currentTarget;
+        const files = Array.from(input.files ?? []);
+
+        // Cleared early for the same reason uploadFiles() does it: the input
+        // sits inside the form, and a file left on it rides along on every
+        // later autosave.
+        input.value = '';
+
+        for (const file of files) {
+            await this._placeImage(file);
+        }
+    }
+
+    /**
+     * An image pasted into the body.
+     *
+     * Without this the browser drops a data: URI into the contenteditable, and
+     * every autosave from then on posts the whole picture back as base64 text
+     * inside bodyHtml — which is how a screenshot turns a 2 KB draft into a
+     * 4 MB one that no mail server will take.
+     */
+    _handleBodyPaste(event) {
+        const files = Array.from(event.clipboardData?.files ?? [])
+            .filter((file) => file.type.startsWith('image/'));
+
+        if (0 === files.length) {
+            return;
+        }
+
+        // Only the images are ours; text pasted alongside them still goes
+        // through the browser's own handling.
+        event.preventDefault();
+
+        this._placeImages(files);
+    }
+
+    /** Same again for a file dragged onto the body. */
+    _handleBodyDrop(event) {
+        const files = Array.from(event.dataTransfer?.files ?? [])
+            .filter((file) => file.type.startsWith('image/'));
+
+        if (0 === files.length) {
+            return;
+        }
+
+        event.preventDefault();
+
+        // The caret follows the pointer on a drop, and the toolbar's saved
+        // range is what the insertion uses — so record where this landed
+        // before the upload's await gives focus away.
+        this._toolbar()?._saveRange();
+
+        this._placeImages(files);
+    }
+
+    /** Dropping onto a contenteditable is refused unless dragover says yes. */
+    _allowBodyDrop(event) {
+        if (Array.from(event.dataTransfer?.items ?? []).some((item) => 'file' === item.kind)) {
+            event.preventDefault();
+        }
+    }
+
+    async _placeImages(files) {
+        for (const file of files) {
+            await this._placeImage(file);
+        }
+    }
+
+    /**
+     * Upload one image and put it where the cursor is.
+     *
+     * The forced save is the same rule attachments follow: a part is a row
+     * hanging off a Message, so the draft has to exist before there is
+     * anything to hang it off.
+     */
+    async _placeImage(file) {
+        if (file.size > this.maxAttachmentBytesValue) {
+            const limit = Math.round(this.maxAttachmentBytesValue / (1024 * 1024));
+
+            this._setStatus(
+                this._t('tooLarge', '%s is over %d MB')
+                    .replace('%s', file.name)
+                    .replace('%d', String(limit)),
+                'text-danger',
+            );
+
+            return;
+        }
+
+        await this.saveDraft(null, { force: true, allowEmpty: true });
+
+        const id = this._messageId();
+
+        if (null === id) {
+            this._setStatus(this._t('imageFailed', 'Could not insert the image'), 'text-danger');
+
+            return;
+        }
+
+        const body = new FormData();
+        body.append('file', file);
+
+        this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
+
+        let payload;
+
+        try {
+            const response = await fetch(`/compose/inline-image/${id}`, {
+                method: 'POST',
+                body,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+            });
+
+            payload = await response.json();
+
+            if (false === response.ok) {
+                throw new Error(payload?.error ?? '');
+            }
+        } catch (error) {
+            const detail = error?.message ?? '';
+
+            this._setStatus(
+                '' === detail ? this._t('imageFailed', 'Could not insert the image') : detail,
+                'text-danger',
+            );
+
+            return;
+        }
+
+        this._toolbar()?.insertInlineImage(payload);
+
+        // Saved straight away rather than left to the debounced autosave. The
+        // part row already exists; if the body that references it does not, a
+        // window closed in the next two seconds leaves a draft with an orphan
+        // image in it and no picture.
+        await this.saveDraft(null, { force: true, allowEmpty: true });
+    }
+
+    /**
+     * The toolbar controller on this same window — it owns the editor's saved
+     * selection, so every caret operation goes through it rather than being
+     * written twice.
+     */
+    _toolbar() {
+        return this.application.getControllerForElementAndIdentifier(
+            this.element,
+            'compose--compose-toolbar',
+        );
     }
 
     // ── Cc / Bcc ──────────────────────────────────────────────────────

@@ -229,6 +229,94 @@ export default class extends Controller {
     alignRight()   { this._exec('justifyRight'); }
     alignJustify() { this._exec('justifyFull'); }
 
+    // ── Caret insertion ───────────────────────────────────────────────
+    //
+    // Emoji and inline images are the same operation: put a node where the
+    // cursor was, not where the DOM happens to end. Both arrive from a control
+    // that stole focus first — a picker panel, a file dialog, an upload that
+    // took a second — so the saved range is the only record of where the user
+    // was writing, and appending to the editor instead is the bug this exists
+    // to avoid.
+
+    /**
+     * One emoji, as text.
+     *
+     * Deliberately the only way an emoji can enter the body: nothing here
+     * watches what is typed, so `:)` stays `:)` and `:smile:` stays
+     * `:smile:`. Auto-substitution rewrites what someone wrote, and a mail
+     * client is the wrong place to guess.
+     */
+    insertEmoji(emoji) {
+        if ('string' !== typeof emoji || '' === emoji) { return; }
+
+        this._insertAtCaret(document.createTextNode(emoji));
+    }
+
+    /**
+     * An uploaded image, referenced by the part it was stored as.
+     *
+     * `src` is the attachment route so the editor can render it; `data-cid` is
+     * the identity InlineImageRewriter turns back into `cid:` on save, which is
+     * what the recipient's client resolves against the embedded part.
+     */
+    insertInlineImage({ url, contentId }) {
+        if ('string' !== typeof url || '' === url) { return; }
+
+        const img = document.createElement('img');
+
+        img.setAttribute('src', url);
+        img.setAttribute('style', 'max-width:100%');
+
+        if ('string' === typeof contentId && '' !== contentId) {
+            img.setAttribute('data-cid', contentId);
+        }
+
+        this._insertAtCaret(img);
+    }
+
+    _insertAtCaret(node) {
+        if (false === this.hasEditorTarget) { return; }
+
+        this._restoreRange();
+
+        const sel = window.getSelection();
+        let range = null;
+
+        // Only a selection that is actually inside this editor may be written
+        // to — a range left over in another window's body, or none at all,
+        // becomes "the end of this one".
+        if (sel && sel.rangeCount > 0 && this.editorTarget.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+            range = sel.getRangeAt(0);
+        } else {
+            range = document.createRange();
+            range.selectNodeContents(this.editorTarget);
+            range.collapse(false);
+        }
+
+        range.deleteContents();
+        range.insertNode(node);
+
+        // Cursor after what was just inserted, so a second emoji lands beside
+        // the first rather than before it.
+        const after = document.createRange();
+        after.setStartAfter(node);
+        after.collapse(true);
+
+        if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(after);
+        }
+
+        this.#savedRange = after.cloneRange();
+
+        this._syncHiddenInput();
+
+        // The autosave is a listener on the form's `input` event, and nothing
+        // the DOM is changed by script fires one. Without this the emoji is on
+        // screen and in the hidden input, and gone again on reload.
+        this.editorTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     insertLink() {
         this._saveRange();
         const url = prompt('Enter URL:');

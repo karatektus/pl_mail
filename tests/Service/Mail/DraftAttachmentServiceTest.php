@@ -182,6 +182,103 @@ final class DraftAttachmentServiceTest extends KernelTestCase
         }
     }
 
+    // ── inline images ─────────────────────────────────────────────────────
+
+    /**
+     * An image placed in the body is stored exactly like an attachment and
+     * described differently: inline disposition, a content id for the body to
+     * point at, and isInline — which is what MessageSendService reads to embed
+     * it rather than hang it off the end.
+     */
+    public function testAnInlineImageIsStoredAsAnInlinePartWithAContentId(): void
+    {
+        $message = $this->draft();
+
+        $part = $this->attachments->attachInline($message, $this->image('logo.png'));
+
+        self::assertInstanceOf(MessagePart::class, $part);
+        self::assertSame('inline', $part->disposition);
+        self::assertTrue((bool) $part->isInline);
+        self::assertNotNull($part->contentId);
+        self::assertStringEndsWith('@plmail', (string) $part->contentId);
+        self::assertSame('image/png', $part->contentType);
+        self::assertNotNull($part->storagePath);
+        self::assertFileExists($this->storage->getAbsolutePath($part->storagePath));
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * The paperclip is a promise about what the reader has to go and open. An
+     * image they can already see in the body is not one, so a mail whose only
+     * part is inline must not claim to carry an attachment.
+     */
+    public function testAnInlineImageDoesNotMakeTheDraftLookLikeItHasAttachments(): void
+    {
+        $message = $this->draft();
+
+        $this->attachments->attachInline($message, $this->image('logo.png'));
+
+        self::assertFalse((bool) $message->hasAttachments);
+
+        // …and it does not take the flag away from a real attachment either.
+        $this->attachments->attach($message, [
+            new UploadedFile($this->tempFile('the bytes'), 'notes.txt', null, null, true),
+        ]);
+
+        self::assertTrue((bool) $message->hasAttachments);
+
+        $this->attachments->attachInline($message, $this->image('second.png'));
+
+        self::assertTrue((bool) $message->hasAttachments);
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /** Each one gets its own reference, or the body could only ever show one. */
+    public function testEachInlineImageGetsItsOwnContentId(): void
+    {
+        $message = $this->draft();
+
+        $first  = $this->attachments->attachInline($message, $this->image('one.png'));
+        $second = $this->attachments->attachInline($message, $this->image('two.png'));
+
+        self::assertInstanceOf(MessagePart::class, $first);
+        self::assertInstanceOf(MessagePart::class, $second);
+        self::assertNotSame($first->contentId, $second->contentId);
+
+        $this->attachments->deleteStoredFiles($message);
+    }
+
+    /**
+     * The body is HTML that goes out to strangers, so what may be placed in it
+     * is decided by the bytes and not by the name or the header the browser
+     * put on the upload.
+     */
+    public function testOnlyImagesMayBePlacedInTheBody(): void
+    {
+        $message = $this->draft();
+
+        $result = $this->attachments->attachInline(
+            $message,
+            new UploadedFile($this->tempFile('<script>alert(1)</script>'), 'sneaky.png', 'image/png', null, true),
+        );
+
+        self::assertSame('Only images can be placed in the message body', $result);
+        self::assertCount(0, $message->messageParts);
+    }
+
+    /** Same ceiling as an attachment, and the same wording for it. */
+    public function testAnOversizedInlineImageIsRefused(): void
+    {
+        $file = new UploadedFile($this->sparseFile(DraftAttachmentService::MAX_BYTES + 1), 'big.png', null, null, true);
+
+        self::assertSame(
+            'File too large (max 25 MB)',
+            $this->attachments->attachInline($this->draft(), $file),
+        );
+    }
+
     // ── the flag ──────────────────────────────────────────────────────────
 
     /**
@@ -226,6 +323,19 @@ final class DraftAttachmentServiceTest extends KernelTestCase
         $part->isInline    = $isInline;
 
         return $part;
+    }
+
+    /**
+     * A real PNG, one pixel of it. The type test guesses from the bytes, so a
+     * file that only claims to be an image proves nothing.
+     */
+    private function image(string $name): UploadedFile
+    {
+        $png = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        );
+
+        return new UploadedFile($this->tempFile($png), $name, null, null, true);
     }
 
     private function tempFile(string $contents): string

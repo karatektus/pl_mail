@@ -17,6 +17,7 @@ use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
+use App\Service\Mail\InlineImageRewriter;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\SenderResolver;
@@ -77,6 +78,7 @@ class ComposeController extends AbstractController
         private readonly MessageEraser           $eraser,
         private readonly LabelChangePropagator   $labelChanges,
         private readonly TranslatorInterface     $translator,
+        private readonly InlineImageRewriter     $inlineImages,
     )
     {
     }
@@ -395,7 +397,7 @@ class ComposeController extends AbstractController
         // read — silence here is what made an oversized upload look like a
         // no-op instead of a refusal.
         if (0 === count($files)) {
-            return $this->uploadError('Upload too large');
+            return $this->uploadError($this->translator->trans('compose.upload.post_too_large'));
         }
 
         $refusal = $this->attachments->attach($message, $files);
@@ -418,6 +420,44 @@ class ComposeController extends AbstractController
             Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
             ['Content-Type' => 'text/plain; charset=utf-8'],
         );
+    }
+
+    /**
+     * Place an image in the body rather than beside it.
+     *
+     * JSON rather than a Turbo Stream because nothing on the page is being
+     * replaced: the answer is a reference the editor drops in at the caret,
+     * which is a caret operation, not a DOM region swap. ContactController's
+     * autocomplete is the precedent.
+     *
+     * Paste and drag-drop come through here too — the alternative is a
+     * multi-megabyte data: URI inside every autosave of the draft.
+     */
+    #[Route('/inline-image/{id}', name: 'inline_image', methods: ['POST'])]
+    public function addInlineImage(Request $request, Message $message): Response
+    {
+        $this->assertDraft($message);
+
+        $file = $request->files->get('file');
+
+        if (false === $file instanceof UploadedFile) {
+            return $this->json(
+                ['error' => $this->translator->trans('compose.upload.post_too_large')],
+                Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
+            );
+        }
+
+        $result = $this->attachments->attachInline($message, $file);
+
+        if (is_string($result)) {
+            return $this->json(['error' => $result], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        }
+
+        return $this->json([
+            'id'        => $result->id,
+            'contentId' => $result->contentId,
+            'url'       => $this->generateUrl('app_mail_attachment', ['id' => $result->id]),
+        ]);
     }
 
     #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
@@ -657,12 +697,20 @@ class ComposeController extends AbstractController
             'validation_groups' => $groups,
         ];
 
-        if (false === $ctx['inline']) {
-            return $this->createForm(ComposeType::class, $message, $options);
-        }
+        $form = false === $ctx['inline']
+            ? $this->createForm(ComposeType::class, $message, $options)
+            : $this->container->get('form.factory')
+                ->createNamed(self::INLINE_FORM, ComposeType::class, $message, $options);
 
-        return $this->container->get('form.factory')
-            ->createNamed(self::INLINE_FORM, ComposeType::class, $message, $options);
+        // The stored body references its inline images as `cid:`, which is
+        // what has to go on the wire and what no browser can render. The
+        // editor gets them back as attachment URLs; a submit overwrites this
+        // with what the user actually typed, and DraftPersister turns it back.
+        $form->get('bodyHtml')->setData(
+            $this->inlineImages->toDisplay($message->bodyHtml, $message),
+        );
+
+        return $form;
     }
 
     /**

@@ -802,6 +802,35 @@ compose:
     confirm:
         no_body: This scroll be blank. Cast it off regardless?
         no_subject: This scroll bears no heading. Cast it off regardless?
+    emoji:
+        activities: Sport and mischief
+        animals_nature: Beasts and the wilds
+        categories: Lockers
+        custom: Yer own daubs
+        favorites: Oft-daubed
+        flags: Colours
+        food_drink: Vittles and grog
+        loading: "Haulin' 'em up…"
+        network_error: The wee faces would not come aboard.
+        objects: Odds and ends
+        people_body: Souls and limbs
+        region: The face locker
+        search: Search the locker
+        search_description: When the finds appear, steer up or down to pick one and strike enter to take it.
+        search_results: What the search turned up
+        skin_tone: "Choose a hide (presently {skinTone})"
+        skin_tone_description: When it be open, steer up or down to pick one and strike enter to take it.
+        skin_tones: Hides
+        smileys_emotion: Grins and grimaces
+        symbols: Marks and sigils
+        tone_dark: Deep tanned
+        tone_default: As it comes
+        tone_light: Pale as a sail
+        tone_medium: Fair weathered
+        tone_medium_dark: Well weathered
+        tone_medium_light: Lightly weathered
+        travel_places: Voyages and ports
+        unsupported: This spyglass shows no coloured faces.
     list:
         ordered: Numbered manifest
         unordered: Bulleted manifest
@@ -815,6 +844,12 @@ compose:
         saved: Scroll stowed
         saving: "Stowin'…"
         uploading: "Haulin' aboard…"
+    upload:
+        failed: The haulin' aboard went awry
+        images_only: Only likenesses may be pasted into the scroll itself
+        over_limit: "Too heavy by far (max %limit% MB)"
+        post_too_large: That load be too heavy
+        too_large: Too heavy by far
     add_bcc: Add shadow crew
     add_cc: Add copied crew
     attach: Lash on some cargo
@@ -834,6 +869,7 @@ compose:
     forward: Pass it along
     from: From
     image: Paste in a likeness
+    image_insert_failed: Could not paste the likeness into the scroll
     indent: Shove it inboard
     insert_emoji: Daub on a face
     insert_link: Splice in a link
