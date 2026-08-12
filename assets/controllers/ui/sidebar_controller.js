@@ -58,6 +58,36 @@ function fetchCounts(url) {
     return inFlight;
 }
 
+/**
+ * Show or hide the "something arrived here" dots from the same payload.
+ *
+ * Document-wide rather than over this controller's targets, and that is the
+ * point: the dots are not all in the sidebar. The inbox's category tabs carry
+ * them too, they live inside the list frame — outside every sidebar element —
+ * and they are the primary surface for this marker. Scoping to targets would
+ * have left the tabs waiting for the next list refresh to learn that mail had
+ * arrived, which is up to MIN_REFRESH_MS later than the sidebar beside them.
+ *
+ * Only toggled, never written into. A dot says a thing happened, not how often;
+ * the badges are what carry numbers, and putting a count inside a 6px circle
+ * would render as a smear. Keys are namespaced "new:" server-side precisely so
+ * the two families cannot be fed to each other's patcher.
+ *
+ * Idempotent, which matters because the sidebar partial is on the page twice
+ * (drawer and column) and both instances run this over the same elements.
+ */
+function patchNewDots(counts) {
+    document.querySelectorAll("[data-new-dot]").forEach((dot) => {
+        const count = counts[dot.dataset.countKey];
+
+        if (count === undefined) {
+            return;
+        }
+
+        dot.classList.toggle("hidden", count === 0);
+    });
+}
+
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "tree"];
     static values = { countsUrl: String };
@@ -156,6 +186,8 @@ export default class extends Controller {
             badge.textContent = count;
             badge.classList.toggle("hidden", count === 0);
         });
+
+        patchNewDots(counts);
 
         this._updateTitle(counts);
     }

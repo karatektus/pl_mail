@@ -86,6 +86,29 @@ class MessageThread
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $snoozedUntil = null;
 
+    /**
+     * When this thread's row was first PUT IN FRONT OF the user in a list.
+     *
+     * The "new mail" marker, and deliberately not the same question as unread.
+     * Unread asks whether the mail has been opened; this asks whether it has
+     * been SHOWN. A conversation you scrolled past in the inbox and never
+     * clicked is no longer new — you know it arrived — but it is still unread,
+     * and both statements have to be sayable at once. Overloading seenAt or
+     * unreadCount would collapse them into one.
+     *
+     * Null means new. A plain column rather than a per-user join table because
+     * a thread hangs off an Account and an Account hangs off exactly one User,
+     * so "was it shown" already has one answer per row; a join table would be a
+     * second key for a relation that is one-to-one in practice.
+     *
+     * Written by MailController after the page has rendered — never before, or
+     * the badge would retire in the same frame it was meant to appear in. Set
+     * eagerly for locally-composed drafts (see MessageThreader::createThread):
+     * mail you just wrote yourself has not "arrived".
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $listedAt = null;
+
     public function __construct()
     {
         $this->messages = new ArrayCollection();

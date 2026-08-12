@@ -1839,6 +1839,7 @@ sidebar:
         add: Hoist a new flag
         heading: Flags
         none: No flags yet
+    new_mail_here: 'Fresh bottles washed up in %where%'
     nav:
         calendar: Almanac
         archive: The hold
@@ -1890,6 +1891,8 @@ thread_row:
     has_attachment: Carries cargo
     me: me
     message_count: "({ count })"
+    new: Never yet laid eyes on
+    new_badge: Fresh
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
     select: Pick it

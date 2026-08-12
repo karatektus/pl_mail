@@ -38,6 +38,25 @@ the account view passes false.
 {% set rowAccount = item.account ?? null %}
 {% set showAccountDot = unified and rowAccount is not null and accounts|length > 1 %}
 
+{#
+Is this conversation NEW — never yet put in front of the user?
+
+Two sources, and the fallback is not defensive padding. A list render passes
+`newThreadIds`: the set was read BEFORE the same request retired it, so the row
+can still say "new" in the very frame that stops it being so — see
+MailController::renderList(). Anything re-rendering one row on its own (the
+turbo-streams under thread/status/, which redraw a row after a star or a
+mark-read) has no such set and asks the thread directly, which by then answers
+"already listed" — the badge goes when the row it belongs to is redrawn, rather
+than being resurrected by whichever redraw happened last.
+
+Threads only. A bare Message row is a message, and only a conversation arrives.
+#}
+{% set isNew = isThread
+    and (newThreadIds is defined
+        ? item.id in newThreadIds
+        : item.listedAt is null) %}
+
 {% if isThread %}
     {% set type = 'thread' %}
     {% set unread = item.unreadCount > 0 %}
@@ -114,6 +133,10 @@ the account view passes false.
     data-controller="mail--message-row"
     data-mail--message-row-id-value="{{ rowId }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
+    {# Its own attribute beside data-unread rather than folded into it: the two
+       are orthogonal, and a row that is `new="false" unread="true"` — scrolled
+       past, never opened — is the case the whole feature exists to express. #}
+    data-new="{{ isNew ? 'true' : 'false' }}"
     data-starred="{{ starred ? 'true' : 'false' }}"
 >
     {# Full-row clickable overlay #}
@@ -191,8 +214,40 @@ the account view passes false.
 
             {# Row 1 (stacked) / sender column (wide) #}
             <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
-                <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
-                    {{ sender }}
+                {# Sender and its marker travel together in one group, so the
+                   badge sits to the LEFT of the name at both container widths.
+                   Hanging it off the outer flex instead would have put it at
+                   the far right of a stacked row (justify-between) and beside
+                   the name when wide (justify-start) — the same marker in two
+                   different places depending on how wide the list happens to
+                   be. #}
+                <span class="min-w-0 flex items-center gap-1.5">
+                    {# The "New" marker: a filled accent pill carrying a WORD.
+                       Deliberately nothing like the unread dot further down
+                       this file, which is a bare 8px green circle — the two
+                       mean different things ("never shown you" against "never
+                       opened") and a user must not have to work out which
+                       small round thing is which. A pill with text is a
+                       different vocabulary from a dot, and the accent is the
+                       token that follows whichever theme is on, so this reads
+                       in light and dark without a second colour.
+
+                       The visible word is aria-hidden and a fuller phrase sits
+                       in sr-only beside it: "New" alone, announced in a list of
+                       fifty rows, does not say new WHAT. #}
+                    {% if isNew %}
+                        <span class="shrink-0 inline-flex items-center rounded-full
+                                     bg-accent text-accent-ink
+                                     px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide leading-none"
+                              data-thread-new>
+                            <span aria-hidden="true">{{ 'thread_row.new_badge'|trans }}</span>
+                            <span class="sr-only">{{ 'thread_row.new'|trans }}</span>
+                        </span>
+                    {% endif %}
+
+                    <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
+                        {{ sender }}
+                    </span>
                 </span>
             </div>
 

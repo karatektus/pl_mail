@@ -15,6 +15,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Twig\NewMailMarkers;
 use App\Twig\SidebarCounts;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -117,6 +118,89 @@ final class MailController extends AbstractController
         );
     }
 
+    /**
+     * Render a thread list, then retire the "New" badges it just showed.
+     *
+     * The order is the feature. A thread is new until its row has been
+     * DISPLAYED — not until it has been opened — so the marking has to happen
+     * against a page that has already been turned into HTML. Marking first
+     * would mean the badge was computed from state the same request had just
+     * destroyed, and no user would ever see it: mail would arrive and quietly
+     * become old in the frame that announced it.
+     *
+     * $this->render() returns a Response whose body is already a finished
+     * string, so "after render" is literally true here rather than a hopeful
+     * reading of the call order.
+     *
+     * Scoped to $threads, which is one page of PER_PAGE rows. Marking the whole
+     * query instead would clear page 2 and 3 the moment page 1 was looked at,
+     * which is the same bug as the migration's missing backfill, only slower.
+     *
+     * Every list view goes through here — including the ones where "new" is a
+     * strange thing to say, like Sent. A row that has been shown has been
+     * shown, whichever list showed it, and a view that rendered without marking
+     * would leave a badge the user has already looked at waiting to surprise
+     * them somewhere else.
+     *
+     * The same call serves the X-List-Fragment refresh, and deliberately: that
+     * refresh swaps the rendered rows straight into the visible list, so it is
+     * a display like any other. The refresh is already held while the tab is
+     * hidden and while a write is in flight — see mail_pane_controller — which
+     * is what keeps a background poll from retiring badges nobody saw.
+     *
+     * @param MessageThread[]      $threads
+     * @param array<string, mixed> $parameters
+     */
+    private function renderList(Request $request, string $template, array $threads, array $parameters): Response
+    {
+        $new = [];
+
+        foreach ($threads as $thread) {
+            if (null === $thread->listedAt) {
+                $new[] = (int) $thread->id;
+            }
+        }
+
+        $parameters['threads']      = $threads;
+        $parameters['newThreadIds'] = $new;
+
+        $response = $this->render($template, $parameters);
+
+        // A prefetch is a page nobody has seen. Turbo 8 fetches a link on hover
+        // — every sidebar row here is prefetched, since only the thread rows
+        // and the account folder rows opt out — so without this, running the
+        // pointer across the nav on the way to somewhere else would silently
+        // retire the badges in Promotions, in Starred and in every label it
+        // passed over. The rendered HTML is thrown away if the click never
+        // comes, and the marking would not have been.
+        if (true === self::isPrefetch($request)) {
+            return $response;
+        }
+
+        $this->threadRepository->markListed($new, new \DateTimeImmutable());
+
+        return $response;
+    }
+
+    /**
+     * Whether this request is a speculative fetch rather than a visit.
+     *
+     * Both spellings, because there are two mechanisms: Turbo sends its own
+     * `X-Sec-Purpose` on hover prefetches, and browsers send the standard
+     * `Sec-Purpose` for prerender and speculation-rules prefetching. Either one
+     * means the same thing to this feature — the page may never be looked at.
+     */
+    private static function isPrefetch(Request $request): bool
+    {
+        foreach (['X-Sec-Purpose', 'Sec-Purpose'] as $header) {
+            if (str_contains((string) $request->headers->get($header), 'prefetch')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     #[Route('/inbox', name: 'inbox')]
     public function inbox(
         Request $request,
@@ -157,8 +241,7 @@ final class MailController extends AbstractController
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render('mail/inbox.html.twig', [
-            'threads'    => $threads,
+        return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'        => $tab,
             'tabs'       => $tabs,
             'tabCounts'  => $tabCounts,
@@ -215,10 +298,9 @@ final class MailController extends AbstractController
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render('mail/label.html.twig', [
+        return $this->renderList($request, 'mail/label.html.twig', $threads, [
             'label'     => $label,
             'account'   => $account,
-            'threads'   => $threads,
             'page'      => $page,
             'total'     => $total,
             'per_page'  => self::PER_PAGE,
@@ -277,9 +359,8 @@ final class MailController extends AbstractController
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render('mail/account.html.twig', [
+        return $this->renderList($request, 'mail/account.html.twig', $threads, [
             'account'   => $account,
-            'threads'   => $threads,
             'page'      => $page,
             'total'     => $total,
             'per_page'  => self::PER_PAGE,
@@ -303,8 +384,7 @@ final class MailController extends AbstractController
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render('mail/starred.html.twig', [
-            'threads'   => $threads,
+        return $this->renderList($request, 'mail/starred.html.twig', $threads, [
             'page'      => $page,
             'total'     => $total,
             'per_page'  => self::PER_PAGE,
@@ -391,8 +471,7 @@ final class MailController extends AbstractController
 
         $this->threadRepository->preloadLabels($threads);
 
-        return $this->render($template, [
-            'threads'   => $threads,
+        return $this->renderList($request, $template, $threads, [
             'page'      => $page,
             'total'     => $total,
             'per_page'  => self::PER_PAGE,
@@ -468,18 +547,33 @@ final class MailController extends AbstractController
      * scroll position and any collapsed tree mid-sync.
      */
     #[Route('/sidebar/counts', name: 'sidebar_counts', methods: ['GET'])]
-    public function sidebarCounts(SidebarCounts $counts): JsonResponse
+    public function sidebarCounts(SidebarCounts $counts, NewMailMarkers $newMail): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        $payload = ['starred' => $counts->forStarred()];
+        $payload = [
+            'starred'                     => $counts->forStarred(),
+            NewMailMarkers::STARRED_KEY   => $newMail->forStarred(),
+        ];
+
+        // The new-mail dots ride on this same payload rather than on an
+        // endpoint of their own. They are patched by the same controller on the
+        // same sync event, and two requests answering one question would let
+        // the badge and the dot beside it disagree for a moment about the same
+        // mail. The keys are namespaced "new:" so nothing here can collide with
+        // an unread key — the dot means something different and must never be
+        // fed to a badge that would print it as a number.
+        foreach (MessageCategory::cases() as $category) {
+            $payload[NewMailMarkers::categoryKey($category)] = $newMail->forCategory($category);
+        }
 
         // forRoleBadge(), not forRole(): Trash and Drafts show a total rather
         // than an unread count, and this endpoint has to say the same thing the
         // server-rendered badge did or the first sync would silently change the
         // number under the user. See SidebarCounts::TOTAL_ROLES.
         foreach (LabelRole::cases() as $role) {
-            $payload['role:' . $role->value] = $counts->forRoleBadge($role);
+            $payload['role:' . $role->value]      = $counts->forRoleBadge($role);
+            $payload[NewMailMarkers::roleKey($role)] = $newMail->forRole($role);
         }
 
         // One key per label now that the sidebar renders labels directly —
@@ -487,7 +581,8 @@ final class MailController extends AbstractController
         $labels = $this->labelRepository->findVisibleForUser($this->getUser());
 
         foreach ($labels as $label) {
-            $payload['label:' . $label->id] = $counts->forLabel($label);
+            $payload['label:' . $label->id]            = $counts->forLabel($label);
+            $payload[NewMailMarkers::labelKey($label)] = $newMail->forLabel($label);
         }
 
         // The expanded account's folder rows count within that account and are

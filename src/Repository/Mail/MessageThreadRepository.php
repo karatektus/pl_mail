@@ -535,6 +535,187 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    // ── the new-mail marker ───────────────────────────────────────────────
+    //
+    // "New" is listed_at IS NULL: the thread has never had its row put in front
+    // of the user. It is not "unread", and the two are asked separately
+    // everywhere below — a thread scrolled past but never opened answers no to
+    // the first and yes to the second.
+
+    /**
+     * Retire the marker on the threads that were just rendered.
+     *
+     * A bulk DQL UPDATE rather than a property write per entity, for the
+     * reason it is called at all: this runs on every list render, and fifty
+     * managed entities flushed one by one is fifty UPDATEs on the hot path.
+     *
+     * `listedAt IS NULL` in the WHERE is not redundant with the caller having
+     * filtered already. Two tabs rendering the same page race here, and the
+     * guard makes the loser a no-op instead of moving a timestamp that already
+     * meant something.
+     *
+     * @param list<int> $threadIds ids from the rendered page, and only those —
+     *        never the whole query, or page 1 would retire page 2's badges
+     *
+     * @return int rows actually retired
+     */
+    public function markListed(array $threadIds, \DateTimeImmutable $at): int
+    {
+        if ([] === $threadIds) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('t')
+            ->update()
+            ->set('t.listedAt', ':at')
+            ->where('t.id IN (:ids)')
+            ->andWhere('t.listedAt IS NULL')
+            ->setParameter('at', $at)
+            ->setParameter('ids', $threadIds)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * New threads per inbox category — what puts the dot on a Gmail tab.
+     *
+     * The same shape as countUnreadByCategoryForUnifiedInbox() and for the same
+     * reason: a GROUP BY with an aggregate, which is one query rather than one
+     * per tab on every page load.
+     *
+     * @return array<string,int>
+     */
+    public function countNewByCategoryForUnifiedInbox(UserInterface $user): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS newCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :inbox')
+            ->andWhere('t.listedAt IS NULL')
+            ->groupBy('t.category')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', LabelRole::Inbox);
+
+        $this->excludeTrashed($qb);
+
+        $counts = [];
+
+        foreach ($qb->getQuery()->getResult() as $row) {
+            $category = $row['category'];
+
+            if ($category instanceof MessageCategory) {
+                $category = $category->value;
+            }
+
+            $counts[(string) $category] = (int) $row['newCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * New threads per system role, for the sidebar dots.
+     *
+     * COUNT of threads, not SUM of unreadCount — the dot says "something
+     * arrived here", and a conversation is one arrival however many messages
+     * it holds.
+     *
+     * The Trash-or-not-trashed OR is lifted from countUnreadPerRole(), and is
+     * load-bearing for the same reason: the bin has to keep counting its own
+     * while every other row stops counting what was thrown away.
+     *
+     * @return array<string,int> role value → new thread count
+     */
+    public function countNewPerRole(UserInterface $user): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('l.role AS role', 'COUNT(DISTINCT t.id) AS newCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role IS NOT NULL')
+            ->andWhere('t.listedAt IS NULL')
+            ->setParameter('user', $user)
+            ->groupBy('l.role');
+
+        $qb->andWhere(
+            $qb->expr()->orX(
+                'l.role = :trashRole',
+                $qb->expr()->notIn(
+                    't.id',
+                    'SELECT binned.id FROM ' . MessageThread::class . ' binned'
+                        . ' JOIN binned.labels binnedLabel'
+                        . ' WHERE binnedLabel.role = :trashRole',
+                ),
+            ),
+        )->setParameter('trashRole', LabelRole::Trash);
+
+        $counts = [];
+
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            $role = $row['role'];
+
+            if ($role instanceof LabelRole) {
+                $role = $role->value;
+            }
+
+            $counts[(string) $role] = (int) $row['newCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * The same count for custom labels.
+     *
+     * @return array<int,int> label id → new thread count
+     */
+    public function countNewPerUserLabel(UserInterface $user, ?Account $account = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('l.id AS labelId', 'COUNT(DISTINCT t.id) AS newCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role IS NULL')
+            ->andWhere('t.listedAt IS NULL')
+            ->setParameter('user', $user)
+            ->groupBy('l.id');
+
+        $this->narrowToAccount($qb, $account);
+        $this->excludeTrashed($qb);
+
+        $counts = [];
+
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            $counts[(int) $row['labelId']] = (int) $row['newCount'];
+        }
+
+        return $counts;
+    }
+
+    /** New threads among the starred ones. */
+    public function countNewForStarred(UserInterface $user): int
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.starredAt IS NOT NULL')
+            ->andWhere('t.listedAt IS NULL')
+            ->setParameter('user', $user);
+
+        $this->excludeTrashed($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     /**
      * Threads carrying ANY of the given labels — the merged path-based label
      * view aggregating same-named labels across accounts.
@@ -996,13 +1177,20 @@ class MessageThreadRepository extends ServiceEntityRepository
      * MIN(id) anchor is an aggregate the ORM would have to load a whole thread
      * to compute.
      *
-     * @return list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, anchor: int}>
+     * listed_at comes along for a reason worth stating: a rebuild drops every
+     * thread row and makes new ones, and a new row is born null, which is to
+     * say NEW. Without carrying it, running this maintenance command would
+     * light up the account's entire history as unseen mail — the same failure
+     * the migration's backfill exists to prevent, reachable from a console
+     * command instead of a deploy.
+     *
+     * @return list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, listed_at: ?string, anchor: int}>
      */
     public function findCarriedOverStateForAccount(int $accountId): array
     {
-        /** @var list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, anchor: int}> */
+        /** @var list<array{id: int, starred_at: ?string, snoozed_until: ?string, category: ?string, listed_at: ?string, anchor: int}> */
         return $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT t.id, t.starred_at, t.snoozed_until, t.category, MIN(m.id) AS anchor
+            'SELECT t.id, t.starred_at, t.snoozed_until, t.category, t.listed_at, MIN(m.id) AS anchor
              FROM message_thread t
              INNER JOIN message m ON m.thread_id = t.id
              WHERE t.account_id = :accountId
@@ -1075,17 +1263,24 @@ class MessageThreadRepository extends ServiceEntityRepository
         ?string $starredAt,
         ?string $snoozedUntil,
         ?string $category,
+        ?string $listedAt = null,
     ): void {
         $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE message_thread
              SET starred_at    = COALESCE(starred_at, :starredAt),
                  snoozed_until = COALESCE(snoozed_until, :snoozedUntil),
-                 category      = COALESCE(category, :category)
+                 category      = COALESCE(category, :category),
+                 listed_at     = COALESCE(listed_at, :listedAt)
              WHERE id = :threadId',
             [
                 'starredAt'    => $starredAt,
                 'snoozedUntil' => $snoozedUntil,
                 'category'     => $category,
+                // COALESCE cuts the right way here too: several old threads can
+                // collapse into one rebuilt thread, and if ANY of them had been
+                // shown then the conversation is not news to anybody. The first
+                // non-null wins and later nulls cannot take it back.
+                'listedAt'     => $listedAt,
                 'threadId'     => $threadId,
             ],
         );

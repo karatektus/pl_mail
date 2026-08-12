@@ -1,0 +1,47 @@
+{#
+The "something arrived here" dot — the category/label/role half of the new-mail
+marker.
+
+One macro, two very different surfaces: the Gmail category tabs above the inbox
+list and the sidebar's roles and labels. They are the same statement about the
+same state, so they are the same mark; a dot invented twice would drift the
+moment one of them was restyled.
+
+Quiet on purpose. It says a conversation arrived in here that has never been put
+in front of you, and it says nothing about how many — the number beside it is
+the unread badge and means something else entirely. Two numbers on one row is
+two demands with nothing to tell them apart.
+
+Rendered at every count and hidden at zero rather than omitted, which is the
+idiom every patched marker in this app follows (see the unread_badge macro in
+_sidebar.html.twig): the sidebar controller finds it by `data-count-key` after
+a Mercure sync and toggles it, and an element that was never rendered cannot be
+found.
+
+`bg-accent` rather than a colour of its own: it is the token that follows
+whichever of the app's themes is on, so this reads in light and in dark without
+a second definition — and the sidebar's label_dot palette is identity colour,
+which this is not.
+
+The accessible name is the whole reason `where` is a parameter. A screen reader
+meeting a bare dot on "Promotions" gets nothing at all; announcing which place
+has new mail is the only form of this marker that carries its meaning.
+#}
+{% macro new_dot(count, key, where) %}
+    {# No margin of its own: every caller already sits in a flex row with a gap,
+       and a margin here would be spacing applied twice in the sidebar and
+       missing wherever the next caller is not a flex row. The tab strip, which
+       is not one, adds its own.
+
+       `flex` and not `inline-block`, and that is not a style preference. Both
+       are display utilities, both land in the same Tailwind layer, and the one
+       written LATER in the generated stylesheet wins whatever order the class
+       attribute is in — `.hidden` is emitted before `.inline-block` and after
+       `.flex`. With inline-block the dot rendered at every count and simply
+       ignored `hidden`, which is a marker that never goes away. #}
+    <span class="new-dot flex w-1.5 h-1.5 rounded-full shrink-0 bg-accent{{ count > 0 ? '' : ' hidden' }}"
+          data-new-dot
+          data-count-key="{{ key }}">
+        <span class="sr-only">{{ 'sidebar.new_mail_here'|trans({ '%where%': where }) }}</span>
+    </span>
+{% endmacro %}

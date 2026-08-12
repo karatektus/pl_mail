@@ -2202,6 +2202,7 @@ sidebar:
         add: Label erstellen
         heading: Labels
         none: Noch keine Labels
+    new_mail_here: 'Neue Nachrichten in %where%'
     nav:
         calendar: Kalender
         archive: Archiv
@@ -2253,6 +2254,8 @@ thread_row:
     has_attachment: Enthält Anhang
     me: ich
     message_count: "({ count })"
+    new: Dir noch nie angezeigt
+    new_badge: Neu
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
     select: Auswählen
