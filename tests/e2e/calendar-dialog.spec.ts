@@ -179,6 +179,15 @@ test.describe("calendar event dialog", () => {
     });
 
     test.describe("times", () => {
+        // The server renders event times in the user's zone, and the seeded
+        // user falls back to the app default (Europe/Berlin — see
+        // UserTimezoneResolver::FALLBACK). Pin the BROWSER to that same zone so
+        // the wall clock the page shows and the wall clock this test reads are
+        // the one clock. Without it, "next full hour in Berlin" parsed against
+        // a UTC CI runner is two hours out and the check fails on the runner
+        // while passing on a Berlin dev machine.
+        test.use({ timezoneId: "Europe/Berlin" });
+
         /**
          * Moving the start moves the end with it. Without this the commonest
          * edit there is — "same meeting, later" — silently produces an end
@@ -214,17 +223,34 @@ test.describe("calendar event dialog", () => {
 
             expect(start).toMatch(/T\d\d:00$/);
 
+            // The end is an hour after the start — a difference, so it holds
+            // whatever zone both strings are parsed in.
             const startAt = new Date(start);
             const endAt = new Date(end);
-
             expect(endAt.getTime() - startAt.getTime()).toBe(60 * 60 * 1000);
 
-            // Within the hour after "now", which is what "the next full hour"
-            // means and is loose enough to survive the clock ticking mid-test.
-            const now = Date.now();
+            // The start is the next full hour IN THE USER'S ZONE. Computed from
+            // the browser's own wall clock (pinned above to the same zone), as
+            // a `YYYY-MM-DDTHH:00` string to compare against the input verbatim
+            // — no parse to an absolute instant, so no zone can creep in. Two
+            // candidates, because a tick across the minute between the server
+            // choosing and the browser reading would land on the following
+            // hour, and that is still correct.
+            const candidates = await page.evaluate(() => {
+                const pad = (n: number) => String(n).padStart(2, "0");
+                const stamp = (d: Date) =>
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
 
-            expect(startAt.getTime()).toBeGreaterThan(now - 60 * 60 * 1000);
-            expect(startAt.getTime()).toBeLessThanOrEqual(now + 60 * 60 * 1000);
+                return [1, 2].map((add) => {
+                    const d = new Date();
+                    d.setMinutes(0, 0, 0);
+                    d.setHours(d.getHours() + add);
+
+                    return stamp(d);
+                });
+            });
+
+            expect(candidates).toContain(start);
         });
     });
 
