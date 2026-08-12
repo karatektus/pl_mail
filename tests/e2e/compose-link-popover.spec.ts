@@ -221,9 +221,12 @@ test.describe("the signature editor's link popover", () => {
             void dialog.dismiss();
         });
 
-        await page.goto("/settings?section=aliases");
+        // Signatures moved out of the aliases panel into their own section,
+        // and the route moved with them. The account-level form is the only
+        // one ending in /signature — an alias override ends in its alias id.
+        await page.goto("/settings?section=signature");
 
-        const form = page.locator('form[action$="/compose-defaults/signature"]').first();
+        const form = page.locator('form[action$="/signature"]').first();
         const editor = form.locator('[data-compose--compose-toolbar-target="editor"]');
 
         await editor.click();
