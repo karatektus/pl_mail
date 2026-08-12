@@ -221,7 +221,7 @@ final class MailController extends AbstractController
                 || ($tabTotals[$case->value] ?? 0) > 0,
         ));
 
-        $this->threadRepository->preloadLabels($threads);
+        $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'        => $tab,
@@ -278,7 +278,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort);
 
-        $this->threadRepository->preloadLabels($threads);
+        $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/label.html.twig', $threads, [
             'label'     => $label,
@@ -339,7 +339,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForAccount($account, $page, self::PER_PAGE, $sort);
 
-        $this->threadRepository->preloadLabels($threads);
+        $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/account.html.twig', $threads, [
             'account'   => $account,
@@ -364,7 +364,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort);
 
-        $this->threadRepository->preloadLabels($threads);
+        $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/starred.html.twig', $threads, [
             'page'      => $page,
@@ -451,7 +451,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort);
 
-        $this->threadRepository->preloadLabels($threads);
+        $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, $template, $threads, [
             'page'      => $page,

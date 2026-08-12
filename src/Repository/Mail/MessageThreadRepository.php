@@ -849,6 +849,99 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The same trick for the messages collection, which one row reads three
+     * times over: thread_participants() walks every sender, `|last` supplies
+     * the snippet and the avatar seed, and `|filter(m => m.isDraft)` decides
+     * whether the row opens the compose dock instead of the thread. Each of
+     * those initialises the collection, so a fifty-row list was fifty
+     * `SELECT … FROM message WHERE thread_id = ?`.
+     *
+     * A batch rather than a denormalised column on MessageThread, and the
+     * participants are why. The row does not want "the latest message" — it
+     * wants the CAST of the conversation, every distinct sender in the order
+     * they joined it (see ThreadParticipants). A lastMessageId stored beside
+     * messageCount would leave that walk exactly where it is, the collection
+     * would hydrate anyway, and the denormalisation would have bought nothing
+     * while adding a second thing that can go stale. One query for the page
+     * settles all three readers at once.
+     *
+     * ORDERED, which the label preload has no need to be: the association
+     * carries #[ORM\OrderBy(receivedAt, id)] and a fetch join does not inherit
+     * it. Without the order spelled here the collection arrives however
+     * Postgres returned it, `|last` stops meaning "newest", and the row's
+     * snippet comes off an arbitrary message.
+     *
+     * @param MessageThread[] $threads
+     */
+    public function preloadMessages(array $threads): void
+    {
+        if (count($threads) === 0) {
+            return;
+        }
+
+        $this->createQueryBuilder('thread')
+            ->addSelect('message')
+            ->leftJoin('thread.messages', 'message')
+            ->where('thread IN (:threads)')
+            ->setParameter('threads', $threads)
+            ->addOrderBy('message.receivedAt', 'ASC')
+            ->addOrderBy('message.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * And the account, which the row reaches for twice — once for the corner
+     * wedge that says which mailbox a unified row arrived in, and once inside
+     * ThreadParticipants, which needs the account's own addresses to decide
+     * which sender is "me".
+     *
+     * A preload rather than an addSelect on the join the list queries already
+     * have, which is the obvious move and does not work here. Those two joins
+     * exist beside a to-many label join, so the finders carry DISTINCT — and
+     * `SELECT DISTINCT` over Account's columns is a Postgres error, not a
+     * slow query: `could not identify an equality operator for type json`,
+     * because Account holds json (oauth_last_refresh_error, graph_*). The
+     * to-one addSelect is free of extra ROWS, as the usual advice says, but it
+     * is not free of DISTINCT. One extra query for the whole page is.
+     *
+     * @param MessageThread[] $threads
+     */
+    public function preloadAccounts(array $threads): void
+    {
+        if (count($threads) === 0) {
+            return;
+        }
+
+        $this->createQueryBuilder('thread')
+            ->addSelect('account')
+            ->join('thread.account', 'account')
+            ->where('thread IN (:threads)')
+            ->setParameter('threads', $threads)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Everything one page of thread ROWS reads, in three queries.
+     *
+     * One entry point rather than three calls at each of the six call sites.
+     * The label preload existed and was called from every list view except
+     * search — which is exactly why search cost fifty queries more than the
+     * same fifty rows in the inbox. A list view that gets one preload and not
+     * another is the failure this replaces; adding a fourth thing the row
+     * needs should mean editing this method, not auditing every controller.
+     *
+     * @param MessageThread[] $threads
+     */
+    public function preloadForRows(array $threads): void
+    {
+        $this->preloadAccounts($threads);
+        $this->preloadLabels($threads);
+        $this->preloadMessages($threads);
+    }
+
+    /**
      * Full-text + operator search across messages for a given user.
      * Returns hydrated MessageThread entities in the order $sort asks for.
      *
