@@ -40,6 +40,23 @@ Variables:
                 <div class="flex-1 min-w-0">
                     <div class="flex items-baseline gap-2">
                         <span class="text-sm font-medium text-danger">{{ 'message.draft'|trans }}</span>
+                        {# Same badge as the Drafts list, for the same reason:
+                           this row is what a scheduled reply looks like once
+                           the composer has closed over it, and "Draft" alone
+                           says the opposite of what is true. #}
+                        {% if message.sentAt is null and message.submissionSendAt is not null %}
+                            <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                                         text-[11px] font-medium bg-info/10 text-info whitespace-nowrap"
+                                  data-scheduled-badge>
+                                <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                                {{ 'thread_row.scheduled'|trans({
+                                    '%when%': 'compose.schedule.when'|trans({
+                                        '%date%': message.submissionSendAt|intl_date('dMMM', clock.timezone),
+                                        '%time%': message.submissionSendAt|date(clock.time, clock.timezone),
+                                    }),
+                                }) }}
+                            </span>
+                        {% endif %}
                         <span class="text-xs text-ink-muted truncate">
                             {{ snippet ?: (message.subject ?: ('compose.empty_draft'|trans)) }}
                         </span>

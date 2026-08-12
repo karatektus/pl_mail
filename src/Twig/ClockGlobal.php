@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Domain\Enum\User\ClockFormat;
 use App\Entity\User\User;
 use App\Service\User\ClockFormatResolver;
+use App\Service\User\UserTimezoneResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -31,8 +32,9 @@ class ClockGlobal
     private ?ClockFormat $format = null;
 
     public function __construct(
-        private readonly ClockFormatResolver $clocks,
-        private readonly Security            $security,
+        private readonly ClockFormatResolver  $clocks,
+        private readonly Security             $security,
+        private readonly UserTimezoneResolver $timezones,
     ) {
     }
 
@@ -58,6 +60,26 @@ class ClockGlobal
     public function getIs12Hour(): bool
     {
         return ClockFormat::Twelve === $this->format();
+    }
+
+    /**
+     * The IANA identifier every `|date` in this request is already being drawn
+     * against — "Europe/Berlin", never an offset.
+     *
+     * Here rather than threaded through a controller for the same reason the
+     * format is: it is wanted by a partial (the compose window's send-options
+     * menu, which has to name tomorrow morning in the user's own clock) that
+     * renders from three different actions and from a Turbo Stream besides.
+     *
+     * Note this is the *configured* zone, resolved exactly as
+     * TwigTimezoneSubscriber resolves it — not anything read off the browser.
+     * A laptop still on New York time does not move a Berlin user's morning.
+     */
+    public function getTimezone(): string
+    {
+        $user = $this->security->getUser();
+
+        return $this->timezones->nameFor($user instanceof User ? $user : null);
     }
 
     private function format(): ClockFormat

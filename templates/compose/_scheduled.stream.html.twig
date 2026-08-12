@@ -1,0 +1,69 @@
+{#
+compose/_scheduled.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Answer to POST /compose/schedule: the window closes, a toast names the time,
+and the toast's action cancels the hold.
+
+The cancel goes to the ordinary undo route, which is the same mechanism the
+ten-second send guard uses — `cancelled = true` for SendMessageHandler, plus
+clearing submissionSendAt — and which reopens the draft in the composer. That
+is why the toast is given eight seconds rather than four: it is not a receipt,
+it is the last cheap way back out.
+
+The window is taken down differently depending on where it was, because the
+three places put it in three different containers:
+
+  • the dock — its own frame, emptied;
+  • the reply box at the foot of a thread — the frame lives inside
+    #reply_zone_{id}, so the zone is re-rendered whole and comes back as the
+    Reply / Reply all / Forward buttons;
+  • a draft being edited in place — the frame IS the draft's row, so it is
+    replaced by the row again. Still a draft: a scheduled message has not been
+    sent, and its row belongs where it was.
+
+Variables: message, ctx, sendAt (DateTimeImmutable, UTC), thread, cancelUrl
+#}
+{# The zone is named rather than left to default, and that is not belt and
+   braces. `|date` picks it up from the Twig environment (TwigTimezoneSubscriber
+   puts the user's there), but `|intl_date` keeps whatever zone the value
+   already carries — and sendAt is UTC, straight off the resolver. Left implicit
+   the two halves of one timestamp would disagree, and near midnight they would
+   disagree about the day. #}
+{% set when = ('compose.schedule.when'|trans({
+    '%date%': sendAt|intl_date('dMMM', clock.timezone),
+    '%time%': sendAt|date(clock.time, clock.timezone),
+})) %}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type: 'success',
+            message: 'compose.schedule.toast'|trans({ '%when%': when }),
+            extra: {
+                undo_url: cancelUrl,
+                hide_after: 8000,
+            },
+        } only %}
+    </template>
+</turbo-stream>
+
+{% if ctx.inline and ctx.frame starts with 'compose_draft_' %}
+    <turbo-stream action="replace" target="{{ ctx.frame }}">
+        <template>
+            {% include 'mail/_thread_message.html.twig' with {
+                message:  message,
+                expanded: false,
+            } only %}
+        </template>
+    </turbo-stream>
+{% elseif ctx.inline and thread is not null %}
+    <turbo-stream action="replace" target="reply_zone_{{ thread.id }}">
+        <template>
+            {% include 'mail/_reply_zone.html.twig' with { thread: thread } only %}
+        </template>
+    </turbo-stream>
+{% else %}
+    <turbo-stream action="update" target="compose_dock">
+        <template></template>
+    </turbo-stream>
+{% endif %}

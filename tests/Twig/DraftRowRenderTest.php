@@ -103,8 +103,42 @@ final class DraftRowRenderTest extends KernelTestCase
         self::assertStringContainsString('(no recipient)', $html);
     }
 
+    /**
+     * A draft on a hold says so, and says when.
+     *
+     * The Drafts list is where a scheduled message actually lives — the toast
+     * that announced it faded in eight seconds, and the row is otherwise
+     * indistinguishable from an unsent draft nobody promised anything about.
+     */
+    public function testAScheduledDraftIsBadgedWithItsSendTime(): void
+    {
+        $thread = $this->seedDraft(
+            [['name' => 'Rike Kaltbach', 'address' => 'rike@example.test']],
+            new DateTimeImmutable('2026-09-14T06:30:00', new \DateTimeZone('UTC')),
+        );
+
+        $html = $this->render($thread);
+
+        self::assertStringContainsString('data-scheduled-badge', $html);
+        self::assertStringContainsString('Scheduled', $html);
+        // The date, in the reader's format. Not asserting the hour: the clock
+        // is 12- or 24-hour by preference and the zone comes from the setting,
+        // which is exactly the pair this row must not hard-code.
+        self::assertStringContainsString('Sep', $html);
+    }
+
+    /** An ordinary draft carries no badge at all. */
+    public function testAnUnscheduledDraftIsNotBadged(): void
+    {
+        $html = $this->render($this->seedDraft([
+            ['name' => 'Rike Kaltbach', 'address' => 'rike@example.test'],
+        ]));
+
+        self::assertStringNotContainsString('data-scheduled-badge', $html);
+    }
+
     /** @param list<array{name: string, address: string}>|null $to */
-    private function seedDraft(?array $to): MessageThread
+    private function seedDraft(?array $to, ?DateTimeImmutable $submissionSendAt = null): MessageThread
     {
         $thread                    = new MessageThread();
         $thread->account           = $this->account;
@@ -125,6 +159,7 @@ final class DraftRowRenderTest extends KernelTestCase
         $message->sentAt         = null;
         $message->hasAttachments = false;
         $message->flags          = [MessageFlag::DRAFT->value];
+        $message->submissionSendAt = $submissionSendAt;
 
         $thread->addMessage($message);
 
