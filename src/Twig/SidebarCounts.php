@@ -238,8 +238,18 @@ class SidebarCounts implements ResetInterface
     {
         $children = [];
 
-        foreach ($label->children as $child) {
-            if (true === $child->isVisible) {
+        // Read out of the set findVisibleForUser() already returned rather
+        // than through $label->children, which is a lazy collection and
+        // therefore one `SELECT … FROM label WHERE parent_id = ?` per label in
+        // the tree, every page load. Not the fifty-per-page N+1 the list rows
+        // had — it is per LABEL, so it grows with how organised the user is
+        // rather than with how much mail they have — but it is the same shape,
+        // and the answer is already in memory: the visible labels are
+        // user-scoped and all of them were loaded up front. A child that is
+        // not in that set is invisible, which is exactly what the filter used
+        // to drop.
+        foreach ($this->getVisibleLabels() as $child) {
+            if ($child->parent === $label) {
                 $children[] = $child;
             }
         }

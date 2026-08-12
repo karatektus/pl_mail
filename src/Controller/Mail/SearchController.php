@@ -68,6 +68,12 @@ final class SearchController extends AbstractController
         $threads = $this->threadRepository->search($user, $parsed, $page, sort: $sort);
         $total   = $this->threadRepository->countSearch($user, $parsed);
 
+        // The list views have always preloaded and search never did, which is
+        // why a full page of results measured 167 queries against the inbox's
+        // 120 for the same fifty rows: search paid for the label chips one row
+        // at a time on top of everything the inbox was already paying.
+        $this->threadRepository->preloadForRows($threads);
+
         // Through ThreadListRenderer, not $this->render(): a row whose subject
         // and sender the user has just read in a result list has been SHOWN,
         // and leaving it badged would mean finding your own search results
