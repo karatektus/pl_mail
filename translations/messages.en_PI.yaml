@@ -1043,6 +1043,9 @@ message:
         copied: Copied
         copy: Copy to the slate
         heading: The original scroll
+    quote:
+        hide: Stow the quoted words
+        show: Unfurl the quoted words
     save_to: 'Stow to'
     security:
         mismatch:

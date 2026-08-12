@@ -138,6 +138,36 @@ Variables:
         if (anchor) { send({ plmail: "link", href: null }); }
     });
 
+    // "Show quoted text". The wrapper and its toggle are server-rendered by
+    // QuoteCollapser (a [data-plmail-quote] hidden by default, its button the
+    // immediately-preceding sibling). Flipping [hidden] here — inside the frame,
+    // under this nonce — keeps the toggle within the one script that may run:
+    // the button is inert markup an email could forge, but forging it only
+    // reveals a quote, and the height is re-reported forcibly so the frame grows
+    // to fit what was just shown.
+    document.addEventListener("click", function (event) {
+        var toggle = event.target && event.target.closest
+            ? event.target.closest("[data-plmail-quote-toggle]") : null;
+        if (!toggle) { return; }
+
+        var quote = toggle.nextElementSibling;
+        if (!quote || !quote.hasAttribute("data-plmail-quote")) {
+            quote = document.querySelector("[data-plmail-quote]");
+        }
+        if (!quote) { return; }
+
+        var nowHidden = !quote.hasAttribute("hidden");
+        if (nowHidden) { quote.setAttribute("hidden", ""); } else { quote.removeAttribute("hidden"); }
+
+        toggle.setAttribute("aria-expanded", nowHidden ? "false" : "true");
+        var label = nowHidden
+            ? toggle.getAttribute("data-label-show")
+            : toggle.getAttribute("data-label-hide");
+        if (label) { toggle.setAttribute("aria-label", label); toggle.setAttribute("title", label); }
+
+        reportHeight(true);
+    });
+
     window.addEventListener("message", function (event) {
         // The parent is the only window that can reach us.
         if (event.source !== parent || !event.data || typeof event.data !== "object") { return; }

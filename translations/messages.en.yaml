@@ -1299,6 +1299,9 @@ message:
         copied: Copied
         copy: Copy to clipboard
         heading: Original message
+    quote:
+        hide: Hide quoted text
+        show: Show quoted text
     save_to: 'Save to'
     security:
         mismatch:
