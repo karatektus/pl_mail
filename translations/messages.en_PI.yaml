@@ -808,6 +808,22 @@ compose:
     quote:
         hide: stow the quoted words
         show: unfurl the quoted words
+    schedule:
+        cancel: "Belay that castin' off"
+        confirm: "Set th' hour"
+        custom: "Name th' day and th' hour"
+        error:
+            past: That hour be already astern.
+            too_far: "No scroll be held longer than %days% days."
+            unreadable: That be no day nor hour I can read.
+        heading: Cast off later
+        monday_morning: Monday at first light
+        scheduled_for: Due to cast off
+        timezone_hint: "All hours be reckoned in %zone%."
+        toast: "Castin' off %when%"
+        tomorrow_afternoon: "On th' morrow, afternoon"
+        tomorrow_morning: "On th' morrow at first light"
+        when: '%date%, %time%'
     status:
         pending_many: "%count% more marks afore stowin'"
         pending_one: one more mark afore stowin'
@@ -1892,6 +1908,7 @@ thread_row:
     message_count: "({ count })"
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
+    scheduled: 'Due %when%'
     select: Pick it
     star: Mark this bottle with an X
     to: 'Bound for: %recipients%'

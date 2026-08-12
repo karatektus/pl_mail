@@ -2,12 +2,14 @@
 
 namespace App\Controller\Mail;
 
+use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\AccountRepository;
@@ -17,8 +19,10 @@ use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
+use App\Service\Mail\InvalidScheduleException;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
+use App\Service\Mail\ScheduledSendResolver;
 use App\Service\Mail\SenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,6 +51,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[Route('/compose', name: 'app_compose_')]
 class ComposeController extends AbstractController
 {
+    use RendersTurboStreams;
+
     private const string DOCK_FRAME   = 'compose_dock';
     private const string INLINE_FRAME = 'compose_inline';
     private const string INLINE_FORM  = 'compose_inline';
@@ -77,6 +83,7 @@ class ComposeController extends AbstractController
         private readonly MessageEraser           $eraser,
         private readonly LabelChangePropagator   $labelChanges,
         private readonly TranslatorInterface     $translator,
+        private readonly ScheduledSendResolver   $schedules,
     )
     {
     }
@@ -277,6 +284,121 @@ class ComposeController extends AbstractController
         return $this->renderWindow($form, $message, $ctx);
     }
 
+    /**
+     * Send later: the same message, the same checks, a longer hold.
+     *
+     * Deliberately a near-twin of send() rather than a flag on it. The two
+     * differ in exactly one line — the DelayStamp — and everything before it
+     * has to be identical, because a scheduled send is a send: the same
+     * recipient validation, the same firstUnsendableAddress() refusal, the same
+     * DraftPersister::save(). A mail held until Monday that turns out on Monday
+     * to have an unsendable address is a bounce nobody is watching for, three
+     * days after the window that could have said so was closed.
+     *
+     * What it does NOT share is the send guard's fixed ten seconds. That delay
+     * *is* the undo window (SEND_DELAY_MS); here the hold is whatever was
+     * asked for, and the cancel affordance is the schedule itself — the toast
+     * and the menu both offer it for as long as the mail has not left.
+     */
+    #[Route('/schedule', name: 'mail_schedule', methods: ['POST'])]
+    #[Route('/schedule/{id}', name: 'mail_schedule_draft', methods: ['POST'])]
+    public function schedule(Request $request, ?Message $message): Response
+    {
+        if (null === $message) {
+            $message = new Message();
+        } else {
+            $this->assertOwnership($message);
+        }
+
+        $ctx  = $this->composeContext($request);
+        $this->applyReplyContext($message, $ctx);
+        $form = $this->composeForm($message, $ctx, ['Default', 'send']);
+
+        $form->handleRequest($request);
+
+        $this->addressFields->apply($form, $message);
+
+        if (false === $form->isSubmitted() || false === $form->isValid()) {
+            return $this->renderWindow($form, $message, $ctx);
+        }
+
+        // Already gone. Nothing to hold, and nothing the user can be told that
+        // is not already on their screen.
+        if (null !== $message->sentAt) {
+            return $this->sendResponse($message, $ctx);
+        }
+
+        // The time first, before anything is written: a schedule the server
+        // will not accept must not leave a saved draft looking scheduled.
+        try {
+            $user = $this->getUser();
+
+            $sendAt = $this->schedules->resolve(
+                (string) $request->request->get('schedule_at', ''),
+                $user instanceof User ? $user : null,
+            );
+        } catch (InvalidScheduleException $refusal) {
+            $form->addError(new FormError($this->translator->trans(
+                $refusal->translationKey,
+                ['%days%' => ScheduledSendResolver::maxDays()],
+            )));
+
+            return $this->renderWindow($form, $message, $ctx);
+        }
+
+        $unsendable = $this->firstUnsendableAddress($message);
+
+        if (null !== $unsendable) {
+            $form->get('toAddresses')->addError(new FormError(
+                $this->translator->trans(
+                    'compose.recipient_invalid',
+                    ['{{ address }}' => $unsendable],
+                    'validators',
+                ),
+            ));
+
+            return $this->renderWindow($form, $message, $ctx);
+        }
+
+        $token   = $form->get('account')->getData();
+        $account = $this->senders->accountFor($token, $this->getUser())
+            ?? $message->account
+            ?? $this->defaultAccount();
+
+        if (null === $account) {
+            throw $this->createNotFoundException('No active account to send from.');
+        }
+
+        $this->drafts->save(
+            $message,
+            $account,
+            $this->senders->addressFor($token, $account, $this->getUser()),
+        );
+
+        // Set after the save, because the save is what mints the id for a draft
+        // that did not have one — and this is the column EmailSubmission/get
+        // reads as `pending` (with sentAt still null), so the JMAP clients see
+        // the schedule the moment it exists.
+        $message->submissionSendAt = $sendAt;
+
+        // Re-scheduling a draft whose previous hold was cancelled: the flag
+        // SendMessageHandler reads has to be down again, or this envelope is
+        // swallowed by the last cancel. The durable half is cleared for the
+        // same reason EmailSubmissionSetMethod clears it on re-submission —
+        // this submission is pending, not canceled.
+        $message->cancelled            = false;
+        $message->submissionCancelledAt = null;
+
+        $this->em->flush();
+
+        $this->bus->dispatch(
+            new SendMessageMessage($message->id),
+            [new DelayStamp($this->schedules->delayMs($sendAt))],
+        );
+
+        return $this->scheduleResponse($message, $ctx, $sendAt);
+    }
+
     #[Route('/undo/{id}', name: 'mail_undo', methods: ['POST'])]
     public function undo(Request $request, Message $message): Response
     {
@@ -287,6 +409,23 @@ class ComposeController extends AbstractController
         // The message is still the same unsent draft it was a moment ago, so
         // waking every client for it would be a push about nothing changing.
         $message->cancelled = true;
+
+        // The hold goes too, and this half is not private traffic. While
+        // submissionSendAt stands with sentAt null, EmailSubmissionGetMethod
+        // reports the submission as `pending` and every JMAP client shows a
+        // schedule — for mail the handler has just been told to drop. Leaving
+        // it would have made cancelling a scheduled send invisible everywhere
+        // except the browser that did it, and permanent: nothing else ever
+        // clears that column for a message that never leaves.
+        //
+        // Only while it has not left. On a sent message the column is the
+        // record of when it was due, and EmailSubmission/get falls back to it;
+        // erasing that would be rewriting history to undo something that
+        // already happened.
+        if (null === $message->sentAt) {
+            $message->submissionSendAt = null;
+        }
+
         $this->em->flush();
 
         $ctx  = $this->composeContext($request);
@@ -297,7 +436,7 @@ class ComposeController extends AbstractController
         // Inline: pull the message back out of the thread and re-open the
         // editor where it was. Dock: the original toast + re-docked window.
         if (true === $ctx['inline']) {
-            return $this->turboStream('compose/_inline_undo.stream.html.twig', [
+            return $this->renderTurboStream('compose/_inline_undo.stream.html.twig', [
                 'form'         => $form,
                 'message'      => $message,
                 'ctx'          => $ctx,
@@ -324,7 +463,7 @@ class ComposeController extends AbstractController
         // faded and the draft was filed with no way back to it — while the
         // cancel above had already gone through. Cancelling a send has to
         // *reopen* what was being written, which is the whole point of it.
-        return $this->turboStream('compose/_undo_toast.html.twig', [
+        return $this->renderTurboStream('compose/_undo_toast.html.twig', [
             'form'    => $form,
             'message' => $message,
             'ctx'     => $ctx,
@@ -341,12 +480,12 @@ class ComposeController extends AbstractController
     private function sendResponse(Message $message, array $ctx): Response
     {
         if (false === $ctx['inline']) {
-            return $this->turboStream('compose/_send_toast.html.twig', [
+            return $this->renderTurboStream('compose/_send_toast.html.twig', [
                 'message' => $message,
             ]);
         }
 
-        return $this->turboStream('compose/_inline_send.stream.html.twig', [
+        return $this->renderTurboStream('compose/_inline_send.stream.html.twig', [
             'message' => $message,
             'thread'  => $message->thread,
             'undoUrl' => $this->generateUrl(
@@ -354,6 +493,32 @@ class ComposeController extends AbstractController
                 $ctx['urlParams'] + ['id' => $message->id],
             ),
             'delay'   => self::SEND_DELAY_MS,
+        ]);
+    }
+
+    /**
+     * A scheduled send closes the window and says when, wherever it was.
+     *
+     * Not sendResponse(): that one's inline branch appends the message to the
+     * open conversation, because it IS going out and the countdown is the
+     * cancel. A schedule has no countdown to run — the mail is not on its way
+     * for hours — so the draft stays a draft, its row keeps its place in the
+     * thread, and the only change on screen is the window closing and a toast
+     * naming the time.
+     *
+     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
+     */
+    private function scheduleResponse(Message $message, array $ctx, \DateTimeImmutable $sendAt): Response
+    {
+        return $this->renderTurboStream('compose/_scheduled.stream.html.twig', [
+            'message'   => $message,
+            'ctx'       => $ctx,
+            'sendAt'    => $sendAt,
+            'thread'    => $message->thread,
+            'cancelUrl' => $this->generateUrl(
+                'app_compose_mail_undo',
+                $ctx['urlParams'] + ['id' => $message->id],
+            ),
         ]);
     }
 
@@ -474,7 +639,7 @@ class ComposeController extends AbstractController
 
         $this->em->flush();
 
-        return $this->turboStream('compose/_discard.stream.html.twig', [
+        return $this->renderTurboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
             'ctx'       => $ctx,
             'threadId'  => $this->rowToDrop($thread, $messageId, $remaining, $request),
@@ -694,13 +859,6 @@ class ComposeController extends AbstractController
             $this->getUser(),
             Capability::Download,
         );
-    }
-
-    private function turboStream(string $template, array $params): Response
-    {
-        return $this->render($template, $params, new Response(
-            headers: ['Content-Type' => 'text/vnd.turbo-stream.html'],
-        ));
     }
 
     private function defaultAccount(): ?Account

@@ -1063,6 +1063,22 @@ compose:
     quote:
         hide: hide quoted text
         show: show quoted text
+    schedule:
+        cancel: Cancel scheduled send
+        confirm: Schedule send
+        custom: Pick date & time
+        error:
+            past: That time has already passed.
+            too_far: Mail can be held for at most %days% days.
+            unreadable: That is not a date and time.
+        heading: Send later
+        monday_morning: Monday morning
+        scheduled_for: Scheduled to send
+        timezone_hint: Times are in %zone%.
+        toast: Send scheduled for %when%
+        tomorrow_afternoon: Tomorrow afternoon
+        tomorrow_morning: Tomorrow morning
+        when: '%date%, %time%'
     status:
         pending_many: "%count% more characters to save"
         pending_one: one more character to save
@@ -2215,6 +2231,7 @@ thread_row:
     message_count: "({ count })"
     no_recipient: (no recipient)
     no_subject: (no subject)
+    scheduled: 'Scheduled %when%'
     select: Select
     star: Star this message
     to: 'To: %recipients%'

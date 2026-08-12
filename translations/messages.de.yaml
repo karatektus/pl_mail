@@ -1090,6 +1090,22 @@ compose:
     quote:
         hide: zitierten Text ausblenden
         show: zitierten Text anzeigen
+    schedule:
+        cancel: Geplanten Versand abbrechen
+        confirm: Versand planen
+        custom: Datum und Uhrzeit wählen
+        error:
+            past: Dieser Zeitpunkt liegt bereits in der Vergangenheit.
+            too_far: Nachrichten lassen sich höchstens %days% Tage zurückhalten.
+            unreadable: Das ist kein gültiges Datum mit Uhrzeit.
+        heading: Später senden
+        monday_morning: Montagmorgen
+        scheduled_for: Geplanter Versand
+        timezone_hint: Alle Zeiten in %zone%.
+        toast: Versand geplant für %when%
+        tomorrow_afternoon: Morgen Nachmittag
+        tomorrow_morning: Morgen früh
+        when: '%date%, %time%'
     status:
         pending_many: "noch %count% Zeichen bis zum Speichern"
         pending_one: noch ein Zeichen bis zum Speichern
@@ -2255,6 +2271,7 @@ thread_row:
     message_count: "({ count })"
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
+    scheduled: 'Geplant %when%'
     select: Auswählen
     star: Diese Nachricht markieren
     to: 'An: %recipients%'

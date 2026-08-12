@@ -83,6 +83,12 @@ the account view passes false.
             : ('thread_row.no_recipient'|trans) %}
     {% endif %}
 
+    {# A draft on a hold. sentAt guards it for the reason the compose window
+       guards it: once the mail has gone, submissionSendAt is the record of
+       when it was due, not a schedule. #}
+    {% set scheduledAt = (draftMessage and draftMessage.sentAt is null)
+        ? draftMessage.submissionSendAt : null %}
+
     {% set hasAttachment = item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
 
@@ -103,6 +109,8 @@ the account view passes false.
 
     {% set draft = item.isDraft %}
     {% set draftId = item.id %}
+    {% set scheduledAt = (item.isDraft and item.sentAt is null)
+        ? item.submissionSendAt : null %}
 
     {% set href = path('app_mail_message', { id: item.id }) %}
     {% set rowId = item.id %}
@@ -223,6 +231,33 @@ the account view passes false.
                        the subject from the snippet, and the meta column mirrors
                        the same margin so the dot stays level with it. #}
                     <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:mt-0">
+                        {# A draft with a send time on it. Without this the
+                           Drafts list is the one place a scheduled message
+                           lives and the only place that does not say so — the
+                           toast has long faded, and the row is otherwise
+                           indistinguishable from an unsent draft nobody
+                           promised anything about.
+
+                           The zone is named on `intl_date` because that filter
+                           keeps whatever zone the value carries, and a Doctrine
+                           timestamp carries UTC — so the unqualified call gets
+                           the day wrong either side of midnight. `|date` takes
+                           the environment's, which is already the user's, but
+                           it is spelled out here so the two halves of one
+                           timestamp cannot be read as coming from two clocks. #}
+                        {% if scheduledAt is not null %}
+                            <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                                         text-[11px] font-medium bg-info/10 text-info whitespace-nowrap"
+                                  data-scheduled-badge>
+                                <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                                {{ 'thread_row.scheduled'|trans({
+                                    '%when%': 'compose.schedule.when'|trans({
+                                        '%date%': scheduledAt|intl_date('dMMM', clock.timezone),
+                                        '%time%': scheduledAt|date(clock.time, clock.timezone),
+                                    }),
+                                }) }}
+                            </span>
+                        {% endif %}
                         <span class="@xl:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                         </span>
