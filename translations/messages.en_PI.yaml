@@ -916,6 +916,19 @@ inbox:
 integration:
     save_failed: 'Could not stow: %reason%'
     saved_to: 'Stowed to %name%'
+    destination:
+        album_name: 'Album name'
+        choose_album: 'Pick an album fer %file%'
+        choose_folder: 'Pick a hold fer %file%'
+        create: Make
+        folder_name: 'Hold name'
+        library: 'Whole library (no album)'
+        new_album: 'New album'
+        new_folder: 'New hold'
+        no_albums: 'No albums yet, matey.'
+        no_subfolders: 'No holds here.'
+        save_here: 'Stow here'
+        start_over: 'Start afresh'
     picker:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'

@@ -10,8 +10,16 @@ rendered it: an album is a pile of pictures, a folder is a folder.
 #}
 {% set isAlbum = isMediaLibrary|default(false) %}
 
+{# The same row navigates in both modes; only the query it carries differs. In
+   destination mode it stays inside the folder chooser (mode + part) rather than
+   the attach picker (draft). #}
+{% set browseArgs = { id: integration.id, folder: entry.id, draft: draftId } %}
+{% if mode|default('attach') == 'destination' %}
+    {% set browseArgs = { id: integration.id, folder: entry.id, mode: 'destination', part: part } %}
+{% endif %}
+
 <li>
-    <a href="{{ path('app_integration_browse', { id: integration.id, folder: entry.id, draft: draftId }) }}"
+    <a href="{{ path('app_integration_browse', browseArgs) }}"
        class="group flex items-center gap-3 -mx-2 px-3 py-2.5 rounded-xl
               hover:bg-hover transition-colors">
         <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">

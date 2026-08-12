@@ -1171,6 +1171,19 @@ inbox:
 integration:
     save_failed: 'Could not save: %reason%'
     saved_to: 'Saved to %name%'
+    destination:
+        album_name: 'Album name'
+        choose_album: 'Choose an album for %file%'
+        choose_folder: 'Choose a folder for %file%'
+        create: Create
+        folder_name: 'Folder name'
+        library: 'Library (no album)'
+        new_album: 'New album'
+        new_folder: 'New folder'
+        no_albums: 'No albums yet.'
+        no_subfolders: 'No folders here.'
+        save_here: 'Save here'
+        start_over: 'Start over'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'

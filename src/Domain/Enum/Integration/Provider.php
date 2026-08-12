@@ -373,6 +373,34 @@ enum Provider: string
     }
 
     /**
+     * Whether a "Save to…" of this content type could possibly land.
+     *
+     * A photo library (Immich, Google Photos) ingests images and videos and
+     * nothing else — its API rejects a PDF outright — so offering "Save to
+     * Immich" for a document is a button that is guaranteed to fail. Gating it
+     * here, off the same media-library flag the picker already renders from,
+     * keeps that decision with the taxonomy rather than in the template.
+     *
+     * A file store takes anything, so it answers true unconditionally,
+     * including for a part whose type is unknown: a null or empty mime is
+     * "we could not tell", and the safe reading of that is general storage,
+     * never a photo library that would reject most of what "unknown" turns out
+     * to be.
+     */
+    public function acceptsMime(?string $mime): bool
+    {
+        if (false === $this->isMediaLibrary()) {
+            return true;
+        }
+
+        if (null === $mime || '' === $mime) {
+            return false;
+        }
+
+        return str_starts_with($mime, 'image/') || str_starts_with($mime, 'video/');
+    }
+
+    /**
      * Translation key stem for this provider's UI copy, e.g.
      * "settings.integrations.provider.nextcloud.help".
      */

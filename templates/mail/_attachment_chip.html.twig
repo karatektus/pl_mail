@@ -23,7 +23,12 @@ HTML and drops it: the request goes out, the server answers 200 with the file,
 and the browser saves nothing — a click that did nothing, with nothing in the
 console to say why. Turbo leaves a link carrying `download` to the browser.
 #}
-{% set targets = integrations.forUpload %}
+{# Only the services that could actually take THIS attachment. A photo library
+   drops out for a PDF — "Save to Immich" on a document is a guaranteed failure
+   — while file storage stays offered for everything, unknown types included.
+   The decision lives in the taxonomy (Provider::acceptsMime); here it is only
+   read. #}
+{% set targets = integrations.forUploadOf(part.contentType) %}
 {% set hasPreview = attachment_has_preview(part) %}
 {% set downloadName = part.filename ?: 'attachment' %}
 
@@ -84,19 +89,28 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
             <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
                 {{ 'message.save_to'|trans }}
             </p>
+            {# Each opens the destination picker rather than saving on the spot:
+               a folder chooser for a file store, an album chooser for a photo
+               library. The old one-click save to a fixed folder is now the
+               "Save here" the picker lands on. A file store reopens where the
+               last save landed; an album list is flat, so there is nowhere to
+               reopen and it starts at the full list. #}
             {% for integration in targets %}
-                <form method="post"
-                      action="{{ path('app_integration_save_attachment', { id: integration.id, part: part.id }) }}"
-                      data-turbo-stream
-                      data-action="submit->ui--dropdown#close">
-                    <input type="hidden" name="_token" value="{{ csrf_token('integration-save-' ~ part.id) }}">
-                    <button type="submit"
-                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
-                                   hover:bg-hover hover:text-ink transition-colors text-left">
-                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
-                        <span class="truncate">{{ integration.name }}</span>
-                    </button>
-                </form>
+                {% set lastDest = integration.provider.isMediaLibrary ? null : integration.getSetting('save.last_destination') %}
+                {% set browseArgs = { id: integration.id, mode: 'destination', part: part.id } %}
+                {% if lastDest %}{% set browseArgs = browseArgs|merge({ folder: lastDest }) %}{% endif %}
+                <button type="button"
+                        data-controller="ui--modal"
+                        data-ui--modal-title-value="{{ integration.name }}"
+                        data-ui--modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
+                        data-ui--modal-src-value="{{ path('app_integration_browse', browseArgs) }}"
+                        data-action="click->ui--modal#open click->ui--dropdown#close"
+                        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                               hover:bg-hover hover:text-ink transition-colors text-left">
+                    <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
+                    <span class="truncate">{{ integration.name }}</span>
+                    <i class="fa-solid fa-chevron-right ml-auto text-[9px] text-ink-faint" aria-hidden="true"></i>
+                </button>
             {% endfor %}
         </div>
     </div>

@@ -54,6 +54,26 @@ class IntegrationsGlobal implements ResetInterface
     }
 
     /**
+     * Upload targets that could actually accept this content type — what a
+     * single attachment's "Save to…" menu offers.
+     *
+     * forUpload() is every connection that can receive a file; this narrows it
+     * to those whose provider ingests this mime. A photo library drops out for
+     * a PDF, because "Save to Immich" on a document is a guaranteed failure the
+     * user should never be offered; a file store stays for everything,
+     * including an attachment whose type we could not read.
+     *
+     * @return list<Integration>
+     */
+    public function forUploadOf(?string $mime): array
+    {
+        return array_values(array_filter(
+            $this->forUpload(),
+            static fn (Integration $integration): bool => $integration->provider->acceptsMime($mime),
+        ));
+    }
+
+    /**
      * Connections a file can be pulled out of.
      *
      * @return list<Integration>
