@@ -111,13 +111,13 @@ Variables:
     // it cannot read this one, because reading it would require running.
     var send = function (message) { parent.postMessage(message, "*"); };
 
-    var lastHeight = 0;
-    var reportHeight = function () {
+    var lastHeight = -1;
+    var reportHeight = function (force) {
         var height = Math.max(
             document.body.scrollHeight,
             document.documentElement.scrollHeight
         );
-        if (height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
+        if (force || height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
     };
 
     window.addEventListener("load", reportHeight);
@@ -141,6 +141,16 @@ Variables:
     window.addEventListener("message", function (event) {
         // The parent is the only window that can reach us.
         if (event.source !== parent || !event.data || typeof event.data !== "object") { return; }
+
+        // A message from the parent is proof its listener is live NOW. This
+        // frame's first height report is parsed and sent synchronously, before
+        // the parent's Stimulus controller connects — on a full page load the
+        // app's module script is deferred — so that first report lands with no
+        // listener and is dropped, and the dedupe above then never re-sends the
+        // unchanged height. The frame stays at its 80px minimum with the whole
+        // message scrolling inside it. The parent asks for a measurement once
+        // it is listening; answer it unconditionally.
+        if (event.data.plmail === "measure") { reportHeight(true); }
 
         if (event.data.plmail === "show-images") {
             document.querySelectorAll("img[data-plmail-src]").forEach(function (img) {

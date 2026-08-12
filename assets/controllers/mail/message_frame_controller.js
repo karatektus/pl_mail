@@ -26,10 +26,18 @@ export default class extends Controller {
 
         // The frame may already have loaded before this controller connected —
         // srcdoc content is parsed synchronously and Stimulus connects on the
-        // next microtask, so `load` can be gone by the time we could listen.
-        // Posting the theme on both paths is idempotent.
-        this.frameTarget.addEventListener("load", () => this.postTheme());
-        this.postTheme();
+        // next microtask, so `load` can be gone by the time we could listen,
+        // and with it the frame's first height report. Now that we ARE
+        // listening, ask for a fresh measurement (the frame dedupes its own
+        // reports, so it will not re-send the lost one unprompted). Both the
+        // theme and the request are idempotent, and run on connect and on load
+        // in case either happened first.
+        this.sync = () => {
+            this.postTheme();
+            this.post({ plmail: "measure" });
+        };
+        this.frameTarget.addEventListener("load", this.sync);
+        this.sync();
     }
 
     disconnect() {
