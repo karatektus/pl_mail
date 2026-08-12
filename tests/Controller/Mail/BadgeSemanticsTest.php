@@ -146,4 +146,69 @@ final class BadgeSemanticsTest extends WebTestCase
         self::assertGreaterThan(0, $badge->count());
         self::assertStringContainsString('bg-accent', (string) $badge->first()->attr('class'));
     }
+
+    // ── the new-mail dots, which share this payload ───────────────────────
+
+    /**
+     * The dots answer a different question — "has anything arrived here that
+     * you have not been shown" rather than "how much of this is unread" — but
+     * they are patched by the same controller from the same response, so the
+     * same rule applies: every marker in the markup must be findable in the
+     * payload, or the first sync after a page load moves markers at random and
+     * leaves the rest frozen at whatever the server last said.
+     *
+     * Asserted over whatever the fixture happens to hold, like the Trash
+     * invariant above, so this keeps meaning something as the seed changes.
+     */
+    public function testEveryRenderedNewDotHasAKeyInTheCountsEndpoint(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $keys = $client->getCrawler()->filter('[data-new-dot]')->each(
+            static fn ($node): string => (string) $node->attr('data-count-key'),
+        );
+
+        self::assertNotEmpty(
+            $keys,
+            'the dots are rendered at every count and hidden at zero — an omitted one cannot be patched',
+        );
+
+        $counts = $this->counts($client);
+
+        foreach ($keys as $key) {
+            self::assertArrayHasKey($key, $counts, sprintf('the endpoint emits no "%s"', $key));
+        }
+    }
+
+    /**
+     * And the two families stay apart. A dot key fed to the badge patcher would
+     * print a bare number into a 6px circle; an unread count read as a dot
+     * would light it for mail that is merely unread. The "new:" namespace is
+     * what stops either, so it is asserted rather than assumed.
+     */
+    public function testTheNewDotKeysAreNamespacedAwayFromTheUnreadBadgeKeys(): void
+    {
+        $client = $this->signedIn();
+        $counts = $this->counts($client);
+
+        $client->request('GET', '/mail/inbox');
+
+        $badgeKeys = $client->getCrawler()->filter('[data-ui--sidebar-target="badge"]')->each(
+            static fn ($node): string => (string) $node->attr('data-count-key'),
+        );
+
+        foreach ($badgeKeys as $key) {
+            self::assertStringStartsNotWith('new:', $key, 'an unread badge must never be fed a new-mail count');
+        }
+
+        foreach (array_keys($counts) as $key) {
+            if (false === str_starts_with((string) $key, 'new:')) {
+                continue;
+            }
+
+            self::assertNotContains($key, $badgeKeys);
+        }
+    }
 }

@@ -92,7 +92,16 @@ keeps its accessible name either way.
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-ui--sidebar-target="link"
                    data-action="{{ drawerClose }}">
-                    <span class="truncate">{{ label.name }}</span>
+                    {# The dot travels with the NAME rather than being a third
+                       child of this justify-between row, which would have
+                       stranded it in the middle of the gap. The row reads
+                       "what it is · something arrived — how much is unread".
+                       The label's own colour dot on the far left is identity,
+                       not status, which is why this cannot be folded into it. #}
+                    <span class="min-w-0 flex items-center gap-1.5">
+                        <span class="truncate">{{ label.name }}</span>
+                        {{ macros.label_new_dot(label) }}
+                    </span>
                     {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
                 </a>
                 {{ macros.label_edit(label) }}
@@ -117,6 +126,32 @@ keeps its accessible name either way.
             {{ macros.label_edit(label) }}
         </div>
     {% endif %}
+{% endmacro %}
+
+{#
+A nav row's "something arrived here" dot.
+
+Wrapped rather than calling the shared macro at each of the eight rows, because
+the thing that must not drift is the KEY: it has to be the same string the
+counts endpoint emits, and one spelling is easier to keep true than eight. See
+App\Twig\NewMailMarkers::roleKey() and ::labelKey(), which build the other half.
+
+`newMail` is a Twig global, and globals are the one thing a macro can still see
+— which is also how label_node above reaches sidebarCounts.
+#}
+{% macro role_dot(role) %}
+    {% import '_partials/_new_dot.html.twig' as shared %}
+    {{ shared.new_dot(newMail.forRole(role), 'new:role:' ~ role.value, ('sidebar.nav.' ~ role.value)|trans) }}
+{% endmacro %}
+
+{% macro label_new_dot(label) %}
+    {% import '_partials/_new_dot.html.twig' as shared %}
+    {{ shared.new_dot(newMail.forLabel(label), 'new:label:' ~ label.id, label.name) }}
+{% endmacro %}
+
+{% macro starred_new_dot() %}
+    {% import '_partials/_new_dot.html.twig' as shared %}
+    {{ shared.new_dot(newMail.forStarred(), 'new:starred', 'sidebar.nav.starred'|trans) }}
 {% endmacro %}
 
 {% import _self as macros %}
@@ -174,6 +209,7 @@ controller instead — the scroll position and which trees are open.
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
+                {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) }}
             </span>
             {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox') }}
         </a>
@@ -187,6 +223,7 @@ controller instead — the scroll position and which trees are open.
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.starred'|trans }}</span>
+                {{ macros.starred_new_dot() }}
             </span>
             {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred') }}
         </a>
@@ -200,6 +237,7 @@ controller instead — the scroll position and which trees are open.
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-paper-plane w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.sent'|trans }}</span>
+                {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent) }}
             </span>
             {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent), 'role:sent') }}
         </a>
@@ -213,6 +251,7 @@ controller instead — the scroll position and which trees are open.
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
+                {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) }}
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
@@ -274,6 +313,7 @@ controller instead — the scroll position and which trees are open.
                 <span class="flex items-center gap-2">
                     <i class="fa-solid fa-clock w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.snoozed'|trans }}</span>
+                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed) }}
                 </span>
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed') }}
             </a>
@@ -286,6 +326,7 @@ controller instead — the scroll position and which trees are open.
                 <span class="flex items-center gap-2">
                     <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
+                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive) }}
                 </span>
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
             </a>
@@ -306,6 +347,7 @@ controller instead — the scroll position and which trees are open.
                 <span class="flex items-center gap-2">
                     <i class="fa-solid fa-ban w-4" aria-hidden="true"></i>
                     <span class="rail-hide">{{ 'sidebar.nav.spam'|trans }}</span>
+                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) }}
                 </span>
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam') }}
             </a>
@@ -320,6 +362,7 @@ controller instead — the scroll position and which trees are open.
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.trash'|trans }}</span>
+                {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash) }}
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
         </a>

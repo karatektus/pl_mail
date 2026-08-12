@@ -285,6 +285,15 @@ final class MessageThreader
         $thread->category = $message->category ?? MessageCategory::Primary;
         $thread->attachmentCount = 0;
 
+        // The new-mail marker starts null — nobody has been shown this row yet
+        // — EXCEPT when the thread is opened by a draft, which is mail the user
+        // is writing at this moment. Announcing "New" over your own half-typed
+        // reply the next time you open Drafts is the marker answering a
+        // question about arrival for something that never arrived. Sent mail
+        // needs no arm of its own: a new conversation you send starts life as
+        // the draft caught here, and a reply joins a thread that already exists.
+        $thread->listedAt = true === $message->isDraft() ? new \DateTimeImmutable() : null;
+
         $this->entityManager->persist($thread);
 
         return $thread;

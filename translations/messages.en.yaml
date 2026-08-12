@@ -2264,6 +2264,7 @@ sidebar:
         add: Create label
         heading: Labels
         none: No labels yet
+    new_mail_here: 'New mail in %where%'
     nav:
         calendar: Calendar
         archive: Archive
@@ -2315,6 +2316,11 @@ thread_row:
     has_attachment: Has attachment
     me: me
     message_count: "({ count })"
+    # The word in the badge, and the phrase a screen reader gets instead. The
+    # badge has room for one word; "New" alone, read out on the fortieth row of
+    # a list, does not say new what.
+    new: Not shown to you before
+    new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
     scheduled: 'Scheduled %when%'
