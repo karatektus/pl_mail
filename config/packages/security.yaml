@@ -118,6 +118,17 @@ security:
         # because App\Service\Setup\InstallGuard 404s it the moment any user
         # exists — see that class before touching this line.
         - { path: ^/install, roles: PUBLIC_ACCESS }
+        # The remote-image proxy. Must be anonymous by necessity, not by
+        # oversight: the mail body renders in a sandbox with no allow-same-origin
+        # (opaque origin, for XSS containment), and such a frame sends no session
+        # cookie with its <img> loads — behind ROLE_USER every proxied image came
+        # back as the login page and rendered broken. The gate is the HMAC
+        # signature the route checks itself: hash_hmac over the URL with
+        # %kernel.secret%, no user in the payload, so only URLs our own pipeline
+        # signed are fetchable (a capability token, cf. GitHub Camo). Every SSRF
+        # check still runs per fetch in App\Service\Mail\ImageProxyFetcher. See
+        # App\Controller\Mail\ImageProxyController for the full argument.
+        - { path: ^/mail/image-proxy$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

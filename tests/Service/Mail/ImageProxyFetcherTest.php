@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 /**
  * The bug this exists to prevent: an image proxy is a service that connects
@@ -106,5 +107,57 @@ final class ImageProxyFetcherTest extends TestCase
     public function testASignedUrlIsStillSubjectToEveryRule(): void
     {
         self::assertNull($this->fetcher->fetch('https://169.254.169.254/latest/meta-data/'));
+    }
+
+    /**
+     * A public target that passes every rule must come back as its real bytes.
+     *
+     * This is the regression guard for the defect where the fetch options
+     * included `extra.curl => [CURLOPT_REFERER => null]`: Symfony's real curl
+     * client reserves that option for its own `headers` handling and throws
+     * InvalidArgumentException on every request that tries to set it through
+     * `extra.curl`. The exception was swallowed into a null return, so the proxy
+     * served its 1×1 placeholder for EVERY image and never fetched one. The two
+     * assertions below pin the fix from both ends: the request must reach the
+     * client at all (real bytes returned), and it must not carry that forbidden
+     * option — the thing a MockHttpClient does not police but the real one does.
+     *
+     * A literal public IP is used as the host so validate() connects without a
+     * DNS lookup, keeping the test free of the network entirely.
+     */
+    public function testAPublicImageComesBackAsItsRealBytes(): void
+    {
+        $png = (string) base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMEAQA/nHJ7AAAAAElFTkSuQmCC',
+            true,
+        );
+
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use ($png): MockResponse {
+            self::assertSame('GET', $method);
+
+            // The exact regression: the real curl client rejects CURLOPT_REFERER
+            // set through extra.curl. It must not be there.
+            $curlExtra = $options['extra']['curl'] ?? [];
+            self::assertArrayNotHasKey(
+                \CURLOPT_REFERER,
+                $curlExtra,
+                'CURLOPT_REFERER via extra.curl makes the real client throw on every request',
+            );
+
+            return new MockResponse($png, ['response_headers' => ['content-type' => 'image/png']]);
+        });
+
+        $fetcher = new ImageProxyFetcher(
+            $client,
+            new NullLogger(),
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        // Literal public IP: passes the range check, needs no resolver.
+        $result = $fetcher->fetch('https://93.184.216.34/pixel.png');
+
+        self::assertNotNull($result, 'a public image must fetch, not fall back to the placeholder');
+        self::assertSame('image/png', $result['contentType']);
+        self::assertSame($png, (string) file_get_contents($result['path']));
     }
 }

@@ -12,6 +12,13 @@
 <html lang="{{ app.request.locale|replace({'_': '-'}) }}"
       class="{{ appearance_class() }}"
       data-theme="{{ appearance_theme() }}"
+      {# The RUNTIME debug flag, read by stimulus_bootstrap.js. The Stimulus
+         bundle bakes its own debug flag into the compiled asset at build time,
+         so an asset built in a debug context ships ~1000 console log lines to a
+         prod runtime that is not in debug at all. This attribute carries the
+         value of the kernel actually serving the request — false in prod, true
+         in dev — so the bootstrap can correct the baked-in one. #}
+      data-app-debug="{{ app.debug ? 'true' : 'false' }}"
       style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">

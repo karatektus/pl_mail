@@ -63,9 +63,22 @@ final class SeedRenderingCommand extends Command
     /** Shared with app:test:seed-mail. */
     private const string SEED_ACCOUNT_USERNAME = 'mailbox@e2e.test';
 
-    public const string SUBJECT_REMOTE = 'E2E Remote Images';
-    public const string SUBJECT_PHISH  = 'E2E Phish Invoice';
-    public const string SUBJECT_LONG   = 'E2E Long Body';
+    public const string SUBJECT_REMOTE    = 'E2E Remote Images';
+    public const string SUBJECT_PHISH     = 'E2E Phish Invoice';
+    public const string SUBJECT_LONG      = 'E2E Long Body';
+    public const string SUBJECT_FETCHABLE = 'E2E Fetchable Image';
+
+    /**
+     * The one remote reference in these fixtures that points at a host the proxy
+     * can actually reach, so a spec can prove the last mile the others cannot:
+     * that a proxied image renders as real pixels INSIDE the opaque-origin
+     * sandbox, where the browser sends no session cookie. Every other fixture
+     * uses the `.invalid` host on purpose (a leak is then an observable failed
+     * lookup); this one is deliberately the exception, and only the render spec
+     * loads it, so the external dependency never touches another test.
+     */
+    public const string FETCHABLE_URL = 'https://www.gstatic.com/webp/gallery/1.jpg';
+    public const string FETCHABLE_ALT = 'E2E Fetchable Render Probe';
 
     /**
      * The host every remote reference in the fixtures points at.
@@ -120,7 +133,7 @@ final class SeedRenderingCommand extends Command
 
         $account = $this->account($user);
 
-        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG] as $subject) {
+        foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE] as $subject) {
             $this->removePreviousSeed($account, $subject);
         }
 
@@ -166,6 +179,17 @@ final class SeedRenderingCommand extends Command
 
         $long->hasAttachments = true;
 
+        $fetchable = $this->seedMessage(
+            account:  $account,
+            user:     $user,
+            label:    $inbox,
+            subject:  self::SUBJECT_FETCHABLE,
+            fromName: 'E2E Fetchable',
+            fromAddr: 'fetchable@e2e.test',
+            html:     $this->fetchableImageBody(),
+            when:     $now->modify('-3 minutes'),
+        );
+
         $this->entityManager->flush();
 
         $this->attach($long);
@@ -173,7 +197,7 @@ final class SeedRenderingCommand extends Command
         $accountId = (int) $account->id;
         $threadIds = [];
 
-        foreach ([$remote, $phish, $long] as $message) {
+        foreach ([$remote, $phish, $long, $fetchable] as $message) {
             $this->stateManager->recordCreated($accountId, JmapObjectType::Email, (string) $message->id);
 
             if (null !== $message->thread) {
@@ -184,7 +208,7 @@ final class SeedRenderingCommand extends Command
         $this->stateManager->recordThreadsTouched($accountId, $threadIds);
         $this->entityManager->flush();
 
-        $io->success('Seeded 3 rendering-security threads.');
+        $io->success('Seeded 4 rendering-security threads.');
 
         return Command::SUCCESS;
     }
@@ -218,6 +242,22 @@ final class SeedRenderingCommand extends Command
             $images,
             self::REMOTE_HOST,
             self::REMOTE_HOST,
+        );
+    }
+
+    /**
+     * A single remote image the proxy can genuinely fetch, so the render spec
+     * can assert real pixels reach the inside of the opaque frame. Blocked by
+     * default like any other remote image; only "Show images" loads it, and only
+     * that one spec does so.
+     */
+    private function fetchableImageBody(): string
+    {
+        return sprintf(
+            '<div style="padding: 12px;"><h2>One real image</h2>'
+            . '<p><img src="%s" width="550" height="368" alt="%s"></p></div>',
+            self::FETCHABLE_URL,
+            self::FETCHABLE_ALT,
         );
     }
 
