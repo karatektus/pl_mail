@@ -1,0 +1,16 @@
+{#
+mail/_read_receipt.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Swaps the receipt region for its re-decided self after the reader answered the
+prompt.
+
+A replace of the whole region rather than a remove of the prompt: sending and
+dismissing both write the same flag, and re-rendering the partial is what makes
+the answer come from the policy rather than from this template guessing what
+the answer was.
+#}
+<turbo-stream action="replace" target="read_receipt_{{ message.id }}">
+    <template>
+        {% include 'mail/_read_receipt.html.twig' with { message: message } only %}
+    </template>
+</turbo-stream>

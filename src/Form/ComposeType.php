@@ -2,12 +2,15 @@
 
 namespace App\Form;
 
+use App\Domain\Enum\Mail\MessagePriority;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\AccountRepository;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -91,6 +94,36 @@ class ComposeType extends AbstractType
                     'rows' => 10,
                     'data-compose--compose-target' => 'body',
                 ],
+            ])
+
+            // ── The more-options menu's two settings ──────────────────────
+            //
+            // Mapped, so they land on the Message the form is bound to and
+            // DraftPersister persists them with everything else; the send path
+            // then turns them into headers in MessageSendService::buildEmail().
+            //
+            // The window renders with `render_rest: false`, so neither of these
+            // appears until the menu explicitly renders it — which is the point.
+            // The control that sets them is a dropdown, not a form row, so the
+            // markup is a hidden input the menu writes into rather than a widget
+            // Symfony draws.
+            //
+            // EnumType rather than a plain hidden field: it is what refuses a
+            // priority the enum does not define, so a hand-posted value cannot
+            // reach the header builder. Absent from the POST, it binds null,
+            // which is the "no opinion" state and emits no headers.
+            ->add('priority', EnumType::class, [
+                'label'    => false,
+                'required' => false,
+                'class'    => MessagePriority::class,
+            ])
+
+            // CheckboxType because a request either was made or was not; absent
+            // from the POST it binds false, which is the correct reading of a
+            // menu item that is not ticked.
+            ->add('readReceiptRequested', CheckboxType::class, [
+                'label'    => false,
+                'required' => false,
             ]);
     }
 

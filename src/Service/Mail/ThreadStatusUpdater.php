@@ -10,6 +10,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
@@ -18,6 +19,8 @@ use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * What starring, archiving, trashing, labelling and marking-read actually *do*
@@ -72,6 +75,9 @@ final readonly class ThreadStatusUpdater
         private LabelChangePropagator   $propagator,
         private ThreadLabelSynchronizer $threadLabelSynchronizer,
         private StateManager            $stateManager,
+        private ReadReceiptPolicy       $readReceipts,
+        private MessageBusInterface     $bus,
+        private LoggerInterface         $logger,
     ) {
     }
 
@@ -213,8 +219,17 @@ final readonly class ThreadStatusUpdater
     {
         $unread = 0;
 
+        // Collected before the loop writes seenAt, because "was unread until
+        // just now" is the whole condition a receipt fires on and one line
+        // later it is unrecoverable.
+        $firstReads = [];
+
         foreach ($messages as $message) {
             if (true === $read) {
+                if (null === $message->seenAt) {
+                    $firstReads[] = $message;
+                }
+
                 $message->addFlag(MessageFlag::SEEN);
                 $message->seenAt = new DateTimeImmutable();
             } else {
@@ -229,6 +244,72 @@ final readonly class ThreadStatusUpdater
         $this->propagator->markRead($messages, $read);
         $this->recordJmapUpdates($messages);
         $this->em->flush();
+
+        // After the flush: the handler re-reads these rows from the database,
+        // and with an in-memory or same-process transport it can run before
+        // this method returns.
+        $this->queueReadReceipts($firstReads);
+    }
+
+    /**
+     * Queue an automatic read receipt for each message that just became read
+     * for the first time.
+     *
+     * THIS METHOD IS THE ONE THAT MUST NOT BE MOVED. It hangs off markRead(),
+     * which is the user-initiated path and nothing else: the thread view's
+     * auto-mark on open, the row's mark-read button, the toolbar's bulk
+     * action. Its inbound twin — applyRemoteFlags(), thirty lines down — takes
+     * the provider's word for a flag and deliberately does not call this, so a
+     * sync that discovers a message was already \Seen on another device sends
+     * nothing. That distinction is the entire correctness question in read
+     * receipts: a receipt claims a person displayed the message, and a sync
+     * pass learning about a read that happened elsewhere, possibly weeks ago,
+     * cannot make that claim. Two other writers of seenAt exist and are
+     * likewise silent — the rule engine's markRead action, which is software
+     * filing mail rather than a person reading it, and ThreadSnoozeService,
+     * which only ever un-reads.
+     *
+     * Only genuine transitions, so re-marking an already-read message read —
+     * which the bulk toolbar does routinely over a mixed selection — cannot
+     * re-fire a receipt that has already gone.
+     *
+     * Never blocking and never fatal. The queue takes ids and the policy is
+     * re-run in the handler, so an unreachable relay costs a receipt and not
+     * the read; dispatch itself is guarded for the same reason, because a
+     * transport that is down must not turn opening a message into an error.
+     *
+     * @param list<Message> $messages
+     */
+    private function queueReadReceipts(array $messages): void
+    {
+        foreach ($messages as $message) {
+            if (false === $message->wantsReadReceipt()) {
+                continue;
+            }
+
+            // Cheap pre-check so the common case — a mailbox on the default
+            // "never" — does not queue a job per message read just to have the
+            // handler decide against it. The handler re-runs the full policy
+            // regardless; this is an optimisation, not the guard.
+            if (false === $this->readReceipts->decide($message)->isAutomatic()) {
+                continue;
+            }
+
+            $id = $message->id;
+
+            if (null === $id) {
+                continue;
+            }
+
+            try {
+                $this->bus->dispatch(new SendReadReceiptMessage((int) $id));
+            } catch (\Throwable $e) {
+                $this->logger->error('ThreadStatusUpdater: could not queue read receipt', [
+                    'messageId' => $id,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

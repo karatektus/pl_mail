@@ -1075,6 +1075,15 @@ message:
     quote:
         hide: Stow the quoted words
         show: Unfurl the quoted words
+    read_receipt:
+        dismiss: 'Nay, send nothin'''
+        mdn:
+            body: "Yer bottle to %recipient% bearin' the mark “%subject%” were unfurled on %date%. That be no oath any soul read it, nor understood a word of it."
+            subject: 'Unfurled: %subject%'
+        mismatch: 'The word back were asked to sail to %notifyTo%, which be not the port this bottle were cast off from (%sender%).'
+        read_at: 'Unfurled at %datetime%'
+        requested: '%sender% begs word when ye unfurl this bottle.'
+        send: 'Send word back'
     save_to: 'Stow to'
     security:
         mismatch:
@@ -1443,6 +1452,20 @@ settings:
             subheading: Colour scheme for the whole ship.
             system: Ship's own
     back: Back to the hold
+    compose_defaults:
+        heading: 'Standin'' orders fer writin'''
+        invalid: 'That order could not be set down.'
+        read_receipt:
+            for_alias: 'Word back fer %alias%'
+            hint: 'When a sender begs word that ye have unfurled their bottle.'
+            inherit: 'Ship''s own order (%mode%)'
+            label: 'Word back'
+            mode:
+                always: 'Always send word'
+                ask: 'Ask me each time'
+                never: 'Never send word'
+        saved: 'Set down.'
+        subheading: 'What each o'' yer names does by default, sendin'' and receivin''.'
     filters:
         account: Account
         action:

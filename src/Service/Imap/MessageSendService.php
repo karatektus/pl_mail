@@ -235,6 +235,9 @@ class MessageSendService
             ->from(new Address($fromAddress, $fromName))
             ->subject($subject);
 
+        $this->applyPriority($message, $email);
+        $this->applyReceiptRequest($message, $email, $fromAddress);
+
         $toAddresses = $message->toAddresses;
         if (null !== $toAddresses) {
             foreach ($toAddresses as $addr) {
@@ -286,6 +289,70 @@ class MessageSendService
         }
 
         return $email;
+    }
+
+    /**
+     * Both priority headers, or neither.
+     *
+     * Two headers for one fact because no single one is read everywhere:
+     * X-Priority is the numeric Outlook/Eudora convention that predates any
+     * standard and is still what a lot of desktop clients look at, Importance
+     * is the RFC 4021 field that Gmail, Graph and modern IMAP clients surface.
+     * A message setting only one of them shows as urgent in half the world and
+     * ordinary in the other half, which is worse than not marking it at all —
+     * so they are written together, from one mapping, and can never disagree.
+     *
+     * Nothing is written when the row has no priority. An absent header is the
+     * correct way to say "ordinary": every client already treats it that way,
+     * and emitting `X-Priority: 3` on every message would put a header on all
+     * outgoing mail to express the default.
+     */
+    private function applyPriority(Message $message, Email $email): void
+    {
+        $priority = $message->priority;
+
+        if (null === $priority) {
+            return;
+        }
+
+        $headers = $email->getHeaders();
+
+        $headers->addTextHeader('X-Priority', $priority->xPriority());
+        $headers->addTextHeader('Importance', $priority->importance());
+    }
+
+    /**
+     * Ask to be told when this message is read.
+     *
+     * Two headers again, and again because the field is not settled:
+     * Disposition-Notification-To is the RFC 8098 one every current client
+     * honours, Return-Receipt-To is the older informal convention some MTAs
+     * and legacy clients act on. Both name the same address.
+     *
+     * That address is the sending identity's, taken from the same $fromAddress
+     * the From header was built with rather than from the account — a message
+     * sent from an alias must have its receipt come back to that alias, or the
+     * MDN arrives addressed to a mailbox the recipient was never writing to
+     * and the correlation on the way back in has nothing to match. It is also
+     * the pairing the receiving end is entitled to expect: a
+     * Disposition-Notification-To that disagrees with From is exactly what
+     * ReadReceiptPolicy refuses to auto-answer, and plMail must not send mail
+     * that trips its own guard.
+     */
+    private function applyReceiptRequest(Message $message, Email $email, string $fromAddress): void
+    {
+        if (false === $message->wantsReadReceipt()) {
+            return;
+        }
+
+        if ('' === $fromAddress) {
+            return;
+        }
+
+        $headers = $email->getHeaders();
+
+        $headers->addMailboxListHeader('Disposition-Notification-To', [new Address($fromAddress)]);
+        $headers->addMailboxListHeader('Return-Receipt-To', [new Address($fromAddress)]);
     }
 
     /**

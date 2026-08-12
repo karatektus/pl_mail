@@ -202,6 +202,12 @@ Variables:
         {# The body, its warnings and its images bar — all decided in one place.
            See mail/_message_body.html.twig for why it is framed. #}
         {% include 'mail/_message_body.html.twig' with { message: message } only %}
+
+        {# The receipt prompt, and "Read at …" on our own sent mail. Below the
+           body and outside the frame, for the same reason the images bar is:
+           a button the message could draw is a button the message could forge,
+           and this one sends mail on the reader's behalf. #}
+        {% include 'mail/_read_receipt.html.twig' with { message: message } only %}
     </div>
 </div>
 {% endif %}
