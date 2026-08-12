@@ -1,0 +1,235 @@
+{#
+integration/_destination.html.twig — choose where a saved attachment lands.
+
+The other face of the file picker (integration/_picker.html.twig): that one
+pulls a file INTO a draft, this one picks the folder or album a message's
+attachment is saved OUT to. Both load into the one modal shell and share its
+chrome, so the difference a user sees is only what fills the middle.
+
+Two shapes, decided by the taxonomy rather than by provider name:
+
+  A file store (Nextcloud, Drive, …) gets a folder tree. Folders navigate, the
+  breadcrumb walks back up, and one "Save here" button in the footer targets
+  wherever the user has browsed to — the root included.
+
+  A photo library (Immich, Google Photos) gets its albums, flat: there is no
+  tree to descend, so each album is itself the button, and a "Library" row
+  saves with no album at all.
+
+"New folder" / "New album" re-renders this frame sitting in the new container,
+and carries data-ui--modal-keep-open so that re-render does not read as a
+finished save and close the dialog. The save forms deliberately do NOT carry it:
+a successful save is exactly when the modal should close.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% set isMediaLibrary = integration.provider.isMediaLibrary %}
+
+{% macro albumSaveRow(integration, part, destination, name, icon) %}
+    <li>
+        <form method="post" data-turbo-stream
+              action="{{ path('app_integration_save_attachment', { id: integration.id, part: part.id }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('integration-save-' ~ part.id) }}">
+            <input type="hidden" name="destination" value="{{ destination }}">
+            <button type="submit"
+                    class="group w-full flex items-center gap-3 -mx-2 px-3 py-2.5 rounded-xl
+                           hover:bg-hover transition-colors text-left
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">
+                    <i class="fa-solid {{ icon }} text-sm text-amber-500" aria-hidden="true"></i>
+                </span>
+                <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ name }}</span>
+                <span class="text-[11px] font-medium text-accent opacity-0 group-hover:opacity-100
+                             group-focus-visible:opacity-100 transition-opacity">
+                    {{ 'integration.destination.save_here'|trans }}
+                </span>
+            </button>
+        </form>
+    </li>
+{% endmacro %}
+
+{% import _self as dest %}
+
+{% block body %}
+    <turbo-frame id="modal">
+        <template data-ui--modal-frame-title>{{ integration.name }}</template>
+
+        <div class="flex-1 min-h-0 flex flex-col">
+
+            {# ── What this does ── #}
+            <p class="px-6 pt-1 pb-3 shrink-0 text-sm text-ink-muted">
+                {{ (isMediaLibrary
+                    ? 'integration.destination.choose_album'
+                    : 'integration.destination.choose_folder')|trans({ '%file%': part.filename ?: 'attachment' }) }}
+            </p>
+
+            {% if createError is not null %}
+                <div role="alert" class="mx-6 mb-3 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-2.5 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ createError }}</p>
+                </div>
+            {% endif %}
+
+            {% if error is not null %}
+
+                <div role="alert" class="m-5 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+                <div class="px-6 pb-3 shrink-0">
+                    <a href="{{ path('app_integration_browse', { id: integration.id, mode: 'destination', part: part.id }) }}"
+                       class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium
+                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                        <i class="fa-solid fa-rotate-left text-[10px]" aria-hidden="true"></i>
+                        {{ 'integration.destination.start_over'|trans }}
+                    </a>
+                </div>
+
+            {% else %}
+
+                {# ── Breadcrumb — a folder tree only ── #}
+                {% if not isMediaLibrary %}
+                    <nav class="flex items-center gap-1 flex-wrap px-6 pb-3 shrink-0 text-xs text-ink-muted">
+                        {% for crumb in listing.breadcrumb %}
+                            {% if not loop.last %}
+                                <a href="{{ path('app_integration_browse', { id: integration.id, mode: 'destination', part: part.id, folder: crumb.id }) }}"
+                                   class="hover:text-ink transition-colors">{{ crumb.name }}</a>
+                                <i class="fa-solid fa-chevron-right text-[8px] text-ink-faint" aria-hidden="true"></i>
+                            {% else %}
+                                <span class="text-ink font-medium">{{ crumb.name }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </nav>
+                {% endif %}
+
+                {# ── The containers ── #}
+                <div class="flex-1 min-h-[14rem] min-w-0 px-6 overflow-y-auto overscroll-contain">
+                    <div class="py-2">
+                        {% if isMediaLibrary %}
+
+                            <ul class="space-y-0.5">
+                                {# Always available: the library itself, no album. #}
+                                {{ dest.albumSaveRow(integration, part, '', 'integration.destination.library'|trans, 'fa-photo-film') }}
+                                {% for entry in listing.folders %}
+                                    {{ dest.albumSaveRow(integration, part, entry.id, entry.name, 'fa-images') }}
+                                {% endfor %}
+                            </ul>
+                            {% if listing.folders is empty %}
+                                <p class="py-6 text-center text-sm text-ink-faint italic">
+                                    {{ 'integration.destination.no_albums'|trans }}
+                                </p>
+                            {% endif %}
+
+                        {% else %}
+
+                            {% if listing.folders is empty %}
+                                <p class="py-6 text-center text-sm text-ink-faint italic">
+                                    {{ 'integration.destination.no_subfolders'|trans }}
+                                </p>
+                            {% else %}
+                                <ul class="space-y-0.5">
+                                    {% for entry in listing.folders %}
+                                        {% include 'integration/_folder_row.html.twig' with {
+                                            integration: integration,
+                                            entry: entry,
+                                            draftId: 0,
+                                            mode: 'destination',
+                                            part: part.id,
+                                        } only %}
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            {# Files in this folder, shown for context but not
+                               targetable — you save into a folder, not onto a
+                               file. Muted so the folders read as the choices. #}
+                            {% if listing.files is not empty %}
+                                <ul class="mt-1 space-y-0.5">
+                                    {% for entry in listing.files %}
+                                        <li class="flex items-center gap-3 -mx-2 px-3 py-2 rounded-xl opacity-40">
+                                            <span class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-raised">
+                                                <i class="fa-solid fa-file text-sm text-ink-faint" aria-hidden="true"></i>
+                                            </span>
+                                            <span class="flex-1 min-w-0 truncate text-sm text-ink-muted">{{ entry.name }}</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── New folder / new album ── #}
+                {% if canCreate %}
+                    <div class="px-6 pt-2 shrink-0">
+                        <details class="group">
+                            <summary class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg cursor-pointer
+                                            text-xs font-medium text-ink-soft hover:bg-hover transition-colors
+                                            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                                <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+                                {{ (isMediaLibrary
+                                    ? 'integration.destination.new_album'
+                                    : 'integration.destination.new_folder')|trans }}
+                            </summary>
+                            <form method="post" data-ui--modal-keep-open
+                                  action="{{ path('app_integration_create_destination', { id: integration.id, part: part.id }) }}"
+                                  class="mt-2 flex items-center gap-2">
+                                <input type="hidden" name="_token" value="{{ csrf_token('integration-destination-' ~ part.id) }}">
+                                <input type="hidden" name="parent" value="{{ folderId }}">
+                                <label class="sr-only" for="new-destination-name">
+                                    {{ (isMediaLibrary
+                                        ? 'integration.destination.album_name'
+                                        : 'integration.destination.folder_name')|trans }}
+                                </label>
+                                <input type="text" id="new-destination-name" name="name" required
+                                       placeholder="{{ (isMediaLibrary
+                                            ? 'integration.destination.album_name'
+                                            : 'integration.destination.folder_name')|trans }}"
+                                       class="flex-1 min-w-0 h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                              focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                                <button type="submit"
+                                        class="shrink-0 inline-flex items-center h-9 px-3 rounded-lg text-sm font-medium
+                                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                    {{ 'integration.destination.create'|trans }}
+                                </button>
+                            </form>
+                        </details>
+                    </div>
+                {% endif %}
+
+            {% endif %}
+
+            {# ── Footer ── #}
+            <div class="flex items-center gap-2 px-6 pb-5 pt-3 shrink-0">
+                <div class="flex-1"></div>
+
+                <button type="button" data-action="click->ui--modal#close"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    {{ 'form.cancel'|trans }}
+                </button>
+
+                {# A folder tree saves to wherever the user browsed to; an album
+                   list saves per row, so there is nothing to save from here.
+                   Offered even when the listing failed: the top level is always
+                   a valid target, so a user is never left unable to save at all
+                   because a subfolder would not load. #}
+                {% if not isMediaLibrary %}
+                    <form method="post" data-turbo-stream
+                          action="{{ path('app_integration_save_attachment', { id: integration.id, part: part.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('integration-save-' ~ part.id) }}">
+                        <input type="hidden" name="destination" value="{{ folderId }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                                       text-accent-ink bg-accent hover:bg-accent-strong transition-colors">
+                            <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
+                            {{ 'integration.destination.save_here'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+
+        </div>
+    </turbo-frame>
+{% endblock %}

@@ -1198,6 +1198,19 @@ inbox:
 integration:
     save_failed: 'Speichern fehlgeschlagen: %reason%'
     saved_to: 'In %name% gespeichert'
+    destination:
+        album_name: 'Albumname'
+        choose_album: 'Album für %file% wählen'
+        choose_folder: 'Ordner für %file% wählen'
+        create: Erstellen
+        folder_name: 'Ordnername'
+        library: 'Mediathek (kein Album)'
+        new_album: 'Neues Album'
+        new_folder: 'Neuer Ordner'
+        no_albums: 'Noch keine Alben.'
+        no_subfolders: 'Keine Ordner hier.'
+        save_here: 'Hier speichern'
+        start_over: 'Von vorn beginnen'
     picker:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'

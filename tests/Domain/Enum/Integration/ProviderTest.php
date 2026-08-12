@@ -21,6 +21,7 @@ use App\Service\Integration\Driver\GooglePhotosDriver;
 use App\Service\Integration\Driver\ImmichDriver;
 use App\Service\Integration\Driver\NextcloudDriver;
 use App\Service\Integration\Driver\OneDriveDriver;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -261,6 +262,62 @@ final class ProviderTest extends TestCase
                     $provider->slug(),
                 ),
             );
+        }
+    }
+
+    /**
+     * The gate that decides which providers a given attachment's "Save to…"
+     * offers. A photo library takes only images and videos — its API rejects a
+     * PDF outright — so it must not be offered for anything else; a file store
+     * takes everything, including a part whose type could not be read.
+     *
+     * The whole matrix, because the interesting cases are the boundaries: an
+     * "image" prefix that is not really an image type, a video, an unknown
+     * mime, and the empty string a part with no declared type carries.
+     *
+     */
+    #[DataProvider('mimeGatingMatrix')]
+    public function testAcceptsMimeGatesPhotoLibrariesToImagesAndVideos(
+        Provider $provider,
+        ?string $mime,
+        bool $expected,
+    ): void {
+        self::assertSame($expected, $provider->acceptsMime($mime), sprintf(
+            '%s should %saccept %s',
+            $provider->value,
+            $expected ? '' : 'not ',
+            $mime ?? '(null)',
+        ));
+    }
+
+    /**
+     * @return iterable<string,array{Provider,?string,bool}>
+     */
+    public static function mimeGatingMatrix(): iterable
+    {
+        // Photo libraries — image/* and video/* only.
+        foreach ([Provider::Immich, Provider::GooglePhotos] as $library) {
+            yield $library->value.' image'        => [$library, 'image/jpeg', true];
+            yield $library->value.' image png'    => [$library, 'image/png', true];
+            yield $library->value.' video'        => [$library, 'video/mp4', true];
+            yield $library->value.' pdf'          => [$library, 'application/pdf', false];
+            yield $library->value.' text'         => [$library, 'text/plain', false];
+            yield $library->value.' octet'        => [$library, 'application/octet-stream', false];
+            // A part with no or an empty declared type is "we could not tell",
+            // and the safe reading of that is never a photo library.
+            yield $library->value.' null'         => [$library, null, false];
+            yield $library->value.' empty'        => [$library, '', false];
+            // Not a real image type, however it starts — the prefix has to be
+            // "image/" exactly, so a bare "image" or "imagex/…" is not enough.
+            yield $library->value.' image-ish'    => [$library, 'imagex/foo', false];
+        }
+
+        // File stores — everything, unknown included.
+        foreach ([Provider::Nextcloud, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
+            yield $store->value.' pdf'   => [$store, 'application/pdf', true];
+            yield $store->value.' image' => [$store, 'image/jpeg', true];
+            yield $store->value.' null'  => [$store, null, true];
+            yield $store->value.' empty' => [$store, '', true];
         }
     }
 

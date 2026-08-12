@@ -459,10 +459,11 @@ test.describe("compose integration picker", () => {
     /**
      * The attachment chip gained a "Save to…" half and was extracted into a
      * shared partial, so both of its call sites had to keep working. This
-     * covers the thread view; the failure toast also proves the whole
-     * resolve-then-upload path ran rather than short-circuiting.
+     * covers the thread view: the menu opens where a human can press it, and
+     * choosing a service now opens the destination picker rather than saving on
+     * the spot.
      */
-    test("an attachment offers save-to, and reports a failure", async ({
+    test("an attachment offers save-to, which opens the destination picker", async ({
         page,
     }) => {
         seed("seed-attachment");
@@ -507,23 +508,140 @@ test.describe("compose integration picker", () => {
             )
             .toBe(true);
 
+        // Choosing a service now opens a destination picker in the modal rather
+        // than firing a save — that browse is the picker, in destination mode.
+        const browsed = page.waitForRequest(
+            (request) =>
+                /\/integrations\/\d+\/browse\?.*mode=destination/.test(request.url()),
+        );
+
+        await chip.getByRole("button", { name: "Home cloud" }).click();
+        await browsed;
+
+        // cloud.example.com is unreachable from the test stack, so the folder
+        // listing cannot render — but the picker is still a picker, with its
+        // "Save here" targeting the top level even when a subfolder would not
+        // load. That save carries the CSRF token and an explicit destination
+        // field, and answers with a toast the reader sees.
+        const modal = page.locator("#modal");
+        await expect(modal).toContainText(/Could not reach the Nextcloud server/i);
+
         const posted = page.waitForRequest(
             (request) =>
                 "POST" === request.method()
                 && /\/integrations\/\d+\/save-attachment\/\d+$/.test(request.url()),
         );
 
-        await chip.getByRole("button", { name: "Home cloud" }).click();
+        await modal.getByRole("button", { name: "Save here" }).click();
 
-        // The request boundary: the right endpoint, with the CSRF token the
-        // form carries. cloud.example.com is unreachable from the test stack,
-        // so the upload itself cannot be proven here — what can be, and is, is
-        // that the click reaches the server and that the answer reaches the
-        // reader.
-        expect((await posted).postData()).toContain("_token=");
+        const body = (await posted).postData() ?? "";
+        expect(body).toContain("_token=");
+        expect(body).toContain("destination=");
 
-        await expect(page.locator("#toast-region")).toContainText(
-            /Could not save/i,
+        await expect(page.locator("#toast-region")).toContainText(/Could not save/i);
+    });
+});
+
+/**
+ * The save picker proper: the mime gate on which services are offered per
+ * attachment, and the folder chooser a file-store save opens into.
+ *
+ * Own describe with its own seed, which writes both connections and a
+ * two-attachment thread straight to the database — deterministic and off the
+ * network, so what is under test is only which menu each attachment offers and
+ * that the chosen destination reaches the server, not a live provider. It lives
+ * in this file because it is in the same isolated Playwright project: it reads
+ * connections but touches no install-wide provider config, yet the gate it
+ * checks is the same taxonomy the rest of this file exercises.
+ */
+test.describe("attachment save destination", () => {
+    test.beforeAll(() => {
+        seed("seed-mail", "seed-save-picker");
+    });
+
+    async function openSeededThread(page: Page) {
+        await login(page);
+        await page.goto("/mail/inbox");
+        await page
+            .locator("#message-list li")
+            .filter({ hasText: "E2E Save Picker" })
+            .first()
+            .click();
+    }
+
+    function chipFor(page: Page, filename: string) {
+        return page
+            .locator('[data-controller="ui--dropdown"]')
+            .filter({ hasText: filename });
+    }
+
+    /**
+     * A photo library is offered for an image and withheld for a PDF; a file
+     * store is offered for both. This is the whole point of the gate — "Save to
+     * Immich" on a document is a guaranteed failure the user must never see.
+     */
+    test("offers a photo library for an image but not a PDF", async ({ page }) => {
+        await openSeededThread(page);
+
+        const photo = chipFor(page, "e2e-photo.png");
+        await photo.getByRole("button", { name: "Save to" }).click();
+        const photoMenu = photo.locator('[data-ui--dropdown-target="menu"]');
+        await expect(
+            photoMenu.getByRole("button", { name: "E2E SavePicker Photos" }),
+        ).toBeVisible();
+        await expect(
+            photoMenu.getByRole("button", { name: "E2E SavePicker Cloud" }),
+        ).toBeVisible();
+
+        const doc = chipFor(page, "e2e-document.pdf");
+        await doc.getByRole("button", { name: "Save to" }).click();
+        const docMenu = doc.locator('[data-ui--dropdown-target="menu"]');
+        // The file store stays; the photo library is gone, because a PDF cannot
+        // land in it.
+        await expect(
+            docMenu.getByRole("button", { name: "E2E SavePicker Cloud" }),
+        ).toBeVisible();
+        await expect(
+            docMenu.getByRole("button", { name: "E2E SavePicker Photos" }),
+        ).toHaveCount(0);
+    });
+
+    /**
+     * Saving to the file store opens the folder chooser, and "Save here" carries
+     * the chosen destination to the server. The seeded host is unreachable, so
+     * the request boundary is what is asserted, not a landed file — a live
+     * server is what only a real Nextcloud can confirm.
+     */
+    test("a file-store save opens the folder picker and carries a destination", async ({
+        page,
+    }) => {
+        await openSeededThread(page);
+
+        const doc = chipFor(page, "e2e-document.pdf");
+        await doc.getByRole("button", { name: "Save to" }).click();
+
+        const browsed = page.waitForRequest((request) =>
+            /\/integrations\/\d+\/browse\?.*mode=destination.*part=\d+/.test(request.url()),
         );
+        await doc.getByRole("button", { name: "E2E SavePicker Cloud" }).click();
+        await browsed;
+
+        const modal = page.locator("#modal");
+        // The folder chooser's own action, present whether or not the listing
+        // loaded — the seeded host does not resolve.
+        const saveHere = modal.getByRole("button", { name: "Save here" });
+        await expect(saveHere).toBeVisible();
+
+        const posted = page.waitForRequest(
+            (request) =>
+                "POST" === request.method()
+                && /\/integrations\/\d+\/save-attachment\/\d+$/.test(request.url()),
+        );
+        await saveHere.click();
+
+        // The save reached the server as a destination-bearing request — the
+        // field the picker threads through, absent from the old fire-and-forget
+        // post.
+        expect((await posted).postData() ?? "").toContain("destination=");
     });
 });

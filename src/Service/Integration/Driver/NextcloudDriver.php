@@ -9,6 +9,7 @@ use App\Domain\DTO\Integration\Listing;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
@@ -37,7 +38,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * resolved to a path first would double the round trips on every click for no
  * gain, since Nextcloud addresses everything by path anyway.
  */
-final readonly class NextcloudDriver implements IntegrationDriverInterface, SearchableDriverInterface
+final readonly class NextcloudDriver implements IntegrationDriverInterface, SearchableDriverInterface, DestinationDriverInterface
 {
     private const string DAV_ROOT = '/remote.php/dav';
     private const string DAV_PATH = self::DAV_ROOT.'/files';
@@ -291,6 +292,73 @@ final readonly class NextcloudDriver implements IntegrationDriverInterface, Sear
                 fclose($handle);
             }
         }
+
+        return $target;
+    }
+
+    // ── Destinations ────────────────────────────────────────────────────────────
+
+    /**
+     * The folders a save may land in are just the folder tree, so a destination
+     * pick reuses the ordinary listing — the picker shows its folders as
+     * navigable and its files as context.
+     */
+    public function destinations(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
+    {
+        return $this->list($integration, $folderId, $cursor);
+    }
+
+    /**
+     * A chosen folder path arrives in a request, so it is confirmed here before
+     * a byte is uploaded rather than trusted for having once come out of list().
+     *
+     * The account itself is not a threat surface: every request carries this
+     * integration's own username and app password, and the DAV root is that
+     * user's files — a path cannot address another account's storage even in
+     * principle. Traversal is the real risk, because the path is interpolated
+     * into a URL, so a '..' segment is refused outright rather than silently
+     * stripped the way normalisePath does for a listing. Refusing is the honest
+     * answer to "save here", where quietly saving somewhere else is not.
+     *
+     * The empty string is the files root, which is always a valid target.
+     */
+    public function assertDestination(Integration $integration, string $destination): void
+    {
+        if ('' === $destination) {
+            return;
+        }
+
+        foreach (explode('/', str_replace('\\', '/', $destination)) as $segment) {
+            if ('..' === $segment) {
+                throw new IntegrationException('That destination folder is not allowed.');
+            }
+        }
+    }
+
+    /**
+     * Create a folder under $parent and return its path.
+     *
+     * A folder name is one path segment, never a path itself, so any slash a
+     * user typed is flattened rather than allowed to dig a nested tree from the
+     * name field. MKCOL is the same call the upload path already makes for a
+     * missing folder, so this costs one round trip and no new machinery.
+     */
+    public function createDestination(Integration $integration, ?string $parent, string $name): string
+    {
+        $name = trim(str_replace(['/', '\\'], ' ', $name));
+
+        if ('' === $name) {
+            throw new IntegrationException('A folder needs a name.');
+        }
+
+        $base = $this->normalisePath($parent ?? '');
+        $target = $this->normalisePath('' === $base ? $name : $base.'/'.$name);
+
+        if ('' === $target) {
+            throw new IntegrationException('A folder needs a name.');
+        }
+
+        $this->ensureFolder($integration, $target);
 
         return $target;
     }

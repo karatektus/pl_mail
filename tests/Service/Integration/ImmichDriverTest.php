@@ -76,6 +76,75 @@ final class ImmichDriverTest extends TestCase
         self::assertStringEndsWith('/api/albums', $this->requests[0]['url']);
     }
 
+    /**
+     * A destination pick is the album list, flat — not the timeline list()
+     * opens on. Saving files into a photo library means choosing an album.
+     */
+    public function testDestinationsAreTheAlbums(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse([
+                ['id' => 'b-2', 'albumName' => 'Trips'],
+                ['id' => 'a-1', 'albumName' => 'Archive'],
+            ]),
+        ]);
+
+        $listing = $driver->destinations($this->integration());
+
+        self::assertSame(['Archive', 'Trips'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringEndsWith('/api/albums', $this->requests[0]['url']);
+    }
+
+    /**
+     * A chosen album id arrives in a request, so it is confirmed against this
+     * account's own albums before an asset is filed into it — an album this
+     * account does not hold is refused rather than silently filing nowhere.
+     */
+    public function testAssertDestinationRejectsAnAlbumThisAccountDoesNotHold(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse([
+                ['id' => 'mine-1', 'albumName' => 'Trips'],
+            ]),
+        ]);
+
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessage('That album is not in this Immich account.');
+
+        $driver->assertDestination($this->integration(), 'someone-elses-album');
+    }
+
+    public function testAssertDestinationAcceptsAnAlbumThisAccountHolds(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse([
+                ['id' => 'mine-1', 'albumName' => 'Trips'],
+            ]),
+        ]);
+
+        // An album this account holds passes, having cost exactly one lookup.
+        $driver->assertDestination($this->integration(), 'mine-1');
+        self::assertCount(1, $this->requests);
+
+        // The empty string ("no album") is always valid and costs no call.
+        $before = count($this->requests);
+        $driver->assertDestination($this->integration(), '');
+        self::assertCount($before, $this->requests, 'the root/no-album target needs no round trip');
+    }
+
+    public function testCreateDestinationPostsAnAlbumAndReturnsItsId(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['id' => 'new-album', 'albumName' => 'Mail']),
+        ]);
+
+        $id = $driver->createDestination($this->integration(), null, 'Mail');
+
+        self::assertSame('new-album', $id);
+        self::assertSame('POST', $this->requests[0]['method']);
+        self::assertStringEndsWith('/api/albums', $this->requests[0]['url']);
+    }
+
     public function testAlbumContentsComeFromSearchSoTheyPage(): void
     {
         $driver = $this->driver([

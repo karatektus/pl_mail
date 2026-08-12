@@ -192,6 +192,65 @@ final class NextcloudDriverTest extends TestCase
         self::assertSame('PROPFIND', $this->requests[0]['method']);
     }
 
+    // ── Destinations ────────────────────────────────────────────────────────────
+
+    /**
+     * A chosen folder path arrives in a request, so a '..' in it is refused
+     * outright rather than silently stripped the way a listing path is. Refusing
+     * is the honest answer to "save here" — quietly saving somewhere else is
+     * not.
+     */
+    public function testAssertDestinationRefusesTraversal(): void
+    {
+        $driver = $this->driver([]);
+
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessage('That destination folder is not allowed.');
+
+        $driver->assertDestination($this->integration(), 'Documents/../../etc');
+    }
+
+    public function testAssertDestinationAllowsARealFolderAndTheRoot(): void
+    {
+        $driver = $this->driver([]);
+
+        // No exception is the assertion: the empty string is the files root, and
+        // an ordinary nested path is a legitimate destination.
+        $driver->assertDestination($this->integration(), '');
+        $driver->assertDestination($this->integration(), 'Documents/Mail attachments');
+
+        self::assertSame([], $this->requests, 'a path check costs no round trip');
+    }
+
+    /**
+     * "New folder" MKCOLs the path and returns it, ready to save into. The name
+     * is one segment — a slash in it is flattened, never allowed to dig a nested
+     * tree out of the name field.
+     */
+    public function testCreateDestinationMkcolsTheFolderAndReturnsItsPath(): void
+    {
+        $driver = $this->driver([new MockResponse('', ['http_code' => 201])]);
+
+        $path = $driver->createDestination($this->integration(), '', 'Mail attachments');
+
+        self::assertSame('Mail attachments', $path);
+        self::assertSame('MKCOL', $this->requests[0]['method']);
+        self::assertStringEndsWith('/remote.php/dav/files/alice/Mail%20attachments', $this->requests[0]['url']);
+    }
+
+    public function testCreateDestinationFlattensASlashInTheName(): void
+    {
+        $driver = $this->driver([
+            new MockResponse('', ['http_code' => 405]), // Documents already there
+            new MockResponse('', ['http_code' => 201]), // the new child
+        ]);
+
+        // A name is a single segment: "a/b" must not become two folders.
+        $path = $driver->createDestination($this->integration(), 'Documents', 'sneaky/child');
+
+        self::assertSame('Documents/sneaky child', $path);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     /**

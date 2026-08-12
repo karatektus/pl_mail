@@ -11,6 +11,7 @@ use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
 use App\Entity\Integration\Integration;
@@ -272,6 +273,96 @@ final class IntegrationFilePickerTest extends KernelTestCase
 
     // ── pushing an attachment out ────────────────────────────────────────────
 
+    /**
+     * A destination the user chose in the picker is threaded straight through
+     * to the driver's upload — the whole point of the picker over the fixed
+     * folder. A driver that can vouch for a destination is asked to first.
+     */
+    public function testAChosenDestinationIsValidatedThenThreadedToTheUpload(): void
+    {
+        $driver = new FakeDestinationDriver();
+
+        $error = $this->picker($driver)->pushAttachment(
+            $this->integration(),
+            $this->storedPart(),
+            'Photos/2026',
+            validate: true,
+        );
+
+        self::assertNull($error);
+        self::assertSame('Photos/2026', $driver->assertedDestination, 'the chosen destination was vouched for');
+        self::assertSame('Photos/2026', $driver->uploadedTo, 'and then uploaded to');
+    }
+
+    /**
+     * The security property: a destination the driver refuses — a foreign album
+     * id, a traversal path — never reaches the upload. The request is
+     * attacker-controllable, so a rejection here is the difference between
+     * "saved nowhere" and "wrote somewhere it should not".
+     */
+    public function testARefusedDestinationNeverReachesTheUpload(): void
+    {
+        $driver = new FakeDestinationDriver();
+        $driver->assertError = 'That album is not in this account.';
+
+        $integration = $this->integration();
+
+        $error = $this->picker($driver)->pushAttachment(
+            $integration,
+            $this->storedPart(),
+            '../../someone-else',
+            validate: true,
+        );
+
+        self::assertSame('That album is not in this account.', $error);
+        self::assertNull($driver->uploadedTo, 'the upload was never attempted');
+        self::assertNotContains('upload', $driver->calls);
+    }
+
+    /**
+     * The configured default is trusted — an admin set it, no request can reach
+     * it — so it is uploaded without the validation round trip a picked
+     * destination gets.
+     */
+    public function testTheTrustedDefaultSkipsValidation(): void
+    {
+        $driver = new FakeDestinationDriver();
+
+        $this->picker($driver)->pushAttachment(
+            $this->integration(),
+            $this->storedPart(),
+            'Mail attachments',
+            validate: false,
+        );
+
+        self::assertNull($driver->assertedDestination, 'the default was not re-validated');
+        self::assertSame('Mail attachments', $driver->uploadedTo);
+    }
+
+    /** The destination listing comes from the driver's own destinations view. */
+    public function testDestinationsAsksTheDriverForItsContainers(): void
+    {
+        $driver = new FakeDestinationDriver();
+
+        $view = $this->picker($driver)->destinations($this->integration(), null, null);
+
+        self::assertNotNull($view->listing);
+        self::assertSame(['Albums'], array_map(
+            static fn (Entry $e): string => $e->name,
+            $view->listing->entries,
+        ));
+    }
+
+    public function testCreateDestinationReturnsTheNewContainerId(): void
+    {
+        $driver = new FakeDestinationDriver();
+
+        $id = $this->picker($driver)->createDestination($this->integration(), null, 'Trips');
+
+        self::assertSame('created:Trips', $id);
+        self::assertTrue($this->picker($driver)->canCreateDestination($this->integration()));
+    }
+
     public function testASuccessfulUploadUsesTheConfiguredFolderAndClearsTheError(): void
     {
         $driver = new FakePickerDriver();
@@ -461,6 +552,36 @@ class FakePickerDriver implements IntegrationDriverInterface
         }
 
         return null;
+    }
+}
+
+/**
+ * The same fake, plus the destination half Nextcloud and the photo libraries
+ * have: it can vouch for a chosen container and create one, and records what it
+ * was asked to vouch for so the picker's guard can be observed.
+ */
+final class FakeDestinationDriver extends FakePickerDriver implements DestinationDriverInterface
+{
+    public ?string $assertError = null;
+    public ?string $assertedDestination = null;
+
+    public function destinations(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
+    {
+        return new Listing([new Entry('a1', 'Albums', true)]);
+    }
+
+    public function assertDestination(Integration $integration, string $destination): void
+    {
+        $this->assertedDestination = $destination;
+
+        if (null !== $this->assertError) {
+            throw new IntegrationException($this->assertError);
+        }
+    }
+
+    public function createDestination(Integration $integration, ?string $parent, string $name): string
+    {
+        return 'created:'.$name;
     }
 }
 

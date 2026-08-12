@@ -6,6 +6,7 @@ namespace App\Controller\Integration;
 
 use App\Controller\Mail\ComposeController;
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -44,6 +45,16 @@ final class FilePickerController extends AbstractController
      */
     public const string UPLOAD_FOLDER_SETTING = 'upload.folder';
 
+    /**
+     * Integration::$settings key remembering the folder or album the user last
+     * chose in the destination picker, so the next save opens where the last
+     * one landed. Kept apart from UPLOAD_FOLDER_SETTING on purpose: that one is
+     * the fire-and-forget default a filter rule saves to, and a manual save to
+     * one folder must not quietly redirect a rule to another. A per-save choice
+     * always wins over both — this only decides where the picker starts.
+     */
+    public const string LAST_DESTINATION_SETTING = 'save.last_destination';
+
     public function __construct(
         private readonly IntegrationFilePicker  $picker,
         private readonly EntityManagerInterface $em,
@@ -58,6 +69,15 @@ final class FilePickerController extends AbstractController
     #[Route('/{id}/browse', name: 'browse', methods: ['GET'])]
     public function browse(Integration $integration, Request $request): Response
     {
+        // The same route opens two ways. Attaching a file INTO a draft is the
+        // default; picking a destination to save an attachment OUT to is the
+        // other, and it renders a folder/album chooser rather than a selectable
+        // file list. The mode decides, so one modal shell and one JS controller
+        // serve both.
+        if ('destination' === $request->query->get('mode')) {
+            return $this->browseDestination($integration, $request);
+        }
+
         $this->assertUsable($integration, Capability::Browse);
 
         $folderId = $request->query->get('folder');
@@ -200,18 +220,129 @@ final class FilePickerController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $error = $this->picker->pushAttachment(
-            $integration,
-            $part,
-            $integration->getSetting(self::UPLOAD_FOLDER_SETTING),
-        );
+        // An explicit destination from the picker wins; its absence is the
+        // fire-and-forget path — save straight to the configured default, which
+        // is what a filter rule and a save with no picker both do. The picker
+        // sends the field even for the root ('' is "save at the top level"), so
+        // presence, not emptiness, is what tells a choice from a default.
+        $userChosen = $request->request->has('destination');
+        $destination = $userChosen
+            ? (string) $request->request->get('destination')
+            : $integration->getSetting(self::UPLOAD_FOLDER_SETTING);
+
+        // A chosen destination is attacker-controllable, so the picker's saves
+        // are validated against this account; the trusted default is not.
+        $error = $this->picker->pushAttachment($integration, $part, $destination, $userChosen);
+
+        if (null === $error && true === $userChosen) {
+            // Remember it, so the next save opens where this one landed. Its own
+            // key, not the rule default — see LAST_DESTINATION_SETTING.
+            $integration->setSetting(self::LAST_DESTINATION_SETTING, $destination);
+            $this->em->flush();
+        }
 
         return null === $error
             ? $this->toast('integration.saved_to', ['%name%' => $integration->name], false)
             : $this->toast('integration.save_failed', ['%reason%' => $error], true);
     }
 
+    /**
+     * Create a folder or album from the destination picker, then re-render it
+     * sitting in the new container so the next click is "Save here".
+     *
+     * A folder store nests the new folder under wherever the user is browsing;
+     * a photo library's albums are flat, so the parent is ignored and the
+     * chooser simply re-lists with the new album present.
+     */
+    #[Route('/{id}/create-destination/{part}', name: 'create_destination', methods: ['POST'])]
+    public function createDestination(Integration $integration, MessagePart $part, Request $request): Response
+    {
+        $this->assertUsable($integration, Capability::Upload);
+
+        if (false === $this->isCsrfTokenValid('integration-destination-'.$part->id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($part->message?->account?->usr !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $parent = $this->blankToNull($request->request->get('parent'));
+        $name = trim((string) $request->request->get('name'));
+        $landAt = $parent;
+        $createError = null;
+
+        if ('' !== $name) {
+            try {
+                $landAt = $this->picker->createDestination($integration, $parent, $name);
+            } catch (IntegrationException $e) {
+                $createError = $e->getMessage();
+            }
+        }
+
+        return $this->renderDestination($integration, $part, $landAt, $createError);
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The destination chooser for one attachment: a folder tree to save into,
+     * or a photo library's albums to file into.
+     */
+    private function browseDestination(Integration $integration, Request $request): Response
+    {
+        // Upload is the capability a destination pick actually needs; every
+        // upload-capable file provider can also browse, so listing follows.
+        $this->assertUsable($integration, Capability::Upload);
+
+        $part = $this->ownedPart($request->query->getInt('part'));
+        $folderId = $this->blankToNull($request->query->get('folder'));
+
+        return $this->renderDestination($integration, $part, $folderId, null);
+    }
+
+    /**
+     * Render the destination modal frame at a folder/album, optionally carrying
+     * a message from a create attempt that failed.
+     */
+    private function renderDestination(
+        Integration $integration,
+        MessagePart $part,
+        ?string $folderId,
+        ?string $createError,
+    ): Response {
+        $view = $this->picker->destinations($integration, $folderId, null);
+
+        return $this->render('integration/_destination.html.twig', [
+            'integration' => $integration,
+            'part'        => $part,
+            'listing'     => $view->listing,
+            'error'       => $view->error,
+            'createError' => $createError,
+            'folderId'    => $folderId,
+            'canCreate'   => $this->picker->canCreateDestination($integration),
+        ]);
+    }
+
+    /**
+     * A part the current user owns, by the same rule saveAttachment uses. A
+     * shared helper so the destination browse and the save cannot drift on who
+     * is allowed to reach an attachment.
+     */
+    private function ownedPart(int $id): MessagePart
+    {
+        $part = 0 === $id ? null : $this->em->find(MessagePart::class, $id);
+
+        if (null === $part) {
+            throw $this->createNotFoundException();
+        }
+
+        if ($part->message?->account?->usr !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $part;
+    }
 
     /**
      * @param array<string,string> $params

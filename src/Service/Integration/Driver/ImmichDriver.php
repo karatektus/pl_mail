@@ -10,6 +10,7 @@ use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\DTO\Integration\TimelineBucket;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
@@ -52,7 +53,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Auth is an API key in x-api-key, generated per user in Immich's account
  * settings. Entry ids are Immich's own UUIDs, opaque to everything else.
  */
-final readonly class ImmichDriver implements IntegrationDriverInterface, SearchableDriverInterface, TimelineDriverInterface
+final readonly class ImmichDriver implements IntegrationDriverInterface, SearchableDriverInterface, TimelineDriverInterface, DestinationDriverInterface
 {
     private const string API = '/api';
 
@@ -295,6 +296,66 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
         if (null !== $folderId && '' !== $folderId) {
             $this->addToAlbum($integration, $folderId, $id);
+        }
+
+        return $id;
+    }
+
+    // ── Destinations ────────────────────────────────────────────────────────────
+
+    /**
+     * A photo library's "folder" is an album, and the containers a save may
+     * target are the album list — not the timeline list() opens on. So a
+     * destination pick is the album view, flat, with no photos in it.
+     */
+    public function destinations(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
+    {
+        return $this->albumList($integration);
+    }
+
+    /**
+     * An album id arrives in a request, so it is confirmed against this
+     * account's own albums before an asset is filed into it.
+     *
+     * Uploading with an unknown or foreign id is not a data leak — the API key
+     * is this user's, so it could never write to another account's album, and
+     * addToAlbum is best-effort precisely because a stale id should not lose an
+     * upload. But "save to an album" that silently files nowhere is a lie to
+     * the user, so a chosen album that this account does not hold is refused up
+     * front. The empty string is "no album", the library default, always valid.
+     */
+    public function assertDestination(Integration $integration, string $destination): void
+    {
+        if ('' === $destination) {
+            return;
+        }
+
+        foreach ($this->albums($integration) as $album) {
+            if ($album->id === $destination) {
+                return;
+            }
+        }
+
+        throw new IntegrationException('That album is not in this Immich account.');
+    }
+
+    /** Create an album and return its id. A flat list, so $parent is ignored. */
+    public function createDestination(Integration $integration, ?string $parent, string $name): string
+    {
+        $name = trim($name);
+
+        if ('' === $name) {
+            throw new IntegrationException('An album needs a name.');
+        }
+
+        $payload = $this->json($integration, 'POST', $this->url($integration, '/albums'), [
+            'json' => ['albumName' => $name],
+        ]);
+
+        $id = $payload['id'] ?? null;
+
+        if (false === is_string($id) || '' === $id) {
+            throw new IntegrationException('Immich created the album but did not return its id.');
         }
 
         return $id;

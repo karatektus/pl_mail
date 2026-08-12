@@ -10,6 +10,7 @@ use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
 use App\Entity\Integration\Integration;
@@ -79,6 +80,69 @@ final readonly class IntegrationFilePicker
             $canSearch,
             $this->buckets($integration, $driver, $folderId, $query),
         );
+    }
+
+    /**
+     * The containers a "Save to…" may land in — folders for a file store,
+     * albums for a photo library — for the destination picker.
+     *
+     * Same failure discipline as browse(): a service that is down leaves a
+     * reason where the folders would have been, not a 500, so the picker still
+     * renders and the "save to the default" fallback below it stays reachable.
+     *
+     * A driver that does not offer a destination picker at all still answers
+     * here, from its ordinary listing, so its folders can be walked even
+     * without create-folder or an explicit guard.
+     */
+    public function destinations(Integration $integration, ?string $folderId, ?string $cursor): PickerView
+    {
+        $driver = $this->drivers->forIntegration($integration);
+
+        try {
+            $listing = $driver instanceof DestinationDriverInterface
+                ? $driver->destinations($integration, $folderId, $cursor)
+                : $driver->list($integration, $folderId, $cursor);
+            $error = null;
+        } catch (IntegrationException $e) {
+            $integration->recordFailure($e->getMessage());
+            $this->em->flush();
+
+            $listing = null;
+            $error = $e->getMessage();
+        }
+
+        return new PickerView($listing, $error, false, []);
+    }
+
+    /**
+     * Whether this connection can create a folder or album from the picker.
+     * Decides whether the "New folder / New album" affordance is offered.
+     */
+    public function canCreateDestination(Integration $integration): bool
+    {
+        return $this->drivers->forIntegration($integration) instanceof DestinationDriverInterface;
+    }
+
+    /**
+     * Create a folder or album and return its opaque id, ready to save into.
+     *
+     * @throws IntegrationException when the driver cannot, or the service
+     *                              refuses
+     */
+    public function createDestination(Integration $integration, ?string $parent, string $name): string
+    {
+        $driver = $this->drivers->forIntegration($integration);
+
+        if (false === $driver instanceof DestinationDriverInterface) {
+            throw new IntegrationException('This service cannot create a destination.');
+        }
+
+        $id = $driver->createDestination($integration, $parent, $name);
+
+        $integration->recordSuccess();
+        $this->em->flush();
+
+        return $id;
     }
 
     /**
@@ -179,18 +243,37 @@ final readonly class IntegrationFilePicker
      * attachment that has never touched our disk uploads exactly like a locally
      * stored one.
      *
-     * @param string|null $folder the Integration setting naming the folder or
-     *                            album uploads land in; null means the
-     *                            service's own default
+     * @param string|null $folder   the folder or album uploads land in; null
+     *                              means the service's own default
+     * @param bool        $validate confirm $folder belongs to this account
+     *                              before uploading — true when it came from a
+     *                              request (the destination picker), where the
+     *                              value is attacker-controllable and a chosen
+     *                              path or album id must never be trusted blind.
+     *                              Left off for the configured default, which an
+     *                              admin set and no request can reach.
      *
      * @return string|null the reason it failed, or null when it worked
      */
-    public function pushAttachment(Integration $integration, MessagePart $part, ?string $folder): ?string
+    public function pushAttachment(Integration $integration, MessagePart $part, ?string $folder, bool $validate = false): ?string
     {
         $filename = (string) ($part->filename ?: 'attachment');
+        $driver = $this->drivers->forIntegration($integration);
 
         try {
-            $this->drivers->forIntegration($integration)->upload(
+            // A destination from the picker is guarded before a byte moves: the
+            // driver confirms it names a container in this account and refuses
+            // traversal. Skipped for the empty default (the service's own root
+            // or no album), which is always a valid target.
+            if (true === $validate
+                && null !== $folder
+                && '' !== $folder
+                && $driver instanceof DestinationDriverInterface
+            ) {
+                $driver->assertDestination($integration, $folder);
+            }
+
+            $driver->upload(
                 $integration,
                 $this->attachmentResolver->absolutePathFor($part),
                 $filename,
