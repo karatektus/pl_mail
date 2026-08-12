@@ -68,8 +68,12 @@ self-contained: no {% extends %}, no block dependencies.
             {% endif %}
         </div>
 
+        {# `messages` is the controller's conversation-ordered list; the raw
+           association is the fallback for any include that has not been given
+           it (its receivedAt-only order is why the list is passed at all). #}
+        {% set messages = messages|default(thread.messages) %}
         <div id="thread_messages_{{ thread.id }}">
-            {% for message in thread.messages %}
+            {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,
                     expanded: loop.last or message.seenAt is null,
@@ -77,7 +81,7 @@ self-contained: no {% extends %}, no block dependencies.
             {% endfor %}
         </div>
 
-        {% include 'mail/_reply_zone.html.twig' with { thread: thread } only %}
+        {% include 'mail/_reply_zone.html.twig' with { thread: thread, latest: latest|default(null) } only %}
 
     </div>
 </div>

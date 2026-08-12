@@ -555,20 +555,27 @@ final class MailController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // The association is ordered by receivedAt ASC, so the last entry is
-        // the newest message.
-        $messages      = $thread->messages;
-        $latestMessage = false === $messages->isEmpty() ? $messages->last() : null;
+        // In conversation order — received by arrival, sent by send time — not
+        // the association's receivedAt-only order, which drops this account's
+        // own replies to the bottom of the thread (they have no receivedAt).
+        // The last entry is then genuinely the newest message, which is what
+        // the reply zone quotes and what opens expanded.
+        $messages = $this->messageRepository->forThreadInConversationOrder($thread);
+        $latest   = [] === $messages ? null : $messages[array_key_last($messages)];
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             return $this->render('mail/_thread_content.html.twig', [
-                'thread' => $thread,
+                'thread'   => $thread,
+                'messages' => $messages,
+                'latest'   => $latest,
             ]);
         }
 
         return $this->render('mail/thread.html.twig', [
-            'thread'  => $thread,
-            'account' => $account,
+            'thread'   => $thread,
+            'account'  => $account,
+            'messages' => $messages,
+            'latest'   => $latest,
         ]);
     }
 }

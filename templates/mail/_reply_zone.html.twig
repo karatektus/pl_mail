@@ -15,7 +15,11 @@ The action buttons hide themselves while a compose card is open; see the
 [data-reply-zone] rule in assets/styles/app.css.
 #}
 {% set sending = sending|default(null) %}
-{% set last    = thread.messages|last %}
+{# The conversation-newest message, passed from the thread view. Falls back to
+   the association's last, which is right whenever a reply zone is re-rendered
+   just after sending (the sent message is genuinely newest then) but wrong on
+   a fresh thread open, which is why the ordered value is threaded through. #}
+{% set last    = latest|default(thread.messages|last) %}
 {% set frame   = 'compose_inline' %}
 {% set params  = { frame: frame, thread: thread.id } %}
 

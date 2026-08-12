@@ -322,6 +322,56 @@ final class MessageRepositoryTest extends KernelTestCase
         return $mailbox;
     }
 
+    /**
+     * A reply this account sent belongs between the two mails it sits between
+     * in time, not at the bottom of the thread. The sent message has no
+     * receivedAt — only sentAt — so ordering the association on receivedAt put
+     * it last, under mail that arrived after it. The conversation order places
+     * it by its sentAt.
+     */
+    public function testASentReplyOrdersBetweenTheMailsItSitsBetween(): void
+    {
+        $thread = $this->thread();
+
+        $received1 = $this->threadedMessage($thread, 'first in', receivedAt: '2026-08-12 10:02:00');
+        $sent      = $this->threadedMessage($thread, 'my reply', sentAt: '2026-08-12 11:10:00');
+        $received2 = $this->threadedMessage($thread, 'their reply', receivedAt: '2026-08-12 12:45:00');
+
+        $ordered = array_map(
+            static fn (Message $m): int => (int) $m->id,
+            $this->repository->forThreadInConversationOrder($thread),
+        );
+
+        self::assertSame(
+            [(int) $received1->id, (int) $sent->id, (int) $received2->id],
+            $ordered,
+            'the sent reply belongs between the two received mails, not after both',
+        );
+    }
+
+    private function threadedMessage(
+        MessageThread $thread,
+        string $subject,
+        ?string $receivedAt = null,
+        ?string $sentAt = null,
+    ): Message {
+        $message = new Message();
+        $message->account        = $this->account;
+        $message->thread         = $thread;
+        $message->subject        = $subject;
+        $message->fromAddress    = 'sender@example.test';
+        $message->fromName       = 'Sender';
+        $message->receivedAt     = null === $receivedAt ? null : new DateTimeImmutable($receivedAt);
+        $message->sentAt         = null === $sentAt ? null : new DateTimeImmutable($sentAt);
+        $message->hasAttachments = false;
+        $message->messageId      = sprintf('order-%s@example.test', uniqid('', true));
+
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $message;
+    }
+
     private function seedLabel(User $user, string $name): Label
     {
         $label            = new Label();

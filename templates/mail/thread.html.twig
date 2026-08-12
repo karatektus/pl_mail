@@ -16,5 +16,5 @@
 {% block reading_hidden %}{% endblock %}
 
 {% block reading_pane %}
-    {% include 'mail/_thread_content.html.twig' with { thread: thread } %}
+    {% include 'mail/_thread_content.html.twig' with { thread: thread, messages: messages|default(null), latest: latest|default(null) } %}
 {% endblock %}

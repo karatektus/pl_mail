@@ -1568,4 +1568,32 @@ class MessageRepository extends ServiceEntityRepository
 
         return array_map(static fn (array $row): int => (int) $row['id'], $rows);
     }
+
+    /**
+     * A thread's messages in the order the conversation actually happened.
+     *
+     * Received mail is placed by when it arrived, sent mail by when it was
+     * sent, and a bare draft by when it was written — `received_at`, then
+     * `sent_at`, then `created_at`. The mapped `messages` association can only
+     * order by `receivedAt`, which is null on everything this account sent, so
+     * Postgres sorted every reply to the very bottom of its own thread, under
+     * mail that had arrived after it. Ordered here instead, with no stored
+     * duplicate of a value the three columns already hold.
+     *
+     * COALESCE cannot sit in a DQL ORDER BY directly, so it is selected as a
+     * HIDDEN alias — computed and ordered on, never hydrated into the result.
+     *
+     * @return list<Message>
+     */
+    public function forThreadInConversationOrder(MessageThread $thread): array
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS HIDDEN effectiveAt')
+            ->where('m.thread = :thread')
+            ->setParameter('thread', $thread)
+            ->orderBy('effectiveAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
