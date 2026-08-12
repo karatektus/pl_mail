@@ -181,7 +181,12 @@ Variables:
         >
             <iframe
                 data-mail--message-frame-target="frame"
-                title="{{ 'message.body_frame'|trans }}"
+                {# aria-label, not title: the frame still needs an accessible
+                   name, but `title` on an iframe is also a browser tooltip, so
+                   it popped up "Message content" over the whole body on every
+                   hover. aria-label names it for assistive tech and shows
+                   nothing on hover. #}
+                aria-label="{{ 'message.body_frame'|trans }}"
                 sandbox="{{ render.sandbox }}"
                 referrerpolicy="no-referrer"
                 loading="lazy"
