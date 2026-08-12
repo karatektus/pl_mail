@@ -112,6 +112,15 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                         id="message-list"
                         data-sync-scope="{% block list_scope %}*{% endblock %}"
                         data-mail--mail-pane-target="list"
+                        {# Confirms to the server that the rows below reached the
+                           screen. Mounted on the container rather than on each
+                           row so fifty rows are one report, and here rather than
+                           inside the frame so it survives a fragment swap and
+                           watches for one. #}
+                        {% if app.user %}
+                            data-controller="mail--new-marker"
+                            data-mail--new-marker-url-value="{{ path('app_mail_threads_listed') }}"
+                        {% endif %}
                         {# @container, so the rows below switch to their stacked
                            layout on the LIST's width. They used to switch on the
                            viewport's, which is a different number entirely once

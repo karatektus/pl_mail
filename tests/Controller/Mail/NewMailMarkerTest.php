@@ -18,6 +18,7 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\Version\Version;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -49,15 +50,13 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final class NewMailMarkerTest extends WebTestCase
 {
+    use SeedsMarkerFixtures;
+
     /** The migration under test — spelled once, and read back by two tests. */
     private const string MIGRATION = 'DoctrineMigrations\Version20260812161500';
 
     private KernelBrowser $client;
-    private EntityManagerInterface $em;
     private Connection $connection;
-    private User $user;
-    private Account $account;
-    private Label $inbox;
 
     protected function setUp(): void
     {
@@ -246,7 +245,9 @@ final class NewMailMarkerTest extends WebTestCase
         for ($i = 0; $i <= 50; ++$i) {
             $threads[] = $this->thread(
                 sprintf('thread %02d', $i),
-                lastMessageAt: sprintf('2026-01-01 09:00 +%d hours', $i),
+                // Inside the window, and ascending, so thread 0 is the oldest
+                // and lands on page two.
+                lastMessageAt: sprintf('now -%d minutes', 200 - $i),
                 flush: false,
             );
         }
@@ -440,7 +441,235 @@ final class NewMailMarkerTest extends WebTestCase
         self::assertSame('false', $this->rowAttribute($thread, 'data-new'));
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────
+
+    // ── the window: "new" times out ──────────────────────────────────────
+
+    /**
+     * The user's second complaint, and the more interesting one: "mail thats a
+     * day old isnt new. you dont have to see EVERY mail to get rid of new
+     * tags."
+     *
+     * That is a statement about what the marker is FOR. As first built, the
+     * badge could only be cleared by having its row rendered, which makes it a
+     * debt the user works off one page at a time — a backlog of unvisited
+     * labels stays badged forever. A "new" marker is supposed to say "this
+     * arrived while you were away", and after a day that is no longer an
+     * interesting thing to say about anything.
+     *
+     * Both edges, because a window asserted on one side is a window that can
+     * silently become "always" or "never".
+     */
+    public function testMailInsideTheWindowIsStillNew(): void
+    {
+        $thread = $this->thread('23 hours old', lastMessageAt: 'now -23 hours');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        self::assertSame(
+            'true',
+            $this->rowAttribute($thread, 'data-new'),
+            'inside the window, an unshown thread is still news',
+        );
+    }
+
+    public function testMailPastTheWindowIsNoLongerNew(): void
+    {
+        $thread = $this->thread('25 hours old', lastMessageAt: 'now -25 hours');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        self::assertSame(
+            'false',
+            $this->rowAttribute($thread, 'data-new'),
+            'a day-old conversation is not new, however few rows have been looked at',
+        );
+    }
+
+    /**
+     * The window is an age test, NOT a second way of stamping listedAt.
+     *
+     * An aged-out thread keeps listedAt null on purpose. The column records
+     * WHEN THE ROW WAS PUT IN FRONT OF THE USER, and stamping it for mail
+     * nobody ever saw would write a false statement that outlives the marker:
+     * the rethread backfill COALESCEs listedAt forward across a rebuild, and
+     * any later feature asking "was this ever displayed" would inherit the lie.
+     * Failing the window test is cheap by comparison — one range predicate on
+     * last_message_at, which is already the list's sort column.
+     */
+    public function testAgingOutDoesNotStampTheThreadAsHavingBeenShown(): void
+    {
+        $thread = $this->thread('long past it', lastMessageAt: 'now -3 days');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        self::assertSame('false', $this->rowAttribute($thread, 'data-new'));
+        self::assertTrue(
+            $this->isNew($thread),
+            'listedAt must stay null — nobody was shown this row',
+        );
+    }
+
+    /** The dots time out with the badges, or they promise mail the list denies. */
+    public function testAnAgedOutThreadStopsDottingItsPlace(): void
+    {
+        $this->thread('yesterdays promo', category: MessageCategory::Promotions, lastMessageAt: 'now -30 hours');
+        $this->thread('a normal one');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        self::assertFalse(
+            $this->dotIsVisible('new:category:' . MessageCategory::Promotions->value),
+            'Promotions holds nothing recent, so it must not claim to',
+        );
+
+        $counts = $this->countsPayload();
+
+        self::assertSame(0, $counts['new:category:' . MessageCategory::Promotions->value]);
+    }
+
+    // ── search ───────────────────────────────────────────────────────────
+
+    /**
+     * "search can remove new tags."
+     *
+     * A row whose subject and sender the user has just read in a result list
+     * has been shown, whatever route put it there. Leaving it badged means
+     * finding your own search results announced back to you as news.
+     */
+    public function testSearchResultsRetireTheBadge(): void
+    {
+        $thread = $this->thread('quarterly invoice');
+
+        $this->client->request('GET', '/mail/search?q=quarterly');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            'true',
+            $this->rowAttribute($thread, 'data-new'),
+            'the result list still shows the badge in the frame that retires it',
+        );
+        self::assertFalse($this->isNew($thread), 'and search counts as having been shown');
+    }
+
+    /** Search takes the same path, so it inherits the same prefetch guard. */
+    public function testAPrefetchedSearchRetiresNothing(): void
+    {
+        $thread = $this->thread('quarterly invoice');
+
+        $this->client->request(
+            'GET',
+            '/mail/search?q=quarterly',
+            server: ['HTTP_X_SEC_PURPOSE' => 'prefetch'],
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->isNew($thread));
+    }
+
+    // ── the client's confirmation: the reload bug ────────────────────────
+
+    /**
+     * The bug the user actually hit: "the tag survived a reload and tab
+     * navigation."
+     *
+     * Turbo 8 prefetches a link on hover and then SERVES THAT RESPONSE for the
+     * click, so every list reached from the sidebar or the tab strip arrives
+     * carrying X-Sec-Purpose: prefetch and there is no second request. The
+     * server was right to refuse to mark a speculative fetch and wrong to
+     * assume another request would follow; nothing ever retired the badge.
+     *
+     * The fix is that the DOM reports the rows it is actually showing. This is
+     * the controller half of that — see new-mail-marker.spec.ts for the half
+     * that proves a real browser does it.
+     */
+    public function testRowsReportedByTheClientAreRetired(): void
+    {
+        $thread = $this->thread('arrived by prefetch');
+
+        // Exactly what a hovered sidebar link does: the page renders, and
+        // nothing is marked.
+        $this->client->request('GET', '/mail/inbox', server: ['HTTP_X_SEC_PURPOSE' => 'prefetch']);
+
+        self::assertTrue($this->isNew($thread));
+
+        $this->client->request(
+            'POST',
+            '/mail/threads/listed',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['ids' => [$thread->id]], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertFalse($this->isNew($thread), 'a row the browser says it showed is a row that was shown');
+    }
+
+    /**
+     * The endpoint takes ids straight off the wire, so ownership is a WHERE
+     * clause rather than an assumption. Without it a guessed id retires
+     * somebody else's badge.
+     */
+    public function testTheClientCannotRetireAnotherUsersBadges(): void
+    {
+        $mine = $this->thread('mine');
+
+        $stranger = $this->seedUser();
+
+        $strangersAccount                 = new Account();
+        $strangersAccount->usr            = $stranger;
+        $strangersAccount->name           = 'Someone else';
+        $strangersAccount->email          = uniqid('other-', true) . '@example.test';
+        $strangersAccount->username       = uniqid('other-', true);
+        $strangersAccount->imapHost       = 'imap.example.test';
+        $strangersAccount->imapPort       = 993;
+        $strangersAccount->imapEncryption = 'ssl';
+        $strangersAccount->authType       = 'password';
+        $strangersAccount->isActive       = true;
+        $this->em->persist($strangersAccount);
+
+        $strangersThread                    = new MessageThread();
+        $strangersThread->account           = $strangersAccount;
+        $strangersThread->subject           = 'not yours';
+        $strangersThread->normalizedSubject = 'not yours';
+        $strangersThread->threadingMethod   = ThreadingMethod::SubjectFallback;
+        $strangersThread->lastMessageAt     = new DateTimeImmutable();
+        $strangersThread->category          = MessageCategory::Primary;
+        $strangersThread->messageCount      = 1;
+        $strangersThread->unreadCount       = 0;
+        $this->em->persist($strangersThread);
+        $this->em->flush();
+
+        $this->client->request(
+            'POST',
+            '/mail/threads/listed',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(
+                ['ids' => [$mine->id, $strangersThread->id]],
+                JSON_THROW_ON_ERROR,
+            ),
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertFalse($this->isNew($mine));
+        self::assertTrue(
+            $this->isNew($strangersThread),
+            'another account\'s badge is not ours to retire',
+        );
+    }
+
+    /** Garbage in the body is not a 500. */
+    public function testTheEndpointShrugsOffARubbishBody(): void
+    {
+        $this->client->request(
+            'POST',
+            '/mail/threads/listed',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: 'not json at all',
+        );
+
+        self::assertResponseIsSuccessful();
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────
 
     /**
      * The statements the migration would run.
@@ -519,96 +748,5 @@ final class NewMailMarkerTest extends WebTestCase
             true,
             flags: JSON_THROW_ON_ERROR,
         );
-    }
-
-    // ── fixtures ──────────────────────────────────────────────────────────
-
-    private function thread(
-        string           $subject,
-        ?MessageCategory $category = null,
-        string           $lastMessageAt = '2026-03-01 09:00',
-        int              $unread = 0,
-        bool             $flush = true,
-    ): MessageThread {
-        $thread                    = new MessageThread();
-        $thread->account           = $this->account;
-        $thread->subject           = $subject;
-        $thread->normalizedSubject = mb_strtolower($subject);
-        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
-        $thread->lastMessageAt     = new DateTimeImmutable($lastMessageAt);
-        $thread->category          = $category ?? MessageCategory::Primary;
-        $thread->messageCount      = 1;
-        $thread->unreadCount       = $unread;
-        $thread->addLabel($this->inbox);
-
-        $this->em->persist($thread);
-
-        $message              = new Message();
-        $message->account     = $this->account;
-        $message->thread      = $thread;
-        $message->subject     = $subject;
-        $message->fromAddress = 'sender@example.test';
-        $message->receivedAt  = new DateTimeImmutable($lastMessageAt);
-        $message->sentAt      = $message->receivedAt;
-        $message->seenAt         = $unread > 0 ? null : new DateTimeImmutable($lastMessageAt);
-        $message->flags          = [];
-        $message->hasAttachments = false;
-
-        $thread->addMessage($message);
-        $this->em->persist($message);
-
-        if (true === $flush) {
-            $this->em->flush();
-        }
-
-        return $thread;
-    }
-
-    private function seedLabel(string $name, ?LabelRole $role = null): Label
-    {
-        $label            = new Label();
-        $label->usr       = $this->user;
-        $label->name      = $name;
-        $label->role      = $role;
-        $label->isVisible = true;
-
-        $this->em->persist($label);
-        $this->em->flush();
-
-        return $label;
-    }
-
-    private function seedAccount(): Account
-    {
-        $account                 = new Account();
-        $account->usr            = $this->user;
-        $account->name           = 'Marker fixture';
-        $account->email          = uniqid('marker-', true) . '@example.test';
-        $account->username       = uniqid('marker-', true);
-        $account->imapHost       = 'imap.example.test';
-        $account->imapPort       = 993;
-        $account->imapEncryption = 'ssl';
-        $account->authType       = 'password';
-        $account->isActive       = true;
-
-        $this->em->persist($account);
-        $this->em->flush();
-
-        return $account;
-    }
-
-    private function seedUser(): User
-    {
-        $user            = new User();
-        $user->email     = 'marker-' . uniqid('', true) . '@example.test';
-        $user->nameFirst = 'Marker';
-        $user->nameLast  = 'Fixture';
-        $user->roles     = ['ROLE_USER'];
-        $user->password  = 'x';
-
-        $this->em->persist($user);
-        $this->em->flush();
-
-        return $user;
     }
 }

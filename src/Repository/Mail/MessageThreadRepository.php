@@ -577,6 +577,69 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The same retirement, for ids that arrived from the browser.
+     *
+     * markListed() trusts its caller because its caller just read the threads
+     * out of the database itself. This one is reachable by anybody who can POST
+     * a JSON array, so ownership is a WHERE clause rather than an assumption:
+     * without it, a list of guessed ids would let one account retire another
+     * account's badges.
+     *
+     * A subselect on Account rather than a join, because DQL UPDATE cannot
+     * join — and an id-by-id load-and-check would be one SELECT per row for a
+     * request that fires on every list view.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return int rows actually retired
+     */
+    public function markListedForUser(array $threadIds, UserInterface $user, \DateTimeImmutable $at): int
+    {
+        if ([] === $threadIds) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('t')
+            ->update()
+            ->set('t.listedAt', ':at')
+            ->where('t.id IN (:ids)')
+            ->andWhere('t.listedAt IS NULL')
+            ->andWhere(
+                't.account IN (SELECT owned.id FROM ' . Account::class . ' owned WHERE owned.usr = :user)',
+            )
+            ->setParameter('at', $at)
+            ->setParameter('ids', $threadIds)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * The "is new" predicate, in one place.
+     *
+     * Never shown AND arrived inside MessageThread::NEW_WINDOW. Every count
+     * below calls this instead of writing `t.listedAt IS NULL` itself, because
+     * the counts feed dots and the dots have to agree with the badges the list
+     * renders — and the list decides with MessageThread::isNewAt(). One rule,
+     * two languages; this is the seam where they are kept identical.
+     *
+     * An aged-out thread keeps listedAt NULL rather than being stamped as
+     * shown: the column says WHEN THE ROW WAS PUT IN FRONT OF THE USER, and
+     * writing a timestamp there for mail nobody ever saw would be a false
+     * statement recorded permanently — one the rethread backfill COALESCEs
+     * forward, and one any later feature reading "was this displayed" would
+     * inherit. The cost is a range predicate on last_message_at, which is
+     * already the list's sort column.
+     */
+    private function restrictToNew(QueryBuilder $qb, \DateTimeImmutable $now): void
+    {
+        $qb->andWhere('t.listedAt IS NULL')
+            ->andWhere('t.lastMessageAt IS NOT NULL')
+            ->andWhere('t.lastMessageAt >= :newSince')
+            ->setParameter('newSince', MessageThread::newSince($now));
+    }
+
+    /**
      * New threads per inbox category — what puts the dot on a Gmail tab.
      *
      * The same shape as countUnreadByCategoryForUnifiedInbox() and for the same
@@ -585,7 +648,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * @return array<string,int>
      */
-    public function countNewByCategoryForUnifiedInbox(UserInterface $user): array
+    public function countNewByCategoryForUnifiedInbox(UserInterface $user, \DateTimeImmutable $now): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS newCount')
@@ -594,11 +657,11 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
-            ->andWhere('t.listedAt IS NULL')
             ->groupBy('t.category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
 
+        $this->restrictToNew($qb, $now);
         $this->excludeTrashed($qb);
 
         $counts = [];
@@ -629,7 +692,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * @return array<string,int> role value → new thread count
      */
-    public function countNewPerRole(UserInterface $user): array
+    public function countNewPerRole(UserInterface $user, \DateTimeImmutable $now): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('l.role AS role', 'COUNT(DISTINCT t.id) AS newCount')
@@ -638,9 +701,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NOT NULL')
-            ->andWhere('t.listedAt IS NULL')
             ->setParameter('user', $user)
             ->groupBy('l.role');
+
+        $this->restrictToNew($qb, $now);
 
         $qb->andWhere(
             $qb->expr()->orX(
@@ -674,7 +738,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * @return array<int,int> label id → new thread count
      */
-    public function countNewPerUserLabel(UserInterface $user, ?Account $account = null): array
+    public function countNewPerUserLabel(UserInterface $user, \DateTimeImmutable $now, ?Account $account = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->select('l.id AS labelId', 'COUNT(DISTINCT t.id) AS newCount')
@@ -683,10 +747,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NULL')
-            ->andWhere('t.listedAt IS NULL')
             ->setParameter('user', $user)
             ->groupBy('l.id');
 
+        $this->restrictToNew($qb, $now);
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashed($qb);
 
@@ -700,7 +764,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /** New threads among the starred ones. */
-    public function countNewForStarred(UserInterface $user): int
+    public function countNewForStarred(UserInterface $user, \DateTimeImmutable $now): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
@@ -708,9 +772,9 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('t.starredAt IS NOT NULL')
-            ->andWhere('t.listedAt IS NULL')
             ->setParameter('user', $user);
 
+        $this->restrictToNew($qb, $now);
         $this->excludeTrashed($qb);
 
         return (int) $qb->getQuery()->getSingleScalarResult();

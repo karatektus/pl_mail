@@ -55,7 +55,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
 {% set isNew = isThread
     and (newThreadIds is defined
         ? item.id in newThreadIds
-        : item.listedAt is null) %}
+        : newMail.isNew(item)) %}
 
 {% if isThread %}
     {% set type = 'thread' %}
@@ -145,6 +145,11 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        are orthogonal, and a row that is `new="false" unread="true"` — scrolled
        past, never opened — is the case the whole feature exists to express. #}
     data-new="{{ isNew ? 'true' : 'false' }}"
+    {# The id the client reports back once this row is actually in the document,
+       so a list Turbo served from its prefetch cache still retires its badges —
+       see mail--new-marker and MailController::markListed(). Only on rows that
+       are claiming to be new; there is nothing to report about the others. #}
+    {% if isNew %}data-new-id="{{ rowId }}"{% endif %}
     data-starred="{{ starred ? 'true' : 'false' }}"
 >
     {# Full-row clickable overlay #}
