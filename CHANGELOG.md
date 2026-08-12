@@ -6,6 +6,44 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.33 — 2026-08-12
+
+**No migration. Two features, a fix, and a change to how the image is published.**
+
+**A message shows what you wrote, not what you quoted.** Open a thread and every
+message repeated the whole conversation beneath its own reply — the same quoted
+history stacked over and over, so the actual new sentence was a scroll down from
+the top of each message. Each message now shows only its own text, with the
+quoted reply-history folded behind a **Show quoted text** toggle like the
+composer's. The fold happens as the message renders, over the already-sanitised
+body inside its sandboxed frame, and it is deliberately cautious: it collapses
+only when there is genuinely new text above the quote, so it can never hide a
+word you wrote. Plain-text mail is left as it is.
+
+**Saving an attachment asks where it should go.** Saving a file to a connected
+service used to drop it into one preconfigured folder, and every service was
+offered for every attachment — including a photo library for a PDF it could
+never accept. Now the menu shows a photo library (Immich, Google Photos) only
+for images and videos, and file storage for anything; and picking one opens a
+destination picker — a folder tree for Nextcloud and the other file stores, an
+album list for the photo libraries, each able to create a new folder or album on
+the spot. The chosen destination is validated on the server against path
+traversal and albums that are not yours, and a saved-file *rule* keeps its own
+configured folder, so a one-off save can never redirect it.
+
+**A sent message in a thread carries its date.** A reply this account sent has a
+send time but no arrival time, and the thread showed only arrival — so a sent
+message was the one message in a conversation with a blank where every other
+message had a date. It now shows its send time there, as it already does when
+opened on its own.
+
+**The image is built once, on a release.** It used to build on every push to
+`main` and again on the release tag seconds later, and a third time on every
+pull request — which already builds the same image to test it — so publishing
+one release paid for the build several times over. It now builds only on a `v*`
+tag. `latest` and the version tags still publish on release; `main` still
+follows the tip of the default branch for anyone who wants it.
+
 ## v0.0.32 — 2026-08-12
 
 **No migration. Two fixes from a live instance.**
