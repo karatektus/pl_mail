@@ -109,6 +109,52 @@ class MessageThread
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $listedAt = null;
 
+    /**
+     * How long mail stays "new" on age alone.
+     *
+     * A marker you can only clear by looking at every row is not a marker, it
+     * is a debt — and mail that arrived yesterday is not news whether or not
+     * anyone scrolled past it. So newness has a second, unconditional exit:
+     * the window closes on its own.
+     *
+     * Spelled once, here, beside the column it qualifies. Every place that
+     * decides newness — the row badge, the category tabs, the sidebar dots,
+     * the counts endpoint and every repository query — goes through
+     * newSince()/isNewAt() rather than repeating "24 hours" in SQL.
+     */
+    public const string NEW_WINDOW = 'PT24H';
+
+    /**
+     * The arrival time a thread has to beat to still count as new.
+     *
+     * A static so the repository can put the same boundary in a WHERE clause
+     * that this entity applies in PHP; if the two ever disagreed, a sidebar dot
+     * would promise new mail that the list below it declined to badge.
+     */
+    public static function newSince(\DateTimeImmutable $now): \DateTimeImmutable
+    {
+        return $now->sub(new \DateInterval(self::NEW_WINDOW));
+    }
+
+    /**
+     * Is this conversation new AS OF $now — never shown, and recent enough to
+     * still be worth announcing?
+     *
+     * Both halves are required. `listedAt IS NULL` alone was the original rule
+     * and is what made the badge a chore; the window alone would re-badge mail
+     * the user has already been shown for the rest of the day.
+     *
+     * A thread with no lastMessageAt cannot be shown to have arrived inside the
+     * window, so it is not new. That errs towards silence, which is the right
+     * direction for a marker whose whole job is to be believed.
+     */
+    public function isNewAt(\DateTimeImmutable $now): bool
+    {
+        return null === $this->listedAt
+            && null !== $this->lastMessageAt
+            && $this->lastMessageAt >= self::newSince($now);
+    }
+
     public function __construct()
     {
         $this->messages = new ArrayCollection();

@@ -15,6 +15,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Mail\ThreadListRenderer;
 use App\Twig\NewMailMarkers;
 use App\Twig\SidebarCounts;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +35,7 @@ final class MailController extends AbstractController
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelRepository $labelRepository,
         private readonly AccountRepository $accountRepository,
+        private readonly ThreadListRenderer $listRenderer,
     )
     {
     }
@@ -119,86 +121,66 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Render a thread list, then retire the "New" badges it just showed.
+     * Render a thread list through the shared collect-render-then-mark path.
      *
-     * The order is the feature. A thread is new until its row has been
-     * DISPLAYED — not until it has been opened — so the marking has to happen
-     * against a page that has already been turned into HTML. Marking first
-     * would mean the badge was computed from state the same request had just
-     * destroyed, and no user would ever see it: mail would arrive and quietly
-     * become old in the frame that announced it.
-     *
-     * $this->render() returns a Response whose body is already a finished
-     * string, so "after render" is literally true here rather than a hopeful
-     * reading of the call order.
-     *
-     * Scoped to $threads, which is one page of PER_PAGE rows. Marking the whole
-     * query instead would clear page 2 and 3 the moment page 1 was looked at,
-     * which is the same bug as the migration's missing backfill, only slower.
-     *
-     * Every list view goes through here — including the ones where "new" is a
-     * strange thing to say, like Sent. A row that has been shown has been
-     * shown, whichever list showed it, and a view that rendered without marking
-     * would leave a badge the user has already looked at waiting to surprise
-     * them somewhere else.
-     *
-     * The same call serves the X-List-Fragment refresh, and deliberately: that
-     * refresh swaps the rendered rows straight into the visible list, so it is
-     * a display like any other. The refresh is already held while the tab is
-     * hidden and while a write is in flight — see mail_pane_controller — which
-     * is what keeps a background poll from retiring badges nobody saw.
+     * A thin forward to ThreadListRenderer, which SearchController uses too —
+     * search results are rows the user has been shown like any others.
      *
      * @param MessageThread[]      $threads
      * @param array<string, mixed> $parameters
      */
     private function renderList(Request $request, string $template, array $threads, array $parameters): Response
     {
-        $new = [];
-
-        foreach ($threads as $thread) {
-            if (null === $thread->listedAt) {
-                $new[] = (int) $thread->id;
-            }
-        }
-
-        $parameters['threads']      = $threads;
-        $parameters['newThreadIds'] = $new;
-
-        $response = $this->render($template, $parameters);
-
-        // A prefetch is a page nobody has seen. Turbo 8 fetches a link on hover
-        // — every sidebar row here is prefetched, since only the thread rows
-        // and the account folder rows opt out — so without this, running the
-        // pointer across the nav on the way to somewhere else would silently
-        // retire the badges in Promotions, in Starred and in every label it
-        // passed over. The rendered HTML is thrown away if the click never
-        // comes, and the marking would not have been.
-        if (true === self::isPrefetch($request)) {
-            return $response;
-        }
-
-        $this->threadRepository->markListed($new, new \DateTimeImmutable());
-
-        return $response;
+        return $this->listRenderer->render($request, $template, $threads, $parameters);
     }
 
     /**
-     * Whether this request is a speculative fetch rather than a visit.
+     * "These rows are on screen" — the client half of the marker.
      *
-     * Both spellings, because there are two mechanisms: Turbo sends its own
-     * `X-Sec-Purpose` on hover prefetches, and browsers send the standard
-     * `Sec-Purpose` for prerender and speculation-rules prefetching. Either one
-     * means the same thing to this feature — the page may never be looked at.
+     * This exists because the server cannot tell a render from a display, and
+     * one particular gap between the two made the badge permanent. Turbo 8
+     * prefetches links on hover and then reuses that response for the click, so
+     * every visit to a list reached from the sidebar or the category tabs
+     * arrived carrying `X-Sec-Purpose: prefetch`. renderList() correctly
+     * declined to mark a speculative fetch; nothing ever marked the visit,
+     * because there was no second request to mark it on. The badge survived
+     * navigation, reload and everything else, forever.
+     *
+     * So the DOM reports in. Rows that actually entered the document say so,
+     * which is the statement the feature has always claimed to make, and the
+     * one no response header can make on their behalf.
+     *
+     * Idempotent by construction: markListedForUser() only writes where
+     * listedAt is still null, so the ordinary non-prefetched case — already
+     * marked server-side during the render — costs one UPDATE matching no rows.
      */
-    private static function isPrefetch(Request $request): bool
+    #[Route('/threads/listed', name: 'threads_listed', methods: ['POST'])]
+    public function markListed(Request $request): JsonResponse
     {
-        foreach (['X-Sec-Purpose', 'Sec-Purpose'] as $header) {
-            if (str_contains((string) $request->headers->get($header), 'prefetch')) {
-                return true;
-            }
-        }
+        $this->denyAccessUnlessGranted('ROLE_USER');
 
-        return false;
+        $body = json_decode((string) $request->getContent(), true);
+        $ids  = \is_array($body) && \is_array($body['ids'] ?? null) ? $body['ids'] : [];
+
+        // Ints only, and capped. The cap is not a security boundary — ownership
+        // is — but a page renders PER_PAGE rows, so a body an order of
+        // magnitude past that is not a list anybody looked at.
+        $ids = \array_slice(
+            \array_values(\array_filter(\array_map(
+                static fn (mixed $id): int => (int) $id,
+                $ids,
+            ), static fn (int $id): bool => $id > 0)),
+            0,
+            self::PER_PAGE * 2,
+        );
+
+        $marked = $this->threadRepository->markListedForUser(
+            $ids,
+            $this->getUser(),
+            new \DateTimeImmutable(),
+        );
+
+        return new JsonResponse(['marked' => $marked]);
     }
 
     #[Route('/inbox', name: 'inbox')]

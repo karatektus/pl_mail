@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Repository\User\UserRepository;
+use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use App\Twig\SidebarCounts;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -33,6 +37,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class BadgeSemanticsTest extends WebTestCase
 {
+    use SeedsMarkerFixtures;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
     private function signedIn(): KernelBrowser
@@ -210,5 +216,129 @@ final class BadgeSemanticsTest extends WebTestCase
 
             self::assertNotContains($key, $badgeKeys);
         }
+    }
+
+    // ── the timeout, where the two could most easily disagree ─────────────
+
+    /**
+     * Newness now has a 24-hour ceiling, and a ceiling applied in one place and
+     * not the other is exactly the 188-vs-193 fault this file exists for — only
+     * worse, because a dot carries no number to argue with. A sidebar that
+     * says "something arrived here" over a list that badges nothing sends the
+     * user looking for mail that is not there.
+     *
+     * So: a mailbox holding one thread on each side of the window, and the
+     * count endpoint asked to agree with the rows actually rendered.
+     *
+     * Against a fixture mailbox of its own rather than the shared admin seed,
+     * because "one in, one out" is the whole point and cannot be arranged in a
+     * mailbox whose contents this test did not choose.
+     */
+    public function testTheNewCountsHonourTheTimeoutThatTheBadgesDo(): void
+    {
+        $client = $this->fixtureClient();
+
+        $this->thread('arrived just now');
+        $this->thread('arrived the day before yesterday', lastMessageAt: 'now -40 hours');
+
+        $client->request('GET', '/mail/inbox');
+
+        self::assertResponseIsSuccessful();
+
+        $badged = $client->getCrawler()->filter('[data-thread-new]')->count();
+
+        self::assertSame(1, $badged, 'only the recent one is news');
+
+        // Read BEFORE the render that retires it would be ideal, but the render
+        // above has already marked what it showed — so this asks the endpoint
+        // the same question the next page load would, and both must say zero.
+        $counts = $this->countsFrom($client);
+
+        self::assertSame(
+            0,
+            $counts['new:category:' . MessageCategory::Primary->value],
+            'the shown thread is retired and the old one aged out, so nothing is left to dot',
+        );
+    }
+
+    /**
+     * The agreement that matters most, stated as an invariant: the number of
+     * "New" badges the inbox renders is the number the endpoint would put on
+     * the Primary tab, at the moment before the render retires them.
+     */
+    public function testTheCategoryDotCountMatchesTheBadgesTheListRenders(): void
+    {
+        $client = $this->fixtureClient();
+
+        $this->thread('recent one');
+        $this->thread('recent two');
+        $this->thread('far too old', lastMessageAt: 'now -3 days');
+
+        // The counts endpoint renders no list, so it retires nothing — this is
+        // the state the inbox is about to draw from.
+        $expected = $this->countsFrom($client)['new:category:' . MessageCategory::Primary->value];
+
+        $client->request('GET', '/mail/inbox');
+
+        $badged = $client->getCrawler()->filter('[data-thread-new]')->count();
+
+        self::assertSame(2, $expected, 'two inside the window, one aged out');
+        self::assertSame($expected, $badged, 'the dot must count exactly what the list badges');
+    }
+
+    /**
+     * A client signed in as a user whose whole mailbox this test wrote, inside
+     * a transaction that tearDown rolls back.
+     */
+    private function fixtureClient(): KernelBrowser
+    {
+        $client = static::createClient();
+
+        // Without this the kernel is rebuilt between requests, taking the
+        // connection holding the transaction with it, and the fixtures vanish
+        // before the second request can see them.
+        $client->disableReboot();
+
+        $container        = static::getContainer();
+        $this->em         = $container->get(EntityManagerInterface::class);
+        $this->connection = $container->get(Connection::class);
+
+        $this->connection->beginTransaction();
+
+        $this->user    = $this->seedUser();
+        $this->account = $this->seedAccount();
+        $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
+
+        $client->loginUser($this->user);
+
+        return $client;
+    }
+
+    /** @return array<string,int> */
+    private function countsFrom(KernelBrowser $client): array
+    {
+        $client->request('GET', '/mail/sidebar/counts');
+
+        self::assertResponseIsSuccessful();
+
+        /** @var array<string,int> */
+        return json_decode(
+            (string) $client->getResponse()->getContent(),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+    }
+
+    private ?Connection $connection = null;
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->connection && true === $this->connection->isTransactionActive()) {
+            $this->connection->rollBack();
+        }
+
+        $this->connection = null;
+
+        parent::tearDown();
     }
 }

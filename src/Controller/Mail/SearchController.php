@@ -7,6 +7,7 @@ namespace App\Controller\Mail;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Mail\ThreadListRenderer;
 use App\Service\Search\SearchQueryParser;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +24,7 @@ final class SearchController extends AbstractController
         private readonly SearchQueryParser       $parser,
         private readonly MessageThreadRepository $threadRepository,
         private readonly EntityManagerInterface  $em,
+        private readonly ThreadListRenderer      $listRenderer,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -66,9 +68,14 @@ final class SearchController extends AbstractController
         $threads = $this->threadRepository->search($user, $parsed, $page, sort: $sort);
         $total   = $this->threadRepository->countSearch($user, $parsed);
 
-        return $this->render('search/search.html.twig', [
+        // Through ThreadListRenderer, not $this->render(): a row whose subject
+        // and sender the user has just read in a result list has been SHOWN,
+        // and leaving it badged would mean finding your own search results
+        // announced as news the next time you opened the inbox. Same
+        // collect-render-then-mark order, same prefetch guard, one
+        // implementation — see the service.
+        return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
             'q'        => $raw,
-            'threads'  => $threads,
             'total'    => $total,
             'page'     => $page,
             'per_page' => 50,
