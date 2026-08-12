@@ -68,6 +68,28 @@ final class SenderAvatarExtension extends AbstractExtension
         'bg-[#4d7c0f] dark:bg-[#a3e635]',
     ];
 
+    /**
+     * The same palette as DOT_TONES, as BORDER classes rather than fill.
+     *
+     * Spelled out literally rather than `str_replace('bg-','border-', …)`,
+     * because Tailwind generates only the arbitrary colour classes it can see
+     * as literal strings while scanning source — a class built at runtime is a
+     * class that never gets a rule. Kept index-for-index with DOT_TONES so the
+     * account's fill and its border are the same colour.
+     *
+     * @var list<string>
+     */
+    private const array DOT_BORDERS = [
+        'border-[#c2410c] dark:border-[#fb923c]',
+        'border-[#15803d] dark:border-[#4ade80]',
+        'border-[#1d4ed8] dark:border-[#60a5fa]',
+        'border-[#6d28d9] dark:border-[#a78bfa]',
+        'border-[#a16207] dark:border-[#facc15]',
+        'border-[#be185d] dark:border-[#f472b6]',
+        'border-[#0f766e] dark:border-[#2dd4bf]',
+        'border-[#4d7c0f] dark:border-[#a3e635]',
+    ];
+
     public function getFilters(): array
     {
         return [
@@ -75,7 +97,14 @@ final class SenderAvatarExtension extends AbstractExtension
             new TwigFilter('avatar_initial', $this->initial(...)),
             new TwigFilter('account_tone', $this->accountTone(...)),
             new TwigFilter('account_color', $this->accountColor(...)),
+            new TwigFilter('account_border', $this->accountBorder(...)),
         ];
+    }
+
+    /** The account's colour as a border class — see accountColor() and DOT_BORDERS. */
+    public function accountBorder(int $sortOrder): string
+    {
+        return self::DOT_BORDERS[(($sortOrder % count(self::DOT_BORDERS)) + count(self::DOT_BORDERS)) % count(self::DOT_BORDERS)];
     }
 
     /**

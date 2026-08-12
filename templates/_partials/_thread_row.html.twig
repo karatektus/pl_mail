@@ -131,6 +131,21 @@ the account view passes false.
     tabindex="-1"
     ></a>
 
+    {# Which account this row arrived on: a small L-bracket in the row's
+       lower-left corner — a left and a bottom stroke meeting at the corner. A
+       round dot beside the sender read as an unread marker, the very thing the
+       list already signals with weight and the trailing dot; the account moved
+       out of the content entirely into a corner mark, which is identity
+       vocabulary, not status. The strokes are the account's own derived
+       colour (as a border), the same everywhere it appears; only in a unified
+       list on a multi-account install. #}
+    {% if showAccountDot %}
+        {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
+        <span class="pointer-events-none absolute bottom-1 left-1 h-3 w-3 border-l-2 border-b-2 rounded-bl-[3px] {{ rowAccount.sortOrder|account_border }}"
+              title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
+              aria-hidden="true"></span>
+    {% endif %}
+
     <div
         class="pointer-events-auto flex items-center @xl:items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
             {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
@@ -177,15 +192,6 @@ the account view passes false.
 
             {# Row 1 (stacked) / sender column (wide) #}
             <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
-                {# Which account this arrived on — see the note at the top of
-                   this file. Colour is derived from the address and never
-                   stored, so it is the same dot for the same account on every
-                   device, exactly as the sender avatars are. #}
-                {% if showAccountDot %}
-                    {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
-                    <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full {{ rowAccount.sortOrder|account_color }}"
-                          title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"></span>
-                {% endif %}
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
                     {{ sender }}
                 </span>
