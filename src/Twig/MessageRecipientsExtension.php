@@ -7,7 +7,6 @@ namespace App\Twig;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\RecipientHeaderHelper;
 use App\Entity\Mail\Message;
-use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -31,10 +30,6 @@ final class MessageRecipientsExtension extends AbstractExtension
 {
     /** Names shown before the rest become "+N". */
     private const int SUMMARY_NAMES = 3;
-
-    public function __construct(private readonly TranslatorInterface $translator)
-    {
-    }
 
     public function getFunctions(): array
     {
