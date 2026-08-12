@@ -183,7 +183,7 @@ the account view passes false.
                    device, exactly as the sender avatars are. #}
                 {% if showAccountDot %}
                     {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
-                    <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full {{ (rowAccount.email ?: rowAccount.username)|account_tone }}"
+                    <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full {{ rowAccount.sortOrder|account_color }}"
                           title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"></span>
                 {% endif %}
                 <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">

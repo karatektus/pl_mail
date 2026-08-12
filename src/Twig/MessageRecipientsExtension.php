@@ -94,15 +94,19 @@ final class MessageRecipientsExtension extends AbstractExtension
 
         $named = [] !== $to ? $to : $cc;
 
-        // Aliases included: mail addressed to an alias of this account is
-        // addressed to me, and reading "to sales@…" when I am sales@… is the
-        // same failure to recognise myself the ownership rules already solve.
+        // The reader asked for the real address rather than "me": on their own
+        // received mail the recipient is always themselves, so "to me" told
+        // them nothing. An owned address renders as the address itself — which
+        // is the one the mail actually reached, the thing worth seeing when a
+        // reader has several. Not its display name either, which hides the very
+        // address they asked to see. Everyone else keeps a name where there is
+        // one, since a stranger's name reads better than their address.
         $owned = array_flip($message->account->ownedAddresses);
         $names = [];
 
         foreach (array_slice($named, 0, self::SUMMARY_NAMES) as $entry) {
             $names[] = true === isset($owned[$entry['address']])
-                ? $this->translator->trans('message.details.me')
+                ? $entry['address']
                 : ('' !== $entry['name'] ? $entry['name'] : $entry['address']);
         }
 

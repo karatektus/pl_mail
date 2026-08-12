@@ -74,7 +74,26 @@ final class SenderAvatarExtension extends AbstractExtension
             new TwigFilter('avatar_tone', $this->tone(...)),
             new TwigFilter('avatar_initial', $this->initial(...)),
             new TwigFilter('account_tone', $this->accountTone(...)),
+            new TwigFilter('account_color', $this->accountColor(...)),
         ];
+    }
+
+    /**
+     * A distinct colour per account, by POSITION rather than by hash.
+     *
+     * Accounts are a small ordered set — a handful, arranged by the user — not
+     * the unbounded stream of senders `accountTone()` was written for. Hashing
+     * an address into eight buckets makes a collision a coin-flip at four
+     * accounts (it was: two shared a colour in the sidebar), and a dot whose
+     * whole job is to tell accounts apart must not put two of them in the same
+     * paint. `sortOrder` is the dense 0-based position AccountCreator keeps, so
+     * the first eight accounts are guaranteed different and the same account is
+     * the same colour wherever it appears — the sidebar dot and the message
+     * row's dot included, which is the point of it.
+     */
+    public function accountColor(int $sortOrder): string
+    {
+        return self::DOT_TONES[(($sortOrder % count(self::DOT_TONES)) + count(self::DOT_TONES)) % count(self::DOT_TONES)];
     }
 
     public function accountTone(?string $seed): string

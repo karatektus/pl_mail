@@ -31,7 +31,14 @@
                 title="{{ account.displayAddress }}"
                 class="flex items-center gap-2 py-2 flex-1 min-w-0"
             >
-                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"></span>
+                {# The account's IDENTITY colour, the same tone its rows wear in
+                   the unified lists — so a coloured dot on a message and this
+                   dot in the sidebar are the same account. It used to be a
+                   green/grey status light, which made every connected account
+                   identical and told the list dots apart from nothing. Inactive
+                   accounts dim rather than change hue: still recognisably the
+                   same account, visibly asleep. #}
+                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.sortOrder|account_color }}{{ account.isActive ? '' : ' opacity-40' }}"></span>
                 <span class="truncate text-sm">{{ account.displayAddress }}</span>
             </a>
             {# aria-expanded, because this is a disclosure button and which way

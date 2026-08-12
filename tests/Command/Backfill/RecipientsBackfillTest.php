@@ -177,15 +177,20 @@ final class RecipientsBackfillTest extends KernelTestCase
         self::assertFalse($summary['empty']);
     }
 
-    /** An address of this account's own reads as "me", aliases included. */
-    public function testMyOwnAddressReadsAsMe(): void
+    /**
+     * An address of this account's own reads as the ADDRESS, not "me" and not
+     * the display name that came with it: on your own received mail the
+     * recipient is always you, so "me" said nothing, and the reader asked to
+     * see which of their addresses the mail actually reached.
+     */
+    public function testMyOwnAddressReadsAsTheAddress(): void
     {
         $message = $this->seed(
             toAddresses: [['name' => 'Whoever', 'address' => (string) $this->account->username]],
             headers: [],
         );
 
-        self::assertSame(['me'], $this->extension->summary($message)['names']);
+        self::assertSame([(string) $this->account->username], $this->extension->summary($message)['names']);
     }
 
     // ── Fixture ───────────────────────────────────────────────────────────────
