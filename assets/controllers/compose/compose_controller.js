@@ -1595,7 +1595,8 @@ export default class extends Controller {
 
         this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
-        let payload;
+        const failure = this._t('imageFailed', 'Could not insert the image');
+        let payload = null;
 
         try {
             const response = await fetch(`/compose/inline-image/${id}`, {
@@ -1607,18 +1608,19 @@ export default class extends Controller {
                 },
             });
 
-            payload = await response.json();
+            // Anything that is not our JSON — a proxy's error page, a request
+            // PHP discarded whole for exceeding post_max_size — is a failure
+            // we cannot explain, and a parser's complaint is not an
+            // explanation to show anybody.
+            payload = await response.json().catch(() => null);
 
-            if (false === response.ok) {
-                throw new Error(payload?.error ?? '');
+            if (false === response.ok || 'string' !== typeof payload?.url) {
+                this._setStatus(payload?.error ?? failure, 'text-danger');
+
+                return;
             }
-        } catch (error) {
-            const detail = error?.message ?? '';
-
-            this._setStatus(
-                '' === detail ? this._t('imageFailed', 'Could not insert the image') : detail,
-                'text-danger',
-            );
+        } catch (_) {
+            this._setStatus(failure, 'text-danger');
 
             return;
         }
