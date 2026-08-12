@@ -12,7 +12,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * The one route a remote image in an email may be loaded through.
@@ -21,8 +20,26 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * between it and HTTP. The two jobs here are checking the signature and making
  * sure that nothing which comes back from a stranger's server is ever served in
  * a way a browser might treat as anything but a picture.
+ *
+ * WHY THIS ROUTE IS ANONYMOUS (no `#[IsGranted]`, PUBLIC_ACCESS in security.yaml)
+ * ------------------------------------------------------------------------------
+ * The mail body renders in a sandbox WITHOUT `allow-same-origin`, so its origin
+ * is opaque — the deliberate XSS containment that means a sanitizer gap cannot
+ * reach the app origin or its cookies. The price of an opaque origin is that the
+ * browser sends NO session cookie with the frame's subresource loads, so an
+ * `<img>` pointing here arrives unauthenticated. Behind ROLE_USER those requests
+ * were answered with the login page (HTTP 200, text/html), which an `<img>`
+ * renders as a broken icon — every remote image in the client was broken.
+ *
+ * The signature is the authorization. It is `hash_hmac('sha256', url, secret)`
+ * with the deployment's own secret and NO user in the payload (see
+ * {@see ImageProxySigner}) — a global capability token that only OUR rewriting
+ * pipeline can mint, so only URLs we signed are fetchable. This is the standard
+ * signed-image-proxy design (cf. GitHub's Camo). Session identity adds nothing
+ * a per-user check could enforce, because the token is not per user; requiring
+ * it only broke the frame. Every SSRF rule still lives in {@see ImageProxyFetcher}
+ * and runs on every fetch regardless of who (if anyone) is signed in.
  */
-#[IsGranted('ROLE_USER')]
 final class ImageProxyController extends AbstractController
 {
     /**

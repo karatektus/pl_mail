@@ -149,8 +149,12 @@ final readonly class ImageProxyFetcher
                     'Accept'     => 'image/*',
                     'User-Agent' => self::USER_AGENT,
                 ],
-                // Belt and braces around the client's own defaults.
-                'extra'           => ['curl' => [\CURLOPT_REFERER => null]],
+                // No Referer: the client sends none unless one is set, and none
+                // is. It must NOT be forced off through `extra.curl` — Symfony's
+                // HttpClient reserves CURLOPT_REFERER for its own `headers`
+                // handling and throws on every request that tries, which turned
+                // this whole proxy into a placeholder generator. Leaving it out
+                // is what keeps the request refererless.
             ]);
 
             $status = $response->getStatusCode();
