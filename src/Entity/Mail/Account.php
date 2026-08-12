@@ -266,6 +266,36 @@ class Account extends AccountModel
     /** Consecutive backfill listings that still found unfetched messages. */
     public const string SETTING_BACKFILL_ATTEMPTS = 'sync.backfill_attempts';
 
+    /**
+     * What this account does when a sender asks for a read receipt, for any
+     * address that has no answer of its own.
+     *
+     * Absent means ReadReceiptMode::Never, and that default is the feature's
+     * whole privacy posture rather than a convenience: a user who never opens
+     * this panel must never emit a receipt. Every read of this setting goes
+     * through ReadReceiptMode::fromSetting(), which turns anything it does not
+     * recognise — absent, null, a value from a future version, a hand-edited
+     * jsonb blob — into Never, so there is no shape of stored data that
+     * accidentally starts answering.
+     */
+    public const string SETTING_READ_RECEIPT_DEFAULT = 'compose.read_receipt.default';
+
+    /**
+     * The per-alias override, keyed by alias id.
+     *
+     * Per alias rather than per account because that is the granularity people
+     * actually want: a work address that answers receipts and a personal one
+     * that never does are the same mailbox here, and one switch for both makes
+     * the cautious answer the only usable one. Keyed into the existing jsonb
+     * bag rather than given a column on EmailAlias, for the same reason the
+     * signature setting is — see SETTING_CALENDAR_TARGET above, and note that
+     * a deleted alias simply leaves a key nothing ever reads again.
+     */
+    public static function readReceiptAliasSetting(int $aliasId): string
+    {
+        return 'compose.read_receipt.alias.' . $aliasId;
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -278,6 +308,22 @@ class Account extends AccountModel
     public function setSetting(string $key, mixed $value): static
     {
         $this->settings[$key] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Remove a key entirely, which is not the same as setting it to null.
+     *
+     * Readers that layer settings — a per-alias override on top of an account
+     * default — distinguish "this level has no opinion" from "this level says
+     * no" by whether the key is there at all. Writing null would make an alias
+     * that means "follow the default" indistinguishable from one that means
+     * "never", and the default would stop reaching it.
+     */
+    public function unsetSetting(string $key): static
+    {
+        unset($this->settings[$key]);
 
         return $this;
     }

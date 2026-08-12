@@ -1315,6 +1315,15 @@ message:
     quote:
         hide: Hide quoted text
         show: Show quoted text
+    read_receipt:
+        dismiss: 'No thanks'
+        mdn:
+            body: "Your message to %recipient% with the subject “%subject%” was displayed on %date%. This is no guarantee that it has been read or understood."
+            subject: 'Read: %subject%'
+        mismatch: 'The receipt was asked to go to %notifyTo%, which is not the address this message was sent from (%sender%).'
+        read_at: 'Read at %datetime%'
+        requested: '%sender% asked to be told when you read this message.'
+        send: 'Send receipt'
     save_to: 'Save to'
     security:
         mismatch:
@@ -1717,6 +1726,20 @@ settings:
             subheading: Colour scheme for the whole interface.
             system: System
     back: Back to inbox
+    compose_defaults:
+        heading: 'Compose defaults'
+        invalid: 'That setting could not be saved.'
+        read_receipt:
+            for_alias: 'Read receipts for %alias%'
+            hint: 'When a sender asks to be told you have read their message.'
+            inherit: 'Account default (%mode%)'
+            label: 'Read receipts'
+            mode:
+                always: 'Always send'
+                ask: 'Ask each time'
+                never: 'Never send'
+        saved: 'Saved.'
+        subheading: 'What each of your addresses does by default when it sends and receives.'
     filters:
         account: Account
         action:

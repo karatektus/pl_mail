@@ -1,0 +1,88 @@
+{#
+mail/_read_receipt.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Everything a message has to say about read receipts, in one region.
+
+Two mutually exclusive states, and neither is common — most messages render
+this partial to nothing at all, which is why it lives outside the reading frame
+next to the images bar rather than inside the message body: like that bar, it is
+chrome the sender must not be able to draw, and a "send a read receipt" button
+an email could forge is exactly the button you would forge.
+
+  · An INBOUND request the mailbox is set to ask about. Two buttons and a plain
+    sentence naming who wants to be told — the address matters, because the
+    whole reason this is a question is that it is sometimes not the person it
+    appears to be.
+
+  · An OUTBOUND message we asked for a receipt on, that came back. "Read at …",
+    and nothing to press.
+
+Variables:
+  message  Message
+#}
+{% set decision = read_receipt_decision(message) %}
+
+<div id="read_receipt_{{ message.id }}">
+
+    {# ── We asked, and they read it ─────────────────────────────────────── #}
+    {% if message.readReceiptAt is not null %}
+        <div class="flex items-center gap-2 mt-3 text-xs text-ink-faint" data-testid="read-receipt-result">
+            <i class="fa-regular fa-envelope-open text-[10px]" aria-hidden="true"></i>
+            <span class="flex-1 min-w-0 truncate">
+                {{ 'message.read_receipt.read_at'|trans({
+                    '%datetime%': message.readReceiptAt|intl_date('dMMM') ~ ', ' ~ message.readReceiptAt|date(clock.time),
+                }) }}
+            </span>
+        </div>
+    {% endif %}
+
+    {# ── They asked, and this mailbox wants to be asked ─────────────────── #}
+    {% if decision.needsPrompt %}
+        <div
+            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 rounded-lg border border-line bg-raised px-3 py-2"
+            data-testid="read-receipt-prompt"
+        >
+            <i class="fa-regular fa-bell text-ink-faint text-xs" aria-hidden="true"></i>
+
+            <span class="text-xs text-ink-muted flex-1 min-w-0">
+                {{ 'message.read_receipt.requested'|trans({'%sender%': decision.notifyTo}) }}
+
+                {# Only when the setting said "always" and the mismatch pulled it
+                   back. Without this line a mailbox configured to answer
+                   automatically suddenly asks, with no explanation — which reads
+                   as a bug rather than as the guard it is. #}
+                {% if decision.downgraded %}
+                    <span class="block text-warning">
+                        {{ 'message.read_receipt.mismatch'|trans({
+                            '%sender%':   message.fromAddress,
+                            '%notifyTo%': decision.notifyTo,
+                        }) }}
+                    </span>
+                {% endif %}
+            </span>
+
+            <form method="post"
+                  action="{{ path('app_mail_read_receipt_send', {'id': message.id}) }}"
+                  data-turbo-stream>
+                <input type="hidden" name="_token" value="{{ csrf_token('read-receipt' ~ message.id) }}">
+                <button type="submit"
+                        data-testid="read-receipt-send"
+                        class="text-xs font-medium text-link hover:underline cursor-pointer">
+                    {{ 'message.read_receipt.send'|trans }}
+                </button>
+            </form>
+
+            <form method="post"
+                  action="{{ path('app_mail_read_receipt_dismiss', {'id': message.id}) }}"
+                  data-turbo-stream>
+                <input type="hidden" name="_token" value="{{ csrf_token('read-receipt' ~ message.id) }}">
+                <button type="submit"
+                        data-testid="read-receipt-dismiss"
+                        class="text-xs font-medium text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
+                    {{ 'message.read_receipt.dismiss'|trans }}
+                </button>
+            </form>
+        </div>
+    {% endif %}
+
+</div>

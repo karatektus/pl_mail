@@ -4,6 +4,7 @@ namespace App\Entity\Mail;
 
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
 use App\Repository\Mail\MessageRepository;
@@ -279,6 +280,51 @@ class Message extends MessageModel
     public ?DateTimeImmutable $submissionCancelledAt = null;
 
     /**
+     * How urgent this message claims to be, or null if nobody said.
+     *
+     * Written from the composer's more-options menu on the way out, where
+     * MessageSendService::buildEmail() turns it into the two headers that
+     * express it. Nullable on purpose — see MessagePriority for why an absent
+     * value and an explicit Normal are kept apart.
+     */
+    #[ORM\Column(name: 'priority', length: 10, nullable: true, enumType: MessagePriority::class)]
+    public ?MessagePriority $priority = null;
+
+    /**
+     * That a read receipt was asked for — in either direction.
+     *
+     * One column for both because it is one fact stated from two sides. On an
+     * outgoing message it is the composer saying "tell me when this is read",
+     * and buildEmail() turns it into Disposition-Notification-To. On an
+     * incoming one it is ReadReceiptStep recording that the sender asked, so
+     * the read path does not have to re-parse the header bag every time a
+     * mailbox is opened — which is the whole reason detection happens at
+     * ingest.
+     *
+     * Nullable rather than defaulted false so the backfill of existing rows is
+     * a no-op and "never examined" stays distinguishable from "examined, no
+     * request". Read it through Message::wantsReadReceipt().
+     */
+    #[ORM\Column(name: 'read_receipt_requested', nullable: true)]
+    public ?bool $readReceiptRequested = null;
+
+    /**
+     * When the other end read a message WE sent, per an MDN that came back.
+     *
+     * The payoff half of the feature. Requesting a receipt and then having
+     * nowhere to show the answer would make the request a header nobody ever
+     * sees the effect of; this is what the sent message renders as "Read at …".
+     *
+     * Only ever written by ReadReceiptCorrelator, from an inbound
+     * multipart/report whose Original-Message-ID matches this row's messageId.
+     * Deliberately not the same field as seenAt: seenAt is when *this* mailbox
+     * read the message, and for a sent message that is always "immediately, by
+     * the person who sent it".
+     */
+    #[ORM\Column(name: 'read_receipt_at', nullable: true)]
+    public ?DateTimeImmutable $readReceiptAt = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]
@@ -362,6 +408,20 @@ class Message extends MessageModel
     public function hasFlag(MessageFlag $flag): bool
     {
         return in_array($flag->value, $this->flags, true);
+    }
+
+    /**
+     * Whether a read receipt was asked for on this message.
+     *
+     * A method rather than reading $readReceiptRequested directly, because the
+     * column is tri-state and only one of its three values means yes — null is
+     * "nobody has looked", and every caller wanting a plain boolean would
+     * otherwise write the same `true === ` by hand and one of them would
+     * eventually write `!== null`.
+     */
+    public function wantsReadReceipt(): bool
+    {
+        return true === $this->readReceiptRequested;
     }
 
     /**

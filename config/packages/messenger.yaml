@@ -112,6 +112,22 @@ framework:
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
             App\Infrastructure\Messaging\Message\ExtractEventsMessage: ingest
+            # Both halves of read receipts, and both routed for the reason
+            # RegisterCalendarPushMessage explains: an unrouted message is
+            # handled in the process that dispatched it. Unrouted, the send
+            # would put an SMTP conversation inside the HTTP request that
+            # rendered a mailbox — the exact thing it is async to avoid — and
+            # the ingest scan would run inside a sync batch, against the
+            # interface contract that says a post-ingest step dispatches and
+            # returns.
+            #
+            # export for the send: it is mail leaving plMail, and it wants that
+            # queue's tighter retry ladder, because the failures are a relay
+            # refusing a connection. ingest for the scan: it is work that
+            # immediately follows mail arriving, and its retries should be the
+            # patient ones.
+            App\Infrastructure\Messaging\Message\SendReadReceiptMessage: export
+            App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage: ingest
             # ingest rather than export, although a calendar sync writes
             # outward as well as reading. Nobody waits on it: a local edit is
             # saved and on screen before the push is dispatched, so the send

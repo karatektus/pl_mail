@@ -1342,6 +1342,15 @@ message:
     quote:
         hide: Zitierten Text ausblenden
         show: Zitierten Text anzeigen
+    read_receipt:
+        dismiss: 'Nein, danke'
+        mdn:
+            body: "Ihre Nachricht an %recipient% mit dem Betreff „%subject%“ wurde am %date% angezeigt. Das ist keine Bestätigung dafür, dass sie gelesen oder verstanden wurde."
+            subject: 'Gelesen: %subject%'
+        mismatch: 'Die Bestätigung soll an %notifyTo% gehen – das ist nicht die Adresse, von der diese Nachricht gesendet wurde (%sender%).'
+        read_at: 'Gelesen am %datetime%'
+        requested: '%sender% möchte benachrichtigt werden, wenn Sie diese Nachricht lesen.'
+        send: 'Bestätigung senden'
     save_to: 'Speichern in'
     security:
         mismatch:
@@ -1754,6 +1763,20 @@ settings:
             subheading: Farbschema für die gesamte Oberfläche.
             system: System
     back: Zurück zum Posteingang
+    compose_defaults:
+        heading: 'Standards fürs Verfassen'
+        invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
+        read_receipt:
+            for_alias: 'Lesebestätigungen für %alias%'
+            hint: 'Wenn ein Absender benachrichtigt werden möchte, sobald Sie seine Nachricht gelesen haben.'
+            inherit: 'Konto-Standard (%mode%)'
+            label: 'Lesebestätigungen'
+            mode:
+                always: 'Immer senden'
+                ask: 'Jedes Mal fragen'
+                never: 'Nie senden'
+        saved: 'Gespeichert.'
+        subheading: 'Was jede Ihrer Adressen beim Senden und Empfangen standardmäßig tut.'
     filters:
         account: Account
         action:

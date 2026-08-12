@@ -1,0 +1,108 @@
+{#
+settings/_compose_defaults.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Per-alias compose defaults, one block per account.
+
+Structured for a second setting to drop in: each alias row is a
+`.settings-alias-row` holding a list of controls, and adding one — a signature
+is landing next — means adding a control to that list and a route to
+ComposeDefaultsController. Nothing about the account loop or the account-level
+default block has to change.
+
+Every <select> submits itself: these are single-value preferences with no
+partner field, and a Save button next to a three-item dropdown is a second
+click to confirm a choice the user already expressed. The forms still carry
+their own CSRF token and still work without JavaScript, where they fall back to
+a redirect (see ComposeDefaultsController::streamResponse).
+
+Variables:
+  manageableAccounts  list<Account>
+#}
+{% if manageableAccounts is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+        {{ 'settings.accounts.empty'|trans }}
+    </p>
+{% else %}
+    {% set modes = ['never', 'ask', 'always'] %}
+
+    <div class="divide-y divide-line">
+        {% for account in manageableAccounts %}
+            {% set accountMode = account.getSetting('compose.read_receipt.default')|default('never') %}
+
+            <div class="px-4 py-3.5">
+                <p class="text-xs font-semibold text-ink-faint uppercase tracking-wider truncate mb-2">
+                    {{ account.displayAddress }}
+                </p>
+
+                {# ── The account-wide answer ────────────────────────────── #}
+                <form method="post"
+                      action="{{ path('app_compose_defaults_read_receipt_default', { id: account.id }) }}"
+                      data-turbo-stream
+                      class="flex items-center justify-between gap-3 py-1">
+                    <input type="hidden" name="_token"
+                           value="{{ csrf_token('compose-defaults-receipt' ~ account.id) }}">
+
+                    <label class="min-w-0 flex-1" for="receipt-default-{{ account.id }}">
+                        <span class="block text-sm text-ink">{{ 'settings.compose_defaults.read_receipt.label'|trans }}</span>
+                        <span class="block text-xs text-ink-faint">{{ 'settings.compose_defaults.read_receipt.hint'|trans }}</span>
+                    </label>
+
+                    <select id="receipt-default-{{ account.id }}"
+                            name="mode"
+                            onchange="this.form.requestSubmit()"
+                            class="shrink-0 h-9 rounded-lg border border-line bg-surface text-sm px-2 text-ink">
+                        {% for mode in modes %}
+                            <option value="{{ mode }}" {{ accountMode == mode ? 'selected' : '' }}>
+                                {{ ('settings.compose_defaults.read_receipt.mode.' ~ mode)|trans }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                {# ── Per-alias overrides ────────────────────────────────── #}
+                {% if account.aliases|length %}
+                    <ul class="mt-2 space-y-1">
+                        {% for alias in account.aliases %}
+                            {% set aliasMode = account.getSetting('compose.read_receipt.alias.' ~ alias.id) %}
+
+                            <li class="settings-alias-row flex items-center justify-between gap-3 py-1">
+                                <span class="min-w-0 flex-1 truncate text-sm text-ink-muted">{{ alias.address }}</span>
+
+                                <form method="post"
+                                      action="{{ path('app_compose_defaults_read_receipt_alias', { id: account.id, aliasId: alias.id }) }}"
+                                      data-turbo-stream
+                                      class="shrink-0">
+                                    <input type="hidden" name="_token"
+                                           value="{{ csrf_token('compose-defaults-receipt-alias' ~ alias.id) }}">
+
+                                    <label class="sr-only" for="receipt-alias-{{ alias.id }}">
+                                        {{ 'settings.compose_defaults.read_receipt.for_alias'|trans({'%alias%': alias.address}) }}
+                                    </label>
+
+                                    <select id="receipt-alias-{{ alias.id }}"
+                                            name="mode"
+                                            onchange="this.form.requestSubmit()"
+                                            class="h-9 rounded-lg border border-line bg-surface text-sm px-2 text-ink">
+                                        {# The empty option is what "follow the account
+                                           default" posts, and the controller REMOVES the
+                                           key for it — see setForAlias(). #}
+                                        <option value="" {{ aliasMode is null ? 'selected' : '' }}>
+                                            {{ 'settings.compose_defaults.read_receipt.inherit'|trans({
+                                                '%mode%': ('settings.compose_defaults.read_receipt.mode.' ~ accountMode)|trans,
+                                            }) }}
+                                        </option>
+                                        {% for mode in modes %}
+                                            <option value="{{ mode }}" {{ aliasMode == mode ? 'selected' : '' }}>
+                                                {{ ('settings.compose_defaults.read_receipt.mode.' ~ mode)|trans }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
