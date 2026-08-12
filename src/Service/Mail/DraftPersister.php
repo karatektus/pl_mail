@@ -42,6 +42,7 @@ final readonly class DraftPersister
         private MailBodySanitizer       $bodySanitizer,
         private DraftAttachmentService  $attachments,
         private MailChangeRecorder      $changes,
+        private InlineImageRewriter     $inlineImages,
     ) {
     }
 
@@ -56,6 +57,16 @@ final readonly class DraftPersister
     public function save(Message $message, Account $account, ?string $sender = null): void
     {
         $this->fileUnderAccount($message, $account);
+
+        // Before markAsDraft(), which sanitises: the stored body is the one
+        // that goes on the wire, so the editor's attachment URLs become `cid:`
+        // references here and nowhere else. Doing it in the send path instead
+        // would leave the autosaved draft — and the copy JMAP publishes —
+        // pointing at a route only a logged-in plMail session can follow.
+        // MailBodySanitizer::resolveCids() then turns them back into URLs for
+        // bodyHtmlSafe, which is what the thread renders.
+        $message->bodyHtml = $this->inlineImages->toCid($message->bodyHtml);
+
         $this->markAsDraft($message, $account, $sender);
 
         $message->bodyText = $this->plainTextBody($message->bodyHtml);

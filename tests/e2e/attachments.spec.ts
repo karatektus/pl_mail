@@ -21,6 +21,49 @@ test.beforeAll(() => {
     seed("seed-attachment");
 });
 
+/**
+ * An image in the body is not an attachment, and the compose window must not
+ * say it is.
+ *
+ * The paperclip and the attachment strip are both a promise about something
+ * the reader has to go and open. A picture they can already see in the message
+ * is not one — a signature logo would otherwise put a paperclip on every mail
+ * the account ever sends.
+ */
+test("an inline image is not counted as an attachment", async ({ page }) => {
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const editor = dock.locator('[data-compose--compose-toolbar-target="editor"]');
+
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await editor.fill("a picture, in the body");
+
+    await dock.locator('input[data-compose--compose-target="imageInput"]').setInputFiles({
+        name: "e2e-inline.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "base64",
+        ),
+    });
+
+    // It is in the body…
+    await expect(editor.locator("img[data-cid]")).toBeVisible();
+
+    // …and nowhere in the strip beside it.
+    await expect(dock.getByRole("link", { name: "e2e-inline.png" })).toHaveCount(0);
+    await expect(
+        dock.locator('[data-compose--compose-target="attachments"]'),
+    ).not.toContainText("e2e-inline.png");
+
+    // The upload forced a save, so this spec owns a draft now. Take it away
+    // again rather than leaving it for the next run to find.
+    await dock.getByRole("button", { name: "Delete draft" }).click();
+});
+
 test("downloading an attachment produces the file", async ({ page }) => {
     await page.goto("/mail/inbox");
     await page

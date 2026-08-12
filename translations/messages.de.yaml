@@ -1084,6 +1084,35 @@ compose:
     confirm:
         no_body: Diese Nachricht hat keinen Text. Trotzdem senden?
         no_subject: Diese Nachricht hat keinen Betreff. Trotzdem senden?
+    emoji:
+        activities: Aktivitäten
+        animals_nature: Tiere und Natur
+        categories: Kategorien
+        custom: Eigene
+        favorites: Häufig verwendet
+        flags: Flaggen
+        food_drink: Essen und Trinken
+        loading: "Wird geladen…"
+        network_error: Die Emoji konnten nicht geladen werden.
+        objects: Objekte
+        people_body: Menschen und Körper
+        region: Emoji-Auswahl
+        search: Suchen
+        search_description: Wenn Ergebnisse erscheinen, wähle mit Pfeil hoch oder runter aus und bestätige mit Enter.
+        search_results: Suchergebnisse
+        skin_tone: "Hautton wählen (aktuell {skinTone})"
+        skin_tone_description: Wenn geöffnet, wähle mit Pfeil hoch oder runter aus und bestätige mit Enter.
+        skin_tones: Hauttöne
+        smileys_emotion: Smileys und Emotionen
+        symbols: Symbole
+        tone_dark: Dunkel
+        tone_default: Standard
+        tone_light: Hell
+        tone_medium: Mittel
+        tone_medium_dark: Mitteldunkel
+        tone_medium_light: Mittelhell
+        travel_places: Reisen und Orte
+        unsupported: Dieser Browser kann keine farbigen Emoji darstellen.
     list:
         ordered: Nummerierte Liste
         unordered: Aufzählung
@@ -1113,6 +1142,12 @@ compose:
         saved: Entwurf gespeichert
         saving: "Wird gespeichert…"
         uploading: "Wird hochgeladen…"
+    upload:
+        failed: Hochladen fehlgeschlagen
+        images_only: In den Nachrichtentext lassen sich nur Bilder einfügen
+        over_limit: "Datei zu gross (max. %limit% MB)"
+        post_too_large: Upload zu gross
+        too_large: Datei zu gross
     add_bcc: Bcc-Empfänger hinzufügen
     add_cc: Cc-Empfänger hinzufügen
     attach: Dateien anhängen
@@ -1132,6 +1167,7 @@ compose:
     forward: Weiterleiten
     from: Von
     image: Bild einfügen
+    image_insert_failed: Das Bild konnte nicht in die Nachricht eingefügt werden
     indent: Einzug vergrössern
     insert_emoji: Emoji einfügen
     insert_link: Link einfügen

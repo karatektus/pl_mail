@@ -209,7 +209,110 @@ final class DraftPersisterTest extends KernelTestCase
         self::assertNull($this->drafts->plainTextBody('<p><br></p>'));
     }
 
+    // ── inline images ─────────────────────────────────────────────────────
+
+    /**
+     * The round trip that decides whether an inline image survives the post.
+     *
+     * The compose window can only render an image it can fetch, so the editor
+     * holds the attachment route; a recipient can only render one that is
+     * embedded, so the wire has to hold `cid:`. Saving is where the one turns
+     * into the other, and it has to happen on every save rather than only on
+     * send — otherwise the autosaved draft, and the copy JMAP publishes to
+     * every other client, points at a URL only a logged-in plMail session can
+     * follow.
+     */
+    public function testAnInlineImageIsStoredAsACidReference(): void
+    {
+        $message = $this->draft();
+        $part    = $this->inlinePart($message, 'logo-1@plmail');
+
+        $message->bodyHtml = '<p>See:</p>'
+            . '<img src="/mail/attachment/' . $part->id . '" data-cid="logo-1@plmail" style="max-width:100%">';
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertStringContainsString('src="cid:logo-1@plmail"', (string) $message->bodyHtml);
+        self::assertStringNotContainsString('/mail/attachment/', (string) $message->bodyHtml);
+
+        // …and what the app itself renders resolves back to the route, so the
+        // draft in the conversation is not a broken image.
+        self::assertStringContainsString(
+            '/mail/attachment/' . $part->id,
+            (string) $message->bodyHtmlSafe,
+        );
+    }
+
+    /**
+     * Idempotent: autosave runs on every keystroke, and a body already
+     * rewritten must not become `cid:cid:…` on the next pass.
+     */
+    public function testSavingAnAlreadyRewrittenBodyChangesNothing(): void
+    {
+        $message = $this->draft();
+        $this->inlinePart($message, 'logo-2@plmail');
+
+        $message->bodyHtml = '<img src="cid:logo-2@plmail" data-cid="logo-2@plmail">';
+
+        $this->drafts->save($message, $this->account);
+        $once = $message->bodyHtml;
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertSame($once, $message->bodyHtml);
+    }
+
+    /**
+     * An image the user pasted a link to is theirs, not ours. Without a
+     * data-cid there is no part behind it, and rewriting it would turn a
+     * working remote image into a reference to nothing.
+     */
+    public function testARemoteImageIsLeftAlone(): void
+    {
+        $message           = $this->draft();
+        $message->bodyHtml = '<img src="https://example.test/banner.png">';
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertStringContainsString('https://example.test/banner.png', (string) $message->bodyHtml);
+    }
+
+    /** The snippet is derived from the same HTML, so an image adds nothing. */
+    public function testAnInlineImageDoesNotLeakIntoThePlainTextBody(): void
+    {
+        $message = $this->draft();
+        $this->inlinePart($message, 'logo-3@plmail');
+
+        $message->bodyHtml = '<p>Have a look.</p><img src="cid:logo-3@plmail" data-cid="logo-3@plmail">';
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertSame('Have a look.', $message->bodyText);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
+
+    private function inlinePart(Message $message, string $contentId): MessagePart
+    {
+        $this->em->persist($message);
+        $this->em->flush();
+
+        $part              = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'image/png';
+        $part->filename    = 'logo.png';
+        $part->disposition = 'inline';
+        $part->contentId   = $contentId;
+        $part->isInline    = true;
+        $part->storagePath = 'inline/logo.png';
+
+        $message->addMessagePart($part);
+        $this->em->persist($part);
+        $this->em->flush();
+
+        return $part;
+    }
+
 
     /**
      * The From picker exists to let somebody send as an alias, and until now it

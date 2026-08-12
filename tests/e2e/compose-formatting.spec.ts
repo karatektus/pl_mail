@@ -134,3 +134,221 @@ test.describe("compose formatting", () => {
         await expect(page.locator(`${DOCK} ${HIDDEN}`)).toHaveValue(/nothing fancy here/);
     });
 });
+
+/**
+ * The emoji picker, and the thing it is deliberately not.
+ *
+ * The picker is `emoji-picker-element`, a web component whose grid lives in a
+ * shadow root — reachable from Playwright, which pierces shadow DOM, but not
+ * from a CSS selector in the app. What is asserted here is the two ends of it:
+ * a click produces a character in the body at the cursor, and nothing else in
+ * the window ever produces one.
+ */
+test.describe("emoji", () => {
+    const PICKER = "emoji-picker";
+
+    async function openPicker(page: Page) {
+        await page.locator(`${DOCK} button[title="Insert emoji"]`).click();
+        await expect(page.locator(`${DOCK} ${PICKER}`)).toBeVisible();
+    }
+
+    test("a chosen emoji lands in the body at the cursor", async ({ page }) => {
+        await openCompose(page);
+
+        const editor = page.locator(`${DOCK} ${EDITOR}`);
+        await editor.click();
+        await editor.fill("before after");
+
+        // Cursor between the two words, which is the whole point: the picker
+        // steals focus, and an implementation that forgets the selection
+        // appends to the end instead.
+        await editor.evaluate((node) => {
+            const text = node.firstChild!;
+            const range = document.createRange();
+            range.setStart(text, "before".length);
+            range.collapse(true);
+            const sel = window.getSelection()!;
+            sel.removeAllRanges();
+            sel.addRange(range);
+            node.dispatchEvent(new Event("blur"));
+        });
+
+        await openPicker(page);
+
+        // The first emoji in the grid, whatever the data file says it is.
+        const first = page.locator(`${DOCK} ${PICKER} .emoji-menu [role="menuitem"]`).first();
+        await expect(first).toBeVisible();
+        const glyph = (await first.textContent())!.trim();
+        await first.click();
+
+        // The component looks the emoji up in its database before announcing
+        // the click, so `emoji-click` lands a turn or two after the press —
+        // reading the input straight away reads it as it was.
+        await expect(page.locator(`${DOCK} ${HIDDEN}`)).toHaveValue(
+            new RegExp(`before${glyph}\\s*after`),
+        );
+    });
+
+    /**
+     * The rule the whole feature is built around: emoji enter the body when
+     * somebody picks one, and at no other time. No `:)` → 🙂, no `:smile:`
+     * expansion, no autocomplete on a colon. Substitution rewrites what a
+     * person wrote, and a mail client is the wrong place to guess.
+     *
+     * Byte-identical, not "looks the same": the failure this guards against
+     * replaces two characters with one, which every loose assertion passes.
+     */
+    test("typed emoticons and shortcodes are left exactly as typed", async ({ page }) => {
+        await openCompose(page);
+
+        const typed = ":) :-) :smile: :D <3 :thumbsup:";
+        const editor = page.locator(`${DOCK} ${EDITOR}`);
+
+        await editor.click();
+        // Typed key by key rather than filled, because an autocomplete would
+        // trigger on the keystrokes and not on the value.
+        await page.keyboard.type(typed);
+
+        // Give any hypothetical debounce a chance to fire before asserting.
+        await page.waitForTimeout(500);
+
+        // Byte for byte, which is the actual requirement: the failure this
+        // guards against swaps two characters for one, and every looser
+        // assertion passes through it.
+        expect(await editor.innerText()).toBe(typed);
+
+        // The markup that would be posted, too — `<` arrives escaped, as any
+        // text typed into HTML must, and nothing else has been touched.
+        expect(await html(page)).toContain(":) :-) :smile: :D &lt;3 :thumbsup:");
+
+        // And no picker opened itself along the way.
+        await expect(page.locator(`${DOCK} ${PICKER}`)).toHaveCount(0);
+    });
+
+    /**
+     * Nothing may be fetched from a CDN at runtime. The picker's default data
+     * source is a jsdelivr URL, so this is the one assertion standing between
+     * a working offline install and a broken one.
+     */
+    test("the picker loads its data from this app and not from a CDN", async ({ page }, testInfo) => {
+        const ours = new URL(testInfo.project.use.baseURL!).host;
+        const external: string[] = [];
+
+        page.on("request", (request) => {
+            if (new URL(request.url()).host !== ours) {
+                external.push(request.url());
+            }
+        });
+
+        await openCompose(page);
+        await openPicker(page);
+
+        await expect(page.locator(`${DOCK} ${PICKER} .emoji-menu [role="menuitem"]`).first()).toBeVisible();
+
+        expect(external.filter((url) => !url.startsWith("data:"))).toEqual([]);
+    });
+});
+
+/**
+ * An image placed in the body rather than beside it.
+ *
+ * The proof is the `data-cid`: it is what the server turns back into a `cid:`
+ * reference on save, and an <img> without one is a link into plMail that
+ * renders as a broken image for the recipient.
+ */
+test.describe("inline images", () => {
+    const PNG = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64",
+    );
+
+    test("an image is inserted into the body and survives the autosave", async ({ page }) => {
+        await openCompose(page);
+
+        const editor = page.locator(`${DOCK} ${EDITOR}`);
+        await editor.click();
+        await editor.fill("here it is");
+
+        await page
+            .locator(`${DOCK} input[data-compose--compose-target="imageInput"]`)
+            .setInputFiles({ name: "e2e-inline.png", mimeType: "image/png", buffer: PNG });
+
+        const image = editor.locator("img[data-cid]");
+        await expect(image).toBeVisible();
+        await expect(image).toHaveAttribute("src", /\/mail\/attachment\/\d+/);
+
+        // The hidden input is what the form posts, so the image has to be in
+        // it — not only on screen.
+        expect(await html(page)).toMatch(/<img[^>]+data-cid=/i);
+
+        // Reopened from the server. This is the assertion that matters: the
+        // draft is stored with `cid:` references, so a window rendered from
+        // the database that still shows the picture proves the rewrite has a
+        // working inverse. Without it the image is there until the first
+        // reload and a broken icon afterwards.
+        await expect(page.locator(`${DOCK} [data-compose--compose-target="saveStatus"]`))
+            .toHaveText(/saved/i, { timeout: 10_000 });
+
+        const draftUrl = await page
+            .locator(`${DOCK} [data-compose--compose-draft-url-value]`)
+            .getAttribute("data-compose--compose-draft-url-value");
+
+        const id = draftUrl!.match(/\/(\d+)(?:\?|$)/)![1];
+
+        await page.goto(`/compose/edit/${id}`);
+
+        const reopened = page.locator(`${EDITOR} img[data-cid]`);
+        await expect(reopened).toHaveCount(1);
+        await expect(reopened).toHaveAttribute("src", /\/mail\/attachment\/\d+/);
+    });
+
+    /**
+     * Pasting is the path most people actually take, and the one that is
+     * expensive to get wrong: left to the browser, a pasted screenshot becomes
+     * a data: URI inside the contenteditable, and every autosave from then on
+     * posts the whole picture back as base64 text.
+     */
+    for (const gesture of ["paste", "drop"] as const) {
+        test(`an image ${gesture === "paste" ? "pasted" : "dropped"} into the body is uploaded, not inlined as base64`, async ({ page }) => {
+            await openCompose(page);
+
+            const editor = page.locator(`${DOCK} ${EDITOR}`);
+            await editor.click();
+            await editor.fill("look at this");
+
+            await editor.evaluate((node, kind) => {
+                const bytes = Uint8Array.from(
+                    atob(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                    ),
+                    (c) => c.charCodeAt(0),
+                );
+
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([bytes], "e2e-gesture.png", { type: "image/png" }));
+
+                node.dispatchEvent(
+                    "paste" === kind
+                        ? new ClipboardEvent("paste", {
+                              clipboardData: transfer,
+                              bubbles: true,
+                              cancelable: true,
+                          })
+                        : new DragEvent("drop", {
+                              dataTransfer: transfer,
+                              bubbles: true,
+                              cancelable: true,
+                          }),
+                );
+            }, gesture);
+
+            const image = editor.locator("img");
+            await expect(image).toBeVisible();
+            await expect(image).toHaveAttribute("src", /\/mail\/attachment\/\d+/);
+            await expect(image).toHaveAttribute("data-cid", /@plmail$/);
+
+            // The thing that must not have happened.
+            expect(await html(page)).not.toContain("data:image");
+        });
+    }
+});

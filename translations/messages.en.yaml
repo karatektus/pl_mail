@@ -1057,6 +1057,38 @@ compose:
     confirm:
         no_body: This message has no text. Send it anyway?
         no_subject: This message has no subject. Send it anyway?
+    # Every label inside the emoji picker. The component ships its own English
+    # strings and takes a replacement object; this is that object, so the
+    # picker is as translated as the window around it.
+    emoji:
+        activities: Activities
+        animals_nature: Animals and nature
+        categories: Categories
+        custom: Custom
+        favorites: Frequently used
+        flags: Flags
+        food_drink: Food and drink
+        loading: "Loading…"
+        network_error: The emoji could not be loaded.
+        objects: Objects
+        people_body: People and body
+        region: Emoji picker
+        search: Search
+        search_description: When results appear, press up or down to select one and enter to choose it.
+        search_results: Search results
+        skin_tone: "Choose a skin tone (currently {skinTone})"
+        skin_tone_description: When expanded, press up or down to select one and enter to choose it.
+        skin_tones: Skin tones
+        smileys_emotion: Smileys and emoticons
+        symbols: Symbols
+        tone_dark: Dark
+        tone_default: Default
+        tone_light: Light
+        tone_medium: Medium
+        tone_medium_dark: Medium-dark
+        tone_medium_light: Medium-light
+        travel_places: Travel and places
+        unsupported: This browser cannot show colour emoji.
     list:
         ordered: Numbered list
         unordered: Bullet list
@@ -1086,6 +1118,14 @@ compose:
         saved: Draft saved
         saving: "Saving…"
         uploading: "Uploading…"
+    # Why an upload was refused. The compose window prints these as-is on its
+    # status line, so they are the whole of the explanation the user gets.
+    upload:
+        failed: Upload failed
+        images_only: Only images can be placed in the message body
+        over_limit: "File too large (max %limit% MB)"
+        post_too_large: Upload too large
+        too_large: File too large
     add_bcc: Add Bcc recipients
     add_cc: Add Cc recipients
     attach: Attach files
@@ -1105,6 +1145,7 @@ compose:
     forward: Forward
     from: From
     image: Insert image
+    image_insert_failed: Could not place the image in the message
     indent: Indent
     insert_emoji: Insert emoji
     insert_link: Insert link

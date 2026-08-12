@@ -259,6 +259,35 @@ test.describe("mobile compose window", () => {
         });
     });
 
+    /**
+     * The emoji button lives in the same sideways-scrolling strip as the rest
+     * of the icon row, so a panel anchored to the button opens wherever the
+     * button happens to have been scrolled to — which on a phone is routinely
+     * past the right edge of the screen. Below md it is pinned to the viewport
+     * instead, and this is what says so.
+     */
+    test("opens the emoji picker on screen, however far the icon row is scrolled", async ({ page }) => {
+        await openCompose(page);
+
+        const strip = page.locator(`${composeWindow} .compose-scroll-x`).last();
+        await strip.hover();
+        await page.mouse.wheel(400, 0);
+
+        await page.locator(composeWindow).getByRole("button", { name: "Insert emoji" }).click();
+
+        const panel = page.locator(`${composeWindow} .emoji-panel`);
+        await expect(panel).toBeVisible();
+        await expect(panel).toBeInViewport();
+
+        const box = (await panel.boundingBox())!;
+        const viewport = page.viewportSize()!;
+
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 0.5);
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
+    });
+
     test("returns to the mailbox from the back arrow", async ({ page }) => {
         await openCompose(page);
 

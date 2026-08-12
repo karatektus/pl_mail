@@ -38,4 +38,5 @@ return [
     '@stimulus-components/sortable' => ['version' => '5.0.3'],
     'sortablejs' => ['version' => '1.15.6'],
     '@rails/request.js' => ['version' => '0.0.12'],
+    'emoji-picker-element' => ['version' => '1.29.1'],
 ];

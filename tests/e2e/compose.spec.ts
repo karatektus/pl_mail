@@ -113,7 +113,7 @@ test.describe("compose window", () => {
 
         const dockEl = page.locator(dock);
 
-        await dockEl.locator('input[type="file"]').setInputFiles({
+        await dockEl.locator('input[data-compose--compose-target="fileInput"]').setInputFiles({
             name: "e2e-note.txt",
             mimeType: "text/plain",
             buffer: Buffer.from("attached by the e2e suite"),
@@ -137,7 +137,7 @@ test.describe("compose window", () => {
 
         const dockEl = page.locator(dock);
 
-        await dockEl.locator('input[type="file"]').setInputFiles({
+        await dockEl.locator('input[data-compose--compose-target="fileInput"]').setInputFiles({
             name: "e2e-big.bin",
             mimeType: "application/octet-stream",
             buffer: Buffer.alloc(3 * 1024 * 1024, 7),
