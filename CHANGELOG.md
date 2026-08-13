@@ -6,6 +6,85 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.35 — 2026-08-13
+
+**Two migrations, both additive and defaulted; no reset. Contains a security
+fix that matters on any instance with more than one user — if you run one,
+update. Most of the rest answers a manual test pass of the running app, and
+two reported defects were investigated and deliberately left alone because
+they turned out not to be defects.**
+
+**Contact autocomplete was not scoped to its user.** `ContactAutocompleteField`
+named its entity class and never said which rows belonged to whom, and
+`Contact` is per-user — so on a multi-user instance the suggestion endpoint
+listed *other people's* correspondents by name and address, no id-guessing
+required, and a contact id from another account resolved and could be
+addressed on a draft. One user-scoped query builder closes both, and it fails
+closed: no signed-in user now means no contacts rather than all of them.
+`LabelType` had always done this; this field was the outlier. Single-user
+instances were never exposed.
+
+**Undo send could confirm a cancellation over a mail that had already gone
+out.** The handler read the cancelled flag and then sent, and a cancel arriving
+between those two steps committed too late to matter — HTTP 200, "send
+cancelled", message delivered, with the row asserting both at once. Reproduced
+three times out of three against a real SMTP sink at 9.9 seconds of the ten
+second hold. The cancel and the worker now race in one atomic statement each,
+so the database decides who won and **both sides learn the answer**: a cancel
+that loses says the message had already been sent, instead of handing back an
+editable copy of delivered mail. The window the interface offers is eight
+seconds against a ten second hold, so losing is rare rather than routine; a
+claim expires after fifteen minutes so a killed worker cannot wedge a draft.
+
+**Scheduling a send no longer forks a second draft.** Autosave rewrites the
+draft and send URLs from its own response as a new message acquires an id, and
+the schedule action was never in that list — so the pill posted to the
+id-less route and built a second message, leaving a duplicate in Drafts
+forever.
+
+**The recipient field stops committing addresses nobody chose.** The suggestion
+panel is absolutely positioned and overhung the Subject row, so a click aimed
+at Subject landed on the panel instead: it committed whatever was highlighted
+as a recipient and left the caret in the address box, so the subject you then
+typed went into the recipient field. The panel now takes real room while it is
+open.
+
+**The sidebar keeps up, and folds.** Badges refreshed only when a sync arrived,
+so a bulk action changed the rows and left the counts behind until a reload.
+The label and account sections now collapse, remembered per user and rendered
+folded server-side rather than snapped shut after paint. A collapsed label
+section summarises its unread as a count of threads, not a sum of per-label
+numbers that would count one thread twice.
+
+**Sent no longer carries an unread badge.** Thread labels are the union of
+their messages', so replying gave the thread a Sent label while the unread mail
+was the incoming one — and Sent then advertised somebody else's unread count.
+
+**Appearance grew a good deal.** A mail-list group with the account corner as a
+toggle (still on by default), preview lines and unread emphasis; a font family
+and a text scale; a live preview that shares the real row's style hooks rather
+than imitating them; and density that can differ between the sidebar, the list
+and the reading pane. Two limits are worth stating plainly rather than
+pretending otherwise: sender avatars cannot be switched off because that disc
+*is* the row's checkbox, so "off" paints over the identity and keeps the target;
+and only density is per-surface, because the list and the reading pane are one
+painted surface and text size resolves against the document root.
+
+**Also:** a compose window that fails to open now says so instead of leaving
+Turbo's bare "Content missing"; the list preview stopped running a tag-stripper
+over text that was never markup, which was deleting what people had actually
+written; labels can be deleted from the sidebar dialog as well as from
+settings, and the confirmation now admits the label goes from every account;
+and the message list revalidates after a Back rather than showing a cached
+snapshot.
+
+**Two reported defects were left alone on purpose.** An empty label name does
+refuse to submit, focus the field and fire its invalid event — the validation
+works, and it was not going to be replaced on a guess. And the same
+conversation appearing twice across two accounts is two threads in two
+mailboxes, which is what the data model says; merging them means cross-account
+thread identity, and that is a decision rather than a patch.
+
 ## v0.0.34 — 2026-08-13
 
 **Four migrations, all additive and all backfilled — no reset is needed, and no
