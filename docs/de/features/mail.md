@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bca338fe634d93894ec1a3016364fc97d7e2eeaa -->
+<!-- translated-from: features/mail.md sha1:70409eec06abb36afd6f98d798519e7569084ac4 -->
 
 # Mail
 
@@ -45,6 +45,25 @@ Eine Ausnahme lohnt sich zu kennen: Ein Absender, dem du selbst geschrieben hast
 nach Allgemein geholt, ganz gleich, welcher Massenmail-Header auf der Nachricht steht. Öffne
 den Bereich **Details** einer Nachricht, dann sagt die Zeile **Kategorie**, welche Regel
 entschieden hat und auf welchen Header oder welche Domain sie angesprungen ist.
+
+## Die Markierung „Neu“
+
+Eine Konversation ist **neu**, bis ihre Zeile dir *gezeigt* wurde. Nicht geöffnet — gezeigt.
+Scrollst du im Posteingang an etwas vorbei und klickst es nie an, verschwindet die Markierung, denn
+es überrascht dich nicht mehr; die Konversation bleibt ungelesen, denn gelesen hast du sie immer
+noch nicht. Das sind zwei verschiedene Fragen, und plMail behält beide Antworten.
+
+Sie erscheint als gefülltes Fähnchen **Neu** neben dem Absender in der Zeile und als stiller Punkt
+— ohne Zahl — auf den Kategorie-Tabs des Posteingangs, auf den Labels und Rollen der Seitenleiste
+und auf Markiert. Der Punkt bedeutet „hier ist etwas angekommen“, und genau das sagen die
+Ungelesen-Zähler daneben nicht.
+
+Nichts bleibt länger als **24 Stunden** nach seiner letzten Nachricht neu, ob du die Zeile je zu
+sehen bekommen hast oder nicht. Eine Markierung, die sich nur abtragen lässt, indem man jede Zeile
+anschaut, ist eine Schuld und keine Markierung — also läuft sie von selbst ab.
+
+Auch Suchergebnisse räumen das Fähnchen ab: Eine Zeile, deren Absender und Betreff du gerade in
+einer Trefferliste gelesen hast, ist dir gezeigt worden, in welcher Liste auch immer.
 
 ## Konversationen
 
@@ -128,8 +147,10 @@ angekommen ist. Was du wählst, wird für deine nächste Suche gemerkt, und das 
 bei. Ein Wechsel der Reihenfolge beginnt wieder auf der ersten Seite, denn Seite vier der einen
 Reihenfolge ist Seite vier von nichts in der anderen.
 
-Die Suche erfasst nur Mail, die synchronisiert wurde. Wie weit das zurückreicht, ist eine
-Einstellung pro Konto; siehe [Konten und Aliase](accounts.md).
+Die Suche erfasst nur Mail, die synchronisiert wurde. plMail synchronisiert alles, was ein Konto
+hält, und es gibt keine Einstellung, die das begrenzt — ein großes Postfach ist also erst einige
+Läufe nach dem Hinzufügen vollständig durchsuchbar und nicht sofort; siehe
+[Konten und Aliase](accounts.md).
 
 ## Mail bearbeiten
 
@@ -191,10 +212,159 @@ einem Dienst anhängen** öffnet die Dateiauswahl für jeden verbundenen Dienst,
 herunterladen kann.
 
 Entwürfe speichern sich zwei Sekunden nach dem letzten Tastendruck selbst, und ein Entwurf
-entsteht erst, wenn der Text mindestens fünf Zeichen hat — sonst hätte jeder versehentliche
-Tastendruck einen erzeugt. Das Fenster zu schließen, es herauszulösen oder eine Datei
-anzuhängen erzwingt jeweils vorher ein Speichern. Der Papierkorbknopf im Schreibfenster löscht
-den Entwurf tatsächlich, statt das Fenster darüber zuzuklappen.
+entsteht, sobald es mindestens fünf Zeichen Text **oder** einen Betreff gibt — ein allein
+getippter Betreff ist es wert, behalten zu werden. Das Fenster zu schließen, es herauszulösen oder
+eine Datei anzuhängen erzwingt jeweils vorher ein Speichern. Unterhalb dieser Schwelle fragt das
+Verlassen der Seite nach, statt das Getippte zu verlieren. Der Papierkorbknopf im Schreibfenster
+löscht den Entwurf tatsächlich, statt das Fenster darüber zuzuklappen.
+
+Auf dem Telefon bricht die Werkzeugleiste um, statt aus dem Bild zu scrollen, und die Sendepille
+wandert hinauf in die Kopfzeile des Fensters, dorthin, wo früher der Knopf saß.
+
+### Emoji
+
+Der Smiley öffnet den vollständigen Unicode-Satz, mit Kategorien, Suche, Hauttönen und den zuletzt
+verwendeten. Eine Auswahl fügt das Zeichen dort ein, wo der Cursor stand.
+
+Eingefügt wird **ausschließlich** bei einer Auswahl. Tippst du `:)` oder `:smile:`, bleiben `:)`
+und `:smile:` Zeichen für Zeichen in der Nachricht stehen — plMail schreibt Getipptes nicht in
+Bildchen um.
+
+Die Suche läuft in der Sprache des Fensters, denn die Emoji-Daten werden je Sprache mitgeliefert
+statt nachgeladen. Sowohl diese Daten als auch die Schrift für die farbigen Emoji liefert plMail
+selbst aus; zur Laufzeit wird nichts von einem CDN geholt, sodass die Auswahl auch auf einer
+Installation ganz ohne Weg nach draußen funktioniert.
+
+### Bilder in der Nachricht
+
+Der Bildknopf, ein Einfügen aus der Zwischenablage und ein Ziehen-und-Ablegen auf den Editor tun
+alle dasselbe: Das Bild kommt **in den Text**, an die Stelle, an der du es abgelegt hast, und nicht
+als Anhang daneben. Dieselbe Obergrenze von 25 MB wie bei einem Anhang, und nur Bilder — alles
+andere wird mit einer Begründung in der Statuszeile abgelehnt.
+
+Eingebettete Bilder reisen als `cid:`-Teile der Nachricht, was jedes Mailprogramm auflösen kann;
+die Empfängerin sieht also das Bild und keinen kaputten Verweis zurück auf plMail. Sie sind keine
+Anhänge und werden auch nicht als solche gezählt: Eine Nachricht, deren einziges Bild du in den
+Text gesetzt hast, trägt keine Büroklammer.
+
+### Links
+
+Der Linkknopf öffnet ein kleines Feld für die **URL** und eines für den **Text**, wobei der Text
+mit dem gefüllt ist, was du markiert hattest. Ein bloßes `example.com` wird verstanden und als
+`https://` gespeichert — es ist kein Pfad innerhalb von plMail. Verlinken lassen sich nur Web-,
+Mail- und Telefonadressen; alles andere wird gleich dort abgelehnt, statt beim Speichern
+stillschweigend zu verschwinden.
+
+Klickst du einen Link an, der schon im Editor steht, zeigt dasselbe Feld sein anderes Gesicht: die
+Adresse sowie **Öffnen**, **Ändern** und **Entfernen**. Es schließt sich mit Escape, bei einem
+Klick daneben und sobald der Cursor den Link verlässt.
+
+### Signatur
+
+Signaturen wohnen unter **Einstellungen → Signaturen**. Jedes Konto hat eine, und jede seiner
+Absendeadressen kann sie überschreiben. Drei Zustände sind wichtig, und sie sind nicht dasselbe:
+
+| Zustand | Womit diese Adresse unterschreibt |
+|---|---|
+| **Erbt** | Mit der Signatur des Kontos. Das tut eine Adresse, solange du nichts anderes sagst. |
+| **Eigene** | Mit dem, was du für diese Adresse geschrieben hast, statt mit der des Kontos. |
+| **Bewusst ohne** | Mit einer eigenen Signatur, die leer gelassen wurde. Die Adresse unterschreibt mit nichts, obwohl das Konto eine Signatur hat. |
+
+Die letzten beiden sind beide „eine eigene Signatur“; der Unterschied ist, ob sie leer ist. Genau
+deshalb wird ein leeres Feld nicht als „erben“ gelesen — eine private Adresse, die ohne Signatur
+sendet, auf einem dienstlichen Postfach, das mit einem Block unterschreibt, ist der ganze Grund für
+diese Einstellung.
+
+Im Schreibfenster wird die Signatur für dich eingesetzt, oberhalb des zitierten Textes, bei einer
+neuen Nachricht ebenso wie bei einer Antwort und einer Weiterleitung, mit einem leeren Absatz davor
+— damit der Cursor im Schreibraum steht und nicht mitten im Gruß. **Signatur einfügen** in der
+Werkzeugleiste ersetzt den Block an Ort und Stelle, statt einen zweiten anzuhängen, und dasselbe
+tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein bereits
+getippter Absatz überlebt den Wechsel.
+
+### Später senden
+
+Der Pfeil neben **Senden** öffnet **Später senden**: *Morgen früh* (08:00), *Morgen Nachmittag*
+(13:00), *Montagmorgen* und **Datum & Uhrzeit wählen** für alles andere. Ist morgen bereits Montag,
+entfällt der dritte Eintrag, denn ein Menü, das denselben Zeitpunkt unter zwei Namen anbietet, ist
+ein Menü, bei dem man nachsehen muss.
+
+Jede Zeit wird auf **deiner** Uhr gelesen — Zeitzone und 12- oder 24-Stunden-Format aus
+**Einstellungen → Allgemein**, nicht aus dem Browser — und das Menü sagt, welche Zone es meint. Ein
+Laptop, der noch auf der Zeit eines anderen Kontinents steht, verschiebt deinen Morgen nicht.
+
+Die Untergrenze ist **eine Minute**: Darunter ist „planen“ nur „senden“ mit schlechterem
+Rückgängig, und die Auswahl lehnt es schon im Fenster ab, ohne den Server zu fragen. Die
+Obergrenze sind **30 Tage**, dieselbe Grenze, die JMAP-Clients genannt bekommen — Webfenster und
+Telefon können sich also nicht darüber uneinig sein, was erlaubt war.
+
+Eine geplante Nachricht ist ein Entwurf, der zurückgehalten wird. Das steht in ihrer Zeile unter
+**Entwürfe** und in der Entwurfszeile innerhalb einer Konversation — *Geplant …* —, und **Geplanten
+Versand abbrechen** steht im Menü dieser Zeile. Die Einblendung ist längst verblasst, wenn jemand
+nachsehen geht, und genau darum steht es dort. Ein Abbruch ist auch auf jedem anderen Gerät
+sichtbar, nicht nur auf dem, das ihn ausgelöst hat.
+
+### Weitere Optionen
+
+**Weitere Optionen** — die **⋮** neben der Werkzeugleiste — trägt die drei Dinge, die ändern, was
+die Nachricht *ist*, statt wie sie aussieht:
+
+- **Priorität** — *Keine Priorität*, *Niedrig*, *Normal* oder *Hoch*. „Keine Priorität“ ist etwas
+  anderes als „Normal“: Eine unangetastete Nachricht sagt nichts über ihre Dringlichkeit und trägt
+  überhaupt keine Prioritäts-Header.
+- **Lesebestätigung anfordern** — siehe unten.
+- **Nur-Text-Modus** — wirft die Formatierung weg und sendet eine reine Textnachricht. Er warnt
+  vorher, und zwar nur dann, wenn es Formatierung zu verlieren gibt. Solange das Fenster offen ist,
+  lässt sich das zurücknehmen; sobald der Entwurf als Nur-Text gespeichert wurde, ist die
+  Formatierung endgültig fort.
+
+**Verschlüsseln** sitzt im selben Menü, ausgegraut, und sagt warum: Es gibt noch keine
+Verschlüsselung. Der Knopf wird benannt statt versteckt, denn ein Schloss, das nichts tut, ist die
+eine Lüge, die ein Mailprogramm nicht erzählen darf.
+
+## Lesebestätigungen
+
+Eine Lesebestätigung ist eine Nachricht, die an den Absender zurückgeht und sagt, dass seine Mail
+angezeigt wurde. plMail beherrscht beide Richtungen, und die empfangende ist die, die man genau
+lesen sollte — sie ist eine Datenschutzeinstellung und keine Bequemlichkeit.
+
+### Eine anfordern
+
+**Lesebestätigung anfordern** im Menü „Weitere Optionen“ des Schreibfensters. Die Anforderung nennt
+die Adresse, aus der du **sendest**, Alias eingeschlossen, und nicht das Konto: Eine Bestätigung
+muss an die Adresse zurückkommen, die gefragt hat, sonst kann sie auf dem Rückweg nichts der
+Nachricht zuordnen.
+
+Kommt eine an, trägt die Nachricht unter **Gesendet** ein **Gelesen am …**. Die Bestätigung selbst
+wird als gelesen markiert und aus dem Posteingang genommen, statt gelöscht zu werden — sie ist also
+da, wenn du sie willst, und nicht im Weg, wenn nicht.
+
+### Um eine gebeten werden
+
+**Einstellungen → Aliase → Standards fürs Schreiben**, je Adresse. Drei Betriebsarten:
+
+| Betriebsart | Was dein Postfach tut |
+|---|---|
+| **Nie senden** | Es wird nichts gesendet, und der Absender erfährt nichts. **Das ist die Vorgabe.** |
+| **Jedes Mal fragen** | Die Nachricht zeigt *… möchte erfahren, wann du diese Nachricht liest*, mit **Bestätigung senden** und **Nein danke**. |
+| **Immer senden** | Eine Bestätigung geht automatisch hinaus, sobald du die Nachricht als gelesen markierst. |
+
+Nie ist die Vorgabe und bleibt sie, bis du sie änderst — mit Absicht. Eine Bestätigung belegt, dass
+eine bestimmte Adresse aktiv ist, gelesen wird und zu einer bestimmten Minute gelesen wurde, und
+genau das bekommt, wer danach fischt, indem er einen einzigen Header setzt. Wer diese Einstellung
+nie öffnet, sendet nichts.
+
+Zwei Dinge engen das weiter ein, beide in dieselbe Richtung:
+
+- **Eine Bestätigung geht nur hinaus, wenn du eine Nachricht selbst als gelesen markierst.** Stellt
+  eine Synchronisierung fest, dass die Nachricht anderswo längst gelesen wurde, geht nichts hinaus:
+  Eine Bestätigung behauptet, dass ein Mensch die Nachricht angezeigt hat, und ein
+  Synchronisierungslauf, der von letztem Dienstag erfährt, kann das nicht behaupten.
+- **Eine Anforderung, die woandershin zeigt als zum Absender, wird auf „fragen“ zurückgestuft**,
+  wie die Adresse auch eingestellt ist. Widerspricht die Rückadresse dem, von wem die Mail kam,
+  beantwortet plMail sie nicht automatisch — es fragt dich und nennt den Widerspruch. Nicht
+  Schweigen, denn die legitime Fassung dieser Form ist ein Massenversender, der an seiner
+  Bounce-Adresse sammelt.
 
 ## Senden rückgängig machen
 
@@ -215,6 +385,8 @@ wo er stand.
   zu Konversationen und Kategorisierung.
 - [Konten und Aliase](accounts.md) — Postfächer verbinden, sofortige Zustellung,
   Absendeadressen.
+- [Zustand der Konten](health.md) — wenn keine Mail mehr ankommt, und die Reparatur, die das
+  Postfach behält.
 - [Filter](filters.md) — Mail beim Eintreffen sortieren, und eine Regel auf vorhandene Mail
   anwenden.
 - [JMAP](../internals/jmap.md) — dieselben Operationen, wie ein Client sie sieht.
@@ -225,6 +397,31 @@ wo er stand.
 zehn Sekunden zurückgehalten, die Einblendung mit Rückgängig verblasst aber schon nach acht. Es
 ist nichts kaputt, wenn eine Nachricht hinausgeht, nachdem der Knopf weg ist — das Zeitfenster
 war wirklich zu.
+
+**Ein Bild in der Signatur kann kein eingebettetes Bild sein.** Ein Bild in einer *Signatur* wird
+als gewöhnlicher Bildverweis gespeichert und nicht als `cid:`-Teil: Die Bereinigung, durch die
+jede Signatur geschrieben wird, entfernt bewusst genau das Attribut, das daraus eines machen
+würde — damit eine Signatur nichts einschmuggeln kann, das aussieht wie eines der eingebetteten
+Bilder der Nachricht selbst. Eingebettete Bilder funktionieren im Nachrichtentext, dort, wo du sie
+hinsetzt.
+
+**„Neu“ ist nicht „ungelesen“, und das Fähnchen zu verlieren heißt nicht, etwas gelesen zu
+haben.** An einer Zeile im Posteingang vorbeizuscrollen räumt ihr „Neu“ ab, denn die Zeile wurde
+dir vorgelegt. Die Konversation bleibt ungelesen, bis du sie öffnest. Ungelesen und nicht neu ist
+der Normalzustand von allem, was du dir noch vorgenommen hast.
+
+**Ein „Neu“, das du nie gesehen hast, läuft trotzdem ab.** Nichts ist länger als 24 Stunden nach
+seiner letzten Nachricht neu. Nach zwei Wochen Abwesenheit kommst du also in einen Posteingang ganz
+ohne „Neu“ zurück — das ist die Markierung, die funktioniert, und keine, die ausgeblieben ist.
+
+**Der Nur-Text-Modus lässt sich nur zurücknehmen, solange der Entwurf nicht gespeichert ist.** Die
+Warnung sagt das vor dem Umschalten. Ist der Entwurf einmal als Nur-Text abgelegt, gibt es
+nirgends mehr eine Formatierung, zu der man zurückkehren könnte.
+
+**Ein geplanter Versand kann nicht näher als eine Minute liegen.** Die nächste volle Minute
+einzutippen ist genau die Zeit, die man zum Ausprobieren wählt, und sie wird abgelehnt — mit
+Begründung, im Fenster, ohne Weg zum Server. Alles von einer Minute bis dreißig Tagen wird
+angenommen.
 
 **Eine zurückgestellte Konversation zu wecken markiert sie als ungelesen, und der alte
 Lesestatus ist weg.** Das ist gewollt und kein Versehen, heißt aber, dass du nach dem

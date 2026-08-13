@@ -39,6 +39,24 @@ There is one override worth knowing: a sender you have written to yourself is pu
 Primary regardless of any bulk-mail header on the message. Open a message's **Details** panel and
 the `category` row says which rule decided, and which header or domain it matched on.
 
+## The "New" marker
+
+A conversation is **new** until its row has been *shown* to you. Not opened — shown. Scroll past
+something in the inbox and never click it and the badge goes, because you have stopped being
+surprised by it; the conversation is still unread, because you still have not read it. The two are
+different questions and plMail keeps both answers.
+
+It shows as a filled **New** pill beside the sender on the row, and as a quiet dot — no number — on
+the inbox category tabs, on the sidebar's labels and roles, and on Starred. The dot means "something
+arrived here", which is what the unread counts beside it do not say.
+
+Nothing stays new for longer than **24 hours** after its last message, whether or not you ever saw
+the row. A marker you can only clear by looking at every row is a debt rather than a marker, so it
+expires on its own.
+
+Search results retire the badge too: a row whose sender and subject you have just read in a result
+list has been shown, whichever list it was.
+
 ## Threads
 
 Replies collapse into one conversation, ordered oldest to newest with the latest message
@@ -112,8 +130,9 @@ relevant**, which is full-text rank — the best match leads, whenever it arrive
 is remembered for your next search, and paging keeps it. Switching orders starts again at the first
 page, because page four of one order is page four of nothing in the other.
 
-Search only covers mail that has been synced. How far back that goes is a per-account setting; see
-[Accounts and aliases](accounts.md).
+Search only covers mail that has been synced. plMail syncs everything an account holds and there is
+no setting that bounds it, so a large mailbox is searchable in full a few sync runs after it is
+added rather than immediately; see [Accounts and aliases](accounts.md).
 
 ## Acting on mail
 
@@ -167,10 +186,145 @@ dock. Either way the window offers rich text, contact autocomplete on the addres
 **Attach files** takes files from your machine, capped at **25 MB per file**. **Attach from a
 service** opens the file picker for any connected service plMail can download from.
 
-Drafts save themselves two seconds after you stop typing, and a draft is only created once the body
-has at least five characters — otherwise every stray keystroke minted one. Closing the window,
-popping it out, or attaching a file all force a save first. The trash button in the compose window
-genuinely deletes the draft rather than closing the window on top of it.
+Drafts save themselves two seconds after you stop typing, and a draft is created once there are at
+least five characters of body **or** a subject — a subject typed on its own is worth keeping.
+Closing the window, popping it out, or attaching a file all force a save first. Below that
+threshold, leaving the page interrupts rather than losing what you typed. The trash button in the
+compose window genuinely deletes the draft rather than closing the window on top of it.
+
+On a phone the toolbar wraps rather than scrolling out of reach, and the send pill moves up into the
+window's header, where the old button used to be.
+
+### Emoji
+
+The smiley opens the full Unicode set, with categories, search, skin tones and the ones you have
+used recently. Picking one inserts it where the caret was.
+
+It **only** ever inserts on a pick. Typing `:)` or `:smile:` leaves `:)` and `:smile:` in the
+message, byte for byte — plMail does not rewrite what you type into pictures.
+
+Search is in the language the window is in, because the emoji data is shipped per locale rather than
+fetched. Both the data and the colour emoji font are served by plMail itself; nothing is loaded from
+a CDN at runtime, so the picker works on an install with no outbound internet access at all.
+
+### Images in the message
+
+The image button, a paste, and a drag-and-drop onto the editor all do the same thing: the picture
+goes **into the body**, where you placed it, rather than beside the message as an attachment. Same
+25 MB ceiling as an attachment, and only images — anything else is refused with a reason on the
+status line.
+
+Inline images travel as `cid:` parts of the message, which is what every mail client can resolve, so
+the recipient sees the picture rather than a broken link back into plMail. They are not attachments
+and are not counted as any: a message whose only picture is one you placed in the body carries no
+paperclip.
+
+### Links
+
+The link button opens a small panel with a **URL** field and a **text** field, the text prefilled
+from whatever you had selected. A bare `example.com` is understood and stored as `https://` — it is
+not a path inside plMail. Only web, mail and telephone addresses can be linked; anything else is
+refused there and then rather than being quietly dropped when the draft saves.
+
+Clicking a link already in the editor shows the panel's other face: the address, and **Open**,
+**Change** and **Remove**. It dismisses on Escape, on a click outside, and as soon as the caret
+moves off the link.
+
+### Signature
+
+Signatures live in **Settings → Signatures**. Each account has one, and any of its sending addresses
+can override it. Three states matter, and they are not the same:
+
+| State | What that address signs with |
+|---|---|
+| **Inherits** | The account's signature. This is what an address does until you say otherwise. |
+| **Its own** | Whatever you wrote for that address, instead of the account's. |
+| **Deliberately nothing** | Its own signature, left empty. The address signs with nothing even though the account has one. |
+
+The last two are both "an override"; the difference is whether the override is empty. That is why an
+empty box is not read as "inherit" — a personal alias that signs with nothing on a work mailbox that
+signs with a block is the whole reason the setting exists.
+
+In the compose window the signature is inserted for you, above the quoted text, on a new message, a
+reply and a forward, with an empty paragraph in front of it so the caret starts in the writing space
+rather than inside the sign-off. **Insert signature** in the toolbar replaces the block in place
+instead of adding a second one, and so does changing the **From** account: the signature block is
+swapped and a paragraph you have already typed survives the change.
+
+### Scheduled send
+
+The chevron beside **Send** opens **Send later**: *Tomorrow morning* (08:00), *Tomorrow afternoon*
+(13:00), *Monday morning*, and **Pick date & time** for anything else. Tomorrow-is-Monday drops the
+third, because a menu offering one instant under two names is a menu you have to check.
+
+Every time is read on **your** clock — the timezone and the 12-or-24-hour format from
+**Settings → General**, not the browser's — and the menu says which zone it means. A laptop still on
+another continent's time does not move your morning.
+
+The floor is **one minute**: below that, "schedule" is "send" with a worse undo, and the picker
+refuses it in the window without a round trip. The ceiling is **30 days**, the same limit JMAP
+clients are told about, so the web window and a phone cannot disagree about what was allowed.
+
+A scheduled message is a draft that is being held. It says so on its row in **Drafts** and on the
+draft's row inside a thread — *Scheduled …* — and **Cancel scheduled send** is on that row's menu.
+The toast has faded long before anybody goes looking, which is the point of putting it there. A
+cancel is visible on every other device too, not just the one that made it.
+
+### More options
+
+**More options** — the **⋮** beside the toolbar — carries the three things that change what the message *is* rather
+than how it looks:
+
+- **Priority** — *No priority*, *Low*, *Normal* or *High*. "No priority" is distinct from "Normal":
+  an untouched message says nothing about its urgency and carries no priority headers at all.
+- **Request read receipt** — see below.
+- **Plain text mode** — drops the formatting and sends a plain-text message. It warns first, and
+  only when there is formatting to lose. It is reversible while the window is open; once the draft
+  has been saved as plain text the formatting is gone for good.
+
+**Encrypt** sits in the same menu, disabled, and says why: there is no encryption yet. It is named
+rather than hidden because a lock icon that does nothing is the one lie a mail client must not tell.
+
+## Read receipts
+
+A read receipt is a message that goes back to the sender saying their mail was displayed. plMail
+does both directions, and the receiving direction is the one worth reading carefully — it is a
+privacy setting, not a convenience.
+
+### Asking for one
+
+**Request read receipt** in the compose window's more-options menu. The request names the address
+you are sending **from**, alias included, rather than the account: a receipt has to come back to the
+address that asked, or nothing on the way in can match it to the message.
+
+When one comes back, the message in **Sent** gains **Read at …**. The receipt itself is marked read
+and taken off the Inbox rather than being deleted, so it is there if you want it and not in your way
+if you do not.
+
+### Being asked for one
+
+**Settings → Aliases → Compose defaults**, per address. Three modes:
+
+| Mode | What your mailbox does |
+|---|---|
+| **Never send** | Nothing is sent, and the sender is told nothing. **This is the default.** |
+| **Ask each time** | The message shows *… asked to be told when you read this message*, with **Send receipt** and **No thanks**. |
+| **Always send** | A receipt goes automatically when you mark the message read. |
+
+Never is the default and stays the default until you change it, deliberately. A receipt confirms
+that a specific address is live, is monitored, and was reading at a specific minute — which is
+exactly what somebody fishing for that gets by setting one header. Someone who never opens this
+setting emits nothing.
+
+Two things narrow it further, both in the same direction:
+
+- **A receipt is only ever sent when you mark a message read yourself.** A sync discovering that the
+  message was already read in another client sends nothing: a receipt claims a person displayed the
+  message, and a sync pass learning about last Tuesday cannot make that claim.
+- **A request pointing somewhere other than the sender is downgraded to "ask", however the address
+  is set.** If the return address disagrees with who the mail came from, plMail will not answer it
+  automatically — it asks you, and says what the mismatch was. Not silence, because the legitimate
+  version of that shape is a bulk sender collecting at its bounce address.
 
 ## Undo send
 
@@ -187,6 +341,7 @@ was, with the editor reopened where it was.
 - [Mail ingest](../internals/mail-ingest.md) — the pipeline from provider to database, threading and
   categorisation.
 - [Accounts and aliases](accounts.md) — connecting mailboxes, instant delivery, sending addresses.
+- [Account health](health.md) — when mail stops arriving, and the repair that keeps the mailbox.
 - [Filters](filters.md) — sorting mail as it arrives, and applying a rule to mail you already have.
 - [JMAP](../internals/jmap.md) — the same operations as a client sees them.
 
@@ -195,6 +350,29 @@ was, with the editor reopened where it was.
 **The Undo button disappears two seconds before the message does.** The send job is held for ten
 seconds, but the toast carrying Undo fades after eight. Nothing is wrong when a message goes out
 after the button has gone — the window really did close.
+
+**A signature image cannot be an inline image.** A picture placed in a *signature* is stored as an
+ordinary image reference, not as a `cid:` part: the sanitiser every signature is written through
+drops the marker attribute that would make it one, deliberately, so a signature cannot smuggle in
+something that looks like one of the message's own inline pictures. Inline images work in the
+message body, where you put them.
+
+**"New" is not "unread", and losing the badge is not reading anything.** Scrolling past a row in the
+inbox retires its New badge, because the row was put in front of you. The conversation stays unread
+until you open it. A thread that is unread and not new is the normal state of everything you have
+been meaning to get to.
+
+**A New badge you never saw expires anyway.** Nothing is new for longer than 24 hours after its last
+message. Coming back from a fortnight away means an inbox with no New badges at all — that is the
+marker working, not a marker that failed to appear.
+
+**Plain-text mode is only reversible until the draft is saved.** The warning says so before the
+switch. Once the draft has been stored as plain text there is no formatting left anywhere to come
+back to.
+
+**A scheduled send cannot be closer than a minute away.** Typing the next whole minute is exactly
+the time a person picks to try the feature, and it is refused — with a reason, in the window,
+without a round trip. Anything from a minute to thirty days out is accepted.
 
 **Waking a snoozed conversation marks it unread, and the old read state is gone.** This is chosen,
 not accidental, but it does mean snoozing a thread you had read leaves you with an unread thread

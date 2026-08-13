@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:88b8b4500baf1b04477417b36b2e95dd58cb1158 -->
+<!-- translated-from: features/accounts.md sha1:bc75114bfc98ed4c250fef9b2e7ca301f19a464b -->
 
 # Konten und Aliase
 
@@ -62,18 +62,34 @@ eine Einstellungsseite.
 
 ## Die Kontenliste
 
-Konten stehen in deiner eigenen Reihenfolge und lassen sich per Ziehen umsortieren. Die
-Reihenfolge ist nicht kosmetisch: Das **erste** Konto ist das primäre, und von diesem geht ein
-neues Schreibfenster aus. Ein Konto zu entfernen nummeriert den Rest um, die oberste Zeile ist
-also immer die primäre.
+Konten stehen in deiner eigenen Reihenfolge und lassen sich per Ziehen umsortieren. **Die
+Reihenfolge ist kosmetisch.** Sie bestimmt, wo eine Zeile steht, und sonst nichts.
+
+Aus welchem Konto eine neue Nachricht verfasst wird, ist eine eigene, gespeicherte Wahl: das
+primäre Konto, in seiner Zeile mit **Primär** ausgezeichnet und über **Als primär festlegen** in
+jeder anderen Zeile bestimmt. Früher war das dasselbe — die oberste Zeile war die primäre —,
+sodass das Aufräumen der Liste stillschweigend die Absenderadresse änderte, ohne dass auf dem
+Bildschirm etwas davon stand. Zwei Entscheidungen, zwei Bedienelemente.
+
+Der farbige Punkt neben jedem Konto ist dessen **Kennfarbe**: derselbe Ton, den die Nachrichten
+dieses Kontos in den gemeinsamen Listen tragen, damit sich zwei Konten dort auf einen Blick
+unterscheiden lassen. Sie wird beim Hinzufügen vergeben und wandert danach nie wieder — die Liste
+umzusortieren färbt nichts um —, und sie ist **keine** Statusanzeige. Ob ein Konto tatsächlich
+funktioniert, beantwortet [Zustand der Konten](health.md), die einzige Stelle, die den Anspruch
+erhebt, das zu beantworten.
 
 Jede Zeile bietet:
 
 | Bedienelement | Wirkung |
 |---|---|
+| **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
+
+Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
+ein anderes, und das allererste Konto ist primär, weil es nichts gibt, von dem es sie erben
+könnte.
 
 Ein Konto zu entfernen löscht dessen synchronisierte Mail aus plMails Datenbank und beim
 Anbieter nichts. Außerdem wird versucht, jede Push-Registrierung abzubauen, die es hatte, damit
@@ -158,10 +174,25 @@ Einen Vorbehalt nennt plMail auf der Seite selbst: **Outlook versendet unabhäng
 Wahl hier immer über den primären Alias des Kontos.** Das ist Microsofts Verhalten, geändert
 wird es in deinen Microsoft-Kontoeinstellungen und nicht hier.
 
+### Was jede Adresse standardmäßig tut
+
+Zwei Einstellungen hängen an der Aliasliste statt am Konto, denn sie sind Eigenschaften der
+Adresse, die andere zu sehen bekommen, und nicht des Postfachs, in dem sie wohnt.
+
+**Standards fürs Schreiben**, unter der Aliasliste auf derselben Seite, trägt derzeit ein
+Bedienelement je Adresse: was diese Adresse tut, wenn ein Absender darüber informiert werden will,
+dass seine Mail gelesen wurde. Die Vorgabe ist **Nie senden**, und es lohnt sich, das zu
+verstehen, bevor man daran dreht — siehe den Abschnitt *Lesebestätigungen* unter [Mail](mail.md).
+
+**Einstellungen → Signaturen** ist ein eigener Abschnitt. Das Konto hat eine Signatur, und jede
+seiner Adressen kann sie entweder erben, ersetzen oder bewusst ohne Signatur senden. Die drei
+Zustände und was das Schreibfenster daraus macht, stehen unter [Verfassen](mail.md#signatur).
+
 ## Wo du weiterliest
 
 - [IMAP und SMTP](../providers/imap-smtp.md), [Google](../providers/google.md),
   [Microsoft](../providers/microsoft.md) — die genaue Einrichtung auf Anbieterseite.
+- [Zustand der Konten](health.md) — was kaputt ist und welche Reparaturen deine Mail behalten.
 - [Mail-Ingest](../internals/mail-ingest.md) — was ein Synchronisierungslauf tatsächlich tut.
 - [Konfigurationsreferenz](../install/configuration.md) — `APP_PUBLIC_URL`, die OAuth-Variablen
   und die für Pub/Sub.
@@ -169,9 +200,15 @@ wird es in deinen Microsoft-Kontoeinstellungen und nicht hier.
 
 ## Fallstricke
 
-**Das erste Konto in der Liste ist das primäre.** Per Ziehen umzusortieren ändert daher, aus
-welchem Konto eine neue Nachricht verfasst wird. Es gibt keinen eigenen Knopf „als primär
-festlegen“, und es kommt auch keiner — die Reihenfolge *ist* die Einstellung.
+**Die Liste umzusortieren ändert nicht mehr, aus welchem Konto du sendest.** Früher war das so,
+und eine von einer älteren Version aktualisierte Installation behält das Konto, das im Moment der
+Aktualisierung an erster Stelle stand. Geht das Schreibfenster von der falschen Adresse aus, hilft
+**Als primär festlegen** beim richtigen Konto — es nach oben zu ziehen tut es nicht.
+
+**Eine tote Anmeldung heißt nicht, dass das Konto neu hinzugefügt werden muss.** Das kaputte Konto
+zu löschen und neu anzulegen ist der Reflex, und er kostet dich jede daraus synchronisierte
+Nachricht. **Einstellungen → Zustand der Konten** bietet ein erneutes Verbinden, das das Postfach
+behält; siehe [Zustand der Konten](health.md).
 
 **Ein großes Postfach braucht seine Zeit, bis es vollständig da ist.** plMail synchronisiert
 alles, was das Konto hält; es gibt keine Einstellung, die das begrenzt. Die neueste Mail kommt
