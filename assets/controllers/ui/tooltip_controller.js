@@ -92,6 +92,31 @@ export default class extends Controller {
         window.addEventListener("resize", this._onDismiss);
         document.addEventListener("click", this._onDismiss);
         document.addEventListener("turbo:before-render", this._onDismiss);
+
+        // A trigger can leave the page while the pointer is still on it, and
+        // then nothing above fires: `mouseout` needs an element to leave, and
+        // an element that has been removed never sends one. The compose window
+        // is the case that showed it — hover the trash icon, send the message,
+        // and the bubble saying "Delete draft" stays painted over the message
+        // list indefinitely, outliving the button it describes by minutes.
+        //
+        // The document-level `click` above is what usually papers over this
+        // (any click anywhere hides the bubble), which is why it looks
+        // intermittent: it only survives when the window closes without one —
+        // Ctrl+Enter to send, a keyboard shortcut, or a turbo-stream arriving
+        // on its own. Verified by sending from the keyboard, where the bubble
+        // was still `state=visible, opacity=1` afterwards.
+        //
+        // `turbo:before-render` does not cover it either: that fires for full
+        // page renders, and the compose window closes by turbo-STREAM, which
+        // is a different event. Watching the DOM catches every route at once,
+        // including the ones nobody has thought of yet.
+        this._observer = new MutationObserver(() => {
+            if (this.current !== null && !this.current.isConnected) {
+                this._hide();
+            }
+        });
+        this._observer.observe(document.body, { childList: true, subtree: true });
     }
 
     disconnect() {
@@ -104,6 +129,7 @@ export default class extends Controller {
         window.removeEventListener("resize", this._onDismiss);
         document.removeEventListener("click", this._onDismiss);
         document.removeEventListener("turbo:before-render", this._onDismiss);
+        this._observer?.disconnect();
 
         this._hide();
         this.bubble?.remove();

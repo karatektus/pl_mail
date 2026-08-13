@@ -268,3 +268,49 @@ test.describe("work in progress is not lost", () => {
         expect(asked, "the page objects to being left").toBe(true);
     });
 });
+
+/**
+ * When the compose window cannot be opened, say so.
+ *
+ * Reported alongside a real backend interruption: `GET /compose/new` answered
+ * 503 and the UI did nothing at all. Turbo's own handling of a response it
+ * cannot use is to write `<strong class="turbo-frame-error">Content missing</strong>`
+ * into the frame and log to the console — four words of untranslated English,
+ * in the bottom corner where the window should have been. From the far side of
+ * the screen where the button is, the click simply vanished.
+ *
+ * This is worth fixing independently of whatever caused the 503: a compose that
+ * fails has to be a compose that reports.
+ */
+test.describe("a compose window that will not open", () => {
+    test("says so instead of swallowing the click", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        await page.route("**/compose/new*", (route) =>
+            route.fulfill({ status: 503, contentType: "text/html", body: "<h1>503</h1>" }),
+        );
+
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const alert = page.locator(`${dock} [role="alert"]`);
+
+        await expect(alert).toBeVisible();
+        await expect(alert).toContainText(/could not be opened/i);
+
+        // Turbo's default must not be what the user is left looking at.
+        await expect(page.locator(".turbo-frame-error")).toHaveCount(0);
+    });
+
+    /** An expired session is a different sentence, because it has a different fix. */
+    test("names an expired session when that is what happened", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        await page.route("**/compose/new*", (route) =>
+            route.fulfill({ status: 401, contentType: "text/html", body: "<h1>401</h1>" }),
+        );
+
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        await expect(page.locator(`${dock} [role="alert"]`)).toContainText(/session has expired/i);
+    });
+});

@@ -106,4 +106,48 @@ test.describe("drafts list", () => {
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
     });
+
+    /**
+     * The list preview must show what the message SAYS.
+     *
+     * `bodyText` is already plain text — plainTextBody() strips the markup and
+     * then decodes the entities — so the `|striptags` the row template ran over
+     * it a second time was not removing markup, it was removing the user's
+     * writing. A body typed literally as `<b>bold</b>` was previewed as "bold",
+     * and an `<img …>` typed as text was deleted from the preview entirely, so
+     * the list misreported the message. Twig's autoescaping is what makes
+     * dropping the filter safe: escaped, the brackets are shown; stripped, they
+     * were obeyed.
+     */
+    test("the list preview shows literal angle brackets rather than eating them", async ({
+        page,
+    }) => {
+        const body = 'literal <b>bold</b> & "quotes" <img src=x> ümlauts äöüß 日本語';
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).click();
+
+        const dockEl = page.locator(dock);
+        await dockEl.locator(".ts-control input").first().fill("preview@example.test");
+        await dockEl.locator(".ts-control input").first().press("Enter");
+        await dockEl.locator('input[name="compose[subject]"]').fill("Preview markup");
+
+        // insertText, not fill(): the body is a contenteditable, and typing is
+        // what makes the browser escape the brackets into text the way a real
+        // user's keystrokes do.
+        await dockEl.locator('[data-compose--compose-toolbar-target="editor"]').click();
+        await page.keyboard.insertText(body);
+
+        await page.waitForResponse((r: Response) =>
+            r.url().includes("/compose/draft") && r.request().method() === "POST"
+        );
+
+        await page.goto("/mail/drafts");
+
+        const row = page.locator('li[id^="thread_"]').filter({ hasText: "Preview markup" }).first();
+
+        await expect(row).toContainText("<b>bold</b>");
+        await expect(row).toContainText("<img src=x>");
+        await expect(row).toContainText("ümlauts äöüß 日本語");
+    });
 });

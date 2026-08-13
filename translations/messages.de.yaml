@@ -1071,6 +1071,13 @@ clipboard:
     copy_failed: Kopieren fehlgeschlagen
 
 compose:
+    # Wird im Dock gezeigt, wenn ein Klick auf „Schreiben“ kein Fenster
+    # hervorbringt — ein 5xx, eine abgelaufene Sitzung, eine tote Verbindung.
+    open_failed:
+        dismiss: Schließen
+        failed: Das Schreibfenster konnte nicht geöffnet werden. Bitte versuche es erneut.
+        offline: Das Schreibfenster konnte nicht geöffnet werden — du scheinst offline zu sein.
+        signed_out: Deine Sitzung ist abgelaufen. Lade die Seite neu und melde dich erneut an.
     no_account:
         body: Richte zuerst ein Postfach ein, dann kannst du sofort davon schreiben.
         cta: Mail-Konto hinzufügen

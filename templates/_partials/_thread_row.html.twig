@@ -70,7 +70,15 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        newest sender, which made every thread you had answered look like it
        came from you. #}
     {% set sender = thread_participants(item)|join(', ') %}
-    {% set snippet = latest ? (latest.bodyText ?? '')|striptags|slice(0, 100) : '' %}
+    {# No |striptags: bodyText is ALREADY plain text — DraftPersister::plainTextBody()
+       stripped the markup and then decoded the entities, and ingest does the same.
+       Running it again does not remove markup, it removes the user's WRITING: a
+       message whose text literally says `<b>bold</b>` was shown as "bold", and one
+       containing `<img src=x ...>` had the whole thing silently deleted from the
+       preview, so the list misreported what the message said. Twig's autoescaping
+       is what makes this safe, and it is also what makes it correct — escaped, the
+       angle brackets are shown; stripped, they were obeyed. #}
+    {% set snippet = latest ? (latest.bodyText ?? '')|slice(0, 100) : '' %}
 
     {# `latest` comes from |last, which yields FALSE (not null) on an empty
        collection — so `is not null` passes and .isDraft blows up on a bool.
@@ -126,7 +134,8 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
     {% set senderSeed = item.fromAddress ?: sender %}
-    {% set snippet = (item.bodyText ?? '')|striptags|slice(0, 100) %}
+    {# Already plain text — see the note on the thread branch above. #}
+    {% set snippet = (item.bodyText ?? '')|slice(0, 100) %}
 
     {% set hasAttachment = item.hasAttachments %}
 

@@ -163,4 +163,49 @@ test.describe("tooltips", () => {
 
         await expect(page.locator(`#${describedBy}`)).toHaveText("Sync now");
     });
+
+    /**
+     * A trigger can leave the page while the pointer is still on it, and then
+     * nothing hides the bubble on its own: `mouseout` needs an element to leave,
+     * and an element that has been removed never sends one.
+     *
+     * Reported against the compose window — hover the trash icon, close the
+     * window, and "Delete draft" stayed painted over the message list for
+     * minutes. It looked intermittent because the controller also hides on any
+     * document click, so it only survived when the window closed WITHOUT one.
+     * Hence Ctrl+Enter here rather than the Send button: the keyboard send is
+     * the path that has no click to paper over it.
+     */
+    test("hides when its trigger leaves the page without a click", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const dock = page.locator("#compose_dock");
+        await expect(dock.locator(".ts-control").first()).toBeVisible();
+
+        const to = dock.locator(".ts-control input").first();
+        await to.fill("tooltip-orphan@example.test");
+        await to.press("Enter");
+        await dock.locator('input[id$="subject"]').fill("Tooltip orphan");
+
+        // A subject AND a body: Ctrl+Enter is guarded, and an empty message
+        // opens the "send it anyway?" panel instead of sending — which leaves
+        // the window up and proves nothing about a tooltip outliving it.
+        await dock.locator('[data-compose--compose-toolbar-target="editor"]').fill("Body");
+
+        // aria-label rather than title: the controller MOVES `title` to
+        // `data-tooltip` the first time an element is hovered, so a title
+        // selector stops matching after the hover it is meant to set up.
+        const trash = dock.locator('[aria-label="Delete draft"]').first();
+        await trash.hover();
+
+        const tip = page.locator(".app-tooltip");
+        await expect(tip).toBeVisible();
+        await expect(tip).toHaveText("Delete draft");
+
+        await page.keyboard.press("Control+Enter");
+
+        await expect(dock.locator(".ts-control").first()).toBeHidden();
+        await expect(tip, "the bubble must not outlive the button it describes").toBeHidden();
+    });
 });
