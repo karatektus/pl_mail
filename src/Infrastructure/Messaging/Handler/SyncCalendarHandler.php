@@ -55,10 +55,28 @@ final readonly class SyncCalendarHandler
         try {
             $touched = $this->sync->sync($calendar);
         } catch (CalendarSyncException $e) {
-            $this->logger->error('CalendarSync: sync failed', [
-                'calendarId' => $calendar->id,
-                'error'      => $e->getMessage(),
-            ]);
+            // Logged when the failure is NEWS, not on every attempt. The
+            // service has just written the failure down, and
+            // Calendar::recordSyncFailure() left its answer on the entity: true
+            // for the first failure of a run, for a message that differs from
+            // the stored one, and for the first attempt after a backoff window
+            // expires — false only while this calendar is repeating something
+            // it is already backing off through.
+            //
+            // The first occurrence is never suppressed, and neither is a
+            // CHANGE. A calendar that was failing on a dead sign-in and starts
+            // failing on a deleted remote says so immediately, because the
+            // stored message no longer matches. That is the case a plain "log
+            // once per hour" throttle would have hidden, and it is the one that
+            // means something different has gone wrong.
+            if (true === $calendar->syncFailureWasNews) {
+                $this->logger->error('CalendarSync: sync failed', [
+                    'calendarId' => $calendar->id,
+                    'error'      => $e->getMessage(),
+                    'failures'   => $calendar->syncFailureCount,
+                    'nextTry'    => $calendar->syncBackoffUntil?->format(DATE_ATOM),
+                ]);
+            }
 
             throw $e;
         }

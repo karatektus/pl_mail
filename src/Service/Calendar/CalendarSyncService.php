@@ -271,6 +271,10 @@ final readonly class CalendarSyncService
      */
     private function recordFailure(Calendar $calendar, \Throwable $e): void
     {
+        // recordSyncFailure() also answers "is this worth saying out loud",
+        // and leaves that answer on the calendar as $syncFailureWasNews for
+        // SyncCalendarHandler to read. It is not returned up the stack because
+        // this is called from a catch block whose job is to rethrow.
         $calendar->recordSyncFailure($e->getMessage());
 
         if (false === $this->em->isOpen()) {

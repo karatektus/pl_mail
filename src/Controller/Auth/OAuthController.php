@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Controller\Auth;
 
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\User\User;
+use App\Repository\Mail\AccountRepository;
 use App\Service\Onboarding\OnboardingFlow;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use Psr\Log\LoggerInterface;
@@ -35,7 +37,19 @@ class OAuthController extends AbstractController
         private readonly MicrosoftOAuthErrorTranslator $microsoftErrorTranslator,
         private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
+        private readonly AccountRepository $accounts,
     ) {}
+
+    /**
+     * The session key holding "this handshake is a repair, not a new account".
+     *
+     * Kept beside the state rather than passed through the provider's redirect:
+     * anything sent to the provider comes back under the user's control, and an
+     * account id that could be edited in the address bar is an invitation to
+     * write somebody else's tokens onto a row of your choosing. The id never
+     * leaves the server, and ownership is re-checked when it is read back.
+     */
+    private const string SESSION_RECONNECT = 'oauth2_reconnect_account';
 
     #[Route('/{provider}/connect', name: 'connect', methods: ['GET'])]
     public function connect(string $provider, Request $request): RedirectResponse
@@ -51,6 +65,29 @@ class OAuthController extends AbstractController
         $authUrl = $client->getAuthorizationUrl($options);
 
         $this->stateStore->remember($request->getSession(), self::SESSION_NAMESPACE, $client->getState());
+
+        // Reconnect mode. The health page sends the account it wants repaired;
+        // everything else omits it and gets the original find-or-create
+        // behaviour unchanged.
+        //
+        // The id is stored only after ownership has been proven, so the value
+        // read back in the callback is known to be this user's — the callback
+        // still re-checks, because a session outlives a login in ways that are
+        // not worth reasoning about at a distance.
+        $session = $request->getSession();
+        $session->remove(self::SESSION_RECONNECT);
+
+        $reconnect = $request->query->getInt('reconnect');
+
+        if (0 !== $reconnect) {
+            $account = $this->accounts->find($reconnect);
+
+            if (null === $account || $account->usr !== $this->getUser()) {
+                throw $this->createAccessDeniedException();
+            }
+
+            $session->set(self::SESSION_RECONNECT, (int) $account->id);
+        }
 
         return new RedirectResponse($authUrl);
     }
@@ -139,9 +176,51 @@ class OAuthController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        $this->accountLinker->link($user, $mailProvider, $email, $token);
+        $session   = $request->getSession();
+        $reconnect = $session->get(self::SESSION_RECONNECT);
 
-        return $this->redirectToRoute($this->landingRoute());
+        // Single-use, like the state itself: a repair intent left in the
+        // session would be picked up by the next ordinary "add an account"
+        // handshake and silently turn it into an overwrite.
+        $session->remove(self::SESSION_RECONNECT);
+
+        if (false === is_int($reconnect)) {
+            $this->accountLinker->link($user, $mailProvider, $email, $token);
+
+            return $this->redirectToRoute($this->landingRoute());
+        }
+
+        $account = $this->accounts->find($reconnect);
+
+        if (null === $account || $account->usr !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
+        try {
+            $this->accountLinker->relink($account, $mailProvider, $email, $token);
+        } catch (AccountIdentityMismatch $e) {
+            // Refused, not resolved. Falling back to link() here would create a
+            // second account for the address they actually signed in as, which
+            // is a surprising thing to do to somebody who pressed "Reconnect"
+            // — and it would leave the broken one broken.
+            $this->logger->warning('Reconnect refused: the authorised mailbox is not this account', [
+                'accountId' => $account->id,
+                'provider'  => $provider,
+            ]);
+
+            $this->addFlash('error', $this->translator->trans('settings.health.reconnect.wrong_account', [
+                '%expected%' => $e->expected,
+                '%actual%'   => $e->actual,
+            ]));
+
+            return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+        }
+
+        $this->addFlash('success', $this->translator->trans('settings.health.reconnect.done', [
+            '%account%' => $account->email,
+        ]));
+
+        return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

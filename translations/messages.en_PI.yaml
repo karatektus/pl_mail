@@ -983,6 +983,7 @@ header:
     search:
         placeholder: Search the hold…
     user_menu:
+        account_attention: "%count% things about yer crew be needin' an eye"
         admin: Cap'n's quarters
         label: Crew menu for %email%
         profile: Yer colours
@@ -1645,6 +1646,109 @@ settings:
         then: Then
         when: When
         yes: Aye
+    health:
+        confirm:
+            destructive: >-
+                This heaves th'' waitin'' work overboard fer good. Naught be
+                tried again, an'' naught comes back up. Carry on?
+        flash:
+            calendar_resync: '%calendar% be sailin'' again now. Come back in a moment t'' see if she held.'
+            queue_discarded: 'Heaved %count% abandoned tasks overboard.'
+            queue_retried: 'Put %count% abandoned tasks back in th'' queue.'
+        heading: 'State o'' yer crew'
+        healthy:
+            body: >-
+                Yer crew be signed on, yer almanacs be sailin'' true, an''
+                naught waits on ye. Should th'' post ever stop comin'' in,
+                this be th'' page that says why.
+            title: 'All hands healthy'
+        issue:
+            account_reconnect:
+                body: >-
+                    No fresh post be comin'' in fer this one, an'' neither be
+                    aught that hangs off it — th'' almanac, th'' sieves that
+                    run on arrival, nor sendin'' from this address. Th'' post
+                    ye already hauled aboard be safe an'' still here. This
+                    happens when a secret word be changed, when th'' two-key
+                    lock be thrown, or when th'' harbourmaster tears up yer
+                    papers.
+                title: '%account% must sign on again'
+            calendar_sync_failing:
+                body: >-
+                    This almanac has stopped takin'' on changes, so she shows
+                    what she knew th'' last time she sailed. Aught added or
+                    shifted elsewhere since then be not aboard, an'' yer own
+                    changes be not gettin'' out.
+                title: '%calendar% has stopped sailin'''
+            integration_reconnect:
+                body: >-
+                    Stowin'' cargo at %connection% an'' haulin'' it back will
+                    not work till she be joined again. Yer post be untouched —
+                    this be only th'' rope t'' that port. Naught stowed there
+                    has been disturbed.
+                title: '%connection% needs joinin'' again'
+            push_degraded:
+                body: >-
+                    Yer post still arrives, only not th'' instant it be sent —
+                    this one has fallen back t'' checkin'' on th'' bell, so
+                    fresh letters can take some minutes t'' show. Naught be
+                    lost, an'' there be no hurry.
+                title: 'Instant delivery be off fer %account%'
+            queue_work_abandoned:
+                body: >-
+                    %count% below-decks tasks tried, failed again an'' again,
+                    an'' were set aside so they''d stop hammerin'' away. Most
+                    times this be th'' wake o'' one o'' th'' troubles above
+                    rather than a fault o'' its own — mend that first, then put
+                    these back in th'' queue.
+                title: '%count% below-decks tasks were given up on'
+        repair:
+            calendar_resync:
+                label: 'Try sailin'' now'
+                promise: >-
+                    Bids this almanac sail again straight away, an'' puts her
+                    back on th'' usual bell. Naught aboard her be thrown out.
+            integration_reconnect:
+                label: 'Join again'
+                promise: >-
+                    Sends ye t'' sign on again, then restores th'' rope ye
+                    already had. Yer sieves an'' stowin'' places keep workin''.
+            push_resubscribe:
+                label: 'Set instant delivery back on'
+                promise: >-
+                    Signs this one up fer instant delivery again. Yer post
+                    keeps arrivin'' either way while it be sorted.
+            queue_discard:
+                label: 'Heave ''em overboard'
+                promise: >-
+                    Throws th'' abandoned tasks away without runnin'' them.
+                    There be no haulin'' them back, an'' what they left undone
+                    stays undone.
+            queue_retry:
+                label: 'Put ''em back in th'' queue'
+                promise: >-
+                    Tries th'' abandoned tasks once more. Safe t'' press — any
+                    that fail again just wash back up here.
+            reconnect:
+                label: 'Sign this one on again'
+                promise: >-
+                    Takes ye t'' sign on again, then sets th'' fresh papers on
+                    this very same crew member. Yer post, yer holds, yer flags,
+                    yer sieves, yer almanacs an'' yer riggin'' all stay exactly
+                    as they be — naught be hauled down twice an'' naught be
+                    thrown out. Ye must sign on as %account%; pick a different
+                    address an'' it be refused, not swapped in.
+        reconnect:
+            done: '%account% be signed on again. Post an'' almanacs will catch up over th'' next few minutes.'
+            wrong_account: >-
+                That signed ye on as %actual%, but this one be %expected%.
+                Naught has been changed. Go ashore from %actual% with that
+                harbourmaster, then try again — swappin'' th'' address would
+                have mixed a stranger''s post in with yer own.
+        subheading: >-
+            Aught that has stopped workin'', what it means fer yer post, an''
+            th'' smallest thing that mends it.
+        technical_detail: 'Th'' fine print'
     integrations:
         ask_admin: 'Th'' quartermaster has not opened this port.'
         auth:
@@ -1826,6 +1930,7 @@ settings:
             calendar: "Th' almanac"
             mail: "Th' post"
             personal: Yerself
+        health: "State o' yer crew"
         profile: Yer colours
         filters: Sieves
         integrations: 'Friendly ports'

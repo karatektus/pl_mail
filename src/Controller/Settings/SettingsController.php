@@ -24,6 +24,7 @@ use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
+use App\Service\Health\AccountHealthInspector;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -36,7 +37,19 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class SettingsController extends AbstractController
 {
-    private const array SECTIONS = ['accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'integrations', 'appearance', 'aliases', 'signature', 'app-passwords', 'notifications', 'general'];
+    /**
+     * `health` leads deliberately.
+     *
+     * It is not a settings pane — nothing on it is a preference — but it is
+     * where the topbar indicator points and where the OAuth reconnect returns
+     * to, so it needs a stable section of its own. It gets one rather than a
+     * block on `accounts` for two reasons: the problems it lists are not all
+     * account problems (calendars, file-store connections and abandoned
+     * background work all appear there), and a variable-height alert stack at
+     * the top of the accounts pane would push the actual account controls below
+     * the fold on exactly the installs that have something wrong.
+     */
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'integrations', 'appearance', 'aliases', 'signature', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -59,6 +72,7 @@ final class SettingsController extends AbstractController
         private readonly SecuritySectionViewData $securitySection,
         private readonly UserTimezoneResolver $timezones,
         private readonly ClockFormatResolver $clocks,
+        private readonly AccountHealthInspector $healthInspector,
     ) {
     }
 
@@ -102,7 +116,35 @@ final class SettingsController extends AbstractController
                 ?? AppLocale::tryFromRequest($this->defaultLocale)
                 ?? AppLocale::English,
             ...$this->timezoneSectionData($section),
+            ...$this->healthSectionData($section),
         ]);
+    }
+
+    /**
+     * The health report, and only when that section is on screen.
+     *
+     * The same rule the section methods below follow, and it earns its keep
+     * more than most: this is the one call on the page that reads the failure
+     * transport, which means deserialising envelopes rather than counting rows.
+     * Paying that on the labels tab would be paying it on every settings visit.
+     *
+     * The infrastructure half is asked for only for an admin — see
+     * AccountHealthInspector::abandonedWork() on why the queue is not a
+     * per-user question — so a non-admin never triggers that read at all.
+     *
+     * @return array<string, mixed>
+     */
+    private function healthSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('health' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'healthReport' => $this->healthInspector->inspect($user, $this->isGranted('ROLE_ADMIN')),
+        ];
     }
 
     /**

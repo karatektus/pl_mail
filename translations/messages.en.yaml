@@ -1255,6 +1255,7 @@ header:
     search:
         placeholder: Search mail…
     user_menu:
+        account_attention: '%count% things about your accounts need attention'
         admin: Admin
         label: User menu for %email%
         profile: Profile
@@ -1957,6 +1958,110 @@ settings:
         then: Then
         when: When
         yes: Yes
+    health:
+        confirm:
+            destructive: >-
+                This throws the waiting work away for good. Nothing is retried
+                and it cannot be brought back. Continue?
+        flash:
+            calendar_resync: '%calendar% is syncing again now. Reload in a moment to see whether it worked.'
+            queue_discarded: 'Discarded %count% abandoned jobs.'
+            queue_retried: 'Put %count% abandoned jobs back on the queue.'
+        heading: 'Account health'
+        healthy:
+            body: >-
+                Your accounts are signed in, your calendars are syncing and
+                nothing is waiting on you. If mail ever stops arriving, this is
+                the page that will say why.
+            title: 'Everything is working'
+        issue:
+            account_reconnect:
+                body: >-
+                    New mail has stopped arriving for this account, and so has
+                    everything that depends on it — calendar syncing, filters
+                    that run on delivery, and sending from this address. The
+                    mail already downloaded is safe and still here. This
+                    happens when a password is changed, two-factor
+                    authentication is switched on, or the sign-in is revoked
+                    from the provider's security page.
+                title: '%account% needs you to sign in again'
+            calendar_sync_failing:
+                body: >-
+                    This calendar has stopped picking up changes, so it is
+                    showing what it knew the last time it worked. Events added
+                    or moved elsewhere since then are not here yet, and changes
+                    you make here are not being sent out.
+                title: '%calendar% has stopped syncing'
+            integration_reconnect:
+                body: >-
+                    Saving attachments to %connection% and attaching files from
+                    it will not work until it is connected again. Your mail is
+                    unaffected — this is only the link to that service. Nothing
+                    stored there has been touched.
+                title: '%connection% needs reconnecting'
+            push_degraded:
+                body: >-
+                    Your mail is still arriving, just not the instant it is
+                    sent — this account has fallen back to checking on a
+                    schedule, so new messages can take a few minutes to show
+                    up. Nothing is lost, and there is no rush to fix it.
+                title: 'Instant delivery is off for %account%'
+            queue_work_abandoned:
+                body: >-
+                    %count% background jobs tried, failed repeatedly, and were
+                    set aside so they would stop retrying. This is usually the
+                    aftermath of one of the problems above rather than a
+                    separate fault — fix that first, then put these back on the
+                    queue.
+                title: '%count% background jobs were given up on'
+        repair:
+            calendar_resync:
+                label: 'Try syncing now'
+                promise: >-
+                    Asks this calendar to sync again right away, and puts it
+                    back on the normal schedule. Nothing on it is deleted.
+            integration_reconnect:
+                label: 'Reconnect'
+                promise: >-
+                    Sends you to sign in again, then restores the existing
+                    connection. Your filters and saved destinations keep
+                    working.
+            push_resubscribe:
+                label: 'Turn instant delivery back on'
+                promise: >-
+                    Registers this account for instant delivery again. Your
+                    mail keeps arriving either way while this is sorted out.
+            queue_discard:
+                label: 'Discard them'
+                promise: >-
+                    Throws the abandoned jobs away without running them. There
+                    is no undo, and anything they had not finished stays
+                    unfinished.
+            queue_retry:
+                label: 'Put them back on the queue'
+                promise: >-
+                    Tries the abandoned jobs once more. Safe to press — any
+                    that fail again simply end up back here.
+            reconnect:
+                label: 'Reconnect this account'
+                promise: >-
+                    Takes you to sign in again, then puts the new sign-in onto
+                    this same account. Your mail, folders, labels, filters,
+                    calendars and settings all stay exactly as they are —
+                    nothing is downloaded again and nothing is deleted. You
+                    must sign in as %account%; if you pick a different address
+                    it will be refused rather than swapped in.
+        reconnect:
+            done: '%account% is connected again. Mail and calendar syncing will catch up over the next few minutes.'
+            wrong_account: >-
+                That signed you in as %actual%, but this account is %expected%.
+                Nothing has been changed. Sign out of %actual% with that
+                provider, then try again — swapping the address would have
+                mixed a different mailbox into this one.
+        subheading: >-
+            Anything that has stopped working, what it means for your mail, and
+            the smallest thing that fixes it.
+        technical_detail: 'Technical detail'
     integrations:
         ask_admin: 'Your administrator has not enabled this service.'
         auth:
@@ -2138,6 +2243,7 @@ settings:
             calendar: Calendar
             mail: Mail
             personal: Personal
+        health: 'Account health'
         profile: Profile
         filters: Filters
         integrations: Integrations

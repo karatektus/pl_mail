@@ -6,6 +6,7 @@ namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
@@ -49,6 +50,91 @@ final readonly class OAuthAccountLinker
         $account = $this->upsert($user, $provider, $email, $token);
 
         $this->registerPush($account);
+        $this->aliasSeeder->seed($account);
+
+        return $account;
+    }
+
+    /**
+     * Write a freshly authorised token onto an account that already exists,
+     * keeping everything else about it.
+     *
+     * This is the repair for a dead grant, and the whole point of it is what it
+     * does NOT do: no row is created, none is deleted, and nothing that hangs
+     * off the account id is touched. Mail, threads, mailboxes, labels, rules,
+     * aliases, calendars and per-account settings all key on that id and all
+     * survive, which is what makes this lighter than removing the account and
+     * adding it back — the operation people otherwise resort to, and the one
+     * that costs them their mail.
+     *
+     * ── The identity guard ───────────────────────────────────────────────────
+     * The one thing that must never happen is this account quietly coming to
+     * point at a DIFFERENT mailbox. A user with two Google accounts who is
+     * signed into the wrong one in their browser will sail through the consent
+     * screen without noticing, and the tokens that come back would be perfectly
+     * valid — for somebody else's mail. Every later sync would then write that
+     * mailbox's messages into this account's threads, and there is no undo for
+     * that short of a restore.
+     *
+     * So the address is compared before anything is written, and a mismatch is
+     * refused outright rather than resolved cleverly. Case-insensitively,
+     * because providers do not agree with themselves about capitalisation
+     * across the id_token and the profile response, and a refusal over `A`
+     * versus `a` would be a wall with no way through it.
+     *
+     * The provider must match too. The same address can legitimately exist as
+     * both a Google and a Microsoft account (see upsert()), and re-pointing one
+     * at the other would be the same corruption by a slower route.
+     *
+     * @throws AccountIdentityMismatch when the authorised mailbox is not this one
+     */
+    public function relink(
+        Account              $account,
+        MailProvider         $provider,
+        string               $email,
+        AccessTokenInterface $token,
+    ): Account {
+        if (0 !== strcasecmp(trim($email), trim($account->email))) {
+            throw new AccountIdentityMismatch($account->email, $email);
+        }
+
+        if ($provider->value !== $account->oauthProvider) {
+            throw new AccountIdentityMismatch($account->email, $email);
+        }
+
+        $account->oauthAccessToken = $token->getToken();
+
+        $refreshToken = $token->getRefreshToken();
+
+        if (null !== $refreshToken && '' !== $refreshToken) {
+            $account->oauthRefreshToken = $refreshToken;
+        }
+
+        $expires = $token->getExpires();
+
+        if (null !== $expires) {
+            $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
+        }
+
+        // The two lines this whole feature turned on. OAuthTokenManager writes
+        // the error and clears it only on a successful REFRESH — but a
+        // reconnect never goes through refresh(), so without this the account
+        // would work again while still reporting itself broken, and the health
+        // page would keep insisting on a repair that had already happened.
+        $account->oauthLastRefreshError = null;
+        $account->oauthLastRefreshAt    = new DateTimeImmutable();
+
+        // A grant that died while the account was switched off leaves it off.
+        // Reconnecting is an unambiguous "I want this working", so it is turned
+        // back on — but only if it was us that stopped it, which is why this
+        // reads the error rather than setting isActive unconditionally.
+        $account->isActive = true;
+
+        $this->em->flush();
+
+        // Aliases are seeded rather than reseeded: AliasSeeder is idempotent,
+        // and a mailbox that gained a send-as address while the grant was dead
+        // would otherwise never pick it up.
         $this->aliasSeeder->seed($account);
 
         return $account;
