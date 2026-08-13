@@ -15,6 +15,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
@@ -379,7 +380,15 @@ final class ScheduledSendTest extends WebTestCase
         );
     }
 
-    /** The chevron is a real menu now, and it names the presets. */
+    /**
+     * The chevron is a real menu now, and it names the presets.
+     *
+     * TWO pills since the header placement — the same partial rendered once for
+     * the phone and once for the desktop — so everything inside it comes in
+     * pairs. Which of the two is on screen is a CSS question and belongs to the
+     * browser specs; what belongs here is that both exist and that they are the
+     * same menu.
+     */
     public function testTheSendPillOffersTheScheduleMenu(): void
     {
         $client  = static::createClient();
@@ -393,17 +402,17 @@ final class ScheduledSendTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         self::assertCount(
-            1,
+            2,
             $crawler->filter('input[name="schedule_at"]'),
-            'the field a preset writes into',
+            'the field a preset writes into, once per pill',
         );
         self::assertCount(
-            3,
+            6,
             $crawler->filter('[data-compose--schedule-target="option"]'),
-            'tomorrow morning, tomorrow afternoon, Monday morning',
+            'tomorrow morning, tomorrow afternoon and Monday morning, in each pill',
         );
         self::assertCount(
-            1,
+            2,
             $crawler->filter('input[type="datetime-local"][data-compose--schedule-target="input"]'),
             'and a native picker, no library',
         );
@@ -414,6 +423,61 @@ final class ScheduledSendTest extends WebTestCase
             '',
             (string) $crawler->filter('[data-compose--schedule-timezone-value]')
                 ->attr('data-compose--schedule-timezone-value'),
+        );
+    }
+
+    /**
+     * One pill in the header for the phone, one in the action bar for the
+     * desktop, and never both on screen.
+     *
+     * The visibility itself is CSS and the browser specs measure it; what is
+     * checkable here is that the two placements carry OPPOSITE breakpoint
+     * classes, which is the whole reason there is still exactly one Send. The
+     * day someone drops the `md:hidden` off the header copy, a phone grows two
+     * Send buttons again — the bug the last round removed the header icon over.
+     */
+    public function testEachSendPillIsRenderedForOneBreakpointOnly(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $this->account($user, 'pills@joder.dev');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/compose/new');
+
+        self::assertResponseIsSuccessful();
+
+        $header = $crawler->filter('[data-compose-send-pill="header"]');
+        $bar    = $crawler->filter('[data-compose-send-pill="bar"]');
+
+        self::assertCount(1, $header, 'the phone pill, in the window header');
+        self::assertCount(1, $bar, 'the desktop pill, in the action bar');
+
+        self::assertStringContainsString('md:hidden', (string) $header->attr('class'));
+        self::assertStringContainsString('hidden md:flex', (string) $bar->attr('class'));
+
+        // Downward out of the header, upward out of the bar. A header menu
+        // anchored `bottom-full` opens off the top of the phone.
+        self::assertStringContainsString(
+            'top-full',
+            (string) $header->filter('[data-ui--dropdown-target="menu"]')->attr('class'),
+        );
+        self::assertStringContainsString(
+            'bottom-full',
+            (string) $bar->filter('[data-ui--dropdown-target="menu"]')->attr('class'),
+        );
+
+        // Both hidden fields ship disabled. They share a name and they are in
+        // one form: were they both submitted, PHP would keep the LAST one in
+        // document order — the pill nobody touched — and every schedule set
+        // from the header would post an empty time. compose--schedule enables
+        // its own as it writes to it.
+        self::assertSame(
+            [true, true],
+            $crawler->filter('input[name="schedule_at"]')
+                ->each(static fn (Crawler $field): bool => null !== $field->attr('disabled')),
+            'an unarmed schedule field must not be submitted',
         );
     }
 

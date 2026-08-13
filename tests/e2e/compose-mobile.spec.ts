@@ -117,13 +117,21 @@ test.describe("mobile compose window", () => {
     });
 
     /**
-     * ONE Send, and it is the pill — the same pill the desktop has, chevron and
-     * all. There used to be a second one, an icon in the header, because the
-     * action bar was a sideways scroller Send could be scrolled out of; the bar
-     * wraps now, so the header copy is gone and scheduling is reachable from a
-     * phone for the first time.
+     * ONE Send, it is the pill, and on a phone it is in the HEADER.
+     *
+     * Three shapes in three rounds. First: a plain Send icon in the header,
+     * because the action bar was a sideways scroller Send could be scrolled out
+     * of — so a phone could send but never schedule. Then: the icon deleted and
+     * the pill rendered at every width, which fixed scheduling but moved Send
+     * to the bottom of the screen. Now: the pill itself in the header, where
+     * the icon was, with the action-bar copy `hidden md:flex` behind it.
+     *
+     * The invariant that survived all three is the one asserted first —
+     * EXACTLY ONE Send on screen. `getByRole` matches the accessibility tree,
+     * so the copy that CSS is hiding does not count; a count of two here means
+     * a breakpoint class went missing and the phone grew two Sends again.
      */
-    test("carries the send pill, on screen, with nothing duplicating it", async ({ page }) => {
+    test("carries the send pill in the header, with nothing duplicating it", async ({ page }) => {
         await openCompose(page);
 
         const send = page.locator(composeWindow).getByRole("button", { name: "Send", exact: true });
@@ -141,15 +149,88 @@ test.describe("mobile compose window", () => {
         // A thumb target, not a mouse one.
         expect(box.height).toBeGreaterThanOrEqual(44);
 
+        // In the header: above everything the body block holds. The pill the
+        // action bar renders is the other one, and it is hidden here.
+        const bodyBox = (await page
+            .locator(`${composeWindow} [data-compose--compose-target="collapsible"]`)
+            .boundingBox())!;
+
+        expect(
+            box.y + box.height,
+            JSON.stringify({ send: box, body: bodyBox }),
+        ).toBeLessThanOrEqual(bodyBox.y + 0.5);
+
+        await expect(page.locator(`${composeWindow} [data-compose-send-pill="header"]`)).toBeVisible();
+        await expect(page.locator(`${composeWindow} [data-compose-send-pill="bar"]`)).toBeHidden();
+
         // And the chevron beside it, which is what makes it a send PILL rather
         // than a send button.
         const chevron = page.locator(composeWindow).getByRole("button", { name: "Send options" });
+
+        await expect(chevron).toHaveCount(1);
         await expect(chevron).toBeVisible();
 
         const chevronBox = (await chevron.boundingBox())!;
 
         expect(chevronBox.width).toBeGreaterThanOrEqual(44);
         expect(chevronBox.height).toBeGreaterThanOrEqual(44);
+    });
+
+    /**
+     * The rest of the header has to survive the pill.
+     *
+     * It carries a back arrow, a title and a save status already, and 320px is
+     * the narrow end. The rule is that the pill is the thing that does NOT
+     * yield: the title truncates and the save status is capped, because a Send
+     * pushed off the row is the bug, and a shortened title is not.
+     */
+    test("keeps the whole header on the row at 320px, pill included", async ({ page }) => {
+        await page.setViewportSize({ width: 320, height: 568 });
+        await openCompose(page);
+
+        // Something in the status, so it is competing for the row rather than
+        // being an empty span.
+        await page.locator('[data-compose--compose-target="subject"]').fill("A subject");
+
+        const measured = await page.evaluate(() => {
+            const win  = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+            const pill = win.querySelector<HTMLElement>("[data-compose-send-pill='header']")!;
+            // `select-none` is the header row itself; the pill sits two levels
+            // down inside it, in the group that also holds the save status.
+            const header = pill.closest<HTMLElement>("div.select-none")!;
+            const box = (el: Element) => {
+                const r = el.getBoundingClientRect();
+
+                return { x: r.x, right: r.right, width: r.width, height: r.height };
+            };
+
+            return {
+                header: box(header),
+                pill:   box(pill),
+                back:   box(header.querySelector("button")!),
+                scrollWidth: header.scrollWidth,
+                clientWidth: header.clientWidth,
+            };
+        });
+
+        const json = JSON.stringify(measured);
+
+        // The pill is whole and on screen …
+        expect(measured.pill.x, json).toBeGreaterThanOrEqual(0);
+        expect(measured.pill.right, json).toBeLessThanOrEqual(320 + 0.5);
+        expect(measured.pill.width, json).toBeGreaterThan(80);
+
+        // … the back arrow, which is the first button on the row, is still
+        // reachable at the other end …
+        expect(measured.back.x, json).toBeGreaterThanOrEqual(0);
+        expect(measured.back.width, json).toBeGreaterThan(8);
+
+        // … and the row has not overflowed to fit them both. This is the check
+        // that fails when the title stops truncating.
+        expect(measured.scrollWidth, json).toBeLessThanOrEqual(measured.clientWidth + 1);
+
+        // The header must not have eaten the screen to hold a 44px pill either.
+        expect(measured.header.height, json).toBeLessThan(80);
     });
 
     // Dock chrome. There is no dock to minimize into and nothing to expand to.
@@ -340,15 +421,36 @@ test.describe("mobile compose window", () => {
             ).toContainText("@");
         });
 
-        test("carries the send pill, schedule chevron and all", async ({ page }) => {
+        test("carries the send pill, schedule chevron and all, in its header", async ({ page }) => {
             await openReply(page);
 
-            await expect(
-                page.locator(composeWindow).getByRole("button", { name: "Send", exact: true }),
-            ).toBeInViewport();
+            const send = page
+                .locator(composeWindow)
+                .getByRole("button", { name: "Send", exact: true });
+
+            // One, as everywhere else, and it is the header copy. A reply
+            // below md is a DOCK window (compose--frame-target rewrites the
+            // frame), so this is the same header as composing — which is the
+            // point: replying from a phone gets the same window.
+            await expect(send).toHaveCount(1);
+            await expect(send).toBeInViewport();
             await expect(
                 page.locator(composeWindow).getByRole("button", { name: "Send options" }),
             ).toBeInViewport();
+
+            await expect(
+                page.locator(`${composeWindow} [data-compose-send-pill="header"]`),
+            ).toBeVisible();
+
+            const sendBox = (await send.boundingBox())!;
+            const bodyBox = (await page
+                .locator(`${composeWindow} [data-compose--compose-target="collapsible"]`)
+                .boundingBox())!;
+
+            expect(
+                sendBox.y + sendBox.height,
+                JSON.stringify({ send: sendBox, body: bodyBox }),
+            ).toBeLessThanOrEqual(bodyBox.y + 0.5);
         });
 
         // Above md nothing changes: the reply is still a card at the foot of
@@ -447,7 +549,12 @@ test.describe("mobile compose window", () => {
             },
             {
                 name: "the send-options menu",
-                panel: '[data-ui--dropdown-target="menu"]:has([data-compose--schedule-target="option"])',
+                // Named by placement, because there are two schedule menus in
+                // the DOM now — the header pill's and the action bar's — and at
+                // these widths it is the header's that is on screen. It also
+                // opens the other way: `top-full`, downward, since a header
+                // pill with `bottom-full` opens off the top of the phone.
+                panel: '[data-compose-send-pill="header"] [data-ui--dropdown-target="menu"]',
                 open: async (page) => {
                     await page.locator(composeWindow)
                         .getByRole("button", { name: "Send options" }).click();

@@ -44,15 +44,28 @@ async function fillDock(page: Page, subject = SUBJECT): Promise<void> {
         .fill("Scheduled body text, long enough to save.");
 }
 
-function menu(page: Page) {
-    return page.locator(`${DOCK} [data-ui--dropdown-target="menu"]`).first();
+/**
+ * The pill by placement, not by position.
+ *
+ * There are two of them in the DOM now — the same partial rendered `md:hidden`
+ * in the window header for the phone and `hidden md:flex` in the action bar for
+ * the desktop — so "the first dropdown menu in the dock" no longer means the
+ * schedule one, and "the visible Send options button" is a different element at
+ * 393px than at 1280px. Everything below names which one it means.
+ */
+function pill(page: Page, placement: "bar" | "header" = "bar") {
+    return page.locator(`${DOCK} [data-compose-send-pill="${placement}"]`);
 }
 
-async function openSendOptions(page: Page) {
-    await page.locator(DOCK).getByRole("button", { name: "Send options" }).click();
-    await expect(menu(page)).toBeVisible();
+function menu(page: Page, placement: "bar" | "header" = "bar") {
+    return pill(page, placement).locator('[data-ui--dropdown-target="menu"]');
+}
 
-    return menu(page);
+async function openSendOptions(page: Page, placement: "bar" | "header" = "bar") {
+    await pill(page, placement).getByRole("button", { name: "Send options" }).click();
+    await expect(menu(page, placement)).toBeVisible();
+
+    return menu(page, placement);
 }
 
 test.describe("scheduled send", () => {
@@ -305,9 +318,14 @@ test.describe("scheduled send", () => {
  * is not on screen" but "the chevron is on screen, big enough to hit, and the
  * menu it opens fits".
  *
- * Measured, not located. The menu was `right-0` with a `max-md:left-0` flip
- * that had never once been exercised, because the pill it hung off was hidden
- * at every width where the flip applied.
+ * And it is in the HEADER below md, which is where the removed Send icon used
+ * to live and where the user asked for it back. The action-bar copy is
+ * `hidden md:flex` behind it, so the count of Sends on screen is still one.
+ *
+ * Measured, not located. The header menu opens DOWNWARD (`top-full`) and
+ * anchors `right-0`; the bar's opens upward and anchors `left-0`. Neither
+ * direction is obviously right — each is wrong in the other's place, which is
+ * why both are measured here rather than assumed.
  */
 test.describe("scheduled send on a phone", () => {
     /**
@@ -329,13 +347,41 @@ test.describe("scheduled send on a phone", () => {
         test(`the pill and its menu fit at ${size.width}px`, async ({ page }) => {
             await openComposeAt(page, size);
 
-            const chevron = page.locator(DOCK).getByRole("button", { name: "Send options" });
+            // Everything below the header lives in the `collapsible` block, so
+            // "above its top edge" is "in the header" without depending on the
+            // header having a hook of its own.
+            const body = page.locator(`${DOCK} [data-compose--compose-target="collapsible"]`);
             const send = page
                 .locator(`${DOCK} .compose-window`)
                 .getByRole("button", { name: "Send", exact: true });
+            const chevron = page
+                .locator(`${DOCK} .compose-window`)
+                .getByRole("button", { name: "Send options" });
 
+            // Still exactly one of each on screen. `getByRole` matches the
+            // accessibility tree, so the `hidden md:flex` copy in the action bar
+            // is not counted — and if it ever stops being hidden, this is what
+            // says so.
+            await expect(send).toHaveCount(1);
+            await expect(chevron).toHaveCount(1);
             await expect(send).toBeVisible();
             await expect(chevron).toBeVisible();
+
+            // And the one on screen is the HEADER one, which is what the user
+            // asked for: the pill where the old Send icon was.
+            await expect(pill(page, "header")).toBeVisible();
+            await expect(pill(page, "bar")).toBeHidden();
+
+            const bodyBox = (await body.boundingBox())!;
+            const sendBox = (await send.boundingBox())!;
+
+            expect(
+                sendBox.y + sendBox.height,
+                `the pill sits in the header: ${JSON.stringify({ bodyBox, sendBox })}`,
+            ).toBeLessThanOrEqual(bodyBox.y + 0.5);
+
+            // …and the header itself has not been pushed sideways to hold it.
+            expect(sendBox.x + sendBox.width).toBeLessThanOrEqual(size.width + 0.5);
 
             // 44px both ways. The last round shipped an 11px hit area here.
             const chevronBox = (await chevron.boundingBox())!;
@@ -345,10 +391,7 @@ test.describe("scheduled send on a phone", () => {
 
             await chevron.click();
 
-            const options = page
-                .locator(`${DOCK} [data-ui--dropdown-target="menu"]`)
-                .filter({ has: page.locator("[data-compose--schedule-target='option']") })
-                .first();
+            const options = menu(page, "header");
 
             await expect(options).toBeVisible();
 
@@ -366,6 +409,14 @@ test.describe("scheduled send on a phone", () => {
             expect(box.width, JSON.stringify(box)).toBeGreaterThan(180);
             expect(box.height, JSON.stringify(box)).toBeGreaterThan(80);
 
+            // DOWNWARD. A header pill that kept the action bar's `bottom-full`
+            // opens off the top of the phone — which the containment checks
+            // above would catch, but not say why. This says why.
+            expect(
+                box.y,
+                `the menu opens below the pill: ${JSON.stringify({ sendBox, box })}`,
+            ).toBeGreaterThanOrEqual(sendBox.y + sendBox.height - 0.5);
+
             // The presets are filled in by the controller, on a phone as on a
             // desktop — a menu of labels with no times is a menu of buttons
             // whose effect cannot be read.
@@ -375,21 +426,25 @@ test.describe("scheduled send on a phone", () => {
         });
     }
 
-    /** And it is not merely drawn: a preset actually sets the hold from a phone. */
+    /**
+     * And it is not merely drawn: a preset actually sets the hold from a phone.
+     *
+     * This is also the one test that would catch the two `schedule_at` fields
+     * disagreeing. Both pills carry one, both are named the same and both are
+     * in one form, so if the untouched copy were submitted alongside this one
+     * PHP would keep the LAST in document order — the action bar's, empty — and
+     * the schedule would come back as "send now". The fields ship `disabled`
+     * and compose--schedule arms only its own; a regression there lands here as
+     * a message sent instead of held.
+     */
     test("a preset schedules the send from the phone itself", async ({ page }) => {
         const subject = "Scheduled from a phone";
 
         await openComposeAt(page, PHONE);
         await fillDock(page, subject);
 
-        await page.locator(DOCK).getByRole("button", { name: "Send options" }).click();
+        const options = await openSendOptions(page, "header");
 
-        const options = page
-            .locator(`${DOCK} [data-ui--dropdown-target="menu"]`)
-            .filter({ has: page.locator("[data-compose--schedule-target='option']") })
-            .first();
-
-        await expect(options).toBeVisible();
         await options.getByText("Tomorrow morning").click();
 
         await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({

@@ -1664,12 +1664,14 @@ export default class extends Controller {
         clearTimeout(this.#autosaveTimer);
         this._submitting = true;
 
-        // One of them now, at every width — the pill in the action bar. There
-        // used to be a second, an icon button in the header below md, back when
-        // the action bar was a sideways scroller Send could be scrolled out of.
-        // Kept as a target LIST rather than a single target because the
-        // settings signature editor renders this toolbar without a pill at all,
-        // and the fallback below is what covers it.
+        // TWO in the DOM, one on screen: the send pill is rendered twice from
+        // one partial — `md:hidden` in the window header for phones, `hidden
+        // md:flex` in the action bar for the desktop — and only ever one of
+        // them is displayed. A target LIST rather than a single target is what
+        // makes that safe: both get disabled and relabelled, so the copy the
+        // user cannot see can never come back armed. The fallback below covers
+        // the settings signature editor, which renders this toolbar with no
+        // pill at all.
         const sendButtons = this.hasSendBtnTarget
             ? this.sendBtnTargets
             : Array.from(this.element.querySelectorAll('[type="submit"]'));
