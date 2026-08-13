@@ -163,9 +163,31 @@ test.describe("emoji", () => {
         // steals focus, and an implementation that forgets the selection
         // appends to the end instead.
         await editor.evaluate((node) => {
-            const text = node.firstChild!;
+            // The text node holding what was just filled in, FOUND rather than
+            // assumed. `node.firstChild` is that text node only while the body
+            // is otherwise empty; an account with a signature makes the first
+            // child an element, and `setStart(element, 6)` then counts child
+            // nodes and throws "IndexSizeError: there is no child at offset 6".
+            // That is a fact about the account, not about the emoji picker, so
+            // this test should not be reading it.
+            const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+            let text: Text | null = null;
+
+            while (walker.nextNode()) {
+                const candidate = walker.currentNode as Text;
+
+                if (candidate.data.includes("before")) {
+                    text = candidate;
+                    break;
+                }
+            }
+
+            if (null === text) {
+                throw new Error("the filled-in text is not in the editor");
+            }
+
             const range = document.createRange();
-            range.setStart(text, "before".length);
+            range.setStart(text, text.data.indexOf("before") + "before".length);
             range.collapse(true);
             const sel = window.getSelection()!;
             sel.removeAllRanges();
@@ -205,6 +227,18 @@ test.describe("emoji", () => {
         const editor = page.locator(`${DOCK} ${EDITOR}`);
 
         await editor.click();
+
+        // What the body held before a key was pressed. Clicking the editor
+        // puts the caret at the end of whatever is already there, so typing
+        // appends — and the assertion below can therefore be exact about the
+        // WHOLE body without needing it to have started empty.
+        //
+        // It used to just say `toBe(typed)`, which quietly also asserted that
+        // the body was empty. That is a claim about the account rather than
+        // about emoji, and a false one whenever an account carries a signature
+        // — the four lines of sign-off failed this test with nothing wrong.
+        const before = await editor.innerText();
+
         // Typed key by key rather than filled, because an autocomplete would
         // trigger on the keystrokes and not on the value.
         await page.keyboard.type(typed);
@@ -214,8 +248,9 @@ test.describe("emoji", () => {
 
         // Byte for byte, which is the actual requirement: the failure this
         // guards against swaps two characters for one, and every looser
-        // assertion passes through it.
-        expect(await editor.innerText()).toBe(typed);
+        // assertion passes through it. Nothing may be added either — the body
+        // is the body as it was, plus exactly what was typed.
+        expect(await editor.innerText()).toBe(before + typed);
 
         // The markup that would be posted, too — `<` arrives escaped, as any
         // text typed into HTML must, and nothing else has been touched.

@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
-import { consoleCommand } from "./support/config";
+import { TEST_USER, consoleCommand } from "./support/config";
 
 /**
  * The account-health section, in a browser.
@@ -43,6 +43,24 @@ const ACCOUNT = "E2E Mailbox";
  * literal, a shell, and Postgres reserving the word. `restoreTheAccount` puts
  * it back for the specs that assert on the account list.
  */
+/**
+ * Every worker's seeded account is called "E2E Mailbox", so `WHERE email =
+ * 'E2E Mailbox'` is four rows, not one.
+ *
+ * Both statements below used to say exactly that, and so this spec broke —
+ * and then "restored" — the mail account of every parallel slot, not just its
+ * own. Any spec that rendered a topbar on another worker while this file was
+ * running saw a health badge nobody had asked for, and `restoreTheAccount`
+ * then set auth_type='password' on accounts it had never broken. Scope by
+ * user, which is the same lesson `seed --email` already carries.
+ *
+ * The `user` table needs its quotes to survive a template literal, a shell and
+ * Postgres reserving the word: `\\"` here is `\"` in the string, which the
+ * double-quoted shell argument hands to SQL as `"user"`.
+ */
+const OWNED_BY_THIS_WORKER =
+    `email = '${ACCOUNT}' AND usr_id = (SELECT id FROM \\"user\\" WHERE email = '${TEST_USER.email}')`;
+
 function breakTheAccount(): void {
     // NOT seeded here. The `workerAuth` fixture is worker-scoped and
     // `auto: true`, so it has already run seedUser() and seed("seed-mail") and
@@ -55,13 +73,13 @@ function breakTheAccount(): void {
     // which fails as "the health card is not visible" and looks exactly like a
     // rendering bug.
     consoleCommand(
-        `dbal:run-sql "UPDATE account SET auth_type = 'oauth2', oauth_provider = 'google', oauth_access_token = 'stale', oauth_refresh_token = 'stale', oauth_last_refresh_error = 'invalid_grant' WHERE email = '${ACCOUNT}'"`,
+        `dbal:run-sql "UPDATE account SET auth_type = 'oauth2', oauth_provider = 'google', oauth_access_token = 'stale', oauth_refresh_token = 'stale', oauth_last_refresh_error = 'invalid_grant' WHERE ${OWNED_BY_THIS_WORKER}"`,
     );
 }
 
 function restoreTheAccount(): void {
     consoleCommand(
-        `dbal:run-sql "UPDATE account SET auth_type = 'password', oauth_provider = NULL, oauth_access_token = NULL, oauth_refresh_token = NULL, oauth_last_refresh_error = NULL WHERE email = '${ACCOUNT}'"`,
+        `dbal:run-sql "UPDATE account SET auth_type = 'password', oauth_provider = NULL, oauth_access_token = NULL, oauth_refresh_token = NULL, oauth_last_refresh_error = NULL WHERE ${OWNED_BY_THIS_WORKER}"`,
     );
 }
 
@@ -101,12 +119,39 @@ test.describe("account health", () => {
     test("the topbar carries an indicator that leads to this page", async ({
         page,
     }) => {
-        await page.goto("/");
-
         const badge = page.locator("#user-menu-btn + span");
 
+        // The badge counts every root cause this user has, so what this spec
+        // can honestly claim is that breaking an account adds ONE to it — not
+        // that the total is "1". The total was only ever 1 on a database
+        // nothing else had touched: integrations.spec.ts leaves a connection
+        // whose credentials deliberately fail, `app:test:seed-save-picker`
+        // seeds two more, and each is a root cause of its own. On a stack
+        // reused between runs the badge read "3" and this test failed with
+        // nothing wrong in the code it covers.
+        //
+        // So it is measured rather than assumed: put the account back, read
+        // the baseline, break it again, and assert the difference. That is the
+        // claim the test was always trying to make, and it holds whatever else
+        // the user happens to have wrong.
+        restoreTheAccount();
+        await page.goto("/");
+
+        const baseline =
+            0 === (await badge.count())
+                ? 0
+                : Number((await badge.textContent())!.trim());
+
+        breakTheAccount();
+        await page.goto("/");
+
         await expect(badge).toBeVisible();
-        await expect(badge).toHaveText("1");
+        await expect(badge).toHaveText(String(baseline + 1));
+
+        // Red, not amber: a dead grant is critical, and the warning-level
+        // issues other specs leave behind cannot produce this tone on their
+        // own. The count above says "one more thing"; this says it is ours.
+        await expect(badge).toHaveClass(/bg-red-500/);
 
         // Following it lands on health, not on settings-in-general — an
         // indicator that drops you somewhere you still have to hunt has only

@@ -32,7 +32,20 @@ async function openCompose(page: Page): Promise<void> {
     await expect(page.locator(`${DOCK} ${EDITOR}`)).toBeVisible();
 }
 
-/** Give the first account a signature through the settings panel. */
+/**
+ * Give the first account a signature through the settings panel.
+ *
+ * ALWAYS pair with clearAccountSignature() in a `finally`. The signature is
+ * stored on the account, so it outlives the test, the file and the browser
+ * context — and the next spec on this worker opens compose to find a body that
+ * is not empty. That is not hypothetical: it is why the two emoji tests in
+ * compose-formatting.spec.ts failed on full runs and passed on their own. One
+ * placed a caret at offset 6 of `editor.firstChild` and got
+ * `IndexSizeError: there is no child at offset 6`, because a signature makes
+ * the first child an element rather than the text node it had just filled in;
+ * the other compared the whole editor's innerText to the string it typed and
+ * found four extra lines of sign-off.
+ */
 async function setAccountSignature(page: Page, text: string): Promise<void> {
     await page.goto("/settings?section=signature");
 
@@ -51,6 +64,42 @@ async function setAccountSignature(page: Page, text: string): Promise<void> {
     await expect(page.getByText("Saved.")).toBeVisible();
 }
 
+/**
+ * Put the account back to signing with nothing.
+ *
+ * An empty signature is genuinely "no signature": SignatureProvider::block()
+ * returns the empty string for anything that trims to nothing, so no
+ * `[data-pl-signature]` block is written into a body — which is the state a
+ * freshly seeded account is in.
+ */
+async function clearAccountSignature(page: Page): Promise<void> {
+    await page.goto("/settings?section=signature");
+
+    const form = page.locator('form[action$="/signature"]').first();
+    const editor = form.locator('[contenteditable="true"]');
+
+    await editor.click();
+
+    // Emptied through the DOM, not with `fill("")`. A contenteditable that is
+    // cleared by typing keeps the `<br>` the browser puts in an empty block, so
+    // `fill("")` posts "<br>" — and "<br>" does not trim to nothing, so
+    // SignatureProvider::block() wraps it and every later compose body opens
+    // with an empty-looking but very real signature block. The account is then
+    // not back where it started, which is the whole point of this helper.
+    //
+    // The `input` event is what the toolbar controller listens for to mirror
+    // the editor into the hidden field the form actually submits, so this still
+    // goes through the real save path rather than around it.
+    await editor.evaluate((node) => {
+        node.innerHTML = "";
+        node.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    await form.getByRole("button", { name: /Save signature/i }).click();
+
+    await expect(page.getByText("Saved.")).toBeVisible();
+}
+
 test.describe("compose signature", () => {
     /**
      * The one rule of the From switch. A signature that follows the sender is
@@ -61,34 +110,41 @@ test.describe("compose signature", () => {
         page,
     }) => {
         await setAccountSignature(page, "Kind regards, Ada");
-        await openCompose(page);
 
-        const editor = page.locator(`${DOCK} ${EDITOR}`);
+        try {
+            await openCompose(page);
 
-        await expect(editor.locator(SIGNATURE)).toHaveCount(1);
+            const editor = page.locator(`${DOCK} ${EDITOR}`);
 
-        // Into the writing space ABOVE the signature — the first line, where
-        // the window puts the caret on open. Clicking the middle of the editor
-        // would land in the empty area below the content, which the browser
-        // resolves to the end of the signature, and typing there is genuinely
-        // typing into the signature.
-        await editor.click({ position: { x: 8, y: 8 } });
-        await page.keyboard.type("A paragraph I do not want to lose.");
+            await expect(editor.locator(SIGNATURE)).toHaveCount(1);
 
-        const options = page.locator(
-            `${DOCK} [data-compose--compose-target="fromDropdown"] button`,
-        );
+            // Into the writing space ABOVE the signature — the first line, where
+            // the window puts the caret on open. Clicking the middle of the editor
+            // would land in the empty area below the content, which the browser
+            // resolves to the end of the signature, and typing there is genuinely
+            // typing into the signature.
+            await editor.click({ position: { x: 8, y: 8 } });
+            await page.keyboard.type("A paragraph I do not want to lose.");
 
-        // Only meaningful with something to switch to; the seeded user may
-        // have one address, in which case the swap is a no-op and the
-        // assertion below still holds.
-        await page
-            .locator(`${DOCK} [data-compose--compose-target="fromBtn"]`)
-            .click();
-        await options.last().click();
+            const options = page.locator(
+                `${DOCK} [data-compose--compose-target="fromDropdown"] button`,
+            );
 
-        await expect(editor).toContainText("A paragraph I do not want to lose.");
-        await expect(editor.locator(SIGNATURE)).toHaveCount(1);
+            // Only meaningful with something to switch to; the seeded user may
+            // have one address, in which case the swap is a no-op and the
+            // assertion below still holds.
+            await page
+                .locator(`${DOCK} [data-compose--compose-target="fromBtn"]`)
+                .click();
+            await options.last().click();
+
+            await expect(editor).toContainText(
+                "A paragraph I do not want to lose.",
+            );
+            await expect(editor.locator(SIGNATURE)).toHaveCount(1);
+        } finally {
+            await clearAccountSignature(page);
+        }
     });
 
     /**
@@ -99,15 +155,20 @@ test.describe("compose signature", () => {
         page,
     }) => {
         await setAccountSignature(page, "Kind regards, Ada");
-        await openCompose(page);
 
-        const editor = page.locator(`${DOCK} ${EDITOR}`);
-        const button = page.locator(`${DOCK} .fa-pen-nib`).locator("..");
+        try {
+            await openCompose(page);
 
-        await button.click();
-        await button.click();
+            const editor = page.locator(`${DOCK} ${EDITOR}`);
+            const button = page.locator(`${DOCK} .fa-pen-nib`).locator("..");
 
-        await expect(editor.locator(SIGNATURE)).toHaveCount(1);
+            await button.click();
+            await button.click();
+
+            await expect(editor.locator(SIGNATURE)).toHaveCount(1);
+        } finally {
+            await clearAccountSignature(page);
+        }
     });
 });
 
@@ -143,14 +204,21 @@ test.describe("compose more options", () => {
         await editor.click();
         await page.keyboard.type("Words with no markup.");
 
-        await page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..").click();
-        await page.getByRole("button", { name: /Plain text mode/i }).click();
-
-        // The warning about losing formatting — accepted here, because losing
-        // it is exactly what this test is asking for. A popover now rather
-        // than a `window.confirm()`, which is why there is no dialog listener.
-        await expect(page.locator(`${DOCK} ${WARNING}`)).toBeVisible();
-        await page.locator(DOCK).getByRole("button", { name: "Continue" }).click();
+        // Through the tolerant helper, which accepts the lose-your-formatting
+        // warning only if it appears.
+        //
+        // This used to insist the warning WAS there, and passed only because
+        // the two signature tests above it in this file left "Kind regards,
+        // Ada" on the account — markup in the body, hence something to lose.
+        // With those tests cleaning up after themselves the body is what this
+        // test says it is, "words with no markup", there is correctly nothing
+        // to warn about, and the demand for a warning failed. It was an
+        // assertion about a leak, not about plain-text mode.
+        //
+        // Nothing is lost by dropping it here: the warning has three tests of
+        // its own below, each of which bolds something first so that there is
+        // genuinely formatting at stake.
+        await togglePlainText(page);
 
         await expect(plain).toBeVisible();
         await expect(editor).toBeHidden();
