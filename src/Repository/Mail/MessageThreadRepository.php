@@ -524,6 +524,42 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * One number for everything filed under a custom label — what the LABELS
+     * heading shows while the section is collapsed.
+     *
+     * NOT a sum of countUnreadPerUserLabel(), and that is the whole reason it
+     * is a query of its own. Those counts are per label and a thread may carry
+     * several, so adding them up reports one conversation two or three times:
+     * the section would claim more unread than expanding it could show, which
+     * is the specific way a rolled-up number loses people's trust.
+     *
+     * Stated as "threads carrying at least one custom label" via a subquery
+     * instead, so each is counted once however many labels are on it.
+     */
+    public function countUnreadInUserLabels(UserInterface $user): int
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('COALESCE(SUM(t.unreadCount), 0)')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.unreadCount > 0')
+            ->andWhere(
+                't.id IN ('
+                    . 'SELECT labelled.id FROM ' . MessageThread::class . ' labelled'
+                    . ' JOIN labelled.labels userLabel'
+                    . ' WHERE userLabel.role IS NULL)',
+            )
+            ->setParameter('user', $user);
+
+        // Same rule the per-label counts follow: a trashed thread stops
+        // counting, so the heading cannot be louder than the rows under it.
+        $this->excludeTrashed($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
      * COUNT DISTINCT over a join to Account — neither expressible through
      * count(), which takes field-to-value criteria on this entity alone.
      */

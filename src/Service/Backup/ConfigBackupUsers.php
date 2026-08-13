@@ -118,6 +118,11 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_PANE_MODE,
         User::SETTING_SEARCH_SORT,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
+        // Travels, unlike its `sidebar.expanded_account` neighbour, and the
+        // difference is what these hold: this is section names and label FULL
+        // NAMES, which the restorer recreates verbatim, not a row id that means
+        // somebody else on the target.
+        User::SETTING_SIDEBAR_COLLAPSED,
         User::SETTING_ONBOARDING_COMPLETED_AT,
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,

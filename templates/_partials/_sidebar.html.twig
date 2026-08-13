@@ -90,15 +90,25 @@ keeps its accessible name either way.
     {% set children = sidebarCounts.visibleChildrenOf(label) %}
 
     {% if children|length > 0 %}
-        {# Keyed by full name so the controller can put the tree back the way
-           the user left it after the sidebar re-renders. #}
+        {# Keyed by full name, in the same stored set as the two section
+           headings — one key space, one endpoint, one handler, so a nested
+           label and the section it lives in cannot end up behaving
+           differently.
+
+           `open` now comes from the server rather than from localStorage
+           applied on connect. That is a fix, not just a move: restoring it
+           after the first paint meant a collapsed tree was rendered open and
+           then shut on every navigation, and the state was stuck to one
+           browser. #}
+        {% set _treeKey = 'label:' ~ label.fullName %}
         <details class="group/tree"
-                 data-ui--sidebar-target="tree"
-                 data-tree-key="{{ label.fullName }}"
-                 data-action="toggle->ui--sidebar#rememberTree"
-                 open>
+                 data-collapse-key="{{ _treeKey }}"
+                 data-action="toggle->ui--sidebar#rememberCollapse"
+                 {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 py-1.5 cursor-pointer list-none
                             transition-colors"
+                     aria-expanded="{{ sidebarCounts.isCollapsed(_treeKey) ? 'false' : 'true' }}"
+                     data-ui--sidebar-target="collapseSummary"
                      style="--label-depth: {{ depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
@@ -194,6 +204,7 @@ controller instead — the scroll position and which trees are open.
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        data-controller="ui--sidebar"
        data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
+       data-ui--sidebar-collapse-url-value="{{ path('app_mail_sidebar_section_collapsed') }}"
        {# The badge names are patched on every sync alongside the numbers, so
           the strings have to reach the controller rather than being written in
           it. One JSON value, the way every other controller here takes them. #}
@@ -390,59 +401,136 @@ controller instead — the scroll position and which trees are open.
         </a>
         </details>
 
-        {# Labels section #}
-        <div class="rail-hide pt-4 pb-1 px-3 flex items-center justify-between">
-            <span class="text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.labels.heading'|trans }}</span>
-            <button
-                data-controller="ui--modal"
-                data-action="click->ui--modal#open {{ _drawerClose }}"
-                data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
-                data-ui--modal-src-value="{{ path('app_label_new') }}"
-                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
-                aria-label="{{ 'sidebar.labels.add'|trans }}"
-            >
-                <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
-            </button>
-        </div>
+        {# ── Labels section ────────────────────────────────────────────────
 
-        <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="rail-hide space-y-0.5">
-            {% set labelTree = sidebarCounts.userLabelTree() %}
-            {% if labelTree|length == 0 %}
-                <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
-            {% else %}
-                {% for node in labelTree %}
-                    {{ macros.label_node(node, 0, _drawerClose) }}
-                {% endfor %}
-            {% endif %}
-        </div>
+           A <details>, which is what the "More" block above already is, and
+           deliberately the same element rather than a second collapsing
+           mechanism beside it: the chevron recipe, the summary.nav-item shape,
+           Enter/Space activation, the accessible name and the expanded state a
+           screen reader reads out are then all the ones this file already has,
+           and none of them are re-implemented.
 
-        {# Accounts section #}
-        <div class="rail-hide pt-4 pb-1 px-3 flex items-center justify-between">
-            <span class="text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
-            <button
-                data-controller="ui--modal"
-                data-action="click->ui--modal#open {{ _drawerClose }}"
-                data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
-                data-ui--modal-src-value="{{ path('app_account_new') }}"
-                class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
-                aria-label="{{ 'sidebar.accounts.add'|trans }}"
-            >
-                <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
-            </button>
-        </div>
+           What differs from More is only where "should this be open?" comes
+           from. More asks the ROUTE — the honest answer there is "are you in
+           it?". Here the honest answer is "how did you leave it", so it comes
+           from the user's settings bag, and it is rendered into `open` on the
+           server. That is the whole point of storing it per user rather than in
+           localStorage: the sidebar re-renders on every visit, and a section
+           collapsed by JavaScript after the first paint is a section the user
+           watches snap shut on every single click.
 
-        <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="rail-hide space-y-0.5">
-            {# The same suffix the list containers either side of this use. Both
-               sidebars render this partial on every page, so without it each
-               account's folder frame and expand toggle existed twice under one
-               id — invalid HTML, and Turbo resolves a frame target BY id, so
-               the drawer and the desktop rail were one bad guess apart from
-               swapping folder lists. #}
-            {% include '_partials/_account_list.html.twig' with {
-                _drawerClose: _drawerClose,
-                _idSuffix: _drawerMode is defined and _drawerMode ? '-drawer' : '',
-            } %}
-        </div>
+           The section, rather than each label, is the unit — see the tree keys
+           below, which remain for anyone who does nest. A wall of two dozen
+           flat labels pushing the accounts off the bottom of the nav is the
+           case this exists for, and per-label collapse does nothing for it. #}
+        {% set _labelsCollapsed = sidebarCounts.isCollapsed(constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS')) %}
+        <details class="rail-hide group/labels"
+                 data-action="toggle->ui--sidebar#rememberCollapse"
+                 data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_LABELS') }}"
+                 {{ _labelsCollapsed ? '' : 'open' }}>
+            {# Named explicitly, because a summary takes its accessible name
+               from its contents and this one contains a roll-up badge and the
+               "Create label" button — unnamed, it read as "Labels 3 unread
+               Create label". The same string as the visible heading, so a
+               voice user asking for "Labels" still gets this. #}
+            <summary class="pt-4 pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+                     aria-label="{{ 'sidebar.labels.heading'|trans }}"
+                     aria-expanded="{{ _labelsCollapsed ? 'false' : 'true' }}"
+                     data-ui--sidebar-target="collapseSummary">
+                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/labels:rotate-90" aria-hidden="true"></i>
+                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.labels.heading'|trans }}</span>
+
+                {# The section's own number, and ONLY while it is shut. Open,
+                   the per-label badges under it say it better and this would
+                   be the same mail counted twice on screen — so the disclosure
+                   hides it, via the group-open variant rather than by the
+                   controller, which owns the plain `hidden` class and toggles
+                   it purely on whether the count is zero. The two never fight:
+                   both resolve to display:none, and they answer different
+                   questions.
+
+                   Rendered whether or not it is visible, so refreshCounts()
+                   patches it by data-count-key like every other badge — a
+                   collapsed section that stopped being patched would show a
+                   number from three syncs ago the moment it was reopened. #}
+                <span class="group-open/labels:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
+
+                <button
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open {{ _drawerClose }}"
+                    data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
+                    data-ui--modal-src-value="{{ path('app_label_new') }}"
+                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
+                    aria-label="{{ 'sidebar.labels.add'|trans }}"
+                >
+                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                </button>
+            </summary>
+
+            <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="space-y-0.5">
+                {% set labelTree = sidebarCounts.userLabelTree() %}
+                {% if labelTree|length == 0 %}
+                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
+                {% else %}
+                    {% for node in labelTree %}
+                        {{ macros.label_node(node, 0, _drawerClose) }}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </details>
+
+        {# ── Accounts section ──────────────────────────────────────────────
+
+           The same disclosure, for the same reason and out of the same stored
+           set. It does NOT replace or duplicate SETTING_SIDEBAR_ACCOUNT, which
+           answers a different question: that one is *which* account is
+           expanded, this one is whether the accounts are on screen at all.
+           Collapsing takes the expanded account's folder list down with it and
+           expanding brings the same account back still open, because neither
+           setting is written when the other changes.
+
+           No roll-up badge here, unlike LABELS, and not for symmetry's sake:
+           there is no honest single number. Account rows count within one
+           account, and only the expanded one's folders are ever loaded, so a
+           heading total would either be a sum over lists that are not on the
+           page or a count that silently means "the one account you happened to
+           have open". #}
+        {% set _accountsCollapsed = sidebarCounts.isCollapsed(constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS')) %}
+        <details class="rail-hide group/accounts"
+                 data-action="toggle->ui--sidebar#rememberCollapse"
+                 data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
+                 {{ _accountsCollapsed ? '' : 'open' }}>
+            <summary class="pt-4 pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+                     aria-label="{{ 'sidebar.accounts.heading'|trans }}"
+                     aria-expanded="{{ _accountsCollapsed ? 'false' : 'true' }}"
+                     data-ui--sidebar-target="collapseSummary">
+                <i class="fa-solid fa-chevron-right w-3 text-[9px] text-ink-faint transition-transform group-open/accounts:rotate-90" aria-hidden="true"></i>
+                <span class="flex-1 text-xs font-semibold text-ink-faint uppercase tracking-wider">{{ 'sidebar.accounts.heading'|trans }}</span>
+                <button
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open {{ _drawerClose }}"
+                    data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
+                    data-ui--modal-src-value="{{ path('app_account_new') }}"
+                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
+                    aria-label="{{ 'sidebar.accounts.add'|trans }}"
+                >
+                    <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
+                </button>
+            </summary>
+
+            <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="space-y-0.5">
+                {# The same suffix the list containers either side of this use. Both
+                   sidebars render this partial on every page, so without it each
+                   account's folder frame and expand toggle existed twice under one
+                   id — invalid HTML, and Turbo resolves a frame target BY id, so
+                   the drawer and the desktop rail were one bad guess apart from
+                   swapping folder lists. #}
+                {% include '_partials/_account_list.html.twig' with {
+                    _drawerClose: _drawerClose,
+                    _idSuffix: _drawerMode is defined and _drawerMode ? '-drawer' : '',
+                } %}
+            </div>
+        </details>
 
     </nav>
 </aside>

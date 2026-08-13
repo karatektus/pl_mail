@@ -25,15 +25,15 @@ const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account
  */
 const WRITTEN_EVENT    = "mail--list-toolbar:written";
 /**
- * Where the nav was scrolled to, and which label trees were open.
+ * Where the nav was scrolled to.
  *
- * Session storage for the scroll — it belongs to this run of the app, and
- * restoring yesterday's scroll would be a surprise; local for the trees, which
- * are a preference, and are the same shape as the collapsed admin panels the
- * server stores per user.
+ * Session storage, because it belongs to this run of the app and restoring
+ * yesterday's scroll would be a surprise. Which sections and label trees are
+ * collapsed used to live beside it in localStorage and does not any more: that
+ * is a preference rather than a position, so it is stored per user on the
+ * server and rendered into `open` before the first paint. See rememberCollapse.
  */
 const SCROLL_KEY = "sidebar_scroll";
-const TREES_KEY  = "sidebar_closed_trees";
 
 /**
  * One counts request, however many sidebars are listening.
@@ -128,14 +128,17 @@ function patchNewDots(counts) {
 }
 
 export default class extends Controller {
-    static targets = ["link", "badge", "scroller", "tree"];
-    static values = { countsUrl: String, i18n: Object };
+    static targets = ["link", "badge", "scroller", "collapseSummary"];
+    static values = { countsUrl: String, collapseUrl: String, i18n: Object };
 
     connect() {
-        // Both before the first paint of this element, so nothing is seen in
-        // the wrong place: the sidebar re-renders on every visit now, and a
-        // scroll jump would be exactly the flicker turbo-permanent avoided.
-        this._restoreTrees();
+        // Before the first paint of this element, so nothing is seen in the
+        // wrong place: the sidebar re-renders on every visit now, and a scroll
+        // jump would be exactly the flicker turbo-permanent avoided.
+        //
+        // There is no _restoreTrees() beside it any more, and its absence is
+        // the feature. Which sections are collapsed arrives already applied, in
+        // the HTML, so there is nothing to put back after the fact.
         this._restoreScroll();
 
         this._updateActive();
@@ -173,21 +176,84 @@ export default class extends Controller {
         document.removeEventListener(WRITTEN_EVENT, this._onWritten);
     }
 
-    /** A tree was opened or closed. Closed is what is stored, so a label added
-     *  later shows up expanded rather than needing a backfill of everyone's
-     *  preferences — the same call the admin panels make. */
-    rememberTree(event) {
-        const key = event.target.dataset.treeKey;
+    /**
+     * A section heading or a label tree was opened or closed.
+     *
+     * One handler for both, because they are one <details> idiom with one key
+     * space — `section:labels`, `section:accounts`, `label:<full name>`. COLLAPSED
+     * is what is sent, so a label created later shows up expanded rather than
+     * needing a backfill of everyone's preferences: the same rule the admin
+     * panels follow.
+     *
+     * The sidebar is on the page twice (drawer and desktop column) and both
+     * copies carry the same keys, so toggling one leaves the other showing the
+     * opposite until it next re-renders. Mirrored here rather than left to the
+     * next navigation — opening the drawer to find the section you just
+     * collapsed still expanded reads as the preference not having saved.
+     */
+    rememberCollapse(event) {
+        const details = event.target;
+        const key = details.dataset.collapseKey;
 
         if (!key) {
             return;
         }
 
-        const closed = new Set(this._closedTrees());
+        this._announce(details);
+        this._mirror(key, details.open);
+        this._persistCollapse(key, false === details.open);
+    }
 
-        event.target.open ? closed.delete(key) : closed.add(key);
+    /**
+     * Keep the summary's aria-expanded in step with the disclosure.
+     *
+     * <details>/<summary> already exposes its state natively, so this is belt
+     * and braces — but the attribute is rendered server-side with the stored
+     * state, and an aria-expanded frozen at its initial value is worse than one
+     * that was never there.
+     */
+    _announce(details) {
+        details
+            .querySelector(":scope > summary[aria-expanded]")
+            ?.setAttribute("aria-expanded", details.open ? "true" : "false");
+    }
 
-        localStorage.setItem(TREES_KEY, JSON.stringify([...closed]));
+    /** The other copy of this sidebar, if it is on the page. */
+    _mirror(key, open) {
+        document
+            .querySelectorAll(`details[data-collapse-key="${CSS.escape(key)}"]`)
+            .forEach((other) => {
+                if (other.open === open) {
+                    return;
+                }
+
+                // Assigning fires `toggle` on the other one too, which lands
+                // back here — the guard above makes that second pass a no-op
+                // rather than a loop, since by then the two already agree.
+                other.open = open;
+            });
+    }
+
+    /**
+     * Fire and forget, with keepalive, exactly as the account expander does:
+     * the click that collapses a section is often the click that navigates, and
+     * a preference that fails to save is not worth interrupting anyone over —
+     * the section is shut either way, it just will not be next time.
+     */
+    _persistCollapse(key, collapsed) {
+        if (false === this.hasCollapseUrlValue) {
+            return;
+        }
+
+        fetch(this.collapseUrlValue, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
+            },
+            body: JSON.stringify({ key, collapsed }),
+            keepalive: true,
+        }).catch(() => {});
     }
 
     rememberScroll() {
@@ -344,30 +410,8 @@ export default class extends Controller {
     }
 
     /**
-     * The trail down to an open row.
-     *
-     * Every nested label lives inside its parent's <details>, so the ancestry
-     * is already in the DOM and needs no ids to walk — which matters for the
-     * account lists, where the href is an id and carries no hint of the tree.
+     * Where the nav was left scrolled to. Applied on connect, before paint.
      */
-    _closedTrees() {
-        try {
-            const stored = JSON.parse(localStorage.getItem(TREES_KEY) ?? "[]");
-
-            return Array.isArray(stored) ? stored : [];
-        } catch {
-            return [];
-        }
-    }
-
-    _restoreTrees() {
-        const closed = new Set(this._closedTrees());
-
-        this.treeTargets.forEach((tree) => {
-            tree.open = false === closed.has(tree.dataset.treeKey);
-        });
-    }
-
     _restoreScroll() {
         if (false === this.hasScrollerTarget) {
             return;
@@ -380,6 +424,18 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * The trail down to an open row.
+     *
+     * Every nested label lives inside its parent's <details>, so the ancestry
+     * is already in the DOM and needs no ids to walk — which matters for the
+     * account lists, where the href is an id and carries no hint of the tree.
+     *
+     * `summary.nav-item` is what makes this stop at the label trees rather than
+     * running on up into the LABELS and ACCOUNTS section headings, which are
+     * <details> too now. Those are furniture, not a row you can be "inside", and
+     * tinting them would read as a second selection.
+     */
     _markAncestors(row) {
         let details = row.closest("details")?.parentElement?.closest("details");
 

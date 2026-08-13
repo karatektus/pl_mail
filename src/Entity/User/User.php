@@ -393,6 +393,34 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_SIDEBAR_ACCOUNT = 'sidebar.expanded_account';
 
     /**
+     * The sidebar sections and label trees the user has collapsed, as a list of
+     * keys — `section:labels`, `section:accounts`, `label:<full name>`.
+     *
+     * COLLAPSED is stored rather than expanded, for the reason
+     * SETTING_ADMIN_COLLAPSED_PANELS is: a label created tomorrow, or a section
+     * added in a later version, then shows up open without anyone having to
+     * backfill every user's bag. The absent state is the useful default.
+     *
+     * One key space for both, because they are one question asked at different
+     * depths — "is this part of the nav showing?" — and a second mechanism
+     * beside the first is how two disclosures next to each other end up
+     * behaving differently. It also replaces the localStorage the label trees
+     * used to be remembered in: that was per browser, and it was restored after
+     * the first paint, so every navigation showed the tree open for a frame
+     * before JavaScript shut it again.
+     *
+     * Distinct from SETTING_SIDEBAR_ACCOUNT, which answers a different
+     * question — *which* account is expanded, not whether the accounts section
+     * is on screen at all. Collapsing the section hides the expanded account's
+     * folder list with it and expanding it brings the same account back.
+     */
+    public const string SETTING_SIDEBAR_COLLAPSED = 'sidebar.collapsed_sections';
+
+    /** The collapse keys for the two whole-section disclosures. */
+    public const string SIDEBAR_SECTION_LABELS = 'section:labels';
+    public const string SIDEBAR_SECTION_ACCOUNTS = 'section:accounts';
+
+    /**
      * When this admin last had the log browser open, as an ISO 8601 string.
      *
      * In the settings bag rather than a column: it is a read marker for one
@@ -591,6 +619,48 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         set (?DateTimeImmutable $seenAt) {
             $this->setSetting(self::SETTING_LOGS_SEEN_AT, $seenAt?->format(DateTimeInterface::ATOM));
         }
+    }
+
+    /**
+     * Virtual for the same reason as $collapsedAdminPanels — see
+     * SETTING_SIDEBAR_COLLAPSED.
+     *
+     * @var list<string>
+     */
+    public array $collapsedSidebarSections {
+        get {
+            $keys = $this->getSetting(self::SETTING_SIDEBAR_COLLAPSED, []);
+
+            if (false === is_array($keys)) {
+                return [];
+            }
+
+            return array_values(array_filter($keys, 'is_string'));
+        }
+    }
+
+    public function isSidebarSectionCollapsed(string $key): bool
+    {
+        return in_array($key, $this->collapsedSidebarSections, true);
+    }
+
+    /** The sidebar's half of setAdminPanelCollapsed(), and the same shape. */
+    public function setSidebarSectionCollapsed(string $key, bool $collapsed): static
+    {
+        $keys = $this->collapsedSidebarSections;
+
+        if (true === $collapsed) {
+            if (false === in_array($key, $keys, true)) {
+                $keys[] = $key;
+            }
+        } else {
+            $keys = array_values(array_filter(
+                $keys,
+                static fn (string $existing): bool => $existing !== $key,
+            ));
+        }
+
+        return $this->setSetting(self::SETTING_SIDEBAR_COLLAPSED, $keys);
     }
 
     /**
