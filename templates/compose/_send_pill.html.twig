@@ -166,8 +166,12 @@ Variables: message, params (from the including context); placement.
         {# Native input, no picker library — the same choice the calendar event
            editor makes. #}
         <div data-compose--schedule-target="custom" hidden class="px-3 py-2 space-y-2">
+            {# `input` as well as `change`: a datetime-local fires `change` only
+               when a whole component is committed, so a refusal stayed on
+               screen for most of the typing that was fixing it. #}
             <input type="datetime-local"
                    data-compose--schedule-target="input"
+                   data-action="input->compose--schedule#revalidate change->compose--schedule#revalidate"
                    aria-label="{{ 'compose.schedule.custom'|trans }}"
                    class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink">
             {# Named, because a bare time is ambiguous the moment the machine and

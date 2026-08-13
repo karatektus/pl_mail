@@ -236,6 +236,35 @@ class Message extends MessageModel
     public bool $cancelled = false;
 
     /**
+     * When SendMessageHandler took ownership of this message — the condition an
+     * undo cannot lose a race to.
+     *
+     * `cancelled` on its own could not do this job, and the bug that proves it
+     * was reproducible: the handler READ the flag and then sent, so an undo
+     * whose UPDATE committed in between — anywhere in the few hundred
+     * milliseconds around the DelayStamp expiring — was simply overwritten by
+     * events. The mail went out, the row was left with `cancelled = true` AND
+     * `sent_at` set, and the composer had already told the user "cancelled".
+     * A flag one side reads and the other side writes has no winner; it only
+     * has an order, and neither side could see what the order had been.
+     *
+     * This column makes the decision a single atomic statement instead. The
+     * handler claims with `UPDATE … WHERE send_claimed_at IS NULL AND cancelled
+     * = false AND sent_at IS NULL`, the cancel claims with `UPDATE … WHERE
+     * send_claimed_at IS NULL AND sent_at IS NULL`, and Postgres decides which
+     * one matched a row. Both sides then KNOW whether they won, which is what
+     * lets undo() answer honestly rather than confirming a cancellation that
+     * did not happen.
+     *
+     * Released again when a send fails, so the messenger retry — and any later
+     * resubmission — can claim it afresh. A claim is "the handler has this
+     * message right now", never "this message was sent"; sentAt is still the
+     * only thing that means it left.
+     */
+    #[ORM\Column(name: 'send_claimed_at', nullable: true)]
+    public ?DateTimeImmutable $sendClaimedAt = null;
+
+    /**
      * When an accepted EmailSubmission is due to leave, and the marker that
      * says one exists at all.
      *

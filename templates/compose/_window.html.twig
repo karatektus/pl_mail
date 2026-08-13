@@ -77,12 +77,22 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}
+        {# The schedule URL rides along with the other two because all three go
+           stale together. A window opens with no id, the first autosave mints
+           one, and the response carries the id-bearing versions of all of them
+           — but only draft and send were ever read back out of it, so the send
+           pill's buttons kept pointing at the id-LESS /compose/schedule for the
+           rest of the window's life. Scheduling then built a second Message
+           from the same form and left the autosaved draft behind for good:
+           one composition, two rows in Drafts, permanently. #}
         {% if null == message.id %}
             data-compose--compose-draft-url-value="{{ path('app_compose_form_new', params) }}"
             data-compose--compose-send-url-value="{{ path('app_compose_mail_send', params) }}"
+            data-compose--compose-schedule-url-value="{{ path('app_compose_mail_schedule', params) }}"
         {% else %}
             data-compose--compose-draft-url-value="{{ path('app_compose_form_edit', params|merge({'id': message.id})) }}"
             data-compose--compose-send-url-value="{{ path('app_compose_mail_send_draft', params|merge({'id': message.id})) }}"
+            data-compose--compose-schedule-url-value="{{ path('app_compose_mail_schedule_draft', params|merge({'id': message.id})) }}"
         {% endif %}
          class="compose-window flex flex-col
        {% if inline %}

@@ -90,6 +90,25 @@ export default class extends Controller {
     }
 
     /**
+     * Editing the time withdraws the complaint about the last one.
+     *
+     * The refusal used to survive until the next confirm, so correcting
+     * 01.01.2020 to a valid future date left "that time has already passed"
+     * sitting under a perfectly good value, beside an enabled button. The
+     * dialog said the input was invalid and offered to proceed with it at the
+     * same time, and only one of those could be true.
+     *
+     * It clears rather than re-validates: this fires on every keystroke of a
+     * datetime-local, and half-typed dates are legitimately in the past on
+     * their way to being correct. Refusing mid-edit would mean the field
+     * shouting at the user for typing. confirm() is still the thing that
+     * decides — this only stops a stale answer outliving its question.
+     */
+    revalidate() {
+        this._clearError();
+    }
+
+    /**
      * "Pick date & time" opens the native input in place — no modal and no
      * picker library, matching the calendar editor. The menu stays open; the
      * dropdown's outside-click still closes the lot.

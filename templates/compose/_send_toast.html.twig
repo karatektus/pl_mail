@@ -1,3 +1,19 @@
+{#
+compose/_send_toast.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The dock's "Sending… — Undo" toast.
+
+`hide_after` is ComposeController::CANCEL_WINDOW_MS rather than a literal, and
+that matters: this toast's lifetime IS the cancel window, because the Undo link
+goes when the toast goes. It used to be a bare 8000 here while the inline
+reply bar counted 10000, both undocumented, and the difference was the bug —
+the inline surface offered a cancel right up to the instant the worker claimed
+the message, so a late click was confirmed and the mail went anyway. Both
+surfaces now take the number from the controller, and the controller keeps it
+below the send delay.
+
+Variables: message, cancelWindow
+#}
 <turbo-stream action="append" target="toast-region">
     <template>
         {% include '_partials/_toast.html.twig' with {
@@ -5,7 +21,7 @@
             message: 'compose.sending'|trans,
             extra: {
                 undo_url: path('app_compose_mail_undo', { id: message.id }),
-                hide_after: 8000
+                hide_after: cancelWindow
             }
         } %}
     </template>

@@ -2534,6 +2534,10 @@ toast:
     dismiss: Dismiss
     schedule_cancelled: Scheduled send cancelled.
     send_cancelled: Send cancelled — back to your draft.
+    # Shown when the cancel lost the race to the send. Deliberately blunt: the
+    # message has gone and nothing here can bring it back, and the previous
+    # behaviour — claiming it was cancelled — was worse than saying nothing.
+    send_too_late: Too late — that message had already been sent.
     undo: Undo
     error:
         no_archive_mailbox: There is no archive mailbox.
