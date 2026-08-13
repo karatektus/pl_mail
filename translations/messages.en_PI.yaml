@@ -789,6 +789,11 @@ clipboard:
     copy_failed: Pocketin' failed
 
 compose:
+    open_failed:
+        dismiss: Belay
+        failed: The writin' desk would not open. Give it another go.
+        offline: The writin' desk would not open — ye seem adrift with no signal.
+        signed_out: Yer watch has ended. Reload the page an' sign on again.
     no_account:
         body: Hitch up a mailbag first, an' ye can write from it straight away.
         cta: Hitch up a mailbag

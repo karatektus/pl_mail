@@ -1044,6 +1044,14 @@ clipboard:
     copy_failed: Copy failed
 
 compose:
+    # Shown in the dock when clicking Compose does not produce a window —
+    # a 5xx, an expired session, a dead connection. Turbo's own answer to all
+    # three is four words of untranslated English in the corner.
+    open_failed:
+        dismiss: Dismiss
+        failed: The compose window could not be opened. Please try again.
+        offline: The compose window could not be opened — you appear to be offline.
+        signed_out: Your session has expired. Reload the page and sign in again.
     no_account:
         body: Add a mailbox first, and you can write from it right away.
         cta: Add a mail account

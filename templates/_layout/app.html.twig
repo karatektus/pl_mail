@@ -195,7 +195,14 @@
        `z-50` here because a fixed element creates a stacking context: left at
        `auto` the whole dock painted below the topbar (z-20) and the mobile
        drawer (z-40), which the fullscreen compose window below md has to cover. #}
-    <div class="fixed bottom-4 right-6 z-50 flex items-end gap-3">
+    <div class="fixed bottom-4 right-6 z-50 flex items-end gap-3"
+         data-controller="compose--dock"
+         data-compose--dock-i18n-value="{{ {
+             failed:    'compose.open_failed.failed'|trans,
+             signedOut: 'compose.open_failed.signed_out'|trans,
+             offline:   'compose.open_failed.offline'|trans,
+             dismiss:   'compose.open_failed.dismiss'|trans,
+         }|json_encode }}">
         <turbo-frame id="compose_dock"></turbo-frame>
     </div>
     {#

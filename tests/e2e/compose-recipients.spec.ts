@@ -18,6 +18,10 @@ const DOCK = "#compose_dock";
 const KNOWN = "recipients-known@example.test";
 const OTHER = "recipients-other@example.test";
 
+// The To field's own suggestion panel. A bare `.ts-dropdown` matches five
+// elements in this window — the typeface and size pickers are Tom Selects too.
+const TO_PANEL = "#compose_toAddresses-ts-dropdown";
+
 test.beforeAll(() => {
     seed("seed-mail", "clear-drafts");
 });
@@ -122,7 +126,7 @@ test.describe("compose recipients", () => {
         const input = page.locator(`${DOCK} .ts-control input`).first();
         await input.fill("recipients-known");
 
-        await expect(page.locator(".ts-dropdown .active")).toContainText(KNOWN);
+        await expect(page.locator(`${TO_PANEL} .active`)).toContainText(KNOWN);
         await input.press("Tab");
 
         await expect(chips(page)).toContainText(KNOWN);
@@ -297,5 +301,169 @@ test.describe("the To field's feedback", () => {
 
         await expect(errors).toBeHidden();
         await expect(input).not.toHaveAttribute("aria-invalid", "true");
+    });
+});
+
+/**
+ * Clicking out of the To field with the mouse.
+ *
+ * Driven with real mouse clicks at real coordinates, deliberately: the keyboard
+ * path (Enter, then Tab) is what every spec above uses, and it was never broken.
+ * The reported fault exists only for a pointer, because it is about what is
+ * PAINTED where the user aims.
+ *
+ * The bug: `.ts-dropdown` is absolutely positioned, so the suggestion panel took
+ * up no room and hung over the rows below it. Measured on the dock window, the
+ * Subject input sat at y=346..366 and the open panel at y=331..412 — covering it
+ * completely, label and all, so `document.elementFromPoint` at the centre of the
+ * Subject field answered `.option` / `.create` rather than the input.
+ *
+ * Both reported symptoms are that one fact:
+ *
+ *   • the click lands on the "Add <typed>" row, which commits the address and
+ *     leaves focus in the control — so the subject typed next went into the
+ *     recipient box, and a second click was needed to get out of it;
+ *   • or it lands on a highlighted SUGGESTION, which enrols a contact nobody
+ *     chose onto a message the user believes they are still addressing. That is
+ *     the mis-addressing risk, and it is why these click by coordinate rather
+ *     than by locator: a locator click REFUSES when something covers the
+ *     target, which is exactly the condition under test, so it would have
+ *     reported this bug as a timeout instead of as the wrong recipient.
+ */
+test.describe("clicking out of the To field", () => {
+    const SUBJECT = `${DOCK} input[id$="subject"]`;
+
+    function toInput(page: Page) {
+        return page.locator(`${DOCK} .ts-control input`).first();
+    }
+
+    /** The tag name of whatever is actually on top at the Subject input's centre. */
+    async function whatCoversSubject(page: Page): Promise<string | null> {
+        return page.evaluate(() => {
+            const subject = document.querySelector('#compose_dock input[id$="subject"]');
+
+            if (subject === null) {
+                return null;
+            }
+
+            const box = subject.getBoundingClientRect();
+            const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+
+            return top === null ? null : top.tagName;
+        });
+    }
+
+    /**
+     * The root cause, asserted on its own: whatever else the panel does, it may
+     * not be over the next field. Separate from the behavioural tests below
+     * because it fails with the actual fault ("a DIV is on top of the Subject
+     * input") rather than with a downstream symptom.
+     */
+    test("the suggestion panel never covers the Subject field", async ({ page }) => {
+        await openCompose(page);
+
+        const input = toInput(page);
+        await input.click();
+        await input.pressSequentially(OTHER, { delay: 20 });
+
+        await expect(page.locator(TO_PANEL)).toBeVisible();
+
+        expect(
+            await whatCoversSubject(page),
+            "the Subject input must be the topmost element at its own centre",
+        ).toBe("INPUT");
+    });
+
+    /**
+     * 1a. One click, one focus change, and the text goes where it was aimed.
+     * The tester's `document.activeElement` read `compose_toAddresses-ts-control`
+     * after this click, and the subject they then typed appeared as recipient text.
+     */
+    test("one click on Subject moves focus there, and what is typed next lands in it", async ({
+        page,
+    }) => {
+        await openCompose(page);
+
+        const input = toInput(page);
+        await input.click();
+        await input.pressSequentially(OTHER, { delay: 20 });
+        await expect(page.locator(TO_PANEL)).toBeVisible();
+
+        await page.locator(SUBJECT).click();
+
+        await expect(page.locator(SUBJECT)).toBeFocused();
+
+        await page.keyboard.type("Quarterly numbers");
+
+        await expect(page.locator(SUBJECT)).toHaveValue("Quarterly numbers");
+    });
+
+    /**
+     * 1b. The mis-addressing one: a suggestion that is merely HIGHLIGHTED is not
+     * a suggestion that was CHOSEN, and clicking elsewhere must not enrol it. In
+     * the report this silently added `Paul Lützner <mail@pluetzner.de>` to a
+     * message addressed to somebody else.
+     *
+     * Asserted on the <select> rather than on the chips: the chips are Tom
+     * Select's rendering, and the <select> is what the form actually submits.
+     */
+    test("a highlighted suggestion is not committed by clicking away", async ({ page }) => {
+        // Contacts are learned, not seeded — address a draft to make one.
+        await openCompose(page);
+        await addRecipient(page, KNOWN);
+
+        const saved = page.waitForResponse(
+            (r) => r.url().includes("/compose/draft") && r.request().method() === "POST",
+        );
+        await page
+            .locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`)
+            .fill("Learning a contact");
+        await saved;
+
+        await openCompose(page);
+
+        const input = toInput(page);
+        await input.click();
+        await input.pressSequentially("recipients-known", { delay: 20 });
+
+        // The condition under test: a suggestion is highlighted, and nothing has
+        // been clicked or Tab-ed to accept it.
+        await expect(page.locator(`${TO_PANEL} .active`)).toContainText(KNOWN);
+
+        await page.locator(SUBJECT).click();
+        await expect(page.locator(SUBJECT)).toBeFocused();
+
+        const selected = await page
+            .locator(`${DOCK} select[id$="toAddresses"]`)
+            .evaluate((node: HTMLSelectElement) =>
+                Array.from(node.selectedOptions).map((option) => option.value),
+            );
+
+        expect(selected, "clicking Subject must not enrol the highlighted contact").toHaveLength(0);
+    });
+
+    /**
+     * The same onto the message body, which the panel also overhung — in the
+     * report that one added `Amazon.de <shipment-tracking@amazon.de>`.
+     */
+    test("a highlighted suggestion is not committed by clicking into the body", async ({
+        page,
+    }) => {
+        await openCompose(page);
+
+        const input = toInput(page);
+        await input.click();
+        await input.pressSequentially("recipients-known", { delay: 20 });
+        await expect(page.locator(`${TO_PANEL} .active`)).toContainText(KNOWN);
+
+        await page.locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`).click();
+
+        const selected = await page
+            .locator(`${DOCK} select[id$="toAddresses"]`)
+            .evaluate((node: HTMLSelectElement) =>
+                Array.from(node.selectedOptions).map((option) => option.value),
+            );
+
+        expect(selected, "clicking the body must not enrol the highlighted contact").toHaveLength(0);
     });
 });

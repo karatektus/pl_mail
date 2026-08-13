@@ -6,6 +6,7 @@ use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Contact;
 use App\Entity\User\User;
 use App\Repository\Mail\ContactRepository;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Event\PreSubmitEvent;
@@ -109,6 +110,40 @@ class ContactAutocompleteField extends AbstractType
     {
         $resolver->setDefaults([
             'class'                => Contact::class,
+
+            // Scope every contact this field can see or accept to the signed-in
+            // user. Without it `class` alone means "any Contact row in the
+            // database", and Contact is per-user (uniq_contact_user_email, and
+            // a usr_id FK) — so this was a cross-tenant hole with two mouths:
+            //
+            //  • the suggestion endpoint. WrappedEntityTypeAutocompleter takes
+            //    this very option as the base query and falls back to an
+            //    unfiltered createQueryBuilder(), so typing three letters
+            //    listed other people's correspondents by name AND address.
+            //  • the submitted value. The field posts contact IDS, and
+            //    resolveCreatedOptions() below waves numerics straight through
+            //    to the choice list — which, unscoped, happily resolved another
+            //    user's id and addressed the message to their contact.
+            //
+            // One builder closes both, because the bundle reads it for the
+            // endpoint and EntityType folds it into the choice loader that
+            // validates the submission. LabelType does the same thing; this
+            // field was the outlier.
+            'query_builder'        => function (ContactRepository $repository): QueryBuilder {
+                $builder = $repository->createQueryBuilder('entity');
+                $user    = $this->security->getUser();
+
+                // The form is built in contexts with no session too, and
+                // "no user" must mean "no contacts" rather than "all of them".
+                if (false === $user instanceof User) {
+                    return $builder->andWhere('1 = 0');
+                }
+
+                return $builder
+                    ->andWhere('entity.usr = :usr')
+                    ->setParameter('usr', $user);
+            },
+
             'placeholder'          => '',
             'multiple'             => true,
             'autocomplete'         => true,

@@ -23,7 +23,10 @@ Variables:
     {% set composeParams = threaded
         ? { frame: draftFrame, thread: message.thread.id }
         : {} %}
-    {% set snippet = message.bodyText ? message.bodyText|striptags|trim : '' %}
+    {# No |striptags: bodyText is already plain text, so a second strip deletes
+       literal angle brackets the user wrote rather than any real markup. See the
+       longer note in _partials/_thread_row.html.twig. #}
+    {% set snippet = message.bodyText ? message.bodyText|trim : '' %}
 
     <div id="thread_message_{{ message.id }}" class="border-b border-line last:border-b-0 py-4 first:pt-0">
         <turbo-frame id="{{ draftFrame }}">
@@ -130,7 +133,7 @@ Variables:
                 data-mail--thread-message-target="snippet"
                 class="text-xs text-ink-muted truncate py-0.5 {{ expanded ? 'hidden' : '' }}"
             >
-                {{ message.bodyText|striptags|slice(0, 200) }}…
+                {{ message.bodyText|slice(0, 200) }}…
             </div>
         </div>
 

@@ -295,10 +295,132 @@ export default class extends Controller {
             // down, until the next Send happened to clear it.
             this._clearError();
         });
+
+        this._reserveRoomForPanel(select, input);
+    }
+
+    /**
+     * Keep the suggestion panel from being painted over the Subject row.
+     *
+     * This is the mis-addressing bug, and it is a layout bug rather than
+     * anything to do with blur. `.ts-dropdown` is `position: absolute`, so it
+     * takes up no room and hangs over whatever follows — and what follows the
+     * To row is Subject, then the body. Measured on this window: the Subject
+     * input occupies y=346..366 and the open panel y=331..412. It covers it
+     * completely, label and all, so `elementFromPoint` at the middle of the
+     * Subject field answers `.option` or `.create`, not the input.
+     *
+     * Everything the tester saw follows from that one fact. A click aimed at
+     * Subject lands on the panel instead:
+     *
+     *  • on the "Add <typed>" row it commits what was typed and, because
+     *    Tom Select keeps focus in the control after a selection, leaves the
+     *    caret in the To field — so the subject someone then types goes into
+     *    the recipient box, and a second click is needed to escape. That is
+     *    the "click-out is swallowed" report.
+     *  • on a highlighted suggestion it commits THAT CONTACT — an address
+     *    nobody chose, on a message the user believes they are addressing
+     *    elsewhere. That is the "adds a recipient nobody chose" report, and
+     *    it is the reason this is the priority in the batch.
+     *
+     * So the panel is given real room instead of being allowed to overhang:
+     * while it is open the row grows by its height, Subject and the body move
+     * down, and the click always reaches whatever the user can actually see.
+     * Nothing here second-guesses which suggestion was "really" meant, because
+     * with nothing hidden there is no longer a wrong guess to make.
+     *
+     * Measured rather than assumed: the panel's height changes as results load
+     * and as the create row appears and disappears, so a ResizeObserver keeps
+     * the reservation in step. The floating variant (`ui--select`, anchored to
+     * <body> for the clipping reasons in tom-select.css) is left alone — it is
+     * not in this flow and reserving space for it would move the wrong box.
+     */
+    _reserveRoomForPanel(select, input) {
+        const row = this._addressRows().find((candidate) => candidate.contains(input));
+
+        if (undefined === row) {
+            return;
+        }
+
+        const panel = select.dropdown;
+
+        if (null === panel || undefined === panel) {
+            return;
+        }
+
+        const clear = () => {
+            this._panelObserver?.disconnect();
+            row.style.paddingBottom = '';
+        };
+
+        // Collapsing the reservation is itself a layout change, and doing it
+        // the instant the panel closes moves the form out from under a click
+        // that is still happening: mousedown on Subject closes the panel, the
+        // row shrinks by its height, and mouseup lands on whatever slid up into
+        // that space — so the gesture completes somewhere the user never
+        // pressed. Holding the space until the button is released keeps the
+        // page still for the whole of the click, which is the point.
+        const release = () => {
+            if (false === this._pointerDown) {
+                clear();
+
+                return;
+            }
+
+            document.addEventListener('pointerup', clear, { once: true });
+        };
+
+        const reserve = () => {
+            if (true === panel.classList.contains('ts-dropdown-floating')) {
+                return;
+            }
+
+            // offsetHeight, not getBoundingClientRect: the window animates in,
+            // and a transformed rect would reserve a scaled-down height.
+            const height = panel.offsetHeight;
+
+            row.style.paddingBottom = 0 === height ? '' : `${height + 8}px`;
+        };
+
+        select.on('dropdown_open', () => {
+            reserve();
+
+            this._panelObserver ??= new ResizeObserver(reserve);
+            this._panelObserver.observe(panel);
+        });
+
+        select.on('dropdown_close', release);
+
+        // The window can be torn down with the panel still open — sending from
+        // a half-typed address does exactly that — and a stale observer on a
+        // detached node would keep the callback alive.
+        this._panelReleases ??= [];
+        this._panelReleases.push(clear);
+
+        // One pair of listeners for the window, however many address rows it
+        // has. Capture, so a handler that stops the event lower down cannot
+        // leave `_pointerDown` stuck true and the reservation held open.
+        if (undefined === this._boundPointerDown) {
+            this._pointerDown      = false;
+            this._boundPointerDown = () => { this._pointerDown = true; };
+            this._boundPointerUp   = () => { this._pointerDown = false; };
+
+            document.addEventListener('pointerdown', this._boundPointerDown, { capture: true });
+            document.addEventListener('pointerup',   this._boundPointerUp,   { capture: true });
+        }
     }
 
     disconnect() {
         clearTimeout(this.#autosaveTimer);
+
+        for (const release of this._panelReleases ?? []) {
+            release();
+        }
+
+        if (undefined !== this._boundPointerDown) {
+            document.removeEventListener('pointerdown', this._boundPointerDown, { capture: true });
+            document.removeEventListener('pointerup',   this._boundPointerUp,   { capture: true });
+        }
         this.element.removeEventListener('keydown', this._boundHandleTab);
         this.element.removeEventListener('keydown', this._boundHandleEnter);
         this.element.removeEventListener('autocomplete:connect', this._boundNameAddressFields);
