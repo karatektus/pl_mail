@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { WORKER_SLOT, login, seed, seedUser } from "./support/config";
+import { skipToStep } from "./support/onboarding";
 
 /**
  * The three shared widgets, each pinned by the bug that made it worth pinning:
@@ -283,27 +284,15 @@ test.describe("onboarding provider tab list", () => {
     });
 
     /**
-     * Skips forward to the INTEGRATION credentials step specifically.
+     * The INTEGRATION credentials step specifically, not merely "the first step
+     * with a tab list": the mail step shares the same partial but offers two
+     * providers, which fits on one line at any width and would prove nothing.
+     * Integrations is the one with eight.
      *
-     * Not merely "the first step with a tab list": the mail step shares the
-     * same partial but offers two providers, which fits on one line at any
-     * width and would prove nothing. Integrations is the one with eight.
+     * Walked with the shared helper rather than a local skip-and-sleep loop —
+     * see tests/e2e/support/onboarding.ts for what the sleep bought.
      */
-    async function reachIntegrationTabs(page: Page): Promise<void> {
-        const step = page.locator("#onboarding-step-admin-integrations");
-
-        for (let i = 0; i < 8; i++) {
-            if (await step.isVisible()) {
-                return;
-            }
-
-            await expect(page.locator("#onboarding-skip")).toBeEnabled();
-            await page.locator("#onboarding-skip").click();
-            await page.waitForTimeout(250);
-        }
-
-        await expect(step).toBeVisible();
-    }
+    const reachIntegrationTabs = (page: Page) => skipToStep(page, "admin-integrations");
 
     for (const viewport of [
         { name: "desktop", width: 1280, height: 900 },

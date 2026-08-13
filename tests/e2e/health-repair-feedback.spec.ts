@@ -33,6 +33,32 @@ import { consoleCommand, TEST_USER } from "./support/config";
 /** A calendar the health page will report as broken, owned by this worker. */
 const CALENDAR = "E2E Broken Calendar";
 
+/** The account `app:test:seed-mail` gives every worker — same name in all of them. */
+const ACCOUNT = "E2E Mailbox";
+
+/**
+ * "…and it belongs to the user this worker owns."
+ *
+ * Every fixture in this suite is named identically in every parallel slot: the
+ * seeded account is "E2E Mailbox" in all four, and the calendar below is
+ * "E2E Broken Calendar" in whichever slot happens to run this file. So a WHERE
+ * clause that names only the fixture is not "my row", it is "everybody's row" —
+ * `WHERE email = 'E2E Mailbox'` reports `UPDATE 4` on a four-worker run.
+ *
+ * That is not hypothetical damage. The reconnect test below breaks an account
+ * and then puts it back; unscoped, it did that to three other workers' accounts
+ * too, so any spec rendering a topbar at that moment saw a red health badge
+ * nobody had asked for, and the restore afterwards set auth_type='password' on
+ * accounts it had never broken. account-health.spec.ts was fixed for exactly
+ * this and this file was not; the same lesson `seed --email` already carries.
+ *
+ * `user` is quoted because Postgres reserves the word, and the quoting has to
+ * survive a template literal, a shell and psql in turn: `\\"` here reaches SQL
+ * as `"user"`.
+ */
+const OWNED_BY_THIS_WORKER =
+    `usr_id = (SELECT id FROM \\"user\\" WHERE email = '${TEST_USER.email}')`;
+
 function breakACalendar(): void {
     // The worker's own user, found by address. NOT seeded here — the workerAuth
     // fixture has already run seedUser(), and calling it again re-hashes the
@@ -69,12 +95,14 @@ function resetTheCalendar(): void {
     consoleCommand(
         `dbal:run-sql "UPDATE calendar SET last_sync_error = 'The calendar service refused the request.', ` +
             `sync_failure_count = 2, sync_backoff_until = NOW() + INTERVAL '1 hour', last_synced_at = NULL ` +
-            `WHERE name = '${CALENDAR}'"`,
+            `WHERE name = '${CALENDAR}' AND ${OWNED_BY_THIS_WORKER}"`,
     );
 }
 
 function removeTheCalendar(): void {
-    consoleCommand(`dbal:run-sql "DELETE FROM calendar WHERE name = '${CALENDAR}'"`);
+    consoleCommand(
+        `dbal:run-sql "DELETE FROM calendar WHERE name = '${CALENDAR}' AND ${OWNED_BY_THIS_WORKER}"`,
+    );
 }
 
 /** The resync button on the broken calendar's card. */
@@ -204,7 +232,8 @@ test.describe("health repair feedback", () => {
         consoleCommand(
             `dbal:run-sql "UPDATE account SET auth_type = 'oauth2', oauth_provider = 'google', ` +
                 `oauth_access_token = 'stale', oauth_refresh_token = 'stale', ` +
-                `oauth_last_refresh_error = 'invalid_grant' WHERE email = 'E2E Mailbox'"`,
+                `oauth_last_refresh_error = 'invalid_grant' ` +
+                `WHERE email = '${ACCOUNT}' AND ${OWNED_BY_THIS_WORKER}"`,
         );
 
         // 204, so the browser keeps the current document and the pending state
@@ -240,7 +269,8 @@ test.describe("health repair feedback", () => {
         consoleCommand(
             `dbal:run-sql "UPDATE account SET auth_type = 'password', oauth_provider = NULL, ` +
                 `oauth_access_token = NULL, oauth_refresh_token = NULL, ` +
-                `oauth_last_refresh_error = NULL WHERE email = 'E2E Mailbox'"`,
+                `oauth_last_refresh_error = NULL ` +
+                `WHERE email = '${ACCOUNT}' AND ${OWNED_BY_THIS_WORKER}"`,
         );
     });
 

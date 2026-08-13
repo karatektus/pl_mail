@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { WORKER_SLOT, consoleCommand, login, seedUser } from "./support/config";
 import { totp } from "./support/totp";
+import { currentStepId, skipToStep } from "./support/onboarding";
 
 /**
  * The setup wizard: it opens by itself for someone who has not been through it,
@@ -66,53 +67,11 @@ test("it opens by itself after signing in, without leaving the mail page", async
  * Which step comes first depends on the user — a fresh one with no mailbox
  * starts at the account step — so the specs below assert that the step
  * *changed*, not which one it landed on.
- */
-async function currentStepId(page: Page): Promise<string> {
-    return (await wizard(page).locator("[id^='onboarding-step-']").first().getAttribute("id")) ?? "";
-}
-
-/**
- * Skip forward until the wanted step is on screen.
  *
- * Which steps come before it depends on what the rest of the suite has left
- * configured, so the count cannot be hard-coded. Each iteration waits for the
- * step to actually change before clicking again: Turbo disables a submit
- * button while its request is in flight, so clicking blindly in a loop hits a
- * disabled button and hangs until the test times out.
- *
- * Skip rather than the progress-rail pills, which submit the wizard form —
- * from the account step of a fresh user that form is a blank required mailbox,
- * and the jump is refused.
+ * `currentStepId` and the skip loop used to live here. They are in
+ * tests/e2e/support/onboarding.ts now, because ui-widgets.spec.ts walks the
+ * wizard too and had grown a second, blind-sleeping copy of the same loop.
  */
-async function skipTo(page: Page, step: string): Promise<void> {
-    const wanted = page.locator(`#onboarding-step-${step}`);
-
-    for (let i = 0; i < 8; i++) {
-        if (await wanted.isVisible()) {
-            return;
-        }
-
-        const before = await currentStepId(page);
-
-        await expect(page.locator("#onboarding-skip")).toBeEnabled();
-        await page.locator("#onboarding-skip").click();
-
-        // Must be a *settled* different step. Mid-swap the frame briefly has no
-        // step element at all, and currentStepId() answers "" — which is not
-        // `before`, so a plain inequality check passes while the DOM is still
-        // changing. The loop then clicks skip again and silently loses a step,
-        // sailing past the one it was looking for.
-        await expect
-            .poll(async () => {
-                const now = await currentStepId(page);
-
-                return "" !== now && now !== before;
-            })
-            .toBe(true);
-    }
-
-    await expect(wanted).toBeVisible();
-}
 
 test("Next advances a step without closing the dialog", async ({ page }) => {
     await login(page, PENDING.email, PENDING.password);
@@ -122,10 +81,10 @@ test("Next advances a step without closing the dialog", async ({ page }) => {
     // filled. The earlier steps open on blank required forms, where Next is
     // *supposed* to stay put.
     //
-    // Through skipTo() rather than a bare loop: this clicked skip a fixed
+    // Through skipToStep() rather than a bare loop: this clicked skip a fixed
     // number of times without waiting for the step to change, which raced
     // Turbo disabling the button mid-submit and hung until the timeout.
-    await skipTo(page, "profile");
+    await skipToStep(page, "profile");
 
     const before = await currentStepId(page);
 
@@ -212,7 +171,7 @@ test("enrols in two-factor authentication without leaving the wizard", async ({ 
     await login(page, PENDING.email, PENDING.password);
     await expect(wizard(page)).toBeVisible();
 
-    await skipTo(page, "security");
+    await skipToStep(page, "security");
 
     await page.locator("#onboarding-2fa-open").click();
 
