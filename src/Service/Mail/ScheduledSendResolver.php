@@ -84,11 +84,20 @@ final readonly class ScheduledSendResolver
 
         $sendAt = $this->toInstant($submitted, $user);
 
+        // Gone, and merely too soon, are two different things to be told.
+        // They shared the "already passed" wording until a tester typed the
+        // next whole minute, was refused for a time that had plainly not
+        // passed, and — because the refusal had nowhere to render — was told
+        // nothing at all.
+        if ($sendAt->getTimestamp() <= $now->getTimestamp()) {
+            throw new InvalidScheduleException('compose.schedule.error.past');
+        }
+
         // Strictly less than the floor, not less than zero. See MIN_SECONDS:
         // a hold measured in seconds is a send, and answering "fine" to it
         // would mean the cancel window and the hold expire together.
         if ($sendAt->getTimestamp() - $now->getTimestamp() < self::MIN_SECONDS) {
-            throw new InvalidScheduleException('compose.schedule.error.past');
+            throw new InvalidScheduleException('compose.schedule.error.too_soon');
         }
 
         if ($sendAt->getTimestamp() - $now->getTimestamp() > self::MAX_SECONDS) {
