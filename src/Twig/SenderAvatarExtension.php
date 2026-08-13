@@ -79,22 +79,34 @@ final class SenderAvatarExtension extends AbstractExtension
         ];
     }
 
+    /** How many distinct account colours there are to hand out. */
+    public const int ACCOUNT_COLOURS = 8;
+
     /**
-     * A distinct colour per account, by POSITION rather than by hash.
+     * A distinct colour per account, ASSIGNED rather than derived.
      *
-     * Accounts are a small ordered set — a handful, arranged by the user — not
-     * the unbounded stream of senders `accountTone()` was written for. Hashing
-     * an address into eight buckets makes a collision a coin-flip at four
-     * accounts (it was: two shared a colour in the sidebar), and a dot whose
-     * whole job is to tell accounts apart must not put two of them in the same
-     * paint. `sortOrder` is the dense 0-based position AccountCreator keeps, so
-     * the first eight accounts are guaranteed different and the same account is
-     * the same colour wherever it appears — the sidebar dot and the message
-     * row's dot included, which is the point of it.
+     * Accounts are a small set — a handful, arranged by the user — not the
+     * unbounded stream of senders `accountTone()` was written for. Hashing an
+     * address into eight buckets makes a collision a coin-flip at four accounts
+     * (it was: two shared a colour in the sidebar), and a dot whose whole job is
+     * to tell accounts apart must not put two of them in the same paint.
+     *
+     * So it was keyed off `sortOrder`, which is dense and 0-based and gave the
+     * first eight accounts guaranteed-different colours. The cost only showed
+     * up later: sortOrder is the user's ARRANGEMENT, so dragging a row swapped
+     * two accounts' colours everywhere at once — the sidebar dot and the corner
+     * mark on every message row — and a mark that means "this is the same
+     * account you saw over there" stopped being true of anything the user had
+     * already learned.
+     *
+     * `Account::$colorIndex` is the same dense 0-based number, handed out at
+     * creation from the lowest free slot and then never touched. Same guarantee,
+     * and now the same account really is the same colour wherever and whenever
+     * it appears.
      */
-    public function accountColor(int $sortOrder): string
+    public function accountColor(int $colorIndex): string
     {
-        return self::DOT_TONES[(($sortOrder % count(self::DOT_TONES)) + count(self::DOT_TONES)) % count(self::DOT_TONES)];
+        return self::DOT_TONES[(($colorIndex % count(self::DOT_TONES)) + count(self::DOT_TONES)) % count(self::DOT_TONES)];
     }
 
     public function accountTone(?string $seed): string

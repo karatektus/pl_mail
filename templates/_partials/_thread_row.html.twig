@@ -181,7 +181,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        same everywhere it appears, only in a unified multi-account list. #}
     {% if showAccountDot %}
         {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
-        <span class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.sortOrder|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+        <span class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.colorIndex|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
               title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
               aria-hidden="true"></span>
     {% endif %}

@@ -41,7 +41,7 @@ async function open(page: Page): Promise<void> {
 
 /** Themes are radio-ish buttons carrying their own defaults as data. */
 function themeButtons(page: Page) {
-    return page.locator(`${PANEL} [data-theme]`);
+    return page.locator(`${PANEL} [data-theme-name]`);
 }
 
 test.describe("appearance — theme", () => {

@@ -462,7 +462,7 @@ final class MailController extends AbstractController
     }
 
     #[Route('/account/{account}/folders', name: 'account_folders', requirements: ['account' => '\d+'])]
-    public function accountFolders(Account $account): Response
+    public function accountFolders(Request $request, Account $account): Response
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
@@ -481,7 +481,31 @@ final class MailController extends AbstractController
         return $this->render('mail/_account_labels.html.twig', [
             'account' => $account,
             'labels'  => $labels,
+            'frameId' => $this->folderFrameId($request, $account),
         ]);
+    }
+
+    /**
+     * The id the answering frame must wear.
+     *
+     * The desktop rail and the mobile drawer both render the sidebar into the
+     * same document, so each account's folder frame needs an id of its own —
+     * and Turbo matches a frame response by the id of the frame that asked for
+     * it, so the id has to come back on the reply too.
+     *
+     * Taken from the request rather than derived, because only the caller knows
+     * which of the two it is; validated hard, because it lands in an id
+     * attribute. Anything that is not this account's own frame falls back to
+     * the bare name, which is the desktop one.
+     */
+    private function folderFrameId(Request $request, Account $account): string
+    {
+        $default   = 'account-folders-' . $account->id;
+        $requested = (string) $request->query->get('frame', '');
+
+        return in_array($requested, [$default, $default . '-drawer'], true)
+            ? $requested
+            : $default;
     }
 
     /**

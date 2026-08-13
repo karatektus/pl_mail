@@ -31,11 +31,42 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $name = null;
 
+    /**
+     * Where the account sits in the user's own arrangement of the list.
+     *
+     * DISPLAY ONLY. It used to decide two other things as well — which account
+     * was primary and which colour the account wore — so tidying the list by
+     * dragging a row silently reassigned the address Compose sent from, and
+     * repainted every account dot in the app. Both now live in fields of their
+     * own; this one moves rows and nothing else.
+     */
     #[ORM\Column(options: ['default' => 0])]
     public int $sortOrder = 0;
 
+    /**
+     * The account Compose starts from. Exactly one per user, chosen explicitly.
+     *
+     * Derived from sortOrder === 0 until it was found that a drag rewrote it,
+     * which is not something a person tidying a list is asking for and which
+     * the UI never mentioned. AccountCreator::ensurePrimary() keeps the "exactly
+     * one" part true across creation and deletion.
+     */
     #[ORM\Column]
     public bool $isPrimary = false;
+
+    /**
+     * Which entry of the account palette this account paints its dot with.
+     *
+     * Assigned once, at creation, and then left alone — that is the whole point
+     * of it. The dot was keyed off sortOrder, so a reorder swapped the colours
+     * of two accounts: the mark whose only job is "this is the same account you
+     * saw on that message" changed meaning under the user, on the sidebar and
+     * on every list row at once. Dense and lowest-free at creation, so the first
+     * eight accounts are still guaranteed distinct, which is why sortOrder was
+     * used in the first place.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $colorIndex = 0;
 
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(nullable: false)]

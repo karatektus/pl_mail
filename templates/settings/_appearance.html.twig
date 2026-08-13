@@ -16,8 +16,15 @@
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
             {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
                 {% set swatch = theme.swatch %}
+                {# data-theme-NAME. `data-theme` is the palette switch (every
+                   theme block in app.css is selected by it), so a tile wearing
+                   it declared that theme's whole palette on itself and the
+                   label below inherited it — "Nord" written in Nord's ink on
+                   Solar's cream, 1.22:1. The swatch above still previews the
+                   theme, because those are inline colours on that element
+                   alone and preview is its whole job. #}
                 <button type="button"
-                        data-theme="{{ theme.value }}"
+                        data-theme-name="{{ theme.value }}"
                         data-dark="{{ theme.isDark ? '1' : '0' }}"
                         data-theme-defaults="{{ theme.defaults|json_encode }}"
                         data-action="click->settings--appearance#pickTheme"

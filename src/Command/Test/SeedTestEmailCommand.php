@@ -17,6 +17,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\AccountCreator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -72,6 +73,7 @@ final class SeedTestEmailCommand extends Command
         private readonly MessageThreadRepository  $threadRepository,
         private readonly LabelResolver            $labelResolver,
         private readonly StateManager             $stateManager,
+        private readonly AccountCreator           $accountCreator,
         #[Autowire('%kernel.environment%')]
         private readonly string                   $environment,
     ) {
@@ -122,6 +124,15 @@ final class SeedTestEmailCommand extends Command
             $this->entityManager->persist($account);
             $this->entityManager->flush();
         }
+
+        // isPrimary is a stored choice rather than "whichever account sorts
+        // first", so a hand-built fixture has to state it — otherwise the
+        // seeded mailbox has no primary, no PRIMARY badge in settings, and does
+        // not resemble an account any real path would have produced.
+        $this->accountCreator->ensurePrimary(
+            $this->accountRepository->findForUserOrdered($user),
+        );
+        $this->entityManager->flush();
 
         $this->wipeThreads($account);
 

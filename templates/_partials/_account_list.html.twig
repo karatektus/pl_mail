@@ -1,10 +1,18 @@
 {% set _drawerClose = _drawerClose is defined ? _drawerClose : '' %}
+{# '' for the desktop rail, '-drawer' for the mobile one. Both render this
+   partial into the same document, so every id below has to carry it. #}
+{% set _idSuffix = _idSuffix is defined ? _idSuffix : '' %}
 
 {% for account in accounts %}
     {% set expanded = app.user.expandedAccountId == account.id %}
+    {% set frameId  = 'account-folders-' ~ account.id ~ _idSuffix %}
 
+    {# The frame id travels with the request too. Turbo matches the response
+       against the id of the frame that asked, so a drawer frame fetching a
+       reply that says `account-folders-20` finds nothing to swap and the
+       folders never appear. #}
     <div data-controller="settings--account-expand"
-         data-settings--account-expand-folders-url-value="{{ path('app_mail_account_folders', { account: account.id }) }}"
+         data-settings--account-expand-folders-url-value="{{ path('app_mail_account_folders', { account: account.id, frame: frameId }) }}"
          data-settings--account-expand-persist-url-value="{{ path('app_mail_sidebar_account_expanded') }}"
          data-settings--account-expand-account-value="{{ account.id }}"
          data-settings--account-expand-active-value="{{ expanded ? 'true' : 'false' }}">
@@ -37,8 +45,27 @@
                    green/grey status light, which made every connected account
                    identical and told the list dots apart from nothing. Inactive
                    accounts dim rather than change hue: still recognisably the
-                   same account, visibly asleep. #}
-                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.sortOrder|account_color }}{{ account.isActive ? '' : ' opacity-40' }}"></span>
+                   same account, visibly asleep.
+
+                   Two things were wrong with it. It read `sortOrder`, so
+                   reordering the accounts swapped their colours and the mark
+                   stopped identifying anything; that is `colorIndex` now, which
+                   is assigned once and never moves. And it had no name of any
+                   kind, so an orange circle beside one address and a green one
+                   beside another could not be interpreted at all — the obvious
+                   reading being a status light, which it is not and never was.
+                   Account health is where status is reported; this says which
+                   account, and now says so out loud. The one piece of state it
+                   does carry — switched off — is named too, and agrees with the
+                   toggle in Settings that put it there. #}
+                <span class="w-2 h-2 rounded-full flex-shrink-0 {{ account.colorIndex|account_color }}{{ account.isActive ? '' : ' opacity-40' }}"
+                      role="img"
+                      title="{{ account.isActive
+                          ? 'sidebar.accounts.colour'|trans({ '%account%': account.displayAddress })
+                          : 'sidebar.accounts.colour_disabled'|trans({ '%account%': account.displayAddress }) }}"
+                      aria-label="{{ account.isActive
+                          ? 'sidebar.accounts.colour'|trans({ '%account%': account.displayAddress })
+                          : 'sidebar.accounts.colour_disabled'|trans({ '%account%': account.displayAddress }) }}"></span>
                 <span class="truncate text-sm">{{ account.displayAddress }}</span>
             </a>
             {# aria-expanded, because this is a disclosure button and which way
@@ -57,7 +84,7 @@
                 aria-label="{{ 'sidebar.accounts.toggle'|trans({ '%account%': account.displayAddress }) }}"
                 title="{{ 'sidebar.accounts.toggle'|trans({ '%account%': account.displayAddress }) }}"
                 aria-expanded="{{ expanded ? 'true' : 'false' }}"
-                aria-controls="account-folders-{{ account.id }}"
+                aria-controls="{{ frameId }}"
                 data-settings--account-expand-target="toggle"
                 class="p-2 rounded-lg text-gray-400 cursor-pointer hover:text-ink"
                 data-action="click->settings--account-expand#toggle"
@@ -73,7 +100,7 @@
            arrives one request later is a list that visibly blinks on each
            navigation. Any other account still loads its frame on demand. #}
         <turbo-frame
-            id="account-folders-{{ account.id }}"
+            id="{{ frameId }}"
             data-settings--account-expand-target="frame"
             class="{{ expanded ? '' : 'hidden' }}"
         >

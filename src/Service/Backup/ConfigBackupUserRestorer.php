@@ -21,6 +21,7 @@ use App\Entity\Rule\MailRule;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Service\Mail\AccountCreator;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Throwable;
@@ -96,6 +97,7 @@ final readonly class ConfigBackupUserRestorer
     public function __construct(
         private UserRepository         $users,
         private EntityManagerInterface $entityManager,
+        private AccountCreator         $accountCreator,
     ) {
     }
 
@@ -257,6 +259,11 @@ final readonly class ConfigBackupUserRestorer
             $account->email             = $this->text($row, 'email');
             $account->sortOrder         = $this->number($row, 'sortOrder') ?? 0;
             $account->isPrimary         = true === ($row['isPrimary'] ?? false);
+            // Falls back to sortOrder, which is exactly what the colour used to
+            // be derived from — so a file written before colorIndex existed
+            // restores the colours that backup's accounts were actually wearing.
+            $account->colorIndex        = $this->number($row, 'colorIndex')
+                ?? $account->sortOrder;
             $account->imapHost          = $this->text($row, 'imapHost');
             $account->imapPort          = $this->number($row, 'imapPort');
             $account->imapEncryption    = $this->text($row, 'imapEncryption');
@@ -287,6 +294,15 @@ final readonly class ConfigBackupUserRestorer
 
             $created[$this->number($row, 'id') ?? 0] = $account;
         }
+
+        // A backup written before isPrimary was authoritative can carry none at
+        // all, or — from an install that had drifted — two. Either way the user
+        // must come out of a restore with exactly one sending account, and the
+        // one the old position-0 rule would have chosen.
+        $ordered = $created;
+        usort($ordered, static fn (Account $a, Account $b): int => $a->sortOrder <=> $b->sortOrder);
+
+        $this->accountCreator->ensurePrimary($ordered);
 
         return $created;
     }

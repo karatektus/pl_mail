@@ -22,6 +22,7 @@ account:
         google: Weiter mit Google
         info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
         microsoft: Weiter mit Microsoft
+    primary_set: Primäres Konto geändert
     removed: Konto entfernt
     tabs:
         imap: IMAP / SMTP
@@ -1704,8 +1705,17 @@ settings:
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
         enable: Konto aktivieren
         heading: E-Mail-Konten
+        make_primary: Als primär festlegen
+        make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
+        move_down: '%account% in der Liste nach unten schieben'
+        move_up: '%account% in der Liste nach oben schieben'
+        order_hint: >-
+            Ziehen, um diese Liste zu ordnen. Die Reihenfolge bestimmt nur die
+            Anzeige — das Konto, von dem neue Nachrichten gesendet werden, ist
+            das mit „Primär“ markierte.
         password_help: Leer lassen, um das aktuelle Passwort zu behalten.
         primary: Primär
+        primary_explained: Neue Nachrichten werden standardmäßig von diesem Konto gesendet.
         push:
             degraded_hint:
                 gmail: >-
@@ -2470,8 +2480,13 @@ sidebar:
         heading: Konten
         loading: Wird geladen…
         none: Noch keine Konten
+        colour: 'Farbmarkierung für %account%'
+        colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
+    badge:
+        total: '%count% insgesamt'
+        unread: '%count% ungelesen'
     compose: Schreiben
     labels:
         add: Label erstellen
@@ -2513,7 +2528,7 @@ tabs:
     primary: Allgemein
     promotions: Werbung
     social: Soziale Netzwerke
-    updates: Updates
+    updates: Benachrichtigungen
 
 thread:
     no_subject: (kein Betreff)

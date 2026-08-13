@@ -22,6 +22,7 @@ account:
         google: Sail on with Google
         info: Sign on with yer harbourmaster — no secret word be kept aboard.
         microsoft: Sail on with Microsoft
+    primary_set: A new flagship be named
     removed: Crew member put ashore
     tabs:
         imap: IMAP / SMTP
@@ -1385,8 +1386,16 @@ settings:
         empty: No crew yet. Sign one on to start haulin' mail aboard.
         enable: Restore the papers
         heading: Th' crew
+        make_primary: Name her flagship
+        make_primary_explained: 'Send new bottles from %account% by default'
+        move_down: 'Move %account% down the roster'
+        move_up: 'Move %account% up the roster'
+        order_hint: >-
+            Drag to set the roster. 'Tis the order they be listed in and naught
+            else — the ship yer bottles sail from is the one marked Flagship.
         password_help: Leave it blank to keep the secret word ye have.
         primary: Flagship
+        primary_explained: New bottles sail from this ship unless ye say otherwise.
         push:
             degraded_hint:
                 gmail: >-
@@ -2100,8 +2109,13 @@ sidebar:
         heading: Th' crew
         loading: Haulin' aboard…
         none: No crew yet
+        colour: 'Colours flown by %account%'
+        colour_disabled: 'Colours flown by %account%, laid up in port'
         open: 'Board %account%'
         toggle: 'Open or close the lockers in %account%'
+    badge:
+        total: '%count% all told'
+        unread: '%count% unread'
     compose: Scribble
     labels:
         add: Hoist a new flag

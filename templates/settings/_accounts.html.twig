@@ -3,24 +3,48 @@
         {{ 'settings.accounts.empty'|trans }}
     </p>
 {% else %}
+    {# Says what dragging does, before it is dragged. This list used to reassign
+       the primary account as a side effect of being tidied, and nothing on
+       screen mentioned it; the honest fix is that it no longer does, but the
+       list should still say which of the two it is. #}
+    <p class="px-4 pt-3 pb-1 text-xs text-ink-faint">{{ 'settings.accounts.order_hint'|trans }}</p>
+
+    {# sortablejs by way of our own controller, not @stimulus-components/sortable:
+       that wrapper builds its own request body with nowhere to put a CSRF
+       token, which is exactly why this endpoint went without one. The rules
+       list had already moved off it for the same reason. #}
     <ul class="divide-y divide-line"
-        data-controller="sortable"
-        data-sortable-handle-value=".account-drag-handle"
-        data-sortable-resource-name-value="account"
-        data-sortable-response-kind-value="turbo-stream"
-        data-sortable-animation-value="150">
+        data-controller="settings--account-order"
+        data-settings--account-order-url-value="{{ path('app_account_reorder') }}"
+        data-settings--account-order-csrf-value="{{ csrf_token('account_reorder') }}"
+        data-settings--account-order-target="list">
         {% for account in manageableAccounts %}
             {% set isPassword = account.authType == 'password' %}
-            <li class="flex items-center gap-3 px-4 py-3.5"
-                data-sortable-update-url="{{ path('app_account_reorder', { id: account.id }) }}">
+            <li class="flex items-center gap-3 px-4 py-3.5" data-account-id="{{ account.id }}">
 
-                <button
-                    type="button"
-                    class="account-drag-handle shrink-0 w-5 h-8 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
-                    aria-label="{{ 'settings.accounts.reorder'|trans }}" title="{{ 'settings.accounts.reorder'|trans }}"
-                >
-                    <i class="fa-solid fa-grip-vertical text-xs" aria-hidden="true"></i>
-                </button>
+                {# Buttons as well as a handle: a drag is unreachable from a
+                   keyboard and fiddly on a phone, and the rules list beside
+                   this one already worked that way. #}
+                <div class="flex flex-col items-center shrink-0">
+                    <button type="button" data-action="settings--account-order#move" data-direction="up"
+                            class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            {{ loop.first ? 'disabled' : '' }}
+                            aria-label="{{ 'settings.accounts.move_up'|trans({ '%account%': account.displayAddress }) }}">
+                        <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                    </button>
+
+                    <span class="account-drag-handle w-5 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                          title="{{ 'settings.accounts.reorder'|trans }}" aria-hidden="true">
+                        <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                    </span>
+
+                    <button type="button" data-action="settings--account-order#move" data-direction="down"
+                            class="w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            {{ loop.last ? 'disabled' : '' }}
+                            aria-label="{{ 'settings.accounts.move_down'|trans({ '%account%': account.displayAddress }) }}">
+                        <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                    </button>
+                </div>
 
                 <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ account.isActive ? 'bg-green-400' : 'bg-ink-faint' }}"
                       title="{{ account.isActive ? 'settings.accounts.status.active'|trans : 'settings.accounts.status.disabled'|trans }}"></span>
@@ -31,14 +55,17 @@
                         {# Read the flag, not the position. This badge used to
                            be `loop.first`, which made it a statement about
                            whatever order the list happened to arrive in — and
-                           the settings page sorts alphabetically while
-                           `isPrimary` is derived from the user's own
-                           arrangement (AccountCreator::resequence). The two
-                           disagreed whenever the alphabet did, so the account
-                           badged PRIMARY here and the account compose actually
-                           sent from were different accounts. #}
+                           `isPrimary` was then itself derived from position, so
+                           the badge moved when the list was dragged and took
+                           the user's From address with it.
+
+                           The flag is now chosen rather than derived, and the
+                           badge reports it. It is also a title, because "which
+                           account sends my mail" is not something a coloured
+                           pill on its own answers. #}
                         {% if account.isPrimary %}
-                            <span class="shrink-0 inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                            <span class="shrink-0 inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent"
+                                  title="{{ 'settings.accounts.primary_explained'|trans }}">
                                 {{ 'settings.accounts.primary'|trans }}
                             </span>
                         {% endif %}
@@ -52,6 +79,30 @@
                 </span>
 
                 <div class="flex items-center gap-1 shrink-0">
+                    {# The explicit way to choose the sending account, which is
+                       the half that was missing: the only way to change it used
+                       to be to drag a row to the top, which is not something a
+                       person tidying a list is asking for and which the list
+                       never said it would do.
+
+                       Only offered on an account that could actually send —
+                       a disabled account as the default From would be a From
+                       nothing can go out of. #}
+                    {% if not account.isPrimary and account.isActive %}
+                        <form method="post" action="{{ path('app_account_primary', { id: account.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('account-primary' ~ account.id) }}">
+                            <button
+                                type="submit"
+                                class="h-8 px-2 flex items-center gap-1.5 rounded-lg text-[11px] font-medium text-ink-faint hover:text-accent hover:bg-hover transition-colors cursor-pointer"
+                                title="{{ 'settings.accounts.make_primary_explained'|trans({ '%account%': account.displayAddress }) }}"
+                            >
+                                <i class="fa-regular fa-star text-[10px]" aria-hidden="true"></i>
+                                <span class="hidden sm:inline">{{ 'settings.accounts.make_primary'|trans }}</span>
+                                <span class="sr-only sm:hidden">{{ 'settings.accounts.make_primary_explained'|trans({ '%account%': account.displayAddress }) }}</span>
+                            </button>
+                        </form>
+                    {% endif %}
+
                     {% if isPassword %}
                         <button
                             type="button"

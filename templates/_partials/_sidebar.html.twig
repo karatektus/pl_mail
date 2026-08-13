@@ -7,21 +7,36 @@ app_mail_sidebar_counts.
 {% macro unread_badge(count, key) %}
     <span class="rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink{{ count > 0 ? '' : ' hidden' }}"
           data-ui--sidebar-target="badge"
+          data-badge-kind="unread"
+          aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
           data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
 
 {#
-The same badge for a number that is a total rather than an unread count —
-Trash and Drafts, see SidebarCounts::TOTAL_ROLES.
+The badge for a number that is a TOTAL rather than an unread count — Trash and
+Drafts, see SidebarCounts::TOTAL_ROLES.
 
-Neutral rather than accented, and that is the whole point of it existing: an
-accent badge means "these want you", and 193 items in the bin do not. Wearing
-the same red as the Inbox badge is what made the Trash count read as 188 unread
-messages demanding attention rather than as how much is in there.
+The rule is right: nobody triages a bin, and the useful number there is how much
+is in it. What was wrong is that saying so relied on colour alone. Both numbers
+were the same filled pill in the same place at the same size, one red and one a
+faint grey, and a bare "5" in a pill is a bare "5" — the shape said "badge", not
+"how many". Colour is also the one channel a person may not have.
+
+So the two now differ in SHAPE as well as tone: unread is a filled round pill
+(it is a call to action and looks like one), a total is an outlined rounded
+rectangle that reads as a tally. And both carry an accessible name that says
+which kind of number it is, because to a screen reader they were both the word
+"five".
 #}
 {% macro total_badge(count, key) %}
-    <span class="rail-hide text-xs font-medium px-1.5 py-0.5 rounded-full bg-hover text-ink-muted{{ count > 0 ? '' : ' hidden' }}"
+    {# text-ink-SOFT, not muted. Muted is the caption ink and measured 3.07:1
+       against the Solar sidebar at 12px — under half of what AA asks. The soft
+       ink is 7.5:1 or better in every theme, and this is a number, not a
+       caption: it is the content of the row's right-hand side. #}
+    <span class="rail-hide text-xs font-medium tabular-nums px-1.5 py-0.5 rounded-md border border-line text-ink-soft{{ count > 0 ? '' : ' hidden' }}"
           data-ui--sidebar-target="badge"
+          data-badge-kind="total"
+          aria-label="{{ 'sidebar.badge.total'|trans({ '%count%': count }) }}"
           data-count-key="{{ key }}">{{ count }}</span>
 {% endmacro %}
 
@@ -64,7 +79,7 @@ keeps its accessible name either way.
                text-ink-faint hover:text-ink hover:bg-hover
                opacity-0 group-hover/label:opacity-100 focus-visible:opacity-100
                transition-opacity cursor-pointer"
-        aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label.name }) }}"
+        aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label|label_name }) }}"
     >
         <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
     </button>
@@ -99,7 +114,7 @@ keeps its accessible name either way.
                        The label's own colour dot on the far left is identity,
                        not status, which is why this cannot be folded into it. #}
                     <span class="min-w-0 flex items-center gap-1.5">
-                        <span class="truncate">{{ label.name }}</span>
+                        <span class="truncate">{{ label|label_name }}</span>
                         {{ macros.label_new_dot(label) }}
                     </span>
                     {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
@@ -120,7 +135,7 @@ keeps its accessible name either way.
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"
                data-ui--sidebar-target="link"
                data-action="{{ drawerClose }}">
-                <span class="truncate">{{ label.name }}</span>
+                <span class="truncate">{{ label|label_name }}</span>
                 {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
             </a>
             {{ macros.label_edit(label) }}
@@ -146,7 +161,7 @@ App\Twig\NewMailMarkers::roleKey() and ::labelKey(), which build the other half.
 
 {% macro label_new_dot(label) %}
     {% import '_partials/_new_dot.html.twig' as shared %}
-    {{ shared.new_dot(newMail.forLabel(label), 'new:label:' ~ label.id, label.name) }}
+    {{ shared.new_dot(newMail.forLabel(label), 'new:label:' ~ label.id, label|label_name) }}
 {% endmacro %}
 
 {% macro starred_new_dot() %}
@@ -179,6 +194,13 @@ controller instead — the scroll position and which trees are open.
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        data-controller="ui--sidebar"
        data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
+       {# The badge names are patched on every sync alongside the numbers, so
+          the strings have to reach the controller rather than being written in
+          it. One JSON value, the way every other controller here takes them. #}
+       data-ui--sidebar-i18n-value="{{ {
+           unread: 'sidebar.badge.unread'|trans({ '%count%': '%count%' }),
+           total:  'sidebar.badge.total'|trans({ '%count%': '%count%' }),
+       }|json_encode }}"
        class="flex flex-col w-56 h-full flex-shrink-0 overflow-hidden pane
               transition-[width] duration-200
               {{ _drawerMode is defined and _drawerMode ? '' : 'shell-chrome' }}">
@@ -410,7 +432,16 @@ controller instead — the scroll position and which trees are open.
         </div>
 
         <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="rail-hide space-y-0.5">
-            {% include '_partials/_account_list.html.twig' with { _drawerClose: _drawerClose } %}
+            {# The same suffix the list containers either side of this use. Both
+               sidebars render this partial on every page, so without it each
+               account's folder frame and expand toggle existed twice under one
+               id — invalid HTML, and Turbo resolves a frame target BY id, so
+               the drawer and the desktop rail were one bad guess apart from
+               swapping folder lists. #}
+            {% include '_partials/_account_list.html.twig' with {
+                _drawerClose: _drawerClose,
+                _idSuffix: _drawerMode is defined and _drawerMode ? '-drawer' : '',
+            } %}
         </div>
 
     </nav>
