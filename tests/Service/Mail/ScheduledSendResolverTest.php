@@ -103,8 +103,15 @@ final class ScheduledSendResolverTest extends TestCase
     /**
      * And so is a time so close that the hold and the cancel window would
      * expire together — see ScheduledSendResolver::MIN_SECONDS.
+     *
+     * Refused with its OWN reason, which is the point of the test. The floor
+     * used to answer "that time has already passed" about a time that plainly
+     * had not, and that wording is what made the refusal impossible to act on:
+     * a person types the next whole minute — almost always under the floor —
+     * and is told something they can see is untrue. The two conditions are two
+     * different things to be told.
      */
-    public function testATimeSecondsAwayIsRefusedAsWellAsOneAlreadyGone(): void
+    public function testATimeSecondsAwayIsRefusedAsTooSoonRatherThanAsPast(): void
     {
         $now = new DateTimeImmutable('2026-08-10T06:00:00', new DateTimeZone('UTC'));
 
@@ -113,6 +120,21 @@ final class ScheduledSendResolverTest extends TestCase
             $this->resolver(self::BERLIN)->resolve('2026-08-10T08:00:30', $this->user(), $now);
 
             self::fail('a schedule inside the floor should have been refused');
+        } catch (InvalidScheduleException $refusal) {
+            self::assertSame('compose.schedule.error.too_soon', $refusal->translationKey);
+        }
+    }
+
+    /** A time genuinely behind the clock still says so. */
+    public function testATimeAlreadyGoneIsRefusedAsPast(): void
+    {
+        $now = new DateTimeImmutable('2026-08-10T06:00:00', new DateTimeZone('UTC'));
+
+        try {
+            // 07:59 Berlin is 05:59 UTC — a minute behind.
+            $this->resolver(self::BERLIN)->resolve('2026-08-10T07:59', $this->user(), $now);
+
+            self::fail('a schedule in the past should have been refused');
         } catch (InvalidScheduleException $refusal) {
             self::assertSame('compose.schedule.error.past', $refusal->translationKey);
         }

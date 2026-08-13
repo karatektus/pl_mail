@@ -800,8 +800,9 @@ compose:
         left: Hard to port
         right: Hard to starboard
     confirm:
-        no_body: This scroll be blank. Cast it off regardless?
-        no_subject: This scroll bears no heading. Cast it off regardless?
+        no_body: This scroll be blank.
+        no_subject: This scroll bears no heading.
+        send_anyway: Cast it off regardless?
         plain_text: "Strikin' to plain text scrubs every flourish from this scroll. Carry on?"
     emoji:
         activities: Sport and mischief
@@ -851,6 +852,7 @@ compose:
         error:
             past: That hour be already astern.
             too_far: "No scroll be held longer than %days% days."
+            too_soon: Name an hour a minute or more ahead, matey.
             unreadable: That be no day nor hour I can read.
         heading: Cast off later
         monday_morning: Monday at first light
@@ -927,6 +929,10 @@ compose:
         continue: "Aye, carry on"
         title: "Strip the flourishes?"
     pop_out: Open in its own cabin
+    send_warning:
+        cancel: "Belay, keep writin'"
+        continue: "Cast off regardless"
+        title: "Cast this scroll off?"
     read_receipt: "Beg word it were read"
     recipient_required: Name at least one soul afore ye cast off.
     redo: Do it over again

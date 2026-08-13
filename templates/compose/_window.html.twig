@@ -52,6 +52,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
              recipientRequired: 'compose.recipient_required'|trans,
              confirmNoSubject: 'compose.confirm.no_subject'|trans,
              confirmNoBody:    'compose.confirm.no_body'|trans,
+             confirmSendAnyway: 'compose.confirm.send_anyway'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
@@ -213,8 +214,15 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                line is a custom menu built from these options, and this is only
                the value the form posts. A widget here would be one the user
                cannot see and the screen reader would announce twice. #}
+            {# `sr-only` is not `hidden`: this IS exposed, deliberately, so the
+               From value is reachable without the custom menu above. Exposed
+               and unnamed is the one combination that helps nobody, and it is
+               what shipped — the audit found it as one of exactly two unnamed
+               controls in the window. It borrows the visible From label rather
+               than inventing a second wording. #}
             <select id="{{ form.account.vars.id }}"
                     name="{{ form.account.vars.full_name }}"
+                    aria-labelledby="{{ form.vars.id }}_from_label"
                     data-compose--compose-target="accountSelect"
                     class="sr-only">
                 {% for choice in form.account.vars.choices %}
@@ -231,6 +239,27 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                    name="{{ form.bodyHtml.vars.full_name }}"
                    data-compose--compose-toolbar-target="hiddenInput"
                    value="{{ form.bodyHtml.vars.value|e('html_attr') ?: '' }}">
+
+            {# ── Refusals that belong to the message, not to one field ──
+               This block did not exist, and its absence is what made scheduled
+               send look inert. ComposeController::schedule() reports a time it
+               will not accept with `$form->addError()` — a ROOT error — and the
+               only errors this template rendered were `form.toAddresses`'s. So
+               the refusal was written into a void: Turbo replaced the compose
+               frame with a re-render that looked identical to what was already
+               on screen, and the user saw a menu close and nothing else happen.
+
+               Outside `fields` on purpose: that block is folded away in the
+               inline composer, and a refusal nobody can see is the bug being
+               fixed here, not a shape to reproduce. #}
+            {% if form.vars.errors|length > 0 %}
+                <div class="px-4 py-2 shrink-0" role="alert" aria-live="assertive"
+                     data-compose--compose-target="formErrors">
+                    {% for error in form.vars.errors %}
+                        <p class="text-xs text-danger">{{ error.message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             {# Addresses, subject and the editor scroll as one region rather
                than the editor scrolling under fixed field rows. On a phone
@@ -414,6 +443,11 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                 <div id="{{ form.bodyHtml.vars.id }}_editor"
                      data-compose--compose-toolbar-target="editor"
                      data-compose--compose-target="body"
+                     {# Clicking the empty area BELOW the signature used to put
+                        the caret at the end of the signature line, so the first
+                        thing typed in a fresh message was concatenated onto the
+                        sign-off. See compose--compose#claimWritingSpace. #}
+                     data-action="click->compose--compose#claimWritingSpace"
                      contenteditable="true"
                      role="textbox"
                      aria-multiline="true"
@@ -499,6 +533,50 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                                 class="rounded-full px-3 py-1.5 text-sm text-ink-muted
                                        hover:bg-hover hover:text-ink transition-colors">
                             {{ 'compose.plain_warning.cancel'|trans }}
+                        </button>
+                    </div>
+                </div>
+
+                {# ── Send-anyway warning ──────────────────────────────
+                   The subject/body confirmations, which were `window.confirm()`
+                   until a tester's session froze on them three times. A native
+                   dialog blocks the whole tab, cannot be themed, and — the part
+                   that actually matters — was the SECOND kind of confirmation in
+                   one window, sitting a few centimetres from the in-app panel
+                   above that asks the same sort of question. This is that panel,
+                   with its text filled in by the controller.
+
+                   One panel for both questions rather than two in sequence: a
+                   message with neither subject nor text asked twice, and the
+                   second dialog appeared after the first had been dismissed with
+                   no way back. The reasons are listed together and answered
+                   once. #}
+                <div data-compose--compose-target="sendWarning" hidden
+                     role="alertdialog"
+                     aria-labelledby="{{ form.vars.id }}_send_warning_title"
+                     aria-describedby="{{ form.vars.id }}_send_warning_body"
+                     class="absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80
+                            z-40 popover p-3 text-sm">
+                    <p id="{{ form.vars.id }}_send_warning_title"
+                       class="text-sm font-semibold text-ink">
+                        {{ 'compose.send_warning.title'|trans }}
+                    </p>
+                    <p id="{{ form.vars.id }}_send_warning_body"
+                       data-compose--compose-target="sendWarningBody"
+                       class="mt-1 text-xs text-ink-muted"></p>
+                    <div class="mt-2.5 flex items-center gap-2">
+                        <button type="button"
+                                data-compose--compose-target="sendWarningConfirm"
+                                data-action="click->compose--compose#confirmSendAnyway"
+                                class="rounded-full bg-accent text-white text-sm font-semibold
+                                       px-3 py-1.5 hover:bg-white/10 transition-colors">
+                            {{ 'compose.send_warning.continue'|trans }}
+                        </button>
+                        <button type="button"
+                                data-action="click->compose--compose#cancelSendAnyway"
+                                class="rounded-full px-3 py-1.5 text-sm text-ink-muted
+                                       hover:bg-hover hover:text-ink transition-colors">
+                            {{ 'compose.send_warning.cancel'|trans }}
                         </button>
                     </div>
                 </div>

@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'richOnly'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -140,6 +140,30 @@ export default class extends Controller {
             }
         }
 
+        // Leaving with writing that has not reached the server yet.
+        //
+        // The threshold above closes the common case; this closes the rest of
+        // it. Between the last keystroke and the debounced save there is always
+        // a window in which the draft on the server is older than the one on
+        // screen, and a reload inside that window used to take the difference
+        // with it in silence — no prompt, nothing in Drafts.
+        //
+        // Deliberately the NATIVE dialog, which is the opposite of the choice
+        // made for the send confirmations: `beforeunload` is the only hook a
+        // page gets before a reload, and the browser will not show anything of
+        // ours in its place. The text is the browser's too; a custom string has
+        // been ignored by every engine for years.
+        this._boundBeforeUnload = (event) => {
+            if (false === this._hasUnsavedWriting()) {
+                return;
+            }
+
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', this._boundBeforeUnload);
+
         // Inline: the thread's reply buttons step aside while we're open.
         // Cached — by the time disconnect() runs the card is already detached
         // and closest() would find nothing.
@@ -166,7 +190,111 @@ export default class extends Controller {
             }
 
             input.setAttribute('aria-label', label.textContent.trim());
+
+            // The original <select> too. Tom Select leaves it in the DOM under
+            // `ts-hidden-accessible` — visually hidden, still in the
+            // accessibility tree — and the <label for> in the template stops
+            // reaching it once the widget is built, so it reported as an unnamed
+            // combobox. The audit found it as the second of two.
+            const original = row.querySelector('select.ts-hidden-accessible, select');
+
+            if (null !== original) {
+                original.setAttribute('aria-label', label.textContent.trim());
+            }
+
+            // The error is about the FIELD, so it has to point at the field.
+            // Announced-but-unassociated is how this shipped: the alert was
+            // read out and the combobox itself still reported aria-invalid
+            // null, so anyone arriving at the input afterwards got no hint that
+            // it was the thing being complained about. The calendar form does
+            // this properly; this is the compose window catching up.
+            input.setAttribute('aria-describedby', this._errorsId());
+
+            this._tameAddressField(this._tomSelectFor(row.querySelector('.ts-wrapper')), input);
         }
+
+        this._markInvalid(this.hasErrorsTarget && false === this.errorsTarget.classList.contains('hidden'));
+    }
+
+    /** The id of the shared refusal line, minted once so it can be pointed at. */
+    _errorsId() {
+        if (false === this.hasErrorsTarget) {
+            return '';
+        }
+
+        this.errorsTarget.id ||= `${this.element.id || 'compose'}_address_errors`;
+
+        return this.errorsTarget.id;
+    }
+
+    /** Flag or unflag every address combobox as the one being complained about. */
+    _markInvalid(invalid) {
+        for (const row of this._addressRows()) {
+            const input = row.querySelector('.ts-control input');
+
+            if (null === input) {
+                continue;
+            }
+
+            if (true === invalid) {
+                input.setAttribute('aria-invalid', 'true');
+            } else {
+                input.removeAttribute('aria-invalid');
+            }
+        }
+    }
+
+    /**
+     * Stop the suggestion panel from taking the window over.
+     *
+     * Two faults, one cause. Tom Select reopens the dropdown whenever the field
+     * takes focus, and after Enter it refreshes it against the query that has
+     * just been turned into a chip. So committing an address made the panel
+     * spring back — covering the Subject row and the top of the body, and
+     * offering the contradictory pair "Add test@…" and "No results found" about
+     * an address that was by then already a chip sitting inches away. Escape
+     * dismissed it and the next focus brought it back, which left Subject
+     * unreachable by mouse.
+     *
+     * Typing still opens it; that is a different code path (`refreshOptions` on
+     * input) and it is the one the feature is actually for. What is switched off
+     * is opening a panel nobody asked for.
+     */
+    _tameAddressField(select, input) {
+        if (null === select || true === select.plmailTamed) {
+            return;
+        }
+
+        select.plmailTamed = true;
+        select.settings.openOnFocus = false;
+
+        // Remember what is being typed, because by the time Send is handled it
+        // is already gone. Clicking the button blurs the field, and Tom Select
+        // empties its textbox on blur when the contents cannot become an item —
+        // which is precisely the case worth reporting. Reading `input.value` in
+        // the submit handler therefore always found an empty box, so a typed
+        // address was thrown away and then reported as "no recipient".
+        //
+        // Listened for on the INPUT rather than through Tom Select's own `type`
+        // event: that event comes out of its key handlers, so a value set any
+        // other way never reaches it, and "any other way" includes both a paste
+        // and how the tests drive the field.
+        input?.addEventListener('input', () => {
+            select.plmailTyped = input.value;
+        });
+
+        select.on('item_add', () => {
+            // The query that produced this chip is spent. Left in place it is
+            // what the reopened panel searches for.
+            select.setTextboxValue('');
+            select.plmailTyped = '';
+            select.close();
+
+            // The complaint is over the moment the thing complained about is
+            // fixed. It used to sit there indefinitely, pushing the Subject row
+            // down, until the next Send happened to clear it.
+            this._clearError();
+        });
     }
 
     disconnect() {
@@ -181,6 +309,7 @@ export default class extends Controller {
             this.bodyTarget.removeEventListener('dragover', this._boundBodyDragOver);
         }
 
+        window.removeEventListener('beforeunload', this._boundBeforeUnload);
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
         const form = this.element.querySelector('form');
             form.removeEventListener('input', this._boundAutosave);
@@ -904,6 +1033,78 @@ export default class extends Controller {
         );
     }
 
+    /**
+     * A click in the empty space below the content lands in writeable text,
+     * never in the signature.
+     *
+     * The bug this fixes: a new message opens as `<p><br></p>` + the signature
+     * block, so the signature is the LAST thing in the editor and everything
+     * below it is the editor's own padding. A contenteditable resolves a click
+     * on its padding to the nearest position in the nearest child — the end of
+     * the signature line — so the first sentence a person wrote came out as
+     * "-- SIG-OUTLOOK Paul" with their text welded onto it, no separator, and
+     * no way to get above it with the mouse at all.
+     *
+     * `event.target === bodyTarget` is what makes this precise rather than
+     * clever. A click that lands ON any content — the signature text included,
+     * which people legitimately edit — has that element as its target and is
+     * left completely alone. Only a click on the editor's own box, which is by
+     * definition a click on empty space, is redirected.
+     *
+     * It goes UP, to the writing space above the signature, rather than opening
+     * a paragraph below it. Below the sign-off is not where the message goes,
+     * and the seeded `<p><br></p>` is already sitting there for exactly this.
+     */
+    claimWritingSpace(event) {
+        if (false === this.hasBodyTarget || event.target !== this.bodyTarget) {
+            return;
+        }
+
+        const signature = this._signatureBlock();
+
+        if (null === signature) {
+            return;
+        }
+
+        this._focusWritingSpace(signature);
+    }
+
+    /**
+     * Put the caret at the end of the last writeable block above `signature`,
+     * making one if the body has none left.
+     */
+    _focusWritingSpace(signature) {
+        let space = null;
+
+        for (const child of this.bodyTarget.children) {
+            if (child === signature) {
+                break;
+            }
+
+            // A quote is no more writeable than the signature is: landing at
+            // the end of a quoted reply is the same bug wearing a hat.
+            if (null === child.closest('[data-quote-wrapped], [data-quoted], blockquote')) {
+                space = child;
+            }
+        }
+
+        if (null === space) {
+            space = document.createElement('p');
+            space.appendChild(document.createElement('br'));
+            this.bodyTarget.insertBefore(space, signature);
+        }
+
+        const range = document.createRange();
+        range.selectNodeContents(space);
+        range.collapse(false);
+
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        this.bodyTarget.focus();
+    }
+
     /** The signature block currently in the body, if there is one. */
     _signatureBlock() {
         return this.hasBodyTarget
@@ -1404,6 +1605,12 @@ export default class extends Controller {
     _scheduleAutosave() {
         clearTimeout(this.#autosaveTimer);
 
+        // Set BEFORE the threshold check, on purpose. Writing that is too short
+        // to autosave is exactly the writing that would otherwise vanish
+        // without trace, so it is the case the unload guard most needs to know
+        // about.
+        this._unsaved = this._contentLength() > 0;
+
         if (false === this._worthSaving()) {
             this._reportPending();
 
@@ -1438,7 +1645,12 @@ export default class extends Controller {
 
         // Nothing written and nothing saved yet: closing an untouched reply
         // box must not leave an empty draft behind.
-        if (false === allowEmpty && 0 === this._typedLength() && null === this._messageId()) {
+        //
+        // "Nothing written" means the subject as well as the body — this gate
+        // asked about the body alone, so a draft whose only content was a
+        // subject was refused here even once the threshold above had let it
+        // through, and the save never happened. See _contentLength().
+        if (false === allowEmpty && 0 === this._contentLength() && null === this._messageId()) {
             return;
         }
 
@@ -1474,12 +1686,21 @@ export default class extends Controller {
 
                     this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
                 }
+
+                // What is on screen is now what is on the server, so leaving
+                // costs nothing and must not be interrupted.
+                this._unsaved = false;
             } else {
                 throw new Error('Server error');
             }
         } catch (_) {
             this._setStatus(this._t('saveFailed', 'Could not save the draft'), 'text-danger');
         }
+    }
+
+    /** Writing on screen that the server has not been told about yet. */
+    _hasUnsavedWriting() {
+        return true === this._unsaved && this._contentLength() > 0;
     }
 
     /** The status line next to the window controls. */
@@ -1504,7 +1725,29 @@ export default class extends Controller {
             return true;
         }
 
-        return this._typedLength() >= this.minCharsValue;
+        return this._contentLength() >= this.minCharsValue;
+    }
+
+    /**
+     * Everything the user has written that a draft would keep — the subject as
+     * well as the body.
+     *
+     * The threshold used to look at the body alone, so a subject typed on its
+     * own was never worth saving no matter how long it got. A tester typed
+     * "TEST-RELOAD halbfertig" into Subject, waited past the autosave delay,
+     * reloaded, and it was gone: not in the composer, not in Drafts, and no
+     * warning on the way out.
+     *
+     * Counting the subject does not weaken what the threshold is FOR. Its job
+     * is to stop a composer that was merely opened from littering the Drafts
+     * list — and a composer that was merely opened has an empty subject. The
+     * only drafts this newly saves are ones with something deliberately typed
+     * in them.
+     */
+    _contentLength() {
+        const subject = this.hasSubjectTarget ? this.subjectTarget.value.trim().length : 0;
+
+        return subject + this._typedLength();
     }
 
     /** Characters the user has actually written, quote excluded. */
@@ -1523,17 +1766,52 @@ export default class extends Controller {
 
         // The last two selectors cover drafts written before buildQuotedHtml
         // marked the quote with data-quoted.
-        //
-        // [data-pl-signature] is here for the same reason the quote is: it is
-        // not the user's writing. A new window opens with the signature already
-        // in the body, and counting it would put every fresh draft over
-        // minChars — so opening the composer and closing it again would leave
-        // an autosaved draft containing nothing but a sign-off.
         clone.querySelectorAll(
-            '[data-quote-wrapped], [data-quoted], [data-pl-signature], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
         ).forEach((node) => node.remove());
 
+        // The signature is dropped for the same reason the quote is: it is not
+        // the user's writing. A new window opens with it already in the body,
+        // and counting it would put every fresh draft over minChars — so
+        // opening the composer and closing it again would leave an autosaved
+        // draft containing nothing but a sign-off.
+        //
+        // ONLY WHILE IT IS UNTOUCHED, though, and that qualifier is the fix.
+        // Text typed into the signature block still counts, because it is still
+        // text the user wrote. Dropping the block unconditionally is what made
+        // Send insist "this message has no text" about a message the user could
+        // read on screen — the caret had landed in the signature (see
+        // claimWritingSpace) and every word they typed was being subtracted
+        // again before the count.
+        clone.querySelectorAll('[data-pl-signature]').forEach((node) => {
+            if (node.textContent.trim() === this._pristineSignatureText()) {
+                node.remove();
+            }
+        });
+
         return clone.textContent.trim().length;
+    }
+
+    /**
+     * The current identity's signature as plain text — what an UNEDITED
+     * signature block in the body reads as.
+     *
+     * Text rather than HTML because the comparison has to survive the round
+     * trip through contenteditable, which normalises markup freely (attribute
+     * order, `<br>` versus `<br/>`, whitespace between blocks) without anyone
+     * having typed a thing. The words are what "untouched" means here.
+     */
+    _pristineSignatureText() {
+        const html = this._currentSignature();
+
+        if ('' === html) {
+            return '';
+        }
+
+        const probe = document.createElement('div');
+        probe.innerHTML = html;
+
+        return probe.textContent.trim();
     }
 
     /**
@@ -1545,7 +1823,7 @@ export default class extends Controller {
             return;
         }
 
-        const missing = this.minCharsValue - this._typedLength();
+        const missing = this.minCharsValue - this._contentLength();
         const status  = this.saveStatusTarget;
 
         status.classList.remove('text-danger', 'text-success');
@@ -1583,6 +1861,8 @@ export default class extends Controller {
 
         this.errorsTarget.classList.remove('hidden');
         this.errorsTarget.querySelector('p').textContent = text;
+        this._errorsId();
+        this._markInvalid(true);
     }
 
     _clearError() {
@@ -1590,6 +1870,8 @@ export default class extends Controller {
             this.errorsTarget.classList.add('hidden');
             this.errorsTarget.querySelector('p').textContent = '';
         }
+
+        this._markInvalid(false);
     }
 
     /** Move the caret into the body — where Enter on a header row leads. */
@@ -1627,7 +1909,16 @@ export default class extends Controller {
      * ComposeController::send); this is only the half that can still be
      * friendly about it.
      */
-    _guardSend() {
+    _guardSend(submitter) {
+        // What is half-typed in an address field is an address the user
+        // believes they have entered. Committing it here is what stops Send
+        // from reporting "no recipient" about a field with an address visibly
+        // in it — and, when the address is malformed, what makes the refusal
+        // say so instead of blaming the count.
+        if (false === this._commitPendingAddresses()) {
+            return false;
+        }
+
         if (0 === this._recipientCount()) {
             this._reportError(this._t('recipientRequired', 'Add at least one recipient before sending.'));
 
@@ -1636,17 +1927,137 @@ export default class extends Controller {
 
         this._clearError();
 
-        const subject = this.hasSubjectTarget ? this.subjectTarget.value.trim() : '';
+        // Answered already, on the panel below. One question, one answer.
+        if (true === this._sendConfirmed) {
+            this._sendConfirmed = false;
 
-        if ('' === subject && false === window.confirm(this._t('confirmNoSubject', 'This message has no subject. Send it anyway?'))) {
-            return false;
+            return true;
         }
 
-        if (0 === this._typedLength() && false === window.confirm(this._t('confirmNoBody', 'This message has no text. Send it anyway?'))) {
-            return false;
+        const missing = [];
+
+        if ('' === (this.hasSubjectTarget ? this.subjectTarget.value.trim() : 'x')) {
+            missing.push(this._t('confirmNoSubject', 'This message has no subject.'));
+        }
+
+        if (0 === this._typedLength()) {
+            missing.push(this._t('confirmNoBody', 'This message has no text.'));
+        }
+
+        if (0 === missing.length) {
+            return true;
+        }
+
+        this._openSendWarning(missing, submitter);
+
+        return false;
+    }
+
+    /**
+     * Turn anything typed-but-uncommitted in To/Cc/Bcc into a chip.
+     *
+     * @returns {boolean} false when something typed is not an address, having
+     *                    said so — and having LEFT IT IN THE FIELD. Tom Select
+     *                    drops an uncommittable string on blur, so pressing Send
+     *                    with a malformed address in the box used to throw the
+     *                    text away and then complain there were no recipients:
+     *                    two wrongs, and the user could no longer see what they
+     *                    had typed to fix it.
+     */
+    _commitPendingAddresses() {
+        for (const row of this._addressRows()) {
+            const input  = row.querySelector('.ts-control input');
+            const select = this._tomSelectFor(row.querySelector('.ts-wrapper'));
+
+            // The box first, then what was last typed into it — see the `type`
+            // handler in _tameAddressField for why the box is usually empty by
+            // the time we get here.
+            const typed = (input?.value.trim() || select?.plmailTyped?.trim()) ?? '';
+
+            if ('' === typed) {
+                continue;
+            }
+
+            if (false === this.constructor.ADDRESS.test(typed)) {
+                this._reportError(
+                    this._t('invalidAddress', '"%s" is not a valid email address').replace('%s', typed),
+                );
+
+                // Put it back where the user left it. A refusal that also
+                // deletes the thing being refused leaves nothing to correct.
+                select?.setTextboxValue(typed);
+                input?.focus();
+
+                return false;
+            }
+
+            if (null !== select) {
+                select.createItem(typed, false);
+                select.setTextboxValue('');
+                select.plmailTyped = '';
+            }
         }
 
         return true;
+    }
+
+    /** The in-app replacement for the two `window.confirm()` calls. */
+    _openSendWarning(reasons, submitter) {
+        if (false === this.hasSendWarningTarget) {
+            return;
+        }
+
+        // Held so the retry submits through the SAME button. The schedule
+        // buttons carry `formaction`, and re-submitting without the submitter
+        // would quietly turn "send on Monday" into "send now".
+        this._pendingSubmitter = submitter ?? null;
+
+        this.sendWarningBodyTarget.textContent =
+            `${reasons.join(' ')} ${this._t('confirmSendAnyway', 'Send it anyway?')}`;
+        this.sendWarningTarget.hidden = false;
+
+        this._boundSendWarningEscape ??= (event) => {
+            if ('Escape' === event.key) {
+                event.stopPropagation();
+                this.cancelSendAnyway();
+            }
+        };
+
+        document.addEventListener('keydown', this._boundSendWarningEscape);
+
+        if (this.hasSendWarningConfirmTarget) {
+            this.sendWarningConfirmTarget.focus();
+        }
+    }
+
+    _closeSendWarning() {
+        if (true === this.hasSendWarningTarget) {
+            this.sendWarningTarget.hidden = true;
+        }
+
+        document.removeEventListener('keydown', this._boundSendWarningEscape);
+    }
+
+    /** "Send anyway" — go back through the same submit, past the question. */
+    confirmSendAnyway() {
+        const submitter = this._pendingSubmitter;
+
+        this._closeSendWarning();
+        this._sendConfirmed  = true;
+        this._pendingSubmitter = null;
+
+        const form = this.element.querySelector('form');
+
+        if (null !== form) {
+            form.requestSubmit(submitter ?? undefined);
+        }
+    }
+
+    /** "Cancel" or Escape. Nothing is sent and nothing is lost. */
+    cancelSendAnyway() {
+        this._closeSendWarning();
+        this._sendConfirmed  = false;
+        this._pendingSubmitter = null;
     }
 
     _handleSubmit(event) {
@@ -1655,7 +2066,7 @@ export default class extends Controller {
             return;
         }
 
-        if (false === this._guardSend()) {
+        if (false === this._guardSend(event.submitter)) {
             event.preventDefault();
 
             return;
@@ -1663,6 +2074,10 @@ export default class extends Controller {
 
         clearTimeout(this.#autosaveTimer);
         this._submitting = true;
+
+        // The form is on its way to the server with everything in it. Whatever
+        // happens next, nothing is being abandoned.
+        this._unsaved = false;
 
         // TWO in the DOM, one on screen: the send pill is rendered twice from
         // one partial — `md:hidden` in the window header for phones, `hidden

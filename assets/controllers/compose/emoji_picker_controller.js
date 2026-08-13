@@ -51,7 +51,17 @@ export default class extends Controller {
      * time this runs, which is what the component needs to size its grid.
      */
     build() {
-        if (null !== this._picker || false === this.hasPanelTarget) {
+        if (false === this.hasPanelTarget) {
+            return;
+        }
+
+        // Re-measured on EVERY open, not only the first. The window can be
+        // expanded, restored or rotated between two presses of the button, and
+        // a cap worked out against the height it had last time is the same bug
+        // in slower motion.
+        if (null !== this._picker) {
+            this._fitToWindow();
+
             return;
         }
 
@@ -71,6 +81,92 @@ export default class extends Controller {
 
         this.panelTarget.appendChild(picker);
         this._picker = picker;
+
+        this._styleShadow(picker);
+        this._fitToWindow();
+    }
+
+    /**
+     * Two corrections that can only be made from inside the shadow root.
+     *
+     * The component's root is open, which is the supported way to reach it —
+     * page CSS cannot select into it and neither of these is exposed as a part
+     * or a custom property.
+     *
+     *  • The grid's scrollbar. `scrollbar-color` was themed and reached it by
+     *    inheritance, but `scrollbar-width` was never set, so the grid kept a
+     *    15px native bar WITH STEPPER ARROWS inside a panel where every other
+     *    scroller in the app is a thin overlay — themed the right colour and
+     *    the wrong size, which reads worse than not having tried. Declared here
+     *    rather than only on the host because something in the component's own
+     *    sheet re-establishes it, so inheriting from outside is not enough.
+     *  • The skin-tone button, which sat 1px off the panel's own outline and so
+     *    appeared to be resting on it. It is given the same gutter as the rest
+     *    of the row.
+     */
+    _styleShadow(picker) {
+        const root = picker.shadowRoot;
+
+        if (null === root || undefined === root) {
+            return;
+        }
+
+        const sheet = document.createElement('style');
+
+        sheet.textContent = `
+            .tabpanel, .emoji-menu, [role="menu"] {
+                scrollbar-width: thin;
+            }
+
+            .skintone-button-wrapper {
+                margin-right: 0.375rem;
+            }
+        `;
+
+        root.appendChild(sheet);
+    }
+
+    /**
+     * Keep the panel inside the window it belongs to.
+     *
+     * It opens upward out of a compose window that is itself anchored to the
+     * bottom of the screen, and its height was capped against the VIEWPORT
+     * (`50vh`) — which knows nothing about where the window's top edge is. On a
+     * 900px viewport with a 512px window that put the panel's top edge 33px
+     * above the window's own, so an emoji panel belonging to the composer was
+     * drawn outside it. Still on screen, and still wrong: it reads as a
+     * detached menu.
+     *
+     * Measured rather than guessed because the window's height is not a
+     * constant — it changes when the window is expanded, and again on a phone
+     * where the window IS the screen. The cap is written as a custom property
+     * so the CSS keeps its own ceiling and this only ever lowers it.
+     */
+    _fitToWindow() {
+        // After a frame, because on the first open this runs in the same tick
+        // as the panel being revealed and the picker being appended: the panel
+        // has no laid-out box yet, the measurement comes out at or below zero,
+        // and the cap is skipped — which looks exactly like the bug it fixes.
+        requestAnimationFrame(() => {
+            const host  = this.element.closest('.compose-window');
+            const panel = this.hasPanelTarget ? this.panelTarget : null;
+
+            if (null === host || null === panel) {
+                return;
+            }
+
+            // The panel's bottom edge is pinned to the top of the toolbar
+            // (`bottom-full`), so the room it has is everything between there
+            // and the top of the window — less a margin, so it does not sit
+            // flush against the window's own edge.
+            const room = panel.getBoundingClientRect().bottom
+                - host.getBoundingClientRect().top
+                - 16;
+
+            if (room > 0) {
+                panel.style.setProperty('--emoji-max-height', `${Math.round(room)}px`);
+            }
+        });
     }
 
     _handleClick(event) {

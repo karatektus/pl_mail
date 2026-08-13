@@ -189,3 +189,82 @@ test.describe("compose window", () => {
         await expect(page.locator(dock)).toContainText(RECIPIENT);
     });
 });
+
+/**
+ * Typed and then walked away from.
+ *
+ * The reported loss: "TEST-RELOAD halbfertig" typed into the SUBJECT only, six
+ * seconds' wait, reload — and the composer did not reopen, nothing warned, and
+ * the text was not in Drafts. The autosave threshold counted the BODY only, so
+ * a subject on its own was never worth saving however long it got, and the
+ * status line sat there saying "5 more characters to save" while the user typed
+ * twenty-two of them.
+ *
+ * The threshold still exists and still does its job — a composer that was
+ * merely opened has an empty subject and is still not saved. What changed is
+ * that it counts everything the user wrote.
+ */
+test.describe("work in progress is not lost", () => {
+    test("a subject typed on its own is autosaved, and survives a reload", async ({ page }) => {
+        const subject = "TEST-RELOAD halbfertig";
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const dockEl = page.locator(dock);
+        await expect(dockEl.locator(".ts-control").first()).toBeVisible();
+
+        await dockEl.locator('[data-compose--compose-target="subject"]').fill(subject);
+
+        // The save the old threshold never made.
+        await page.waitForResponse(
+            (r) => r.url().includes("/compose/draft") && "POST" === r.request().method(),
+            { timeout: 15_000 },
+        );
+
+        // The countdown must not still be claiming the draft is unsaved.
+        await expect(
+            dockEl.locator('[data-compose--compose-target="saveStatus"]'),
+        ).not.toContainText(/to save/);
+
+        await page.goto("/mail/drafts");
+
+        await expect(
+            page
+                .locator('#message-list li[data-controller="mail--message-row"]')
+                .filter({ hasText: subject })
+                .first(),
+        ).toBeVisible();
+    });
+
+    /**
+     * And below the threshold — where there is genuinely nothing on the server
+     * yet — leaving is interrupted rather than silent.
+     *
+     * `beforeunload` is deliberately the NATIVE dialog here, which is the
+     * opposite of the choice made for the send confirmations: it is the only
+     * hook a page gets before a reload, and no engine will show anything of
+     * ours in its place.
+     */
+    test("leaving with writing too short to have saved is not silent", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const dockEl = page.locator(dock);
+        await expect(dockEl.locator(".ts-control").first()).toBeVisible();
+
+        // Under the threshold on purpose: this is the residual case the
+        // threshold cannot cover.
+        await dockEl.locator('[data-compose--compose-target="subject"]').fill("ab");
+
+        const asked = await page.evaluate(() => {
+            const event = new Event("beforeunload", { cancelable: true });
+
+            window.dispatchEvent(event);
+
+            return event.defaultPrevented;
+        });
+
+        expect(asked, "the page objects to being left").toBe(true);
+    });
+});

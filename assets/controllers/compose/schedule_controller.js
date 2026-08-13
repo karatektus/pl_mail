@@ -35,6 +35,10 @@ export default class extends Controller {
         // Mirrors ScheduledSendResolver::MAX_SECONDS, itself the JMAP
         // maxDelayedSend. Bounds the picker so the refusal is local.
         maxDays: { type: Number, default: 30 },
+        // Mirrors ScheduledSendResolver::MIN_SECONDS. Without it the whole band
+        // between "now" and "a minute from now" passed the browser and died on
+        // the server — see _floor().
+        minSeconds: { type: Number, default: 60 },
         // Translated server-side, like every other string this app writes from
         // JavaScript. See _window.html.twig.
         i18n: { type: Object, default: {} },
@@ -129,6 +133,20 @@ export default class extends Controller {
             return;
         }
 
+        // Still to come, but too soon to be a schedule. This is the band the
+        // whole feature used to fall down: a person testing "does send later
+        // work" types the NEXT WHOLE MINUTE, which is almost always under
+        // ScheduledSendResolver::MIN_SECONDS away. The old check only asked
+        // whether the time had passed, so that click sailed through the browser,
+        // was refused by the resolver, and came back as a root-level form error
+        // the compose window had nowhere to render — no toast, no message, no
+        // schedule. Refusing it here is what makes the common case legible.
+        if (chosen < this._floor()) {
+            this._refuse(event, this._t("scheduleTooSoon", "Pick a time at least a minute from now."));
+
+            return;
+        }
+
         if (chosen > zoneHorizon(this.timezoneValue, this.maxDaysValue)) {
             this._refuse(
                 event,
@@ -171,6 +189,23 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * The earliest wall-clock MINUTE the server will still accept.
+     *
+     * `zoneNow` already takes the instant to read, so the floor is just "now,
+     * plus the minimum hold" read in the configured zone. The extra 59 seconds
+     * are what makes a minute-granularity field comparable to a second-
+     * granularity rule: at 11:43:20 the minimum instant is 11:44:20, and the
+     * earliest *minute* every second of which clears it is 11:45. Rounding the
+     * other way would put 11:44 back on the accepted side of a browser check
+     * and on the refused side of the server's — which is the bug this exists to
+     * close. Erring strict costs the user one minute; erring loose costs them
+     * the whole feature, silently.
+     */
+    _floor() {
+        return zoneNow(this.timezoneValue, new Date(Date.now() + (this.minSecondsValue + 59) * 1000));
+    }
 
     /**
      * Write the chosen wall clock into the hidden field AND enable it.

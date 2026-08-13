@@ -1513,9 +1513,26 @@ emoji-picker {
        and re-resolves :root) carries the picker with it. */
     color-scheme: inherit;
 
+    /* The other half of taming the scrollbar, and the half that was missed.
+       `scrollbar-color` was set on an ancestor and reached the grid inside the
+       shadow root on its own — both scrollbar properties INHERIT, which is what
+       lets a page style a scroller it cannot select. `scrollbar-width` was never
+       declared, so the grid kept `auto`: a 15px native bar with stepper arrows
+       on it, inside a panel where every other scroller in the app is a thin
+       overlay. Themed the right colour and the wrong size is a worse tell than
+       leaving it alone. */
+    scrollbar-width: thin;
+
     display: block;
     width: 100%;
-    max-height: min(24rem, 50vh);
+
+    /* `--emoji-max-height` is set by compose--emoji-picker from the room the
+       compose WINDOW actually has above the toolbar. 50vh alone measured the
+       viewport, which knows nothing about where the window's top edge is, and
+       put the panel 33px outside the window it belongs to. The fallback keeps
+       the old behaviour for any host that never sets it (the settings signature
+       editor renders this toolbar too). */
+    max-height: min(24rem, 50vh, var(--emoji-max-height, 100vh));
 }
 
 /* The panel is centred over the compose WINDOW at every width — it anchors to
@@ -1541,7 +1558,7 @@ emoji-picker {
        rather than assumed — compose-mobile.spec.ts asserts the box is inside
        it at 393px and at 320px. */
     emoji-picker {
-        max-height: min(20rem, calc(100dvh - 12rem));
+        max-height: min(20rem, calc(100dvh - 12rem), var(--emoji-max-height, 100vh));
     }
 }
 

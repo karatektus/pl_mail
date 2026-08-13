@@ -64,9 +64,15 @@ Variables: message, params (from the including context); placement.
         an instant with the tz database in hand. #}
      data-compose--schedule-timezone-value="{{ clock.timezone }}"
      data-compose--schedule-max-days-value="{{ constant('App\\Service\\Mail\\ScheduledSendResolver::MAX_SECONDS') // 86400 }}"
+     {# The floor, from the same constant the resolver enforces. The picker used
+        to check only "has this passed", so every time under a minute out — which
+        is exactly what a person types to test the feature — passed here and was
+        refused there. #}
+     data-compose--schedule-min-seconds-value="{{ constant('App\\Service\\Mail\\ScheduledSendResolver::MIN_SECONDS') }}"
      data-compose--schedule-i18n-value="{{ {
          scheduleUnreadable: 'compose.schedule.error.unreadable'|trans,
          schedulePast:       'compose.schedule.error.past'|trans,
+         scheduleTooSoon:    'compose.schedule.error.too_soon'|trans,
          scheduleTooFar:     'compose.schedule.error.too_far'|trans({
              '%days%': constant('App\\Service\\Mail\\ScheduledSendResolver::MAX_SECONDS') // 86400,
          }),
@@ -169,7 +175,12 @@ Variables: message, params (from the including context); placement.
             <p class="text-[11px] text-ink-faint">
                 {{ 'compose.schedule.timezone_hint'|trans({ '%zone%': clock.timezone }) }}
             </p>
+            {# role="alert" because this is the only thing that happens when a
+               time is refused: the menu stays put and a line appears. Without it
+               a screen reader is told nothing at all, and "nothing happened" is
+               precisely the complaint this whole round is about. #}
             <p data-compose--schedule-target="error" hidden
+               role="alert" aria-live="assertive"
                class="text-xs text-danger"></p>
             <button type="submit" formnovalidate
                     formaction="{{ scheduleUrl }}"

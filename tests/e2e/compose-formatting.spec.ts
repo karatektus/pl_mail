@@ -152,6 +152,73 @@ test.describe("emoji", () => {
         await expect(page.locator(`${DOCK} ${PICKER}`)).toBeVisible();
     }
 
+    /**
+     * The panel belongs to the compose window, so it stays inside it.
+     *
+     * It opens upward out of a window already anchored to the bottom of the
+     * screen, and its height was capped against the VIEWPORT — which knows
+     * nothing about where the window's top edge is. On a 1280×900 desktop that
+     * put the panel's top edge 33px ABOVE the window's own: still on screen,
+     * and reading as a detached menu belonging to nothing.
+     *
+     * Measured against the window rather than the viewport, because "inside the
+     * viewport" was true the whole time it was wrong.
+     */
+    test("the panel stays inside the compose window it belongs to", async ({ page }) => {
+        await openCompose(page);
+        await openPicker(page);
+
+        const panel = page.locator(`${DOCK} .emoji-panel`);
+        const window_ = page.locator(`${DOCK} .compose-window`);
+
+        const panelBox = (await panel.boundingBox())!;
+        const windowBox = (await window_.boundingBox())!;
+
+        expect(
+            panelBox.y,
+            `the panel's top is inside the window: ${JSON.stringify({ panelBox, windowBox })}`,
+        ).toBeGreaterThanOrEqual(windowBox.y - 0.5);
+
+        expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(
+            windowBox.y + windowBox.height + 0.5,
+        );
+
+        // Still worth opening — a panel capped to nothing is inside the window
+        // too, which is how the containment could be "fixed" without fixing it.
+        expect(panelBox.height, JSON.stringify(panelBox)).toBeGreaterThan(150);
+    });
+
+    /**
+     * The two shadow-root corrections, which page CSS cannot make and so were
+     * both missed: a themed scrollbar that kept its 15px native width with
+     * stepper arrows, and the skin-tone button sitting 1px off the panel's
+     * outline so that it appeared to rest on it.
+     */
+    test("the grid's scrollbar is thin, and the skin-tone button is off the edge", async ({
+        page,
+    }) => {
+        await openCompose(page);
+        await openPicker(page);
+
+        const measured = await page.locator(`${DOCK} ${PICKER}`).evaluate((host) => {
+            const root = (host as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot;
+            const grid = root.querySelector(".tabpanel")!;
+            const skin = root.querySelector(".skintone-button-wrapper")!;
+
+            return {
+                scrollbarWidth: getComputedStyle(grid).scrollbarWidth,
+                clearance:
+                    host.getBoundingClientRect().right - skin.getBoundingClientRect().right,
+            };
+        });
+
+        expect(measured.scrollbarWidth).toBe("thin");
+        expect(
+            measured.clearance,
+            "the skin-tone button is not resting on the panel outline",
+        ).toBeGreaterThan(3);
+    });
+
     test("a chosen emoji lands in the body at the cursor", async ({ page }) => {
         await openCompose(page);
 

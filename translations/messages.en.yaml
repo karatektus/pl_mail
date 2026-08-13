@@ -1055,8 +1055,9 @@ compose:
         left: Align left
         right: Align right
     confirm:
-        no_body: This message has no text. Send it anyway?
-        no_subject: This message has no subject. Send it anyway?
+        no_body: This message has no text.
+        no_subject: This message has no subject.
+        send_anyway: Send it anyway?
         plain_text: Switching to plain text removes all formatting from this message. Continue?
     # Every label inside the emoji picker. The component ships its own English
     # strings and takes a replacement object; this is that object, so the
@@ -1111,6 +1112,7 @@ compose:
         error:
             past: That time has already passed.
             too_far: Mail can be held for at most %days% days.
+            too_soon: Pick a time at least a minute from now.
             unreadable: That is not a date and time.
         heading: Send later
         monday_morning: Monday morning
@@ -1199,6 +1201,10 @@ compose:
         continue: Continue
         title: Remove formatting?
     pop_out: Open in compose window
+    send_warning:
+        cancel: Keep editing
+        continue: Send anyway
+        title: Send this message?
     read_receipt: Request read receipt
     recipient_required: Add at least one recipient before sending.
     redo: Redo

@@ -178,7 +178,59 @@ test.describe("compose safety", () => {
         expect(status.text).toMatch(/recipient|Empfänger/i);
     });
 
-    test("an empty subject asks before sending", async ({ page }) => {
+    /**
+     * The question is asked IN THE APP, not by the browser.
+     *
+     * It was `window.confirm()`, which froze a tester's session three times: a
+     * native dialog blocks the whole tab, takes no styling, and sat a few
+     * centimetres from the in-app panel this window already uses to ask whether
+     * to remove formatting. Two kinds of confirmation for two versions of one
+     * question.
+     *
+     * The old version of this test dismissed a `dialog` event, which is why it
+     * would keep passing whether the dialog appeared or not — nothing was sent
+     * either way. It now names the panel, and fails if a native dialog is what
+     * comes back.
+     */
+    test("an empty subject asks before sending, in the app rather than in a browser dialog", async ({
+        page,
+    }) => {
+        const sends = watchSends(page);
+        const native: string[] = [];
+
+        page.on("dialog", (dialog) => {
+            native.push(dialog.message());
+            void dialog.dismiss();
+        });
+
+        await openCompose(page);
+
+        await toInput(page).fill(VALID);
+        await toInput(page).press("Enter");
+        await page
+            .locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`)
+            .fill("Body but no subject line.");
+
+        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+        const panel = page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`);
+
+        await expect(panel).toBeVisible();
+        await expect(panel).toHaveAttribute("role", "alertdialog");
+        await expect(panel).toContainText(/no subject/i);
+        expect(native, "the browser must not be the one asking").toHaveLength(0);
+
+        // Declining sends nothing and keeps the window as it was.
+        await panel.getByRole("button", { name: "Keep editing" }).click();
+
+        await expect(panel).toBeHidden();
+        await page.waitForTimeout(1_000);
+        expect(sends).toHaveLength(0);
+        await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
+    });
+
+    /** And accepting it actually sends — the panel is a gate, not a wall. */
+    test("the send-anyway panel lets the message through when it is accepted", async ({ page }) => {
         const sends = watchSends(page);
 
         await openCompose(page);
@@ -189,12 +241,37 @@ test.describe("compose safety", () => {
             .locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`)
             .fill("Body but no subject line.");
 
-        // Refuse the confirm: nothing may go out.
-        page.once("dialog", (dialog) => dialog.dismiss());
         await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
 
-        await page.waitForTimeout(1_000);
-        expect(sends).toHaveLength(0);
+        const panel = page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`);
+        await expect(panel).toBeVisible();
+
+        await panel.getByRole("button", { name: "Send anyway" }).click();
+
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0, { timeout: 10_000 });
+        expect(sends.length, "the accepted send goes out").toBeGreaterThan(0);
+    });
+
+    /**
+     * Both reasons at once are one question, asked once.
+     *
+     * Sequential `window.confirm()`s meant a message with neither subject nor
+     * body asked twice, and the second dialog arrived after the first had been
+     * answered with no way back to it.
+     */
+    test("a message missing both subject and text asks once, naming both", async ({ page }) => {
+        await openCompose(page);
+
+        await toInput(page).fill(VALID);
+        await toInput(page).press("Enter");
+
+        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+        const panel = page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`);
+
+        await expect(panel).toBeVisible();
+        await expect(panel).toContainText(/no subject/i);
+        await expect(panel).toContainText(/no text/i);
     });
 
     /**
@@ -375,11 +452,15 @@ test.describe("compose localization", () => {
         // The dock chrome and the formatting toolbar too (I-03).
         for (const name of [
             "Minimieren",
-            "Fenster vergrössern",
+            // ß, not Swiss ss. The compose labels were the only corner of the
+            // UI spelling it "vergrössern" — and this list is why it survived
+            // an audit: the spec asserted the misspelling, so the catalogue and
+            // the test agreed with each other and with nothing else.
+            "Fenster vergrößern",
             "Linksbündig ausrichten",
             "Nummerierte Liste",
             "Rückgängig",
-            "Einzug vergrössern",
+            "Einzug vergrößern",
         ]) {
             await expect(
                 dock.getByRole("button", { name, exact: true }),

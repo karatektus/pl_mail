@@ -53,6 +53,24 @@ async function fillDock(page: Page, subject = SUBJECT): Promise<void> {
  * schedule one, and "the visible Send options button" is a different element at
  * 393px than at 1280px. Everything below names which one it means.
  */
+/**
+ * A wall clock `seconds` from now, in the spelling `datetime-local` uses.
+ *
+ * The browser's own zone, deliberately: these tests run with the container's
+ * timezone as the configured one, so the two agree, and the point of the
+ * exercise is the distance from now rather than the zone arithmetic (which
+ * ScheduledSendResolverTest covers against real instants).
+ */
+function wallClockIn(seconds: number): string {
+    const at = new Date(Date.now() + seconds * 1000);
+    const pad = (value: number) => String(value).padStart(2, "0");
+
+    return (
+        `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}` +
+        `T${pad(at.getHours())}:${pad(at.getMinutes())}`
+    );
+}
+
 function pill(page: Page, placement: "bar" | "header" = "bar") {
     return page.locator(`${DOCK} [data-compose-send-pill="${placement}"]`);
 }
@@ -304,6 +322,121 @@ test.describe("scheduled send", () => {
         await expect(options.getByText(/already passed/)).toBeVisible();
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
         await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toHaveCount(0);
+    });
+
+    /**
+     * THE PATH A PERSON ACTUALLY TAKES, and the one this file used to leave
+     * untested.
+     *
+     * Every passing test above set the hold from a PRESET. The custom picker
+     * appeared only in the test above this one, which drives it to a REFUSAL —
+     * so "pick a date and time, and have the message actually be scheduled" was
+     * asserted nowhere, and the feature was broken in exactly that gap while the
+     * suite stayed green.
+     *
+     * The time is minutes out rather than tomorrow because that is what a human
+     * types, and because the interesting bugs live near the floor rather than
+     * near the ceiling.
+     */
+    test("a custom date and time schedules the send, all the way to the Drafts list", async ({
+        page,
+    }) => {
+        const subject = "Scheduled from the custom picker";
+
+        await openCompose(page);
+        await fillDock(page, subject);
+
+        const options = await openSendOptions(page);
+        await options.getByText("Pick date & time").click();
+
+        const field = options.locator('input[type="datetime-local"]');
+        await expect(field).toBeVisible();
+
+        await field.fill(wallClockIn(10 * 60));
+        await options.getByRole("button", { name: "Schedule send" }).click();
+
+        // The same three consequences a preset has. Not "a request was made":
+        // the broken version made a request too, and that is precisely why the
+        // absence of this assertion cost nothing to break.
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({
+            timeout: 10_000,
+        });
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0);
+
+        await page.goto("/mail/drafts");
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: subject })
+            .first();
+
+        await expect(row).toBeVisible();
+        await expect(row.locator("[data-scheduled-badge]")).toBeVisible();
+
+        // Server-side, not merely on screen — a badge painted by a Turbo stream
+        // and never persisted would pass everything above.
+        await page.reload();
+        await expect(
+            page
+                .locator('#message-list li[data-controller="mail--message-row"]')
+                .filter({ hasText: subject })
+                .first()
+                .locator("[data-scheduled-badge]"),
+        ).toBeVisible();
+    });
+
+    /**
+     * The floor, refused in the browser rather than swallowed by the server.
+     *
+     * This is the exact click that was reported as "Schedule send does
+     * nothing": subject and body present, the next whole minute typed into the
+     * picker, Schedule send pressed. Under ScheduledSendResolver::MIN_SECONDS
+     * the server refused it, reported the refusal as a ROOT form error, and
+     * re-rendered a compose window that had nowhere to render one — so the menu
+     * closed, the composer sat there unchanged, no toast appeared, and nothing
+     * was ever scheduled or sent. A request WAS made, which is what made it look
+     * like a server bug rather than a missing message.
+     *
+     * Both halves are asserted: the refusal is now local and legible, and
+     * nothing is posted at all.
+     */
+    test("a time inside the one-minute floor is refused in the window, not silently", async ({
+        page,
+    }) => {
+        await openCompose(page);
+        await fillDock(page, "Scheduled too soon");
+
+        const posts: string[] = [];
+        page.on("request", (request) => {
+            if ("POST" === request.method() && request.url().includes("/compose/schedule")) {
+                posts.push(request.url());
+            }
+        });
+
+        const options = await openSendOptions(page);
+        await options.getByText("Pick date & time").click();
+
+        const field = options.locator('input[type="datetime-local"]');
+        await expect(field).toBeVisible();
+
+        // Forty seconds out, which is what "the next whole minute" usually is.
+        await field.fill(wallClockIn(40));
+        await options.getByRole("button", { name: "Schedule send" }).click();
+
+        // Said, in the menu, in words that are true of the time chosen — the old
+        // wording claimed it had already passed, which it plainly had not.
+        const refusal = options.locator('[data-compose--schedule-target="error"]');
+
+        await expect(refusal).toBeVisible();
+        await expect(refusal).toHaveText(/at least a minute/);
+
+        // Announced, too. The refusal IS the entire response to the click.
+        await expect(refusal).toHaveAttribute("role", "alert");
+
+        // The window stays, with everything still in it, and nothing went out.
+        await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toHaveCount(0);
+        expect(posts, "the refusal is local — no round trip at all").toHaveLength(0);
     });
 });
 

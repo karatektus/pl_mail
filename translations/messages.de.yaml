@@ -1072,8 +1072,8 @@ compose:
         sans: Serifenlos
         serif: Serif
     font_size:
-        huge: Sehr gross
-        label: Schriftgrösse
+        huge: Sehr groß
+        label: Schriftgröße
         large: Gross
         normal: Normal
         small: Klein
@@ -1082,8 +1082,9 @@ compose:
         left: Linksbündig ausrichten
         right: Rechtsbündig ausrichten
     confirm:
-        no_body: Diese Nachricht hat keinen Text. Trotzdem senden?
-        no_subject: Diese Nachricht hat keinen Betreff. Trotzdem senden?
+        no_body: Diese Nachricht hat keinen Text.
+        no_subject: Diese Nachricht hat keinen Betreff.
+        send_anyway: Trotzdem senden?
         plain_text: Der Wechsel zu Nur-Text entfernt jede Formatierung aus dieser Nachricht. Fortfahren?
     emoji:
         activities: Aktivitäten
@@ -1133,6 +1134,7 @@ compose:
         error:
             past: Dieser Zeitpunkt liegt bereits in der Vergangenheit.
             too_far: Nachrichten lassen sich höchstens %days% Tage zurückhalten.
+            too_soon: Wähle einen Zeitpunkt mindestens eine Minute in der Zukunft.
             unreadable: Das ist kein gültiges Datum mit Uhrzeit.
         heading: Später senden
         monday_morning: Montagmorgen
@@ -1153,15 +1155,15 @@ compose:
     upload:
         failed: Hochladen fehlgeschlagen
         images_only: In den Nachrichtentext lassen sich nur Bilder einfügen
-        over_limit: "Datei zu gross (max. %limit% MB)"
-        post_too_large: Upload zu gross
-        too_large: Datei zu gross
+        over_limit: "Datei zu groß (max. %limit% MB)"
+        post_too_large: Upload zu groß
+        too_large: Datei zu groß
     add_bcc: Bcc-Empfänger hinzufügen
     add_cc: Cc-Empfänger hinzufügen
     attach: Dateien anhängen
     attach_failed: Anhängen fehlgeschlagen
     attach_remove_failed: Anhang konnte nicht entfernt werden
-    attach_too_large: "%name% ist grösser als %limit% MB"
+    attach_too_large: "%name% ist größer als %limit% MB"
     bcc: Bcc
     bold: Fett
     cc: Cc
@@ -1171,13 +1173,13 @@ compose:
     empty_draft: (leerer Entwurf)
     encrypt: Nachricht verschlüsseln
     encrypt_unavailable: Verschlüsselung ist noch nicht verfügbar.
-    expand: Fenster vergrössern
+    expand: Fenster vergrößern
     formatting: Formatierung
     forward: Weiterleiten
     from: Von
     image: Bild einfügen
     image_insert_failed: Das Bild konnte nicht in die Nachricht eingefügt werden
-    indent: Einzug vergrössern
+    indent: Einzug vergrößern
     insert_emoji: Emoji einfügen
     insert_link: Link einfügen
     invalid_address: "„%address%“ ist keine gültige E-Mail-Adresse"
@@ -1209,6 +1211,10 @@ compose:
         continue: Fortfahren
         title: Formatierung entfernen?
     pop_out: In eigenem Fenster öffnen
+    send_warning:
+        cancel: Weiter bearbeiten
+        continue: Trotzdem senden
+        title: Diese Nachricht senden?
     read_receipt: Lesebestätigung anfordern
     recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
     redo: Wiederholen

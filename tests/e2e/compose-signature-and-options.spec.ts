@@ -100,6 +100,101 @@ async function clearAccountSignature(page: Page): Promise<void> {
     await expect(page.getByText("Saved.")).toBeVisible();
 }
 
+test.describe("writing above the signature", () => {
+    /**
+     * The reported bug, and it is a mouse bug: clicking the empty white area
+     * BELOW the signature put the caret at the end of the signature LINE, so
+     * the first thing typed in a new message came out welded onto the sign-off
+     * — "-- SIG-OUTLOOK Paul" followed immediately by the sentence, no
+     * separator — and there was no way with a mouse to start a paragraph above
+     * it at all.
+     *
+     * A contenteditable resolves a click on its own padding to the nearest
+     * position in the nearest child, and a new body ends with the signature, so
+     * every click in the empty space below it landed there. The window seeds a
+     * `<p><br></p>` writing space ABOVE the signature; the fix sends those
+     * clicks to it.
+     */
+    test("clicking below the signature types above it, not onto it", async ({ page }) => {
+        const SIG = "SIG-OUTLOOK Paul";
+
+        await setAccountSignature(page, SIG);
+
+        try {
+            await openCompose(page);
+
+            const editor = page.locator(`${DOCK} ${EDITOR}`);
+            await expect(editor.locator(SIGNATURE)).toBeVisible();
+
+            // The empty area below the signature — a real click at a real
+            // point, low in the editor's box, which is what a person does.
+            const box = (await editor.boundingBox())!;
+            await page.mouse.click(box.x + box.width / 2, box.y + box.height - 8);
+
+            await page.keyboard.type("Diese Mail geht an beide Konten.");
+
+            const signature = editor.locator(SIGNATURE);
+
+            // The signature still says only what the signature said. This is
+            // the assertion the bug fails: it used to read
+            // "SIG-OUTLOOK PaulDiese Mail geht an beide Konten."
+            await expect(signature).toHaveText(new RegExp(`^\\s*${SIG}\\s*$`));
+
+            // And the typing is in the body, above it.
+            await expect(editor).toContainText("Diese Mail geht an beide Konten.");
+
+            const typedIsAbove = await editor.evaluate((node) => {
+                const sig = node.querySelector("[data-pl-signature]")!;
+                const text = [...node.childNodes].find(
+                    (child) => child.textContent?.includes("Diese Mail geht an beide Konten."),
+                )!;
+
+                return sig.compareDocumentPosition(text) === Node.DOCUMENT_POSITION_PRECEDING;
+            });
+
+            expect(typedIsAbove, "the paragraph is above the sign-off").toBe(true);
+
+            // …and Send does not then claim the message is empty. The emptiness
+            // check subtracted the whole signature block, so text that had
+            // landed inside it was subtracted with it and a visibly non-empty
+            // message was reported as having no text.
+            await page.locator(`${DOCK} .ts-control input`).first().fill("sig-caret@example.test");
+            await page.locator(`${DOCK} .ts-control input`).first().press("Enter");
+            await page
+                .locator(`${DOCK} [data-compose--compose-target="subject"]`)
+                .fill("Above the signature");
+
+            await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+            await expect(
+                page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`),
+            ).toBeHidden();
+        } finally {
+            await clearAccountSignature(page);
+        }
+    });
+
+    /** Clicking ON the signature still edits the signature. */
+    test("clicking the signature itself still puts the caret in it", async ({ page }) => {
+        await setAccountSignature(page, "SIG-OUTLOOK Paul");
+
+        try {
+            await openCompose(page);
+
+            const editor = page.locator(`${DOCK} ${EDITOR}`);
+            const signature = editor.locator(SIGNATURE);
+
+            await expect(signature).toBeVisible();
+            await signature.click();
+            await page.keyboard.type("!");
+
+            await expect(signature).toContainText("!");
+        } finally {
+            await clearAccountSignature(page);
+        }
+    });
+});
+
 test.describe("compose signature", () => {
     /**
      * The one rule of the From switch. A signature that follows the sender is
