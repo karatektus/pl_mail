@@ -43,6 +43,48 @@ final readonly class AppearanceRenderer
             '--rgb-accent'    => self::channels($appearance->accent),
             '--rgb-accent-ink' => self::contrastChannels($appearance->accent),
             '--scrim-alpha'   => rtrim(rtrim(number_format($appearance->scrimAlpha, 3, '.', ''), '0'), '.') ?: '0',
+
+            // ── Typography ────────────────────────────────────────────────
+            '--app-font-family' => $appearance->fontFamily->stack(),
+            '--app-font-scale'  => self::number($appearance->fontScale),
+
+            // ── Mail list display ─────────────────────────────────────────
+            '--list-corner-display' => $appearance->accountCorner ? 'block' : 'none',
+            '--list-avatar-hide'    => $appearance->listAvatars ? '0' : '1',
+            '--unread-emphasis'     => self::number($appearance->unreadEmphasis->tintScale()),
+            '--unread-bar-w'        => $appearance->unreadEmphasis->barWidth(),
+
+            // The preview is four variables rather than a line count, and each
+            // of them is a value CSS can use directly. Nothing in CSS derives
+            // "hidden" from a count (`-webkit-line-clamp: 0` shows the text),
+            // nothing derives the box display a clamp needs, and `truncate`'s
+            // `white-space: nowrap` has to be released for a second line to
+            // exist at all. Deriving those in PHP, where the count is known,
+            // beats three layers of var() guesswork in the stylesheet.
+            //
+            // The `-wide` one is the same switch minus the clamp: a wide row
+            // puts the subject and the preview on ONE line by design, so two
+            // lines is a stacked-row answer only. See app.css.
+            '--list-preview-display' => match ($appearance->previewLines) {
+                0 => 'none',
+                1 => 'block',
+                default => '-webkit-box',
+            },
+            '--list-preview-display-wide' => 0 === $appearance->previewLines ? 'none' : 'block',
+            '--list-preview-lines' => (string) max(1, $appearance->previewLines),
+            '--list-preview-wrap' => $appearance->previewLines > 1 ? 'normal' : 'nowrap',
+
+            // ── Per-surface density ───────────────────────────────────────
+            // Resolved here rather than left to a CSS fallback chain: a
+            // `var(--x, var(--x))` on the same property is a cycle, and every
+            // other spelling needs the global value written literally in two
+            // places. Each surface gets one concrete pair.
+            '--surface-sidebar-row-y' => $appearance->densityFor('sidebar')->rowPadding(),
+            '--surface-sidebar-gap'   => $appearance->densityFor('sidebar')->gap(),
+            '--surface-list-row-y'    => $appearance->densityFor('list')->listRowPadding(),
+            '--surface-list-gap'      => $appearance->densityFor('list')->gap(),
+            '--surface-reading-row-y' => $appearance->densityFor('reading')->readingBlockPadding(),
+            '--surface-reading-gap'   => $appearance->densityFor('reading')->gap(),
         ];
 
         $background = $this->backgroundResolver->cssValue($appearance, $userId);
@@ -85,6 +127,12 @@ final readonly class AppearanceRenderer
         }
 
         return implode(';', $parts);
+    }
+
+    /** A float as CSS wants it: no trailing zeroes, and never the empty string. */
+    private static function number(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 3, '.', ''), '0'), '.') ?: '0';
     }
 
     private static function channels(string $hex): string

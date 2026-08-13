@@ -1831,7 +1831,13 @@ settings:
             comfortable: Komfortabel
             compact: Kompakt
             cosy: Gemütlich
+            follow: Übernehmen
             heading: Dichte
+            subheading: Wie viel Platz jede Zeile bekommt. Einmal für alles, oder pro Bereich eigens festgelegt.
+            surface:
+                list: Nachrichtenliste
+                reading: Lesebereich
+                sidebar: Seitenleiste
         export: Theme exportieren
         glass:
             heading: Glas
@@ -1846,12 +1852,39 @@ settings:
             flat: Flach
             heading: Layout
             subheading: Wie die Oberfläche gerahmt ist. „Kacheln“ zeigt jede Fläche als eigene Karte; „Flach“ setzt Kopf- und Seitenleiste direkt auf den Hintergrund und lässt nur den Hauptbereich als Karte stehen.
+        list:
+            accountCorner: Konto-Ecke
+            accountCornerHint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
+            heading: Nachrichtenliste
+            listAvatars: Absenderkreise
+            listAvatarsHint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.
+            previewLines: Vorschauzeilen
+            previewLines0: Keine
+            previewLines1: Eine Zeile
+            previewLines2: Zwei Zeilen
+            subheading: Was jede Zeile der Liste zeigt.
+            unread:
+                standard: Standard
+                strong: Stark
+                subtle: Dezent
+            unreadEmphasis: Ungelesene Zeilen
         main:
             default: Theme-Standard
             heading: Hauptbereich
             matchGlass: An Glas-Deckkraft angleichen
             subheading: Farbton und Deckkraft des Hauptbereichs, unabhängig von der Seitenleiste.
             tint: Hintergrundfarbton
+        preview:
+            body: Eine kurze Nachricht, damit der Lesebereich etwas zu zeigen hat. Nichts davon ist echte Post — die Vorschau lädt keine.
+            heading: Vorschau
+            sender1: Ada Lovelace
+            sender2: Grace Hopper
+            sender3: Kathleen Booth
+            snippet: So sieht eine Vorschauzeile aus, und so viel davon passt hinein, bevor der Platz in der Zeile ausgeht.
+            subheading: Deine Einstellungen an einer Beispielliste. Hier wird nichts aus deinen Nachrichten geladen.
+            subject1: Notizen zur Analytical Engine
+            subject2: 'Re: Entwurf des Compilers'
+            subject3: Assembler-Notizen, wie versprochen
         reset: Auf Standard zurücksetzen
         text:
             autoDerive: Automatisch ableiten
@@ -1871,6 +1904,17 @@ settings:
             solar: Solar
             subheading: Farbschema für die gesamte Oberfläche.
             system: System
+        typography:
+            family: Schriftart
+            font:
+                grotesk: Grotesk
+                monospace: Dickengleich
+                serif: Serif
+                system: System
+            heading: Typografie
+            scale: Textgröße
+            scaleHint: Gilt für die gesamte Oberfläche. Das Verfassen-Fenster behält seine eigene Schrift und Größe — die gehen mit der Nachricht hinaus.
+            subheading: Schriftart und Größe, in der die Oberfläche gezeichnet wird.
     back: Zurück zum Posteingang
     compose_defaults:
         heading: 'Standards fürs Verfassen'

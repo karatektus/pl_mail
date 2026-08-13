@@ -21,6 +21,114 @@ export default class extends Controller {
         }
     }
 
+    /* ── Generic: a control that moves several variables at once ───────────
+     *
+     * The original `slide()` maps one input to one variable through
+     * data-css-variable, which is right for a slider and useless for the
+     * controls added since: preview lines is four properties, unread emphasis
+     * is two, a font family is a whole stack. Rather than a handler per
+     * control, each option carries the exact `{variable: value}` object it
+     * means in `data-css-vars`, and this applies it.
+     *
+     * The values are CSS, not settings — `-webkit-box`, `nowrap`, `3px` —
+     * because deriving CSS from a setting is what AppearanceRenderer does on
+     * the server, and doing it a second time here in a different language is
+     * how a live preview comes to disagree with a reload. Twig writes both
+     * from the same enum.
+     */
+    applyVars(event) {
+        const source = event.currentTarget.selectedOptions
+            ? event.currentTarget.selectedOptions[0]
+            : event.currentTarget;
+
+        this.setVars(source.dataset.cssVars);
+        this.queue();
+    }
+
+    setVars(json) {
+        if (!json) {
+            return;
+        }
+
+        Object.entries(JSON.parse(json)).forEach(([variable, value]) => {
+            this.root.style.setProperty(variable, String(value));
+        });
+    }
+
+    /**
+     * An on/off list setting.
+     *
+     * The checkbox is not the field. save() collects `input.value`, which for
+     * a checkbox is "on" whether or not it is ticked, so the value that gets
+     * posted lives in a hidden input beside it and this keeps the two in step
+     * — the same shape as the ink and main-pane "theme default" boxes.
+     */
+    toggleListOption(event) {
+        const box = event.currentTarget;
+        const field = this.element.querySelector(`[data-toggle-field="${box.dataset.toggles}"]`);
+
+        if (field) {
+            field.value = box.checked ? '1' : '0';
+        }
+
+        this.setVars(box.checked ? box.dataset.cssVarsOn : box.dataset.cssVarsOff);
+        this.queue();
+    }
+
+    /* ── Per-surface density ───────────────────────────────────────────────
+     *
+     * Three surfaces, each either following the global density or overriding
+     * it, resolved into six variables. Recomputed whole on every change rather
+     * than patched: a surface set to "follow" has to move when the GLOBAL
+     * density moves, and the only way a patch could do that is by knowing
+     * which surfaces are following — which is the same loop, written twice.
+     *
+     * The numbers come off the global density radios (data-row-y, data-gap,
+     * data-list-row-y, data-reading-row-y), which is Density's own scale
+     * rendered by Twig. Nothing here knows what "cosy" measures.
+     */
+    pickSurfaceDensity() {
+        this.refreshSurfaces();
+        this.queue();
+    }
+
+    refreshSurfaces() {
+        const global = this.element.querySelector('[data-settings--appearance-field="density"]:checked');
+
+        if (!global) {
+            return;
+        }
+
+        ['sidebar', 'list', 'reading'].forEach((surface) => {
+            const chosen = this.element.querySelector(
+                `[data-surface-density="${surface}"]:checked`,
+            );
+
+            const source = chosen && chosen.value !== ''
+                ? this.element.querySelector(
+                    `[data-settings--appearance-field="density"][value="${chosen.value}"]`,
+                )
+                : global;
+
+            if (!source) {
+                return;
+            }
+
+            // Each surface consumes a different padding scale: the list's row
+            // and the reading pane's message block were 10px and 16px before
+            // density reached them, and both keep those numbers at Comfortable
+            // so no existing install moves. See Density::listRowPadding().
+            const rowY = {
+                sidebar: source.dataset.rowY,
+                list: source.dataset.listRowY,
+                reading: source.dataset.readingRowY,
+            }[surface];
+
+            this.root.style.setProperty(`--surface-${surface}-row-y`, rowY);
+            this.root.style.setProperty(`--surface-${surface}-gap`, source.dataset.gap);
+        });
+    }
+
     disconnect() {
         if (this.pending) {
             clearTimeout(this.pending);
@@ -177,6 +285,9 @@ export default class extends Controller {
                     radio.checked = true;
                     this.root.style.setProperty('--density-row-y', radio.dataset.rowY);
                     this.root.style.setProperty('--density-gap', radio.dataset.gap);
+                    // A layout that seeds a density has to carry the surfaces
+                    // following it, exactly as a manual density change does.
+                    this.refreshSurfaces();
                 }
 
                 return;
@@ -221,6 +332,9 @@ export default class extends Controller {
         const gap = event.currentTarget.dataset.gap;
         this.root.style.setProperty('--density-row-y', rowY);
         this.root.style.setProperty('--density-gap', gap);
+        // Any surface still set to "follow" moves with it — see
+        // refreshSurfaces(), which is why this is a recompute and not a patch.
+        this.refreshSurfaces();
         this.queue();
     }
 

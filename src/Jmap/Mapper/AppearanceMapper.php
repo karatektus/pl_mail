@@ -54,6 +54,15 @@ final class AppearanceMapper
         'inkFaint',
         'mainTint',
         'mainAlpha',
+        'accountCorner',
+        'listAvatars',
+        'previewLines',
+        'unreadEmphasis',
+        'fontFamily',
+        'fontScale',
+        'sidebarDensity',
+        'listDensity',
+        'readingDensity',
     ];
 
     /**
@@ -97,6 +106,18 @@ final class AppearanceMapper
             'inkFaint' => $appearance->inkFaint,
             'mainTint' => $appearance->mainTint,
             'mainAlpha' => $appearance->mainAlpha,
+            'accountCorner' => $appearance->accountCorner,
+            'listAvatars' => $appearance->listAvatars,
+            'previewLines' => $appearance->previewLines,
+            'unreadEmphasis' => $appearance->unreadEmphasis->value,
+            'fontFamily' => $appearance->fontFamily->value,
+            'fontScale' => $appearance->fontScale,
+            // Null is a value here and not an absence: it means the surface
+            // follows the global `density`, which is the only way back from an
+            // override. A client that sends null is asking for that.
+            'sidebarDensity' => $appearance->sidebarDensity?->value,
+            'listDensity' => $appearance->listDensity?->value,
+            'readingDensity' => $appearance->readingDensity?->value,
         ];
     }
 

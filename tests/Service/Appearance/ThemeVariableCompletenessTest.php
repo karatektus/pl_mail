@@ -77,6 +77,13 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--field-border-alpha',
         '--danger-soft-alpha',
         '--info-soft-alpha',
+        // How much white an unread row is tinted with. In the palette rather
+        // than among the knobs because it is the theme's number, not the
+        // user's: the same 0.4 that reads as a hint on Paper is a slab on
+        // Dusk, which is why it was `bg-white/40 dark:bg-white/[0.03]` before
+        // it was a variable. What the user sets is --unread-emphasis, which
+        // multiplies this and lives in :root with the other knobs.
+        '--unread-tint-alpha',
         // Page
         '--app-bg',
         // The reading sheet
@@ -108,6 +115,29 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--density-row-y',
         '--density-gap',
         '--scrim-alpha',
+        // Typography, the mail list and the per-surface densities. Knobs by
+        // the same test as the ones above: AppearanceRenderer writes every one
+        // of them inline on <html> from the stored appearance, so a theme
+        // block that set one would be stating something the cascade will not
+        // let it enforce. The values in :root are what the app did before
+        // these settings existed, which is also the right answer for a page
+        // rendered for nobody — the login screen, a shared calendar.
+        '--app-font-family',
+        '--app-font-scale',
+        '--list-corner-display',
+        '--list-avatar-hide',
+        '--list-preview-display',
+        '--list-preview-display-wide',
+        '--list-preview-lines',
+        '--list-preview-wrap',
+        '--unread-emphasis',
+        '--unread-bar-w',
+        '--surface-sidebar-row-y',
+        '--surface-sidebar-gap',
+        '--surface-list-row-y',
+        '--surface-list-gap',
+        '--surface-reading-row-y',
+        '--surface-reading-gap',
         '--pane-header-h',
     ];
 

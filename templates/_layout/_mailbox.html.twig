@@ -52,8 +52,17 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
         On mobile: fixed, full-height, slides in from the left.
         On md+: hidden (the normal sidebar is in the flex row below).
         #}
+        {# `data-surface` — see app.css. Each of the three marks a wrapper that
+           re-points the density tokens at that surface's own resolved pair, so
+           a dense list can sit beside a comfortable reading pane. On the
+           wrappers rather than inside the partials because the cascade reaches
+           the same elements either way and _sidebar.html.twig is a file this
+           change deliberately leaves alone. Both sidebar copies carry it: the
+           drawer is the same sidebar on a phone, and a setting that applied to
+           one and not the other would be a bug nobody could describe. #}
         <div
             data-ui--sidebar-drawer-target="drawer"
+            data-surface="sidebar"
             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3
                    -translate-x-full transition-transform duration-200 ease-out"
             aria-label="{{ 'sidebar.nav.inbox'|trans }}"
@@ -97,7 +106,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
             <div class="flex flex-1 gap-gutter overflow-hidden">
 
                 {# Sidebar — desktop only (hidden on mobile, shown in drawer) #}
-                <div class="hidden md:flex">
+                <div class="hidden md:flex" data-surface="sidebar">
                     {% include '_partials/_sidebar.html.twig' %}
                 </div>
 
@@ -110,6 +119,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     {# List pane #}
                     <div
                         id="message-list"
+                        data-surface="list"
                         data-sync-scope="{% block list_scope %}*{% endblock %}"
                         data-mail--mail-pane-target="list"
                         {# Confirms to the server that the rows below reached the
@@ -135,6 +145,7 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     {# Reading pane #}
                     <div
                         data-mail--mail-pane-target="reading"
+                        data-surface="reading"
                         class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
                     >
                         {% block reading_pane %}

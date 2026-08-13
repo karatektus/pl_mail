@@ -7,8 +7,10 @@ namespace App\Jmap\Method\Settings;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
+use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\Theme;
+use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
 use App\Jmap\Mapper\AppearanceMapper;
 use App\Jmap\Method\JmapMethod;
@@ -196,9 +198,15 @@ final class AppearanceSetMethod implements JmapMethod
                 'backgroundPreset' => $this->requireEnum(BackgroundPreset::class, $value, $property, true),
                 'accent' => $this->requireHex($value, $property, false),
                 'backgroundSolid', 'inkColor', 'inkMuted', 'inkFaint', 'mainTint' => $this->requireHex($value, $property, true),
-                'paneBlur' => $this->requireInt($value, $property),
-                'paneAlpha', 'radius', 'scrimAlpha' => $this->requireNumber($value, $property, false),
+                'paneBlur', 'previewLines' => $this->requireInt($value, $property),
+                'paneAlpha', 'radius', 'scrimAlpha', 'fontScale' => $this->requireNumber($value, $property, false),
                 'mainAlpha' => $this->requireNumber($value, $property, true),
+                'unreadEmphasis' => $this->requireEnum(UnreadEmphasis::class, $value, $property, false),
+                'fontFamily' => $this->requireEnum(FontFamily::class, $value, $property, false),
+                // Nullable: null is the value meaning "follow the global
+                // density", not an omission — see AppearanceMapper.
+                'sidebarDensity', 'listDensity', 'readingDensity' => $this->requireEnum(Density::class, $value, $property, true),
+                'accountCorner', 'listAvatars' => $this->requireBool($value, $property),
                 default => null,
             };
         }
@@ -329,6 +337,24 @@ final class AppearanceSetMethod implements JmapMethod
             $property,
             true === $nullable ? ', or null for none' : '',
         ));
+    }
+
+    /**
+     * A real JSON boolean, not "1" and not 1.
+     *
+     * The web pane posts these as the strings its DOM nodes hold and
+     * Appearance::applyArray() accepts that spelling — but over the wire a
+     * client sending "0" is far more likely to mean false and be silently
+     * given true, so the loose spelling is refused here for the same reason
+     * an unknown theme name is. Same argument as the closed vocabularies.
+     */
+    private function requireBool(mixed $value, string $property): void
+    {
+        if (true === is_bool($value)) {
+            return;
+        }
+
+        throw new MethodException('invalidProperties', sprintf('"%s" must be true or false.', $property));
     }
 
     private function requireInt(mixed $value, string $property): void

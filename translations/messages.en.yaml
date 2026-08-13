@@ -1811,7 +1811,13 @@ settings:
             comfortable: Comfortable
             compact: Compact
             cosy: Cosy
+            follow: Follow
             heading: Density
+            subheading: How much room each row is given. Set it once for everything, or give a pane its own.
+            surface:
+                list: Message list
+                reading: Reading pane
+                sidebar: Sidebar
         export: Export theme
         glass:
             heading: Glass
@@ -1826,12 +1832,39 @@ settings:
             flat: Flat
             heading: Layout
             subheading: How the interface is framed. Boxed floats every panel as a card; flat puts the top bar and sidebar straight on the background and keeps only the main pane boxed.
+        list:
+            accountCorner: Account corner
+            accountCornerHint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
+            heading: Message list
+            listAvatars: Sender discs
+            listAvatarsHint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
+            previewLines: Preview lines
+            previewLines0: None
+            previewLines1: One line
+            previewLines2: Two lines
+            subheading: What each row in the list shows.
+            unread:
+                standard: Standard
+                strong: Strong
+                subtle: Subtle
+            unreadEmphasis: Unread rows
         main:
             default: Theme default
             heading: Main pane
             matchGlass: Match glass opacity
             subheading: Tint and opacity for the main content area, independent of the sidebar.
             tint: Background tint
+        preview:
+            body: A short message, so the reading pane has something to show. None of this is real mail — the preview never loads any.
+            heading: Preview
+            sender1: Ada Lovelace
+            sender2: Grace Hopper
+            sender3: Kathleen Booth
+            snippet: This is what a preview line looks like, and how much of one fits before the row runs out of room for it.
+            subheading: Your settings, on a sample list. Nothing here is loaded from your mail.
+            subject1: Notes on the Analytical Engine
+            subject2: 'Re: the compiler draft'
+            subject3: Assembly notes, as promised
         reset: Reset to defaults
         text:
             autoDerive: Auto-derive
@@ -1851,6 +1884,17 @@ settings:
             solar: Solar
             subheading: Colour scheme for the whole interface.
             system: System
+        typography:
+            family: Typeface
+            font:
+                grotesk: Grotesque
+                monospace: Monospace
+                serif: Serif
+                system: System
+            heading: Typography
+            scale: Text size
+            scaleHint: Applies to the whole interface. The compose window keeps its own font and size — those go out with the message.
+            subheading: The typeface and size the interface is drawn in.
     back: Back to inbox
     compose_defaults:
         heading: 'Compose defaults'

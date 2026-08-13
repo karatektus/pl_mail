@@ -181,14 +181,25 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        same everywhere it appears, only in a unified multi-account list. #}
     {% if showAccountDot %}
         {% set accountName = rowAccount.name ?: (rowAccount.email ?: rowAccount.username) %}
-        <span class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.colorIndex|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
+        {# `data-account-corner` is the whole of this row's part in making the
+           corner optional: app.css sets its `display` from --list-corner-display,
+           which AppearanceRenderer writes on <html> from the user's setting.
+           No branch here, because the condition is not a fact about the row. #}
+        <span data-account-corner
+              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 {{ rowAccount.colorIndex|account_color }} [clip-path:polygon(0_0,0_100%,100%_100%)]"
               title="{{ 'thread_row.account'|trans({ '%account%': accountName }) }}"
               aria-hidden="true"></span>
     {% endif %}
 
     <div
-        class="pointer-events-auto flex items-center @xl:items-center gap-3 pl-3 pr-4 py-2.5 cursor-pointer transition-colors
-            {{ unread ? 'bg-white/40 dark:bg-white/[0.03]' : 'bg-transparent' }}
+        {# `list-row-y` for `py-2.5` and `row-unread` for the two inline unread
+           alphas. Both resolve to exactly what those classes were — Comfortable
+           density IS 0.625rem, and the tint keeps its 0.4 / 0.03 — so this is a
+           move, not a restyle. What it buys is that both are now custom
+           properties, which is what lets the density differ per surface and the
+           unread tint scale with the emphasis setting. #}
+        class="pointer-events-auto flex items-center @xl:items-center gap-3 pl-3 pr-4 list-row-y cursor-pointer transition-colors
+            {{ unread ? 'row-unread' : 'bg-transparent' }}
             hover:bg-white/60 dark:hover:bg-white/[0.06]"
     >
         {# Avatar, doubling as the row's checkbox.
@@ -211,7 +222,11 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                 aria-label="{{ 'thread_row.select'|trans({'%subject%': subject}) }}"
             >
 
-            <span class="flex items-center justify-center rounded-full
+            {# `data-row-avatar-face`: the hook the "sender discs off" setting
+               paints a plain circle over. It cannot be hidden — see app.css —
+               because this element's sibling input is the row's checkbox. #}
+            <span data-row-avatar-face
+                  class="flex items-center justify-center rounded-full
                          w-9 h-9 text-sm font-semibold select-none
                          transition-opacity
                          peer-checked:opacity-0 group-hover/avatar:opacity-0
@@ -389,7 +404,11 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                            anyway, so `truncate` still truncates. The pairing
                            further down this file (`hidden @xl:flex`) works for
                            the same reason in the other direction. #}
-                        <span class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
+                        {# `data-row-snippet` carries the preview-lines setting;
+                           `truncate` stays for the one-line default, and
+                           app.css releases its white-space only when the
+                           setting asks for two. #}
+                        <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
                     </span>
                 </div>
 

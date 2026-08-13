@@ -1504,7 +1504,13 @@ settings:
             comfortable: Roomy
             compact: Cramped
             cosy: Snug
+            follow: Follow the fleet
             heading: Quarters
+            subheading: How much deck each row be given. Set it once fer the whole ship, or give a deck quarters o' its own.
+            surface:
+                list: Manifest
+                reading: Readin' deck
+                sidebar: Side riggin'
         export: Export theme
         glass:
             heading: Spyglass
@@ -1519,12 +1525,39 @@ settings:
             flat: Flat as a calm sea
             heading: Riggin'
             subheading: How the deck be framed. Crates float every panel like cargo; flat lays the top rail an' side riggin' straight on the backdrop an' leaves only the main deck boxed.
+        list:
+            accountCorner: Crew colours
+            accountCornerHint: The wee coloured pennant in a row's corner, namin' which berth the message sailed in on. Only ever flown when the manifest mixes berths.
+            heading: Manifest
+            listAvatars: Sender medallions
+            listAvatarsHint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.
+            previewLines: Peek lines
+            previewLines0: None
+            previewLines1: One line
+            previewLines2: Two lines
+            subheading: What every row o' the manifest shows.
+            unread:
+                standard: As she be
+                strong: Loud as a cannon
+                subtle: A whisper
+            unreadEmphasis: Unread rows
         main:
             default: Theme default
             heading: Main deck
             matchGlass: Match the spyglass
             subheading: Tint and opacity for the main deck, apart from the sidebar.
             tint: Backdrop tint
+        preview:
+            body: A short word, so the readin' deck has summat to show. None o' this be real post — the lookout fetches nary a letter.
+            heading: Lookout
+            sender1: Ada Lovelace
+            sender2: Grace Hopper
+            sender3: Kathleen Booth
+            snippet: This be what a peek line looks like, an' how much o' one fits afore the row runs clean out o' deck fer it.
+            subheading: Yer settings on a make-believe manifest. Nary a thing here be hauled from yer own post.
+            subject1: Notes on the Analytical Engine
+            subject2: 'Re: the compiler draft'
+            subject3: Assembly notes, as promised
         reset: Back to how she came
         text:
             autoDerive: Work it out for me
@@ -1543,7 +1576,17 @@ settings:
             solar: Solar
             subheading: Colour scheme for the whole ship.
             system: Ship's own
-    back: Back to the hold
+        typography:
+            family: Letterin'
+            font:
+                grotesk: Grotesque
+                monospace: Ledger hand
+                serif: Serif
+                system: Ship's own
+            heading: Letterin'
+            scale: Text size
+            scaleHint: Applies to the whole ship. The writin' desk keeps its own hand an' size — those sail out with the message.
+            subheading: The hand an' the size the ship be lettered in.
     compose_defaults:
         heading: 'Standin'' orders fer writin'''
         invalid: 'That order could not be set down.'

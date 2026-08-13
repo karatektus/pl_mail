@@ -7,8 +7,10 @@ namespace App\Jmap\Session;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
+use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\Theme;
+use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
@@ -280,6 +282,8 @@ final class SessionBuilder
             'densities' => array_column(Density::cases(), 'value'),
             'backgroundKinds' => array_column(BackgroundKind::cases(), 'value'),
             'backgroundPresets' => array_column(BackgroundPreset::cases(), 'value'),
+            'unreadEmphases' => array_column(UnreadEmphasis::cases(), 'value'),
+            'fontFamilies' => array_column(FontFamily::cases(), 'value'),
             'layoutDefaults' => array_combine(
                 array_column(Layout::cases(), 'value'),
                 array_map(static fn (Layout $layout): array => $layout->defaults(), Layout::cases()),
@@ -294,6 +298,8 @@ final class SessionBuilder
                 'radius' => Appearance::RANGE_RADIUS,
                 'scrimAlpha' => Appearance::RANGE_SCRIM_ALPHA,
                 'mainAlpha' => Appearance::RANGE_MAIN_ALPHA,
+                'previewLines' => Appearance::RANGE_PREVIEW_LINES,
+                'fontScale' => Appearance::RANGE_FONT_SCALE,
             ],
         ];
     }
