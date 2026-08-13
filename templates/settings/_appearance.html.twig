@@ -1,561 +1,668 @@
 {% import '_partials/_select.html.twig' as select %}
 {% set a = appearance() %}
 
-<div class="space-y-8"
+{# ── One shape for every segmented control ──────────────────────────────────
+   Density (global and all three surfaces), preview lines, unread emphasis and
+   the typeface are the same control — pick one of a short list — and before
+   this they were three different controls to look at: some sat beside their
+   label, some under it, the surface rows were a different size from the
+   global one, and the typeface was a <select> that behaved like neither.
+
+   HORIZONTAL, one control per row, label above it, segments sharing the row
+   equally. Horizontal because the side-by-side layout leaves the controls
+   column ~600px at 1440 and the full width at 414 — a horizontal group fits
+   both, while a vertical stack of four would run the panel to twice its length
+   and read as a menu rather than as a choice already made. `auto-cols-fr`
+   rather than `inline-flex` is what makes the widths equal and, more to the
+   point, what stops the longest label ("Comfortable", "Komfortabel") pushing
+   the group past the column at 414px: the columns divide the row instead of
+   summing to it.
+
+   They stay real radios sharing a `name`, so arrow-key navigation within the
+   group is the browser's and costs nothing. `peer-focus-visible` is new: the
+   input is `sr-only`, so before this a keyboard user moving through the group
+   had no visible indication of where they were. #}
+{# `max-w-md` so the group stops growing once it has room for its longest
+   label. Without it a three-option control stretched the full controls column
+   — 200px-wide segments carrying an 11px word, which reads as a row of empty
+   buttons rather than a compact choice. It still goes edge to edge at 414px,
+   where the full width is the only width there is. #}
+{% set segGroup = 'grid grid-flow-col auto-cols-fr max-w-md rounded-pane border border-line overflow-hidden' %}
+{% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                   peer-checked:bg-accent peer-checked:text-accent-ink
+                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                   transition-colors' %}
+
+{# `@container` on the panel itself, so every width decision below is made
+   against THIS panel's width rather than against whatever container happens to
+   be above it. That matters because the panel has two hosts of very different
+   shapes — the settings pane, where an ancestor container is the scroll body
+   and a good deal wider than the panel, and the setup wizard's modal, which
+   has no container ancestor at all and would have pinned every query to its
+   base state. One container, one set of thresholds, the same behaviour in
+   both. #}
+<div class="@container"
      data-controller="settings--appearance"
      data-settings--appearance-update-url-value="{{ path('app_appearance_update') }}"
      data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}">
 
-    {# ── Live preview ──────────────────────────────────────────────────────
-       A mail list and a message, in miniature, wearing the settings on this
-       page. Sticky, so it stays on screen while the controls that drive it
-       scroll past — the whole point is that nobody has to leave for the inbox
-       and come back to find out what a knob did.
+    {# The preview is a SIDE COLUMN, not a band across the top. Sticky-at-the-top
+       cost the panel a permanent ~180px of its own height and pushed the first
+       control below the fold; beside the controls it costs width the panel has
+       and none of the height it does not.
 
-       SELF-CONTAINED by construction: not one line of it is fetched, and the
-       sample below is literal text, not a real thread. A preview that read the
-       inbox would be a second renderer of the mail list to keep in step with
-       the first, and it would put somebody's actual correspondence on a
-       settings page that a support screenshot is likely to capture.
+       Container query, not a viewport breakpoint, for the reason settings
+       index.html.twig gives: this pane is not as wide as the window, and at md
+       the mail sidebar appears and takes from it, so pane width and viewport
+       width do not move together. Below @3xl the preview is dropped outright
+       rather than squeezed — a 300px-wide miniature of a mail list under a
+       column of controls tells nobody anything, and the real list is one tap
+       away. #}
+    <div class="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_19rem]">
 
-       It is styled by the SAME rules as the real list — data-surface="list",
-       data-account-corner, data-row-snippet, row-unread, list-row-y are the
-       real hooks from app.css, not a copy — so a preview that looks right and
-       a list that does not is a failure mode this cannot have. #}
-    {% include 'settings/_appearance_preview.html.twig' %}
+        <div class="min-w-0 space-y-8">
 
-    {# ── Theme ─────────────────────────────────────────────────────────── #}
-    <section>
-        <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h2>
-        <p class="text-xs text-ink-faint mt-0.5 mb-4">{{ 'settings.appearance.theme.subheading'|trans }}</p>
+            {# ── Theme ─────────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
+                </div>
 
-        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
-                {% set swatch = theme.swatch %}
-                {# data-theme-NAME. `data-theme` is the palette switch (every
-                   theme block in app.css is selected by it), so a tile wearing
-                   it declared that theme's whole palette on itself and the
-                   label below inherited it — "Nord" written in Nord's ink on
-                   Solar's cream, 1.22:1. The swatch above still previews the
-                   theme, because those are inline colours on that element
-                   alone and preview is its whole job. #}
-                <button type="button"
-                        data-theme-name="{{ theme.value }}"
-                        data-dark="{{ theme.isDark ? '1' : '0' }}"
-                        data-theme-defaults="{{ theme.defaults|json_encode }}"
-                        data-action="click->settings--appearance#pickTheme"
-                        class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
-                               {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">
-                    <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
-                          style="background:{{ swatch[0] }}">
-                        <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
-                        <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
-                    </span>
-                    {# The theme's name is the only thing that says which tile
-                       is which, so it is primary content, not a caption: it
-                       gets the soft ink (7.5:1 or better in every theme) at
-                       12px rather than muted ink at 11px. It was the lowest
-                       contrast text on the page and it is the text a person
-                       reads most carefully here. #}
-                    <span class="text-xs text-ink-soft">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
-                </button>
-            {% endfor %}
-        </div>
-        <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
-    </section>
-    {# ── Layout ────────────────────────────────────────────────────────────
-       The second axis: the theme picks the palette, the layout picks how it
-       is painted. Each option carries its own preset so the numbers live in
-       PHP only (Layout::defaults) — picking one moves the sliders below. #}
-    <section>
-        <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
-        <p class="text-xs text-ink-faint mt-0.5 mb-3">{{ 'settings.appearance.layout.subheading'|trans }}</p>
-
-        {# The per-option data attributes are read off the <option> elements by
-           settings--appearance, which still finds them: the widget renders a
-           copy of the list, it does not consume the original. #}
-        <select data-settings--appearance-field="layout"
-                data-action="change->settings--appearance#pickLayout"
-                {{ select.enhance() }}
-                class="select-field w-full sm:w-64 h-9 text-sm">
-            {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
-                <option value="{{ layout.value }}"
-                        data-layout-class="{{ layout.htmlClass ?? '' }}"
-                        data-layout-defaults="{{ layout.defaults|json_encode }}"
-                        {{ a.layout == layout ? 'selected' : '' }}>
-                    {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
-                </option>
-            {% endfor %}
-        </select>
-    </section>
-    {# ── Main pane ─────────────────────────────────────────────────────── #}
-    <section class="space-y-4">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.main.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.main.subheading'|trans }}</p>
-        </div>
-
-        <label class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.main.tint'|trans }}</span>
-            <span class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                    <input type="checkbox" data-settings--appearance-target="mainTintDefault"
-                           data-action="change->settings--appearance#toggleMainTintDefault"
-                           {{ a.mainTint is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                    {{ 'settings.appearance.main.default'|trans }}
-                </label>
-                <input type="color" value="{{ a.mainTint ?? '#ffffff' }}"
-                       data-settings--appearance-target="mainTint" data-action="input->settings--appearance#pickMainTint"
-                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-            </span>
-            <input type="hidden" data-settings--appearance-field="mainTint" data-settings--appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
-        </label>
-
-        <div>
-            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer mb-2">
-                <input type="checkbox" data-settings--appearance-target="mainAlphaMatch"
-                       data-action="change->settings--appearance#toggleMainAlphaMatch"
-                    {{ a.mainAlpha is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                {{ 'settings.appearance.main.matchGlass'|trans }}
-            </label>
-            <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
-                   data-settings--appearance-target="mainAlpha" data-action="input->settings--appearance#slideMainAlpha"
-                   class="w-full accent-accent cursor-pointer {{ a.mainAlpha is null ? 'opacity-40 pointer-events-none' : '' }}">
-            <input type="hidden" data-settings--appearance-field="mainAlpha" data-settings--appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
-        </div>
-    </section>
-    {# ── Glass ─────────────────────────────────────────────────────────── #}
-    <section class="space-y-5">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
-        </div>
-
-        {% set sliders = [
-            { field: 'paneAlpha', var: '--pane-alpha', suffix: '', min: 0.15, max: 1,   step: 0.01, value: a.paneAlpha },
-            { field: 'paneBlur',  var: '--pane-blur',  suffix: 'px', min: 0,  max: 60,  step: 1,    value: a.paneBlur },
-            { field: 'radius',    var: '--app-radius', suffix: 'rem', min: 0, max: 2,   step: 0.125, value: a.radius },
-            { field: 'scrimAlpha', var: '--scrim-alpha', suffix: '', min: 0, max: 0.7, step: 0.05, value: a.scrimAlpha },
-        ] %}
-
-        {% for slider in sliders %}
-            <label class="block">
-                <span class="text-xs font-medium text-ink-muted">{{ ('settings.appearance.glass.' ~ slider.field)|trans }}</span>
-                <input type="range"
-                       min="{{ slider.min }}" max="{{ slider.max }}" step="{{ slider.step }}"
-                       value="{{ slider.value }}"
-                       data-settings--appearance-field="{{ slider.field }}"
-                       data-css-variable="{{ slider.var }}"
-                       data-css-suffix="{{ slider.suffix }}"
-                       data-action="input->settings--appearance#slide"
-                       class="w-full mt-2 accent-accent cursor-pointer">
-            </label>
-        {% endfor %}
-    </section>
-    {# ── Text ──────────────────────────────────────────────────────────── #}
-    <section class="space-y-4">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.text.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.text.subheading'|trans }}</p>
-        </div>
-
-        <label class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.color'|trans }}</span>
-            <span class="flex items-center gap-2">
-                <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                    <input type="checkbox" data-settings--appearance-target="inkDefault"
-                           data-action="change->settings--appearance#toggleInkDefault"
-                           {{ a.inkColor is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                    {{ 'settings.appearance.text.default'|trans }}
-                </label>
-                <input type="color" value="{{ a.inkColor ?? '#27272a' }}"
-                       data-settings--appearance-target="inkColor" data-action="input->settings--appearance#pickInk"
-                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-            </span>
-            <input type="hidden" data-settings--appearance-field="inkColor" data-settings--appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
-        </label>
-
-        <div data-settings--appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.muted'|trans }} / {{ 'settings.appearance.text.faint'|trans }}</span>
-                <button type="button" data-action="click->settings--appearance#resetInkDerived"
-                        class="text-[11px] text-accent hover:underline cursor-pointer">
-                    {{ 'settings.appearance.text.autoDerive'|trans }}
-                </button>
-            </div>
-            <div class="flex items-center gap-3">
-                <input type="color" value="{{ a.inkMuted ?? '#71717a' }}"
-                       data-settings--appearance-target="inkMuted" data-action="input->settings--appearance#pickInkMuted"
-                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                <input type="hidden" data-settings--appearance-field="inkMuted" data-settings--appearance-target="inkMutedField" value="{{ a.inkMuted ?? '' }}">
-                <input type="color" value="{{ a.inkFaint ?? '#a1a1aa' }}"
-                       data-settings--appearance-target="inkFaint" data-action="input->settings--appearance#pickInkFaint"
-                       class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                <input type="hidden" data-settings--appearance-field="inkFaint" data-settings--appearance-target="inkFaintField" value="{{ a.inkFaint ?? '' }}">
-            </div>
-        </div>
-    </section>
-    {# ── Accent ────────────────────────────────────────────────────────── #}
-    <section>
-        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.accent.heading'|trans }}</h2>
-        <div class="flex items-center gap-2 flex-wrap">
-            {% for hex in ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#dc2626'] %}
-                <button type="button"
-                        data-accent="{{ hex }}"
-                        data-action="click->settings--appearance#pickAccent"
-                        class="w-7 h-7 rounded-full border border-line cursor-pointer hover:scale-110 transition-transform"
-                        style="background:{{ hex }}"></button>
-            {% endfor %}
-            <input type="color"
-                   value="{{ a.accent }}"
-                   data-settings--appearance-target="accent"
-                   data-settings--appearance-field="accent"
-                   data-action="input->settings--appearance#pickAccent"
-                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-        </div>
-    </section>
-
-    {# ── Density ───────────────────────────────────────────────────────── #}
-    <section class="space-y-4">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.density.subheading'|trans }}</p>
-        </div>
-
-        <div class="inline-flex rounded-pane border border-line overflow-hidden">
-            {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
-                <label class="cursor-pointer">
-                    {# The three padding scales travel on the radio, so the JS
-                       resolving a surface has one place to read them from and
-                       the numbers stay in the Density enum. #}
-                    <input type="radio" name="density" class="peer sr-only"
-                           value="{{ density.value }}"
-                           data-settings--appearance-field="density"
-                           data-row-y="{{ density.rowPadding }}"
-                           data-gap="{{ density.gap }}"
-                           data-list-row-y="{{ density.listRowPadding }}"
-                           data-reading-row-y="{{ density.readingBlockPadding }}"
-                           data-action="change->settings--appearance#pickDensity"
-                        {{ a.density == density ? 'checked' : '' }}>
-                    <span class="block px-4 py-2 text-sm text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
-                        {{ ('settings.appearance.density.' ~ density.value)|trans }}
-                    </span>
-                </label>
-            {% endfor %}
-        </div>
-
-        {# ── Per surface ───────────────────────────────────────────────────
-           The one knob that can honestly differ between the three panes, and
-           the reason the others cannot is structural rather than unfinished
-           work: the list and the reading pane are ONE painted surface
-           (`.main-pane` wraps both and carries the background, the blur, the
-           border and the radius), so opacity, blur, corner radius and the
-           background scrim have no way to differ between them without
-           splitting that pane in two. Density can, because it is padding
-           inside rows rather than a property of the surface under them.
-
-           Text size is global for a different reason: every size in the app is
-           a Tailwind `rem` utility, and `rem` resolves against the ROOT — a
-           font-size on one pane moves nothing inside it.
-
-           "Follow" rather than a duplicate of the global value, so a surface
-           that has not been given an opinion tracks the control above instead
-           of freezing at whatever it happened to be. #}
-        <div class="space-y-2 pt-1">
-            {% for surface in ['sidebar', 'list', 'reading'] %}
-                {% set current = attribute(a, surface ~ 'Density') %}
-                <div class="flex items-center justify-between gap-3 flex-wrap">
-                    <span class="text-xs font-medium text-ink-muted" id="surface-density-{{ surface }}">
-                        {{ ('settings.appearance.density.surface.' ~ surface)|trans }}
-                    </span>
-
-                    <div class="inline-flex rounded-pane border border-line overflow-hidden"
-                         role="radiogroup" aria-labelledby="surface-density-{{ surface }}">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="{{ surface }}Density" class="peer sr-only" value=""
-                                   data-settings--appearance-field="{{ surface }}Density"
-                                   data-surface-density="{{ surface }}"
-                                   data-action="change->settings--appearance#pickSurfaceDensity"
-                                   aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
-                                {{ current is null ? 'checked' : '' }}>
-                            <span class="block px-2.5 py-1.5 text-[11px] text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
-                                {{ 'settings.appearance.density.follow'|trans }}
+                <div class="grid grid-cols-3 @lg:grid-cols-4 @4xl:grid-cols-6 gap-3">
+                    {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
+                        {% set swatch = theme.swatch %}
+                        {# data-theme-NAME. `data-theme` is the palette switch (every
+                           theme block in app.css is selected by it), so a tile wearing
+                           it declared that theme's whole palette on itself and the
+                           label below inherited it — "Nord" written in Nord's ink on
+                           Solar's cream, 1.22:1. The swatch above still previews the
+                           theme, because those are inline colours on that element
+                           alone and preview is its whole job. #}
+                        <button type="button"
+                                data-theme-name="{{ theme.value }}"
+                                data-dark="{{ theme.isDark ? '1' : '0' }}"
+                                data-theme-defaults="{{ theme.defaults|json_encode }}"
+                                data-action="click->settings--appearance#pickTheme"
+                                class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
+                                       {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">
+                            <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
+                                  style="background:{{ swatch[0] }}">
+                                <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
+                                <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
                             </span>
-                        </label>
+                            {# The theme's name is the only thing that says which tile
+                               is which, so it is primary content, not a caption: it
+                               gets the soft ink (7.5:1 or better in every theme) at
+                               12px rather than muted ink at 11px. It was the lowest
+                               contrast text on the page and it is the text a person
+                               reads most carefully here. #}
+                            <span class="text-xs text-ink-soft">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
+            </section>
 
-                        {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
-                            <label class="cursor-pointer">
-                                <input type="radio" name="{{ surface }}Density" class="peer sr-only"
-                                       value="{{ density.value }}"
-                                       data-settings--appearance-field="{{ surface }}Density"
-                                       data-surface-density="{{ surface }}"
-                                       data-action="change->settings--appearance#pickSurfaceDensity"
-                                       aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ ('settings.appearance.density.' ~ density.value)|trans }}"
-                                    {{ current == density ? 'checked' : '' }}>
-                                <span class="block px-2.5 py-1.5 text-[11px] text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
-                                    {{ ('settings.appearance.density.' ~ density.value)|trans }}
-                                </span>
-                            </label>
-                        {% endfor %}
+            {# ── Layout ────────────────────────────────────────────────────
+               The second axis: the theme picks the palette, the layout picks how
+               it is painted. Each option carries its own preset so the numbers
+               live in PHP only (Layout::defaults) — picking one moves the
+               sliders below. #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.layout.subheading'|trans }}</p>
+                </div>
+
+                {# The per-option data attributes are read off the <option> elements by
+                   settings--appearance, which still finds them: the widget renders a
+                   copy of the list, it does not consume the original. #}
+                <select data-settings--appearance-field="layout"
+                        data-action="change->settings--appearance#pickLayout"
+                        {{ select.enhance() }}
+                        class="select-field w-full @lg:w-64 h-9 text-sm">
+                    {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
+                        <option value="{{ layout.value }}"
+                                data-layout-class="{{ layout.htmlClass ?? '' }}"
+                                data-layout-defaults="{{ layout.defaults|json_encode }}"
+                                {{ a.layout == layout ? 'selected' : '' }}>
+                            {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </section>
+
+            {# ── Density ───────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.density.subheading'|trans }}</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="density-global-label">
+                            {{ 'settings.appearance.density.heading'|trans }}
+                        </span>
+                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="density-global-label">
+                            {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
+                                <label class="cursor-pointer">
+                                    {# The three padding scales travel on the radio, so the JS
+                                       resolving a surface has one place to read them from and
+                                       the numbers stay in the Density enum. #}
+                                    <input type="radio" name="density" class="peer sr-only"
+                                           value="{{ density.value }}"
+                                           data-settings--appearance-field="density"
+                                           data-row-y="{{ density.rowPadding }}"
+                                           data-gap="{{ density.gap }}"
+                                           data-list-row-y="{{ density.listRowPadding }}"
+                                           data-reading-row-y="{{ density.readingBlockPadding }}"
+                                           data-action="change->settings--appearance#pickDensity"
+                                           aria-label="{{ ('settings.appearance.density.' ~ density.value)|trans }}"
+                                        {{ a.density == density ? 'checked' : '' }}>
+                                    <span class="{{ segText }}">
+                                        {{ ('settings.appearance.density.' ~ density.value)|trans }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {# ── Per surface ───────────────────────────────────────────
+                       The one knob that can honestly differ between the three panes,
+                       and the reason the others cannot is structural rather than
+                       unfinished work: the list and the reading pane are ONE painted
+                       surface (`.main-pane` wraps both and carries the background, the
+                       blur, the border and the radius), so opacity, blur, corner
+                       radius and the background scrim have no way to differ between
+                       them without splitting that pane in two. Density can, because it
+                       is padding inside rows rather than a property of the surface
+                       under them.
+
+                       Text size is global for a different reason: every size in the app
+                       is a Tailwind `rem` utility, and `rem` resolves against the ROOT
+                       — a font-size on one pane moves nothing inside it.
+
+                       "Follow" rather than a duplicate of the global value, so a surface
+                       that has not been given an opinion tracks the control above
+                       instead of freezing at whatever it happened to be. #}
+                    {% for surface in ['sidebar', 'list', 'reading'] %}
+                        {% set current = attribute(a, surface ~ 'Density') %}
+                        <div>
+                            <span class="block text-xs font-medium text-ink-muted mb-1.5" id="surface-density-{{ surface }}">
+                                {{ ('settings.appearance.density.surface.' ~ surface)|trans }}
+                            </span>
+
+                            <div class="{{ segGroup }}"
+                                 role="radiogroup" aria-labelledby="surface-density-{{ surface }}">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="{{ surface }}Density" class="peer sr-only" value=""
+                                           data-settings--appearance-field="{{ surface }}Density"
+                                           data-surface-density="{{ surface }}"
+                                           data-action="change->settings--appearance#pickSurfaceDensity"
+                                           aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
+                                        {{ current is null ? 'checked' : '' }}>
+                                    <span class="{{ segText }}">
+                                        {{ 'settings.appearance.density.follow'|trans }}
+                                    </span>
+                                </label>
+
+                                {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="{{ surface }}Density" class="peer sr-only"
+                                               value="{{ density.value }}"
+                                               data-settings--appearance-field="{{ surface }}Density"
+                                               data-surface-density="{{ surface }}"
+                                               data-action="change->settings--appearance#pickSurfaceDensity"
+                                               aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ ('settings.appearance.density.' ~ density.value)|trans }}"
+                                            {{ current == density ? 'checked' : '' }}>
+                                        <span class="{{ segText }}">
+                                            {{ ('settings.appearance.density.' ~ density.value)|trans }}
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            {# ── Mail list ─────────────────────────────────────────────────
+               What a row in the message list shows. Every default is what the
+               list did before these controls existed, so nothing moves for
+               anybody who never comes here. #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.list.subheading'|trans }}</p>
+                </div>
+
+                <div class="space-y-4">
+                    {# The two on/off settings. A checkbox cannot carry its own state into
+                       the payload — save() reads `input.value`, which is "on" whether a
+                       box is ticked or not — so each drives a hidden field holding "1" or
+                       "0", the same pattern the ink and main-pane defaults use. #}
+                    {% set toggles = [
+                        {
+                            field: 'accountCorner',
+                            on:    a.accountCorner,
+                            vars:  { on: { '--list-corner-display': 'block' }, off: { '--list-corner-display': 'none' } },
+                        },
+                        {
+                            field: 'listAvatars',
+                            on:    a.listAvatars,
+                            vars:  { on: { '--list-avatar-hide': '0' }, off: { '--list-avatar-hide': '1' } },
+                        },
+                    ] %}
+
+                    {% for toggle in toggles %}
+                        <label class="flex items-start justify-between gap-3 cursor-pointer">
+                            <span class="min-w-0">
+                                <span class="block text-xs font-medium text-ink-muted">{{ ('settings.appearance.list.' ~ toggle.field)|trans }}</span>
+                                <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}</span>
+                            </span>
+                            <input type="checkbox" class="accent-accent cursor-pointer mt-0.5 shrink-0"
+                                   data-toggles="{{ toggle.field }}"
+                                   data-css-vars-on="{{ toggle.vars.on|json_encode }}"
+                                   data-css-vars-off="{{ toggle.vars.off|json_encode }}"
+                                   data-action="change->settings--appearance#toggleListOption"
+                                {{ toggle.on ? 'checked' : '' }}>
+                            <input type="hidden" data-settings--appearance-field="{{ toggle.field }}"
+                                   data-toggle-field="{{ toggle.field }}" value="{{ toggle.on ? '1' : '0' }}">
+                        </label>
+                    {% endfor %}
+
+                    {# Preview lines. The values are the CSS the row needs rather than the
+                       count, for the reason AppearanceRenderer gives: nothing in CSS
+                       derives "hidden" from a count, and `truncate`'s nowrap has to be
+                       released for a second line to exist. Two is the ceiling because the
+                       row has room for two. #}
+                    <div>
+                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="preview-lines-label">
+                            {{ 'settings.appearance.list.previewLines'|trans }}
+                        </span>
+                        <div class="{{ segGroup }}"
+                             role="radiogroup" aria-labelledby="preview-lines-label">
+                            {% set lineOptions = {
+                                0: { '--list-preview-display': 'none', '--list-preview-display-wide': 'none', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
+                                1: { '--list-preview-display': 'block', '--list-preview-display-wide': 'block', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
+                                2: { '--list-preview-display': '-webkit-box', '--list-preview-display-wide': 'block', '--list-preview-lines': '2', '--list-preview-wrap': 'normal' },
+                            } %}
+                            {% for lines, vars in lineOptions %}
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="previewLines" class="peer sr-only" value="{{ lines }}"
+                                           data-settings--appearance-field="previewLines"
+                                           data-css-vars="{{ vars|json_encode }}"
+                                           data-action="change->settings--appearance#applyVars"
+                                           aria-label="{{ ('settings.appearance.list.previewLines' ~ lines)|trans }}"
+                                        {{ a.previewLines == lines ? 'checked' : '' }}>
+                                    <span class="{{ segText }}">
+                                        {{ ('settings.appearance.list.previewLines' ~ lines)|trans }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {# Unread emphasis. The BOLD WEIGHT is not part of this and does not
+                       move: it survives a colour-blind reader, a photograph behind a
+                       translucent pane and a printout, which the tint does not. What
+                       varies is the tint's strength and, at Strong, an accent bar down the
+                       row's leading edge. #}
+                    <div>
+                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="unread-emphasis-label">
+                            {{ 'settings.appearance.list.unreadEmphasis'|trans }}
+                        </span>
+                        <div class="{{ segGroup }}"
+                             role="radiogroup" aria-labelledby="unread-emphasis-label">
+                            {% for emphasis in enum('App\\Domain\\Enum\\Theme\\UnreadEmphasis').cases %}
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="unreadEmphasis" class="peer sr-only" value="{{ emphasis.value }}"
+                                           data-settings--appearance-field="unreadEmphasis"
+                                           data-css-vars="{{ { '--unread-emphasis': emphasis.tintScale, '--unread-bar-w': emphasis.barWidth }|json_encode }}"
+                                           data-action="change->settings--appearance#applyVars"
+                                           aria-label="{{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}"
+                                        {{ a.unreadEmphasis == emphasis ? 'checked' : '' }}>
+                                    <span class="{{ segText }}">
+                                        {{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    </section>
+            </section>
 
-    {# ── Mail list ─────────────────────────────────────────────────────────
-       What a row in the message list shows. Every default is what the list did
-       before these controls existed, so nothing moves for anybody who never
-       comes here. #}
-    <section class="space-y-4">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.list.subheading'|trans }}</p>
-        </div>
+            {# ── Typography ────────────────────────────────────────────────
+               The interface's typeface and size, and NOT the compose window's.
+               Those two pickers look alike and are opposites: the compose ones
+               write `style="font-family:…"` into the message HTML and go out
+               with the mail, these never leave the chrome. app.css pins the
+               editor's own size in px, outside the rem cascade this scale moves,
+               so composing at 1.25 still shows the size that will be sent. The
+               hint below says so, because nothing on screen otherwise would. #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.typography.subheading'|trans }}</p>
+                </div>
 
-        {# The two on/off settings. A checkbox cannot carry its own state into
-           the payload — save() reads `input.value`, which is "on" whether a
-           box is ticked or not — so each drives a hidden field holding "1" or
-           "0", the same pattern the ink and main-pane defaults use. #}
-        {% set toggles = [
-            {
-                field: 'accountCorner',
-                on:    a.accountCorner,
-                vars:  { on: { '--list-corner-display': 'block' }, off: { '--list-corner-display': 'none' } },
-            },
-            {
-                field: 'listAvatars',
-                on:    a.listAvatars,
-                vars:  { on: { '--list-avatar-hide': '0' }, off: { '--list-avatar-hide': '1' } },
-            },
-        ] %}
+                <div class="space-y-4">
+                    {# Four families, which is a segmented control's length, so it is
+                       one — matching every other short list on this page instead of
+                       being the single <select> among them. Each option is drawn in
+                       the face it names, which a <select> could not do for the
+                       closed control and which makes the choice legible without
+                       reading the labels at all. #}
+                    <div>
+                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="font-family-label">
+                            {{ 'settings.appearance.typography.family'|trans }}
+                        </span>
+                        <div class="{{ segGroup }}"
+                             role="radiogroup" aria-labelledby="font-family-label">
+                            {% for family in enum('App\\Domain\\Enum\\Theme\\FontFamily').cases %}
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="fontFamily" class="peer sr-only" value="{{ family.value }}"
+                                           data-settings--appearance-field="fontFamily"
+                                           data-css-vars="{{ { '--app-font-family': family.stack }|json_encode }}"
+                                           data-action="change->settings--appearance#applyVars"
+                                           aria-label="{{ ('settings.appearance.typography.font.' ~ family.value)|trans }}"
+                                        {{ a.fontFamily == family ? 'checked' : '' }}>
+                                    <span class="{{ segText }}" style="font-family:{{ family.stack }}">
+                                        {{ ('settings.appearance.typography.font.' ~ family.value)|trans }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-        {% for toggle in toggles %}
-            <label class="flex items-start justify-between gap-3 cursor-pointer">
-                <span class="min-w-0">
-                    <span class="block text-xs font-medium text-ink-muted">{{ ('settings.appearance.list.' ~ toggle.field)|trans }}</span>
-                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}</span>
-                </span>
-                <input type="checkbox" class="accent-accent cursor-pointer mt-0.5 shrink-0"
-                       data-toggles="{{ toggle.field }}"
-                       data-css-vars-on="{{ toggle.vars.on|json_encode }}"
-                       data-css-vars-off="{{ toggle.vars.off|json_encode }}"
-                       data-action="change->settings--appearance#toggleListOption"
-                    {{ toggle.on ? 'checked' : '' }}>
-                <input type="hidden" data-settings--appearance-field="{{ toggle.field }}"
-                       data-toggle-field="{{ toggle.field }}" value="{{ toggle.on ? '1' : '0' }}">
-            </label>
-        {% endfor %}
+                    <label class="block">
+                        <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.typography.scale'|trans }}</span>
+                        {# The ends are Appearance::RANGE_FONT_SCALE, read from the constant
+                           so the slider and the clamp cannot drift — the same reason the
+                           JMAP session publishes them. #}
+                        <input type="range"
+                               min="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['min'] }}"
+                               max="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['max'] }}"
+                               step="0.025"
+                               value="{{ a.fontScale }}"
+                               data-settings--appearance-field="fontScale"
+                               data-css-variable="--app-font-scale"
+                               data-css-suffix=""
+                               data-action="input->settings--appearance#slide"
+                               aria-label="{{ 'settings.appearance.typography.scale'|trans }}"
+                               class="w-full mt-2 accent-accent cursor-pointer">
+                        <span class="block text-[11px] text-ink-faint mt-1">{{ 'settings.appearance.typography.scaleHint'|trans }}</span>
+                    </label>
+                </div>
+            </section>
 
-        {# Preview lines. The values are the CSS the row needs rather than the
-           count, for the reason AppearanceRenderer gives: nothing in CSS
-           derives "hidden" from a count, and `truncate`'s nowrap has to be
-           released for a second line to exist. Two is the ceiling because the
-           row has room for two. #}
-        <div>
-            <span class="block text-xs font-medium text-ink-muted mb-2" id="preview-lines-label">
-                {{ 'settings.appearance.list.previewLines'|trans }}
-            </span>
-            <div class="inline-flex rounded-pane border border-line overflow-hidden"
-                 role="radiogroup" aria-labelledby="preview-lines-label">
-                {% set lineOptions = {
-                    0: { '--list-preview-display': 'none', '--list-preview-display-wide': 'none', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
-                    1: { '--list-preview-display': 'block', '--list-preview-display-wide': 'block', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
-                    2: { '--list-preview-display': '-webkit-box', '--list-preview-display-wide': 'block', '--list-preview-lines': '2', '--list-preview-wrap': 'normal' },
-                } %}
-                {% for lines, vars in lineOptions %}
+            {# ── Accent ────────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.accent.heading'|trans }}</h2>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    {% for hex in ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#dc2626'] %}
+                        <button type="button"
+                                data-accent="{{ hex }}"
+                                data-action="click->settings--appearance#pickAccent"
+                                class="w-7 h-7 rounded-full border border-line cursor-pointer hover:scale-110 transition-transform"
+                                style="background:{{ hex }}"></button>
+                    {% endfor %}
+                    <input type="color"
+                           value="{{ a.accent }}"
+                           data-settings--appearance-target="accent"
+                           data-settings--appearance-field="accent"
+                           data-action="input->settings--appearance#pickAccent"
+                           class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                </div>
+            </section>
+
+            {# ── Main pane ─────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.main.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.main.subheading'|trans }}</p>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.main.tint'|trans }}</span>
+                        <span class="flex items-center gap-2">
+                            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
+                                <input type="checkbox" data-settings--appearance-target="mainTintDefault"
+                                       data-action="change->settings--appearance#toggleMainTintDefault"
+                                       {{ a.mainTint is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                                {{ 'settings.appearance.main.default'|trans }}
+                            </label>
+                            <input type="color" value="{{ a.mainTint ?? '#ffffff' }}"
+                                   data-settings--appearance-target="mainTint" data-action="input->settings--appearance#pickMainTint"
+                                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                        </span>
+                        <input type="hidden" data-settings--appearance-field="mainTint" data-settings--appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
+                    </label>
+
+                    <div>
+                        <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer mb-2">
+                            <input type="checkbox" data-settings--appearance-target="mainAlphaMatch"
+                                   data-action="change->settings--appearance#toggleMainAlphaMatch"
+                                {{ a.mainAlpha is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                            {{ 'settings.appearance.main.matchGlass'|trans }}
+                        </label>
+                        <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
+                               data-settings--appearance-target="mainAlpha" data-action="input->settings--appearance#slideMainAlpha"
+                               class="w-full accent-accent cursor-pointer {{ a.mainAlpha is null ? 'opacity-40 pointer-events-none' : '' }}">
+                        <input type="hidden" data-settings--appearance-field="mainAlpha" data-settings--appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
+                    </div>
+                </div>
+            </section>
+
+            {# ── Glass ─────────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
+                </div>
+
+                {% set sliders = [
+                    { field: 'paneAlpha', var: '--pane-alpha', suffix: '', min: 0.15, max: 1,   step: 0.01, value: a.paneAlpha },
+                    { field: 'paneBlur',  var: '--pane-blur',  suffix: 'px', min: 0,  max: 60,  step: 1,    value: a.paneBlur },
+                    { field: 'radius',    var: '--app-radius', suffix: 'rem', min: 0, max: 2,   step: 0.125, value: a.radius },
+                    { field: 'scrimAlpha', var: '--scrim-alpha', suffix: '', min: 0, max: 0.7, step: 0.05, value: a.scrimAlpha },
+                ] %}
+
+                <div class="space-y-4">
+                    {% for slider in sliders %}
+                        <label class="block">
+                            <span class="text-xs font-medium text-ink-muted">{{ ('settings.appearance.glass.' ~ slider.field)|trans }}</span>
+                            <input type="range"
+                                   min="{{ slider.min }}" max="{{ slider.max }}" step="{{ slider.step }}"
+                                   value="{{ slider.value }}"
+                                   data-settings--appearance-field="{{ slider.field }}"
+                                   data-css-variable="{{ slider.var }}"
+                                   data-css-suffix="{{ slider.suffix }}"
+                                   data-action="input->settings--appearance#slide"
+                                   class="w-full mt-2 accent-accent cursor-pointer">
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            {# ── Text ──────────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.text.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.text.subheading'|trans }}</p>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="flex items-center justify-between gap-3">
+                        <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.color'|trans }}</span>
+                        <span class="flex items-center gap-2">
+                            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
+                                <input type="checkbox" data-settings--appearance-target="inkDefault"
+                                       data-action="change->settings--appearance#toggleInkDefault"
+                                       {{ a.inkColor is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
+                                {{ 'settings.appearance.text.default'|trans }}
+                            </label>
+                            <input type="color" value="{{ a.inkColor ?? '#27272a' }}"
+                                   data-settings--appearance-target="inkColor" data-action="input->settings--appearance#pickInk"
+                                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                        </span>
+                        <input type="hidden" data-settings--appearance-field="inkColor" data-settings--appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
+                    </label>
+
+                    <div data-settings--appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.muted'|trans }} / {{ 'settings.appearance.text.faint'|trans }}</span>
+                            <button type="button" data-action="click->settings--appearance#resetInkDerived"
+                                    class="text-[11px] text-accent hover:underline cursor-pointer">
+                                {{ 'settings.appearance.text.autoDerive'|trans }}
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="color" value="{{ a.inkMuted ?? '#71717a' }}"
+                                   data-settings--appearance-target="inkMuted" data-action="input->settings--appearance#pickInkMuted"
+                                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                            <input type="hidden" data-settings--appearance-field="inkMuted" data-settings--appearance-target="inkMutedField" value="{{ a.inkMuted ?? '' }}">
+                            <input type="color" value="{{ a.inkFaint ?? '#a1a1aa' }}"
+                                   data-settings--appearance-target="inkFaint" data-action="input->settings--appearance#pickInkFaint"
+                                   class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
+                            <input type="hidden" data-settings--appearance-field="inkFaint" data-settings--appearance-target="inkFaintField" value="{{ a.inkFaint ?? '' }}">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {# ── Background ────────────────────────────────────────────── #}
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.background.heading'|trans }}</h2>
+                </div>
+
+                <div class="grid grid-cols-3 @lg:grid-cols-5 gap-3 mb-4">
+                    {# value="theme", not "preset", and `peer` like every other radio
+                       here. Both were wrong, and together they made this tile a trap.
+
+                       The controller posts EVERY appearance field on any change, so it
+                       is not enough for this input to be read correctly — its value is
+                       submitted whenever anything else on the page is touched. Saying
+                       "preset" while being the tile that means "no picture" meant that
+                       changing the density, or the accent, or the corner radius,
+                       quietly rewrote backgroundKind from theme to preset. That is not
+                       cosmetic: AppearanceRenderer floors --pane-alpha and --main-alpha
+                       at 0.45 for any kind other than Theme, on the reasoning that
+                       panel text over a photograph needs an opacity floor — so a user
+                       running properly translucent panes had them jump opaque
+                       app-wide, having touched nothing but the density.
+
+                       And without `peer`, the sibling `peer-checked:ring-2` never
+                       matched, so the tile never showed as selected even when it was —
+                       which is why the wrong value went unnoticed. #}
                     <label class="cursor-pointer">
-                        <input type="radio" name="previewLines" class="peer sr-only" value="{{ lines }}"
-                               data-settings--appearance-field="previewLines"
-                               data-css-vars="{{ vars|json_encode }}"
-                               data-action="change->settings--appearance#applyVars"
-                               aria-label="{{ ('settings.appearance.list.previewLines' ~ lines)|trans }}"
-                            {{ a.previewLines == lines ? 'checked' : '' }}>
-                        <span class="block px-3 py-1.5 text-xs text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
-                            {{ ('settings.appearance.list.previewLines' ~ lines)|trans }}
+                        <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
+                               data-settings--appearance-field="backgroundKind"
+                               data-action="change->settings--appearance#pickBackground"
+                            {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
+                        <span class="flex items-center justify-center h-16 rounded-pane border border-line text-xs text-ink-muted peer-checked:ring-2 peer-checked:ring-accent app-bg">
+                            {{ 'settings.appearance.background.theme'|trans }}
                         </span>
                     </label>
-                {% endfor %}
-            </div>
-        </div>
 
-        {# Unread emphasis. The BOLD WEIGHT is not part of this and does not
-           move: it survives a colour-blind reader, a photograph behind a
-           translucent pane and a printout, which the tint does not. What
-           varies is the tint's strength and, at Strong, an accent bar down the
-           row's leading edge. #}
-        <div>
-            <span class="block text-xs font-medium text-ink-muted mb-2" id="unread-emphasis-label">
-                {{ 'settings.appearance.list.unreadEmphasis'|trans }}
-            </span>
-            <div class="inline-flex rounded-pane border border-line overflow-hidden"
-                 role="radiogroup" aria-labelledby="unread-emphasis-label">
-                {% for emphasis in enum('App\\Domain\\Enum\\Theme\\UnreadEmphasis').cases %}
-                    <label class="cursor-pointer">
-                        <input type="radio" name="unreadEmphasis" class="peer sr-only" value="{{ emphasis.value }}"
-                               data-settings--appearance-field="unreadEmphasis"
-                               data-css-vars="{{ { '--unread-emphasis': emphasis.tintScale, '--unread-bar-w': emphasis.barWidth }|json_encode }}"
-                               data-action="change->settings--appearance#applyVars"
-                               aria-label="{{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}"
-                            {{ a.unreadEmphasis == emphasis ? 'checked' : '' }}>
-                        <span class="block px-3 py-1.5 text-xs text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
-                            {{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}
-                        </span>
-                    </label>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
+                    {# The other end of the same group, with no tile of its own: picking
+                       a PRESET is picking a preset thumbnail below, and pickBackground()
+                       ticks this one on the way past so the kind travels with it. It has
+                       to exist in the DOM for that lookup to find it.
 
-    {# ── Typography ────────────────────────────────────────────────────────
-       The interface's typeface and size, and NOT the compose window's. Those
-       two pickers look alike and are opposites: the compose ones write
-       `style="font-family:…"` into the message HTML and go out with the mail,
-       these never leave the chrome. app.css pins the editor's own size in px,
-       outside the rem cascade this scale moves, so composing at 1.25 still
-       shows the size that will be sent. The hint below says so, because
-       nothing on screen otherwise would. #}
-    <section class="space-y-4">
-        <div>
-            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h2>
-            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.typography.subheading'|trans }}</p>
-        </div>
-
-        <label class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.typography.family'|trans }}</span>
-            <select data-settings--appearance-field="fontFamily"
-                    data-action="change->settings--appearance#applyVars"
-                    {{ select.enhance() }}
-                    class="select-field w-48 h-9 text-sm">
-                {% for family in enum('App\\Domain\\Enum\\Theme\\FontFamily').cases %}
-                    <option value="{{ family.value }}"
-                            data-css-vars="{{ { '--app-font-family': family.stack }|json_encode }}"
-                            {{ a.fontFamily == family ? 'selected' : '' }}>
-                        {{ ('settings.appearance.typography.font.' ~ family.value)|trans }}
-                    </option>
-                {% endfor %}
-            </select>
-        </label>
-
-        <label class="block">
-            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.typography.scale'|trans }}</span>
-            {# The ends are Appearance::RANGE_FONT_SCALE, read from the constant
-               so the slider and the clamp cannot drift — the same reason the
-               JMAP session publishes them. #}
-            <input type="range"
-                   min="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['min'] }}"
-                   max="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['max'] }}"
-                   step="0.025"
-                   value="{{ a.fontScale }}"
-                   data-settings--appearance-field="fontScale"
-                   data-css-variable="--app-font-scale"
-                   data-css-suffix=""
-                   data-action="input->settings--appearance#slide"
-                   aria-label="{{ 'settings.appearance.typography.scale'|trans }}"
-                   class="w-full mt-2 accent-accent cursor-pointer">
-            <span class="block text-[11px] text-ink-faint mt-1">{{ 'settings.appearance.typography.scaleHint'|trans }}</span>
-        </label>
-    </section>
-
-    {# ── Background ────────────────────────────────────────────────────── #}
-    <section>
-        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.background.heading'|trans }}</h2>
-
-        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
-            {# value="theme", not "preset", and `peer` like every other radio
-               here. Both were wrong, and together they made this tile a trap.
-
-               The controller posts EVERY appearance field on any change, so it
-               is not enough for this input to be read correctly — its value is
-               submitted whenever anything else on the page is touched. Saying
-               "preset" while being the tile that means "no picture" meant that
-               changing the density, or the accent, or the corner radius,
-               quietly rewrote backgroundKind from theme to preset. That is not
-               cosmetic: AppearanceRenderer floors --pane-alpha and --main-alpha
-               at 0.45 for any kind other than Theme, on the reasoning that
-               panel text over a photograph needs an opacity floor — so a user
-               running properly translucent panes had them jump opaque
-               app-wide, having touched nothing but the density.
-
-               And without `peer`, the sibling `peer-checked:ring-2` never
-               matched, so the tile never showed as selected even when it was —
-               which is why the wrong value went unnoticed. #}
-            <label class="cursor-pointer">
-                <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
-                       data-settings--appearance-field="backgroundKind"
-                       data-action="change->settings--appearance#pickBackground"
-                    {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
-                <span class="flex items-center justify-center h-16 rounded-pane border border-line text-xs text-ink-muted peer-checked:ring-2 peer-checked:ring-accent app-bg">
-                    {{ 'settings.appearance.background.theme'|trans }}
-                </span>
-            </label>
-
-            {# The other end of the same group, with no tile of its own: picking
-               a PRESET is picking a preset thumbnail below, and pickBackground()
-               ticks this one on the way past so the kind travels with it. It has
-               to exist in the DOM for that lookup to find it.
-
-               Neither is ticked when the kind is `custom` or `solid` — an
-               uploaded picture has no tile here — and that is deliberate rather
-               than an omission: save() skips unchecked radios, so backgroundKind
-               is simply absent from the payload, and applyArray()'s isset()
-               guard leaves the stored kind alone. An uploaded background
-               therefore survives every later change to density, accent or
-               radius, which is exactly what the old single mislabelled radio
-               failed to do. #}
-            <input type="radio" name="backgroundKind" class="sr-only" value="preset"
-                   data-settings--appearance-field="backgroundKind"
-                   data-action="change->settings--appearance#pickBackground"
-                {{ a.backgroundKind.value == 'preset' ? 'checked' : '' }}>
-
-            {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
-                <label class="cursor-pointer">
-                    <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
-                           data-settings--appearance-field="backgroundPreset"
+                       Neither is ticked when the kind is `custom` or `solid` — an
+                       uploaded picture has no tile here — and that is deliberate rather
+                       than an omission: save() skips unchecked radios, so backgroundKind
+                       is simply absent from the payload, and applyArray()'s isset()
+                       guard leaves the stored kind alone. An uploaded background
+                       therefore survives every later change to density, accent or
+                       radius, which is exactly what the old single mislabelled radio
+                       failed to do. #}
+                    <input type="radio" name="backgroundKind" class="sr-only" value="preset"
+                           data-settings--appearance-field="backgroundKind"
                            data-action="change->settings--appearance#pickBackground"
-                        {{ a.backgroundPreset == preset ? 'checked' : '' }}>
-                    <span class="block h-16 rounded-pane border border-line bg-cover bg-center peer-checked:ring-2 peer-checked:ring-accent"
-                          style="background-image:url('{{ asset(preset.thumbnail) }}')"></span>
+                        {{ a.backgroundKind.value == 'preset' ? 'checked' : '' }}>
+
+                    {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
+                                   data-settings--appearance-field="backgroundPreset"
+                                   data-action="change->settings--appearance#pickBackground"
+                                {{ a.backgroundPreset == preset ? 'checked' : '' }}>
+                            <span class="block h-16 rounded-pane border border-line bg-cover bg-center peer-checked:ring-2 peer-checked:ring-accent"
+                                  style="background-image:url('{{ asset(preset.thumbnail) }}')"></span>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+                    <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
+                    {{ 'settings.appearance.background.upload'|trans }}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
+                           data-settings--appearance-target="uploadInput"
+                           data-action="change->settings--appearance#upload">
                 </label>
-            {% endfor %}
+            </section>
+
+            {# ── Import / export ─────────────────────────────────────────
+               Hidden inside the setup wizard: export sets a Content-Disposition,
+               and a download triggered from inside a turbo-frame either blows the
+               frame away or does nothing at all. Neither is worth showing someone
+               who has been in the app for ninety seconds. #}
+            {% if show_appearance_transfer|default(true) %}
+                <section class="flex items-center gap-2 pt-4 border-t border-line">
+                    <a href="{{ path('app_appearance_export') }}"
+                       class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover transition-colors">
+                        <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+                        {{ 'settings.appearance.export'|trans }}
+                    </a>
+
+                    <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+                        <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>
+                        {{ 'settings.appearance.import'|trans }}
+                        <input type="file" accept="application/json" class="sr-only"
+                               data-settings--appearance-target="importInput"
+                               data-action="change->settings--appearance#importFile">
+                    </label>
+
+                    <button type="button" data-action="click->settings--appearance#reset"
+                            class="ml-auto text-xs text-ink-faint hover:text-ink-muted cursor-pointer transition-colors">
+                        {{ 'settings.appearance.reset'|trans }}
+                    </button>
+                </section>
+            {% endif %}
         </div>
 
-        <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
-            <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
-            {{ 'settings.appearance.background.upload'|trans }}
-            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
-                   data-settings--appearance-target="uploadInput"
-                   data-action="change->settings--appearance#upload">
-        </label>
-    </section>
+        {# ── Live preview ──────────────────────────────────────────────────
+           A mail list and a message, in miniature, wearing the settings on this
+           page. In its own column so it stays on screen while the controls that
+           drive it scroll past — the whole point is that nobody has to leave for
+           the inbox and come back to find out what a knob did.
 
-    {# ── Import / export ─────────────────────────────────────────────────
-       Hidden inside the setup wizard: export sets a Content-Disposition, and a
-       download triggered from inside a turbo-frame either blows the frame away
-       or does nothing at all. Neither is worth showing someone who has been in
-       the app for ninety seconds. #}
-    {% if show_appearance_transfer|default(true) %}
-    <section class="flex items-center gap-2 pt-4 border-t border-line">
-        <a href="{{ path('app_appearance_export') }}"
-           class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover transition-colors">
-            <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
-            {{ 'settings.appearance.export'|trans }}
-        </a>
+           SELF-CONTAINED by construction: not one line of it is fetched, and the
+           sample below is literal text, not a real thread. A preview that read
+           the inbox would be a second renderer of the mail list to keep in step
+           with the first, and it would put somebody's actual correspondence on a
+           settings page that a support screenshot is likely to capture.
 
-        <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
-            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>
-            {{ 'settings.appearance.import'|trans }}
-            <input type="file" accept="application/json" class="sr-only"
-                   data-settings--appearance-target="importInput"
-                   data-action="change->settings--appearance#importFile">
-        </label>
+           It is styled by the SAME rules as the real list — data-surface="list",
+           data-account-corner, data-row-snippet, row-unread, list-row-y are the
+           real hooks from app.css, not a copy — so a preview that looks right
+           and a list that does not is a failure mode this cannot have.
 
-        <button type="button" data-action="click->settings--appearance#reset"
-                class="ml-auto text-xs text-ink-faint hover:text-ink-muted cursor-pointer transition-colors">
-            {{ 'settings.appearance.reset'|trans }}
-        </button>
-    </section>
-    {% endif %}
+           `hidden @3xl:block` and nothing else: below that width the preview is
+           not rendered narrow, it is not rendered. The wrapper stretches to the
+           grid row so the sticky child inside it has somewhere to travel. #}
+        <aside class="hidden @3xl:block">
+            {% include 'settings/_appearance_preview.html.twig' %}
+        </aside>
+    </div>
 </div>

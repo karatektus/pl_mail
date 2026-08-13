@@ -18,16 +18,25 @@ to be wrong.
 matching the real list's `@xl`, and this pane is narrow, so the preview shows
 the stacked behaviour — which is the one the second line exists for.
 #}
-{# `bg-surface`, fully opaque, and that is a contrast decision rather than a
-   taste one. This started as `bg-surface/95 backdrop-blur`, which looked
-   right and measured wrong: the 5% that showed through lifted the ground under
-   the sample snippet enough to drop --rgb-ink-faint to 4.20:1 in Dark and
-   4.25:1 in Dusk. The theme guarantees that tier ≥4.5:1 ON --rgb-surface —
-   ThemeInkContrastTest holds every theme to it — so anything less than the
-   full surface is spending a guarantee the palette made. An opaque bar is
-   also what a sticky header should be: the controls scrolling underneath it
-   must not read through the preview they are driving. #}
-<section class="sticky top-0 z-20 -mt-2 pt-2 pb-3 bg-surface"
+{# Sticky within its own column rather than across the top of the panel: the
+   controls scroll past it, and it costs the panel width it has instead of
+   height it does not.
+
+   `top-0` sticks to the top of the settings pane's scroll port. The opaque
+   `bg-surface` that the full-width sticky band needed is gone with it — a side
+   column has nothing passing underneath it to read through — and dropping it
+   is also the safer contrast answer: this started as `bg-surface/95
+   backdrop-blur`, which looked right and measured wrong, the 5% that showed
+   through lifting the ground under the sample snippet enough to drop
+   --rgb-ink-faint to 4.20:1 in Dark and 4.25:1 in Dusk. The theme guarantees
+   that tier ≥4.5:1 ON --rgb-surface (ThemeInkContrastTest holds every theme to
+   it), and the bordered block below still paints that surface itself.
+
+   The heading and subtitle sit INSIDE the sticky column, above the coloured
+   block, so the thing and its name travel together — left in the main column
+   they would have labelled whatever control happened to scroll level with
+   them. #}
+<section class="sticky top-0"
          aria-label="{{ 'settings.appearance.preview.heading'|trans }}">
     <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.preview.heading'|trans }}</h2>
     <p class="text-xs text-ink-faint mt-0.5 mb-2">{{ 'settings.appearance.preview.subheading'|trans }}</p>

@@ -197,7 +197,22 @@
                                     {% if section == 'health' %}
                                         {% include 'settings/_health.html.twig' %}
                                     {% elseif section == 'appearance' %}
-                                        {% include 'settings/_appearance.html.twig' %}
+                                        {# The house inset, paid here rather than
+                                           inside the panel. This wrapper's `-mx-6`
+                                           exists so section CARDS can reach the pane
+                                           edges on a narrow pane, and every other
+                                           section pays it back with `px-4 @2xl:px-0`
+                                           on the content that should not. Appearance
+                                           paid nothing, so on a phone its headings and
+                                           controls sat flush against the pane border
+                                           and the segmented groups were clipped by it.
+                                           It belongs here and not in the panel because
+                                           the panel is also the setup wizard's
+                                           appearance step, where there is no `-mx-6`
+                                           to cancel. #}
+                                        <div class="px-4 @2xl:px-0">
+                                            {% include 'settings/_appearance.html.twig' %}
+                                        </div>
                                     {% elseif section == 'profile' %}
                                         {% include 'settings/_profile.html.twig' %}
                                     {% elseif section == 'security' %}

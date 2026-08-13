@@ -1740,6 +1740,46 @@ html {
     line-height: 1.625;
 }
 
+/* ── A visually-hidden input must not escape its own label ─────────────────
+   `sr-only` is `position: absolute`, and a <label> is `position: static` by
+   default — so the containing block of every `peer sr-only` radio was not its
+   label but the nearest positioned ancestor, which on a settings page is
+   `.main-pane`. Two consequences, and the second one is severe:
+
+   1. The input's static position — a full page-height down the panel — became
+      a contribution to `.main-pane`'s SCROLLABLE OVERFLOW, because the inner
+      `overflow-y-auto` is not the input's containing block and therefore does
+      not clip it. `.main-pane` measured 2739px of scroll height inside an
+      824px box while appearing to have nothing to scroll.
+
+   2. `.main-pane` is `overflow: hidden`, which is still a scroll container:
+      scrollable programmatically, just without a scrollbar. Clicking any
+      segmented control focuses its radio, the browser scrolls the focused
+      element into view through every scroll container above it, and
+      `.main-pane.scrollTop` jumped to 1314. Its in-flow content — the pane
+      header, the section nav, the entire settings body — slid up out of the
+      clip, and the pane painted as an empty rounded rectangle. That is the
+      "toggling density blanks the whole main pane" report: nothing was
+      unrendered, everything was scrolled out of a box with no way to scroll
+      it back.
+
+   Making the label the containing block puts the 1px box back where it
+   belongs, so it contributes its overflow to the label and focusing it scrolls
+   only the pane's real `overflow-y-auto` scroller.
+
+   Deliberately not scoped to the appearance panel: every `peer sr-only` tile
+   in the app sits in the same trap, and the cure has no cost anywhere else.
+
+   The appearance panel is also an `@container` now, and `container-type`
+   happens to establish a containing block for absolute descendants too — so
+   that panel would survive without this rule. That is a side effect of a
+   layout decision, though, and it would leave every other `sr-only` tile in
+   the app still holding the bug. This rule is the one that says so on
+   purpose. */
+label:has(> input.sr-only) {
+    position: relative;
+}
+
 /* ── Per-surface density ───────────────────────────────────────────────────
    Three surfaces re-point the density tokens at their own resolved pair. The
    pairs are resolved server-side rather than through a CSS fallback chain,
