@@ -8,12 +8,68 @@ account form (account/_form_modal.html.twig) does the same thing by hand.
 
 Field styling comes from the global form theme
 (_layout/form/modal_form_theme.html.twig), so the widgets render bare here.
+
+Embedded rather than included, for the delete control below: it needs the
+shell's `after_fields` slot, and an include cannot fill a block.
 #}
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
-    {% include '_partials/_modal_form.html.twig' with {
+    {% embed '_partials/_modal_form.html.twig' with {
         form: form,
+        label: label,
         title: label.id is null ? 'sidebar.labels.add'|trans : 'label.form.edit_title'|trans,
     } only %}
+        {#
+        Deleting a label, from the dialog that edits it.
+
+        The route has existed all along and settings has offered it all along —
+        the gap was that the dialog the sidebar's pencil opens did not, and the
+        sidebar is where a label is actually lived with. Someone editing a label
+        they no longer want had to know to go and look in a settings panel.
+
+        Below the fields and under a rule, not beside Save. The footer holds the
+        two buttons that finish the dialog the way it was opened for; this is a
+        different act with a different outcome, and putting a destructive verb
+        next to the primary one is how it gets pressed by muscle memory. It says
+        what it will do before it does it, and then asks.
+
+        `formaction` rather than a <form> of its own, because this markup sits
+        INSIDE the label form and nested forms are not a thing — the browser
+        drops the inner one and the button silently posts the label edit
+        instead. `formnovalidate` so a cleared Name field cannot block a delete;
+        the fields are irrelevant to a row that is about to be removed.
+        #}
+        {% block after_fields %}
+            {% if label.id is not null and not label.isSystem %}
+                <div class="pt-5 border-t border-line space-y-2.5">
+                    <p class="text-[13px] leading-snug text-ink-muted">
+                        {{ 'label.form.delete_hint'|trans }}
+                    </p>
+
+                    <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
+
+                    <button
+                        type="submit"
+                        formmethod="post"
+                        formnovalidate
+                        formaction="{{ path('app_label_delete', { id: label.id }) }}"
+                        data-turbo-confirm="{{ label.children|length > 0
+                            ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': label.children|length })
+                            : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}"
+                        class="inline-flex items-center justify-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-danger
+                           bg-transparent
+                           border border-danger/40
+                           hover:bg-danger-soft
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1
+                           transition-colors duration-100"
+                    >
+                        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                        {{ 'label.form.delete'|trans }}
+                    </button>
+                </div>
+            {% endif %}
+        {% endblock %}
+    {% endembed %}
 {% endblock %}

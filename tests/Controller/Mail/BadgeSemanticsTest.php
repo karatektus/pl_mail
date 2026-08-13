@@ -86,6 +86,85 @@ final class BadgeSemanticsTest extends WebTestCase
     }
 
     /**
+     * Sent shows no number at all, and the reason is worth stating where the
+     * rule lives.
+     *
+     * Reported as "marking an inbox thread unread gives Gesendet a badge of 1".
+     * It did, and the badge was the accent pill that means "these want you".
+     * countUnreadPerRole() sums a THREAD's unread count into every role the
+     * thread carries, and a thread's labels are the union of its messages' — so
+     * answering a conversation gives the thread a Sent label while the unread
+     * message in it is still the incoming one, in the Inbox.
+     *
+     * Sent is the only role this reaches. Trash and Drafts are totals and are
+     * not summed this way; Archive and Spam are moves, so no thread holds them
+     * and Inbox at once.
+     *
+     * @see SidebarCounts::SILENT_ROLES for why the answer is no badge rather
+     *      than a better-computed one.
+     */
+    public function testSentCarriesNoUnreadBadgeForMailThatIsNotInIt(): void
+    {
+        $client = $this->fixtureClient();
+
+        $sent = $this->seedLabel('Sent', LabelRole::Sent);
+
+        // One conversation, one unread incoming message.
+        $thread = $this->thread('QA-01 basic send', unread: 1);
+
+        $counts = static::getContainer()->get(SidebarCounts::class);
+        $counts->reset();
+
+        self::assertSame(1, $counts->forRoleBadge(LabelRole::Inbox));
+        self::assertSame(0, $counts->forRoleBadge(LabelRole::Sent), 'nothing has been sent yet');
+
+        // Now it is answered. MessageSendService labels the reply Sent and
+        // ThreadLabelSynchronizer unions the message labels onto the thread,
+        // which is the state this reproduces.
+        $thread->addLabel($sent);
+        $this->em->flush();
+        $counts->reset();
+
+        self::assertSame(
+            1,
+            $counts->forRoleBadge(LabelRole::Inbox),
+            'the unread mail has not moved — it is still the one in the Inbox',
+        );
+        self::assertSame(
+            0,
+            $counts->forRoleBadge(LabelRole::Sent),
+            'and it is still not in Sent, so Sent has nothing to badge',
+        );
+
+        // The endpoint the sidebar patches from has to agree, or the first sync
+        // would put the badge back.
+        $payload = $this->countsFrom($client);
+
+        self::assertSame(0, $payload['role:sent']);
+        self::assertSame(
+            0,
+            $payload['new:role:sent'],
+            'the dot rides on the same over-attribution and must be silent too',
+        );
+    }
+
+    /**
+     * Silence is not the same as a total, and the two rules must not be
+     * confused: a Sent badge showing the count of everything ever sent would be
+     * a number nobody asked for in the place the reported one was wrong.
+     */
+    public function testSentIsSilencedRatherThanTurnedIntoATotal(): void
+    {
+        self::assertFalse(SidebarCounts::badges(LabelRole::Sent));
+        self::assertFalse(SidebarCounts::countsTotal(LabelRole::Sent));
+
+        // Everything else still speaks, including the two totals.
+        foreach ([LabelRole::Inbox, LabelRole::Trash, LabelRole::Drafts, LabelRole::Spam, LabelRole::Archive] as $role) {
+            self::assertTrue(SidebarCounts::badges($role), $role->value . ' must keep its badge');
+        }
+    }
+
+    /**
      * The reported mismatch, as an invariant: whatever the fixture holds, the
      * badge and the list total are the same number.
      */

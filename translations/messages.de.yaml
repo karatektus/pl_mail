@@ -1345,8 +1345,8 @@ label:
         violet: Violett
     empty: Keine Konversationen mit diesem Label.
     created: Label erstellt.
-    delete_confirm: 'Das Label "%name%" löschen? Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
-    delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Nachrichten werden nicht gelöscht.'
+    delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
+    delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen.
@@ -1354,6 +1354,7 @@ label:
         account: Konto
         color: Farbe
         delete: Label löschen
+        delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
         edit_title: Label bearbeiten
         name: Name
         no_color: '— keine —'

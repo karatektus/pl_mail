@@ -113,13 +113,25 @@ export default class extends Controller {
         this._holds++;
     }
 
-    /** The write finished. Anything held back happens now. */
+    /**
+     * The write finished. The list is re-read from the server.
+     *
+     * Unconditionally, where this used to refresh only if a sync had come due
+     * while the write was held. That covered the rows — the streams the write
+     * returns redraw those — and missed everything else in the frame, which no
+     * stream addresses: the inbox's category tabs carry their own unread
+     * numbers, and marking two threads unread left "General 2" over four bold
+     * rows until a reload. The frame is one fragment fetch, and a person who
+     * just pressed a bulk-action button is waiting on the answer.
+     */
     release() {
         this._holds = Math.max(0, this._holds - 1);
 
-        if (0 === this._holds && true === this._refreshPending) {
-            this._refreshList({ immediate: true });
+        if (0 !== this._holds) {
+            return;
         }
+
+        this._refreshList({ immediate: true });
     }
 
     async open(event) {
@@ -150,7 +162,7 @@ export default class extends Controller {
         // the emptiness this is meant to cure.
         if (this._listUrl) {
             history.pushState({ mailPaneOpen: false }, "", this._listUrl);
-            this._showList();
+            this._showList({ revalidate: true });
 
             return;
         }
@@ -167,7 +179,9 @@ export default class extends Controller {
         if (state && state.mailPaneOpen) {
             await this._loadMessage(window.location.href);
         } else {
-            this._showList();
+            // The browser's own Back out of a thread, which uncovers the same
+            // snapshot the in-app arrow does.
+            this._showList({ revalidate: true });
         }
     }
 
@@ -205,8 +219,25 @@ export default class extends Controller {
      * So the emptiness is asked about rather than assumed: the server marks the
      * frame with whether it actually rendered a list, and an unrendered one is
      * filled before it is shown.
+     *
+     * The other half of the same question is whether what IS there is still
+     * true. Opening a conversation leaves the list in the DOM untouched, so
+     * coming back uncovered the snapshot taken at the moment it was covered —
+     * and the whole point of opening a thread is to change it. Reply to a
+     * conversation and go back and the list still showed the message count, the
+     * timestamp and the unread state from before the reply, until a reload.
+     *
+     * A revalidation cannot be allowed to reintroduce the blank pane, so the
+     * two cases stay separate: an unrendered frame is filled BEFORE it is
+     * shown, a rendered one is shown at once and corrected behind the reveal.
+     * The list is therefore immediate and current, rather than one or the other.
+     *
+     * @param {{revalidate?: boolean}} options  `revalidate` for the paths that
+     *        uncover a list which has been sitting behind something — going
+     *        back from a thread. Not for a frame that has just been rendered
+     *        by the server, which would be a second fetch of what just arrived.
      */
-    _showList() {
+    _showList({ revalidate = false } = {}) {
         if (this._listNeedsRendering()) {
             // Whatever is on screen stays there for the moment it takes, rather
             // than being replaced by a blank pane and then by the list. The
@@ -217,6 +248,10 @@ export default class extends Controller {
         }
 
         this._reveal();
+
+        if (true === revalidate) {
+            this._refreshList({ immediate: true });
+        }
     }
 
     _reveal() {

@@ -158,6 +158,96 @@ test.describe("manage labels", () => {
         ).toHaveCount(0);
     });
 
+    /**
+     * Delete, from the dialog that edits the label.
+     *
+     * The report said labels could not be deleted from the UI at all, which was
+     * not so — the settings rows above have offered it all along. What was true
+     * is the path the report actually walked: the sidebar's pencil opens "Edit
+     * label" with Name / Nest under / Colour and nothing but Cancel and Save, so
+     * anyone managing labels where they live never met the control.
+     */
+    test("deletes from the label edit dialog, which is where the pencil leads", async ({
+        page,
+    }) => {
+        await page.goto("/mail/inbox");
+
+        const sidebarRow = page
+            .locator("#label-list .nav-item")
+            .filter({ hasText: LABEL_NAME })
+            .first();
+        await expect(sidebarRow).toBeVisible();
+
+        await sidebarRow.getByRole("button", { name: `Edit label "${LABEL_NAME}"` }).click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+        await expect(modal.locator("#modal").getByLabel("Name")).toBeVisible();
+
+        // It says what it will do before it does it. Deleting reaches further
+        // than the row it was opened from — every account, and every nested
+        // label — so the dialog states that rather than leaving it to the
+        // confirm nobody reads.
+        await expect(modal).toContainText("removes the label from every account");
+        await expect(modal).toContainText("is not deleted");
+
+        const remove = modal.getByRole("button", { name: "Delete label" });
+        await expect(remove).toBeVisible();
+
+        page.once("dialog", (dialog) => dialog.accept());
+        await remove.click();
+
+        await expect(modal).toBeHidden();
+        await expect(
+            page.locator("#label-list").getByRole("link", { name: LABEL_NAME }),
+        ).toHaveCount(0);
+    });
+
+    /**
+     * Destructive and primary must not be adjacent. The dialog's footer is
+     * Cancel and Save; delete lives in the body, under a rule, and pressing
+     * Save must still save.
+     */
+    test("the delete control is kept out of the dialog's footer", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        await page
+            .locator("#label-list .nav-item")
+            .filter({ hasText: LABEL_NAME })
+            .first()
+            .getByRole("button", { name: `Edit label "${LABEL_NAME}"` })
+            .click();
+
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal.locator("#modal").getByLabel("Name")).toBeVisible();
+
+        // The submit button and the delete button are not siblings.
+        const sharedParent = await modal.evaluate((root) => {
+            const save = Array.from(root.querySelectorAll("button")).find(
+                (b) => b.textContent?.trim() === "Save",
+            );
+            const remove = Array.from(root.querySelectorAll("button")).find((b) =>
+                b.textContent?.includes("Delete label"),
+            );
+
+            return save?.parentElement === remove?.parentElement;
+        });
+
+        expect(sharedParent, "delete must not sit in the row that holds Save").toBe(false);
+
+        // And Save still saves rather than being hijacked by the formaction the
+        // delete button carries — a hijacked Save would remove the label, so
+        // the label still being there afterwards is the assertion. Nothing is
+        // renamed to prove it: a unique name would be a label this spec leaves
+        // behind for every later run to trip over.
+        await modal.getByRole("button", { name: "Save" }).click();
+
+        await expect(modal).toBeHidden();
+        await expect(
+            page.locator("#label-list").getByRole("link", { name: LABEL_NAME }),
+        ).toBeVisible();
+    });
+
     test("offers no rename or delete for system labels", async ({ page }) => {
         await page.goto(SETTINGS_URL);
 
