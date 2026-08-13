@@ -131,6 +131,41 @@ class SidebarCounts implements ResetInterface
     }
 
     /**
+     * The roles that carry no badge at all.
+     *
+     * Sent, and the reason is arithmetic rather than taste. countUnreadPerRole()
+     * sums a THREAD's unread count into every role the thread carries, and a
+     * thread's labels are the union of its messages' (see
+     * ThreadLabelSynchronizer) — so the moment you answer a conversation, the
+     * thread gains Sent while the unread message in it is still the incoming
+     * one, sitting in the Inbox. "Gesendet 1" was counting a mail that is not in
+     * Sent and never will be. Reported as exactly that: mark one inbox thread
+     * unread, and Sent grows a badge.
+     *
+     * Sent is the only role this can happen to. Trash and Drafts are totals
+     * (below) and so are not summed this way; Archive and Spam are MOVES — the
+     * message leaves Inbox to get there, so no thread holds both.
+     *
+     * Fixed by dropping the badge rather than by re-attributing the count,
+     * because there is no number that would be right. Counting unread MESSAGES
+     * carrying the Sent label would be worse, not better: nothing marks an
+     * outgoing message as seen (MessageSendService sets sentAt, never seenAt),
+     * so every mail you have ever sent would count as unread. And the honest
+     * answer is that an unread count on Sent asks a question nobody has —
+     * you have read everything you wrote, by construction. Same reasoning as
+     * TOTAL_ROLES, one step further: there the badge means something else, here
+     * it means nothing.
+     *
+     * @var list<LabelRole>
+     */
+    public const array SILENT_ROLES = [LabelRole::Sent];
+
+    public static function badges(LabelRole $role): bool
+    {
+        return false === in_array($role, self::SILENT_ROLES, true);
+    }
+
+    /**
      * The number the badge for a role should show, whichever kind it is.
      *
      * The one place that decides, so the sidebar, the counts endpoint and the
@@ -139,6 +174,10 @@ class SidebarCounts implements ResetInterface
      */
     public function forRoleBadge(LabelRole $role): int
     {
+        if (false === self::badges($role)) {
+            return 0;
+        }
+
         return true === self::countsTotal($role)
             ? $this->totalForRole($role)
             : $this->forRole($role);

@@ -1062,8 +1062,8 @@ label:
         violet: Violet
     empty: No yarns flyin' this flag.
     created: Flag hoisted.
-    delete_confirm: 'Strike the flag "%name%"? Yarns keep their other flags and be not thrown overboard.'
-    delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? No yarns be thrown overboard.'
+    delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
+    delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.
     error:
         duplicate: A flag by that name already flies here.
@@ -1071,6 +1071,7 @@ label:
         account: Crew member
         color: Colour
         delete: Strike this flag
+        delete_hint: 'Strikin'' it brings the flag down on every ship in the fleet, an'' every flag flyin'' beneath it too. Yarns that carried it keep their other flags an'' be not thrown overboard.'
         edit_title: Mend this flag
         name: Name
         no_color: '— none —'

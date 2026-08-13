@@ -112,8 +112,26 @@ class NewMailMarkers implements ResetInterface
         return $this->byCategory[$category->value] ?? 0;
     }
 
+    /**
+     * The dot obeys the same silence the badge does.
+     *
+     * countNewPerRole() attributes a thread to every role it carries, exactly
+     * as countUnreadPerRole() does, so answering a conversation lit a dot on
+     * Sent that meant "mail arrived here" about mail that arrived in the Inbox.
+     * The badge beside it was the reported half of that (see
+     * SidebarCounts::SILENT_ROLES); a dot left behind would be the same wrong
+     * statement in the mark that carries no number to argue with.
+     *
+     * Zeroed rather than not rendered: every marker in the markup has to be
+     * findable in the counts payload or the sidebar controller cannot patch it,
+     * and BadgeSemanticsTest holds that invariant.
+     */
     public function forRole(LabelRole $role): int
     {
+        if (false === SidebarCounts::badges($role)) {
+            return 0;
+        }
+
         if (null === $this->byRole) {
             $user = $this->security->getUser();
 

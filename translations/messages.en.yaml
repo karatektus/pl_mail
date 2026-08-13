@@ -1335,8 +1335,8 @@ label:
         violet: Violet
     empty: No conversations with this label.
     created: Label created.
-    delete_confirm: 'Delete the label "%name%"? Messages keep their other labels and are not deleted.'
-    delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? Messages are not deleted.'
+    delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
+    delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
     error:
         duplicate: A label with this name already exists here.
@@ -1344,6 +1344,7 @@ label:
         account: Account
         color: Color
         delete: Delete label
+        delete_hint: 'Deleting removes the label from every account, along with any labels nested under it. Mail carrying it keeps its other labels and is not deleted.'
         edit_title: Edit label
         name: Name
         no_color: '— none —'

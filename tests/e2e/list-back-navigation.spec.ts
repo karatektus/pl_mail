@@ -122,6 +122,65 @@ test.describe("returning from a thread", () => {
      * controller reads to decide whether Back has to fetch one. Pinned because
      * the whole fix hangs off this attribute being right on both pages.
      */
+    /**
+     * The second report, which is the first one's opposite.
+     *
+     * "Open a thread, reply, press Back — the list is a cached snapshot: the
+     * reply is missing, the thread still shows no (2), the timestamp is
+     * unchanged." Opening a conversation leaves the list in the DOM untouched,
+     * so Back uncovered the snapshot taken at the moment it was covered, and the
+     * entire reason for opening a thread is to change it.
+     *
+     * The trap here is that the obvious fix — fetch the list before revealing it
+     * — reintroduces the blank pane above. So the requirement is BOTH, and both
+     * are asserted: rows on screen at once, and corrected without a reload.
+     *
+     * The state change is made behind the list's back on purpose. A status POST
+     * from the page context commits server-side and returns a stream this test
+     * never renders, so the DOM cannot have learned about it by any route other
+     * than the revalidation being tested.
+     */
+    test("the list that comes back is corrected without a reload", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+
+        // A different row from the one about to be opened, so nothing the
+        // thread page itself does can account for the change.
+        const subject = INBOX_SUBJECTS.star;
+        await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "true");
+
+        const id = await mailRow(page, subject).getAttribute("data-mail--message-row-id-value");
+        expect(id).toBeTruthy();
+
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await expect(page.locator("#message-list")).toBeHidden();
+
+        await page.evaluate(async (threadId) => {
+            await fetch(`/status/thread/${threadId}/read`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token":
+                        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? "",
+                },
+                body: JSON.stringify({ read: true }),
+            });
+        }, id);
+
+        await page.getByRole("button", { name: BACK_BUTTON }).first().click();
+
+        // Immediate: the rows are there straight away, exactly as the tests
+        // above require. This is the assertion the revalidation must not cost.
+        await expect(page.locator("#message-list")).toBeVisible();
+        await expect(page.locator(ROWS)).toHaveCount(4);
+
+        // And current: the change made while the thread was open arrives on its
+        // own. No reload, and no poll is anywhere near this quick.
+        await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "false", {
+            timeout: 5000,
+        });
+    });
+
     test("the thread page marks its list frame as unrendered", async ({ page }) => {
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();

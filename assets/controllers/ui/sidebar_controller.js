@@ -9,6 +9,22 @@ const ANCESTOR_CLASS   = "is-active-ancestor";
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
 /**
+ * A bulk action from the list toolbar finished writing.
+ *
+ * Kept apart from SYNC_EVENTS rather than added to them, because the two want
+ * opposite treatment. A sync is the server volunteering that something changed
+ * somewhere, arrives in bursts, and is rate-limited below on purpose. This is a
+ * person having just pressed a button and watching the number they changed, so
+ * it skips the limit — see refreshCounts({ immediate }).
+ *
+ * The toolbar already dispatches it (bubbling, so it reaches this document
+ * listener from inside the list frame) and the mail pane already holds its list
+ * refresh on the matching `:writing`. Nothing was listening on behalf of the
+ * badges, which is why marking two threads unread turned the rows bold and left
+ * "Inbox 5" sitting next to seven bold rows until a reload.
+ */
+const WRITTEN_EVENT    = "mail--list-toolbar:written";
+/**
  * Where the nav was scrolled to, and which label trees were open.
  *
  * Session storage for the scroll — it belongs to this run of the app, and
@@ -39,11 +55,34 @@ let lastFetchAt = 0;
 /** The floor between two counts requests. */
 const MIN_COUNTS_MS = 15000;
 
-function fetchCounts(url) {
+/**
+ * @param {string}  url
+ * @param {boolean} fresh  A caller that has just written and cannot be served
+ *        an answer the server composed before that write landed.
+ */
+async function fetchCounts(url, fresh = false) {
     // Already asking: the second caller waits for the first one's answer rather
     // than starting a second request for the same numbers.
+    //
+    // Except after a write. That in-flight request was sent before the write
+    // committed, so its numbers are the old ones — sharing it would patch the
+    // badges back to exactly the values the user just changed. Such a caller
+    // waits for it to settle (so the two do not race to write the same badges)
+    // and then asks again for itself.
     if (inFlight !== null) {
-        return inFlight;
+        if (false === fresh) {
+            return inFlight;
+        }
+
+        await inFlight.catch(() => null);
+
+        // The sidebar partial is on the page twice and both instances hear the
+        // same write, so the other one may have started the post-write request
+        // while this one waited. One is enough, and it is exactly as fresh as
+        // the one this call was about to make.
+        if (inFlight !== null) {
+            return inFlight;
+        }
     }
 
     lastFetchAt = Date.now();
@@ -111,6 +150,9 @@ export default class extends Controller {
         SYNC_EVENTS.forEach((name) =>
             document.addEventListener(name, this._onSynced),
         );
+
+        this._onWritten = () => this.refreshCounts({ immediate: true });
+        document.addEventListener(WRITTEN_EVENT, this._onWritten);
     }
 
     /**
@@ -128,6 +170,7 @@ export default class extends Controller {
         SYNC_EVENTS.forEach((name) =>
             document.removeEventListener(name, this._onSynced),
         );
+        document.removeEventListener(WRITTEN_EVENT, this._onWritten);
     }
 
     /** A tree was opened or closed. Closed is what is stored, so a label added
@@ -171,7 +214,7 @@ export default class extends Controller {
 
         // Offline, or the sync raced a navigation — fetchCounts answers null and
         // the next sync retries.
-        const counts = await fetchCounts(this.countsUrlValue);
+        const counts = await fetchCounts(this.countsUrlValue, immediate);
 
         if (counts === null) {
             return;
