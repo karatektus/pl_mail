@@ -21,6 +21,7 @@ use App\Service\Calendar\Subscription\CalDavConnector;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
+use App\Service\Push\PushTeardown;
 use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -86,6 +87,7 @@ final class CalendarSettingsController extends AbstractController
         private readonly UserTimezoneResolver   $timezones,
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
+        private readonly PushTeardown           $pushTeardown,
     ) {
     }
 
@@ -152,6 +154,12 @@ final class CalendarSettingsController extends AbstractController
         if (false === $calendar->role->isDeletable() || true === $calendar->isDefault) {
             throw $this->createAccessDeniedException();
         }
+
+        // Before the remove, because the channel id needed to call the
+        // registration off lives on the row being removed. Best-effort: a
+        // provider that cannot be reached must not stop somebody deleting their
+        // own calendar. See PushTeardown.
+        $this->pushTeardown->forCalendar($calendar);
 
         $this->em->remove($calendar);
         $this->em->flush();

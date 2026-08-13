@@ -20,6 +20,11 @@ final readonly class ResetReport
      * @param list<string>        $cursorsCleared     'account' and/or 'mailbox'
      * @param list<string>        $emptiedDirectories project-relative paths
      * @param list<string>        $removedSecrets     names actually found in the secrets file and dropped
+     * @param int                 $pushRevoked        provider-side push registrations handed back before the
+     *                                                truncate — see DataResetter::revokePushFor(). Reported
+     *                                                because it is the step whose absence produced weeks of
+     *                                                unexplained "unknown channel" warnings, and a step nobody
+     *                                                is told about is a step nobody notices has stopped working
      */
     public function __construct(
         public array $tables = [],
@@ -27,6 +32,7 @@ final readonly class ResetReport
         public array $emptiedDirectories = [],
         public array $removedSecrets = [],
         public bool $workersSignalled = false,
+        public int $pushRevoked = 0,
     ) {
     }
 

@@ -568,6 +568,7 @@ admin:
             active: 'delivering'
             degraded: 'registered, not delivering'
             inactive: 'off'
+            lapsed: 'expired'
         heading: 'Gmail webhooks'
         history_id: 'History ID'
         last_push: 'Last push'
@@ -1713,6 +1714,11 @@ settings:
         primary: Primary
         primary_explained: New messages are sent from this account by default.
         push:
+            lapsed_hint: >-
+                The push registration expired and was not renewed, so nothing is
+                being delivered. Renewal runs daily on its own — if this keeps
+                happening, the scheduled-task worker has stopped. Mail is still
+                syncing on a schedule.
             degraded_hint:
                 gmail: >-
                     Push is registered but nothing has arrived recently. The
@@ -1737,6 +1743,7 @@ settings:
                 active: Push
                 degraded: Push (not delivering)
                 inactive: Scheduled
+                lapsed: Push (expired)
             mode_pull: Scheduled
             mode_push: Push
             not_configured: >-
@@ -2044,10 +2051,24 @@ settings:
             destructive: >-
                 This throws the waiting work away for good. Nothing is retried
                 and it cannot be brought back. Continue?
+        fact:
+            never: 'never'
+            never_delivered: 'nothing has ever arrived'
+            never_run: 'no run recorded'
+            not_registered: 'not registered'
+            push_expires: 'Registration expires'
+            push_last_delivered: 'Last notification received'
+            push_last_renewal: 'Renewal last ran'
         flash:
             calendar_resync: >-
                 %calendar% has been asked to sync. It is running in the
                 background now, and the card below will say how it went.
+            push_repair_failed: >-
+                Could not re-register instant delivery for %account%. It stays
+                on the scheduled check, so your mail keeps arriving. The card
+                below shows what is known.
+            push_repaired: >-
+                Instant delivery re-registered for %account%.
             queue_discarded: 'Discarded %count% abandoned jobs.'
             queue_retried: 'Put %count% abandoned jobs back on the queue.'
         heading: 'Account health'
@@ -2084,11 +2105,24 @@ settings:
                 title: '%connection% needs reconnecting'
             push_degraded:
                 body: >-
-                    Your mail is still arriving, just not the instant it is
-                    sent — this account has fallen back to checking on a
-                    schedule, so new messages can take a few minutes to show
-                    up. Nothing is lost, and there is no rush to fix it.
-                title: 'Instant delivery is off for %account%'
+                    The registration is live and has not expired, but mail has
+                    arrived that it never announced — so the notifications are
+                    being lost somewhere between the provider and this install,
+                    not failing to be asked for. For Gmail that points at the
+                    Pub/Sub subscription in Google Cloud: check that it still
+                    forwards your topic to this address. Your mail keeps
+                    arriving on the scheduled check in the meantime, a few
+                    minutes later than it should.
+                title: 'Instant delivery is registered but not arriving for %account%'
+            push_lapsed:
+                body: >-
+                    The registration expired and was not renewed, so nothing is
+                    being pushed at all. Renewal runs once a day on its own; if
+                    the last run below was days ago, the scheduled-task worker
+                    has stopped and that is the thing to fix, not this account.
+                    Your mail keeps arriving on the scheduled check, a few
+                    minutes later than it should.
+                title: 'Instant delivery expired for %account%'
             queue_work_abandoned:
                 body: >-
                     %count% background jobs tried, failed repeatedly, and were

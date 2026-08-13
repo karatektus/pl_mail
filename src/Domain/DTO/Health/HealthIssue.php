@@ -45,6 +45,11 @@ final readonly class HealthIssue
      *                                             asked for and has not reported
      *                                             back — the sentence to show in
      *                                             place of the button. See below
+     * @param list<HealthFact>        $facts       the dated evidence the verdict
+     *                                             was read off, shown on the card
+     *                                             so the reasoning can be checked
+     *                                             rather than believed — see
+     *                                             HealthFact
      */
     public function __construct(
         public string          $id,
@@ -57,6 +62,7 @@ final readonly class HealthIssue
         public ?string         $causedBy = null,
         public ?string         $detail = null,
         public ?string         $awaitingKey = null,
+        public array           $facts = [],
     ) {
     }
 

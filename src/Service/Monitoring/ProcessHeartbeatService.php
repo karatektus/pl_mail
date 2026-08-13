@@ -21,11 +21,39 @@ final class ProcessHeartbeatService
     public const string TYPE_IMAP_SUPERVISE   = 'imap-supervise';
     public const string TYPE_MESSENGER_WORKER = 'messenger-worker';
 
+    /**
+     * Not a process at all: the last time `app:push:renew` finished a run.
+     *
+     * A scheduled command that stops being scheduled is silent by construction
+     * — MaintenanceSchedule runs it at 04:00 daily, and a scheduler worker that
+     * is down does not fail, it simply does not fire, which logs nothing and
+     * raises nothing. The only way to notice is to record the runs that DO
+     * happen and look at how long ago the last one was.
+     */
+    public const string TYPE_PUSH_RENEW = 'push-renew';
+
     /** Seconds after which a heartbeat counts as stale, per process type. */
     public const array STALE_THRESHOLDS = [
         self::TYPE_IMAP_IDLE        => 2100, // just over the 29-min IDLE reissue
         self::TYPE_IMAP_SUPERVISE   => 300,
         self::TYPE_MESSENGER_WORKER => 120,  // listener beats every 30s
+    ];
+
+    /**
+     * Types that record "the last time this finished" rather than "this process
+     * is alive right now".
+     *
+     * Held apart from STALE_THRESHOLDS because the two are swept differently.
+     * A liveness row that has gone quiet is worthless and gets reaped; a
+     * milestone row that has gone quiet IS the finding — deleting the evidence
+     * that renewal last ran five days ago would take away the one thing that
+     * says the scheduler is down. See pruneStale().
+     */
+    public const array MILESTONE_THRESHOLDS = [
+        // 25 hours: the command is scheduled daily, so a run is due every 24,
+        // and the extra hour is slack for a queue that was busy at 04:00. Any
+        // longer and a whole missed day would still read as healthy.
+        self::TYPE_PUSH_RENEW => 90000,
     ];
 
     public const int DEFAULT_STALE_THRESHOLD = 600;
@@ -43,7 +71,25 @@ final class ProcessHeartbeatService
 
     public static function staleThreshold(string $type): int
     {
-        return self::STALE_THRESHOLDS[$type] ?? self::DEFAULT_STALE_THRESHOLD;
+        return self::STALE_THRESHOLDS[$type]
+            ?? self::MILESTONE_THRESHOLDS[$type]
+            ?? self::DEFAULT_STALE_THRESHOLD;
+    }
+
+    /**
+     * Record that a scheduled job completed a run, now.
+     *
+     * Deliberately the same storage as a process heartbeat rather than a new
+     * mechanism: this is one row saying "X was last heard from at T", which is
+     * exactly what the table already is, and the admin dashboard renders it
+     * with no changes. What differs is only the sweeping — see
+     * MILESTONE_THRESHOLDS.
+     *
+     * @param array<string,mixed>|null $meta
+     */
+    public function recordRun(string $type, ?array $meta = null): void
+    {
+        $this->beat($type, 'main', $meta);
     }
 
     /**
@@ -96,6 +142,13 @@ final class ProcessHeartbeatService
      * for instances that vanished without a clean shutdown and have no live
      * owner to reconcile them (e.g. a recreated worker container, which gets a
      * fresh key when APP_CONTAINER_NAME is unset and hostname is used).
+     *
+     * Milestone rows are exempt, and that exemption is the point of the
+     * distinction. A liveness row that stopped beating describes a process that
+     * no longer exists, so it is noise. A milestone row that stopped beating
+     * describes a scheduled job that stopped running — the finding itself — and
+     * reaping it would delete the only record that renewal has not run since
+     * Tuesday, replacing a health page that says so with one that says nothing.
      */
     public function pruneStale(): int
     {
@@ -109,8 +162,10 @@ final class ProcessHeartbeatService
                 );
             }
 
+            // Milestone types join the "known" list purely so this sweep leaves
+            // them alone: it deletes rows whose type is NOT in the list.
             $deleted += $this->heartbeats->deleteStalerThanForUnknownTypes(
-                array_keys(self::STALE_THRESHOLDS),
+                [...array_keys(self::STALE_THRESHOLDS), ...array_keys(self::MILESTONE_THRESHOLDS)],
                 self::DEFAULT_STALE_THRESHOLD * self::PRUNE_STALE_FACTOR,
             );
         } catch (\Throwable) {

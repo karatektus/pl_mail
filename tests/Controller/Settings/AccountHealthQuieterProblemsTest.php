@@ -19,23 +19,31 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * The two problem classes that are NOT emergencies, and the rule that keeps
- * them from being dressed as one.
+ * The problems that are NOT emergencies, and the rule that keeps them from
+ * being dressed as one.
  *
  * WHY THESE HAVE THEIR OWN FILE
  * ─────────────────────────────
  * A health page that paints "your mail is a few minutes late" the same red as
  * "your mail has stopped" is a page people learn to close, and then the red
- * that mattered goes unread too. Degraded push is the archetype: mail is still
- * arriving, nothing is lost, and there is genuinely no rush — so it is a
- * Notice, it is styled differently, and above all it does NOT light the topbar
- * indicator.
+ * that mattered goes unread too. So a broken file-store connection is a
+ * Warning and not a Critical, and the queue card is not shown at all to
+ * somebody who could not act on it.
  *
- * That last part is the assertion worth having
- * (testDegradedPushDoesNotLightTheIndicator). Everything else about severity is
- * cosmetic and would survive being got wrong; the indicator is the thing that
- * interrupts somebody, and spending it on "no rush" is how it stops meaning
- * anything.
+ * WHAT MOVED OUT, AND WHY
+ * ───────────────────────
+ * Push used to be this file's archetype: it was a Notice, it did not light the
+ * indicator, and the assertion that it did not was called the one worth having.
+ * That rested on the old check firing after 36 hours of SILENCE — an inference
+ * that was simply wrong on a quiet mailbox, and a level that can be wrong must
+ * not interrupt anybody.
+ *
+ * The push checks no longer infer, they now distinguish a lapsed registration
+ * from a live one that is not delivering, and both fire on facts. So push is a
+ * Warning, it does light the indicator, and everything asserting on which of
+ * the two it is lives in AccountHealthPushVerdictTest. What stays here are the
+ * two push rules that were never about severity: push being OFF is a choice,
+ * and push is not reported twice when the grant underneath it is dead.
  */
 final class AccountHealthQuieterProblemsTest extends WebTestCase
 {
@@ -53,55 +61,7 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         parent::tearDown();
     }
 
-    // ── push: real, but quiet ────────────────────────────────────────────────
-
-    public function testDegradedPushIsReportedAsANotice(): void
-    {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $account = $this->gmailAccount($user, 'slow@joder.dev');
-
-        // Registered, but the watch lapsed — so nothing is being delivered
-        // whatever the flag says.
-        $account->pushEnabled      = true;
-        $account->gmailWatchExpiry = new DateTimeImmutable('-1 day');
-        $this->em->flush();
-
-        $crawler = $client->request('GET', '/settings?section=health');
-        $card    = $crawler->filter('[data-health-issue="push-' . $account->id . '"]');
-
-        self::assertSame(1, $card->count(), 'degraded push is surfaced');
-        self::assertSame('push_degraded', $card->attr('data-health-kind'));
-        self::assertSame('notice', $card->attr('data-health-severity'), 'and it is not an emergency');
-
-        // It offers the repair that already exists, rather than a second one.
-        self::assertSame(1, $card->filter('form[action*="/push/repair"]')->count());
-    }
-
-    /**
-     * The rule this whole file exists for. The card is on the page; the badge
-     * is not lit. Somebody who came looking will find it; nobody is
-     * interrupted for it.
-     */
-    public function testDegradedPushDoesNotLightTheIndicator(): void
-    {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $account = $this->gmailAccount($user, 'notloud@joder.dev');
-
-        $account->pushEnabled      = true;
-        $account->gmailWatchExpiry = new DateTimeImmutable('-1 day');
-        $this->em->flush();
-
-        $crawler = $client->request('GET', '/settings?section=health');
-
-        self::assertSame(1, $crawler->filter('[data-health-issue="push-' . $account->id . '"]')->count());
-        self::assertSame(
-            0,
-            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
-            'a notice never lights the indicator',
-        );
-    }
+    // ── push: the rules that were never about severity ───────────────────────
 
     /** Push that is simply off is a choice, not a fault. */
     public function testPushBeingOffIsNotAProblem(): void

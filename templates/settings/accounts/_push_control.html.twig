@@ -18,7 +18,13 @@
 
 <turbo-frame id="account-push-{{ account.id }}" class="contents">
     {% if status.supported %}
-        {% set degraded = status.health.value == 'degraded' %}
+        {# `needsRepair`, not `== 'degraded'`. There are two broken states now —
+           a registration that expired and one that is alive but not delivering
+           — and a literal comparison against one of them would offer the LAPSED
+           account the plain toggle instead, whose only effect on an account
+           whose push is already on is to turn push off. The enum owns the
+           question; see PushHealth::needsRepair(). #}
+        {% set degraded = status.health.needsRepair %}
 
         {# When push is registered but not delivering, the useful action is to
            re-register, not to toggle off. Same control, different target. #}
@@ -28,6 +34,11 @@
 
         {% if status.failed %}
             {% set tooltip = ('settings.accounts.push.failed.' ~ status.provider)|trans %}
+        {% elseif status.health.value == 'lapsed' %}
+            {# Its own sentence, because the degraded one blames Pub/Sub and
+               that is the wrong place to send somebody whose registration
+               simply expired. #}
+            {% set tooltip = 'settings.accounts.push.lapsed_hint'|trans %}
         {% elseif degraded %}
             {% set tooltip = ('settings.accounts.push.degraded_hint.' ~ status.provider)|trans %}
         {% elseif not status.configured and not status.enabled %}

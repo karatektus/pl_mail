@@ -15,13 +15,27 @@ namespace App\Domain\Enum\Health;
  *  - Warning: something is broken but the data still flows, or the loss is
  *    bounded and already over — abandoned background work, an integration that
  *    only matters when you reach for it.
- *  - Notice: working, more slowly or less directly than it should. Push having
- *    fallen back to polling is the whole reason this level exists.
+ *  - Notice: working, more slowly or less directly than it should.
  *
  * The distinction is load-bearing, not decorative. A health page that paints
  * "your mail is slightly delayed" the same red as "your mail has stopped" is a
  * page people learn to close, and then the red that mattered is unread too.
  * Notice therefore never lights the topbar indicator — see AccountHealthGlobal.
+ *
+ * ── Notice currently has no producer, and that is deliberate ─────────────────
+ * It was introduced for degraded push, and push has since been moved up to
+ * Warning. The reason is worth recording, because it is an argument about
+ * evidence rather than about tone: the old push check fired after 36 hours of
+ * silence, and silence is an INFERENCE — on a mailbox that simply had no mail,
+ * the alarm was false, and a level that can cry wolf must not be allowed to
+ * interrupt anyone. Both push checks now fire on facts (an expiry that has
+ * passed; mail that demonstrably arrived unannounced), and a check that cannot
+ * be wrong about whether something is broken has earned the indicator.
+ *
+ * The level stays in the vocabulary rather than being deleted. The next check
+ * that reports a real but purely cosmetic degradation belongs here, and
+ * rediscovering the argument above from scratch would be the expensive way to
+ * get it back.
  */
 enum HealthSeverity: string
 {

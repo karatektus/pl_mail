@@ -18,6 +18,7 @@ use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarProvisioner;
+use App\Service\Push\PushTeardown;
 use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -99,6 +100,7 @@ final readonly class CalendarSubscriber
         private EntityManagerInterface  $em,
         private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
+        private PushTeardown            $pushTeardown,
     ) {
     }
 
@@ -297,6 +299,15 @@ final readonly class CalendarSubscriber
         $rescued = $this->rescueLocalEvents($calendar, $user);
 
         $this->warnAboutUnsentEdits($calendar);
+
+        // Hand the registration back before the row carrying its channel id
+        // goes. Nothing called this on any calendar-removal path before, so
+        // every untick and every disconnect left Google or Microsoft pushing at
+        // an endpoint that could no longer identify what was arriving, until
+        // the registration expired days later. Best-effort by contract — see
+        // PushTeardown — so a provider that cannot be reached cannot block the
+        // unsubscribe the user asked for.
+        $this->pushTeardown->forCalendar($calendar);
 
         // The events the remote gave us go with the row, by the ON DELETE
         // CASCADE on calendar_event.calendar_id. Removing them one by one first

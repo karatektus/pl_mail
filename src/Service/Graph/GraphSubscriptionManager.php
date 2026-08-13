@@ -98,8 +98,14 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
 
         $expiresAt = $account->graphSubscriptionExpiresAt;
 
+        // Lapsed rather than Degraded, and the distinction is real here too: a
+        // Graph subscription past its expiry means renewal did not run, which
+        // is a scheduler problem. Graph has no equivalent of Gmail's Degraded —
+        // it validates the notification URL synchronously at subscribe time, so
+        // a subscription that exists and has not expired is one Microsoft
+        // confirmed it can reach.
         if (null === $expiresAt || $expiresAt <= new DateTimeImmutable()) {
-            return PushHealth::Degraded;
+            return PushHealth::Lapsed;
         }
 
         return PushHealth::Active;

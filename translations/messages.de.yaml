@@ -577,6 +577,7 @@ admin:
             active: 'stellt zu'
             degraded: 'registriert, stellt nicht zu'
             inactive: 'aus'
+            lapsed: 'abgelaufen'
         heading: 'Gmail-Webhooks'
         history_id: 'History-ID'
         last_push: 'Letzter Push'
@@ -1725,6 +1726,12 @@ settings:
         primary: Primär
         primary_explained: Neue Nachrichten werden standardmäßig von diesem Konto gesendet.
         push:
+            lapsed_hint: >-
+                Die Push-Registrierung ist abgelaufen und wurde nicht erneuert,
+                es wird also nichts zugestellt. Die Erneuerung läuft täglich von
+                selbst — passiert das öfter, steht der Worker für geplante
+                Aufgaben still. Die Post wird weiterhin nach Zeitplan
+                abgerufen.
             degraded_hint:
                 gmail: >-
                     Push ist registriert, aber es kam zuletzt nichts an. Das
@@ -1753,6 +1760,7 @@ settings:
                 active: Push
                 degraded: Push (liefert nicht)
                 inactive: Nach Zeitplan
+                lapsed: Push (abgelaufen)
             mode_pull: Nach Zeitplan
             mode_push: Push
             not_configured: >-
@@ -2059,10 +2067,24 @@ settings:
                 Damit werden die wartenden Aufgaben endgültig verworfen. Nichts
                 wird erneut versucht, und es lässt sich nicht rückgängig
                 machen. Fortfahren?
+        fact:
+            never: 'nie'
+            never_delivered: 'es kam noch nie etwas an'
+            never_run: 'kein Lauf aufgezeichnet'
+            not_registered: 'nicht registriert'
+            push_expires: 'Registrierung läuft ab'
+            push_last_delivered: 'Letzte Benachrichtigung erhalten'
+            push_last_renewal: 'Erneuerung lief zuletzt'
         flash:
             calendar_resync: >-
                 %calendar% wurde zur Synchronisierung angemeldet. Sie läuft
                 jetzt im Hintergrund, und die Karte unten meldet das Ergebnis.
+            push_repair_failed: >-
+                Die Sofortzustellung für %account% konnte nicht neu registriert
+                werden. Sie bleibt beim Abruf nach Zeitplan, deine Post kommt
+                also weiter an. Die Karte unten zeigt, was bekannt ist.
+            push_repaired: >-
+                Sofortzustellung für %account% neu registriert.
             queue_discarded: '%count% liegen gebliebene Aufgaben verworfen.'
             queue_retried: '%count% liegen gebliebene Aufgaben wieder eingereiht.'
         heading: 'Zustand deiner Konten'
@@ -2101,11 +2123,26 @@ settings:
                 title: '%connection% muss neu verbunden werden'
             push_degraded:
                 body: >-
-                    Deine Post kommt weiterhin an, nur nicht mehr im selben
-                    Augenblick: Dieses Konto ruft wieder nach Zeitplan ab, neue
-                    Nachrichten können also ein paar Minuten brauchen. Es geht
-                    nichts verloren, und es eilt nicht.
-                title: 'Sofortzustellung ist für %account% aus'
+                    Die Registrierung ist aktiv und nicht abgelaufen, aber es
+                    ist Post angekommen, die sie nie angekündigt hat — die
+                    Benachrichtigungen gehen also zwischen Anbieter und dieser
+                    Installation verloren, sie werden nicht etwa gar nicht
+                    angefordert. Bei Gmail deutet das auf das Pub/Sub-Abo in
+                    der Google Cloud: Prüfe, ob es dein Topic noch an diese
+                    Adresse weiterleitet. Deine Post kommt inzwischen weiter
+                    über den Abruf nach Zeitplan an, ein paar Minuten später
+                    als sie sollte.
+                title: 'Sofortzustellung ist für %account% registriert, kommt aber nicht an'
+            push_lapsed:
+                body: >-
+                    Die Registrierung ist abgelaufen und wurde nicht erneuert,
+                    es wird also gar nichts mehr zugestellt. Die Erneuerung
+                    läuft einmal täglich von selbst; liegt der letzte Lauf
+                    unten Tage zurück, steht der Worker für geplante Aufgaben
+                    still — dann ist das zu reparieren, nicht dieses Konto.
+                    Deine Post kommt weiter über den Abruf nach Zeitplan an,
+                    ein paar Minuten später als sie sollte.
+                title: 'Sofortzustellung für %account% ist abgelaufen'
             queue_work_abandoned:
                 body: >-
                     %count% Hintergrund­aufgaben sind wiederholt gescheitert

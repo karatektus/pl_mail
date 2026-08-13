@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Push;
 
-use App\Domain\Enum\PushHealth;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -39,6 +39,7 @@ final class PushRenewCommand extends Command
     public function __construct(
         private readonly AccountRepository        $accountRepository,
         private readonly PushSubscriptionRegistry $registry,
+        private readonly ProcessHeartbeatService  $heartbeats,
     ) {
         parent::__construct();
     }
@@ -62,6 +63,14 @@ final class PushRenewCommand extends Command
         ]);
 
         if (count($accounts) === 0) {
+            // Still a run. The fact being recorded is that the scheduler fired
+            // and this command executed — an install with push switched off
+            // everywhere has a working scheduler, and must not look like one
+            // whose scheduler died.
+            $this->heartbeats->recordRun(ProcessHeartbeatService::TYPE_PUSH_RENEW, [
+                'accounts' => 0,
+            ]);
+
             $io->info('No accounts have push enabled.');
 
             return Command::SUCCESS;
@@ -81,7 +90,7 @@ final class PushRenewCommand extends Command
 
             $due = $force
                 || $manager->needsRenewal($account)
-                || (true === $repair && PushHealth::Degraded === $manager->health($account));
+                || (true === $repair && true === $manager->health($account)->needsRepair());
 
             if (false === $due) {
                 $skipped++;
@@ -101,6 +110,17 @@ final class PushRenewCommand extends Command
             ));
             $failed++;
         }
+
+        // Recorded whatever the outcome, and deliberately so: this answers "did
+        // renewal run", not "did renewal work". A run in which every account
+        // failed is still a run, and the failure shows up on its own as watches
+        // that go on to lapse — conflating the two would leave a working
+        // scheduler with a dead provider looking exactly like no scheduler.
+        $this->heartbeats->recordRun(ProcessHeartbeatService::TYPE_PUSH_RENEW, [
+            'renewed' => $renewed,
+            'skipped' => $skipped,
+            'failed'  => $failed,
+        ]);
 
         $io->success(sprintf('%d renewed, %d still valid, %d failed.', $renewed, $skipped, $failed));
 

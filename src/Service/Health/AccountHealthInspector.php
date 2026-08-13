@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Health;
 
+use App\Domain\DTO\Health\HealthFact;
 use App\Domain\DTO\Health\HealthIssue;
 use App\Domain\DTO\Health\HealthReport;
 use App\Domain\DTO\Health\HealthRepair;
@@ -21,6 +22,7 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Monitoring\QueueMonitor;
+use App\Service\Push\PushRenewalRecord;
 use App\Service\Push\PushSubscriptionRegistry;
 
 /**
@@ -59,6 +61,7 @@ final readonly class AccountHealthInspector
         private IntegrationRepository    $integrations,
         private PushSubscriptionRegistry $pushRegistry,
         private QueueMonitor             $queueMonitor,
+        private PushRenewalRecord        $renewals,
     ) {
     }
 
@@ -302,11 +305,24 @@ final readonly class AccountHealthInspector
     }
 
     /**
-     * Push registered, nothing arriving — so the account is really on polling.
+     * Push that is not delivering — and WHICH of the two ways that happens.
      *
-     * The quietest of the kinds on purpose. Mail still lands; it lands on the
-     * sweep's schedule instead of instantly, and telling somebody their mail
-     * has stopped when it has not is how a health page loses its credibility.
+     * ── Why this is two kinds and one repair ─────────────────────────────────
+     * The button is the same for both, because re-registering is idempotent and
+     * fixes either. The card is not, because the two failures have different
+     * causes and the user's next move differs completely:
+     *
+     *   - Lapsed: the registration expired. Renewal did not run. Look at the
+     *     scheduler — `app:push:renew` is a daily cron and a scheduler that has
+     *     stopped firing reports nothing at all, so this card is the only place
+     *     it will ever surface.
+     *   - Degraded: the registration is alive and unexpired, and mail arrived
+     *     that it failed to announce. For Gmail the fault is in the Pub/Sub leg
+     *     — Gmail → Cloud Pub/Sub → the endpoint — which plMail cannot see and
+     *     the Cloud console can.
+     *
+     * The one thing that made them indistinguishable was showing neither of the
+     * dates behind them, so both carry their evidence; see $facts.
      *
      * Never reported for an account whose grant is dead: with no working token
      * there is no push to speak of, and the reconnect is the repair for both.
@@ -317,14 +333,20 @@ final readonly class AccountHealthInspector
             return null;
         }
 
-        if (PushHealth::Degraded !== $this->pushRegistry->health($account)) {
+        $health = $this->pushRegistry->health($account);
+
+        if (false === $health->needsRepair()) {
             return null;
         }
 
+        $kind = PushHealth::Lapsed === $health
+            ? HealthIssueKind::PushLapsed
+            : HealthIssueKind::PushDegraded;
+
         return new HealthIssue(
             id: 'push-' . $account->id,
-            kind: HealthIssueKind::PushDegraded,
-            severity: HealthSeverity::Notice,
+            kind: $kind,
+            severity: $kind->defaultSeverity(),
             subject: $account->email,
             titleParams: ['%account%' => $account->email],
             bodyParams: ['%account%' => $account->email],
@@ -342,7 +364,64 @@ final readonly class AccountHealthInspector
                     pendingKey: 'settings.health.pending.push_resubscribe',
                 ),
             ],
+            facts: $this->pushFacts($account),
         );
+    }
+
+    /**
+     * The three dates that answer "is this lapsed or silent?" without a
+     * database client.
+     *
+     * Read in the order somebody diagnoses in: when the registration runs out
+     * (past means lapsed, and the template tints it), when it last actually
+     * delivered (never, or long before the mailbox last changed, means the
+     * delivery leg is broken), and when renewal last ran (long ago means the
+     * scheduler is why the first line says what it says).
+     *
+     * The renewal run is instance-wide rather than per-account — one scheduled
+     * command covers every account — and it is repeated on each card rather
+     * than hoisted somewhere else on purpose: it is the line that explains the
+     * expiry directly above it, and a fact the reader has to go and find is a
+     * fact they will not connect.
+     *
+     * @return list<HealthFact>
+     */
+    private function pushFacts(Account $account): array
+    {
+        $manager = $this->pushRegistry->resolve($account);
+
+        $facts = [
+            new HealthFact(
+                labelKey: 'settings.health.fact.push_expires',
+                at: $manager?->expiresAt($account),
+                noneKey: 'settings.health.fact.not_registered',
+                // The only deadline among the three, and the only one whose
+                // being in the past means anything.
+                alarmWhenPast: true,
+            ),
+        ];
+
+        // Gmail only, because only Gmail records it — and only Gmail needs it.
+        // Graph validates its callback URL when the subscription is made, so a
+        // live Graph subscription is one Microsoft confirmed it can reach and
+        // there is no silent-delivery failure for this line to diagnose.
+        // Showing "never delivered" for an Outlook account would be inventing a
+        // symptom out of a column that provider never writes.
+        if (true === $account->isGmail()) {
+            $facts[] = new HealthFact(
+                labelKey: 'settings.health.fact.push_last_delivered',
+                at: $account->gmailLastPushAt,
+                noneKey: 'settings.health.fact.never_delivered',
+            );
+        }
+
+        $facts[] = new HealthFact(
+            labelKey: 'settings.health.fact.push_last_renewal',
+            at: $this->renewals->lastRunAt(),
+            noneKey: 'settings.health.fact.never_run',
+        );
+
+        return $facts;
     }
 
     /**

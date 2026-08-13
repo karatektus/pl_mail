@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Per-account delivery mode toggle: push or scheduled polling.
@@ -36,6 +37,7 @@ final class AccountPushController extends AbstractController
         private readonly PushSubscriptionRegistry $registry,
         private readonly PushStatusFactory        $statusFactory,
         private readonly EntityManagerInterface   $em,
+        private readonly TranslatorInterface      $translator,
     ) {}
 
     #[Route('/settings/accounts/{id}/push', name: 'settings_account_push_toggle', methods: ['POST'])]
@@ -80,8 +82,28 @@ final class AccountPushController extends AbstractController
 
     /**
      * Re-register push without toggling — the user-facing counterpart to
-     * `app:push:renew --repair`, for the Degraded state where the toggle looks
-     * on but nothing is arriving.
+     * `app:push:renew --repair`, for the two broken states where the toggle
+     * looks on but nothing is arriving.
+     *
+     * ── Two callers, two shapes of answer ────────────────────────────────────
+     * The accounts pane submits this from inside `<turbo-frame
+     * id="account-push-N">` and wants the frame back, which is what
+     * renderToggle() produces.
+     *
+     * The health page has no such frame. It submitted the same form and got a
+     * bare turbo-frame fragment back for a frame that is not on the page — and
+     * the visible result was a health page that came back looking *identical*,
+     * with nothing whatsoever to say the button had been pressed, let alone
+     * whether re-registering had worked. A repair that reports nothing is
+     * indistinguishable from a repair that did nothing, and re-registering can
+     * genuinely fail (a dead grant, a missing Pub/Sub topic), so "it looks the
+     * same" is not even reliably good news.
+     *
+     * So a submission that is not addressed to a frame gets a redirect and a
+     * flash that says which of the two happened. Detected on the `Turbo-Frame`
+     * header, which Turbo sets only for frame-targeted submissions — the
+     * request tells us what shape of answer it can use, rather than this
+     * guessing from a referer.
      */
     #[Route('/settings/accounts/{id}/push/repair', name: 'settings_account_push_repair', methods: ['POST'])]
     public function repair(Request $request, Account $account): Response
@@ -101,6 +123,23 @@ final class AccountPushController extends AbstractController
         }
 
         $failed = false === $manager->renew($account);
+
+        if ('' === (string) $request->headers->get('Turbo-Frame')) {
+            // Translated here, not in the template: the flash renderer prints
+            // what it is given, which is the idiom AccountHealthController's
+            // repairs already use.
+            $this->addFlash(
+                true === $failed ? 'error' : 'success',
+                $this->translator->trans(
+                    true === $failed
+                        ? 'settings.health.flash.push_repair_failed'
+                        : 'settings.health.flash.push_repaired',
+                    ['%account%' => $account->email],
+                ),
+            );
+
+            return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
+        }
 
         return $this->renderToggle($account, $failed);
     }
