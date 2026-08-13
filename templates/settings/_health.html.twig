@@ -1,0 +1,152 @@
+{#
+    Account health: what is wrong, and the lightest thing that fixes it.
+
+    Reads a HealthReport, already ordered worst-first with each consequence
+    following its cause (HealthReport::arrange), so this file has no opinion
+    about priority — it renders the list in the order it is given.
+
+    Two rules the markup exists to keep:
+
+      1. Every card says what the button will DO before you press it. The whole
+         reason people delete an account and add it back is that "Reconnect"
+         does not promise their mail will still be there, so the promise is on
+         the page, not in a tooltip.
+
+      2. Destructive repairs are visually separate and never the primary. They
+         sit under a rule, in muted text, with the word that says what is lost.
+#}
+<section id="settings-health" data-health-section>
+    <div class="mb-4 px-4 @2xl:px-0">
+        <h2 class="text-sm font-semibold text-ink">{{ 'settings.health.heading'|trans }}</h2>
+        <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.health.subheading'|trans }}</p>
+    </div>
+
+    {% if healthReport.isHealthy %}
+        {#
+            The healthy state is a real state and gets real words. A blank pane
+            reads as "not loaded yet"; this reads as "checked, nothing wrong",
+            which is the answer somebody who followed the topbar dot here after
+            fixing something needs to see.
+        #}
+        <div class="rounded-pane border border-line px-5 py-8 text-center" data-health-empty>
+            <i class="fa-solid fa-circle-check text-2xl text-emerald-500 mb-3 block" aria-hidden="true"></i>
+            <p class="text-sm font-medium text-ink">{{ 'settings.health.healthy.title'|trans }}</p>
+            <p class="text-xs text-ink-faint mt-1 max-w-sm mx-auto">{{ 'settings.health.healthy.body'|trans }}</p>
+        </div>
+    {% else %}
+        <div class="space-y-3">
+            {% for issue in healthReport.issues %}
+                {#
+                    A consequence is indented and quieter than its cause. It is
+                    still a card — the user's question really is "why is this
+                    one calendar empty" — but it must not read as another
+                    emergency, or one dead sign-in looks like nine problems.
+                #}
+                <div class="rounded-pane border border-line bg-surface {{ issue.severity.cardClasses }} {{ issue.isConsequence ? 'ml-0 @2xl:ml-6' : '' }}"
+                     data-health-issue="{{ issue.id }}"
+                     data-health-kind="{{ issue.kind.value }}"
+                     data-health-severity="{{ issue.severity.value }}"
+                     {% if issue.isConsequence %}data-health-caused-by="{{ issue.causedBy }}"{% endif %}>
+                    <div class="px-4 py-4 @2xl:px-5">
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid {{ issue.kind.icon }} mt-0.5 w-4 shrink-0 {{ issue.severity.iconClasses }}" aria-hidden="true"></i>
+
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-sm font-semibold text-ink">
+                                    {{ issue.kind.titleKey|trans(issue.titleParams) }}
+                                </h3>
+
+                                {# What it means for their mail, in plain words. #}
+                                <p class="text-xs text-ink-muted mt-1 leading-relaxed">
+                                    {{ issue.kind.bodyKey|trans(issue.bodyParams) }}
+                                </p>
+
+                                {% set safeRepairs = issue.safeRepairs %}
+                                {% set riskyRepairs = issue.destructiveRepairs %}
+
+                                {% if safeRepairs is not empty %}
+                                    <div class="mt-3 space-y-2.5">
+                                        {% for repair in safeRepairs %}
+                                            <div>
+                                                {# The promise, above the button that keeps it. #}
+                                                <p class="text-xs text-ink-faint mb-1.5">{{ repair.promiseKey|trans(repair.promiseParams) }}</p>
+
+                                                {% if repair.isPost %}
+                                                    <form method="post" action="{{ path(repair.route, repair.routeParams) }}">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token(repair.csrfTokenId) }}">
+                                                        <button type="submit"
+                                                                class="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink hover:opacity-90 transition-opacity cursor-pointer">
+                                                            {{ repair.labelKey|trans }}
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    {#
+                                                        A link, not a form: this one leaves the
+                                                        app for the provider's consent screen and
+                                                        comes back. Nothing is written until it
+                                                        does, so there is no state change here for
+                                                        a token to protect — the write happens in
+                                                        the callback, behind the state check and
+                                                        the address guard.
+                                                    #}
+                                                    <a href="{{ path(repair.route, repair.routeParams) }}"
+                                                       data-turbo="false"
+                                                       class="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink hover:opacity-90 transition-opacity">
+                                                        {{ repair.labelKey|trans }}
+                                                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]" aria-hidden="true"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                {% if issue.detail is not null %}
+                                    {#
+                                        The provider's own words, behind a
+                                        disclosure. MailProvider::calendarScopes()
+                                        makes the case that "invalid_grant" is not
+                                        an explanation to put in front of a person
+                                        — but a self-hoster matching this against a
+                                        forum thread needs to be able to find it, so
+                                        it is one click away rather than absent.
+                                    #}
+                                    <details class="mt-3 group">
+                                        <summary class="text-xs text-ink-faint cursor-pointer hover:text-ink-muted select-none list-none inline-flex items-center gap-1.5">
+                                            <i class="fa-solid fa-chevron-right text-[9px] transition-transform group-open:rotate-90" aria-hidden="true"></i>
+                                            {{ 'settings.health.technical_detail'|trans }}
+                                        </summary>
+                                        <pre class="mt-2 overflow-x-auto rounded-lg bg-raised px-3 py-2 text-[11px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words">{{ issue.detail }}</pre>
+                                    </details>
+                                {% endif %}
+
+                                {% if riskyRepairs is not empty %}
+                                    {#
+                                        Under a rule and after the safe options,
+                                        never beside them. These throw work away.
+                                    #}
+                                    <div class="mt-4 pt-3 border-t border-line">
+                                        {% for repair in riskyRepairs %}
+                                            <p class="text-xs text-ink-faint mb-1.5">{{ repair.promiseKey|trans(repair.promiseParams) }}</p>
+                                            {# data-turbo-confirm, matching every other
+                                               destructive action in the app — see the
+                                               admin failed-queue panel. #}
+                                            <form method="post" action="{{ path(repair.route, repair.routeParams) }}"
+                                                  data-turbo-confirm="{{ 'settings.health.confirm.destructive'|trans }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token(repair.csrfTokenId) }}">
+                                                <button type="submit"
+                                                        class="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger hover:bg-hover transition-colors cursor-pointer">
+                                                    {{ repair.labelKey|trans }}
+                                                </button>
+                                            </form>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>

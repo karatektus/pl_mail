@@ -158,6 +158,58 @@ class Calendar
     public ?string $lastSyncError = null;
 
     /**
+     * How many times in a row this calendar's sync has failed. Reset to zero by
+     * the first success.
+     *
+     * Only ever read to work out how long to wait before the next attempt —
+     * it is not a statistic and nothing renders it.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $syncFailureCount = 0;
+
+    /**
+     * Do not attempt this calendar again before this moment. Null when it is
+     * healthy, or when a repair has just asked for an immediate retry.
+     *
+     * ── Why this column exists ───────────────────────────────────────────────
+     * The sweep asks findDueForSync() for calendars whose lastSyncedAt is old,
+     * and a calendar that CANNOT sync never updates lastSyncedAt — so it is due
+     * again fifteen minutes later, and again, permanently. On the install this
+     * was built from, one expired Google sign-in produced 2 193 identical error
+     * lines and 503 dead-lettered jobs from three calendars over two days.
+     *
+     * That is a defect on its own terms and not only a tidiness problem: the
+     * one log line that says what is wrong is worth nothing when it is repeated
+     * every quarter of an hour, because the volume is what makes people stop
+     * reading the log. Retrying something at the same rate forever is also not
+     * a retry policy — it is the absence of one.
+     *
+     * Note what this is deliberately NOT: a reclassification of the error.
+     * GoogleCalendarApiClient::token() refuses to call a refused refresh
+     * permanent, because a slow token endpoint arrives as the same object, and
+     * that judgement is correct. Backing off is the answer that does not
+     * require telling the two apart — it slows down without ever giving up.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $syncBackoffUntil = null;
+
+    /**
+     * Whether the failure just recorded was news, as opposed to the same thing
+     * this calendar is already backing off through.
+     *
+     * NOT a column, and deliberately so — it is true of one attempt, not of the
+     * calendar, and persisting it would invite somebody to read it a request
+     * later when it means nothing. It exists because recordSyncFailure() is
+     * called from a catch block that must rethrow, so its answer cannot be
+     * returned up the stack to SyncCalendarHandler, which is what needs it.
+     *
+     * Lives on the entity rather than on the sync service because the service
+     * is a singleton the FrankenPHP worker keeps alive across requests: state
+     * parked there would be read back by whichever calendar came next.
+     */
+    public bool $syncFailureWasNews = true;
+
+    /**
      * Free-form per-calendar preferences, mirroring Account::$settings — the
      * long tail that does not deserve a column. Readers assume their defaults
      * at the call site.
@@ -276,12 +328,100 @@ class Calendar
     {
         $this->lastSyncedAt  = new DateTimeImmutable();
         $this->lastSyncError = null;
+
+        // One success is enough to earn the full rate back. Decaying the count
+        // instead would leave a calendar that recovered still being polled
+        // hourly, with nothing on screen to explain why it looks stale.
+        $this->syncFailureCount = 0;
+        $this->syncBackoffUntil = null;
     }
 
-    /** Truncated like Integration::recordFailure(): a provider stack trace is not a message. */
-    public function recordSyncFailure(string $reason): void
+    /**
+     * Record a failure and decide how long to wait, answering whether this one
+     * is worth a log line.
+     *
+     * The answer is true when the failure is NEWS — the first of a run, a
+     * different message from the one already stored, or the first attempt after
+     * a backoff window has expired. It is false only while the calendar is
+     * inside a window it is already backing off through, which is exactly the
+     * repetition that produced two thousand identical lines.
+     *
+     * The first occurrence is therefore never suppressed: on a healthy calendar
+     * syncBackoffUntil is null, so the first failure always reports. Nor can a
+     * changed condition hide behind an old one — a different message reports
+     * immediately, whatever the window says.
+     *
+     * Truncated like Integration::recordFailure(): a provider stack trace is
+     * not a message.
+     */
+    public function recordSyncFailure(string $reason, ?DateTimeImmutable $now = null): bool
     {
-        $this->lastSyncError = mb_substr($reason, 0, 500);
+        $now       = $now ?? new DateTimeImmutable();
+        $truncated = mb_substr($reason, 0, 500);
+
+        $isNews = null === $this->syncBackoffUntil
+            || $this->syncBackoffUntil <= $now
+            || $this->lastSyncError !== $truncated;
+
+        $this->lastSyncError        = $truncated;
+        $this->syncFailureWasNews   = $isNews;
+
+        // Counted per reported failure rather than per attempt. Messenger
+        // retries the same envelope several times, and letting each attempt
+        // advance the schedule would take a calendar from "wait a quarter of an
+        // hour" to "wait a day" on a single bad afternoon.
+        if (true === $isNews) {
+            ++$this->syncFailureCount;
+            $this->syncBackoffUntil = $now->modify(sprintf('+%d seconds', $this->backoffSeconds()));
+        }
+
+        return $isNews;
+    }
+
+    /**
+     * Try again now, whatever the schedule said.
+     *
+     * The repair button's half of the bargain. A calendar that has backed off
+     * is not due, so dispatching a sync without this would be answered by a
+     * handler that declines to run — a button that visibly does nothing.
+     *
+     * lastSyncError is deliberately left alone: it is still true until a sync
+     * succeeds, and clearing it here would blank the health page the instant
+     * the button was pressed, whether or not anything got better.
+     */
+    public function clearSyncBackoff(): void
+    {
+        $this->syncFailureCount = 0;
+        $this->syncBackoffUntil = null;
+    }
+
+    /** Whether this calendar is inside a window it agreed to wait out. */
+    public function isBackingOff(?DateTimeImmutable $now = null): bool
+    {
+        if (null === $this->syncBackoffUntil) {
+            return false;
+        }
+
+        return $this->syncBackoffUntil > ($now ?? new DateTimeImmutable());
+    }
+
+    /**
+     * How long to wait after the nth consecutive failure.
+     *
+     * Doubling from a quarter of an hour, capped at a day. The cap is the part
+     * that matters: without it a calendar that failed for a fortnight would
+     * next be tried a fortnight later, so a grant the user repaired this
+     * morning would sit dark until some time next month. A day means the worst
+     * case for a condition that silently fixed itself is one day, while a
+     * permanently dead calendar costs one attempt and one log line per day
+     * instead of ninety-six.
+     */
+    private function backoffSeconds(): int
+    {
+        $steps = [900, 1800, 3600, 7200, 14400, 28800, 86400];
+        $index = max(0, $this->syncFailureCount - 1);
+
+        return $steps[min($index, count($steps) - 1)];
     }
 
     /**

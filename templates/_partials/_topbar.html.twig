@@ -258,6 +258,7 @@
         logAlert answers null for everyone else.
         #}
         {% set unseenLogs = logAlert.unseen %}
+        {% set attention  = accountHealth.attention %}
         <div class="relative ml-1"
              data-controller="ui--user-menu admin--log-alert"
              {# The log browser is a frame; this is not in it, so opening or
@@ -271,9 +272,14 @@
                     class="flex cursor-pointer items-center justify-center w-8 h-8 rounded-full bg-accent hover:ring-2 hover:ring-accent/60 hover:ring-offset-1 ring-offset-surface text-accent-ink text-xs font-semibold transition-all
                            {% if unseenLogs %}ring-2 ring-offset-1 {{ unseenLogs.tone == 'danger' ? 'ring-red-500' : 'ring-amber-500' }}{% endif %}"
                     aria-label="{{ 'header.user_menu.label'|trans({ '%email%': app.user.email }) }}"
-                    title="{{ unseenLogs
-                        ? ('header.user_menu.unseen_logs.' ~ unseenLogs.tone)|trans({ '%count%': unseenLogs.count })
-                        : app.user.email }}">
+                    {# Account health outranks the log line in the tooltip: it is
+                       the user's own mail, and it is the one a non-admin can
+                       ever see. The log wording stays for the admin case. #}
+                    title="{{ attention
+                        ? 'header.user_menu.account_attention'|trans({ '%count%': attention.count })
+                        : (unseenLogs
+                            ? ('header.user_menu.unseen_logs.' ~ unseenLogs.tone)|trans({ '%count%': unseenLogs.count })
+                            : app.user.email) }}">
                 {# The initial is the fallback, not the design: an avatar is
                    optional and most users never set one. #}
                 {% if app.user.avatar %}
@@ -284,6 +290,34 @@
                     {{ app.user.email | first | upper }}
                 {% endif %}
             </button>
+
+            {#
+                "Something about your accounts needs attention."
+
+                A DOT, not a second ring, and that is the whole reason it is a
+                separate element. logAlert already outlines this button for
+                admins; a second ring on the same element would have meant one
+                of the two silently winning, and they mean different things —
+                that one is "there are unread errors in the log", this one is
+                "your mail is not arriving". They can be true at once and an
+                admin has to be able to tell them apart, so this sits in the
+                corner and leaves the outline alone.
+
+                Not dismissible, unlike the log outline: there is no seen-at
+                counterpart here on purpose. See AccountHealthGlobal — "seen" is
+                the right model for a record of what happened and the wrong one
+                for a condition that is still true. It goes when the problem
+                goes.
+
+                aria-hidden with the count in the button's title instead: a
+                screen reader gets one sentence rather than a floating number
+                with no antecedent.
+            #}
+            {% if attention %}
+                <span class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[0.875rem] h-3.5 px-1 rounded-full text-[9px] font-bold text-white ring-2 ring-surface pointer-events-none
+                             {{ attention.tone == 'danger' ? 'bg-red-500' : 'bg-amber-500' }}"
+                      aria-hidden="true">{{ attention.count }}</span>
+            {% endif %}
 
             <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
@@ -302,9 +336,27 @@
                     <i class="fa-solid fa-user w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.profile'|trans }}
                 </a>
-                <a href="{{ path('app_settings_index') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
+                {#
+                    The dot on the avatar says something is wrong; this is where
+                    it goes. Pointed straight at the health section rather than
+                    at settings generally — the same choice the admin entry
+                    below makes for the log browser, and for the same reason: an
+                    indicator that lands you on a page where you still have to
+                    hunt has only moved the hunting.
+                #}
+                <a href="{{ path('app_settings_index', attention ? { section: 'health' } : {}) }}"
+                   id="user-menu-settings"
+                   class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-gear w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.settings'|trans }}
+                    {% if attention %}
+                        <span class="ml-auto inline-flex items-center gap-1.5 text-xs
+                                     {{ attention.tone == 'danger' ? 'text-danger' : 'text-warning' }}">
+                            <span class="w-1.5 h-1.5 rounded-full {{ attention.tone == 'danger' ? 'bg-red-500' : 'bg-amber-500' }}"
+                                  aria-hidden="true"></span>
+                            {{ attention.count }}
+                        </span>
+                    {% endif %}
                 </a>
                 {% if is_granted('ROLE_ADMIN') %}
                     {# The outline on the button says something is wrong; this

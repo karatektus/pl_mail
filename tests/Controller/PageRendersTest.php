@@ -41,6 +41,7 @@ final class PageRendersTest extends WebTestCase
         yield 'settings' => ['/settings'];
         yield 'settings appearance' => ['/settings?section=appearance'];
         yield 'settings accounts' => ['/settings?section=accounts'];
+        yield 'settings health' => ['/settings?section=health'];
         yield 'settings filters' => ['/settings?section=filters'];
         yield 'settings integrations' => ['/settings?section=integrations'];
         yield 'settings aliases' => ['/settings?section=aliases'];

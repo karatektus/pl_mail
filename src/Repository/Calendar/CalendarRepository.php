@@ -165,17 +165,34 @@ class CalendarRepository extends ServiceEntityRepository
      * hundred jobs into a queue that also carries mail. The remainder is picked
      * up by the next sweep, which is fifteen minutes away.
      *
+     * ── The backoff arm ──────────────────────────────────────────────────────
+     * A calendar that cannot sync never updates lastSyncedAt, so on the two
+     * criteria above it is due again on every single sweep, for as long as it
+     * stays broken — which is how three calendars produced 2 193 identical
+     * error lines in two days on the install this was written for. Calendars
+     * inside a backoff window are excluded here, at the point the work is
+     * created, rather than being dispatched and then declined: a job that is
+     * queued only to do nothing still costs a worker, still carries a retry
+     * policy, and still ends up in the failure transport.
+     *
+     * `syncBackoffUntil IS NULL` is an explicit arm for the same reason the
+     * lastSyncedAt one is — a null compares as unknown, not as true, and
+     * without it this would skip every healthy calendar and sweep only the
+     * broken ones.
+     *
      * @return list<Calendar>
      */
-    public function findDueForSync(DateTimeImmutable $before, int $limit = 200): array
+    public function findDueForSync(DateTimeImmutable $before, int $limit = 200, ?DateTimeImmutable $now = null): array
     {
         return $this->createQueryBuilder('calendar')
             ->addSelect('COALESCE(calendar.lastSyncedAt, :epoch) AS HIDDEN dueSince')
             ->where('calendar.role = :remote')
             ->andWhere('calendar.remoteId IS NOT NULL')
             ->andWhere('calendar.lastSyncedAt IS NULL OR calendar.lastSyncedAt < :before')
+            ->andWhere('calendar.syncBackoffUntil IS NULL OR calendar.syncBackoffUntil <= :now')
             ->setParameter('remote', CalendarRole::Remote)
             ->setParameter('before', $before)
+            ->setParameter('now', $now ?? new DateTimeImmutable())
             ->setParameter('epoch', new DateTimeImmutable('@0'))
             ->orderBy('dueSince', 'ASC')
             ->addOrderBy('calendar.id', 'ASC')

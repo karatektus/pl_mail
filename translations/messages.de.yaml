@@ -1265,6 +1265,7 @@ header:
     search:
         placeholder: E-Mails durchsuchen…
     user_menu:
+        account_attention: '%count% Dinge an deinen Konten brauchen Aufmerksamkeit'
         admin: Administration
         label: Benutzermenü für %email%
         profile: Profil
@@ -1972,6 +1973,116 @@ settings:
         then: Dann
         when: Wenn
         yes: Ja
+    health:
+        confirm:
+            destructive: >-
+                Damit werden die wartenden Aufgaben endgültig verworfen. Nichts
+                wird erneut versucht, und es lässt sich nicht rückgängig
+                machen. Fortfahren?
+        flash:
+            calendar_resync: '%calendar% wird jetzt neu synchronisiert. Lade die Seite gleich neu, um zu sehen, ob es geklappt hat.'
+            queue_discarded: '%count% liegen gebliebene Aufgaben verworfen.'
+            queue_retried: '%count% liegen gebliebene Aufgaben wieder eingereiht.'
+        heading: 'Zustand deiner Konten'
+        healthy:
+            body: >-
+                Deine Konten sind angemeldet, deine Kalender synchronisieren,
+                und es wartet nichts auf dich. Sollte einmal keine Post mehr
+                ankommen, steht hier, woran es liegt.
+            title: 'Alles funktioniert'
+        issue:
+            account_reconnect:
+                body: >-
+                    Für dieses Konto kommt keine neue Post mehr an, und mit ihr
+                    steht alles still, was daran hängt: die Kalender­synchroni­
+                    sierung, Filter, die beim Empfang laufen, und das Senden
+                    über diese Adresse. Die bereits geladene Post ist sicher
+                    und weiterhin da. Das passiert, wenn ein Passwort geändert
+                    oder die Zwei-Faktor-Anmeldung eingeschaltet wurde, oder
+                    wenn die Anmeldung beim Anbieter widerrufen wurde.
+                title: '%account% muss sich neu anmelden'
+            calendar_sync_failing:
+                body: >-
+                    Dieser Kalender übernimmt keine Änderungen mehr und zeigt
+                    den Stand von seiner letzten erfolgreichen Synchroni­
+                    sierung. Termine, die seither anderswo angelegt oder
+                    verschoben wurden, fehlen hier — und deine Änderungen
+                    werden nicht nach außen übertragen.
+                title: '%calendar% synchronisiert nicht mehr'
+            integration_reconnect:
+                body: >-
+                    Anhänge in %connection% zu speichern und Dateien von dort
+                    anzuhängen funktioniert erst wieder nach einer neuen
+                    Verbindung. Deine Post ist davon nicht betroffen — es geht
+                    nur um die Verbindung zu diesem Dienst. An den dort
+                    abgelegten Dateien wurde nichts verändert.
+                title: '%connection% muss neu verbunden werden'
+            push_degraded:
+                body: >-
+                    Deine Post kommt weiterhin an, nur nicht mehr im selben
+                    Augenblick: Dieses Konto ruft wieder nach Zeitplan ab, neue
+                    Nachrichten können also ein paar Minuten brauchen. Es geht
+                    nichts verloren, und es eilt nicht.
+                title: 'Sofortzustellung ist für %account% aus'
+            queue_work_abandoned:
+                body: >-
+                    %count% Hintergrund­aufgaben sind wiederholt gescheitert
+                    und wurden beiseitegelegt, damit sie es nicht endlos weiter
+                    versuchen. Meist ist das die Folge eines der Probleme
+                    darüber und keine eigene Störung — behebe erst dieses und
+                    reihe sie danach wieder ein.
+                title: '%count% Hintergrund­aufgaben wurden aufgegeben'
+        repair:
+            calendar_resync:
+                label: 'Jetzt synchronisieren'
+                promise: >-
+                    Fordert diesen Kalender sofort zu einer neuen
+                    Synchronisierung auf und setzt ihn zurück auf den normalen
+                    Zeitplan. Es wird nichts gelöscht.
+            integration_reconnect:
+                label: 'Neu verbinden'
+                promise: >-
+                    Führt dich zur erneuten Anmeldung und stellt danach die
+                    bestehende Verbindung wieder her. Deine Filter und
+                    gespeicherten Ablageorte bleiben erhalten.
+            push_resubscribe:
+                label: 'Sofortzustellung wieder einschalten'
+                promise: >-
+                    Meldet dieses Konto erneut für die Sofortzustellung an.
+                    Deine Post kommt in der Zwischenzeit ohnehin weiter an.
+            queue_discard:
+                label: 'Verwerfen'
+                promise: >-
+                    Wirft die liegen gebliebenen Aufgaben weg, ohne sie
+                    auszuführen. Das lässt sich nicht rückgängig machen, und
+                    was sie nicht erledigt haben, bleibt unerledigt.
+            queue_retry:
+                label: 'Wieder einreihen'
+                promise: >-
+                    Versucht die liegen gebliebenen Aufgaben noch einmal.
+                    Unbedenklich — was erneut scheitert, landet einfach wieder
+                    hier.
+            reconnect:
+                label: 'Konto neu verbinden'
+                promise: >-
+                    Führt dich zur erneuten Anmeldung und hinterlegt die neue
+                    Anmeldung an genau diesem Konto. Deine Post, Ordner,
+                    Labels, Filter, Kalender und Einstellungen bleiben
+                    unverändert — es wird nichts erneut geladen und nichts
+                    gelöscht. Du musst dich als %account% anmelden; eine andere
+                    Adresse wird abgelehnt und nicht stillschweigend
+                    übernommen.
+        reconnect:
+            done: '%account% ist wieder verbunden. Post und Kalender holen in den nächsten Minuten auf.'
+            wrong_account: >-
+                Damit hast du dich als %actual% angemeldet, dieses Konto ist
+                aber %expected%. Es wurde nichts verändert. Melde dich beim
+                Anbieter von %actual% ab und versuche es erneut — die Adresse
+                zu tauschen hätte ein fremdes Postfach unter dieses gemischt.
+        subheading: >-
+            Was nicht mehr funktioniert, was das für deine Post bedeutet, und
+            der kleinste Schritt, der es behebt.
+        technical_detail: 'Technische Einzelheiten'
     integrations:
         ask_admin: 'Deine Administration hat diesen Dienst nicht freigeschaltet.'
         auth:
@@ -2155,6 +2266,7 @@ settings:
             calendar: Kalender
             mail: E-Mail
             personal: Persönlich
+        health: 'Zustand der Konten'
         profile: Profil
         filters: Filter
         integrations: Integrationen

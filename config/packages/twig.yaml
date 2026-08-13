@@ -14,6 +14,11 @@ twig:
         calendar: '@App\Twig\CalendarGlobal'
         onboarding: '@App\Twig\OnboardingGlobal'
         logAlert: '@App\Twig\LogAlertGlobal'
+        # "Something about YOUR accounts needs attention" — the user-facing
+        # counterpart to logAlert, which is the admin's. A global for the same
+        # reason: the topbar renders from a layout on every authenticated page,
+        # so there is no controller in the middle to thread it through.
+        accountHealth: '@App\Twig\AccountHealthGlobal'
         # True when the poll is asking for the message list on its own, so the
         # mailbox layout can answer with the frame instead of the whole page.
         listFragment: '@App\Twig\ListFragmentGlobal'
