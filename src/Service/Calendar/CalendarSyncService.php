@@ -162,6 +162,15 @@ final readonly class CalendarSyncService
             }
         }
 
+        // Unconditional, where the one above is not, and the difference is the
+        // audience. "Something moved" is worth nothing to a page with nothing to
+        // redraw, so it is sent only when events actually changed; "this run
+        // finished and it worked" is the answer the health card has been waiting
+        // for since the user pressed the button, and a repaired calendar that
+        // happened to pull zero events is exactly the case where it is most
+        // wanted — nothing changed BECAUSE the calendar is fine again.
+        $this->notifier->publishCalendarSyncFinished($calendar, true);
+
         return $touched;
     }
 
@@ -283,6 +292,12 @@ final readonly class CalendarSyncService
                 'error'      => $e->getMessage(),
             ]);
 
+            // Announced even here. The row could not be written, so a page
+            // loading again would learn nothing new — which makes the live
+            // message the ONLY way the person who pressed the repair finds out
+            // it did not work, rather than watching "started" forever.
+            $this->notifier->publishCalendarSyncFinished($calendar, false);
+
             return;
         }
 
@@ -294,5 +309,10 @@ final readonly class CalendarSyncService
                 'error'      => $inner->getMessage(),
             ]);
         }
+
+        // After the flush, so the card and a reload of the page agree about
+        // what went wrong. Published whether or not that flush worked: the run
+        // failed either way, and that is the fact the waiting card needs.
+        $this->notifier->publishCalendarSyncFinished($calendar, false);
     }
 }

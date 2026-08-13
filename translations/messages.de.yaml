@@ -1974,13 +1974,19 @@ settings:
         when: Wenn
         yes: Ja
     health:
+        awaiting:
+            calendar_resync: >-
+                Synchronisierung gestartet. Das Ergebnis steht noch aus — diese
+                Karte sagt Bescheid, sobald es da ist.
         confirm:
             destructive: >-
                 Damit werden die wartenden Aufgaben endgültig verworfen. Nichts
                 wird erneut versucht, und es lässt sich nicht rückgängig
                 machen. Fortfahren?
         flash:
-            calendar_resync: '%calendar% wird jetzt neu synchronisiert. Lade die Seite gleich neu, um zu sehen, ob es geklappt hat.'
+            calendar_resync: >-
+                %calendar% wurde zur Synchronisierung angemeldet. Sie läuft
+                jetzt im Hintergrund, und die Karte unten meldet das Ergebnis.
             queue_discarded: '%count% liegen gebliebene Aufgaben verworfen.'
             queue_retried: '%count% liegen gebliebene Aufgaben wieder eingereiht.'
         heading: 'Zustand deiner Konten'
@@ -2032,6 +2038,21 @@ settings:
                     darüber und keine eigene Störung — behebe erst dieses und
                     reihe sie danach wieder ein.
                 title: '%count% Hintergrund­aufgaben wurden aufgegeben'
+        outcome:
+            calendar_failed_again: >-
+                Es hat wieder nicht geklappt. Was diesmal gemeldet wurde, steht
+                unten — die Synchronisierung lief, sie war nur nicht erfolgreich.
+            calendar_still_waiting: >-
+                Die Synchronisierung wurde gestartet, aber es kam noch nichts
+                zurück. Versuch es noch einmal oder lade die Seite neu.
+            calendar_synced: 'Synchronisiert. Dieser Kalender ist wieder auf dem neuesten Stand.'
+        pending:
+            calendar_resync: 'Synchronisierung wird gestartet …'
+            push_resubscribe: 'Wird wieder eingeschaltet …'
+            queue_discard: 'Wird verworfen …'
+            queue_retry: 'Werden zurückgestellt …'
+            reconnect: 'Weiterleitung zu %provider% …'
+            reconnect_generic: 'Weiterleitung zur Anmeldung …'
         repair:
             calendar_resync:
                 label: 'Jetzt synchronisieren'

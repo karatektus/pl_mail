@@ -198,6 +198,43 @@
     <div class="fixed bottom-4 right-6 z-50 flex items-end gap-3">
         <turbo-frame id="compose_dock"></turbo-frame>
     </div>
-    <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end"></div>
+    {#
+        The toast region, and the flashes waiting in it.
+
+        Turbo-stream responses append into this element, which is how almost
+        every toast in the app arrives. What had NO route in was the flash bag:
+        `addFlash()` is called from a dozen controllers — the account-health
+        repairs among them — and nothing in any template ever read it, so every
+        one of those sentences was written into the session and thrown away
+        unread on the next request.
+
+        That is why the health repairs looked like they did nothing. A repair
+        POSTs, redirects, and says its piece through a flash; with no renderer
+        the page simply reappeared unchanged, which is indistinguishable from a
+        button that is not wired up.
+
+        Rendered server-side into the same region rather than through a stream,
+        because a redirect is not a stream response — there is nothing to append
+        with. Reading `app.flashes` here also CLEARS the bag, which is what stops
+        the message reappearing on the next navigation.
+    #}
+    <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end">
+        {% for type, messages in app.flashes(['success', 'error', 'info']) %}
+            {% for message in messages %}
+                {# data-turbo-temporary so Turbo strips it from the snapshot it
+                   caches. Without it the back button restores a page with the
+                   toast painted back on, announcing a thing that happened two
+                   navigations ago as though it had just happened. #}
+                <div data-turbo-temporary data-flash-toast="{{ type }}">
+                    {# Already translated by whoever set it: the flash bag holds
+                       sentences, not keys, because the controllers that fill it
+                       interpolate names and counts into them. `extra` is passed
+                       empty rather than omitted — the partial reads into it for
+                       the undo affordance, which a flash never has. #}
+                    {% include '_partials/_toast.html.twig' with { message: message, type: type, extra: {} } only %}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
 </body>
 </html>

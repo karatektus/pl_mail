@@ -1959,12 +1959,18 @@ settings:
         when: When
         yes: Yes
     health:
+        awaiting:
+            calendar_resync: >-
+                Sync started. Waiting to hear how it went — this card will say
+                what happened as soon as it does.
         confirm:
             destructive: >-
                 This throws the waiting work away for good. Nothing is retried
                 and it cannot be brought back. Continue?
         flash:
-            calendar_resync: '%calendar% is syncing again now. Reload in a moment to see whether it worked.'
+            calendar_resync: >-
+                %calendar% has been asked to sync. It is running in the
+                background now, and the card below will say how it went.
             queue_discarded: 'Discarded %count% abandoned jobs.'
             queue_retried: 'Put %count% abandoned jobs back on the queue.'
         heading: 'Account health'
@@ -2014,6 +2020,21 @@ settings:
                     separate fault — fix that first, then put these back on the
                     queue.
                 title: '%count% background jobs were given up on'
+        outcome:
+            calendar_failed_again: >-
+                It failed again. What it said this time is below — the sync ran,
+                it just did not work.
+            calendar_still_waiting: >-
+                The sync was started, but nothing has come back yet. Try again,
+                or reload the page to see where it got to.
+            calendar_synced: 'Synced. This calendar is up to date again.'
+        pending:
+            calendar_resync: 'Starting sync…'
+            push_resubscribe: 'Turning it back on…'
+            queue_discard: 'Discarding…'
+            queue_retry: 'Putting them back…'
+            reconnect: 'Taking you to %provider%…'
+            reconnect_generic: 'Taking you to sign in…'
         repair:
             calendar_resync:
                 label: 'Try syncing now'

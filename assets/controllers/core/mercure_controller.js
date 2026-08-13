@@ -375,6 +375,13 @@ export default class extends Controller {
             this.dispatch("mailbox-synced", {detail: data});
         } else if (data.type === "account.synced") {
             this.dispatch("account-synced", {detail: data});
+        } else if (data.type === "calendar.sync-finished") {
+            // Published by App\Service\Calendar\CalendarNotifier on both the
+            // success and the failure path. The account-health card is the
+            // consumer: it asked for this sync by hand and has been saying
+            // "started" ever since, and this is the only thing that can tell it
+            // otherwise without a page load.
+            this.dispatch("calendar-sync-finished", {detail: data});
         } else if (data.type === "rule.run") {
             // Published by RuleRunNotifier while "apply to existing mail"
             // walks the mailbox. Only a hint to re-read: the run's progress

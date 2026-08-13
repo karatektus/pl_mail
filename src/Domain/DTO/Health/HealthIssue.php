@@ -41,6 +41,10 @@ final readonly class HealthIssue
      *                                             raw error code is not an answer,
      *                                             but hiding it entirely leaves a
      *                                             self-hoster with nothing to search
+     * @param string|null             $awaitingKey a repair that has ALREADY been
+     *                                             asked for and has not reported
+     *                                             back — the sentence to show in
+     *                                             place of the button. See below
      */
     public function __construct(
         public string          $id,
@@ -52,7 +56,29 @@ final readonly class HealthIssue
         public array           $repairs = [],
         public ?string         $causedBy = null,
         public ?string         $detail = null,
+        public ?string         $awaitingKey = null,
     ) {
+    }
+
+    /**
+     * Whether the repair for this has been started and not yet answered.
+     *
+     * The reason this is a state of the ISSUE rather than of the button: the
+     * repairs here are dispatches, not deeds. Pressing "Try syncing now" queues
+     * a message and redirects, so by the time the page comes back the work is
+     * neither done nor undone — and a card that renders an enabled button in
+     * that gap is inviting a second press for work already on the queue, while
+     * a card that renders "Synced" is lying.
+     *
+     * So the surface shows a third thing, and it has to survive the redirect
+     * and a reload, which is why it is derived server-side from the stored
+     * state (Calendar::isAwaitingRequestedSync) rather than held in the browser.
+     * What ends it is the worker saying so — over Mercure on a page that is
+     * open, or on the next render for a page that is not.
+     */
+    public function isAwaiting(): bool
+    {
+        return null !== $this->awaitingKey;
     }
 
     /** Whether this is a consequence of something else on the same page. */

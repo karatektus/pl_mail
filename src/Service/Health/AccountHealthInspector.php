@@ -8,6 +8,7 @@ use App\Domain\DTO\Health\HealthIssue;
 use App\Domain\DTO\Health\HealthReport;
 use App\Domain\DTO\Health\HealthRepair;
 use App\Domain\Enum\Account\AuthType;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Health\HealthIssueKind;
 use App\Domain\Enum\Health\HealthSeverity;
@@ -132,6 +133,27 @@ final readonly class AccountHealthInspector
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
+     * The brand name to put in "Taking you to …".
+     *
+     * MailProvider::label() is explicit that these are not translated — Gmail is
+     * Gmail in every locale — so this returns the brand and the catalogue owns
+     * the sentence around it.
+     *
+     * Null when the stored provider string maps to no case, which is a
+     * migration artefact rather than a user-visible condition. The caller then
+     * picks the sentence with no brand in it rather than rendering "Taking you
+     * to …" with a hole where the name should be.
+     */
+    private function providerLabel(Account $account): ?string
+    {
+        if (null === $account->oauthProvider) {
+            return null;
+        }
+
+        return MailProvider::tryFrom($account->oauthProvider)?->label();
+    }
+
+    /**
      * The dead grant: the provider will not renew the sign-in any more.
      *
      * Fires on the stored error alone. OAuthTokenManager writes it on every
@@ -157,6 +179,8 @@ final readonly class AccountHealthInspector
             return null;
         }
 
+        $providerLabel = $this->providerLabel($account);
+
         return new HealthIssue(
             id: 'account-' . $account->id,
             kind: HealthIssueKind::AccountReconnect,
@@ -175,6 +199,16 @@ final readonly class AccountHealthInspector
                     // good on, so it has to say WHICH address rather than
                     // "the same one".
                     promiseParams: ['%account%' => $account->email],
+                    // Named, because this one leaves the app. A blank second
+                    // while the browser negotiates with Google is the exact
+                    // moment a person presses the button again, and "Taking you
+                    // to Gmail…" is both the reassurance and the reason not to.
+                    pendingKey: null !== $providerLabel
+                        ? 'settings.health.pending.reconnect'
+                        : 'settings.health.pending.reconnect_generic',
+                    pendingParams: null !== $providerLabel
+                        ? ['%provider%' => $providerLabel]
+                        : [],
                 ),
             ],
             // Shown behind a disclosure only. MailProvider::calendarScopes()
@@ -218,7 +252,8 @@ final readonly class AccountHealthInspector
         // and it does not paint another red card.
         $severity = null !== $causedBy ? HealthSeverity::Warning : HealthSeverity::Critical;
 
-        $repairs = [];
+        $repairs     = [];
+        $awaitingKey = null;
 
         if (null === $causedBy) {
             // Only offer a retry where a retry could plausibly work. When the
@@ -230,7 +265,26 @@ final readonly class AccountHealthInspector
                 labelKey: 'settings.health.repair.calendar_resync.label',
                 promiseKey: 'settings.health.repair.calendar_resync.promise',
                 csrfTokenId: 'health_calendar_' . $calendar->id,
+                // "Starting", not "Syncing" and certainly not "Synced". The
+                // controller dispatches a message and redirects; what the press
+                // achieved by the time the page comes back is that the sync has
+                // been started, and the label says exactly that much.
+                pendingKey: 'settings.health.pending.calendar_resync',
             );
+
+            if (true === $calendar->isAwaitingRequestedSync()) {
+                // Already asked, nothing back yet. The card says so instead of
+                // showing the button, because offering it here is offering a
+                // second dispatch of a message already on the queue.
+                //
+                // The repair above is still built rather than dropped, and that
+                // is what makes the surface recoverable: the template renders it
+                // hidden behind the waiting line, so when the worker reports a
+                // failure — or never reports at all — the button that comes back
+                // carries a real CSRF token and a translated label that no
+                // amount of JavaScript could have produced on its own.
+                $awaitingKey = 'settings.health.awaiting.calendar_resync';
+            }
         }
 
         return new HealthIssue(
@@ -243,6 +297,7 @@ final readonly class AccountHealthInspector
             repairs: $repairs,
             causedBy: $causedBy,
             detail: $calendar->lastSyncError,
+            awaitingKey: $awaitingKey,
         );
     }
 
@@ -284,6 +339,7 @@ final readonly class AccountHealthInspector
                     labelKey: 'settings.health.repair.push_resubscribe.label',
                     promiseKey: 'settings.health.repair.push_resubscribe.promise',
                     csrfTokenId: 'account_push_' . $account->id,
+                    pendingKey: 'settings.health.pending.push_resubscribe',
                 ),
             ],
         );
@@ -318,6 +374,8 @@ final readonly class AccountHealthInspector
                     routeParams: ['provider' => $integration->provider->value],
                     labelKey: 'settings.health.repair.integration_reconnect.label',
                     promiseKey: 'settings.health.repair.integration_reconnect.promise',
+                    pendingKey: 'settings.health.pending.reconnect',
+                    pendingParams: ['%provider%' => $integration->provider->label()],
                 ),
             ],
             detail: $integration->lastError,
@@ -364,6 +422,7 @@ final readonly class AccountHealthInspector
                     labelKey: 'settings.health.repair.queue_retry.label',
                     promiseKey: 'settings.health.repair.queue_retry.promise',
                     csrfTokenId: 'health_queue_retry',
+                    pendingKey: 'settings.health.pending.queue_retry',
                 ),
                 new HealthRepair(
                     route: 'app_health_queue_discard',
@@ -372,6 +431,13 @@ final readonly class AccountHealthInspector
                     promiseKey: 'settings.health.repair.queue_discard.promise',
                     csrfTokenId: 'health_queue_discard',
                     destructive: true,
+                    // The destructive one gets a pending label too, but it is
+                    // reached only after data-turbo-confirm has been answered —
+                    // Turbo raises the dialog before it starts the submission,
+                    // so nothing about this state makes the button easier to
+                    // fire. It is the confirmation that guards it; this only
+                    // stops a second press of an already-confirmed purge.
+                    pendingKey: 'settings.health.pending.queue_discard',
                 ),
             ],
             detail: $this->summarise($failed),

@@ -41,6 +41,11 @@ final readonly class HealthRepair
      *                                           retrying it — rendered apart from
      *                                           the safe repairs, never as the
      *                                           primary button
+     * @param string|null           $pendingKey  what the button SAYS while the
+     *                                           press is in flight. See below
+     * @param array<string, mixed>  $pendingParams placeholders for it — the
+     *                                             reconnect names the provider it
+     *                                             is about to send you to
      */
     public function __construct(
         public string  $route,
@@ -50,7 +55,22 @@ final readonly class HealthRepair
         public array   $promiseParams = [],
         public ?string $csrfTokenId = null,
         public bool    $destructive = false,
+        public ?string $pendingKey = null,
+        public array   $pendingParams = [],
     ) {
+    }
+
+    /**
+     * The pending label, or the ordinary one when a repair has not named one.
+     *
+     * Every repair here does name one — this exists so a repair added later
+     * cannot render an empty button by forgetting to. Falling back to the label
+     * is the right failure: the control still disables and still says something
+     * a person can read, it merely says the same thing it said before.
+     */
+    public function pendingLabelKey(): string
+    {
+        return $this->pendingKey ?? $this->labelKey;
     }
 
     /** POST when it carries a token, GET when it does not. */
