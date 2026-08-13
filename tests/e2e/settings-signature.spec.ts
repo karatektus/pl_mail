@@ -21,6 +21,26 @@ import { test } from "./support/test";
 
 const EDITOR = '[data-compose--compose-toolbar-target="editor"]';
 
+/**
+ * The block for ONE account, which is the unit every count here is about.
+ *
+ * The section renders one of these per account (settings/_signature.html.twig
+ * loops `manageableAccounts`), so counting editors across the whole section
+ * counts accounts as well as overrides. This spec means "the account I am
+ * looking at shows one editor" and used to say "the page shows one editor" —
+ * true only while the user owns exactly one account, which is a fact no test
+ * here establishes. account.spec.ts adds a second one, and when it landed on
+ * this worker first the count came back 2 (or 3, once a re-run against a warm
+ * database had left two behind) and this spec failed pointing at signature
+ * code it had not touched.
+ *
+ * Scoped to `.first()` because addAlias() below adds to the first account too,
+ * so the alias assertions and the editor counts are about the same account.
+ */
+function accountBlock(page: import("@playwright/test").Page) {
+    return page.locator("#settings-signature > div > div").first();
+}
+
 /** Give the account an alias to override, through the aliases panel. */
 async function addAlias(page: import("@playwright/test").Page): Promise<string> {
     const address = `sig-${Date.now()}@example.test`;
@@ -67,9 +87,7 @@ test.describe("signature settings", () => {
         await expect(
             page.getByRole("heading", { name: "Signatures" }),
         ).toBeVisible();
-        await expect(page.locator(`#settings-signature ${EDITOR}`)).toHaveCount(
-            1,
-        );
+        await expect(accountBlock(page).locator(EDITOR)).toHaveCount(1);
     });
 
     /**
@@ -85,10 +103,8 @@ test.describe("signature settings", () => {
         try {
             await page.goto("/settings?section=signature");
 
-            // One editor on the page — the account's.
-            await expect(
-                page.locator(`#settings-signature ${EDITOR}`),
-            ).toHaveCount(1);
+            // One editor on this account — its own, and none for the alias.
+            await expect(accountBlock(page).locator(EDITOR)).toHaveCount(1);
 
             const details = page.locator("#settings-signature details").first();
 
