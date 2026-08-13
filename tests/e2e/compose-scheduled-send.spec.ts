@@ -295,11 +295,19 @@ test.describe("scheduled send", () => {
 });
 
 /**
- * On a phone the send pill is not rendered at all — Send lives in the header,
- * where it is always on screen — so there is no chevron for a menu to open off
- * the edge of. Asserted rather than assumed: the failure this guards against is
- * a menu positioned `right-0` inside a fullscreen window, which would be the
- * first thing to hang off the viewport.
+ * Scheduling from a phone.
+ *
+ * It did not exist. The send pill was `hidden md:flex`, so below md there was
+ * only a plain Send icon in the header and no chevron at all — the Drafts row
+ * was the only place a hold could be seen, and there was no way to set one from
+ * the device in the first place. The pill is rendered at every width now, so
+ * everything this describe block used to assert is inverted: not "the chevron
+ * is not on screen" but "the chevron is on screen, big enough to hit, and the
+ * menu it opens fits".
+ *
+ * Measured, not located. The menu was `right-0` with a `max-md:left-0` flip
+ * that had never once been exercised, because the pill it hung off was hidden
+ * at every width where the flip applied.
  */
 test.describe("scheduled send on a phone", () => {
     /**
@@ -309,73 +317,100 @@ test.describe("scheduled send on a phone", () => {
      */
     const PHONE = { width: 393, height: 851 };
 
-    test("the send-options chevron is not on screen to open off it", async ({ page }) => {
-        await page.setViewportSize(PHONE);
+    async function openComposeAt(page: Page, size: { width: number; height: number }) {
+        await page.setViewportSize(size);
         await page.goto("/mail/inbox");
         await page.getByRole("button", { name: "Show or hide the sidebar" }).click();
         await page.getByRole("link", { name: "Compose" }).click();
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
+    }
 
-        await expect(page.locator(DOCK).getByRole("button", { name: "Send options" })).toBeHidden();
+    for (const size of [PHONE, { width: 320, height: 568 }]) {
+        test(`the pill and its menu fit at ${size.width}px`, async ({ page }) => {
+            await openComposeAt(page, size);
 
-        // Send itself is still reachable, in the header.
-        await expect(
-            page.locator(`${DOCK} .compose-window`).getByRole("button", { name: "Send" }),
-        ).toBeVisible();
-    });
+            const chevron = page.locator(DOCK).getByRole("button", { name: "Send options" });
+            const send = page
+                .locator(`${DOCK} .compose-window`)
+                .getByRole("button", { name: "Send", exact: true });
 
-    /**
-     * And if the pill is ever brought below md, the menu it opens must stay
-     * inside the viewport. Kept as a measurement rather than a comment so the
-     * day someone unhides it, this fails instead of shipping.
-     */
-    test("were the menu shown, it would fit the viewport", async ({ page }) => {
-        await page.setViewportSize(PHONE);
-        await page.goto("/mail/inbox");
-        await page.getByRole("button", { name: "Show or hide the sidebar" }).click();
-        await page.getByRole("link", { name: "Compose" }).click();
-        await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
+            await expect(send).toBeVisible();
+            await expect(chevron).toBeVisible();
 
-        const fits = await page.evaluate(() => {
-            const pill = document.querySelector(
-                "#compose_dock [data-controller~='compose--schedule']",
-            ) as HTMLElement | null;
+            // 44px both ways. The last round shipped an 11px hit area here.
+            const chevronBox = (await chevron.boundingBox())!;
 
-            if (null === pill) {
-                return { present: false, fits: true };
-            }
+            expect(chevronBox.width, JSON.stringify(chevronBox)).toBeGreaterThanOrEqual(44);
+            expect(chevronBox.height, JSON.stringify(chevronBox)).toBeGreaterThanOrEqual(44);
 
-            const menu = pill.querySelector(
-                "[data-ui--dropdown-target='menu']",
-            ) as HTMLElement | null;
+            await chevron.click();
 
-            if (null === menu) {
-                return { present: false, fits: true };
-            }
+            const options = page
+                .locator(`${DOCK} [data-ui--dropdown-target="menu"]`)
+                .filter({ has: page.locator("[data-compose--schedule-target='option']") })
+                .first();
 
-            // Show the whole pill for the measurement, then put it back.
-            const hiddenClasses = ["hidden"];
-            const removed = hiddenClasses.filter((c) => pill.classList.contains(c));
-            removed.forEach((c) => pill.classList.remove(c));
-            menu.hidden = false;
+            await expect(options).toBeVisible();
 
-            const box = menu.getBoundingClientRect();
-            const fits = box.left >= -0.5 && box.right <= window.innerWidth + 0.5;
+            const box = (await options.boundingBox())!;
 
-            menu.hidden = true;
-            removed.forEach((c) => pill.classList.add(c));
+            // Inside the viewport on both axes …
+            expect(box.x, JSON.stringify(box)).toBeGreaterThanOrEqual(-0.5);
+            expect(box.x + box.width, JSON.stringify(box)).toBeLessThanOrEqual(size.width + 0.5);
+            expect(box.y, JSON.stringify(box)).toBeGreaterThanOrEqual(-0.5);
+            expect(box.y + box.height, JSON.stringify(box)).toBeLessThanOrEqual(size.height + 0.5);
 
-            return { present: true, fits, left: box.left, right: box.right, width: window.innerWidth };
+            // … and big enough to be worth opening. A menu clipped to 0px tall
+            // is inside the viewport too, which is how the more-options menu
+            // shipped unreadable last round.
+            expect(box.width, JSON.stringify(box)).toBeGreaterThan(180);
+            expect(box.height, JSON.stringify(box)).toBeGreaterThan(80);
+
+            // The presets are filled in by the controller, on a phone as on a
+            // desktop — a menu of labels with no times is a menu of buttons
+            // whose effect cannot be read.
+            await expect(options.locator("[data-schedule-when]").first()).toHaveText(
+                /\d{1,2}[:.]\d{2}/,
+            );
         });
+    }
 
-        expect(fits, JSON.stringify(fits)).toMatchObject({ fits: true });
+    /** And it is not merely drawn: a preset actually sets the hold from a phone. */
+    test("a preset schedules the send from the phone itself", async ({ page }) => {
+        const subject = "Scheduled from a phone";
+
+        await openComposeAt(page, PHONE);
+        await fillDock(page, subject);
+
+        await page.locator(DOCK).getByRole("button", { name: "Send options" }).click();
+
+        const options = page
+            .locator(`${DOCK} [data-ui--dropdown-target="menu"]`)
+            .filter({ has: page.locator("[data-compose--schedule-target='option']") })
+            .first();
+
+        await expect(options).toBeVisible();
+        await options.getByText("Tomorrow morning").click();
+
+        await expect(page.locator("#toast-region").getByText(/Scheduled for/)).toBeVisible({
+            timeout: 10_000,
+        });
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0);
+
+        await page.goto("/mail/drafts");
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: subject })
+            .first();
+
+        await expect(row.locator("[data-scheduled-badge]")).toBeVisible();
     });
 
     /**
-     * The badge and its cancel button on a phone, which is the one surface a
-     * scheduled draft is guaranteed to have: the send pill is desktop-only, so
-     * on a phone the Drafts row is the ONLY place a hold can be seen or called
-     * off at all.
+     * The badge and its cancel button on a phone — no longer the ONLY place a
+     * hold can be called off (the pill's menu is there too now), but still the
+     * place a hold set on Friday is found again on Monday.
      *
      * Measured, not merely located. The last round shipped a panel that was off
      * screen at this width while the spec passed, because the spec asserted
@@ -385,7 +420,7 @@ test.describe("scheduled send on a phone", () => {
     test("the scheduled badge and its cancel button fit, and work, at 393px", async ({ page }) => {
         const subject = "Scheduled, seen on a phone";
 
-        // Set the hold at desktop width — the pill is not rendered below md.
+        // Set the hold at desktop width; the phone is what this measures.
         await page.setViewportSize({ width: 1280, height: 900 });
         await openCompose(page);
         await fillDock(page, subject);

@@ -1080,18 +1080,12 @@
     }
 
     /*
-       The compose toolbars scroll sideways on a phone rather than wrap. A
-       visible scrollbar inside a 32px-tall pill reads as breakage, and on the
-       touch devices this is for there is no persistent bar to hide anyway.
+       `.compose-scroll-x` lived here — the scrollbar-hiding half of a compose
+       toolbar that scrolled sideways on a phone. Both toolbars wrap now
+       (`flex-wrap`, two rows), so there is no scroller to hide a bar on, and
+       with the scroller went the `overflow-y: auto` it implied, which had been
+       clipping every menu that opened upwards out of the strip.
     */
-    .compose-scroll-x {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    .compose-scroll-x::-webkit-scrollbar {
-        display: none;
-    }
 
     .compose-field-label {
         font-size: 0.75rem;
@@ -1524,15 +1518,19 @@ emoji-picker {
     max-height: min(24rem, 50vh);
 }
 
-/* Below md the panel is pinned to the viewport rather than to the button:
-   the button sits in a strip that scrolls sideways (.compose-scroll-x), and
-   a menu anchored to it opens off the edge of the screen as soon as the strip
-   has been scrolled. */
+/* The panel is centred over the compose WINDOW at every width — it anchors to
+   the toolbar block, not to its button, which sits near the right edge of a
+   520px dock and would push a 22rem panel off the side of it. The width comes
+   from the template (`calc(100% - 1rem)`); this only caps it, so a panel
+   centred in a 1000px expanded window is still a panel and not a banner. */
 .emoji-panel {
     max-width: 22rem;
 }
 
 @media (max-width: 767px) {
+    /* Released below md: the window IS the screen there, so the full
+       `calc(100% - 1rem)` is the right width and the cap would leave a
+       352px panel floating in a 393px window. */
     .emoji-panel {
         max-width: none;
     }

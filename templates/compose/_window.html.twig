@@ -25,8 +25,8 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
 {# Window-chrome button. Larger below md so it clears the 44px touch target. #}
 {% set hc = "w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-lg
              text-ink-muted hover:text-ink hover:bg-hover transition-colors shrink-0" %}
-{# Formatting-toolbar button: shrink-0 so it keeps its width inside the
-   horizontal scroller the toolbar becomes below md. #}
+{# Formatting-toolbar button: shrink-0 so it keeps its own width when the
+   toolbar wraps onto a second row rather than being squeezed thin. #}
 {% set tb = "shrink-0 px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" %}
 
 <turbo-frame id="{{ frame }}">
@@ -149,15 +149,14 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                 <span data-compose--compose-target="saveStatus"
                       class="text-xs text-ink-muted mr-2 transition-colors truncate max-w-[40vw] md:max-w-none"></span>
 
-                {# Send is the one action that must never be scrolled away, so
-                   below md it lives up here rather than in the bottom bar,
-                   which is a horizontal scroller. #}
-                <button type="submit" title="{{ 'compose.send'|trans }}"
-                        aria-label="{{ 'compose.send'|trans }}"
-                        data-compose--compose-target="sendBtn"
-                        class="md:hidden {{ hc }} text-accent hover:text-accent">
-                    <i class="fa-solid fa-paper-plane text-sm" aria-hidden="true"></i>
-                </button>
+                {# There was a second Send here below md — an icon button in the
+                   header — because the bottom bar used to be a horizontal
+                   scroller Send could be scrolled out of. The bar wraps now and
+                   nothing in it can be scrolled away, so the send PILL is
+                   rendered at every width instead (see the action bar), and it
+                   is the pill that carries the schedule chevron. Two Send
+                   buttons on one phone screen, only one of which could schedule,
+                   would be worse than the bug this replaced. #}
 
                 {% if inline %}
                     {# Popping out lands in the dock, which below md is the
@@ -426,14 +425,20 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
             </div>
 
             {# ── Toolbar ──────────────────────────────────────────── #}
-            {# `relative` so the two popovers below can anchor to THIS block
-               rather than to a button. Both the format bar and the icon row
-               scroll sideways on a phone (.compose-scroll-x), and anything
-               anchored to a control inside one of them opens wherever that
-               control happens to have been scrolled to — which is how the emoji
-               panel came to open past the right edge of the screen. This
-               wrapper spans the window and never scrolls, so a popover pinned
-               to it is on screen by construction at every width. #}
+            {# `relative` so EVERY popover below anchors to THIS block rather
+               than to the button that opens it — the link popover, the
+               plain-text warning, the emoji panel, the more-options menu and
+               the integration picker alike.
+
+               The buttons themselves sit in rows that wrap, so their x position
+               depends on how many icons fitted on the line above; a menu
+               anchored to one of them lands wherever that button happened to
+               land, which at 320px is routinely past the right edge. This
+               wrapper spans the window, so a popover pinned to it is on screen
+               by construction at every width and in both compose modes. It is
+               also why none of them need the `max-md:fixed` viewport pinning
+               they used to carry: that was a workaround for the sideways
+               scrollers, and the scrollers are gone. #}
             <div class="relative px-2 md:px-3 pb-2 md:pb-3 pt-1 shrink-0">
 
                 {# ── Link popover ─────────────────────────────────────
@@ -441,9 +446,9 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                    same toolbar controller and had the same `prompt()`. The
                    positioning is passed in because it is the one thing the two
                    hosts disagree about: here it is anchored to the toolbar
-                   BLOCK, which spans the window and never scrolls — the link
-                   button itself lives in a sideways scroller and would drag
-                   the popover off the screen with it. #}
+                   BLOCK, which spans the window — the link button itself sits
+                   in a row that wraps, and a popover anchored to it would hang
+                   off whichever edge the button wrapped to. #}
                 {{ include('compose/_link_popover.html.twig', {
                     id:    form.vars.id,
                     class: 'absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80',
@@ -488,14 +493,30 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     </div>
                 </div>
 
-                {# One line that scrolls sideways below md — wrapping it would
-                   eat three rows of a phone screen. The controller hides it
-                   there until "Aa" asks for it. #}
+                {# Wraps onto a second row rather than scrolling sideways.
+                   Scrolling hid controls behind a gesture nobody performs, and
+                   its `overflow-x: auto` computed `overflow-y: auto` with it,
+                   which clipped every menu that opened upwards out of this
+                   strip. Two rows cost less than either.
+
+                   `rounded-2xl` rather than `rounded-full`: a pill radius on a
+                   two-row block bows its sides in. It is still a pill when the
+                   bar fits on one 32px line, which is the desktop case.
+
+                   Shown by default at every width now — the controller only
+                   folds it away when "Aa" asks, or in plain-text mode where it
+                   has nothing to act on.
+
+                   The group dividers are `hidden md:block`. They are 1px of
+                   decoration whose whole job is to say "these belong together",
+                   and a wrap already breaks that grouping in a way a hairline
+                   cannot mend — while the 25px they cost was the difference
+                   between two rows and a third row holding nothing but Redo at
+                   320px. Measured: 62px with them hidden, 90px with them. #}
                 <div data-compose--compose-target="formatBar"
-                     class="flex items-center gap-0.5 mb-2 flex-nowrap md:flex-wrap
-                            overflow-x-auto md:overflow-visible compose-scroll-x
+                     class="flex flex-wrap items-center gap-x-0.5 gap-y-1 mb-2
                             bg-sunken
-                            rounded-full px-2 py-1">
+                            rounded-2xl px-2 py-1">
 
                     {# Bare rather than framed: this is a strip of icon buttons,
                        and two boxed fields in the middle of it would read as a
@@ -519,7 +540,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                         <option value="monospace">{{ 'compose.font_family.monospace'|trans }}</option>
                     </select>
 
-                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
+                    <div class="hidden md:block w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <select data-compose--compose-toolbar-target="fontSize"
                             data-action="change->compose--compose-toolbar#changeFontSize"
@@ -534,7 +555,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                         <option value="huge">{{ 'compose.font_size.huge'|trans }}</option>
                     </select>
 
-                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
+                    <div class="hidden md:block w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     <button type="button" data-compose--compose-toolbar-action data-compose--compose-toolbar-target="boldBtn"
                             data-action="click->compose--compose-toolbar#bold"
@@ -570,7 +591,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     </label>
 
-                    <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
+                    <div class="hidden md:block w-px h-4 bg-line mx-1 shrink-0"></div>
 
                     {% set toolbarButtons = [
                         { action: 'alignLeft',      icon: 'fa-align-left',   label: 'compose.align.left'      },
@@ -588,7 +609,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
 
                     {% for item in toolbarButtons %}
                         {% if item.divider|default(false) %}
-                            <div class="w-px h-4 bg-line mx-1 shrink-0"></div>
+                            <div class="hidden md:block w-px h-4 bg-line mx-1 shrink-0"></div>
                         {% else %}
                             <button type="button" data-compose--compose-toolbar-action
                                     data-action="click->compose--compose-toolbar#{{ item.action }}"
@@ -600,14 +621,29 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     {% endfor %}
                 </div>
 
-                {# Action bar #}
-                <div class="flex items-center gap-1">
+                {# ── Action bar ───────────────────────────────────────
+                   ONE wrapping row, not a pill beside a nested strip of icons.
+                   The icons used to live in their own `flex-1 min-w-0` box, and
+                   at 320px that box was ~150px wide with the send pill taking
+                   the rest — so the icons wrapped three deep inside a narrow
+                   column while the trash can floated at the right of it. Flat,
+                   they wrap as one run: pill and four icons on the first line,
+                   the remaining five on the second, and two rows at 320px as
+                   well as at 393px. #}
+                <div class="flex flex-wrap items-center gap-1">
                     {# ── The Send pill, and behind its chevron, send later ──
 
-                       Desktop only — below md the header carries Send, which
-                       is always on screen. Which is also why the send-options
-                       menu needs no mobile treatment: there is no chevron on a
-                       phone for it to open off the edge of.
+                       Rendered at EVERY width. It used to be `hidden md:flex`,
+                       with a plain Send icon in the header standing in for it
+                       below md — which meant scheduling simply did not exist on
+                       a phone, and the Drafts row was the only place a hold
+                       could be seen at all. The header icon is gone; this is the
+                       one Send button now, so there is no pair of them to
+                       disagree about which can schedule.
+
+                       Both halves take a 44px minimum below md. The chevron in
+                       particular was an 11px hit area at its natural size, which
+                       is a control you aim at rather than press.
 
                        The positioning box is OUTSIDE the pill because the pill
                        is `overflow-hidden` (that is what rounds the two
@@ -632,7 +668,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     {% set scheduledAt = (message.id and message.sentAt is null)
                         ? message.submissionSendAt : null %}
 
-                    <div class="relative hidden md:block mr-2 shrink-0"
+                    <div class="relative mr-2 shrink-0"
                          data-controller="ui--dropdown compose--schedule"
                          data-action="ui--dropdown:opened->compose--schedule#refresh"
                          {# The zone every other timestamp in this app is drawn
@@ -653,32 +689,33 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                         <div class="flex items-center rounded-full overflow-hidden bg-accent">
                             <button type="submit"
                                     data-compose--compose-target="sendBtn"
-                                    class="text-white text-sm font-semibold px-4 py-1.5 hover:bg-white/10 transition-colors">
+                                    class="flex items-center justify-center text-white text-sm font-semibold
+                                           px-4 py-1.5 max-md:min-h-11 hover:bg-white/10 transition-colors">
                                 {{ 'compose.send'|trans }}
                             </button>
                             <button type="button"
                                     data-action="click->ui--dropdown#toggle"
                                     title="{{ 'compose.send_options'|trans }}"
                                     aria-label="{{ 'compose.send_options'|trans }}"
-                                    class="text-white border-l border-white/30 px-2.5 py-1.5 hover:bg-white/10 transition-colors text-xs">
+                                    class="flex items-center justify-center text-white border-l border-white/30
+                                           px-2.5 py-1.5 max-md:min-h-11 max-md:min-w-11
+                                           hover:bg-white/10 transition-colors text-xs">
                                 <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                             </button>
                         </div>
 
-                        {# `right-0` on desktop: the pill sits at the left of a
-                           520px window, and a menu anchored to its right edge
-                           opens back across the window rather than off it.
-
-                           Flipped to `left-0` below md, exactly as the
-                           integration picker flips its own. The pill is hidden
-                           at that width today, so this costs nothing now — but
-                           right-anchored at 393px the menu's left edge lands at
-                           -140, and the day the pill is ever shown on a phone
-                           the failure would be a menu half off the screen with
-                           no obvious cause. compose-scheduled-send.spec.ts
-                           measures it either way. #}
+                        {# `left-0` at every width, not `right-0`. The pill is
+                           the FIRST thing in the action bar, so its right edge
+                           is barely 100px from the left of the window: a menu
+                           anchored there hung 150px off the window's left side
+                           on desktop and, at 393px, off the screen. Anchored to
+                           the pill's left edge it opens inward from the same
+                           x the button starts at, in a 520px dock window and in
+                           a 320px phone alike — `max-w` is what keeps the
+                           narrow end honest. compose-scheduled-send.spec.ts
+                           measures the box at 393px and at 320px. #}
                         <div data-ui--dropdown-target="menu" hidden
-                             class="absolute bottom-full mb-1 right-0 max-md:left-0 max-md:right-auto
+                             class="absolute bottom-full mb-1 left-0 right-auto
                                     z-20 w-64 max-w-[calc(100vw-2rem)] popover py-1">
 
                             {% if scheduledAt is not null %}
@@ -779,9 +816,12 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                     </div>
 
                     {% set ic = "shrink-0 w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-colors text-ink-muted hover:text-ink hover:bg-hover" %}
-                    {# Scrolls sideways rather than wrapping or clipping, so
-                       every icon stays reachable on a phone. #}
-                    <div class="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto md:overflow-visible compose-scroll-x">
+                    {# The icons are direct children of the wrapping action bar
+                       above — no box of their own. The box was a sideways
+                       scroller (`overflow-x: auto`, which computes
+                       `overflow-y: auto` and clipped every menu opening upwards
+                       out of the 36px strip), and once it stopped scrolling all
+                       it did was corner the icons into a narrow column. #}
                     <button type="button"
                             data-action="click->compose--compose#toggleFormatBar"
                             data-compose--compose-target="formatToggle"
@@ -808,6 +848,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                        field prefills empty. #}
                     <button type="button" data-compose--compose-toolbar-action
                             data-compose--compose-toolbar-target="linkBtn"
+                            data-compose--compose-target="richOnly"
                             data-action="click->compose--compose-toolbar#insertLink"
                             aria-haspopup="dialog"
                             aria-expanded="false"
@@ -816,14 +857,19 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                             class="{{ ic }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
 
                     {# ── Emoji ─────────────────────────────────────────
-                       Same dropdown shape as the integration picker below,
-                       so Escape and outside-click come free. The panel opens
-                       upwards and is pinned to the left edge of the window on
-                       a phone: the button itself lives in a strip that scrolls
-                       sideways, and a menu anchored to it would open off the
-                       screen. #}
-                    <div class="relative"
-                         data-controller="ui--dropdown compose--emoji-picker"
+                       Same dropdown shape as the integration picker below, so
+                       Escape and outside-click come free.
+
+                       Deliberately NOT `relative`: without a positioned
+                       ancestor of its own the panel's containing block is the
+                       toolbar block, which spans the window — so the panel
+                       centres over the compose WINDOW rather than over a button
+                       sitting near its right edge. Which is what it already did
+                       below md by being `fixed` to the viewport, and what it
+                       failed to do above md, where a 352px panel hung off the
+                       side of a 520px dock. One rule now covers the dock, an
+                       inline reply, expanded, and a phone. #}
+                    <div data-controller="ui--dropdown compose--emoji-picker"
                          data-action="ui--dropdown:opened->compose--emoji-picker#build"
                          data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
                          data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale starts with 'de' ? 'de' : 'en') ~ '/data.json') }}"
@@ -862,15 +908,21 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                              },
                          }|json_encode|e('html_attr') }}">
                         <button type="button" data-compose--compose-toolbar-action
+                                data-compose--compose-target="richOnly"
                                 data-action="click->ui--dropdown#toggle"
                                 title="{{ 'compose.insert_emoji'|trans }}"
                                 aria-label="{{ 'compose.insert_emoji'|trans }}"
                                 class="{{ ic }}"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>
+                        {# Centred on the window: half its width across, pulled
+                           back by half its own. `calc(100%-1rem)` is the
+                           window minus the 8px gutter the phone version used to
+                           set with left-2/right-2; `.emoji-panel`'s max-width
+                           caps it at 22rem above md and releases it below. #}
                         <div data-ui--dropdown-target="menu" hidden
                              data-compose--emoji-picker-target="panel"
-                             class="emoji-panel fixed left-2 right-2 bottom-20
-                                    md:absolute md:inset-auto md:bottom-full md:left-0 md:right-auto
-                                    md:mb-1 z-30 popover overflow-hidden"></div>
+                             class="emoji-panel absolute bottom-full mb-2
+                                    left-1/2 -translate-x-1/2 w-[calc(100%-1rem)]
+                                    z-30 popover overflow-hidden"></div>
                     </div>
 
                     {# ── Inline image ──────────────────────────────────
@@ -880,6 +932,7 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                        image/*. Paste and drag-drop reach the same endpoint —
                        see _handleBodyPaste in the controller. #}
                     <button type="button" data-compose--compose-toolbar-action
+                            data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#openImagePicker"
                             title="{{ 'compose.image'|trans }}"
                             aria-label="{{ 'compose.image'|trans }}"
@@ -925,18 +978,19 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                        which is the same operation the From switch performs, and
                        deliberately the same code. #}
                     <button type="button" data-compose--compose-toolbar-action
+                            data-compose--compose-target="richOnly"
                             data-action="click->compose--compose#insertSignature"
                             title="{{ 'compose.signature'|trans }}"
                             aria-label="{{ 'compose.signature'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i></button>
 
                     {# ── More options ──────────────────────────────────
-                       Same dropdown shape as the integration picker below and
-                       the schedule menu above: a relative wrapper, a `menu`
-                       target that starts hidden, `bottom-full` so it opens
+                       Same dropdown shape as the schedule menu above: a `menu`
+                       target that starts hidden and `bottom-full` so it opens
                        upwards out of a window already at the bottom of the
-                       screen, and `left-0` below md because this button sits in
-                       a strip that scrolls sideways.
+                       screen. Like the emoji panel it has no `relative` wrapper
+                       of its own, so it anchors to the toolbar block instead of
+                       to a button whose x depends on where the row wrapped.
 
                        The two form fields inside it are REAL widgets, not
                        decoration. ComposeType maps both onto the Message and
@@ -945,36 +999,30 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                        and readReceiptRequested to false — that is, the menu
                        being rendered is what makes the fields exist at all.
                        They ride the existing draft/send POSTs; no new route. #}
-                    <div class="relative" data-controller="ui--dropdown">
+                    <div data-controller="ui--dropdown">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle"
                                 title="{{ 'compose.more_options'|trans }}"
                                 aria-label="{{ 'compose.more_options'|trans }}"
                                 class="{{ ic }}"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
 
-                        {# Below md this menu is pinned to the VIEWPORT rather
-                           than to its button, exactly as the emoji panel is and
-                           for exactly the same reason — except that here it was
-                           not merely mispositioned, it was unreachable. The
-                           button sits in `.compose-scroll-x`, whose
-                           `overflow-x: auto` computes `overflow-y: auto` as
-                           well, so a menu opening UPWARDS out of a 36px strip
-                           was clipped to nothing: on a phone the three controls
-                           in here (plain text, priority, read receipt) could be
-                           tapped open and never seen. A fixed element is not
-                           clipped by an overflow ancestor — its containing
-                           block is .compose-window, which below md is the
-                           screen — which is the whole trick.
+                        {# This menu used to be pinned to the VIEWPORT below md
+                           (`max-md:fixed`, `bottom-20`) because the button sat
+                           in `.compose-scroll-x`, whose `overflow-x: auto`
+                           computed `overflow-y: auto` as well — a menu opening
+                           UPWARDS out of a 36px strip was clipped to nothing,
+                           so the three controls in here (plain text, priority,
+                           read receipt) could be tapped open and never seen.
 
-                           `bottom-20` clears the action bar; `w-auto` releases
-                           the `w-64` so left-2/right-2 can set the width.
-                           compose-mobile.spec.ts measures the box against the
-                           viewport at 393px and at 320px. #}
+                           The strip does not scroll and does not clip any more,
+                           so the pinning is deleted rather than kept: the same
+                           left-2/right-2 the link popover uses, anchored to the
+                           toolbar block, is on screen at every width without
+                           leaving the flow. compose-mobile.spec.ts measures the
+                           box against the viewport at 393px and at 320px. #}
                         <div data-ui--dropdown-target="menu" hidden
-                             class="absolute bottom-full mb-1 left-0 md:right-auto z-30
-                                    w-64 max-w-[calc(100vw-2rem)] popover py-1
-                                    max-md:fixed max-md:inset-auto max-md:left-2 max-md:right-2
-                                    max-md:bottom-20 max-md:w-auto max-md:max-w-none">
+                             class="absolute bottom-full mb-2 left-2 right-2
+                                    md:left-auto md:right-3 md:w-64 z-30 popover py-1">
 
                             {# Plain text. A toggle, not a submit: what it
                                 changes is which surface the body lives in, and
@@ -1027,7 +1075,6 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                             </label>
                         </div>
                     </div>
-                    </div>
 
                     {# Attach from a connected service. Sized to what the user
                        actually has: nothing at all with no connections, the
@@ -1044,19 +1091,18 @@ Variables: form, message, ctx (inline, frame, thread, urlParams)
                                 title="{{ 'integration.picker.attach_from'|trans({ '%name%': only.name }) }}"
                                 class="{{ ic }}"><i class="{{ only.provider.icon }}"></i></button>
                     {% elseif pickerIntegrations|length > 1 %}
-                        <div class="relative" data-controller="ui--dropdown">
+                        <div data-controller="ui--dropdown">
                             <button type="button"
                                     data-action="click->ui--dropdown#toggle"
                                     title="{{ 'integration.picker.attach_from_service'|trans }}"
                                     class="{{ ic }}"><i class="fa-solid fa-cloud-arrow-down"></i></button>
-                            {# Pinned to the viewport below md, same as the more-
+                            {# Anchored to the toolbar block, same as the more-
                                options menu above and for the same reason: this
-                               button is in the sideways scroller too, and a
-                               menu opening upwards out of it is clipped away. #}
+                               button is in the wrapping row too, and a menu
+                               anchored to it lands wherever the row wrapped. #}
                             <div data-ui--dropdown-target="menu" hidden
-                                 class="absolute bottom-full mb-1 right-0 md:left-0 md:right-auto z-30 min-w-48 popover py-1
-                                        max-md:fixed max-md:inset-auto max-md:left-2 max-md:right-2
-                                        max-md:bottom-20 max-md:min-w-0">
+                                 class="absolute bottom-full mb-2 left-2 right-2
+                                        md:left-auto md:right-3 md:w-64 z-30 popover py-1">
                                 {% for integration in pickerIntegrations %}
                                     <button type="button"
                                             data-controller="ui--modal"
