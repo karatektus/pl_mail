@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class SidebarCounts implements ResetInterface
     private ?array $labelCounts = null;
     private ?int $starredCount = null;
     private ?int $snoozedCount = null;
+    private ?int $labelsUnread = null;
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
     /** @var array<int, list<Label>> account id => its visible labels */
@@ -47,6 +49,7 @@ class SidebarCounts implements ResetInterface
         $this->labelCounts        = null;
         $this->starredCount       = null;
         $this->snoozedCount       = null;
+        $this->labelsUnread       = null;
         $this->userLabelTree      = null;
         $this->visibleLabels      = null;
         $this->accountLabels      = [];
@@ -221,6 +224,39 @@ class SidebarCounts implements ResetInterface
         $this->loadLabelCounts();
 
         return $this->labelCounts[(int) $label->id] ?? 0;
+    }
+
+    /**
+     * Whether the user has this sidebar section or label tree collapsed.
+     *
+     * Here rather than reached through `app.user` in the template because the
+     * label tree is rendered by a Twig MACRO, and a macro sees only globals —
+     * which is already why the counts arrive this way. It also makes the
+     * anonymous case a plain `false` instead of a null dereference.
+     */
+    public function isCollapsed(string $key): bool
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User && $user->isSidebarSectionCollapsed($key);
+    }
+
+    /**
+     * The LABELS heading's own number, shown only while that section is
+     * collapsed — see MessageThreadRepository::countUnreadInUserLabels() for
+     * why it is not the sum of the rows it stands in for.
+     */
+    public function unreadInLabels(): int
+    {
+        if (null === $this->labelsUnread) {
+            $user = $this->security->getUser();
+
+            $this->labelsUnread = null === $user
+                ? 0
+                : $this->threadRepository->countUnreadInUserLabels($user);
+        }
+
+        return $this->labelsUnread;
     }
 
     public function forStarred(): int

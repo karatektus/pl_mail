@@ -545,6 +545,54 @@ final class MailController extends AbstractController
     }
 
     /**
+     * Remembers which sidebar sections and label trees are collapsed.
+     *
+     * The same shape as sidebarAccountExpanded above, and per user rather than
+     * per browser for the same two reasons: the state is rendered into the
+     * first paint, so nothing collapses after it is already on screen, and a
+     * preference about your own nav should follow you to your other devices.
+     *
+     * The key is not validated against anything, and deliberately: label trees
+     * are keyed by full name, so validating would mean a lookup per toggle to
+     * learn nothing — an unknown key collapses nothing, because the only thing
+     * that ever reads this bag is a template asking "is MY key in here?". It is
+     * bounded instead, so the bag cannot be used as free storage.
+     */
+    #[Route('/sidebar/section-collapsed', name: 'sidebar_section_collapsed', methods: ['POST'])]
+    public function sidebarSectionCollapsed(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        if (false === $this->isCsrfTokenValid('ajax', (string) $request->headers->get('X-CSRF-Token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $payload   = $request->toArray();
+        $key       = $payload['key'] ?? null;
+        $collapsed = $payload['collapsed'] ?? null;
+
+        if (false === is_string($key) || '' === $key || 256 < strlen($key) || false === is_bool($collapsed)) {
+            return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Collapsing is always allowed; it is only the growth of the list that
+        // needs a ceiling, and a user with more than this many collapsed things
+        // has a nav problem this preference will not fix.
+        if (true === $collapsed && 500 <= count($user->collapsedSidebarSections)) {
+            return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user->setSidebarSectionCollapsed($key, $collapsed);
+
+        $em->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    /**
      * Unread badge counts for the sidebar, keyed the same way the badges are
      * (see the unread_badge macro in _partials/_sidebar.html.twig).
      *
@@ -560,6 +608,12 @@ final class MailController extends AbstractController
         $payload = [
             'starred'                     => $counts->forStarred(),
             NewMailMarkers::STARRED_KEY   => $newMail->forStarred(),
+            // The collapsed LABELS heading's roll-up. Emitted whether or not
+            // the section is currently collapsed, because the badge is
+            // rendered either way — hidden by the disclosure rather than
+            // omitted, which is the same rule every other badge here follows
+            // and the reason a collapsed section's numbers do not go stale.
+            'labels:unread'               => $counts->unreadInLabels(),
         ];
 
         // The new-mail dots ride on this same payload rather than on an
