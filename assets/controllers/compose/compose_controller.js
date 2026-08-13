@@ -2,7 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'richOnly'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -118,12 +118,20 @@ export default class extends Controller {
         // message (the template works that out), so the format controls have to
         // start hidden — otherwise a bar of buttons that do nothing sits over a
         // textarea.
+        //
+        // The same three consequences the switch applies, applied to a window
+        // that was rendered already in the mode: the bar folded, the "Aa"
+        // toggle gone, the HTML input off the wire — plus the rich-only
+        // affordances greyed, which is what makes coming back out of the mode
+        // symmetric rather than approximate.
         if (true === this._isPlainText()) {
             this._setFormatBar(false);
 
             if (this.hasFormatToggleTarget) {
                 this.formatToggleTarget.classList.add('hidden');
             }
+
+            this._setRichAffordances(false);
 
             const hidden = this.element.querySelector('[data-compose--compose-toolbar-target="hiddenInput"]');
 
@@ -205,8 +213,16 @@ export default class extends Controller {
      *
      * The layout itself is CSS (see the root element's `md:` classes); what
      * has to happen here is everything CSS cannot express — dropping the dock
-     * chrome's state, locking the page behind, folding the formatting bar
-     * away, and tracking the virtual keyboard.
+     * chrome's state, locking the page behind, and tracking the virtual
+     * keyboard.
+     *
+     * Folding the formatting bar away used to be on that list too: below md it
+     * was closed on arrival and had to be asked for with "Aa". It is open at
+     * every width now — it wraps onto a second row instead of scrolling, which
+     * is what made it affordable, and a bar you have to know about is a bar
+     * most people never find. "Aa" still folds it for whoever wants the room
+     * back; crossing the breakpoint restores the default, which is the same
+     * thing this function has always done to the rest of the window's state.
      */
     _applyMobile() {
         const mobile = this._isMobile();
@@ -217,6 +233,13 @@ export default class extends Controller {
 
         this._mobileApplied = mobile;
 
+        // Not in plain-text mode, where the bar has nothing to act on. The
+        // guard rather than an ordering assumption: connect() calls this
+        // BEFORE it reads the rendered mode.
+        if (false === this._isPlainText()) {
+            this._setFormatBar(true);
+        }
+
         if (true === mobile) {
             // Minimize and expand are dock concepts, and expand leaves inline
             // styles behind that would fight the fullscreen rules.
@@ -226,7 +249,6 @@ export default class extends Controller {
             this._resetExpandedBody();
 
             document.body.style.overflow = 'hidden';
-            this._setFormatBar(false);
             this._watchViewport();
 
             return;
@@ -239,7 +261,6 @@ export default class extends Controller {
         this.element.style.height    = '';
         this.element.style.transform = '';
         document.body.style.overflow = '';
-        this._setFormatBar(true);
     }
 
     _watchViewport() {
@@ -323,15 +344,26 @@ export default class extends Controller {
     // ── Formatting bar ────────────────────────────────────────────────
 
     /**
-     * The rich-text bar is one more row competing with the keyboard, so on a
-     * phone it stays folded until asked for — the "Aa" button, same as Gmail.
+     * "Aa" — fold the rich-text bar away, or bring it back.
+     *
+     * It starts open at every width. The bar wraps onto a second row rather
+     * than scrolling, so showing it costs a predictable ~32px rather than
+     * hiding half of itself off the side; what "Aa" buys now is room, for
+     * whoever wants it, rather than access to controls that were unreachable
+     * without it.
      */
     toggleFormatBar() {
-        if (false === this.hasFormatBarTarget) {
-            return;
-        }
+        this._setFormatBar(false === this._isFormatBarOpen());
+    }
 
-        this._setFormatBar('none' === this.formatBarTarget.style.display);
+    /**
+     * Is the bar showing? Read from the inline style _setFormatBar writes, not
+     * from a class or from offsetHeight — a window that has never been touched
+     * has no inline display at all, and that is the open state.
+     */
+    _isFormatBarOpen() {
+        return this.hasFormatBarTarget
+            && 'none' !== this.formatBarTarget.style.display;
     }
 
     _setFormatBar(open) {
@@ -1121,16 +1153,35 @@ export default class extends Controller {
             hidden.disabled = true === plain;
         }
 
-        // Formatting controls have nothing to act on in plain text. Only the
-        // closing is done here: whether the bar is open in rich mode is the
-        // user's own choice (the "Aa" button), and on a phone it starts closed.
+        // Formatting controls have nothing to act on in plain text — so going
+        // plain folds the bar, and coming back UNFOLDS it. That second half is
+        // what was missing: the switch wrote `display: none` on the way in and
+        // nothing on the way out, leaving a window in rich mode with no
+        // formatting bar and no obvious way to work out why. ("Aa" would have
+        // brought it back, but only for someone who already knew that.)
+        //
+        // Restored to what it was rather than simply opened: whether the bar is
+        // open in rich mode is the user's own choice, and a round trip through
+        // plain text must not quietly overrule it. `?? true` covers the window
+        // that went plain before anyone touched "Aa" — open is the default.
         if (true === plain) {
+            this._formatBarWasOpen = this._isFormatBarOpen();
             this._setFormatBar(false);
+        } else {
+            this._setFormatBar(this._formatBarWasOpen ?? true);
         }
 
         if (this.hasFormatToggleTarget) {
             this.formatToggleTarget.classList.toggle('hidden', true === plain);
         }
+
+        // Link, emoji, inline image and signature all write into the rich
+        // editor, which in plain text is hidden — they were live buttons that
+        // silently did nothing. Greyed while plain, and back exactly as they
+        // were on the way out. The encrypt button is NOT in this set: it is
+        // permanently disabled for reasons of its own and re-enabling it here
+        // would be the one lie a mail client must not tell.
+        this._setRichAffordances(false === plain);
 
         if (this.hasPlainToggleTarget) {
             this.plainToggleTarget.setAttribute('aria-pressed', true === plain ? 'true' : 'false');
@@ -1142,6 +1193,25 @@ export default class extends Controller {
 
         (true === plain ? textarea : editor).focus();
         this._scheduleAutosave();
+    }
+
+    /**
+     * Enable or grey the toolbar buttons that only the rich editor can serve.
+     *
+     * Marked in the template (`richOnly`) rather than found by selector, so
+     * that adding a button to the icon row does not silently opt it in — or,
+     * worse, opt the permanently-disabled encrypt button in with it.
+     */
+    _setRichAffordances(enabled) {
+        if (false === this.hasRichOnlyTarget) {
+            return;
+        }
+
+        this.richOnlyTargets.forEach((button) => {
+            button.disabled = false === enabled;
+            button.classList.toggle('opacity-40', false === enabled);
+            button.classList.toggle('cursor-not-allowed', false === enabled);
+        });
     }
 
     /** The editor's content as text, block boundaries becoming newlines. */
@@ -1594,8 +1664,12 @@ export default class extends Controller {
         clearTimeout(this.#autosaveTimer);
         this._submitting = true;
 
-        // Two of them below md: the header's icon button and the pill in the
-        // action bar, only one of which is on screen at a time.
+        // One of them now, at every width — the pill in the action bar. There
+        // used to be a second, an icon button in the header below md, back when
+        // the action bar was a sideways scroller Send could be scrolled out of.
+        // Kept as a target LIST rather than a single target because the
+        // settings signature editor renders this toolbar without a pill at all,
+        // and the fallback below is what covers it.
         const sendButtons = this.hasSendBtnTarget
             ? this.sendBtnTargets
             : Array.from(this.element.querySelectorAll('[type="submit"]'));

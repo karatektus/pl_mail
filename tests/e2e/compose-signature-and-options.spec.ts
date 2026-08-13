@@ -111,6 +111,26 @@ test.describe("compose signature", () => {
     });
 });
 
+/**
+ * Flip plain-text mode from the more-options menu, accepting the
+ * lose-your-formatting warning if it stands in the way.
+ *
+ * Conditional because whether it appears is not this window's decision: the
+ * seeded account may carry a signature, which is markup in the body, which is
+ * formatting flattening would destroy. A spec that assumed an empty body would
+ * pass or fail on whether another file had been there first.
+ */
+async function togglePlainText(page: Page): Promise<void> {
+    await page.locator(`${DOCK} .fa-ellipsis-vertical`).locator("..").click();
+    await page.getByRole("button", { name: /Plain text mode/i }).click();
+
+    const warning = page.locator(`${DOCK} ${WARNING}`);
+
+    if (await warning.isVisible()) {
+        await page.locator(DOCK).getByRole("button", { name: "Continue" }).click();
+    }
+}
+
 test.describe("compose more options", () => {
     test("plain text mode swaps the editor and keeps the text submittable", async ({
         page,
@@ -177,6 +197,95 @@ test.describe("compose more options", () => {
         expect(await page.locator(`${DOCK} ${HIDDEN}`).inputValue()).toMatch(
             /<(b|strong)>/i,
         );
+    });
+
+    /**
+     * The toolbar after a ROUND TRIP through plain text.
+     *
+     * Enabling plain text folds the format bar away, hides "Aa", and greys the
+     * four buttons that can only write into the rich editor. Disabling it used
+     * to undo three of those four and leave the format bar at
+     * `display: none` for good — a rich-mode window with no formatting bar and
+     * no visible reason why. It shipped because the spec that covered this
+     * switch only ever went one way.
+     *
+     * So this one goes both, and asserts the state on the way BACK rather than
+     * only on the way in.
+     */
+    test("leaving plain text brings the whole toolbar back", async ({ page }) => {
+        await openCompose(page);
+
+        const bar = page.locator(`${DOCK} [data-compose--compose-target="formatBar"]`);
+        const aa = page.locator(DOCK).getByRole("button", { name: "Aa" });
+        const rich = page.locator(`${DOCK} [data-compose--compose-target="richOnly"]`);
+
+        // Before: the bar is up (it is shown by default at every width now),
+        // "Aa" is there, and every rich-only affordance is live.
+        await expect(bar).toBeVisible();
+        await expect(aa).toBeVisible();
+
+        const count = await rich.count();
+        expect(count).toBeGreaterThanOrEqual(4);
+
+        for (let i = 0; i < count; i++) {
+            await expect(rich.nth(i)).toBeEnabled();
+        }
+
+        // In.
+        await togglePlainText(page);
+
+        await expect(page.locator(`${DOCK} ${PLAIN}`)).toBeVisible();
+        await expect(bar).toBeHidden();
+        await expect(aa).toBeHidden();
+
+        for (let i = 0; i < count; i++) {
+            await expect(rich.nth(i)).toBeDisabled();
+        }
+
+        // And out again — the half that was missing.
+        await togglePlainText(page);
+
+        await expect(page.locator(`${DOCK} ${EDITOR}`)).toBeVisible();
+        await expect(bar).toBeVisible();
+        await expect(aa).toBeVisible();
+        await expect(page.locator(`${DOCK} ${HIDDEN}`)).toBeEnabled();
+
+        for (let i = 0; i < count; i++) {
+            await expect(rich.nth(i)).toBeEnabled();
+        }
+
+        // Visible is not enough — a bar restored to zero height is still a bar
+        // nobody can press.
+        const box = (await bar.boundingBox())!;
+        expect(box.height).toBeGreaterThan(20);
+        expect(box.width).toBeGreaterThan(200);
+    });
+
+    /**
+     * And "Aa" survives the round trip as the user left it: a bar folded away
+     * on purpose must not be reopened by a detour through plain text, which is
+     * the failure mode of "just show it again on the way out".
+     */
+    test("a folded formatting bar stays folded across plain-text mode", async ({ page }) => {
+        await openCompose(page);
+
+        const bar = page.locator(`${DOCK} [data-compose--compose-target="formatBar"]`);
+        const aa = page.locator(DOCK).getByRole("button", { name: "Aa" });
+
+        await aa.click();
+        await expect(bar).toBeHidden();
+
+        await togglePlainText(page);
+        await expect(page.locator(`${DOCK} ${PLAIN}`)).toBeVisible();
+
+        await togglePlainText(page);
+        await expect(page.locator(`${DOCK} ${EDITOR}`)).toBeVisible();
+
+        await expect(bar).toBeHidden();
+
+        // Still operable, not merely still hidden.
+        await aa.click();
+        await expect(bar).toBeVisible();
     });
 
     /**

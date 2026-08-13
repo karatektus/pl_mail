@@ -116,10 +116,19 @@ test.describe("mobile compose window", () => {
         expect(measured.bottom).toBeGreaterThanOrEqual(measured.visualHeight - 0.5);
     });
 
-    test("keeps Send in the header, on screen", async ({ page }) => {
+    /**
+     * ONE Send, and it is the pill — the same pill the desktop has, chevron and
+     * all. There used to be a second one, an icon in the header, because the
+     * action bar was a sideways scroller Send could be scrolled out of; the bar
+     * wraps now, so the header copy is gone and scheduling is reachable from a
+     * phone for the first time.
+     */
+    test("carries the send pill, on screen, with nothing duplicating it", async ({ page }) => {
         await openCompose(page);
 
-        const send = page.locator(composeWindow).getByRole("button", { name: "Send" });
+        const send = page.locator(composeWindow).getByRole("button", { name: "Send", exact: true });
+
+        await expect(send).toHaveCount(1);
         await expect(send).toBeVisible();
 
         const box = (await send.boundingBox())!;
@@ -128,6 +137,19 @@ test.describe("mobile compose window", () => {
         expect(box.y).toBeGreaterThanOrEqual(0);
         expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
         expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+
+        // A thumb target, not a mouse one.
+        expect(box.height).toBeGreaterThanOrEqual(44);
+
+        // And the chevron beside it, which is what makes it a send PILL rather
+        // than a send button.
+        const chevron = page.locator(composeWindow).getByRole("button", { name: "Send options" });
+        await expect(chevron).toBeVisible();
+
+        const chevronBox = (await chevron.boundingBox())!;
+
+        expect(chevronBox.width).toBeGreaterThanOrEqual(44);
+        expect(chevronBox.height).toBeGreaterThanOrEqual(44);
     });
 
     // Dock chrome. There is no dock to minimize into and nothing to expand to.
@@ -139,49 +161,129 @@ test.describe("mobile compose window", () => {
         await expect(window.getByRole("button", { name: "Expand" })).toBeHidden();
     });
 
-    test("folds the formatting bar away until Aa asks for it", async ({ page }) => {
+    // Shown by default now, on a phone as on a desktop. It used to start folded
+    // here and had to be found behind "Aa" — a bar most people never met.
+    test("shows the formatting bar by default, and Aa still folds it away", async ({ page }) => {
         await openCompose(page);
 
         const bar = page.locator('[data-compose--compose-target="formatBar"]');
+        await expect(bar).toBeVisible();
+
+        // Visible AND drawn — a zero-height bar is also "visible" to a spec
+        // that only asks whether it is displayed.
+        const box = (await bar.boundingBox())!;
+        expect(box.height).toBeGreaterThan(20);
+        expect(box.width).toBeGreaterThan(200);
+
+        await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
         await expect(bar).toBeHidden();
 
         await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
         await expect(bar).toBeVisible();
-
-        await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
-        await expect(bar).toBeHidden();
     });
 
-    // Wrapping the toolbar would eat three rows of a phone screen; clipping it
-    // would put Redo out of reach. It scrolls sideways instead.
-    test("reaches the far end of the formatting bar", async ({ page }) => {
+    /**
+     * Neither toolbar row may scroll sideways — the user's words, and the
+     * reason two of last round's bugs existed. `overflow-x: auto` computes
+     * `overflow-y: auto` with it, which is what clipped the more-options menu
+     * to nothing; and a control parked past the right edge of a strip nobody
+     * thinks to swipe is a control that is not there.
+     *
+     * Asserted as the computed `overflow-x` rather than as scrollWidth: it is
+     * the PROPERTY that does the damage — `auto` on one axis computes `auto` on
+     * the other, which is what clipped the more-options menu — and scrollWidth
+     * also flags the sr-only spans and the collapsed native <select>s that the
+     * enhanced selects hide behind, neither of which is a toolbar that scrolls.
+     */
+    test("never scrolls either toolbar row sideways", async ({ page }) => {
         await openCompose(page);
-        await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
 
-        const redo = page.locator(composeWindow).getByRole("button", { name: "Redo" });
-        await redo.scrollIntoViewIfNeeded();
+        const scrollers = await page.evaluate(() => {
+            // The toolbar block: the format bar, the action bar and everything
+            // in them. Checked wholesale rather than row by row, because a
+            // scroller reintroduced anywhere inside it is the same bug.
+            const block = document
+                .querySelector("#compose_dock .compose-window")!
+                .querySelector<HTMLElement>('[data-compose--compose-target="formatBar"]')!
+                .parentElement!;
 
-        const box = (await redo.boundingBox())!;
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+            return [block, ...block.querySelectorAll<HTMLElement>("*")]
+                .filter((el) => {
+                    const x = getComputedStyle(el).overflowX;
+
+                    return "auto" === x || "scroll" === x;
+                })
+                .map((el) => String(el.className).slice(0, 70));
+        });
+
+        expect(scrollers, JSON.stringify(scrollers)).toEqual([]);
     });
 
-    // Discard sits outside the scroller so it cannot be scrolled away — the
-    // one destructive action you should never have to hunt for.
-    test("pins Delete draft next to the scrolling icon row", async ({ page }) => {
+    // Every icon reachable without a gesture, because the row wraps. Redo is
+    // the far end of the format bar and Delete draft the far end of the icon
+    // row; if either is off screen, something is scrolling that should wrap.
+    test("keeps both ends of both toolbar rows on screen", async ({ page }) => {
         await openCompose(page);
 
-        const discard = page.locator(composeWindow).getByRole("button", { name: "Delete draft" });
-        await expect(discard).toBeInViewport();
+        const viewport = page.viewportSize()!;
 
-        // Push the icon row to its far end; the trash can must not move with it.
-        const before = (await discard.boundingBox())!;
-        await page.locator(composeWindow).getByRole("button", { name: "Aa" }).hover();
-        await page.mouse.wheel(400, 0);
-        const after = (await discard.boundingBox())!;
+        for (const name of ["Redo", "Delete draft"]) {
+            const button = page.locator(composeWindow).getByRole("button", { name });
 
-        expect(after.x).toBeCloseTo(before.x, 0);
-        await expect(discard).toBeInViewport();
+            await expect(button).toBeVisible();
+
+            const box = (await button.boundingBox())!;
+
+            expect(box.x, name).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width, name).toBeLessThanOrEqual(viewport.width + 0.5);
+            expect(box.y, name).toBeGreaterThanOrEqual(0);
+            expect(box.y + box.height, name).toBeLessThanOrEqual(viewport.height + 0.5);
+            expect(box.width, name).toBeGreaterThan(8);
+            expect(box.height, name).toBeGreaterThan(8);
+        }
+    });
+
+    /**
+     * The whole point of Task 5 plus Task 3 together: a visible format bar, a
+     * wrapped icon row and a send pill are a lot of furniture, and the body has
+     * to survive it on the shortest phone anyone still carries.
+     *
+     * 568px is the iPhone SE. The number asserted is deliberately modest — this
+     * is a floor, not a target — but it is a number, so the day the toolbar
+     * grows a third row this fails instead of shipping a 20px writing slot.
+     */
+    test("leaves the body usable at 320x568, with all the toolbar furniture up", async ({
+        page,
+    }) => {
+        await page.setViewportSize({ width: 320, height: 568 });
+        await openCompose(page);
+
+        await expect(page.locator('[data-compose--compose-target="formatBar"]')).toBeVisible();
+
+        const measured = await page.evaluate(() => {
+            const win = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+            const scroller = win.querySelector(
+                '[data-compose--compose-target="scroller"]',
+            ) as HTMLElement;
+            const bar = win.querySelector(
+                '[data-compose--compose-target="formatBar"]',
+            ) as HTMLElement;
+
+            return {
+                window: win.getBoundingClientRect().height,
+                body: scroller.getBoundingClientRect().height,
+                toolbar: bar.parentElement!.getBoundingClientRect().height,
+                formatBar: bar.getBoundingClientRect().height,
+            };
+        });
+
+        // Reported in the failure message, because the useful thing about this
+        // test is the number and not the boolean.
+        expect(measured.body, JSON.stringify(measured)).toBeGreaterThanOrEqual(120);
+
+        // And the furniture has not eaten the window: the toolbar block is a
+        // minority of the screen.
+        expect(measured.toolbar, JSON.stringify(measured)).toBeLessThan(measured.window / 2);
     });
 
     // Address rows and the editor share one scroll region, so the recipients
@@ -192,7 +294,7 @@ test.describe("mobile compose window", () => {
 
         const scroller = page.locator('[data-compose--compose-target="scroller"]');
         const fields = page.locator('[data-compose--compose-target="fields"]');
-        const send = page.locator(composeWindow).getByRole("button", { name: "Send" });
+        const send = page.locator(composeWindow).getByRole("button", { name: "Send", exact: true });
 
         const fieldsBefore = (await fields.boundingBox())!;
         const sendBefore = (await send.boundingBox())!;
@@ -238,11 +340,14 @@ test.describe("mobile compose window", () => {
             ).toContainText("@");
         });
 
-        test("carries Send in the header", async ({ page }) => {
+        test("carries the send pill, schedule chevron and all", async ({ page }) => {
             await openReply(page);
 
             await expect(
                 page.locator(composeWindow).getByRole("button", { name: "Send", exact: true }),
+            ).toBeInViewport();
+            await expect(
+                page.locator(composeWindow).getByRole("button", { name: "Send options" }),
             ).toBeInViewport();
         });
 
@@ -260,18 +365,13 @@ test.describe("mobile compose window", () => {
     });
 
     /**
-     * The emoji button lives in the same sideways-scrolling strip as the rest
-     * of the icon row, so a panel anchored to the button opens wherever the
-     * button happens to have been scrolled to — which on a phone is routinely
-     * past the right edge of the screen. Below md it is pinned to the viewport
-     * instead, and this is what says so.
+     * The emoji panel is centred on the compose WINDOW, not anchored to its
+     * button — the button sits in a row that wraps, so its x depends on how
+     * many icons fitted on the line above it, and a panel hung off it lands
+     * wherever that happened to be.
      */
-    test("opens the emoji picker on screen, however far the icon row is scrolled", async ({ page }) => {
+    test("centres the emoji picker on the window", async ({ page }) => {
         await openCompose(page);
-
-        const strip = page.locator(`${composeWindow} .compose-scroll-x`).last();
-        await strip.hover();
-        await page.mouse.wheel(400, 0);
 
         await page.locator(composeWindow).getByRole("button", { name: "Insert emoji" }).click();
 
@@ -280,12 +380,18 @@ test.describe("mobile compose window", () => {
         await expect(panel).toBeInViewport();
 
         const box = (await panel.boundingBox())!;
-        const viewport = page.viewportSize()!;
+        const win = (await page.locator(composeWindow).boundingBox())!;
 
         expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 0.5);
+        expect(box.x + box.width).toBeLessThanOrEqual(win.x + win.width + 0.5);
         expect(box.y).toBeGreaterThanOrEqual(0);
-        expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
+        expect(box.y + box.height).toBeLessThanOrEqual(win.y + win.height + 0.5);
+
+        // Centred: the two margins match, within a pixel of rounding.
+        const left = box.x - win.x;
+        const right = win.x + win.width - (box.x + box.width);
+
+        expect(Math.abs(left - right), JSON.stringify({ left, right })).toBeLessThanOrEqual(1);
     });
 
     /**
@@ -301,11 +407,13 @@ test.describe("mobile compose window", () => {
      * 393px, because the narrow end is where a fixed `w-64` stops fitting.
      *
      * The reason any of it works: none of these are anchored to their button.
-     * Every control that opens one lives in `.compose-scroll-x`, whose
-     * `overflow-x: auto` computes `overflow-y: auto` as well — so a menu
-     * anchored to a button in there is both mispositioned (the strip scrolls)
-     * and clipped (it opens upwards out of a 36px box). The more-options menu
-     * was clipped away entirely until this spec went looking.
+     * Every one of them anchors to the toolbar BLOCK, which spans the window —
+     * the buttons themselves sit in rows that wrap, so a menu hung off one
+     * lands wherever that button happened to wrap to, which at 320px is
+     * routinely past the right edge.
+     *
+     * The send-options menu is in this list for the first time. It was
+     * `hidden md:flex` before, so the phone path had never once been exercised.
      */
     test.describe("popovers stay on screen", () => {
         const cases: { name: string; open: (page: Page) => Promise<void>; panel: string }[] = [
@@ -338,6 +446,14 @@ test.describe("mobile compose window", () => {
                 },
             },
             {
+                name: "the send-options menu",
+                panel: '[data-ui--dropdown-target="menu"]:has([data-compose--schedule-target="option"])',
+                open: async (page) => {
+                    await page.locator(composeWindow)
+                        .getByRole("button", { name: "Send options" }).click();
+                },
+            },
+            {
                 name: "the plain-text warning",
                 panel: '[data-compose--compose-target="plainWarning"]',
                 open: async (page) => {
@@ -346,7 +462,9 @@ test.describe("mobile compose window", () => {
                     await editor.click();
                     await page.keyboard.type("emphasis");
                     await page.keyboard.press("ControlOrMeta+a");
-                    await page.locator(composeWindow).getByRole("button", { name: "Aa" }).click();
+                    // No "Aa" first: the format bar is up from the start now,
+                    // and pressing Aa here would fold Bold away rather than
+                    // reveal it.
                     await page.locator(composeWindow).getByRole("button", { name: "Bold" }).click();
 
                     await page.locator(composeWindow)
@@ -361,13 +479,6 @@ test.describe("mobile compose window", () => {
                 test(`${name} at ${width}px`, async ({ page }) => {
                     await page.setViewportSize({ width, height: 851 });
                     await openCompose(page);
-
-                    // Push the icon row to its far end first. A panel anchored
-                    // to a button in there would now open past the right edge,
-                    // which is exactly the bug being guarded against.
-                    const strip = page.locator(`${composeWindow} .compose-scroll-x`).last();
-                    await strip.hover();
-                    await page.mouse.wheel(400, 0);
 
                     await open(page);
 
