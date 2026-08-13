@@ -3,16 +3,28 @@ import { Controller } from "@hotwired/stimulus";
 /**
  * The "Sending… Ns — click to cancel" bar that replaces the reply buttons
  * after an inline send. Mirrors the fetch shape of undo_send_controller, but
- * lives in the thread instead of a toast: the countdown matches the send
- * delay, and when it runs out the message is on its way, so the bar simply
- * gives the reply buttons back.
+ * lives in the thread instead of a toast.
+ *
+ * `delay` is the CANCEL WINDOW, not the send delay, and the difference is a
+ * bug. This countdown used to be handed the full ten-second hold, so the last
+ * click it accepted was at the moment the worker took the message — a cancel
+ * sent at 9.9s reached the server after the send had started, and the reply
+ * bar had already been swapped for "cancelled". The server now refuses to
+ * confirm a cancel it lost (see MessageRepository::cancelSend), and this
+ * window closes early enough that losing is rare rather than routine.
+ *
+ * When it runs out the message is not gone yet — it goes a couple of seconds
+ * later — but it can no longer be called off, so the bar gives the reply
+ * buttons back.
  */
 export default class extends Controller {
     static targets = ["countdown"];
 
     static values = {
         url: String,
-        delay: { type: Number, default: 10000 },
+        // The fallback is the cancel window, not the send delay — a default
+        // that outlived the hold would reintroduce the very gap this closes.
+        delay: { type: Number, default: 8000 },
     };
 
     connect() {

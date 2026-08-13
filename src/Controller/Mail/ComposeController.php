@@ -68,8 +68,28 @@ class ComposeController extends AbstractController
      */
     public const int MAX_ATTACHMENT_BYTES = DraftAttachmentService::MAX_BYTES;
 
-    /** Matches the DelayStamp on the send job — the cancel window. */
+    /** Matches the DelayStamp on the send job. */
     private const int SEND_DELAY_MS = 10_000;
+
+    /**
+     * How long the cancel affordance is actually offered for — deliberately
+     * SHORTER than the hold above, and that gap is the fix for a reproducible
+     * bug rather than a comfort margin.
+     *
+     * The inline reply bar used to count the full ten seconds, so the last
+     * click it accepted was at the very instant the worker picked the envelope
+     * up. Cancelling at 9.9s then meant a POST whose UPDATE landed after the
+     * send had begun: HTTP 200, "send cancelled", mail delivered. The dock's
+     * toast never showed this because it happened to close at eight seconds,
+     * which is where this number comes from — the two surfaces now share it
+     * instead of one of them being accidentally safe.
+     *
+     * The two seconds are not the guarantee, they are the margin. The
+     * guarantee is MessageRepository::claimForSend(): a cancel that loses
+     * anyway — a slow request, a busy worker — is now TOLD it lost. This is
+     * what keeps that path rare enough to be an edge case.
+     */
+    private const int CANCEL_WINDOW_MS = 8_000;
 
     public function __construct(
         private readonly EntityManagerInterface  $em,
@@ -408,6 +428,12 @@ class ComposeController extends AbstractController
         $message->cancelled            = false;
         $message->submissionCancelledAt = null;
 
+        // And the claim with them. A previous send that failed releases its own
+        // claim, but a draft that was claimed and then rescheduled must not
+        // arrive at SendMessageHandler already looking owned — claimForSend()
+        // would refuse it and the hold would expire in silence.
+        $message->sendClaimedAt = null;
+
         $this->em->flush();
 
         $this->bus->dispatch(
@@ -423,9 +449,19 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($message);
 
-        $this->callOffSend($message);
-
-        $this->em->flush();
+        // Whether the cancel arrived in time is decided in one statement, and
+        // this is the answer to it. Before, nothing asked: the flag was written
+        // and the composer confirmed unconditionally, so a cancel that lost the
+        // race to SendMessageHandler still said "send cancelled" while the mail
+        // was on the wire. Clicking cancel at 9.9s of a ten-second hold did
+        // exactly that, reproducibly.
+        //
+        // Note this must be answered BEFORE the message is re-read for the
+        // form: a lost cancel means the send is in flight or done, and what the
+        // user needs then is the truth, not their draft back.
+        if (false === $this->callOffSend($message)) {
+            return $this->sendAlreadyGoneResponse($request, $message);
+        }
 
         $ctx  = $this->composeContext($request);
         $form = $this->composeForm($message, $ctx);
@@ -492,17 +528,17 @@ class ComposeController extends AbstractController
     {
         $this->assertOwnership($message);
 
-        // Already gone. Nothing is written — not even `cancelled`, which on a
+        // Already gone: nothing is written — not even `cancelled`, which on a
         // message SendMessageHandler has finished with means nothing and reads
         // like a lie — and submissionSendAt stays, because on a sent message it
-        // is the record of when the mail was due. The row is redrawn either
-        // way: whatever the user saw when they clicked was already stale.
-        $sent = null !== $message->sentAt;
-
-        if (false === $sent) {
-            $this->callOffSend($message);
-            $this->em->flush();
-        }
+        // is the record of when the mail was due.
+        //
+        // Not gone: the same question undo() asks, asked the same way. The row
+        // on screen was rendered some time ago, so the hold may have come due
+        // while the user was looking at it; callOffSend() is what distinguishes
+        // "called off" from "you were too late", and the row has to be redrawn
+        // as whichever it was. It used to assume the former unconditionally.
+        $cancelled = null === $message->sentAt && $this->callOffSend($message);
 
         $thread = $message->thread;
         $type   = 'message' === $request->query->get('type') || null === $thread
@@ -513,7 +549,7 @@ class ComposeController extends AbstractController
             'row'         => 'thread' === $type ? $thread : $message,
             'type'        => $type,
             'draft_scope' => $request->query->getBoolean('draft_scope'),
-            'cancelled'   => false === $sent,
+            'cancelled'   => $cancelled,
         ]);
     }
 
@@ -537,15 +573,50 @@ class ComposeController extends AbstractController
      * when it was due, and EmailSubmission/get falls back to it; erasing that
      * would be rewriting history to undo something that already happened.
      *
-     * Does not flush — the callers batch it with whatever else they write.
+     * Answers whether the cancel actually took. False means SendMessageHandler
+     * had already claimed the message and the mail is gone or going — see
+     * MessageRepository::cancelSend(), which is where that is decided, and in
+     * one statement so there is no window for the two to disagree.
+     *
+     * No longer writes through the entity, and that is the point rather than a
+     * detail. Setting a property and flushing is a read-modify-write across the
+     * whole request, and the handler's send used to fit inside it; the UPDATE
+     * below is the same decision compressed into something the database
+     * serialises for us. The entity is refreshed afterwards only so the caller
+     * renders what the row now says.
      */
-    private function callOffSend(Message $message): void
+    private function callOffSend(Message $message): bool
     {
-        $message->cancelled = true;
+        $won = $this->messageRepository->cancelSend((int) $message->id);
 
-        if (null === $message->sentAt) {
-            $message->submissionSendAt = null;
-        }
+        // The row moved underneath the entity either way — we won and it is
+        // cancelled, or we lost and the handler is writing sentAt onto it.
+        $this->em->refresh($message);
+
+        return $won;
+    }
+
+    /**
+     * The honest answer to a cancel that arrived too late.
+     *
+     * There is no draft to reopen here and nothing to undo: the message has
+     * been claimed by the handler and is on its way out or already out. Saying
+     * "send cancelled" and handing the window back — which is what this used to
+     * do unconditionally — was the worst possible answer, because it told the
+     * user the one thing that was not true about an action nobody can reverse.
+     *
+     * The window is not restored, deliberately. Restoring it would put an
+     * editable copy of a mail that has been sent on screen, and the next
+     * autosave would file it as a draft beside the sent copy.
+     */
+    private function sendAlreadyGoneResponse(Request $request, Message $message): Response
+    {
+        $ctx = $this->composeContext($request);
+
+        return $this->renderTurboStream('compose/_undo_too_late.html.twig', [
+            'message' => $message,
+            'ctx'     => $ctx,
+        ]);
     }
 
     /**
@@ -558,7 +629,8 @@ class ComposeController extends AbstractController
     {
         if (false === $ctx['inline']) {
             return $this->renderTurboStream('compose/_send_toast.html.twig', [
-                'message' => $message,
+                'message'     => $message,
+                'cancelWindow' => self::CANCEL_WINDOW_MS,
             ]);
         }
 
@@ -569,7 +641,10 @@ class ComposeController extends AbstractController
                 'app_compose_mail_undo',
                 $ctx['urlParams'] + ['id' => $message->id],
             ),
-            'delay'   => self::SEND_DELAY_MS,
+            // The cancel window, NOT the send delay. Offering the whole delay
+            // is what let a click land after the worker had already claimed
+            // the message — see CANCEL_WINDOW_MS.
+            'delay'   => self::CANCEL_WINDOW_MS,
         ]);
     }
 

@@ -1,0 +1,36 @@
+{#
+compose/_undo_too_late.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The cancel arrived after SendMessageHandler had already claimed the message.
+
+This template exists because the alternative was lying. Every undo used to
+answer with _undo_toast.html.twig — "send cancelled", window restored — whether
+or not the cancel had actually taken, and a cancel clicked in the last fraction
+of the hold does not take. The user was told the one thing that was not true
+about the one action that cannot be reversed.
+
+So: an ERROR toast, not an info one, because something the user asked for did
+not happen; and no window, because there is no draft to reopen. Restoring the
+composer here would put an editable copy of an already-sent mail on screen, and
+the next autosave would file it as a draft standing beside the sent copy.
+
+The dock is emptied for the same reason the send toast empties it — whatever
+window this cancel came from is describing a message that has gone.
+
+Variables: message, ctx
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type: 'error',
+            message: 'toast.send_too_late'|trans,
+            extra: { hide_after: 8000 },
+        } only %}
+    </template>
+</turbo-stream>
+
+{% if false == ctx.inline %}
+    <turbo-stream action="update" target="compose_dock">
+        <template></template>
+    </turbo-stream>
+{% endif %}

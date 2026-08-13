@@ -2195,6 +2195,7 @@ toast:
     dismiss: Away with ye
     schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.
+    send_too_late: Too late, matey — that message has already sailed.
     undo: Belay that
     error:
         no_archive_mailbox: There be no hold on this ship.

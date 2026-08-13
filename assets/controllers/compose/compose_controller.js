@@ -23,6 +23,9 @@ export default class extends Controller {
         i18n: { type: Object, default: {} },
         draftUrl: String,
         sendUrl: String,
+        // The send pill's "send later" target. Kept here beside the other two
+        // because the three go stale together — see _adoptSavedUrls().
+        scheduleUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
@@ -1791,21 +1794,16 @@ export default class extends Controller {
             });
 
             if (true === response.ok) {
+                // Outside the status-target check on purpose. Reading the new
+                // URLs used to be conditional on there being somewhere to print
+                // "Draft saved", which tied whether the window's routes were
+                // correct to whether it had a status line — two unrelated
+                // things. A window without one still needs to know its own id.
+                const html = await response.text();
+                const doc  = new DOMParser().parseFromString(html, 'text/html');
+                this._adoptSavedUrls(doc);
+
                 if (status) {
-                    const html = await response.text();
-                    const doc  = new DOMParser().parseFromString(html, 'text/html');
-                    const newController = doc.querySelector('[data-compose--compose-draft-url-value]');
-                    const oldForm = this.element.querySelector('form');
-
-                    if (newController) {
-                        this.draftUrlValue = newController.getAttribute('data-compose--compose-draft-url-value');
-                        this.sendUrlValue  = newController.getAttribute('data-compose--compose-send-url-value');
-                    }
-
-                    if (oldForm) {
-                        oldForm.action = this.sendUrlValue;
-                    }
-
                     this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
                 }
 
@@ -1817,6 +1815,57 @@ export default class extends Controller {
             }
         } catch (_) {
             this._setStatus(this._t('saveFailed', 'Could not save the draft'), 'text-danger');
+        }
+    }
+
+    /**
+     * Take the id-bearing URLs out of an autosave response.
+     *
+     * A window opens with no message id, so every route it knows is the
+     * "create" one. The first autosave mints the id and answers with a window
+     * that knows all the id-bearing routes; this is where the open window
+     * catches up with it.
+     *
+     * The schedule URL is the one that was missing, and its absence was a
+     * permanent duplicate draft rather than a broken button. The send pill's
+     * items are submit buttons carrying `formaction`, rendered once when the
+     * window opened, so they went on pointing at `/compose/schedule` with no
+     * id. ComposeController::schedule() takes a null message there and does
+     * exactly what it is told — builds a NEW one. The result was two identical
+     * rows in Drafts from one composition, one of them scheduled and one of
+     * them stranded, and the stranded one never went away because nothing
+     * afterwards knew it was a twin.
+     *
+     * Belt and braces on the form action too: `formaction` on a submit button
+     * beats `action` on the form, so both have to be right.
+     */
+    _adoptSavedUrls(doc) {
+        const fresh = doc.querySelector('[data-compose--compose-draft-url-value]');
+
+        if (!fresh) { return; }
+
+        this.draftUrlValue = fresh.getAttribute('data-compose--compose-draft-url-value');
+        this.sendUrlValue  = fresh.getAttribute('data-compose--compose-send-url-value');
+
+        const scheduleUrl = fresh.getAttribute('data-compose--compose-schedule-url-value');
+
+        if (scheduleUrl) {
+            this.scheduleUrlValue = scheduleUrl;
+
+            // Every schedule submit button in this window: the presets, and the
+            // custom picker's confirm. There are two send pills (the header one
+            // below md and the action-bar one above it) and both are live.
+            for (const button of this.element.querySelectorAll(
+                '[data-compose-send-pill] button[formaction]',
+            )) {
+                button.setAttribute('formaction', scheduleUrl);
+            }
+        }
+
+        const form = this.element.querySelector('form');
+
+        if (form) {
+            form.action = this.sendUrlValue;
         }
     }
 
