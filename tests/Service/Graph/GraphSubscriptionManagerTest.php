@@ -74,9 +74,17 @@ final class GraphSubscriptionManagerTest extends KernelTestCase
             'push on but never subscribed is not a degraded subscription',
         );
 
+        // Lapsed, not Degraded, now that the two are told apart: the expiry has
+        // passed, which is a fact and says renewal did not run. Graph has no
+        // Degraded case at all — it validates the callback URL when the
+        // subscription is created, so a live unexpired one is a reachable one.
         $this->account->graphSubscriptionId = 'sub-1';
         $this->account->graphSubscriptionExpiresAt = new DateTimeImmutable('-1 hour');
-        self::assertSame(PushHealth::Degraded, $this->manager->health($this->account));
+        self::assertSame(PushHealth::Lapsed, $this->manager->health($this->account));
+        self::assertTrue(
+            $this->manager->health($this->account)->needsRepair(),
+            'and it is one of the states --repair re-registers',
+        );
 
         $this->account->graphSubscriptionExpiresAt = new DateTimeImmutable('+2 days');
         self::assertSame(PushHealth::Active, $this->manager->health($this->account));

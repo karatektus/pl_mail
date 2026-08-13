@@ -22,3 +22,24 @@ services:
     App\Tests\Support\Calendar\ScriptedCalendarSyncDriver:
         tags:
             - { name: 'app.calendar_sync_driver', priority: 100 }
+
+    # The same shape, for the same reason, one layer over. DataResetter and both
+    # push registries are `final readonly` and cannot be mocked — deliberately —
+    # so proving that a reset hands its registrations back BEFORE it truncates
+    # the credentials needed to do so means joining the tagged iterator that
+    # feeds them.
+    #
+    # Priority again load-bearing, and again safe: this claims only accounts
+    # whose address carries ScriptedPushManager::MARKER, so being asked first
+    # costs the real Gmail and Graph managers nothing. A stub that claimed every
+    # account would silently take over push for the entire suite.
+    App\Tests\Support\Push\ScriptedPushManager:
+        public: true
+        tags:
+            - { name: 'app.push_subscription_manager', priority: 100 }
+
+    # And the calendar half, for the removal paths that never revoked at all.
+    App\Tests\Support\Push\ScriptedCalendarPushManager:
+        public: true
+        tags:
+            - { name: 'app.calendar_push_manager', priority: 100 }

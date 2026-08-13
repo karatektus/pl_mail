@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -298,6 +299,21 @@ final class GmailApiSyncer
         $this->dispatchBatches($account, array_values(array_unique($wanted)));
 
         $account->gmailHistoryId = (string) $result['historyId'];
+
+        // Only when the feed actually carried records. history.list answers with
+        // a current historyId on every call, including the overwhelmingly common
+        // one where nothing has happened, so writing the timestamp on every run
+        // would record "the mailbox changed" every fifteen minutes forever and
+        // make the evidence worthless.
+        //
+        // A non-empty history is the real thing: Gmail pushes on any of these
+        // records, so each one is a change that a working push had already
+        // announced — and if it had not, that is what the health check is
+        // reading this column to find out.
+        if ([] !== $result['history']) {
+            $account->gmailHistoryAdvancedAt = new DateTimeImmutable();
+        }
+
         $this->em->flush();
     }
 

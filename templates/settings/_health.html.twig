@@ -90,6 +90,57 @@
                                     {{ issue.kind.bodyKey|trans(issue.bodyParams) }}
                                 </p>
 
+                                {#
+                                    The dated evidence the verdict was read off.
+
+                                    Above the repair, not behind the technical
+                                    disclosure below it, and that placement is
+                                    the point. The disclosure holds a provider's
+                                    raw error string — something to search for,
+                                    not something to reason with. These are the
+                                    three dates that answer "is this lapsed or
+                                    silent?", which is the question somebody
+                                    was left unable to answer from the app at
+                                    all, and an answer behind a click is an
+                                    answer most people never see.
+
+                                    Dates are formatted here rather than in the
+                                    inspector because this is where the locale
+                                    is known — see HealthFact.
+
+                                    `Y-m-d H:i`, which is what every other dated
+                                    row in settings uses (app passwords, push
+                                    devices, calendars, the admin panel). These
+                                    lines are read next to a scheduler log and a
+                                    provider console, and a sortable unambiguous
+                                    stamp is what that comparison needs — this
+                                    is the one place a localised "13 Aug, 4:00
+                                    am" would be harder to use, not easier.
+                                #}
+                                {% if issue.facts is not empty %}
+                                    <dl class="mt-2.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-health-facts>
+                                        {% for fact in issue.facts %}
+                                            <dt class="text-ink-faint">{{ fact.labelKey|trans }}</dt>
+                                            {# Only a deadline that has gone by
+                                               is tinted — see HealthFact
+                                               $alarmWhenPast. Every other date
+                                               here is in the past by
+                                               definition, and colouring those
+                                               would make the colour meaningless
+                                               on the card that most needs it to
+                                               mean something. #}
+                                            <dd class="{{ fact.isOverdue ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-ink-muted' }}"
+                                                data-health-fact="{{ fact.labelKey }}">
+                                                {% if fact.isKnown %}
+                                                    {{ fact.at|date('Y-m-d H:i') }}
+                                                {% else %}
+                                                    {{ fact.noneKey|trans }}
+                                                {% endif %}
+                                            </dd>
+                                        {% endfor %}
+                                    </dl>
+                                {% endif %}
+
                                 {% set safeRepairs = issue.safeRepairs %}
                                 {% set riskyRepairs = issue.destructiveRepairs %}
 

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Maintenance;
 
 use App\Infrastructure\Setup\GeneratedSecretsFile;
+use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Maintenance\DataResetRepository;
 use App\Service\Monitoring\WorkerRestartSignal;
+use App\Service\Push\PushTeardown;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Throwable;
@@ -58,9 +61,53 @@ final readonly class DataResetter
         private GeneratedSecretsFile $secrets,
         private Filesystem $filesystem,
         private WorkerRestartSignal $workerRestart,
+        private PushTeardown $pushTeardown,
+        private AccountRepository $accounts,
+        private CalendarRepository $calendars,
         #[Autowire('%kernel.project_dir%')]
         private string $projectDir,
     ) {
+    }
+
+    /**
+     * Hand back every provider-side registration this reset is about to make
+     * un-revocable, before it does.
+     *
+     * ── Why this is here and not in the command ──────────────────────────────
+     * The admin panel presses the same buttons. Two implementations of "delete
+     * everything" is the risk this class was extracted to avoid, and revoking
+     * in only one of them would recreate it in the worst possible form: the web
+     * reset would leave live channels behind and the CLI one would not.
+     *
+     * ── Why BEFORE the truncate, specifically ────────────────────────────────
+     * Revocation needs the OAuth token on the account row and the channel id on
+     * the calendar row. After the truncate both are gone, and the registration
+     * becomes permanently un-callable-off — the provider keeps delivering to an
+     * endpoint that cannot recognise what is arriving until the registration
+     * expires on its own. That is exactly the state the install this was
+     * written for was left in.
+     *
+     * ── What is revoked at which depth ───────────────────────────────────────
+     * Only what is actually being destroyed. A plain reset keeps accounts and
+     * calendars, so their registrations stay valid and must not be torn down —
+     * revoking them would turn a data reset into a push outage lasting until
+     * the next renewal sweep.
+     */
+    private function revokePushFor(ResetScope $scope): int
+    {
+        $revoked = 0;
+
+        if (true === $scope->mailboxes) {
+            // --mailboxes is what deletes the calendar rows; their Google
+            // channels and Graph subscriptions go with them.
+            $revoked += $this->pushTeardown->forCalendars($this->calendars->findAll());
+        }
+
+        if (true === $scope->accounts) {
+            $revoked += $this->pushTeardown->forAccounts($this->accounts->findAll());
+        }
+
+        return $revoked;
     }
 
     /**
@@ -69,6 +116,9 @@ final readonly class DataResetter
      */
     public function reset(ResetScope $scope): ResetReport
     {
+        // First, while the tokens and channel ids still exist to do it with.
+        $pushRevoked = $this->revokePushFor($scope);
+
         $tables = [
             'messenger_messages',
             'message_part',
@@ -171,6 +221,7 @@ final readonly class DataResetter
         return new ResetReport(
             tables: $attempted,
             cursorsCleared: $cursorsCleared,
+            pushRevoked: $pushRevoked,
         );
     }
 
@@ -185,6 +236,16 @@ final readonly class DataResetter
      */
     public function fullReset(bool $rotateSecrets): ResetReport
     {
+        // Everything goes, so everything is revoked. Same reasoning as reset(),
+        // with none of the depth questions: after this there is no account and
+        // no calendar left to call anything off with.
+        $pushRevoked = $this->revokePushFor(new ResetScope(
+            mailboxes: true,
+            contacts: true,
+            accounts: true,
+            monitoring: true,
+        ));
+
         $tables = $this->tables->everyDataTable();
         $attempted = [];
 
@@ -213,7 +274,7 @@ final readonly class DataResetter
             // the old one in memory until they restart, so for a while half of
             // them cannot read what the other half writes. The data it
             // protected is gone anyway, which is most of the reason to rotate.
-            return new ResetReport(tables: $attempted, emptiedDirectories: $emptied);
+            return new ResetReport(tables: $attempted, emptiedDirectories: $emptied, pushRevoked: $pushRevoked);
         }
 
         $removed = $this->secrets->remove(self::RESETTABLE_SECRETS);
@@ -242,6 +303,7 @@ final readonly class DataResetter
             emptiedDirectories: $emptied,
             removedSecrets: $removed,
             workersSignalled: $workersSignalled,
+            pushRevoked: $pushRevoked,
         );
     }
 

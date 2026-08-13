@@ -314,6 +314,7 @@ admin:
             active: 'firin'' true'
             degraded: 'primed, but silent'
             inactive: 'stowed'
+            lapsed: 'run out'
         heading: 'Gmail webhooks'
         history_id: 'History ID'
         last_push: 'Last cannon shot'
@@ -1403,6 +1404,11 @@ settings:
         primary: Flagship
         primary_explained: New bottles sail from this ship unless ye say otherwise.
         push:
+            lapsed_hint: >-
+                Th'' push registration ran out an'' were never renewed, so
+                naught be delivered. Renewal sails daily on its own — if this
+                keeps happenin'', th'' scheduled-task hand has stopped. Post be
+                still fetched on th'' bell.
             degraded_hint:
                 gmail: >-
                     The cannon be loaded but naught has been heard lately. The
@@ -1427,6 +1433,7 @@ settings:
                 active: Cannon
                 degraded: Cannon (misfirin')
                 inactive: On the bell
+                lapsed: Cannon (run out)
             mode_pull: On the bell
             mode_push: Cannon
             not_configured: >-
@@ -1727,10 +1734,24 @@ settings:
             destructive: >-
                 This heaves th'' waitin'' work overboard fer good. Naught be
                 tried again, an'' naught comes back up. Carry on?
+        fact:
+            never: 'never'
+            never_delivered: 'naught ever came ashore'
+            never_run: 'no run in th'' log'
+            not_registered: 'not registered'
+            push_expires: 'Registration runs out'
+            push_last_delivered: 'Last signal heard'
+            push_last_renewal: 'Renewal last sailed'
         flash:
             calendar_resync: >-
                 %calendar% be signed up fer a sync. She''s runnin'' below decks
                 now, and th'' card below will say how she fared.
+            push_repair_failed: >-
+                Could not sign %account% up fer instant delivery again. She
+                stays on th'' bell, so yer post keeps arrivin''. Th'' card below
+                shows what be known.
+            push_repaired: >-
+                Instant delivery signed up again fer %account%.
             queue_discarded: 'Heaved %count% abandoned tasks overboard.'
             queue_retried: 'Put %count% abandoned tasks back in th'' queue.'
         heading: 'State o'' yer crew'
@@ -1767,11 +1788,24 @@ settings:
                 title: '%connection% needs joinin'' again'
             push_degraded:
                 body: >-
-                    Yer post still arrives, only not th'' instant it be sent —
-                    this one has fallen back t'' checkin'' on th'' bell, so
-                    fresh letters can take some minutes t'' show. Naught be
-                    lost, an'' there be no hurry.
-                title: 'Instant delivery be off fer %account%'
+                    Th'' registration still stands an'' has not run out, yet
+                    post has come ashore that it never cried out — so th''
+                    signals be lost somewhere 'twixt th'' provider an'' this
+                    here install, not left unasked fer. Fer Gmail that points
+                    at th'' Pub/Sub subscription in Google''s Cloud: see that
+                    it still carries yer topic t'' this address. Yer post keeps
+                    arrivin'' on th'' bell meanwhile, some minutes later than
+                    it ought.
+                title: 'Instant delivery be registered but not arrivin'' fer %account%'
+            push_lapsed:
+                body: >-
+                    Th'' registration ran out an'' were never renewed, so naught
+                    be pushed at all. Renewal sails once a day on its own; if
+                    th'' last run below be days astern, th'' scheduled-task hand
+                    has stopped an'' that be what wants mendin'', not this
+                    account. Yer post keeps arrivin'' on th'' bell, some minutes
+                    later than it ought.
+                title: 'Instant delivery ran out fer %account%'
             queue_work_abandoned:
                 body: >-
                     %count% below-decks tasks tried, failed again an'' again,

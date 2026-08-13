@@ -94,7 +94,7 @@ class ResetDataCommand extends Command
             'monitoring data: ' . ($resetMonitoring ? 'cleared' : 'kept'),
         ]);
 
-        $io->section('Truncating tables...');
+        $io->section('Handing back push registrations...');
 
         $report = $this->resetter->reset(new ResetScope(
             mailboxes: $deleteMailboxes,
@@ -102,6 +102,16 @@ class ResetDataCommand extends Command
             accounts: $deleteAccounts,
             monitoring: $resetMonitoring,
         ));
+
+        // Said before the tables, because that is the order it happened in and
+        // because it is the step whose silence used to be the problem: a reset
+        // that truncated the rows while Google and Microsoft went on pushing at
+        // this install left warnings nobody could trace back to here. Zero is
+        // printed too — "0 revoked" on an install with push accounts is worth
+        // seeing, and a line that only appears on success teaches nothing.
+        $io->text(sprintf('✓ %d provider-side registration(s) revoked', $report->pushRevoked));
+
+        $io->section('Truncating tables...');
 
         $this->reportTables($io, $report);
 
@@ -165,9 +175,13 @@ class ResetDataCommand extends Command
             return Command::SUCCESS;
         }
 
-        $io->section('Truncating every table...');
+        $io->section('Handing back push registrations...');
 
         $report = $this->resetter->fullReset($rotateSecrets);
+
+        $io->text(sprintf('✓ %d provider-side registration(s) revoked', $report->pushRevoked));
+
+        $io->section('Truncating every table...');
 
         $io->text(sprintf('✓ %d tables', count($report->tables)));
 
