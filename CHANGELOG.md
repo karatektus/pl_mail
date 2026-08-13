@@ -6,6 +6,100 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.34 — 2026-08-13
+
+**Four migrations, all additive and all backfilled — no reset is needed, and no
+existing install should look different on the morning after except where this
+entry says so. The compose window had six buttons that did nothing; it now has
+none. Most of the rest answers a second external audit of the running app.**
+
+**Every button in the compose window does something.** Six of them were
+placeholders — named, so a screen reader could reach them, and inert. The
+emoji button now opens the whole Unicode set with search, skin tones and
+recents, served by the app rather than a CDN, and it deliberately does not
+interpret what you type: `:)` and `:smile:` stay as you wrote them. The image
+button, paste and drag-and-drop all insert an inline image that travels as a
+`cid:` part rather than an attachment. The link button opens a small panel with
+the address and the text, prefilled from whatever you had selected, and a link
+already in the message offers Open, Change and Remove. **Signatures** are a
+settings section of their own, account-wide with per-address overrides, and an
+address can inherit, sign with nothing, or carry its own — three states that
+stay distinct. The **⋮** menu holds priority, a read-receipt request and a
+plain-text mode that warns before it discards formatting. **Encrypt is still
+disabled**, with a tooltip saying so; it needs certificate storage and key
+custody, and a button that pretends otherwise would be worse than an honest
+one.
+
+**Mail can be sent later.** The chevron beside Send offers a few presets and a
+custom date and time, resolved in the timezone and clock format you configured
+rather than the browser's guess. A scheduled draft says so in the list and can
+be called off from the row. The hold has a floor of a minute and the ceiling
+the JMAP session already advertised, so the web composer and the API cannot
+disagree about how long mail can wait.
+
+**Read receipts work in both directions, and the default is to send nothing.**
+Requesting one is a tick in the ⋮ menu. Being asked for one is the half that
+matters: the default is **never send**, set per address, with "ask each time"
+and "always" as opt-ins — and an automatic send is downgraded to asking
+whenever the address the receipt is requested *to* disagrees with the sender,
+because that mismatch is a known trick. A receipt that comes back marks the
+sent message read instead of landing in the inbox as a cryptic bare message.
+
+**New mail is marked as new until you have seen it in a list.** A different
+axis from unread on purpose: a thread you scrolled past but never opened is no
+longer new, yet is still unread. It shows as a badge on the row and a dot on
+the inbox tabs and sidebar, and it expires 24 hours after the last message, so
+it is something you notice rather than a debt to be worked off. Existing
+threads are backfilled as already seen — nobody's mailbox lights up on deploy.
+
+**When an account breaks, the app says so and offers to fix it.** A dead
+sign-in was recorded faithfully in a column no template ever read, so a single
+refused Google grant could produce thousands of log lines and stop three
+calendars syncing while the interface said nothing. There is now a health
+section that names the problem in a sentence and offers repairs that keep the
+mailbox — chiefly reconnecting an account **in place**, which writes a fresh
+grant onto the existing row and keeps mail, labels, rules, threads and
+calendars, and which refuses outright if the re-consented identity is a
+different address or provider. A calendar failing permanently now backs off
+instead of re-reporting the same failure every cycle, and still reports the
+first occurrence and any change.
+
+**Reordering your accounts no longer changes which one sends.** `sort_order`
+was quietly doing three jobs — row position, the primary account, and the
+identity colour beside each account — so dragging a row to tidy the list
+changed your outgoing address and repainted two accounts' marks everywhere.
+Display order is now only display order, the primary account is chosen with
+its own button, and the colour is stored per account and backfilled from the
+old order, so no existing install sees its dots move. That coloured dot was
+never a status light; account status lives on the health page.
+
+**A page of mail is drawn in about twenty queries instead of a hundred and
+twenty.** Search was the worst at a hundred and sixty-seven. Half the cost was
+not the obvious N+1 at all: a Twig global re-ran its query every time anything
+touched it, and the row template touches it once per row. Search had never
+preloaded labels. A query-count ceiling now guards every list, because a
+reintroduced lazy load costs exactly one page of rows and cannot hide under it.
+
+**The calendar is drawn in your timezone.** The current-time line and the
+new-event defaults were computed in UTC — three places all falling back to the
+process default, which the container pins to UTC. An event saved to a *hidden*
+calendar was also invisible with no error, because the editor lists hidden
+calendars and the views do not; the save now lands somewhere you can see, and
+the editor marks the hidden ones.
+
+**Fixes found by testing the running app, in the places nobody looks:**
+confirmation messages were written to the session by five controllers and read
+by nothing, so those sentences never appeared at all. Scheduling a send under a
+minute away was refused by the server and the refusal was rendered nowhere, so
+the composer simply sat there. Clicking the empty space below a signature put
+the caret at the end of the sign-off, so the first sentence typed was swallowed
+into it and the message then counted as empty. The theme preset tiles each
+carried `data-theme`, which is the selector every theme block uses, so every
+tile redeclared the whole palette onto itself and its label was painted in the
+theme it named — at 1.22:1 against its background. Compose toolbar labels were
+Swiss German (`vergrössern`) in an otherwise `ß` interface; the inbox tab
+"Updates" and the system folder names in settings were never translated at all.
+
 ## v0.0.33 — 2026-08-12
 
 **No migration. Two features, a fix, and a change to how the image is published.**
