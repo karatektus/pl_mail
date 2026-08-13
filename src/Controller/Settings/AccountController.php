@@ -143,38 +143,112 @@ final class AccountController extends AbstractController
         $this->entityManager->remove($account);
         $this->entityManager->flush();
 
-        $this->resequence($this->accountRepository->findForUserOrdered($this->getUser()));
+        $remaining = $this->accountRepository->findForUserOrdered($this->getUser());
+
+        $this->resequence($remaining);
+
+        // Deleting the primary is one of the two ways the "exactly one" rule
+        // can be lost now that it is a flag rather than position 0 — the other
+        // being the very first account, which create() covers. Without this the
+        // user would be left with accounts and no default sender at all.
+        $this->accountCreator->ensurePrimary($remaining);
+
         $this->entityManager->flush();
 
         return $this->streamAccountList($request, 'account.removed');
     }
-    #[Route('/{id}/reorder', name: 'reorder', methods: ['PATCH'])]
-    public function reorder(Request $request, Account $account): Response
+    /**
+     * The display order of the account list, and nothing else.
+     *
+     * A collection route taking the whole arrangement as JSON, exactly like
+     * MailRuleController::reorder. It replaces a per-account PATCH driven by
+     * @stimulus-components/sortable, which built its own multipart body and
+     * offered nowhere to put a token — so this was the one mutation on the page
+     * with no CSRF check at all. The rules list had already solved that by
+     * dropping the wrapper for sortablejs; the accounts list now does the same.
+     *
+     * Sending the whole order also makes the write idempotent: a duplicated
+     * request lands on the same arrangement instead of shifting a row twice.
+     *
+     * What it deliberately does NOT do is touch isPrimary. That coupling — top
+     * of the list means "sends your mail" — is the reported fault: dragging a
+     * row to tidy a list silently changed which address Compose sent from, with
+     * nothing on screen saying it would. Choosing the sender is makePrimary()
+     * below, and it is a button that says what it does.
+     */
+    #[Route('/reorder', name: 'reorder', methods: ['POST'])]
+    public function reorder(Request $request): JsonResponse
     {
-        $this->denyUnlessOwner($account);
+        if (false === $this->isCsrfTokenValid('account_reorder', (string) $request->headers->get('X-CSRF-Token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
 
-        // No CSRF token here: @stimulus-components/sortable owns the request body
-        // (it only sends account[position]). The action is authenticated,
-        // same-origin, and non-destructive. Say the word if you want parity with
-        // toggle/delete and I'll wire an X-CSRF-Token header + meta tag.
-        $position = (int) ($request->getPayload()->all('account')['position'] ?? 0);
+        $ids = $request->toArray()['ids'] ?? null;
 
-        $ordered = $this->accountRepository->findForUserOrdered($this->getUser());
+        if (false === is_array($ids)) {
+            return $this->json(['ok' => false], Response::HTTP_BAD_REQUEST);
+        }
 
-        // Pull the dragged account out, re-insert at the target index.
-        $ordered = array_values(array_filter($ordered, static function (Account $candidate) use ($account): bool {
-            return $candidate->id !== $account->id;
-        }));
+        $ids      = array_values(array_filter(array_map('intval', $ids)));
+        $accounts = $this->accountRepository->findForUserOrdered($this->getUser());
 
-        $targetIndex = max(0, min(count($ordered), $position - 1));
-        array_splice($ordered, $targetIndex, 0, [$account]);
+        // Indexed by id, so an id that is not this user's simply finds nothing
+        // — the arrangement is built from rows we already fetched as theirs,
+        // never from the ids the request asked for.
+        $byId = [];
+
+        foreach ($accounts as $account) {
+            $byId[(int) $account->id] = $account;
+        }
+
+        $ordered = [];
+
+        foreach ($ids as $id) {
+            if (true === array_key_exists($id, $byId)) {
+                $ordered[] = $byId[$id];
+
+                unset($byId[$id]);
+            }
+        }
+
+        // Anything the payload left out keeps its existing relative order at
+        // the end, so a stale tab cannot delete rows from the list by omission.
+        foreach ($byId as $account) {
+            $ordered[] = $account;
+        }
 
         $this->resequence($ordered);
         $this->entityManager->flush();
 
-        return $this->render('account/_reorder.stream.html.twig', [
-            'manageableAccounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
-        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+        return $this->json(['ok' => true]);
+    }
+
+    /**
+     * Choose the account new messages are sent from.
+     *
+     * The explicit half of splitting order from identity. It used to be that
+     * whatever sat at position 0 was primary, so this was reachable only by
+     * dragging — and a person dragging a row is arranging a list, not changing
+     * their return address. Now the list order says nothing about it and this
+     * button is the only thing that does.
+     */
+    #[Route('/{id}/primary', name: 'primary', methods: ['POST'])]
+    public function makePrimary(Request $request, Account $account): Response
+    {
+        $this->denyUnlessOwner($account);
+
+        if (false === $this->isCsrfTokenValid('account-primary' . $account->id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $this->accountCreator->makePrimary(
+            $account,
+            $this->accountRepository->findForUserOrdered($this->getUser()),
+        );
+
+        $this->entityManager->flush();
+
+        return $this->streamAccountList($request, 'account.primary_set');
     }
 
     #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]

@@ -1,5 +1,10 @@
 {# The frame response for an account the user has just expanded. The rows are
-   shared with the sidebar's own inline render — see _account_folder_rows. #}
-<turbo-frame id="account-folders-{{ account.id }}">
+   shared with the sidebar's own inline render — see _account_folder_rows.
+
+   `frameId` rather than a literal: the desktop rail and the mobile drawer each
+   render a frame for this account and they cannot share an id, so the reply has
+   to wear whichever one asked. MailController::folderFrameId() decides, and
+   only ever returns one of the two. #}
+<turbo-frame id="{{ frameId|default('account-folders-' ~ account.id) }}">
     {% include 'mail/_account_folder_rows.html.twig' with { account: account, labels: labels } only %}
 </turbo-frame>

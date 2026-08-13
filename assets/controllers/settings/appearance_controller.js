@@ -36,17 +36,27 @@ export default class extends Controller {
         this.queue();
     }
 
+    /**
+     * The tiles name their theme in `data-theme-name`, NOT `data-theme`.
+     *
+     * `data-theme` is the palette switch: every block in app.css that declares
+     * one is selected by that attribute, so a tile carrying it re-declared the
+     * whole palette on itself and its label was painted in the colours of the
+     * theme it names rather than the theme you are looking at. That is what put
+     * "Nord" on screen at 1.22:1 in Solar. The blocks are :root-scoped now as
+     * well, so neither half of the fault can come back on its own.
+     */
     pickTheme(event) {
-        const theme = event.currentTarget.dataset.theme;
+        const theme = event.currentTarget.dataset.themeName;
 
         this.themeTarget.value = theme;
 
         this.root.dataset.theme = theme;
         this.root.classList.toggle('dark', this.resolvesDark(event.currentTarget));
 
-        this.element.querySelectorAll('[data-theme]').forEach((button) => {
-            button.classList.toggle('ring-2', button.dataset.theme === theme);
-            button.classList.toggle('ring-accent', button.dataset.theme === theme);
+        this.element.querySelectorAll('[data-theme-name]').forEach((button) => {
+            button.classList.toggle('ring-2', button.dataset.themeName === theme);
+            button.classList.toggle('ring-accent', button.dataset.themeName === theme);
         });
 
         // A theme may seed knobs too, the way a layout does. The accent has to
@@ -85,7 +95,7 @@ export default class extends Controller {
      * light palette until the next navigation put it back.
      */
     resolvesDark(button) {
-        if (button.dataset.theme === 'system') {
+        if (button.dataset.themeName === 'system') {
             return window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
 

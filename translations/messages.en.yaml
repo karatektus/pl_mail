@@ -22,6 +22,7 @@ account:
         google: Continue with Google
         info: Sign in with your provider — no password stored.
         microsoft: Continue with Microsoft
+    primary_set: Primary account changed
     removed: Account removed
     tabs:
         imap: IMAP / SMTP
@@ -1677,8 +1678,17 @@ settings:
         empty: No accounts yet. Add one to start syncing mail.
         enable: Enable account
         heading: Mail accounts
+        make_primary: Make primary
+        make_primary_explained: 'Send new messages from %account% by default'
+        move_down: 'Move %account% down the list'
+        move_up: 'Move %account% up the list'
+        order_hint: >-
+            Drag to arrange this list. The order is how accounts are shown and
+            nothing else — the account new messages are sent from is the one
+            marked Primary.
         password_help: Leave blank to keep the current password.
         primary: Primary
+        primary_explained: New messages are sent from this account by default.
         push:
             degraded_hint:
                 gmail: >-
@@ -2427,8 +2437,13 @@ sidebar:
         heading: Accounts
         loading: Loading…
         none: No accounts yet
+        colour: 'Colour marking %account%'
+        colour_disabled: 'Colour marking %account%, which is switched off'
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
+    badge:
+        total: '%count% in total'
+        unread: '%count% unread'
     compose: Compose
     labels:
         add: Create label

@@ -92,7 +92,7 @@ async function pick(page: Page, theme: string): Promise<void> {
         (response) => response.url().includes("/appearance") && response.request().method() === "POST",
     );
 
-    await page.locator(`${PANEL} [data-theme="${theme}"]`).click();
+    await page.locator(`${PANEL} [data-theme-name="${theme}"]`).click();
     await saved;
 }
 
@@ -122,8 +122,8 @@ async function setLayout(page: Page, layout: string): Promise<void> {
 }
 
 async function themeNames(page: Page): Promise<string[]> {
-    return page.locator(`${PANEL} [data-theme]`).evaluateAll(
-        (buttons) => buttons.map((button) => (button as HTMLElement).dataset.theme ?? ""),
+    return page.locator(`${PANEL} [data-theme-name]`).evaluateAll(
+        (buttons) => buttons.map((button) => (button as HTMLElement).dataset.themeName ?? ""),
     );
 }
 

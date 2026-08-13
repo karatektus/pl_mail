@@ -90,7 +90,7 @@ function patchNewDots(counts) {
 
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "tree"];
-    static values = { countsUrl: String };
+    static values = { countsUrl: String, i18n: Object };
 
     connect() {
         // Both before the first paint of this element, so nothing is seen in
@@ -185,11 +185,35 @@ export default class extends Controller {
 
             badge.textContent = count;
             badge.classList.toggle("hidden", count === 0);
+
+            // The number and the name it is read out with are one statement.
+            // Patching only the text left a screen reader saying "3 unread"
+            // over a badge that had moved on to 7 — and on Trash and Drafts it
+            // would have said "unread" over a total, which is the very thing
+            // the two badge shapes exist to keep apart.
+            this._nameBadge(badge, count);
         });
 
         patchNewDots(counts);
 
         this._updateTitle(counts);
+    }
+
+    /**
+     * Re-label one badge for the count it now shows.
+     *
+     * A badge with no `data-badge-kind`, or a page that shipped no strings, is
+     * left exactly as the server rendered it: a wrong name is worse than the
+     * one that is already correct.
+     */
+    _nameBadge(badge, count) {
+        const template = this.hasI18nValue ? this.i18nValue[badge.dataset.badgeKind] : null;
+
+        if (!template) {
+            return;
+        }
+
+        badge.setAttribute("aria-label", template.replace("%count%", String(count)));
     }
 
     /**

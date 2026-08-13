@@ -114,10 +114,84 @@ final class ThreadParticipantsTest extends TestCase
         self::assertSame([], $this->participants->forThread($this->thread()));
     }
 
+    // ── one name per person, not one per address ──────────────────────────
+
+    /**
+     * The reported row: a Trash thread whose sender column read "ich, ich".
+     *
+     * De-duplication was by ADDRESS, and this account owns two of them — its
+     * email and its username. The reader wrote from each at some point, both
+     * resolved to the label "me", and the column printed it twice. Which is a
+     * row that says a conversation has two participants who are both you.
+     */
+    public function testTheReaderIsNamedOnceEvenWhenTheyWroteFromTwoOwnAddresses(): void
+    {
+        $thread = $this->thread(
+            $this->message('joerg@example.test', 'Jörg Müller', '2026-07-28 09:00:00'),
+            $this->message('me@example.test', 'Me Myself', '2026-07-28 10:00:00'),
+            $this->message('me.other@example.test', 'Me Myself', '2026-07-28 11:00:00'),
+        );
+
+        self::assertSame(['Jörg Müller', 'ich'], $this->participants->forThread($thread, 'ich'));
+    }
+
+    /**
+     * And the same collapse when the reader is the ONLY participant, which is
+     * the case the fallback to recipients has to be reached through: two owned
+     * addresses used to make `names` ['me', 'me'], which is not `[$me]`, so the
+     * thread did not look self-written and the recipients never stood in.
+     */
+    public function testAThreadTheReaderWroteFromTwoOwnAddressesStillFallsBackToRecipients(): void
+    {
+        $first  = $this->message('me@example.test', 'Me Myself', '2026-07-28 09:00:00');
+        $second = $this->message('me.other@example.test', 'Me Myself', '2026-07-28 10:00:00');
+
+        $second->toAddresses = [['name' => 'Jörg Müller', 'address' => 'joerg@example.test']];
+
+        self::assertSame(
+            ['Jörg Müller'],
+            $this->participants->forThread($this->thread($first, $second)),
+        );
+    }
+
+    /**
+     * A correspondent writing from two of their own addresses under one name is
+     * the same fault with somebody else's name in it.
+     */
+    public function testOneCorrespondentWritingFromTwoAddressesIsNamedOnce(): void
+    {
+        $thread = $this->thread(
+            $this->message('joerg@example.test', 'Jörg Müller', '2026-07-28 09:00:00'),
+            $this->message('j.mueller@example.test', 'Jörg Müller', '2026-07-28 10:00:00'),
+        );
+
+        self::assertSame(['Jörg Müller'], $this->participants->forThread($thread));
+    }
+
+    /** Recipients collapse too — the Sent column is built from those. */
+    public function testRepeatedRecipientNamesCollapse(): void
+    {
+        $message = $this->message('me@example.test', 'Me Myself', '2026-07-28 09:00:00');
+        $message->toAddresses = [
+            ['name' => 'Jörg Müller', 'address' => 'joerg@example.test'],
+            ['name' => 'Jörg Müller', 'address' => 'j.mueller@example.test'],
+            ['name' => 'Anna', 'address' => 'anna@example.test'],
+        ];
+
+        self::assertSame(
+            ['Jörg Müller', 'Anna'],
+            $this->participants->forThread($this->thread($message)),
+        );
+    }
+
     private function thread(Message ...$messages): MessageThread
     {
-        $account        = new Account();
-        $account->email = 'me@example.test';
+        // email AND username, because that is what Account::$ownedAddresses
+        // falls back to before aliases are seeded — and two owned addresses is
+        // precisely the shape that produced "me, me".
+        $account           = new Account();
+        $account->email    = 'me@example.test';
+        $account->username = 'me.other@example.test';
 
         $thread          = new MessageThread();
         $thread->account = $account;

@@ -10,6 +10,7 @@ use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Mail\AccountCreator;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
@@ -32,6 +33,7 @@ final readonly class OAuthAccountLinker
         private EntityManagerInterface   $em,
         private PushSubscriptionRegistry $pushRegistry,
         private AliasSeeder              $aliasSeeder,
+        private AccountCreator           $accountCreator,
     ) {
     }
 
@@ -223,6 +225,15 @@ final readonly class OAuthAccountLinker
         }
 
         $this->em->persist($account);
+        $this->em->flush();
+
+        // isPrimary is a stored choice now, not "whichever account sits at
+        // position 0" — so a path that creates an account without going through
+        // AccountCreator has to say who the primary is, or a user whose only
+        // account is an OAuth one ends up with none at all and no badge saying
+        // which address their mail goes out from. Existing primaries are never
+        // stolen; this only fills a gap.
+        $this->accountCreator->ensurePrimary($this->accounts->findForUserOrdered($user));
         $this->em->flush();
 
         return $account;

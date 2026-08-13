@@ -30,7 +30,7 @@
             class="nav-item flex items-center justify-between py-1.5 text-xs transition-colors text-ink-muted"
             style="--label-depth: {{ 12 + label.depth * 12 }}px"
         >
-            <span class="truncate">{{ label.name }}</span>
+            <span class="truncate">{{ label|label_name }}</span>
             {% if not label.isSystem %}
                 {# Counted within this account, and keyed that way too: the
                    sidebar's own label rows carry `label:<id>` and mean every

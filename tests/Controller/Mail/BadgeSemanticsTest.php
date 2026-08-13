@@ -138,7 +138,7 @@ final class BadgeSemanticsTest extends WebTestCase
         $classes = (string) $badge->first()->attr('class');
 
         self::assertStringNotContainsString('bg-accent', $classes, 'a total must not wear the unread accent');
-        self::assertStringContainsString('text-ink-muted', $classes, 'it should read as neutral');
+        self::assertStringContainsString('text-ink-soft', $classes, 'it should read as neutral');
     }
 
     public function testTheInboxBadgeStillWearsTheAccent(): void
@@ -151,6 +151,111 @@ final class BadgeSemanticsTest extends WebTestCase
 
         self::assertGreaterThan(0, $badge->count());
         self::assertStringContainsString('bg-accent', (string) $badge->first()->attr('class'));
+    }
+
+    /**
+     * Drafts is the other total role and was never asserted, which is how it
+     * came to be reported alongside Trash.
+     */
+    public function testTheDraftsBadgeIsNotStyledAsUnreadEither(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $classes = (string) $client->getCrawler()
+            ->filter('[data-count-key="role:drafts"]')
+            ->first()
+            ->attr('class');
+
+        self::assertStringNotContainsString('bg-accent', $classes);
+        self::assertStringContainsString('text-ink-soft', $classes);
+    }
+
+    /**
+     * The rule was right; saying so out loud was not.
+     *
+     * The follow-up report: "Entwürfe 5" and "Papierkorb 2" are totals, "Posteingang
+     * 5" is an unread count, and all three were the same filled pill in the same
+     * place at the same size. One was red and one was a faint grey, and a bare
+     * number in a pill is a bare number — the shape said "badge", not "how many".
+     * Colour alone is also the one channel a reader may not have.
+     *
+     * So the two kinds now differ in SHAPE as well as tone: a call to action is a
+     * filled round pill, a tally is an outlined rectangle. Asserted as "the class
+     * lists differ in the roundness", which is the part a person actually sees,
+     * rather than as an exact string.
+     */
+    public function testATotalAndAnUnreadCountAreNotTheSameShape(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $crawler = $client->getCrawler();
+
+        $unread = (string) $crawler->filter('[data-count-key="role:inbox"]')->first()->attr('class');
+        $total  = (string) $crawler->filter('[data-count-key="role:trash"]')->first()->attr('class');
+
+        self::assertStringContainsString('rounded-full', $unread, 'an unread count is a pill');
+        self::assertStringNotContainsString('rounded-full', $total, 'a total must not be the same pill');
+        self::assertStringContainsString('border', $total, 'and reads as an outlined tally instead');
+    }
+
+    /**
+     * And to a screen reader, where colour and shape both count for nothing,
+     * they were both simply the word "five".
+     */
+    public function testEveryBadgeSaysWhichKindOfNumberItIs(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $badges = $client->getCrawler()->filter('[data-ui--sidebar-target="badge"]');
+
+        self::assertGreaterThan(0, $badges->count());
+
+        $badges->each(static function ($node): void {
+            $key  = (string) $node->attr('data-count-key');
+            $kind = (string) $node->attr('data-badge-kind');
+            $name = (string) $node->attr('aria-label');
+
+            self::assertContains($kind, ['unread', 'total'], sprintf('"%s" has no badge kind', $key));
+            self::assertNotSame('', $name, sprintf('"%s" is an unnamed number', $key));
+            self::assertStringContainsString(
+                trim((string) $node->text()),
+                $name,
+                sprintf('"%s" is named with a different number than it shows', $key),
+            );
+        });
+    }
+
+    /**
+     * The kinds have to agree with the rule rather than being decorated by
+     * hand — a Trash badge marked "unread" would be back to the reported fault
+     * with an accessible name confirming it.
+     */
+    public function testTheBadgeKindsMatchTheTotalRolesRule(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $crawler = $client->getCrawler();
+
+        foreach ([LabelRole::Trash, LabelRole::Drafts] as $role) {
+            self::assertSame(
+                'total',
+                $crawler->filter('[data-count-key="role:' . $role->value . '"]')->first()->attr('data-badge-kind'),
+                $role->value . ' counts the total, so it must say so',
+            );
+        }
+
+        self::assertSame(
+            'unread',
+            $crawler->filter('[data-count-key="role:inbox"]')->first()->attr('data-badge-kind'),
+        );
     }
 
     // ── the new-mail dots, which share this payload ───────────────────────

@@ -59,8 +59,16 @@ Variables:
                 {% endif %}
 
                 <span class="flex-1 min-w-0 flex items-center gap-2">
+                    {# |label_name, not .name. A system label's name column is
+                       its English creation name, so this list read "Inbox /
+                       Sent / Drafts" while the sidebar one panel away read
+                       "Posteingang / Gesendet / Entwürfe" — the same six
+                       folders, disagreeing on screen at the same time. The
+                       filter goes to the sidebar's own translation key, so
+                       there is one name and not two. A user label has no role
+                       and comes back unchanged. #}
                     <span class="truncate text-sm {{ label.isVisible ? 'text-ink' : 'text-ink-faint' }}">
-                        {{ label.name }}
+                        {{ label|label_name }}
                     </span>
                     {% if label.isSystem %}
                         <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-zinc-500/10 text-ink-muted">
@@ -79,7 +87,7 @@ Variables:
                             data-ui--modal-title-value="{{ 'label.form.edit_title'|trans }}"
                             data-ui--modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
-                            aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label.name }) }}"
+                            aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label|label_name }) }}"
                             title="{{ 'label.form.edit_title'|trans }}"
                         >
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
@@ -87,13 +95,13 @@ Variables:
 
                         <form method="post" action="{{ path('app_label_delete', { id: label.id }) }}"
                               data-turbo-confirm="{{ label.children|length > 0
-                                  ? 'label.delete_confirm_children'|trans({ '%name%': label.name, '%count%': label.children|length })
-                                  : 'label.delete_confirm'|trans({ '%name%': label.name }) }}">
+                                  ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': label.children|length })
+                                  : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
                             <button
                                 type="submit"
                                 class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
-                                aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label.name }) }}"
+                                aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label|label_name }) }}"
                                 title="{{ 'label.form.delete'|trans }}"
                             >
                                 <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>

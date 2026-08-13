@@ -66,7 +66,7 @@ final class ThreadParticipants
                 : $this->displayName($message->fromName, $address);
         }
 
-        return array_values($names);
+        return $this->collapse(array_values($names));
     }
 
     /**
@@ -96,7 +96,29 @@ final class ThreadParticipants
             $names[$address] ??= $this->displayName($entry['name'] ?? null, $address);
         }
 
-        return array_values($names);
+        return $this->collapse(array_values($names));
+    }
+
+    /**
+     * One name per person, not one name per address.
+     *
+     * De-duplication happens by address first, because that is what identifies
+     * a participant — but several addresses can resolve to the SAME display
+     * name, and then the column prints it twice. The reported case is a thread
+     * carrying two of the reader's own addresses: both map to "me", and the row
+     * read "me, me". A sender writing from two of their own addresses under one
+     * display name is the same fault with a different name in it.
+     *
+     * The first occurrence wins, so the order participants joined the
+     * conversation in — which is the whole point of this column — survives.
+     *
+     * @param list<string> $names
+     *
+     * @return list<string>
+     */
+    private function collapse(array $names): array
+    {
+        return array_values(array_unique($names));
     }
 
     private function newest(MessageThread $thread): ?Message

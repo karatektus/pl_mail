@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\UserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
@@ -114,5 +115,94 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
         $client->request('POST', $path, ['_token' => 'nonsense', 'code' => '000000']);
 
         self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a forged token");
+    }
+
+    // ── the drag-to-reorder endpoints ─────────────────────────────────────
+
+    /**
+     * The two list-ordering endpoints, which take their token in a header.
+     *
+     * The account one is why this section exists. It was a per-account PATCH
+     * driven by @stimulus-components/sortable, a wrapper that builds its own
+     * multipart body and gives you nowhere to attach a token — so it shipped
+     * with a comment explaining that it had none, and stayed that way. The
+     * rules list had already dropped the wrapper for exactly this reason; the
+     * accounts list now posts the whole order as JSON the same way, and this
+     * test is what stops the next draggable list from repeating it.
+     *
+     * Asserted as 403 rather than "nothing was written": the order is the thing
+     * being written, so a silent no-op and a rejection look the same from the
+     * repository, and only one of them is the endpoint doing its job.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function reorderEndpoints(): iterable
+    {
+        yield 'reorder the account list' => ['/account/reorder'];
+        yield 'reorder the rules list'   => ['/settings/filters/reorder'];
+    }
+
+    #[DataProvider('reorderEndpoints')]
+    public function testReorderEndpointsRejectARequestWithNoToken(string $path): void
+    {
+        $client = $this->signedIn();
+
+        $client->request(
+            'POST',
+            $path,
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['ids' => [2, 1]], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a request with no token");
+    }
+
+    #[DataProvider('reorderEndpoints')]
+    public function testReorderEndpointsRejectAForgedToken(string $path): void
+    {
+        $client = $this->signedIn();
+
+        $client->request(
+            'POST',
+            $path,
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => 'nonsense'],
+            content: json_encode(['ids' => [2, 1]], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a forged token");
+    }
+
+    /**
+     * And the endpoint that chooses which account sends mail, which is new and
+     * is the more valuable of the two to forge: it silently changes the address
+     * everything the user writes afterwards goes out from.
+     */
+    public function testMakingAnAccountPrimaryRejectsAForgedToken(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('POST', '/account/1/primary', ['_token' => 'nonsense']);
+
+        self::assertContains(
+            $client->getResponse()->getStatusCode(),
+            [403, 404],
+            'the primary switch accepted a forged token',
+        );
+    }
+
+    private function signedIn(): KernelBrowser
+    {
+        $client = static::createClient();
+
+        $user = static::getContainer()->get(UserRepository::class)
+            ->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        if (null === $user) {
+            self::markTestSkipped('run `app:test:seed-user --admin` first');
+        }
+
+        $client->loginUser($user);
+
+        return $client;
     }
 }

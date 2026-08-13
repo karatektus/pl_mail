@@ -50,7 +50,7 @@ Variables:
                        class="fa-solid fa-check w-3.5 text-accent
                               {{ activeLabels is defined and label.id in activeLabels ? '' : 'invisible' }}"
                        aria-hidden="true"></i>
-                    <span class="truncate">{{ label.name }}</span>
+                    <span class="truncate">{{ label|label_name }}</span>
                 </button>
             {% endfor %}
         {% endif %}

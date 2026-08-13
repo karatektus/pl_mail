@@ -176,7 +176,7 @@ final class ThemeVariableCompletenessTest extends TestCase
     public function testEveryThemeHasACompletePalette(Theme $theme): void
     {
         $blocks   = self::blocks();
-        $selector = sprintf('[data-theme="%s"]', $theme->value);
+        $selector = sprintf(':root[data-theme="%s"]', $theme->value);
 
         if (Theme::System === $theme || Theme::Light === $theme) {
             self::assertArrayNotHasKey($selector, $blocks, $theme->value . ' should paint from :root/.dark.');
@@ -255,7 +255,7 @@ final class ThemeVariableCompletenessTest extends TestCase
     #[DataProvider('themes')]
     public function testSeededAccentMatchesTheBlock(Theme $theme): void
     {
-        $selector = sprintf('[data-theme="%s"]', $theme->value);
+        $selector = sprintf(':root[data-theme="%s"]', $theme->value);
         $blocks   = self::blocks();
         $block    = $blocks[$selector] ?? $blocks[':root'];
 
@@ -366,7 +366,7 @@ final class ThemeVariableCompletenessTest extends TestCase
     {
         return ':root' === $selector
             || '.dark' === $selector
-            || 1 === preg_match('/^\[data-theme="[a-z-]+"\]$/', $selector);
+            || 1 === preg_match('/^:root\[data-theme="[a-z-]+"\]$/', $selector);
     }
 
     /** @return array<string, string> */

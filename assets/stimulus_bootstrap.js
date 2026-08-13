@@ -1,5 +1,4 @@
 import { startStimulusApp } from '@symfony/stimulus-bundle';
-import Sortable from '@stimulus-components/sortable';
 
 const app = startStimulusApp();
 
@@ -13,6 +12,13 @@ const app = startStimulusApp();
 // prod goes quiet.
 app.debug = document.documentElement.dataset.appDebug === 'true';
 
-app.register('sortable', Sortable);
+// No global 'sortable' controller any more. @stimulus-components/sortable was
+// registered here and driven the accounts list; it builds its own request body
+// and gives you nowhere to attach a CSRF token, which is precisely why the
+// account reorder endpoint went without one. Both draggable lists — rules and
+// accounts — now wrap sortablejs in a controller of their own that posts the
+// whole order as JSON with a token, so the wrapper is gone rather than left
+// registered for the next list to reach for.
+//
 // register any custom, 3rd party controllers here
 // app.register('some_controller_name', SomeImportedController);

@@ -203,7 +203,7 @@
    Everything that separates one thing from another here is the ink colour at
    a low alpha, including the shadow: a neutral-black drop shadow under a warm
    cream card is the one grey thing on the screen. */
-[data-theme="paper"] {
+:root[data-theme="paper"] {
     color-scheme: light;
 
     --rgb-surface:   247 245 239;
@@ -280,7 +280,7 @@
    every primary button paint it behind light text, so it has to be deep
    enough to carry them — a pale sage, which is what the reference uses for
    40px avatar circles, becomes a washed-out slab nothing can be read on. */
-[data-theme="dark"] {
+:root[data-theme="dark"] {
     color-scheme: dark;
 
     --rgb-surface:     28  27  26;
@@ -349,7 +349,7 @@
    to borrow the neutral grey base for --rgb-ink-soft, which was both colder
    than everything around it and DARKER than the --rgb-ink-muted below it, so
    the two steps ran backwards. */
-[data-theme="nord"] {
+:root[data-theme="nord"] {
     color-scheme: dark;
 
     --rgb-surface:    46  52  64;   /* nord0  #2e3440 */
@@ -406,7 +406,7 @@
    backwards step Nord's did, for the same reason: --rgb-ink-soft was a
    neutral grey inherited from the dark base while the ink either side of it
    was tinted. */
-[data-theme="dusk"] {
+:root[data-theme="dusk"] {
     color-scheme: dark;
 
     --rgb-surface:    30  27  46;
@@ -462,7 +462,7 @@
    the wrong sixteen: a cool slate --rgb-ink-soft between two warm greys, a
    #f3f4f6 inset panel on a #fdf6e3 page, and the base link blue where
    Solarized has a blue of its own. */
-[data-theme="solar"] {
+:root[data-theme="solar"] {
     color-scheme: light;
 
     --rgb-surface:   253 246 227;   /* base3  #fdf6e3 */
