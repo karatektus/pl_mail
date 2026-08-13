@@ -14,8 +14,37 @@
 
       2. Destructive repairs are visually separate and never the primary. They
          sit under a rule, in muted text, with the word that says what is lost.
+
+      3. Every repair says what is happening the instant it is pressed, and
+         stops accepting presses until that resolves. The POST repairs get this
+         from `data-turbo-submits-with` — Turbo disables the submitter, swaps
+         its label, and restores both on turbo:submit-end whether the request
+         succeeded or failed. The reconnect LINK cannot use that idiom (it
+         leaves for the provider, so there is no submission to instrument) and
+         is handled by ui--health-repair instead.
+
+         The pending labels are honest about what the press actually did. A
+         resync DISPATCHES a message: "Starting sync…" is true, "Synced" would
+         not be, and the card goes on saying it was started until the worker
+         says otherwise — see the awaiting block below.
 #}
-<section id="settings-health" data-health-section>
+{% import _self as health %}
+<section id="settings-health" data-health-section
+         data-controller="ui--health-repair"
+         {# The words the controller writes. Nothing it renders is spelled in
+            JavaScript; these are the whole of its vocabulary.
+
+            `leaving` is the provider-LESS wording on purpose. Each reconnect
+            link carries its own label in data-health-pending-label naming the
+            brand it is about to send you to; this is only what a link without
+            one falls back to, so it has no placeholder — there would be
+            nothing to fill it with. #}
+         data-ui--health-repair-i18n-value="{{ {
+             leaving:      'settings.health.pending.reconnect_generic'|trans,
+             synced:       'settings.health.outcome.calendar_synced'|trans,
+             failedAgain:  'settings.health.outcome.calendar_failed_again'|trans,
+             stillWaiting: 'settings.health.outcome.calendar_still_waiting'|trans,
+         }|json_encode|e('html_attr') }}">
     <div class="mb-4 px-4 @2xl:px-0">
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.health.heading'|trans }}</h2>
         <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.health.subheading'|trans }}</p>
@@ -72,13 +101,55 @@
                                                 <p class="text-xs text-ink-faint mb-1.5">{{ repair.promiseKey|trans(repair.promiseParams) }}</p>
 
                                                 {% if repair.isPost %}
-                                                    <form method="post" action="{{ path(repair.route, repair.routeParams) }}">
-                                                        <input type="hidden" name="_token" value="{{ csrf_token(repair.csrfTokenId) }}">
-                                                        <button type="submit"
-                                                                class="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink hover:opacity-90 transition-opacity cursor-pointer">
-                                                            {{ repair.labelKey|trans }}
-                                                        </button>
-                                                    </form>
+                                                    {#
+                                                        Wrapped, because on an awaiting card the
+                                                        button starts hidden and something has to
+                                                        hold the waiting line beside it.
+                                                    #}
+                                                    {% set awaiting = issue.isAwaiting and loop.first %}
+
+                                                    {% if awaiting %}
+                                                        {#
+                                                            The press has already happened and the
+                                                            worker has not answered. Saying "Try
+                                                            syncing now" here would invite a second
+                                                            dispatch of a message already queued;
+                                                            saying "Synced" would be a lie, because
+                                                            resyncCalendar only DISPATCHES. So the
+                                                            card says the one thing that is true —
+                                                            it has been started — and waits to be
+                                                            told otherwise by
+                                                            ui--health-repair#_onSyncFinished.
+                                                        #}
+                                                        <div data-ui--health-repair-target="awaiting"
+                                                             data-health-awaiting
+                                                             data-health-calendar-id="{{ repair.routeParams.id }}">
+                                                            <p class="inline-flex items-center gap-2 text-xs font-medium text-ink-muted"
+                                                               role="status" aria-live="polite">
+                                                                <i class="fa-solid fa-circle-notch fa-spin text-[11px]"
+                                                                   data-health-spinner aria-hidden="true"></i>
+                                                                <span data-health-awaiting-label>{{ issue.awaitingKey|trans }}</span>
+                                                            </p>
+
+                                                            {#
+                                                                The way back out, rendered here and
+                                                                hidden rather than built in
+                                                                JavaScript: it carries a CSRF token
+                                                                and a translated label, neither of
+                                                                which a controller could produce.
+                                                                Revealed when the sync reports a
+                                                                failure, or when nothing has been
+                                                                heard for long enough that claiming
+                                                                to still be waiting would be the
+                                                                stuck state rather than the truth.
+                                                            #}
+                                                            <div data-health-retry class="hidden mt-2">
+                                                                {{ health.repairForm(repair) }}
+                                                            </div>
+                                                        </div>
+                                                    {% else %}
+                                                        {{ health.repairForm(repair) }}
+                                                    {% endif %}
                                                 {% else %}
                                                     {#
                                                         A link, not a form: this one leaves the
@@ -88,11 +159,21 @@
                                                         a token to protect — the write happens in
                                                         the callback, behind the state check and
                                                         the address guard.
+
+                                                        data-turbo="false" means Turbo never sees a
+                                                        submission, so data-turbo-submits-with has
+                                                        nothing to instrument and the browser shows
+                                                        nothing at all between the click and the
+                                                        provider's page. ui--health-repair#leave
+                                                        fills that gap and guards the second click.
                                                     #}
                                                     <a href="{{ path(repair.route, repair.routeParams) }}"
                                                        data-turbo="false"
+                                                       data-ui--health-repair-target="leaving"
+                                                       data-action="ui--health-repair#leave"
+                                                       data-health-pending-label="{{ repair.pendingLabelKey|trans(repair.pendingParams) }}"
                                                        class="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink hover:opacity-90 transition-opacity">
-                                                        {{ repair.labelKey|trans }}
+                                                        <span data-health-leave-label>{{ repair.labelKey|trans }}</span>
                                                         <i class="fa-solid fa-arrow-up-right-from-square text-[10px]" aria-hidden="true"></i>
                                                     </a>
                                                 {% endif %}
@@ -116,7 +197,8 @@
                                             <i class="fa-solid fa-chevron-right text-[9px] transition-transform group-open:rotate-90" aria-hidden="true"></i>
                                             {{ 'settings.health.technical_detail'|trans }}
                                         </summary>
-                                        <pre class="mt-2 overflow-x-auto rounded-lg bg-raised px-3 py-2 text-[11px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words">{{ issue.detail }}</pre>
+                                        <pre data-health-detail
+                                             class="mt-2 overflow-x-auto rounded-lg bg-raised px-3 py-2 text-[11px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words">{{ issue.detail }}</pre>
                                     </details>
                                 {% endif %}
 
@@ -134,8 +216,18 @@
                                             <form method="post" action="{{ path(repair.route, repair.routeParams) }}"
                                                   data-turbo-confirm="{{ 'settings.health.confirm.destructive'|trans }}">
                                                 <input type="hidden" name="_token" value="{{ csrf_token(repair.csrfTokenId) }}">
+                                                {# The pending label is reached only AFTER the
+                                                   confirm above has been answered — Turbo raises
+                                                   the dialog before it starts the submission — so
+                                                   this cannot make a purge easier to fire. It only
+                                                   stops a second press of one already agreed to.
+                                                   The button keeps its outline-and-danger styling
+                                                   throughout, never the accent fill of the safe
+                                                   repairs, so the pending state cannot make it
+                                                   look like one of them. #}
                                                 <button type="submit"
-                                                        class="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger hover:bg-hover transition-colors cursor-pointer">
+                                                        data-turbo-submits-with="{{ repair.pendingLabelKey|trans(repair.pendingParams) }}"
+                                                        class="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger hover:bg-hover transition-colors cursor-pointer disabled:cursor-progress disabled:opacity-70">
                                                     {{ repair.labelKey|trans }}
                                                 </button>
                                             </form>
@@ -150,3 +242,30 @@
         </div>
     {% endif %}
 </section>
+
+{#
+    One POST repair, as a form with a token and a button that says what it is
+    doing the instant it is pressed.
+
+    A macro because it is rendered twice for the same repair on an awaiting
+    card — once as the visible control, once hidden behind the waiting line as
+    the way back out — and two copies of a form carrying a CSRF token is two
+    places for the token id to drift.
+
+    `data-turbo-submits-with` goes on the BUTTON, not the form, and that is not
+    a preference: Turbo reads the attribute off the submitter only (see
+    FormSubmission#submitsWith), so on the form it is silently ignored. Turbo
+    disables the submitter for the duration and restores both label and state on
+    turbo:submit-end — including when the request errors, which is what keeps a
+    failed repair from leaving a dead button behind.
+#}
+{% macro repairForm(repair) %}
+    <form method="post" action="{{ path(repair.route, repair.routeParams) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token(repair.csrfTokenId) }}">
+        <button type="submit"
+                data-turbo-submits-with="{{ repair.pendingLabelKey|trans(repair.pendingParams) }}"
+                class="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink hover:opacity-90 transition-opacity cursor-pointer disabled:cursor-progress disabled:opacity-70">
+            {{ repair.labelKey|trans }}
+        </button>
+    </form>
+{% endmacro %}

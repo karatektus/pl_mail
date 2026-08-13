@@ -395,6 +395,39 @@ class Calendar
         $this->syncBackoffUntil = null;
     }
 
+    /**
+     * A retry has been asked for by hand and has not reported back yet.
+     *
+     * Derived rather than stored, and the derivation is exact rather than a
+     * heuristic. Three columns and only three states can produce this shape:
+     *
+     *   - lastSyncError is set, so the last thing this calendar DID was fail;
+     *   - syncFailureCount is zero, and only two things zero it —
+     *     recordSyncSuccess(), which also nulls lastSyncError and is therefore
+     *     excluded by the first clause, and clearSyncBackoff(), which is called
+     *     from exactly one place: the repair button;
+     *   - syncBackoffUntil is null, which recordSyncFailure() re-arms on the
+     *     first failure of any run (a healthy calendar has a null window, so
+     *     the first failure is always news and always counts).
+     *
+     * So this is true between "the user pressed Try syncing now" and "the
+     * worker reported an outcome", and false at every other moment. That is
+     * what lets the health card say the honest thing after the redirect — the
+     * sync was STARTED, not finished — and go on saying it across a reload,
+     * rather than showing an enabled button that invites a second press for
+     * work already queued.
+     *
+     * Deliberately not a timeout: a stale answer here is a card that says it is
+     * waiting when nothing is coming, which the surface handles by offering the
+     * button back rather than by this method guessing at a clock.
+     */
+    public function isAwaitingRequestedSync(): bool
+    {
+        return null !== $this->lastSyncError
+            && 0 === $this->syncFailureCount
+            && null === $this->syncBackoffUntil;
+    }
+
     /** Whether this calendar is inside a window it agreed to wait out. */
     public function isBackingOff(?DateTimeImmutable $now = null): bool
     {
