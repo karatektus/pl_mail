@@ -82,7 +82,7 @@ export default class extends Controller {
 
     /** A preset. The click sets the field; the submit is the button's own. */
     choose(event) {
-        this.fieldTarget.value = event.currentTarget.dataset.scheduleAt ?? "";
+        this._arm(event.currentTarget.dataset.scheduleAt ?? "");
     }
 
     /**
@@ -140,7 +140,7 @@ export default class extends Controller {
         }
 
         this._clearError();
-        this.fieldTarget.value = chosen;
+        this._arm(chosen);
     }
 
     /**
@@ -171,6 +171,26 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * Write the chosen wall clock into the hidden field AND enable it.
+     *
+     * There are two of these controllers in a compose window now — the pill in
+     * the header below md and the pill in the action bar above it — and their
+     * hidden fields share one name, `schedule_at`. Both are inside the same
+     * form, and CSS `display: none` does not keep a control out of a submission:
+     * PHP would take the last `schedule_at` in document order, which is the
+     * pill the user never touched, and a schedule set from the header would
+     * arrive as an empty string.
+     *
+     * A DISABLED control is not submitted at all. So the template ships both
+     * fields disabled and each instance arms only its own, as it writes to it.
+     * The untouched pill stays silent.
+     */
+    _arm(value) {
+        this.fieldTarget.value    = value;
+        this.fieldTarget.disabled = false;
+    }
 
     /**
      * Both halves of hiding, and both are needed.

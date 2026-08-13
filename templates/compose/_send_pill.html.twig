@@ -1,0 +1,197 @@
+{# templates/compose/_send_pill.html.twig #}
+
+{#
+The Send pill, and behind its chevron, send later.
+
+Included TWICE by _window.html.twig and rendered ONCE at any given width:
+
+  • `placement: 'header'` — `md:hidden`, in the window header, where the phone
+    expects it. This is the spot the old plain Send ICON held before the last
+    round removed it; the pill itself lives there now, so scheduling is a thing
+    a phone can do and there is still exactly one Send on screen.
+  • `placement: 'bar'`   — `hidden md:flex`, first in the action bar, which is
+    where the desktop has always had it and where it stays.
+
+The two are the same markup on purpose. The previous shape of this — a header
+icon that could only send and a bar pill that could also schedule — was two
+Send buttons that disagreed about what Send meant. One partial cannot drift
+into that.
+
+**Both directions of the menu are here.** The bar pill opens UPWARD
+(`bottom-full`) out of a window that already sits at the bottom of the screen,
+anchored `left-0` because the pill is the first thing in the bar and a
+right-anchored menu hung 150px off the window's left edge. The header pill is
+the mirror image: it opens DOWNWARD (`top-full`, or the menu clears the top of
+the phone) and anchors `right-0`, because in the header the pill is the LAST
+thing on the row and a left-anchored `w-64` runs off the right of a 320px
+screen. `max-w` keeps the narrow end honest either way.
+
+The positioning box is OUTSIDE the pill because the pill is `overflow-hidden`
+(that is what rounds the two buttons into one shape) and a menu absolutely
+positioned inside it would be clipped to a 30px strip. Same shape as the
+integration picker: relative wrapper, ui--dropdown, a `menu` target that starts
+hidden.
+
+Both halves take a 44px minimum below md. The chevron in particular was an 11px
+hit area at its natural size, which is a control you aim at rather than press.
+
+Every item is a real submit button pointed at the schedule route with
+`formaction`, so choosing a time goes through the same submit path as Send —
+the same guards in compose--compose#_handleSubmit, the same CSRF token, the
+same form body. See compose--schedule.
+
+Variables: message, params (from the including context); placement.
+#}
+{% set placement = placement|default('bar') %}
+{% set header    = 'header' == placement %}
+
+{% set scheduleUrl = null == message.id
+    ? path('app_compose_mail_schedule', params)
+    : path('app_compose_mail_schedule_draft', params|merge({'id': message.id})) %}
+{# The hold already in place, if any. sentAt guards it: on a sent message
+   submissionSendAt is a record of when it was due, not a schedule anyone can
+   still call off. #}
+{% set scheduledAt = (message.id and message.sentAt is null)
+    ? message.submissionSendAt : null %}
+
+<div class="relative shrink-0 {{ header ? 'flex md:hidden ml-1' : 'hidden md:flex mr-2' }}"
+     data-compose-send-pill="{{ placement }}"
+     data-controller="ui--dropdown compose--schedule"
+     data-action="ui--dropdown:opened->compose--schedule#refresh"
+     {# The zone every other timestamp in this app is drawn in — the user's
+        setting, not the browser's guess. The menu computes "tomorrow morning"
+        against it and posts a wall clock; ScheduledSendResolver turns that into
+        an instant with the tz database in hand. #}
+     data-compose--schedule-timezone-value="{{ clock.timezone }}"
+     data-compose--schedule-max-days-value="{{ constant('App\\Service\\Mail\\ScheduledSendResolver::MAX_SECONDS') // 86400 }}"
+     data-compose--schedule-i18n-value="{{ {
+         scheduleUnreadable: 'compose.schedule.error.unreadable'|trans,
+         schedulePast:       'compose.schedule.error.past'|trans,
+         scheduleTooFar:     'compose.schedule.error.too_far'|trans({
+             '%days%': constant('App\\Service\\Mail\\ScheduledSendResolver::MAX_SECONDS') // 86400,
+         }),
+     }|json_encode|e('html_attr') }}">
+
+    <div class="flex items-center rounded-full overflow-hidden bg-accent">
+        <button type="submit"
+                data-compose--compose-target="sendBtn"
+                class="flex items-center justify-center text-white text-sm font-semibold
+                       px-4 py-1.5 max-md:min-h-11 hover:bg-white/10 transition-colors">
+            {{ 'compose.send'|trans }}
+        </button>
+        <button type="button"
+                data-action="click->ui--dropdown#toggle"
+                title="{{ 'compose.send_options'|trans }}"
+                aria-label="{{ 'compose.send_options'|trans }}"
+                class="flex items-center justify-center text-white border-l border-white/30
+                       px-2.5 py-1.5 max-md:min-h-11 max-md:min-w-11
+                       hover:bg-white/10 transition-colors text-xs">
+            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    {# See the note at the top for why the direction and the anchor both flip
+       with the placement. compose-scheduled-send.spec.ts measures the box that
+       comes out of it at 393px and at 320px. #}
+    <div data-ui--dropdown-target="menu" hidden
+         class="absolute z-20 w-64 max-w-[calc(100vw-2rem)] popover py-1
+                {{ header ? 'top-full mt-1 right-0 left-auto' : 'bottom-full mb-1 left-0 right-auto' }}">
+
+        {% if scheduledAt is not null %}
+            {# A draft that is already on a hold. The menu is where the schedule
+               was set, so it is where it can be called off — and unlike the
+               toast, this is still here tomorrow. #}
+            <div class="px-3 py-2 border-b border-line">
+                <p class="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {{ 'compose.schedule.scheduled_for'|trans }}
+                </p>
+                <p class="text-sm text-ink mt-0.5">
+                    {{ 'compose.schedule.when'|trans({
+                        '%date%': scheduledAt|intl_date('dMMM', clock.timezone),
+                        '%time%': scheduledAt|date(clock.time, clock.timezone),
+                    }) }}
+                </p>
+                <button type="button"
+                        data-cancel-url="{{ path('app_compose_mail_undo', params|merge({'id': message.id})) }}"
+                        data-action="click->compose--schedule#cancel click->ui--dropdown#close"
+                        class="mt-1 text-xs text-danger hover:underline cursor-pointer">
+                    {{ 'compose.schedule.cancel'|trans }}
+                </button>
+            </div>
+        {% endif %}
+
+        <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'compose.schedule.heading'|trans }}
+        </p>
+
+        {# Hidden until the controller has a time to put on it: a preset showing
+           its label and no hour is a button whose effect you cannot read.
+
+           `style="display:none"` as well as the attribute, and not belt and
+           braces — `[hidden]` lives in the UA stylesheet, so ANY author rule
+           that sets display wins over it, and `flex` below is exactly such a
+           rule. The attribute stays for the semantics an assistive technology
+           reads; the inline style is what actually keeps it off the screen.
+           Kept in step by compose--schedule. #}
+        {% for key in ['tomorrow_morning', 'tomorrow_afternoon', 'monday_morning'] %}
+            <button type="submit" hidden style="display:none" formnovalidate
+                    formaction="{{ scheduleUrl }}"
+                    data-compose--schedule-target="option"
+                    data-schedule-key="{{ key }}"
+                    data-action="click->compose--schedule#choose"
+                    class="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink-muted
+                           hover:bg-hover hover:text-ink transition-colors text-left">
+                <span>{{ ('compose.schedule.' ~ key)|trans }}</span>
+                <span data-schedule-when class="text-xs text-ink-faint tabular-nums"></span>
+            </button>
+        {% endfor %}
+
+        <div class="my-1 border-t border-line"></div>
+
+        <button type="button"
+                data-compose--schedule-target="toggle"
+                data-action="click->compose--schedule#showCustom"
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                       hover:bg-hover hover:text-ink transition-colors text-left">
+            <i class="fa-regular fa-calendar w-4 text-center" aria-hidden="true"></i>
+            <span>{{ 'compose.schedule.custom'|trans }}</span>
+        </button>
+
+        {# Native input, no picker library — the same choice the calendar event
+           editor makes. #}
+        <div data-compose--schedule-target="custom" hidden class="px-3 py-2 space-y-2">
+            <input type="datetime-local"
+                   data-compose--schedule-target="input"
+                   aria-label="{{ 'compose.schedule.custom'|trans }}"
+                   class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink">
+            {# Named, because a bare time is ambiguous the moment the machine and
+               the setting disagree — which is exactly when it matters. #}
+            <p class="text-[11px] text-ink-faint">
+                {{ 'compose.schedule.timezone_hint'|trans({ '%zone%': clock.timezone }) }}
+            </p>
+            <p data-compose--schedule-target="error" hidden
+               class="text-xs text-danger"></p>
+            <button type="submit" formnovalidate
+                    formaction="{{ scheduleUrl }}"
+                    data-action="click->compose--schedule#confirm"
+                    class="w-full rounded-full bg-accent text-white text-sm font-semibold
+                           px-3 py-1.5 hover:bg-white/10 transition-colors">
+                {{ 'compose.schedule.confirm'|trans }}
+            </button>
+        </div>
+
+        {# The only field of the lot that is submitted. The datetime-local above
+           is deliberately unnamed — the value that counts is the one a preset or
+           the confirm button writes here.
+
+           **`disabled` until a time is actually chosen**, which is new with the
+           second placement. There are two of these in the form now, both named
+           `schedule_at`, and a disabled control is not submitted at all: without
+           it PHP would take the LAST `schedule_at` in document order, which is
+           the pill the user did not touch, and every schedule set from the
+           header would post an empty time. compose--schedule arms its own field
+           as it writes to it. #}
+        <input type="hidden" name="schedule_at" value="" disabled
+               data-compose--schedule-target="field">
+    </div>
+</div>
