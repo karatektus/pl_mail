@@ -263,14 +263,43 @@ final readonly class EventCopyResolver
      * deleted since — would otherwise open the editor with nothing ticked and be
      * told "nothing was chosen" for pressing Save on a form they did not touch.
      *
+     * **A hidden calendar is the last resort and never a preference**, which is
+     * the whole of the silent-save defect. `findForUser()` lists every calendar
+     * including the hidden ones — deliberately, so an existing copy on one can
+     * still be reasoned about — but the views read `findVisibleForUser()`. So
+     * where this method's fallback landed on a hidden calendar, Save wrote a
+     * perfectly good row, answered 302, closed the dialog and put the user back
+     * on a calendar that does not read the row it had just made. No error, no
+     * refusal, nothing to see: the event existed and was unreachable through
+     * every view in the application.
+     *
+     * Settings already refuses to hide the calendar that HOLDS the default flag,
+     * for exactly this reason (CalendarSettingsController::toggleVisibility).
+     * That guard is worth nothing to an account with no default flag at all,
+     * because it is the flag it is written in terms of — and that is the same
+     * state that had these accounts drawing the grid in UTC. Preferring a
+     * visible calendar here closes the case the flag cannot speak for.
+     *
+     * A hidden calendar is still returned when there is no visible writable one,
+     * because the alternative is an editor with nothing ticked and "nothing was
+     * chosen" on Save. The save says so out loud instead — see
+     * CalendarController::eventSave().
+     *
      * @param list<Calendar> $calendars
      */
     private function landingCalendar(array $calendars): ?Calendar
     {
-        $fallback = null;
+        $visible = null;
+        $hidden  = null;
 
         foreach ($calendars as $calendar) {
             if (true === $calendar->isReadOnly) {
+                continue;
+            }
+
+            if (false === $calendar->isVisible) {
+                $hidden ??= $calendar;
+
                 continue;
             }
 
@@ -278,10 +307,10 @@ final readonly class EventCopyResolver
                 return $calendar;
             }
 
-            $fallback ??= $calendar;
+            $visible ??= $calendar;
         }
 
-        return $fallback;
+        return $visible ?? $hidden;
     }
 
     /**

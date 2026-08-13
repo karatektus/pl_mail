@@ -751,6 +751,7 @@ calendar:
                 Unticking one does not remove it: that calendar keeps the copy it
                 has now and stops receiving updates, so it will show up as its own
                 entry once the two no longer match.
+            hidden: This calendar is hidden, so the event will not show until you show it
             legend: Calendars
             read_only: This calendar does not accept changes
         delete: Delete
@@ -1010,7 +1011,11 @@ calendar:
         disconnected_kept: >-
             Server disconnected — %count% event(s) that came from mail rather
             than from a calendar were moved to your default calendar.
+        event_saved: Event saved
         hidden: Calendar hidden
+        saved_on_hidden: >-
+            Event saved on %calendars%, which is hidden — show that calendar to
+            see it.
         shown: Calendar shown
         subscriptions_saved: Subscriptions saved
         subscriptions_saved_kept: >-
@@ -1020,6 +1025,9 @@ calendar:
         sync_queued: Syncing now — this calendar will update in a moment.
         updated: Calendar updated
     today: Today
+    toolbar:
+        range: '%start% – %end%'
+        range_day: '%day%'
     upcoming:
         imminent: Starting within the hour
         later: Coming up today

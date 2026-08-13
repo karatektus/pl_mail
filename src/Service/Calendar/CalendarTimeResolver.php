@@ -7,6 +7,7 @@ namespace App\Service\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -19,11 +20,13 @@ use DateTimeZone;
  * it, and choosing the wrong one moves the event by the offset without ever
  * looking like an error.
  *
- * The zone comes from the calendar rather than from the user's profile.
- * UserTimezoneResolver answers "what clock is this person reading?", which is
- * the right question for a rendered timestamp; a calendar's own zone is what an
- * event with none of its own is stored and shown in, and the two can honestly
- * differ — a shared work calendar pinned to the office.
+ * The zone comes from the calendar rather than from the user's profile, and
+ * falls back to the profile when no calendar answers. UserTimezoneResolver
+ * answers "what clock is this person reading?", which is the right question for
+ * a rendered timestamp; a calendar's own zone is what an event with none of its
+ * own is stored and shown in, and the two can honestly differ — a shared work
+ * calendar pinned to the office. What is never right is falling back past both
+ * of them to the process's zone; see zoneFor().
  *
  * Every parse is total: an unusable zone or an unparseable date returns a
  * fallback or null rather than throwing, because all of it arrives from a
@@ -32,16 +35,34 @@ use DateTimeZone;
 final readonly class CalendarTimeResolver
 {
     public function __construct(
-        private CalendarRepository $calendars,
+        private CalendarRepository   $calendars,
+        private UserTimezoneResolver $timezones,
     ) {
     }
 
-    /** The zone a user's calendar pages and new events are read in. */
+    /**
+     * The zone a user's calendar pages and new events are read in.
+     *
+     * The default calendar's zone when there is one, and the user's OWN
+     * configured zone when there is not — never `date_default_timezone_get()`.
+     * That fallback is the defect this method used to carry, and it is the exact
+     * one UserTimezoneResolver's header warns about: frankenphp/conf.d/10-app.ini
+     * pins PHP's default to UTC, which is right for arithmetic and catastrophic
+     * as a display default.
+     *
+     * A user with no default calendar is not exotic — the flag is per-user and
+     * nothing re-asserts it, so a calendar deleted or provisioned before the
+     * flag existed leaves the account without one. Every such account had its
+     * whole calendar drawn in UTC: the current-time line two hours off the
+     * gutter it is read against, and a new event proposed at the next full UTC
+     * hour, which for a Berlin user in summer is a slot already an hour past.
+     * Neither looks like an error; both are just wrong by the offset.
+     */
     public function zoneFor(User $user): DateTimeZone
     {
         $calendar = $this->calendars->findDefaultForUser($user);
 
-        return $this->safeZone($calendar->timeZone ?? date_default_timezone_get());
+        return $this->safeZone($calendar->timeZone ?? $this->timezones->nameFor($user));
     }
 
     /**

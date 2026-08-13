@@ -498,6 +498,7 @@ calendar:
                 it. Unmarkin' one throws naught overboard: that almanac keeps the
                 copy it holds now an' takes no more news, so it shall sail as its
                 own entry once the two no longer match.
+            hidden: This almanac be stowed below, so the reckonin' stays out o' sight till ye bring it on deck
             legend: Almanacs
             read_only: This almanac takes no changes
         delete: Scuttle it
@@ -755,7 +756,11 @@ calendar:
         disconnected_kept: >-
             Line cut — %count% reckonin(s) that came off a parrot an' not off an
             almanac were rowed over to yer own almanac.
+        event_saved: Reckonin' logged
         hidden: Almanac stowed below
+        saved_on_hidden: >-
+            Reckonin' logged in %calendars%, which be stowed below — bring that
+            almanac on deck to lay eyes on it.
         shown: Almanac brought on deck
         subscriptions_saved: Yer choosin' be stowed
         subscriptions_saved_kept: >-
@@ -765,6 +770,9 @@ calendar:
         sync_queued: Haulin' now — this almanac comes about in a moment.
         updated: Almanac amended
     today: This day
+    toolbar:
+        range: '%start% – %end%'
+        range_day: '%day%'
     upcoming:
         imminent: Within the hour
         later: Later this day

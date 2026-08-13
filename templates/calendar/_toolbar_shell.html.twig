@@ -122,15 +122,35 @@ Blocks:
         {%- if spanLabel -%}
             {% set spanStart = rangeFrom %}
             {% set spanEnd = rangeTo|date_modify('-1 day') %}
+            {% set sameYear = spanStart|date('Y', false) == spanEnd|date('Y', false) %}
+            {% set sameMonth = sameYear and spanStart|date('n', false) == spanEnd|date('n', false) %}
+
             {# The start drops whatever the end already says: within one month
                it is a bare day number, within one year a day and month. The
                comparisons stay on PHP's numeric formats because they are
                arithmetic on the date, not text anybody reads — only the
-               rendered halves go through the locale. #}
-            {{ spanStart|intl_date(spanStart|date('Y', false) == spanEnd|date('Y', false)
-                ? (spanStart|date('n', false) == spanEnd|date('n', false) ? 'd' : 'dMMM')
-                : 'dMMMy', false) }}
-            – {{ spanEnd|intl_date('dMMMy', false) }}
+               rendered halves go through the locale.
+
+               **The bare day number and the join are both translated, and they
+               have to be.** ICU's `d` skeleton is the digits and nothing else in
+               every locale, which is right for "which day" and wrong for a
+               German date: German writes an ordinal, `10.`, and dropping the dot
+               produced `10 – 16. Aug. 2026` — one end ordinal and the other not,
+               in a header where everything around it (`6. Aug.`, `27. Juli`)
+               observes the convention. The dash is the same problem from the
+               other side: English sets an en dash with spaces, German sets it
+               closed up. Neither is expressible as a skeleton, because neither
+               is a field — they are how the language joins two dates it has
+               already formatted, so they live in the catalogue with the rest of
+               the sentences. #}
+            {%- set spanStartText = sameMonth
+                ? 'calendar.toolbar.range_day'|trans({ '%day%': spanStart|date('j', false) })
+                : spanStart|intl_date(sameYear ? 'dMMM' : 'dMMMy', false) -%}
+
+            {{- 'calendar.toolbar.range'|trans({
+                '%start%': spanStartText,
+                '%end%':   spanEnd|intl_date('dMMMy', false),
+            }) -}}
         {%- elseif view.value == 'month' -%}
             {{ anchor|intl_date('yMMMM', false) }}
         {%- else -%}

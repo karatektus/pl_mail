@@ -62,6 +62,7 @@ final readonly class CalendarRangeReader
         private CalendarEventOccurrenceRepository $occurrences,
         private EventClusterer                    $clusterer,
         private DayGridLayout                     $layout,
+        private CalendarTimeResolver              $time,
     ) {
     }
 
@@ -77,7 +78,7 @@ final readonly class CalendarRangeReader
      */
     public function read(User $user, CalendarView $view, DateTimeImmutable $anchor): array
     {
-        $zone = $this->zoneOf($user, $anchor);
+        $zone = $this->zoneOf($user);
 
         [$from, $to] = $view->range($anchor->setTimezone($zone));
 
@@ -161,18 +162,21 @@ final readonly class CalendarRangeReader
     }
 
     /**
-     * The user's default calendar decides the display zone. Falling back to the
-     * server's is right for a self-hosted app: it is the machine the user set
-     * up, not an arbitrary datacentre.
+     * The clock this view is drawn on, and it is CalendarTimeResolver's answer
+     * rather than a second one computed here.
+     *
+     * This method used to repeat that resolution — default calendar's zone, else
+     * `date_default_timezone_get()` — and the repetition was the bug. PHP's
+     * default is pinned to UTC in this container, so a user with no default
+     * calendar had the grid positioned in UTC while the gutter beside it is
+     * labelled 00:00–23:00 by hour index and therefore looks local: the
+     * current-time line sat two hours off its own labels for a Berlin reader,
+     * and every block was placed against the same wrong clock. One resolver
+     * means the grid, the chips printed on it (see _event_chip's `chip_zone`)
+     * and the editor a click opens cannot disagree.
      */
-    private function zoneOf(User $user, DateTimeImmutable $anchor): DateTimeZone
+    private function zoneOf(User $user): DateTimeZone
     {
-        $calendar = $this->calendars->findDefaultForUser($user);
-
-        try {
-            return new DateTimeZone($calendar->timeZone ?? date_default_timezone_get());
-        } catch (\Exception) {
-            return $anchor->getTimezone();
-        }
+        return $this->time->zoneFor($user);
     }
 }

@@ -9,6 +9,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarTimeResolver;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 
@@ -24,6 +25,39 @@ final class CalendarTimeResolverTest extends TestCase
         $resolver = $this->resolver('Europe/Berlin');
 
         self::assertSame('Europe/Berlin', $resolver->zoneFor(new User())->getName());
+    }
+
+    /**
+     * **No default calendar falls back to the USER, never to the process.**
+     *
+     * The flag is per-user and nothing re-asserts it, so an account reaches this
+     * state by ordinary means: a default calendar deleted, or one provisioned
+     * before the flag existed. This method used to answer
+     * `date_default_timezone_get()` there, which frankenphp/conf.d/10-app.ini
+     * pins to UTC — so every such account had its whole calendar drawn on a
+     * clock two hours off the one it was labelled with. The current-time line
+     * sat at the UTC minute over a gutter running 00:00–23:00 by hour index, and
+     * a new event was proposed at the next full UTC hour, which for a Berlin
+     * user in summer is a slot already an hour past.
+     *
+     * Asserted as "not UTC" as well as "the user's", because UTC is exactly the
+     * wrong answer that looks like a right one.
+     */
+    public function testAnAccountWithNoDefaultCalendarIsReadInTheUsersOwnZone(): void
+    {
+        $zone = $this->resolverFor(null, 'Europe/Berlin')->zoneFor(new User());
+
+        self::assertSame('Europe/Berlin', $zone->getName());
+        self::assertNotSame('UTC', $zone->getName());
+    }
+
+    /** And it follows the install's configured default rather than a constant. */
+    public function testTheFallbackFollowsTheInstallsConfiguredZone(): void
+    {
+        self::assertSame(
+            'America/New_York',
+            $this->resolverFor(null, 'America/New_York')->zoneFor(new User())->getName(),
+        );
     }
 
     /**
@@ -150,9 +184,18 @@ final class CalendarTimeResolverTest extends TestCase
             $calendar->timeZone = $calendarZone;
         }
 
+        return $this->resolverFor($calendar);
+    }
+
+    /**
+     * @param Calendar|null $calendar what findDefaultForUser() answers — null
+     *                                for an account that has no default one
+     */
+    private function resolverFor(?Calendar $calendar, string $installDefault = 'Europe/Berlin'): CalendarTimeResolver
+    {
         $calendars = $this->createStub(CalendarRepository::class);
         $calendars->method('findDefaultForUser')->willReturn($calendar);
 
-        return new CalendarTimeResolver($calendars);
+        return new CalendarTimeResolver($calendars, new UserTimezoneResolver($installDefault));
     }
 }
