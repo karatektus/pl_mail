@@ -150,6 +150,15 @@ test.describe("calendar", () => {
         await modal.getByRole("button", { name: "Save" }).click();
 
         await expect(page.getByRole("button", { name: new RegExp(TITLE) }).first()).toBeVisible();
+
+        // And it SAYS so. A save used to redirect in silence, which is
+        // indistinguishable from a form that did nothing the moment the event
+        // lands somewhere the view does not read — see
+        // CalendarSaveVisibilityTest for the case where that happened, and for
+        // why "the chip is visible" alone was not enough to catch it.
+        await expect(page.locator('#toast-region [data-flash-toast="success"]')).toContainText(
+            "Event saved",
+        );
     });
 
     test("switches between day, week and month", async ({ page }) => {

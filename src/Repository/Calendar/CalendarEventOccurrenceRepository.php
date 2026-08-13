@@ -145,6 +145,22 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
             ->setParameter('from', $from)
             ->setParameter('to', $to)
             ->orderBy('occurrence.startsAt', 'ASC')
+            // The tiebreaker is not decoration, and it is the same one
+            // findInRange() above already carries. A meeting held on two
+            // calendars is two occurrences at the SAME instant, so ordering on
+            // startsAt alone leaves them tied and Postgres free to return them
+            // in whatever order the plan happens to produce. EventClusterer
+            // preserves that order into the cluster, so the merged row's label
+            // read "On Account, Mirror" on one run and "On Mirror, Account" on
+            // the next — from the same rows, with nothing having changed. It
+            // also decides which member is the cluster's PRIMARY, which is the
+            // event a click on the row opens.
+            //
+            // It surfaced as an intermittent failure in HappeningSoonReaderTest
+            // and HappeningSoonPanelTest, which is the same defect seen from the
+            // suite's side: whether they passed depended on the physical row
+            // layout the rest of the run happened to leave behind.
+            ->addOrderBy('occurrence.id', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

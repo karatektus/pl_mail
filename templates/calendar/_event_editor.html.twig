@@ -226,6 +226,25 @@ on an empty string, and clearing the location is a thing a user may mean.
                                    title="{{ 'calendar.event.copies.read_only'|trans }}"
                                    aria-label="{{ 'calendar.event.copies.read_only'|trans }}"></i>
                             {% endif %}
+
+                            {# A hidden calendar is offered — it is still a place
+                               this meeting can legitimately be — but it is
+                               marked, because nothing else on screen would say
+                               so. Ticking one writes an event that no view then
+                               draws: the grid, the month and the agenda all read
+                               findVisibleForUser(), so the save succeeds and the
+                               event is nowhere. That silence is the defect this
+                               badge and the save's own toast exist to end.
+
+                               Not `disabled` like the read-only case, which is a
+                               different statement: read-only means the write
+                               would be refused, hidden means it would be
+                               accepted and unseen. #}
+                            {% if not copy.calendar.isVisible %}
+                                <i class="fa-solid fa-eye-slash text-[9px] shrink-0"
+                                   title="{{ 'calendar.event.copies.hidden'|trans }}"
+                                   aria-label="{{ 'calendar.event.copies.hidden'|trans }}"></i>
+                            {% endif %}
                         </label>
                     {% endfor %}
                 </div>

@@ -517,7 +517,57 @@ final class CalendarController extends AbstractController
             $targets,
         ));
 
+        $this->announceWrite($targets);
+
         return $this->redirectAfterWrite($request, $landOn->format('Y-m-d'));
+    }
+
+    /**
+     * Say that the save happened, and say when it happened somewhere the user
+     * cannot see.
+     *
+     * The second half is the point and the first exists to make it legible. A
+     * save used to redirect in complete silence: no toast, no sentence, nothing
+     * but the calendar redrawn. That is survivable while every write lands
+     * somewhere visible, and it is indistinguishable from a broken form the
+     * moment one does not — which is exactly what a save onto a hidden calendar
+     * is. The row is written, the redirect is a 302, the dialog closes on
+     * `turbo:submit-end` because the submit genuinely succeeded, and the event
+     * is absent from the week, the month and the agenda for as long as the
+     * calendar stays hidden. Every symptom of a save that silently did nothing,
+     * from a save that did exactly what it was asked.
+     *
+     * EventCopyResolver::landingCalendar() now avoids aiming at a hidden
+     * calendar in the first place, so reaching the warning below takes either an
+     * account whose only writable calendar is hidden or a user who ticked one on
+     * purpose. Both are legitimate; neither should be silent.
+     *
+     * Named calendars rather than a general apology, because "it is on a hidden
+     * calendar" without saying which one leaves the user to find it by
+     * unhiding them one at a time.
+     *
+     * @param list<EventCopy> $targets
+     */
+    private function announceWrite(array $targets): void
+    {
+        $hidden = [];
+
+        foreach ($targets as $target) {
+            if (false === $target->calendar->isVisible) {
+                $hidden[] = (string) $target->calendar->name;
+            }
+        }
+
+        if (count($hidden) !== count($targets)) {
+            $this->addFlash('success', $this->translator->trans('calendar.toast.event_saved'));
+
+            return;
+        }
+
+        $this->addFlash('info', $this->translator->trans(
+            'calendar.toast.saved_on_hidden',
+            ['%calendars%' => implode(', ', $hidden)],
+        ));
     }
 
     /**
