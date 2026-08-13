@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:037f8baa49967f6c92c940a57150f637478e1aa8 -->
+<!-- translated-from: features/calendar.md sha1:af1e5c395dc605272681d2abc97fcd89a53bcafe -->
 
 # Kalender
 
@@ -85,6 +85,15 @@ Monat und Agenda haben in keiner der beiden Gestalten eine Zeitachse. Eine Monat
 Quadratzentimeter groß und hat keinen Platz zu sagen, wo im Tag etwas liegt; und der ganze Wert einer
 Agenda besteht darin, die leere Zeit zu überspringen — also genau das, was eine Rasterachse zeichnen
 würde.
+
+**Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
+Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
+auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
+dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird. Trägt ein Kalender eine
+eigene Zeitzone, gilt sie für seine Termine, wie eh und je; geändert hat sich der Rückfall, der
+früher die Vorstellung des Containers von der Zeit war — UTC —, sodass die Linie der aktuellen Zeit
+ein bis zwei Stunden neben ihren eigenen Beschriftungen sitzen konnte und ein neuer Termin für einen
+bereits vergangenen Zeitpunkt vorgeschlagen wurde.
 
 Drei Dinge über das Raster sind es wert, gewusst zu werden:
 
@@ -248,6 +257,11 @@ Kalender lassen sich löschen; das Löschen nimmt jeden Termin darin mit.
 
 Einen Kalender auszublenden, blendet ihn überall aus, und zwar einheitlich: die Ansichten, die
 Anzeige des Nächsten in der Kopfleiste und die Liste *Demnächst* lesen ausschließlich sichtbare
+Kalender. Die Ausnahme ist der **Editor**, und zwar mit Absicht: Er listet jeden Kalender auf, der
+dir gehört, ausgeblendete mit einem durchgestrichenen Auge neben dem Schloss für Nur-Lesen — denn
+eine Kopie einer Besprechung auf einem ausgeblendeten Kalender ist immer noch eine Tatsache über
+diese Besprechung. Auf einen solchen zu speichern ist damit eine informierte Wahl und keine Falle
+— und ein Speichern, das irgendwo landet, wo du es nicht sehen kannst, sagt das und nennt den
 Kalender.
 
 ## Fallstricke
@@ -256,6 +270,13 @@ Kalender.
 Kopie in Ruhe“. Die Kopie bleibt, wo sie ist, ist sich mit den geänderten nicht mehr einig und
 erscheint von da an als eigener Eintrag. Um eine Besprechung aus einem Kalender zu nehmen, hak diesen
 Kalender an und drück **Löschen** — das Löschen wirkt auf genau die angehakten.
+
+**Ein Termin, der auf einem ausgeblendeten Kalender gespeichert wird, taucht in keiner Ansicht
+auf.** Der Editor listet ausgeblendete Kalender; die Tages-, Wochen-, Monats- und Agendaansicht tun
+es nicht. Das Speichern gelingt also, der Eintrag existiert, und die Besprechung ist nirgends zu
+finden, bis der Kalender unter **Einstellungen → Kalender** wieder sichtbar gemacht wird. plMail
+bestätigt inzwischen jedes Speichern und nennt den Kalender, wenn es einer ist, den du nicht sehen
+kannst — aber diese Bestätigung ist das Einzige, was es dir sagen wird.
 
 **Eine Kopie eines Termins aus der Mail ist immer noch ein Termin aus der Mail.** Eine Besprechung
 auf einen zweiten Kalender zu legen, schneidet keine der beiden Kopien von der Buchung ab, aus der

@@ -77,6 +77,14 @@ Month and Agenda have no time axis in either shape. A month cell is a couple of 
 and has no room to say where in the day anything is; an agenda's whole value is that it skips the
 empty time, which is exactly the axis a grid would draw.
 
+**The grid is drawn on your clock.** The hours down the side, where the red current-time line sits,
+and the time a new event is proposed at when you double-click empty space all follow the timezone in
+**Settings → General**. That is the same zone every other timestamp in the app is read against.
+Where a calendar carries a time zone of its own it wins for the events on it, as it always has; what
+changed is the fallback, which used to be the container's own idea of the time — UTC — so the
+current-time line could sit an hour or two away from the labels beside it and a new event was
+proposed at a slot already in the past.
+
 Three things about the grid are worth knowing:
 
 - **The all-day band is always there**, even on a week with nothing in it, so the grid does not jump
@@ -226,7 +234,11 @@ made yourself, and mirrors of remote ones, can be deleted; deleting takes every 
 calendar with it.
 
 Hiding a calendar hides it everywhere, consistently: the views, the topbar's next-thing indicator,
-and the *Happening soon* list all read visible calendars only.
+and the *Happening soon* list all read visible calendars only. The **editor** is the exception, and
+deliberately: it lists every calendar you own, hidden ones marked with a struck-through eye beside
+the read-only lock, because a copy of a meeting on a hidden calendar is still a fact about the
+meeting. Saving onto one is then an informed choice rather than a trap — and a save that lands
+somewhere you cannot see says so and names the calendar.
 
 ## Things that bite
 
@@ -234,6 +246,12 @@ and the *Happening soon* list all read visible calendars only.
 alone". The copy stays where it is, stops agreeing with the ones you did change, and appears as a
 separate entry from then on. To take a meeting off a calendar, tick that calendar and press
 **Delete** — the delete acts on exactly the ticked ones.
+
+**An event saved to a hidden calendar appears in no view at all.** The editor lists hidden
+calendars; the day, week, month and agenda views do not. So the save succeeds, the row exists, and
+the meeting is nowhere to be found until the calendar is made visible again in
+**Settings → Calendars**. plMail now confirms every save and names the calendar when it is one you
+cannot see, but the confirmation is the only thing that will tell you.
 
 **A copy of an event that came from mail is still an event from mail.** Putting a meeting on a
 second calendar does not cut either copy off from the booking it was read out of: a later message

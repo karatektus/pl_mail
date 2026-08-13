@@ -51,17 +51,31 @@ is managed by connecting and disconnecting rather than by a settings page.
 
 ## The account list
 
-Accounts are listed in your own order and can be dragged to reorder. The order is not cosmetic: the
-**first** account is the primary one, which is what a new compose window starts from. Removing an
-account renumbers the rest, so the top row is always the primary.
+Accounts are listed in your own order and can be dragged to reorder. **The order is cosmetic.** It
+decides where a row sits and nothing else.
+
+Which account a new message is composed from is a separate, stored choice: the primary account,
+marked **Primary** on its row and set by **Make primary** on any other. This used to be the same
+thing — the top row was the primary — which meant tidying the list silently changed the address you
+send from, with nothing on screen saying so. Two decisions, two controls.
+
+The coloured dot beside each account is its **identity colour**: the same tone that account's
+messages wear in the unified lists, so two accounts can be told apart at a glance in a list that
+mixes them. It is handed out when the account is added and never moves again — reordering the list
+does not repaint it, and it is **not** a status light. Whether an account is actually working is
+answered on [Account health](health.md), which is the one place that claims to answer it.
 
 Each row offers:
 
 | Control | Effect |
 |---|---|
+| **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
 | **Remove account** | Deletes the account and every message synced from it |
+
+The primary flag is never lost. Removing the account that held it hands it to another, and the very
+first account you add is primary because there is nothing for it to inherit from.
 
 Removing an account deletes its synced mail from plMail's database and nothing at the provider. It
 also tries to tear down any push registration it had, so nothing is left pointing at an account
@@ -139,10 +153,25 @@ One caveat plMail states on the page itself: **Outlook sends as the account's pr
 regardless of what you choose here.** That is Microsoft's behaviour, changed in your Microsoft
 account settings, not here.
 
+### What each address does by default
+
+Two settings hang off the alias list rather than off the account, because they are properties of the
+address people see rather than of the mailbox it lives in.
+
+**Compose defaults**, under the alias list on the same page, currently holds one control per
+address: what that address does when a sender asks to be told their mail was read. The default is
+**Never send**, and it is worth understanding before changing it — see
+[Read receipts](mail.md#read-receipts).
+
+**Settings → Signatures** is its own section. The account has a signature, and any of its addresses
+can either inherit it, replace it, or deliberately sign with nothing. The three states and what the
+compose window does with them are in [Composing](mail.md#signature).
+
 ## Where to read further
 
 - [IMAP and SMTP](../providers/imap-smtp.md), [Google](../providers/google.md),
   [Microsoft](../providers/microsoft.md) — the exact provider-side setup.
+- [Account health](health.md) — what is broken, and the repairs that keep your mail.
 - [Mail ingest](../internals/mail-ingest.md) — what a sync run actually does.
 - [Configuration reference](../install/configuration.md) — `APP_PUBLIC_URL`, the OAuth variables
   and the Pub/Sub ones.
@@ -150,9 +179,14 @@ account settings, not here.
 
 ## Things that bite
 
-**The first account in the list is the primary one.** Reordering by drag therefore changes which
-account a new message is composed from. There is no separate "make primary" button, and none is
-coming — the order is the setting.
+**Reordering the list no longer changes which account you send from.** It used to, and an install
+upgraded from an older version keeps whichever account was first at the moment it upgraded. If
+Compose starts from the wrong address, the fix is **Make primary** on the right one — dragging it to
+the top will not do it.
+
+**A dead sign-in does not have to mean re-adding the account.** Deleting a broken account and adding
+it again is the reflex, and it costs you every message synced from it. **Settings → Account health**
+offers a reconnect that keeps the mailbox; see [Account health](health.md).
 
 **A large mailbox takes a while to arrive in full.** plMail syncs everything the account holds;
 there is no setting that bounds it. The newest mail lands first, and the rest follows over the

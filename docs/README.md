@@ -25,8 +25,9 @@ mechanism behind it.
 
 | Page | What it covers |
 |---|---|
-| [Mail](features/mail.md) | Reading, threads, labels, search and its operators, snooze, attachments, composing, drafts, undo send |
+| [Mail](features/mail.md) | Reading, threads, labels, search and its operators, snooze, attachments, composing, signatures, emoji and inline images, scheduled send, read receipts, drafts, undo send |
 | [Accounts and aliases](features/accounts.md) | Adding Gmail, Outlook and IMAP accounts, sending aliases, per-account settings |
+| [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail |
 | [Filters](features/filters.md) | Condition trees, actions, the plain-English restatement, applying a rule to mail that already arrived |
 | [Calendar](features/calendar.md) | The four views and the time grid, creating and editing events, recurrence, editing one occurrence, the docked pane |
 | [Invitations and events from mail](features/calendar-invitations.md) | RSVP, events extracted from invitations and from ordinary prose, proposals, Happening Soon |
