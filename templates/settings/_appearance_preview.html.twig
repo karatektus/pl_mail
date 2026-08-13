@@ -1,0 +1,99 @@
+{#
+The appearance preview: a mail list and a message, in miniature.
+
+Its own file because it is markup, not logic — the panel around it is already
+long — and because keeping it separate makes the one rule about it easy to
+state and easy to check: NOTHING HERE IS FETCHED AND NOTHING HERE IS REAL. The
+three rows are literal strings from the translation catalogue. There is no
+query, no `messages` variable, no route.
+
+What it is not: a second implementation of the thread row. It carries the same
+hooks app.css drives the real row through (data-surface, data-account-corner,
+data-row-avatar-face, data-row-snippet, row-unread, list-row-y, reading-y), so
+the preview and the list are painted by one set of rules. It is a smaller
+arrangement of the same parts, not a drawing of them — a drawing would be free
+to be wrong.
+
+`@container` on the list: the snippet's two-line clamp is a container query
+matching the real list's `@xl`, and this pane is narrow, so the preview shows
+the stacked behaviour — which is the one the second line exists for.
+#}
+{# `bg-surface`, fully opaque, and that is a contrast decision rather than a
+   taste one. This started as `bg-surface/95 backdrop-blur`, which looked
+   right and measured wrong: the 5% that showed through lifted the ground under
+   the sample snippet enough to drop --rgb-ink-faint to 4.20:1 in Dark and
+   4.25:1 in Dusk. The theme guarantees that tier ≥4.5:1 ON --rgb-surface —
+   ThemeInkContrastTest holds every theme to it — so anything less than the
+   full surface is spending a guarantee the palette made. An opaque bar is
+   also what a sticky header should be: the controls scrolling underneath it
+   must not read through the preview they are driving. #}
+<section class="sticky top-0 z-20 -mt-2 pt-2 pb-3 bg-surface"
+         aria-label="{{ 'settings.appearance.preview.heading'|trans }}">
+    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.preview.heading'|trans }}</h2>
+    <p class="text-xs text-ink-faint mt-0.5 mb-2">{{ 'settings.appearance.preview.subheading'|trans }}</p>
+
+    {# aria-hidden, and this is deliberate rather than lazy. Every control on
+       this page has its own accessible name saying what it does; the preview
+       adds no information a screen-reader user can act on, and read out it is
+       three invented senders and a paragraph of filler between them and the
+       next control. The section keeps its own label so the region is still
+       announced and skippable. #}
+    <div class="rounded-pane border border-line overflow-hidden" aria-hidden="true">
+        <div data-surface="list" class="@container divide-y divide-line">
+            {% for row in [
+                { unread: true,  seed: 'ada@plmail.test',    tone: 'bg-sky-500/20 text-sky-700 dark:text-sky-300' },
+                { unread: false, seed: 'grace@plmail.test',  tone: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+                { unread: false, seed: 'kathleen@plmail.test', tone: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+            ] %}
+                {# `relative`, because the Strong emphasis bar is an ::before on
+                   this element and an absolute child needs a positioned parent
+                   — the same reason the real row carries it. #}
+                <div class="relative" data-unread="{{ row.unread ? 'true' : 'false' }}" data-preview-row>
+                    {% if loop.index == 1 %}
+                        <span data-account-corner
+                              class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 bg-sky-500 [clip-path:polygon(0_0,0_100%,100%_100%)]"></span>
+                    {% endif %}
+
+                    <div class="flex items-center gap-3 pl-3 pr-3 list-row-y
+                                {{ row.unread ? 'row-unread' : 'bg-transparent' }}">
+                        <span data-row-avatar-face
+                              class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-semibold select-none shrink-0 {{ row.tone }}">
+                            {{ ('settings.appearance.preview.sender' ~ loop.index)|trans|first|upper }}
+                        </span>
+
+                        <span class="min-w-0 flex-1 flex flex-col">
+                            <span class="truncate text-sm {{ row.unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
+                                {{ ('settings.appearance.preview.sender' ~ loop.index)|trans }}
+                            </span>
+                            <span class="truncate text-sm mt-0.5 {{ row.unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
+                                {{ ('settings.appearance.preview.subject' ~ loop.index)|trans }}
+                            </span>
+                            <span data-row-snippet class="truncate text-sm text-ink-faint mt-0.5">
+                                {{ 'settings.appearance.preview.snippet'|trans }}
+                            </span>
+                        </span>
+
+                        <span class="text-xs text-ink-faint shrink-0">{{ 'now'|date(clock.time) }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {# The reading pane half, so the per-surface density controls have
+           something to differ against. `mail-sheet` is the real utility: the
+           reading pane switches to the theme's light sheet in every theme, and
+           a preview that kept the app's surface would show the setting against
+           the wrong background. #}
+        <div data-surface="reading" class="mail-sheet border-t border-line px-3">
+            <div class="reading-y">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-sky-500/20 text-sky-700 text-[10px] font-semibold flex items-center justify-center shrink-0">
+                        {{ 'settings.appearance.preview.sender1'|trans|first|upper }}
+                    </span>
+                    <span class="text-xs font-semibold text-ink truncate">{{ 'settings.appearance.preview.sender1'|trans }}</span>
+                </div>
+                <p class="text-xs text-ink-soft mt-1.5 leading-relaxed">{{ 'settings.appearance.preview.body'|trans }}</p>
+            </div>
+        </div>
+    </div>
+</section>

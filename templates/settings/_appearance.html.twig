@@ -8,6 +8,24 @@
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}">
 
+    {# ── Live preview ──────────────────────────────────────────────────────
+       A mail list and a message, in miniature, wearing the settings on this
+       page. Sticky, so it stays on screen while the controls that drive it
+       scroll past — the whole point is that nobody has to leave for the inbox
+       and come back to find out what a knob did.
+
+       SELF-CONTAINED by construction: not one line of it is fetched, and the
+       sample below is literal text, not a real thread. A preview that read the
+       inbox would be a second renderer of the mail list to keep in step with
+       the first, and it would put somebody's actual correspondence on a
+       settings page that a support screenshot is likely to capture.
+
+       It is styled by the SAME rules as the real list — data-surface="list",
+       data-account-corner, data-row-snippet, row-unread, list-row-y are the
+       real hooks from app.css, not a copy — so a preview that looks right and
+       a list that does not is a failure mode this cannot have. #}
+    {% include 'settings/_appearance_preview.html.twig' %}
+
     {# ── Theme ─────────────────────────────────────────────────────────── #}
     <section>
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h2>
@@ -200,16 +218,25 @@
     </section>
 
     {# ── Density ───────────────────────────────────────────────────────── #}
-    <section>
-        <h2 class="text-sm font-semibold text-ink mb-3">{{ 'settings.appearance.density.heading'|trans }}</h2>
+    <section class="space-y-4">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.density.subheading'|trans }}</p>
+        </div>
+
         <div class="inline-flex rounded-pane border border-line overflow-hidden">
             {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
                 <label class="cursor-pointer">
+                    {# The three padding scales travel on the radio, so the JS
+                       resolving a surface has one place to read them from and
+                       the numbers stay in the Density enum. #}
                     <input type="radio" name="density" class="peer sr-only"
                            value="{{ density.value }}"
                            data-settings--appearance-field="density"
                            data-row-y="{{ density.rowPadding }}"
                            data-gap="{{ density.gap }}"
+                           data-list-row-y="{{ density.listRowPadding }}"
+                           data-reading-row-y="{{ density.readingBlockPadding }}"
                            data-action="change->settings--appearance#pickDensity"
                         {{ a.density == density ? 'checked' : '' }}>
                     <span class="block px-4 py-2 text-sm text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
@@ -218,6 +245,218 @@
                 </label>
             {% endfor %}
         </div>
+
+        {# ── Per surface ───────────────────────────────────────────────────
+           The one knob that can honestly differ between the three panes, and
+           the reason the others cannot is structural rather than unfinished
+           work: the list and the reading pane are ONE painted surface
+           (`.main-pane` wraps both and carries the background, the blur, the
+           border and the radius), so opacity, blur, corner radius and the
+           background scrim have no way to differ between them without
+           splitting that pane in two. Density can, because it is padding
+           inside rows rather than a property of the surface under them.
+
+           Text size is global for a different reason: every size in the app is
+           a Tailwind `rem` utility, and `rem` resolves against the ROOT — a
+           font-size on one pane moves nothing inside it.
+
+           "Follow" rather than a duplicate of the global value, so a surface
+           that has not been given an opinion tracks the control above instead
+           of freezing at whatever it happened to be. #}
+        <div class="space-y-2 pt-1">
+            {% for surface in ['sidebar', 'list', 'reading'] %}
+                {% set current = attribute(a, surface ~ 'Density') %}
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <span class="text-xs font-medium text-ink-muted" id="surface-density-{{ surface }}">
+                        {{ ('settings.appearance.density.surface.' ~ surface)|trans }}
+                    </span>
+
+                    <div class="inline-flex rounded-pane border border-line overflow-hidden"
+                         role="radiogroup" aria-labelledby="surface-density-{{ surface }}">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="{{ surface }}Density" class="peer sr-only" value=""
+                                   data-settings--appearance-field="{{ surface }}Density"
+                                   data-surface-density="{{ surface }}"
+                                   data-action="change->settings--appearance#pickSurfaceDensity"
+                                   aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
+                                {{ current is null ? 'checked' : '' }}>
+                            <span class="block px-2.5 py-1.5 text-[11px] text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
+                                {{ 'settings.appearance.density.follow'|trans }}
+                            </span>
+                        </label>
+
+                        {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
+                            <label class="cursor-pointer">
+                                <input type="radio" name="{{ surface }}Density" class="peer sr-only"
+                                       value="{{ density.value }}"
+                                       data-settings--appearance-field="{{ surface }}Density"
+                                       data-surface-density="{{ surface }}"
+                                       data-action="change->settings--appearance#pickSurfaceDensity"
+                                       aria-label="{{ ('settings.appearance.density.surface.' ~ surface)|trans }} — {{ ('settings.appearance.density.' ~ density.value)|trans }}"
+                                    {{ current == density ? 'checked' : '' }}>
+                                <span class="block px-2.5 py-1.5 text-[11px] text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
+                                    {{ ('settings.appearance.density.' ~ density.value)|trans }}
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Mail list ─────────────────────────────────────────────────────────
+       What a row in the message list shows. Every default is what the list did
+       before these controls existed, so nothing moves for anybody who never
+       comes here. #}
+    <section class="space-y-4">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.list.subheading'|trans }}</p>
+        </div>
+
+        {# The two on/off settings. A checkbox cannot carry its own state into
+           the payload — save() reads `input.value`, which is "on" whether a
+           box is ticked or not — so each drives a hidden field holding "1" or
+           "0", the same pattern the ink and main-pane defaults use. #}
+        {% set toggles = [
+            {
+                field: 'accountCorner',
+                on:    a.accountCorner,
+                vars:  { on: { '--list-corner-display': 'block' }, off: { '--list-corner-display': 'none' } },
+            },
+            {
+                field: 'listAvatars',
+                on:    a.listAvatars,
+                vars:  { on: { '--list-avatar-hide': '0' }, off: { '--list-avatar-hide': '1' } },
+            },
+        ] %}
+
+        {% for toggle in toggles %}
+            <label class="flex items-start justify-between gap-3 cursor-pointer">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ ('settings.appearance.list.' ~ toggle.field)|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}</span>
+                </span>
+                <input type="checkbox" class="accent-accent cursor-pointer mt-0.5 shrink-0"
+                       data-toggles="{{ toggle.field }}"
+                       data-css-vars-on="{{ toggle.vars.on|json_encode }}"
+                       data-css-vars-off="{{ toggle.vars.off|json_encode }}"
+                       data-action="change->settings--appearance#toggleListOption"
+                    {{ toggle.on ? 'checked' : '' }}>
+                <input type="hidden" data-settings--appearance-field="{{ toggle.field }}"
+                       data-toggle-field="{{ toggle.field }}" value="{{ toggle.on ? '1' : '0' }}">
+            </label>
+        {% endfor %}
+
+        {# Preview lines. The values are the CSS the row needs rather than the
+           count, for the reason AppearanceRenderer gives: nothing in CSS
+           derives "hidden" from a count, and `truncate`'s nowrap has to be
+           released for a second line to exist. Two is the ceiling because the
+           row has room for two. #}
+        <div>
+            <span class="block text-xs font-medium text-ink-muted mb-2" id="preview-lines-label">
+                {{ 'settings.appearance.list.previewLines'|trans }}
+            </span>
+            <div class="inline-flex rounded-pane border border-line overflow-hidden"
+                 role="radiogroup" aria-labelledby="preview-lines-label">
+                {% set lineOptions = {
+                    0: { '--list-preview-display': 'none', '--list-preview-display-wide': 'none', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
+                    1: { '--list-preview-display': 'block', '--list-preview-display-wide': 'block', '--list-preview-lines': '1', '--list-preview-wrap': 'nowrap' },
+                    2: { '--list-preview-display': '-webkit-box', '--list-preview-display-wide': 'block', '--list-preview-lines': '2', '--list-preview-wrap': 'normal' },
+                } %}
+                {% for lines, vars in lineOptions %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="previewLines" class="peer sr-only" value="{{ lines }}"
+                               data-settings--appearance-field="previewLines"
+                               data-css-vars="{{ vars|json_encode }}"
+                               data-action="change->settings--appearance#applyVars"
+                               aria-label="{{ ('settings.appearance.list.previewLines' ~ lines)|trans }}"
+                            {{ a.previewLines == lines ? 'checked' : '' }}>
+                        <span class="block px-3 py-1.5 text-xs text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
+                            {{ ('settings.appearance.list.previewLines' ~ lines)|trans }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Unread emphasis. The BOLD WEIGHT is not part of this and does not
+           move: it survives a colour-blind reader, a photograph behind a
+           translucent pane and a printout, which the tint does not. What
+           varies is the tint's strength and, at Strong, an accent bar down the
+           row's leading edge. #}
+        <div>
+            <span class="block text-xs font-medium text-ink-muted mb-2" id="unread-emphasis-label">
+                {{ 'settings.appearance.list.unreadEmphasis'|trans }}
+            </span>
+            <div class="inline-flex rounded-pane border border-line overflow-hidden"
+                 role="radiogroup" aria-labelledby="unread-emphasis-label">
+                {% for emphasis in enum('App\\Domain\\Enum\\Theme\\UnreadEmphasis').cases %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="unreadEmphasis" class="peer sr-only" value="{{ emphasis.value }}"
+                               data-settings--appearance-field="unreadEmphasis"
+                               data-css-vars="{{ { '--unread-emphasis': emphasis.tintScale, '--unread-bar-w': emphasis.barWidth }|json_encode }}"
+                               data-action="change->settings--appearance#applyVars"
+                               aria-label="{{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}"
+                            {{ a.unreadEmphasis == emphasis ? 'checked' : '' }}>
+                        <span class="block px-3 py-1.5 text-xs text-ink-muted peer-checked:bg-accent peer-checked:text-accent-ink transition-colors">
+                            {{ ('settings.appearance.list.unread.' ~ emphasis.value)|trans }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {# ── Typography ────────────────────────────────────────────────────────
+       The interface's typeface and size, and NOT the compose window's. Those
+       two pickers look alike and are opposites: the compose ones write
+       `style="font-family:…"` into the message HTML and go out with the mail,
+       these never leave the chrome. app.css pins the editor's own size in px,
+       outside the rem cascade this scale moves, so composing at 1.25 still
+       shows the size that will be sent. The hint below says so, because
+       nothing on screen otherwise would. #}
+    <section class="space-y-4">
+        <div>
+            <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h2>
+            <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.typography.subheading'|trans }}</p>
+        </div>
+
+        <label class="flex items-center justify-between gap-3">
+            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.typography.family'|trans }}</span>
+            <select data-settings--appearance-field="fontFamily"
+                    data-action="change->settings--appearance#applyVars"
+                    {{ select.enhance() }}
+                    class="select-field w-48 h-9 text-sm">
+                {% for family in enum('App\\Domain\\Enum\\Theme\\FontFamily').cases %}
+                    <option value="{{ family.value }}"
+                            data-css-vars="{{ { '--app-font-family': family.stack }|json_encode }}"
+                            {{ a.fontFamily == family ? 'selected' : '' }}>
+                        {{ ('settings.appearance.typography.font.' ~ family.value)|trans }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="block">
+            <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.typography.scale'|trans }}</span>
+            {# The ends are Appearance::RANGE_FONT_SCALE, read from the constant
+               so the slider and the clamp cannot drift — the same reason the
+               JMAP session publishes them. #}
+            <input type="range"
+                   min="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['min'] }}"
+                   max="{{ constant('App\\Entity\\Embeddable\\Appearance::RANGE_FONT_SCALE')['max'] }}"
+                   step="0.025"
+                   value="{{ a.fontScale }}"
+                   data-settings--appearance-field="fontScale"
+                   data-css-variable="--app-font-scale"
+                   data-css-suffix=""
+                   data-action="input->settings--appearance#slide"
+                   aria-label="{{ 'settings.appearance.typography.scale'|trans }}"
+                   class="w-full mt-2 accent-accent cursor-pointer">
+            <span class="block text-[11px] text-ink-faint mt-1">{{ 'settings.appearance.typography.scaleHint'|trans }}</span>
+        </label>
     </section>
 
     {# ── Background ────────────────────────────────────────────────────── #}

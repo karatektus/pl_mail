@@ -28,7 +28,7 @@ Variables:
        longer note in _partials/_thread_row.html.twig. #}
     {% set snippet = message.bodyText ? message.bodyText|trim : '' %}
 
-    <div id="thread_message_{{ message.id }}" class="border-b border-line last:border-b-0 py-4 first:pt-0">
+    <div id="thread_message_{{ message.id }}" class="border-b border-line last:border-b-0 reading-y first:pt-0">
         <turbo-frame id="{{ draftFrame }}">
             <a
                 href="{{ path('app_compose_edit', composeParams|merge({ id: message.id })) }}"
@@ -76,7 +76,7 @@ Variables:
 
 <div
     id="thread_message_{{ message.id }}"
-    class="border-b border-line last:border-b-0 py-4 first:pt-0"
+    class="border-b border-line last:border-b-0 reading-y first:pt-0"
     data-controller="mail--thread-message"
     data-mail--thread-message-expanded-value="{{ expanded ? 'true' : 'false' }}"
 >

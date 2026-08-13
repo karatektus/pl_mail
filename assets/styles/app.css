@@ -85,6 +85,13 @@
     --hover-alpha:        0.03;
     --shadow-alpha:       0.05;
     --sunken-alpha:       1;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
     --field-border-alpha: 0.4;
     --danger-soft-alpha:  0.08;
@@ -123,6 +130,40 @@
     --density-row-y: 0.875rem;
     --density-gap:   0.75rem;
     --scrim-alpha:   0;
+
+    /* Typography. The scale multiplies the 16px root below; the family is the
+       INTERFACE's, never the compose editor's — see the pin further down. */
+    --app-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                       "Helvetica Neue", Arial, sans-serif;
+    --app-font-scale: 1;
+
+    /* Mail list display. Every default here is what the list did before the
+       settings existed, so these values are also the answer for a reader with
+       no account at all (the login screen, a shared calendar). */
+    --list-corner-display:  block;
+    --list-avatar-hide:     0;
+    --list-preview-display:      block;
+    --list-preview-display-wide: block;
+    --list-preview-lines:        1;
+    --list-preview-wrap:         nowrap;
+
+    /* How loudly an unread row is tinted. --unread-tint-alpha is the THEME's
+       base (it is in the palette inventory below, declared by every block);
+       the multiplier and the bar are the USER's, written inline by
+       AppearanceRenderer from the emphasis setting. */
+    --unread-emphasis:  1;
+    --unread-bar-w:     0px;
+
+    /* Per-surface density. AppearanceRenderer resolves each surface to a
+       concrete pair — a surface with no override of its own is emitted
+       carrying the global density's values, so these defaults only ever serve
+       a page rendered for nobody. */
+    --surface-sidebar-row-y: 0.875rem;
+    --surface-sidebar-gap:   0.75rem;
+    --surface-list-row-y:    0.625rem;
+    --surface-list-gap:      0.75rem;
+    --surface-reading-row-y: 1rem;
+    --surface-reading-gap:   0.75rem;
 
     /* One height for every pane's header row. The mail toolbar and the
        calendar toolbar sit side by side once the pane is docked, so two
@@ -173,6 +214,13 @@
     --hover-alpha:        0.04;
     --shadow-alpha:       0.3;
     --sunken-alpha:       0.06;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
     --field-border-alpha: 0.3;
     --danger-soft-alpha:  0.12;
@@ -238,6 +286,13 @@
     --hover-alpha:        0.035;
     --shadow-alpha:       0.05;
     --sunken-alpha:       0.04;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
     --field-border-alpha: 0.4;
     --danger-soft-alpha:  0.08;
@@ -324,6 +379,13 @@
     --hover-alpha:        0.05;
     --shadow-alpha:       0.45;
     --sunken-alpha:       0.07;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
     --field-border-alpha: 0.10;
     --danger-soft-alpha:  0.12;
@@ -384,6 +446,13 @@
     --hover-alpha:        0.04;
     --shadow-alpha:       0.3;
     --sunken-alpha:       0.06;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
     --field-border-alpha: 0.3;
     --danger-soft-alpha:  0.12;
@@ -441,6 +510,13 @@
     --hover-alpha:        0.04;
     --shadow-alpha:       0.3;
     --sunken-alpha:       0.06;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
     --field-border-alpha: 0.3;
     --danger-soft-alpha:  0.12;
@@ -502,6 +578,13 @@
     --hover-alpha:        0.03;
     --shadow-alpha:       0.05;
     --sunken-alpha:       1;
+
+    /* The tint behind an unread row, as it has always been: white light
+       over the surface, heavy on a light palette and barely there on a dark
+       one. It was `bg-white/40 dark:bg-white/[0.03]` inline on the thread
+       row until the emphasis setting needed something it could scale. The
+       user's multiplier is --unread-emphasis and lives in :root. */
+    --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
     --field-border-alpha: 0.4;
     --danger-soft-alpha:  0.08;
@@ -916,6 +999,44 @@
 @utility row-y {
     padding-block: var(--density-row-y);
 }
+
+/* One row of the mail list. Comfortable resolves to 0.625rem, which is the
+   `py-2.5` this row was hardcoded to before density reached it — so the
+   default install's geometry is unchanged and the other two steps go down
+   from it. See Density::listRowPadding(). */
+@utility list-row-y {
+    padding-block: var(--surface-list-row-y);
+}
+
+/* One message block in the reading pane. Comfortable is the old `py-4`. */
+@utility reading-y {
+    padding-block: var(--surface-reading-row-y);
+}
+
+/*
+   The tint behind an unread row.
+
+   Its own utility rather than `bg-white/40 dark:bg-white/[0.03]` inline,
+   because the emphasis setting has to be able to scale it and a pair of
+   hardcoded Tailwind alphas cannot be scaled by anything. The two numbers are
+   the same two numbers; they moved to :root and .dark, where a theme can also
+   disagree with them if it ever needs to.
+
+   White is written out rather than tokenised: it is white in all seven themes
+   today, and what actually differs between them is how much of it — which is
+   --unread-tint-alpha, and which every palette block declares. A channel that
+   no theme would ever set differently is a variable with one value and a
+   maintenance cost in nine places.
+
+   The hover state is deliberately NOT expressed here — the row keeps its
+   `hover:bg-white/60`, which is emitted in Tailwind's variant layer and so
+   still wins over this. A row you are pointing at should light up at every
+   emphasis setting, including Subtle, where the tint is otherwise zero.
+*/
+@utility row-unread {
+    background-color: rgb(255 255 255 / calc(var(--unread-tint-alpha) * var(--unread-emphasis)));
+}
+
 @utility alert-danger {
     background-color: rgb(var(--rgb-danger) / var(--danger-soft-alpha));
     border: 1px solid rgb(var(--rgb-danger) / 0.25);
@@ -1567,6 +1688,181 @@ emoji-picker {
    editor's own typeface. */
 [data-compose--compose-toolbar-target="editor"] {
     font-family: 'Noto Color Emoji', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ═══ Appearance: typography, the mail list, and per-surface density ════════
+   Everything below is driven by custom properties AppearanceRenderer writes
+   inline on <html>. That is not a decoration of the existing scheme, it IS the
+   scheme: the appearance already travels as an inline `style` block, the
+   logged-out replay in _layout/app.html.twig already restores it verbatim, and
+   the settings pane's live preview already works by setting the same
+   properties. A feature expressed as a variable inherits all three for free; a
+   feature expressed as a class on <html> would have needed a fourth path
+   through each of them.
+
+   These rules are deliberately UNLAYERED, so they win over the Tailwind
+   utilities (which live in @layer utilities) they have to override —
+   `truncate`'s white-space above all. Layer order, not specificity, decides
+   that, which is why none of this needs !important.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Typography ────────────────────────────────────────────────────────────
+   The scale multiplies the root, so every rem-based size in the app — which is
+   every Tailwind text, spacing and radius utility — moves together. Scaling
+   the utilities individually would mean enumerating them, and missing one
+   shows up as a 13px label beside a 17px one.
+
+   `font-size` on <html> and not on <body>: `rem` is defined against the root
+   element specifically, so setting it on body scales precisely nothing. */
+html {
+    font-size: calc(16px * var(--app-font-scale));
+    font-family: var(--app-font-family);
+}
+
+/*
+   The compose editor is exempt, and this is the one rule here whose job is to
+   STOP a setting reaching something.
+
+   The editor's font size and family are per-message formatting: the toolbar
+   above it writes `style="font-family:…"` and `style="font-size:…"` into spans
+   that go out with the mail, and the sender's own eye is the only check on
+   whether what they wrote looks right. If the interface scale moved the editor
+   too, composing at 1.25 would produce mail that arrives 25% smaller than it
+   looked while being written, and nothing on screen would ever have said so.
+   So the editor's base is stated in px, outside the rem cascade; the toolbar's
+   own inline styles still win over it, because they are inline.
+
+   14px / 1.625 is `text-sm leading-relaxed`, which is what the element already
+   carries in the template. This pins that number rather than changing it.
+*/
+[data-compose--compose-toolbar-target="editor"] {
+    font-size: 14px;
+    line-height: 1.625;
+}
+
+/* ── Per-surface density ───────────────────────────────────────────────────
+   Three surfaces re-point the density tokens at their own resolved pair. The
+   pairs are resolved server-side rather than through a CSS fallback chain,
+   because `--density-row-y: var(--x, var(--density-row-y))` is a cycle on the
+   element declaring it, and every other spelling writes the global value out
+   twice.
+
+   The attributes live on the wrappers in _layout/_mailbox.html.twig rather
+   than inside the panes: the sidebar partial is a file this change
+   deliberately does not touch, and hanging the attribute on the wrapper that
+   includes it gets the same cascade without editing it. */
+[data-surface="sidebar"] {
+    --density-row-y: var(--surface-sidebar-row-y);
+    --density-gap:   var(--surface-sidebar-gap);
+}
+
+[data-surface="list"] {
+    --density-gap: var(--surface-list-gap);
+}
+
+[data-surface="reading"] {
+    --density-row-y: var(--surface-reading-row-y);
+    --density-gap:   var(--surface-reading-gap);
+}
+
+/* ── Mail list display ─────────────────────────────────────────────────────
+   Each control drives a property the row already had, so the row's markup only
+   grew hooks — no branch in Twig, no second markup path, and the miniature
+   preview in the settings pane is styled by these same rules rather than by a
+   copy of them that could drift. */
+
+/* The account corner: the coloured triangle in a row's lower-left. */
+[data-account-corner] {
+    display: var(--list-corner-display);
+}
+
+/*
+   The sender disc, switched off.
+
+   Not `display: none`: the disc IS the row's checkbox — the real input is
+   sr-only behind it, and every bulk action in the toolbar reads it — so hiding
+   it would take selection away along with the colour. An overlay in the same
+   slot covers the tone and the initial and leaves a plain outlined circle
+   behind, so the row keeps its geometry and its click target. The check
+   overlay is a SIBLING of this element and painted after it, so a selected or
+   hovered row still shows its tick.
+*/
+[data-row-avatar-face] {
+    position: relative;
+}
+
+[data-row-avatar-face]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-color: rgb(var(--rgb-surface));
+    box-shadow: inset 0 0 0 1px rgb(var(--rgb-line) / 0.45);
+    opacity: var(--list-avatar-hide);
+    transition: opacity 150ms;
+    pointer-events: none;
+}
+
+/*
+   The preview line, and how many of it there are.
+
+   Stacked, the row has room for a second line and the clamp engages. Wide, it
+   does not: the subject and the preview share one line by design, and a second
+   preview line there pushes the subject onto a row of its own, which is the
+   arrangement the wide layout exists to avoid. So the wide branch takes the
+   same on/off switch without the clamp.
+
+   `@container`, matching the row's own `@xl` (Tailwind's 36rem container
+   width, written out by hand because a plain rule cannot use the variant): the
+   row switches on the LIST's width, not the viewport's — the list is narrower
+   than a phone whenever the calendar pane is docked wide.
+*/
+/*
+   `:not(.hidden)` is load-bearing, and only on the stacked branch. A scheduled
+   draft's row carries `hidden @xl:inline-block` on this very element — the
+   badge saying when it goes has already eaten the line, and what is left of
+   the snippet at 393px is two characters and an ellipsis. These rules are
+   unlayered and would otherwise beat that `.hidden` and put the fragment back.
+   Wide, where the row shows both, there is nothing to exempt.
+*/
+[data-row-snippet]:not(.hidden) {
+    display: var(--list-preview-display);
+    -webkit-line-clamp: var(--list-preview-lines);
+    -webkit-box-orient: vertical;
+    white-space: var(--list-preview-wrap);
+    overflow: hidden;
+}
+
+@container (min-width: 36rem) {
+    [data-row-snippet] {
+        display: var(--list-preview-display-wide);
+        -webkit-line-clamp: 1;
+        white-space: nowrap;
+    }
+}
+
+/*
+   The accent bar down an unread row's leading edge — Strong emphasis only,
+   where --unread-bar-w is 3px; it is 0px at the other two and paints nothing.
+
+   A pseudo-element on the row rather than markup, so the row's Twig knows
+   nothing about it. It is the row's first child in paint order, which is what
+   keeps the account corner — a positioned element later in the DOM — on top of
+   it where the two meet in the bottom-left.
+
+   `[data-unread="true"]` and not `li[…]`: the settings preview's rows are
+   divs, and the point of that preview is that it is painted by these rules
+   rather than by a copy of them. The attribute is written on mail rows and
+   nowhere else, so the loose selector costs nothing.
+*/
+[data-unread="true"]::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--unread-bar-w);
+    background-color: rgb(var(--rgb-accent));
+    pointer-events: none;
 }
 
 /* A link in the body has to LOOK like one.
